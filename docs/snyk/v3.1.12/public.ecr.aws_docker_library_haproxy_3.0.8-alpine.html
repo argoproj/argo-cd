@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="15 known vulnerabilities found in 41 vulnerable dependency paths.">
+  <meta name="description" content="5 known vulnerabilities found in 42 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,716 +492,35 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">January 25th 2026, 12:25:49 am (UTC+00:00)</p>
+                <p class="timestamp">January 25th 2026, 12:33:58 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
-                <span>Scanned the following paths:</span>
+                <span>Scanned the following path:</span>
                 <ul>
-                  <li class="paths">ghcr.io/dexidp/dex:v2.43.0/dexidp/dex (apk)</li>
-                  <li class="paths">ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4//usr/local/bin/gomplate (gomodules)</li>
-                  <li class="paths">ghcr.io/dexidp/dex:v2.43.0/dexidp/dex//usr/local/bin/docker-entrypoint (gomodules)</li>
-                  <li class="paths">ghcr.io/dexidp/dex:v2.43.0/dexidp/dex//usr/local/bin/dex (gomodules)</li>
+                  <li class="paths">public.ecr.aws/docker/library/haproxy:3.0.8-alpine/docker/library/haproxy (apk)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>15</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>41 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>1131</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>5</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>42 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>19</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
-
+      <section class="layout-container">
+          <table class="metatable">
+              <tbody>
+              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|public.ecr.aws/docker/library/haproxy</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">public.ecr.aws/docker/library/haproxy:3.0.8-alpine/docker/library/haproxy</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Package Manager</th> <td class="meta-row-value">apk</td></tr>
+              
+              </tbody>
+          </table>
+      </section>
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--high">
-                        <span class="label__text">high severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            golang.org/x/oauth2/jws
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/oauth2/jws@v0.24.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/oauth2/jws@v0.24.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling due to improper parsing of malformed tokens which can lead to memory consumption.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/oauth2/jws</code> to version 0.27.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/golang/oauth2/commit/681b4d8edca1bcfea5bce685d77ea7b82ed3e7b3">GitHub Commit</a></li>
-        <li><a href="https://github.com/lestrrat-go/jwx/commit/d0bb4610154d45b7dce7d706a8068ea72586d249">GitHub Commit</a></li>
-        <li><a href="https://github.com/golang/go/issues/71490">GitHub Issue</a></li>
-        <li><a href="https://github.com/lestrrat-go/jwx/pull/1308">GitHub PR</a></li>
-        <li><a href="https://pkg.go.dev/vuln/GO-2025-3488">Go Advisory</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXOAUTH2JWS-8749594">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Server-side Request Forgery (SSRF)</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--high">
-                        <span class="label__text">high severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            golang.org/x/net/http/httpproxy
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/net/http/httpproxy@v0.32.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/net/http/httpproxy@v0.32.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/golang.org/x/net/http/httpproxy">golang.org/x/net/http/httpproxy</a> is a package for HTTP proxy determination based on environment variables, as provided by net/http&#39;s ProxyFromEnvironment function</p>
-        <p>Affected versions of this package are vulnerable to Server-side Request Forgery (SSRF) in <code>proxy.go</code>, because hostname matching against proxy patterns may treat an IPv6 zone ID as a hostname component. An environment variable value like <code>*.example.com</code> could be matched to a request intended for <code>[::1%25.example.com]:80</code>.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/net/http/httpproxy</code> to version 0.36.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://go-review.googlesource.com/c/go/+/654717/4/src/vendor/golang.org/x/net/http/httpproxy/proxy.go">Git Commit</a></li>
-        <li><a href="https://github.com/golang/go/commit/3705a6f1f0a66e70916bb09f50f4fcd1c520df53">GitHub Commit</a></li>
-        <li><a href="https://github.com/golang/net/commit/76f9bf3279eff2e596db4960a78a2665d0ff9405">GitHub Commit</a></li>
-        <li><a href="https://github.com/golang/go/issues/71984">GitHub Issue</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTTPHTTPPROXY-9058601">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Improper Handling of Unexpected Data Type</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--high">
-                        <span class="label__text">high severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Proof of Concept</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            golang.org/x/crypto/ssh/agent
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh/agent@v0.31.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/agent@v0.31.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Improper Handling of Unexpected Data Type when functions including <code>List()</code> and <code>SignWithFlags()</code> process <code>*successAgentMsg</code>. This can be triggered by a malicious agent sending a single <code>0x06</code> byte (<code>SSH_AGENT_SUCCESS</code>), which is unmarshalled into a <code>*successAgentMsg</code>, causing a panic and client crash.</p>
-        <h2 id="details">Details</h2>
-        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
-        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
-        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
-        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
-        <p>Two common types of DoS vulnerabilities:</p>
-        <ul>
-        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="https://security.snyk.io/vuln/SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
-        </li>
-        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
-        </li>
-        </ul>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/crypto/ssh/agent</code> to version 0.43.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/golang/crypto/commit/559e062ce8bfd6a39925294620b50906ca2a6f95">GitHub Commit</a></li>
-        <li><a href="https://github.com/golang/go/issues/75178">GitHub Issue</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSHAGENT-12668891">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--high">
-                        <span class="label__text">high severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            golang.org/x/crypto/ssh
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh@v0.31.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@v0.31.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
-        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling in <code>handshakeTransport</code> in <code>handshake.go</code>. An internal queue gets populated with received packets during the key exchange process, while waiting for the client to send a <code>SSH_MSG_KEXINIT</code>. An attacker can cause the server to become unresponsive to new connections by delaying or withholding this message, or by causing the queue to consume all available memory.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.35.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://go.dev/cl/652135">Git Commit</a></li>
-        <li><a href="https://go.dev/issue/71931">Go Issue</a></li>
-        <li><a href="https://pkg.go.dev/vuln/GO-2025-3487">Vulnerability Advisory</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-8747056">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Asymmetric Resource Consumption (Amplification)</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--high">
-                        <span class="label__text">high severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/golang-jwt/jwt/v5
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v4@* and github.com/golang-jwt/jwt/v5@v5.2.1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/golang-jwt/jwt/v5@v5.2.1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Asymmetric Resource Consumption (Amplification) through the <code>parse.ParseUnverified</code> function. An attacker can cause excessive memory allocation by sending a crafted request with many period characters in the <code>Authorization</code> header.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/golang-jwt/jwt/v5</code> to version 5.2.2 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/golang-jwt/jwt/commit/0951d184286dece21f73c85673fd308786ffe9c3">GitHub Commit</a></li>
-        <li><a href="https://github.com/golang-jwt/jwt/releases/tag/v4.5.2">GitHub Release 4.5.2</a></li>
-        <li><a href="https://github.com/golang-jwt/jwt/releases/tag/v5.2.2">GitHub Release 5.2.2</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOLANGJWTJWTV5-9510922">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Out-of-bounds Read</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            golang.org/x/crypto/ssh/agent
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh/agent@v0.31.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh/agent@v0.31.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Out-of-bounds Read via the SSH Agent servers. An attacker can cause a panic and disrupt service availability by sending a specially crafted, malformed message that triggers an out-of-bounds read.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/crypto/ssh/agent</code> to version 0.45.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://pkg.go.dev/vuln/GO-2025-4135">GO-2025-4135</a></li>
-        <li><a href="https://go.googlesource.com/crypto/+/f91f7a7c31bf90b39c1de895ad116a2bacc88748">go.dev Commit</a></li>
-        <li><a href="https://go.dev/issue/76364">go.dev Issue</a></li>
-        <li><a href="https://groups.google.com/g/golang-announce/c/w-oX3UxNcZA">Google Groups Forum</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSHAGENT-14059804">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            golang.org/x/crypto/ssh
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v4@* and golang.org/x/crypto/ssh@v0.31.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/crypto/ssh@v0.31.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/golang.org/x/crypto/ssh?tab=doc">golang.org/x/crypto/ssh</a> is a SSH client and server</p>
-        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling via the SSH servers. An attacker can exhaust system memory resources by sending GSSAPI authentication requests with an excessive number of mechanisms specified.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/crypto/ssh</code> to version 0.45.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://go.googlesource.com/crypto/+/e79546e28b85ea53dd37afe1c4102746ef553b9c">Fix Commit</a></li>
-        <li><a href="https://pkg.go.dev/vuln/GO-2025-4134">GO-2025-4134</a></li>
-        <li><a href="https://go.dev/issue/76363">go.dev Issue</a></li>
-        <li><a href="https://groups.google.com/g/golang-announce/c/w-oX3UxNcZA">Google Groups Forum</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXCRYPTOSSH-14059803">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Observable Discrepancy</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Proof of Concept</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/hashicorp/vault/api/auth/userpass
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/vault/api/auth/userpass@v0.8.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/vault/api/auth/userpass@v0.8.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Observable Discrepancy via <code>userpass</code> auth method. An attacker can enumerate valid usernames on this auth method through brute force or a list of known usernames.</p>
-        <p>##Workaround</p>
-        <p>This issue can be partially mitigated by using rate-limit quotas in Vault or enabling network level controls for rate limiting that restrict access to Vault. Customers may also consider enforcing login MFA for the userpass auth mounts.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>github.com/hashicorp/vault/api/auth/userpass</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://discuss.hashicorp.com/t/hcsec-2025-21-vault-user-enumeration-in-userpass-auth-method/76095">HashiCorp Discussion</a></li>
-        <li><a href="https://cyata.ai/blog/cracking-the-vault-how-we-found-zero-day-flaws-in-authentication-identity-and-authorization-in-hashicorp-vault/">Security Report</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMHASHICORPVAULTAPIAUTHUSERPASS-13517971">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/go-jose/go-jose/v4
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v4@* and github.com/go-jose/go-jose/v4@v4.0.2
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-jose/go-jose/v4@v4.0.2
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling due to the use of <code>strings.Split</code> to split JWT tokens. An attacker can cause memory exhaustion and service disruption by sending numerous malformed tokens with a large number of <code>.</code> characters. </p>
-        <h2 id="workaround">Workaround</h2>
-        <p>This vulnerability can be mitigated by pre-validating that payloads passed to Go JOSE do not contain an excessive number of <code>.</code> characters.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/go-jose/go-jose/v4</code> to version 4.0.5 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/go-jose/go-jose/commit/99b346cec4e86d102284642c5dcbe9bb0cacfc22">GitHub Commit</a></li>
-        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.0.5">GitHub Release</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV4-8745975">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">CVE-2025-9230</h2>
             <div class="card__section">
@@ -1229,7 +548,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.43.0 and openssl/libcrypto3@3.3.3-r0
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
         
                     </li>
                 </ul>
@@ -1242,7 +561,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.3-r0
                                         
@@ -1251,7 +570,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.6-r3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1262,7 +592,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r12
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1273,9 +603,20 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.6-r3
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1286,7 +627,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                         
@@ -1295,7 +636,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.6-r3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1306,7 +658,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r12
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1388,7 +740,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.43.0 and openssl/libcrypto3@3.3.3-r0
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
         
                     </li>
                 </ul>
@@ -1401,7 +753,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.3-r0
                                         
@@ -1410,7 +762,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.6-r3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1421,7 +784,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r12
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1432,9 +795,20 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.6-r3
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1445,7 +819,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                         
@@ -1454,7 +828,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.6-r3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1465,7 +850,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r12
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1544,7 +929,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.43.0 and openssl/libcrypto3@3.3.3-r0
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and openssl/libcrypto3@3.3.3-r0
         
                     </li>
                 </ul>
@@ -1557,7 +942,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libcrypto3@3.3.3-r0
                                         
@@ -1566,7 +951,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.6-r3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1577,7 +973,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r12
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1588,9 +984,20 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.6-r3
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1601,7 +1008,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3@3.3.3-r0
                                         
@@ -1610,7 +1017,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20250214.191219
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.3-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         apk-tools/apk-tools@2.14.6-r3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1621,7 +1039,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r12
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1679,80 +1097,6 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">Synchronous Access of Remote Resource without Timeout</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--low">
-                        <span class="label__text">low severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/hashicorp/vault/api
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v4@* and github.com/hashicorp/vault/api@v1.15.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v4@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/vault/api@v1.15.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Synchronous Access of Remote Resource without Timeout via the <code>rekey</code> and <code>recovery key</code> operations. An attacker can disrupt service availability by triggering uncontrolled cancellation actions during these processes, which can lead to denial of service.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/hashicorp/vault/api</code> to version 1.20.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/hashicorp/vault/commit/318f8582134a4a79a45ee2a6edad3072d865739b">GitHub Commit</a></li>
-        <li><a href="https://github.com/hashicorp/vault/pull/30794">GitHub PR</a></li>
-        <li><a href="https://discuss.hashicorp.com/t/hcsec-2025-11-vault-vulnerable-to-recovery-key-cancellation-denial-of-service/75570">HashiCorp Discuss</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMHASHICORPVAULTAPI-10562144">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">CVE-2024-58251</h2>
             <div class="card__section">
         
@@ -1779,7 +1123,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.43.0 and busybox/busybox@1.37.0-r12
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and busybox/busybox@1.37.0-r12
         
                     </li>
                 </ul>
@@ -1792,7 +1136,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/busybox@1.37.0-r12
                                         
@@ -1801,7 +1145,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         alpine-baselayout/alpine-baselayout@3.6.8-r1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1814,7 +1158,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/busybox-binsh@1.37.0-r12
                                         
@@ -1823,7 +1167,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         alpine-baselayout/alpine-baselayout@3.6.8-r1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1834,7 +1178,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.37.0-r12
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r12
                                         
@@ -1895,7 +1250,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.43.0 and busybox/busybox@1.37.0-r12
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and busybox/busybox@1.37.0-r12
         
                     </li>
                 </ul>
@@ -1908,7 +1263,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/busybox@1.37.0-r12
                                         
@@ -1917,7 +1272,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         alpine-baselayout/alpine-baselayout@3.6.8-r1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1930,7 +1285,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/busybox-binsh@1.37.0-r12
                                         
@@ -1939,7 +1294,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         alpine-baselayout/alpine-baselayout@3.6.8-r1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1950,7 +1305,18 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.43.0
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20241121-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.37.0-r12
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
                                          <span class="list-paths__item__arrow">›</span> 
                                         busybox/ssl_client@1.37.0-r12
                                         
