@@ -1820,3 +1820,87 @@ func Test_normalizeClusterScopeTracking(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, called, "normalization function should have called the callback function")
 }
+
+func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
+	app := newFakeApp()
+	// Enable the manifest-generate-paths annotation and set a synced revision
+	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Revision: "abc123",
+		Status:   v1alpha1.SyncStatusCodeSynced,
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: false},
+	}
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
+
+	source := app.Spec.GetSource()
+	source.RepoURL = "oci://example.com/argo/argo-cd"
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, source)
+
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false)
+	require.NoError(t, err)
+	require.False(t, revisionsMayHaveChanges)
+}
+
+func TestCompareAppState_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T) {
+	app := newFakeApp()
+	// Enable the manifest-generate-paths annotation and set a synced revision
+	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Revision:  "abc123",
+		Status:    v1alpha1.SyncStatusCodeSynced,
+		Revisions: []string{"0.0.1", "resolved-abc123", "resolved-main"},
+	}
+
+	app.Spec.Sources = v1alpha1.ApplicationSources{
+		{RepoURL: "oci://example.com/argo/argo-cd", TargetRevision: "0.0.1", Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/my-path"}}},
+		{Ref: "values", RepoURL: "https://git.test.com", TargetRevision: "abc123"},
+		{TargetRevision: "main", RepoURL: "https://git.test.com", Path: "path/to/chart"},
+	}
+
+	data := fakeData{
+		manifestResponses: []*apiclient.ManifestResponse{
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "0.0.1",
+			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "main",
+			},
+		},
+		updateRevisionForPathsResponses: []*apiclient.UpdateRevisionForPathsResponse{
+			{Changes: false, Revision: "0.0.1"},
+			{Changes: false, Revision: "resolved-main"},
+		},
+	}
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
+
+	revisions := make([]string, 0)
+	revisions = append(revisions, "0.0.1", "abc123", "main")
+
+	sources := app.Spec.Sources
+
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "0.0.1", revisions, false, false, false, &defaultProj, false)
+	require.NoError(t, err)
+	require.False(t, revisionsMayHaveChanges)
+}

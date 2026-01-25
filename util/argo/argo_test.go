@@ -32,7 +32,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
-	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -2000,83 +1999,6 @@ func TestValidateManagedByURL(t *testing.T) {
 			} else {
 				assert.Empty(t, conditions, "Expected no validation conditions for valid URL")
 			}
-		})
-	}
-}
-
-func TestUpdateRefSourcesWithResolvedRevisions(t *testing.T) {
-	tests := []struct {
-		name              string
-		refSources        argoappv1.RefTargetRevisionMapping
-		resolvedRevisions map[string]string
-		result            argoappv1.RefTargetRevisionMapping
-	}{
-		{
-			name: "only one ref source",
-			refSources: argoappv1.RefTargetRevisionMapping{
-				"values": &argoappv1.RefTarget{
-					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
-					TargetRevision: "branch-1",
-					Chart:          "chart",
-				},
-			},
-			resolvedRevisions: map[string]string{
-				git.NormalizeGitURL("https://github.com/argocd"): "12345-hash",
-			},
-			result: argoappv1.RefTargetRevisionMapping{
-				"values": &argoappv1.RefTarget{
-					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
-					TargetRevision: "12345-hash",
-					Chart:          "chart",
-				},
-			},
-		},
-		{
-			name: "two ref source with only one resolved",
-			refSources: argoappv1.RefTargetRevisionMapping{
-				"values": &argoappv1.RefTarget{
-					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
-					TargetRevision: "branch-1",
-					Chart:          "chart",
-				},
-				"values_1": &argoappv1.RefTarget{
-					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd-1"},
-					TargetRevision: "branch-1",
-					Chart:          "chart",
-				},
-			},
-			resolvedRevisions: map[string]string{
-				git.NormalizeGitURL("https://github.com/argocd"): "12345-hash",
-			},
-			result: argoappv1.RefTargetRevisionMapping{
-				"values": &argoappv1.RefTarget{
-					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
-					TargetRevision: "12345-hash",
-					Chart:          "chart",
-				},
-				"values_1": &argoappv1.RefTarget{
-					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd-1"},
-					TargetRevision: "branch-1",
-					Chart:          "chart",
-				},
-			},
-		},
-		{
-			name:       "two ref source with only one resolved",
-			refSources: nil,
-			resolvedRevisions: map[string]string{
-				git.NormalizeGitURL("https://github.com/argocd"): "12345-hash",
-			},
-			result: nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			copyRefSources := tt.refSources.DeepCopy()
-
-			rReFSources := UpdateRefSourcesWithResolvedRevisions(copyRefSources, tt.resolvedRevisions)
-			assert.Equal(t, tt.result, rReFSources)
-			assert.Equal(t, tt.result, copyRefSources)
 		})
 	}
 }

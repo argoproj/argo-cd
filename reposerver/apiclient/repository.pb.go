@@ -2212,7 +2212,6 @@ func (m *GitDirectoriesResponse) GetPaths() []string {
 }
 
 type UpdateRevisionForPathsRequest struct {
-	// saved for support backward compatibility
 	Repo                 *v1alpha1.Repository           `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
 	AppLabelKey          string                         `protobuf:"bytes,2,opt,name=appLabelKey,proto3" json:"appLabelKey,omitempty"`
 	AppName              string                         `protobuf:"bytes,3,opt,name=appName,proto3" json:"appName,omitempty"`

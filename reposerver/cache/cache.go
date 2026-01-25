@@ -101,10 +101,9 @@ type refTargetRevisionMappingForCacheKey map[string]refTargetForCacheKey
 
 func getRefTargetRevisionMappingForCacheKey(refTargetRevisionMapping appv1.RefTargetRevisionMapping, refSourceCommitSHAs ResolvedRevisions) refTargetRevisionMappingForCacheKey {
 	res := make(refTargetRevisionMappingForCacheKey)
+
 	for k, v := range refTargetRevisionMapping {
-		if rev, ok := refSourceCommitSHAs[git.NormalizeGitURL(v.Repo.Repo)]; ok {
-			v.TargetRevision = rev
-		}
+		v.TargetRevision = refSourceCommitSHAs[git.NormalizeGitURL(v.Repo.Repo)]
 		res[k] = refTargetForCacheKeyFromRefTarget(v)
 	}
 	return res
