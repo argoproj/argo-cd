@@ -8,6 +8,20 @@ var coreExcludedResources = []FilteredResource{
 	{APIGroups: []string{"events.k8s.io", "metrics.k8s.io"}},
 	{APIGroups: []string{""}, Kinds: []string{"Event"}},
 	{APIGroups: []string{"coordination.k8s.io"}, Kinds: []string{"Lease"}},
+	{APIGroups: []string{"aquasecurity.github.io"}, Kinds: []string{
+		"ClusterComplianceReport",
+		"ClusterConfigAuditReport",
+		"ClusterInfraAssessmentReport",
+		"ClusterRbacAssessmentReport",
+		"ClusterSbomReport",
+		"ClusterVulnerabilityReport",
+		"ConfigAuditReport",
+		"ExposedSecretReport",
+		"InfraAssessmentReport",
+		"RbacAssessmentReport",
+		"SbomReport",
+		"VulnerabilityReport",
+	}},
 }
 
 type ResourcesFilter struct {
