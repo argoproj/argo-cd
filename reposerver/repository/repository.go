@@ -3192,13 +3192,13 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 	err := s.cache.SetNewRevisionManifests(oldRev, newRev, request.ApplicationSource, request.RefSources, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, oldRepoRefs, newRepoRefs, request.InstallationID)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
-			logCtx.Debugf("manifest cache miss during comparison for application %s from revision %s", request.AppName, oldRev)
-			return fmt.Errorf("manifest cache miss during comparison for application %s from revision %s", request.AppName, oldRev)
+			logCtx.Debugf("manifest cache miss during comparison for application %s in repo %s from revision %s", request.AppName, request.GetRepo().Repo, oldRev)
+			return fmt.Errorf("manifest cache miss during comparison for application %s in repo %s from revision %s", request.AppName, request.GetRepo().Repo, oldRev)
 		}
 		return fmt.Errorf("manifest cache move error for %s: %w", request.AppName, err)
 	}
 
-	logCtx.Debugf("manifest cache updated for application %s from revision %s to revision %s", request.AppName, oldRev, newRev)
+	logCtx.Debugf("manifest cache updated for application %s in repo %s from revision %s to revision %s", request.AppName, request.GetRepo().Repo, oldRev, newRev)
 	return nil
 }
 

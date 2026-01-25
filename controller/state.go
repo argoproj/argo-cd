@@ -231,10 +231,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 	var syncedRefSources v1alpha1.RefTargetRevisionMapping
 	if app.Spec.HasMultipleSources() {
-		syncedRefSources, err = argo.GetSyncedRefSources(refSources, sources, app.Status.Sync.Revisions)
-		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to get synced ref sources: %w", err)
-		}
+		syncedRefSources = argo.GetSyncedRefSources(refSources, sources, app.Status.Sync.Revisions)
 	}
 
 	revisionsMayHaveChanges := false
@@ -274,8 +271,8 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			// just reading pre-generated manifests is comparable to updating revisions time-wise
 			app.Status.SourceType != v1alpha1.ApplicationSourceTypeDirectory
 
-		if updateRevisions && repo.Depth == 0 && syncedRevision != "" && !source.IsRef() && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" &&
-			(syncedRevision != revision || app.Spec.HasMultipleSources()) {
+		if updateRevisions && repo.Depth == 0 && syncedRevision != "" && !source.IsRef() && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" && (syncedRevision != revision || app.Spec.HasMultipleSources()) {
+			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
 			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 				Repo:               repo,
 				Revision:           revision,
@@ -298,10 +295,15 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
 			}
 
-			// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
 			if updateRevisionResult.Changes {
 				revisionsMayHaveChanges = true
 			}
+
+			// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
+			if updateRevisionResult.Revision != "" {
+				revision = updateRevisionResult.Revision
+			}
+
 		} else if !source.IsRef() {
 			// revisionsMayHaveChanges is set to true if at least one revision is not possible to be updated
 			revisionsMayHaveChanges = true

@@ -513,7 +513,7 @@ func validateRepo(ctx context.Context,
 }
 
 // GetSyncedRefSources creates a map of ref keys (the same as GetRefSources) based on syncRevisions from Application status
-func GetSyncedRefSources(refSources argoappv1.RefTargetRevisionMapping, sources argoappv1.ApplicationSources, syncRevisions []string) (argoappv1.RefTargetRevisionMapping, error) {
+func GetSyncedRefSources(refSources argoappv1.RefTargetRevisionMapping, sources argoappv1.ApplicationSources, syncRevisions []string) argoappv1.RefTargetRevisionMapping {
 	syncedRefSources := make(argoappv1.RefTargetRevisionMapping)
 	for i, source := range sources {
 		if source.Ref == "" {
@@ -533,7 +533,7 @@ func GetSyncedRefSources(refSources argoappv1.RefTargetRevisionMapping, sources 
 			Chart:          refSources[refKey].Chart,
 		}
 	}
-	return syncedRefSources, nil
+	return syncedRefSources
 }
 
 // GetRefSources creates a map of ref keys (from the sources' 'ref' fields) to information about the referenced source.
