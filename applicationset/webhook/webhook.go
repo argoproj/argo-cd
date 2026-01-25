@@ -25,6 +25,7 @@ import (
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
+	scmmanager "github.com/scm-manager/goscm/argocd"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/util/guard"
@@ -39,6 +40,7 @@ type WebhookHandler struct {
 	github         *github.Webhook
 	gitlab         *gitlab.Webhook
 	azuredevops    *azuredevops.Webhook
+	scmm           *scmmanager.ArgoCDWebhook
 	client         client.Client
 	generators     map[string]generators.Generator
 	queue          chan any
@@ -54,6 +56,7 @@ type prGeneratorInfo struct {
 	Azuredevops *prGeneratorAzuredevopsInfo
 	Github      *prGeneratorGithubInfo
 	Gitlab      *prGeneratorGitlabInfo
+	SCMManager  *prGeneratorSCMManagerInfo
 }
 
 type prGeneratorAzuredevopsInfo struct {
@@ -70,6 +73,12 @@ type prGeneratorGithubInfo struct {
 type prGeneratorGitlabInfo struct {
 	Project     string
 	APIHostname string
+}
+
+type prGeneratorSCMManagerInfo struct {
+	Host      string
+	Namespace string
+	Name      string
 }
 
 func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
@@ -90,11 +99,16 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 	if err != nil {
 		return nil, fmt.Errorf("unable to init Azure DevOps webhook: %w", err)
 	}
+	scmmHandler, err := scmmanager.New(scmmanager.Options.Secret(argocdSettings.WebhookScmmSecret))
+	if err != nil {
+		return nil, fmt.Errorf("Unable to init SCM-Manager webhook: %w", err)
+	}
 
 	webhookHandler := &WebhookHandler{
 		github:      githubHandler,
 		gitlab:      gitlabHandler,
 		azuredevops: azuredevopsHandler,
+		scmm:        scmmHandler,
 		client:      client,
 		generators:  generators,
 		queue:       make(chan any, payloadQueueSize),
@@ -171,6 +185,8 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents)
 	case r.Header.Get("X-Vss-Activityid") != "":
 		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
+	case r.Header.Get("X-SCM-Event") != "":
+		payload, err = h.scmm.Parse(r, scmmanager.PushEvent, scmmanager.PullRequestEvent)
 	default:
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
@@ -216,6 +232,10 @@ func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 		revision = webhook.ParseRevision(payload.Resource.RefUpdates[0].Name)
 		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
 		// unfortunately, Azure DevOps doesn't provide a list of changed files
+	case scmmanager.PushEventPayload:
+		webURL = payload.Repository.SourceUrl
+		touchedHead = payload.Branch.DefaultBranch
+		revision = payload.Branch.Name
 	default:
 		return nil
 	}
@@ -281,6 +301,20 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 			Repo:    repo,
 			Project: project,
 		}
+	case scmmanager.PullRequestEventPayload:
+		if !isAllowedScmManagerPullRequestAction(payload.Action) {
+			return nil
+		}
+
+		repoUrl := payload.Repository.SourceUrl
+		namespace := payload.Repository.Namespace
+		name := payload.Repository.Name
+
+		info.SCMManager = &prGeneratorSCMManagerInfo{
+			Host:      repoUrl,
+			Namespace: namespace,
+			Name:      name,
+		}
 	default:
 		return nil
 	}
@@ -313,6 +347,22 @@ var azuredevopsAllowedPullRequestActions = []string{
 	"git.pullrequest.created",
 	"git.pullrequest.merged",
 	"git.pullrequest.updated",
+}
+
+var scmManagerAllowedPullRequestActions = []string{
+	"opened",
+	"rejected",
+	"merged",
+	"changed",
+}
+
+func isAllowedScmManagerPullRequestAction(action string) bool {
+	for _, allow := range scmManagerAllowedPullRequestActions {
+		if allow == action {
+			return true
+		}
+	}
+	return false
 }
 
 func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInfo) bool {
@@ -407,6 +457,30 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 			return false
 		}
 		if gen.AzureDevOps.Repo != info.Azuredevops.Repo {
+			return false
+		}
+		return true
+	}
+
+	if gen.ScmManager != nil && info.SCMManager != nil {
+		apiUrl, err := url.Parse(gen.ScmManager.API)
+		if err != nil {
+			log.Errorf("Failed to parse SCM-Manager URL by application '%s'", gen.ScmManager.API)
+			return false
+		}
+		infoUrl, err := url.Parse(info.SCMManager.Host)
+		if err != nil {
+			log.Errorf("Failed to parse SCM-Manager URL by request '%s'", info.SCMManager.Host)
+			return false
+		}
+		if apiUrl.Hostname() != infoUrl.Hostname() {
+			log.Debugf("Hostname '%s' does not match '%s'", apiUrl.Hostname(), infoUrl.Hostname())
+			return false
+		}
+		if gen.ScmManager.Namespace != info.SCMManager.Namespace {
+			return false
+		}
+		if gen.ScmManager.Name != info.SCMManager.Name {
 			return false
 		}
 		return true

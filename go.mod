@@ -14,7 +14,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.36.0
 	github.com/argoproj/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
 	github.com/argoproj/notifications-engine v0.5.1-0.20260119155007-a23b5827d630
-	github.com/argoproj/pkg v0.13.6
+	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
 	github.com/argoproj/pkg/v2 v2.0.1
 	github.com/aws/aws-sdk-go v1.55.7
 	github.com/bmatcuk/doublestar/v4 v4.9.2
@@ -80,6 +80,7 @@ require (
 	github.com/r3labs/diff/v3 v3.0.2
 	github.com/redis/go-redis/v9 v9.17.2
 	github.com/robfig/cron/v3 v3.0.2-0.20210106135023-bc59245fe10e
+	github.com/scm-manager/goscm v0.0.9
 	github.com/sirupsen/logrus v1.9.4
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/soheilhy/cmux v0.1.5
@@ -119,6 +120,8 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.1-0.20251003215857-446d8398e19c
 	sigs.k8s.io/yaml v1.6.0
 )
+
+require github.com/argoproj/argo-cd/v2 v2.14.15
 
 require (
 	cloud.google.com/go/auth v0.15.0 // indirect
@@ -160,6 +163,7 @@ require (
 	github.com/aws/smithy-go v1.22.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
+	github.com/bombsimon/logrusr/v2 v2.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/chai2010/gettext-go v1.0.3 // indirect
 	github.com/clipperhouse/displaywidth v0.6.2 // indirect
@@ -206,6 +210,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/glog v1.2.5 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
+	github.com/google/go-github/v66 v66.0.0 // indirect
 	github.com/google/go-github/v75 v75.0.0 // indirect
 	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
@@ -214,6 +219,7 @@ require (
 	github.com/gosimple/unidecode v1.0.1 // indirect
 	github.com/gregdel/pushover v1.3.1 // indirect
 	github.com/gregjones/httpcache v0.0.0-20190611155906-901d90724c79 // indirect
+	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-version v1.7.0 // indirect
@@ -256,6 +262,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/common v0.66.1 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
+	github.com/r3labs/diff v1.1.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
@@ -310,6 +317,7 @@ require (
 	sigs.k8s.io/kustomize/api v0.20.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.20.1 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 )
 
 replace (

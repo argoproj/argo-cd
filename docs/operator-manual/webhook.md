@@ -37,6 +37,12 @@ To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` 
 Azure DevOps optionally supports securing the webhook using basic authentication. To use it, specify the username and password in the webhook configuration and configure the same username/password in `argocd-secret` Kubernetes secret in
 `webhook.azuredevops.username` and `webhook.azuredevops.password` keys.
 
+## SCM-Manager
+
+![Add Webhook](../assets/scm-webhook-config.png "Add Webhook")
+SCM-Manager supports securing the webhook with basic authentication. To use it, install the ArgoCD Plugin from the plugin center and configure your webhook at Administration > Webhooks.
+For the URL add the instance of your ArgoCD endpoint.
+
 ## 2. Configure Argo CD With The WebHook Secret (Optional)
 
 Configuring a webhook shared secret is optional, since Argo CD will still refresh applications

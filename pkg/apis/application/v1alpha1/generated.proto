@@ -1646,11 +1646,13 @@ message PullRequestGenerator {
   // Additional provider to use and config for it.
   optional PullRequestGeneratorAzureDevOps azuredevops = 9;
 
+  optional PullRequestGeneratorScmManager scmManager = 10;
+
   // Values contains key/value pairs which are passed directly as parameters to the template
-  map<string, string> values = 10;
+  map<string, string> values = 11;
 
   // ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
-  optional bool continueOnRepoNotFoundError = 11;
+  optional bool continueOnRepoNotFoundError = 12;
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
@@ -1792,6 +1794,27 @@ message PullRequestGeneratorGithub {
 
   // Labels is used to filter the PRs that you want to target
   repeated string labels = 6;
+}
+
+// PullRequestGenerator defines connection info specific to SCM-Manager.
+message PullRequestGeneratorScmManager {
+  // SCM-Manager namespace. Required.
+  optional string namespace = 1;
+
+  // SCM-Manager repo name to scan. Required.
+  optional string name = 2;
+
+  // SCM-Manager Instance URL with context path. Required
+  optional string api = 3;
+
+  // Authentication token reference.
+  optional SecretRef tokenRef = 4;
+
+  // Allow insecure tls, for self-signed certificates; default: false.
+  optional bool insecure = 5;
+
+  // ConfigMap key holding the trusted certificates
+  optional ConfigMapKeyRef caRef = 6;
 }
 
 message RefTarget {
@@ -2360,6 +2383,8 @@ message SCMProviderGenerator {
   map<string, string> values = 11;
 
   optional SCMProviderGeneratorAWSCodeCommit awsCodeCommit = 12;
+
+  optional SCMProviderGeneratorScmManager scmManager = 13;
 }
 
 // SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.
@@ -2520,6 +2545,24 @@ message SCMProviderGeneratorGitlab {
 
   // ConfigMap key holding the trusted certificates
   optional ConfigMapKeyRef caRef = 9;
+}
+
+// SCMProviderGeneratorScmManager defines a connection info specific to Scm-Manager.
+message SCMProviderGeneratorScmManager {
+  // The SCM-Manager URL to talk to. For example https://scm-manager.org/scm.
+  optional string api = 1;
+
+  // Authentication token reference.
+  optional SecretRef tokenRef = 2;
+
+  // Scan all branches instead of just the default branch.
+  optional bool allBranches = 3;
+
+  // Allow self-signed TLS / Certificates; default: false
+  optional bool insecure = 4;
+
+  // ConfigMap key holding the trusted certificates
+  optional ConfigMapKeyRef caRef = 5;
 }
 
 // SecretRef struct for a reference to a secret key.
