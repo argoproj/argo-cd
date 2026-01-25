@@ -55,7 +55,7 @@ management tools (Helm, Kustomize, etc.).
         + [Security Considerations](#security-considerations)
             - [Increased scripting](#increased-scripting)
         + [Risks and Mitigations](#risks-and-mitigations)
-        + [Upgrade / Downgrade Strategy](#upgrade--downgrade-strategy)
+        + [Upgrade / Downgrade Strategy](#upgrade-downgrade-strategy)
     * [Drawbacks](#drawbacks)
     * [Alternatives](#alternatives)
 
