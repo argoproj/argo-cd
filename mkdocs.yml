@@ -6,6 +6,8 @@ extra_css:
 - assets/versions.css
 extra_javascript:
 - assets/versions.js
+- assets/lib/mermaid-11.12.2.min.js
+- assets/mermaid-init.js
 markdown_extensions:
 - markdown_include.include
 - codehilite:
@@ -13,7 +15,11 @@ markdown_extensions:
 - admonition
 - toc:
     permalink: true
-- pymdownx.superfences
+- pymdownx.superfences:
+    custom_fences:
+    - name: mermaid
+      class: mermaid
+      format: !!python/name:pymdownx.superfences.fence_div_format
 nav:
 - Overview: index.md
 - understand_the_basics.md
