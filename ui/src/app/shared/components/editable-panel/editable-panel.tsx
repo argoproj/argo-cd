@@ -127,18 +127,7 @@ function EditablePanel<T extends {} = {}>({
             {item.before}
             <div className='row white-box__details-row'>
                 <div className='columns small-3' style={isIndented ? {paddingLeft: '2em'} : undefined}>
-                    {api && item.titleEdit ? (
-                        item.titleEdit(api)
-                    ) : (
-                        <>
-                            {item.customTitle || item.title}
-                            {item.hint && (
-                                <span style={{marginLeft: '0.25em'}}>
-                                    <HelpIcon title={item.hint} />
-                                </span>
-                            )}
-                        </>
-                    )}
+                    {api && item.titleEdit ? item.titleEdit(api) : item.customTitle || item.title}
                 </div>
                 <div className='columns small-9'>{api && item.edit ? item.edit(api) : item.view}</div>
             </div>
@@ -150,8 +139,12 @@ function EditablePanel<T extends {} = {}>({
             const itemsToRender = api ? content.items : content.items.filter(item => item.view);
             return (
                 <div key={content.sectionName} className='editable-panel__subsection'>
-                    <div className='editable-panel__subsection-title'>{content.sectionName}</div>
-                    <div className='editable-panel__subsection-items'>{itemsToRender.map(item => renderItem(item, api, true))}</div>
+                    <div className='row white-box__details-row'>
+                        <div className='columns small-12' style={{fontWeight: 'bold', fontSize: '14px', marginTop: '15px', marginBottom: '5px', textTransform: 'uppercase'}}>
+                            {content.sectionName}
+                        </div>
+                    </div>
+                    {content.items.map(item => renderItem(item, api, true))}
                 </div>
             );
         }
