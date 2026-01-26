@@ -299,6 +299,49 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         });
     }
 
+    const hydratorToggleItems: EditablePanelItem[] = [
+        {
+            title: 'ENABLE HYDRATOR',
+            view: false, // Hide in view mode
+            edit: (formApi: FormApi) => (
+                <div className='checkbox-container'>
+                    <Checkbox
+                        onChange={(val: boolean) => {
+                            const updatedApp = formApi.getFormState().values as models.Application;
+                            if (val) {
+                                // Enable hydrator - move source to sourceHydrator.drySource
+                                if (!updatedApp.spec.sourceHydrator) {
+                                    updatedApp.spec.sourceHydrator = {
+                                        drySource: {
+                                            repoURL: updatedApp.spec.source.repoURL,
+                                            targetRevision: updatedApp.spec.source.targetRevision,
+                                            path: updatedApp.spec.source.path
+                                        },
+                                        syncSource: savedSyncSource
+                                    };
+                                    delete updatedApp.spec.source;
+                                }
+                            } else {
+                                // Disable hydrator - save sync source values and move drySource back to source
+                                if (updatedApp.spec.sourceHydrator) {
+                                    setSavedSyncSource(updatedApp.spec.sourceHydrator.syncSource);
+                                    updatedApp.spec.source = updatedApp.spec.sourceHydrator.drySource;
+                                    delete updatedApp.spec.sourceHydrator;
+                                }
+                            }
+                            formApi.setAllValues(updatedApp);
+                            setIsHydratorEnabled(val);
+                        }}
+                        checked={!!(formApi.getFormState().values as models.Application).spec.sourceHydrator}
+                        id='enable-hydrator'
+                    />
+                    <label htmlFor='enable-hydrator'>SOURCE HYDRATOR ENABLED</label>
+                    <HelpIcon title='Enable source hydrator to sync rendered manifests to a separate Git repository' />
+                </div>
+            )
+        }
+    ];
+
     const drySourceItems: EditablePanelItem[] = [
         {
             title: 'REPO URL',
@@ -379,7 +422,16 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         {
             title: 'TARGET BRANCH',
             view: <Revision repoUrl={app.spec.sourceHydrator?.drySource?.repoURL} revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'} />,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.syncSource.targetBranch' component={Text} />
+            edit: (formApi: FormApi) => (
+                <RevisionFormField
+                    helpIconTop={'0'}
+                    hideLabel={true}
+                    formApi={formApi}
+                    fieldValue='spec.sourceHydrator.syncSource.targetBranch'
+                    repoURL={source.repoURL}
+                    repoType='git'
+                />
+            )
         },
         {
             title: 'PATH',
@@ -396,8 +448,9 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         }
     ];
 
-    const sourceAttributes: EditablePanelContent[] = isHydrator
+    const sourceAttributes: (EditablePanelItem | EditablePanelContent)[] = isHydrator
         ? [
+              ...hydratorToggleItems,
               {
                   sectionName: 'Dry Source',
                   items: drySourceItems
@@ -407,7 +460,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                   items: syncSourceItems
               }
           ]
-        : drySourceItems;
+        : [...hydratorToggleItems, ...drySourceItems];
 
     async function setAutoSync(ctx: ContextApis, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean, enable: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
