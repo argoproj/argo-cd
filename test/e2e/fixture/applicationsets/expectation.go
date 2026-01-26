@@ -245,7 +245,9 @@ func conditionsAreEqual(one, two *[]v1alpha1.ApplicationSetCondition) bool {
 	return reflect.DeepEqual(filterConditionFields(one), filterConditionFields(two))
 }
 
-func ApplicationSetApplicationStatusAreEqual(expectedStatuses map[string]v1alpha1.ApplicationSetApplicationStatus) Expectation {
+// CheckProgressiveSyncStatusCodeOfApplications compares the equality of ProgressiveSyncStatusCodes of ApplicationSet's ApplicationStatus
+// with the expected ApplicationSetApplicationStatus provided.
+func CheckProgressiveSyncStatusCodeOfApplications(expectedStatuses map[string]v1alpha1.ApplicationSetApplicationStatus) Expectation {
 	return func(c *Consequences) (state, string) {
 		appSet := c.applicationSet(c.context.GetName())
 		if appSet == nil {
@@ -258,16 +260,14 @@ func ApplicationSetApplicationStatusAreEqual(expectedStatuses map[string]v1alpha
 				continue // Appset has more apps than expected - not ideal
 			}
 			if appStatus.Status != expectedstatus.Status {
-				return failed, fmt.Sprintf("expected status '%s' but got '%s'", expectedstatus, appStatus.Status)
+				return pending, fmt.Sprintf("for application '%s': expected status '%s' but got '%s'", expectedstatus.Application, expectedstatus.Status, appStatus.Status)
 			}
 		}
 		return succeeded, fmt.Sprintf("all applications in ApplicationSet's: '%s' Application Status have expected statuses ", c.context.GetName())
 	}
 }
 
-// This function checks that a step has expected app
-// This function checks that a step has expected apps
-// since one step can have multiple apps
+// This function checks that a step has expected app/apps (one step can have multiple apps)
 func CheckApplicationInRightSteps(step string, expectedApps []string) Expectation {
 	return func(c *Consequences) (state, string) {
 		appSet := c.applicationSet(c.context.GetName())
