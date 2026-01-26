@@ -1,4 +1,4 @@
-import {DropDownMenu, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
+import {NotificationType, SlidingPanel, Tooltip, SplitButtonAction} from 'argo-ui';
 import * as classNames from 'classnames';
 import React, {useState, useEffect, useCallback, useRef, useContext, FC} from 'react';
 import * as ReactDOM from 'react-dom';
@@ -77,9 +77,10 @@ export const SelectNode = (fullName: string, containerIndex = 0, tab: string = n
     appContext.navigation.goto('.', {node, tab}, {replace: true});
 };
 
-export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; name: string}>> = props => {
+export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; name: string}> & {objectListKind: string}> = props => {
     const appContext = useContext(Context);
-    const appChanged = useRef(new BehaviorSubject<appModels.Application>(null));
+    const appChanged = useRef(new BehaviorSubject<appModels.AbstractApplication>(null));
+    const objectListKind = props.objectListKind;
 
     const getExtensionsState = useCallback(() => {
         const extensions = services.extensions.getAppViewExtensions();
@@ -265,7 +266,7 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
     const rollbackApplication = useCallback(
         async (revisionHistory: appModels.RevisionHistory, application: appModels.Application) => {
             try {
-                const needDisableRollback = application.spec.syncPolicy && application.spec.syncPolicy.automated;
+                const needDisableRollback = application.spec.syncPolicy && application.spec.syncPolicy.automated && application.spec.syncPolicy.automated.enabled !== false;
                 let confirmationMessage = `Are you sure you want to rollback application '${props.match.params.name}'?`;
                 if (needDisableRollback) {
                     confirmationMessage = `Auto-Sync needs to be disabled in order for rollback to occur.
@@ -276,11 +277,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 if (confirmed) {
                     if (needDisableRollback) {
                         const update = JSON.parse(JSON.stringify(application)) as appModels.Application;
-                        update.spec.syncPolicy.automated = null;
+                        update.spec.syncPolicy.automated.enabled = false;
                         await services.applications.update(update, {validate: false});
                     }
                     await services.applications.rollback(props.match.params.name, getAppNamespace(), revisionHistory.id);
-                    appChanged.current.next(await services.applications.get(props.match.params.name, getAppNamespace()));
+                    appChanged.current.next(await services.applications.get(props.match.params.name, getAppNamespace(), objectListKind));
                     setRollbackPanelVisible(-1);
                 }
             } catch (e) {
@@ -290,7 +291,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 });
             }
         },
-        [props.match.params.name, getAppNamespace, appContext]
+        [props.match.params.name, getAppNamespace, appContext, objectListKind]
     );
 
     const getPageTitle = useCallback((view: string) => {
@@ -783,6 +784,13 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             const activeStatusExt = state.statusExtensionsMap[selectedExtension];
                             const activeTopBarActionMenuExt = state.topBarActionMenuExtsMap[selectedExtension];
 
+                            if (state.extensionsMap[pref.view] != null) {
+                                const extension = state.extensionsMap[pref.view];
+                                if (!extension.shouldDisplay(application)) {
+                                    appContext.navigation.goto('.', {view: Tree});
+                                }
+                            }
+
                             return (
                                 <div className={`application-details ${props.match.params.name}`}>
                                     <Page
@@ -792,7 +800,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         toolbar={{
                                             breadcrumbs: [
                                                 {title: 'Applications', path: '/applications'},
-                                                {title: <ApplicationsDetailsAppDropdown appName={props.match.params.name} />}
+                                                {title: <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />}
                                             ],
                                             actionMenu: {
                                                 items: [
@@ -1204,36 +1212,25 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                       },
                 {
                     iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
-                    title: (
-                        <React.Fragment>
-                            <ActionMenuItem actionLabel='Refresh' />{' '}
-                            <DropDownMenu
-                                items={[
-                                    {
-                                        title: 'Hard Refresh',
-                                        action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, 'hard')
-                                    }
-                                ]}
-                                anchor={() => (
-                                    <button className='argo-button--base application-details__dropdown-anchor-inner'>
-                                        <i className='fa fa-caret-down' />
-                                    </button>
-                                )}
-                            />
-                        </React.Fragment>
-                    ),
+                    title: <ActionMenuItem actionLabel='Refresh' />,
                     disabled: !!refreshing,
                     action: () => {
                         if (!refreshing) {
-                            services.applications.get(app.metadata.name, app.metadata.namespace, 'normal');
+                            services.applications.get(app.metadata.name, app.metadata.namespace, objectListKind, 'normal');
                             AppUtils.setAppRefreshing(app);
                             appChanged.current.next(app);
                         }
-                    }
-                }
+                    },
+                    subActions: [
+                        {
+                            title: 'Hard Refresh',
+                            action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, objectListKind, 'hard')
+                        }
+                    ]
+                } as SplitButtonAction
             ];
         },
-        [selectNode, appContext, confirmDeletion, setOperationStatusVisible, setRollbackPanelVisible, deleteApplication]
+        [selectNode, appContext, confirmDeletion, setOperationStatusVisible, setRollbackPanelVisible, deleteApplication, objectListKind]
     );
 
     const filterTreeNode = useCallback(
@@ -1268,14 +1265,21 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
     }, [appContext, props.match.params.name]);
 
     const loadAppInfo = useCallback(
-        (name: string, appNamespace: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> => {
-            return from(services.applications.get(name, appNamespace))
+        (name: string, appNamespace: string): Observable<{application: appModels.AbstractApplication; tree: appModels.AbstractApplicationTree}> => {
+            return from(services.applications.get(name, appNamespace, objectListKind))
                 .pipe(
                     mergeMap(app => {
                         const fallbackTree = {
-                            nodes: app.status.resources.map(res => ({...res, parentRefs: [] as any[], info: [] as any[], resourceVersion: '', uid: ''})),
-                            orphanedNodes: [],
-                            hosts: []
+                            nodes:
+                                app.status?.resources?.map((res: appModels.ResourceStatus) => ({
+                                    ...res,
+                                    parentRefs: [] as appModels.ResourceRef[],
+                                    info: [] as appModels.InfoItem[],
+                                    resourceVersion: '',
+                                    uid: ''
+                                })) || [],
+                            orphanedNodes: [] as appModels.ResourceNode[],
+                            hosts: [] as appModels.Node[]
                         } as appModels.ApplicationTree;
                         return combineLatest(
                             merge(
@@ -1283,7 +1287,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 appChanged.current.pipe(filter(item => !!item)),
                                 AppUtils.handlePageVisibility(() =>
                                     services.applications
-                                        .watch({name, appNamespace})
+                                        .watch(objectListKind, {name, appNamespace})
                                         .pipe(
                                             map(watchEvent => {
                                                 if (watchEvent.type === 'DELETED') {
@@ -1298,10 +1302,10 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             ),
                             merge(
                                 from([fallbackTree]),
-                                services.applications.resourceTree(name, appNamespace).catch(() => fallbackTree),
+                                services.applications.resourceTree(name, appNamespace, objectListKind).catch(() => fallbackTree),
                                 AppUtils.handlePageVisibility(() =>
                                     services.applications
-                                        .watchResourceTree(name, appNamespace)
+                                        .watchResourceTree(name, appNamespace, objectListKind)
                                         .pipe(repeat())
                                         .pipe(retryWhen(errors => errors.pipe(delay(500))))
                                 )
@@ -1312,17 +1316,20 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 .pipe(filter(([application, tree]) => !!application && !!tree))
                 .pipe(map(([application, tree]) => ({application, tree})));
         },
-        [onAppDeleted]
+        [onAppDeleted, objectListKind]
     );
 
-    const updateApp = useCallback(async (app: appModels.Application, query: {validate?: boolean}) => {
-        const latestApp = await services.applications.get(app.metadata.name, app.metadata.namespace);
-        latestApp.metadata.labels = app.metadata.labels;
-        latestApp.metadata.annotations = app.metadata.annotations;
-        latestApp.spec = app.spec;
-        const updatedApp = await services.applications.update(latestApp, query);
-        appChanged.current.next(updatedApp);
-    }, []);
+    const updateApp = useCallback(
+        async (app: appModels.Application, query: {validate?: boolean}) => {
+            const latestApp = await services.applications.get(app.metadata.name, app.metadata.namespace, objectListKind);
+            latestApp.metadata.labels = app.metadata.labels;
+            latestApp.metadata.annotations = app.metadata.annotations;
+            latestApp.spec = app.spec;
+            const updatedApp = await services.applications.update(latestApp, query);
+            appChanged.current.next(updatedApp);
+        },
+        [objectListKind]
+    );
 
     const groupAppNodesByKey = useCallback((application: appModels.Application, tree: appModels.ApplicationTree) => {
         const nodeByKey = new Map<string, appModels.ResourceDiff | appModels.ResourceNode | appModels.Application>();

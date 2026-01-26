@@ -180,19 +180,20 @@ type ArgoCDServer struct {
 	ArgoCDServerOpts
 	ApplicationSetOpts
 
-	ssoClientApp   *oidc.ClientApp
-	settings       *settings_util.ArgoCDSettings
-	log            *log.Entry
-	sessionMgr     *util_session.SessionManager
-	settingsMgr    *settings_util.SettingsManager
-	enf            *rbac.Enforcer
-	projInformer   cache.SharedIndexInformer
-	policyEnforcer *rbacpolicy.RBACPolicyEnforcer
-	appInformer    cache.SharedIndexInformer
-	appLister      applisters.ApplicationLister
-	appsetInformer cache.SharedIndexInformer
-	appsetLister   applisters.ApplicationSetLister
-	db             db.ArgoDB
+	ssoClientApp    *oidc.ClientApp
+	settings        *settings_util.ArgoCDSettings
+	log             *log.Entry
+	sessionMgr      *util_session.SessionManager
+	settingsMgr     *settings_util.SettingsManager
+	enf             *rbac.Enforcer
+	projInformer    cache.SharedIndexInformer
+	policyEnforcer  *rbacpolicy.RBACPolicyEnforcer
+	clusterInformer *settings_util.ClusterInformer
+	appInformer     cache.SharedIndexInformer
+	appLister       applisters.ApplicationLister
+	appsetInformer  cache.SharedIndexInformer
+	appsetLister    applisters.ApplicationSetLister
+	db              db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
 	stopCh             chan os.Signal
@@ -306,6 +307,9 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	err = initializeDefaultProject(opts)
 	errorsutil.CheckError(err)
 
+	clusterInformer, err := settings_util.NewClusterInformer(opts.KubeClientset, opts.Namespace)
+	errorsutil.CheckError(err)
+
 	appInformerNs := opts.Namespace
 	if len(opts.ApplicationNamespaces) > 0 {
 		appInformerNs = ""
@@ -384,6 +388,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		appsetInformer:     appsetInformer,
 		appsetLister:       appsetLister,
 		policyEnforcer:     policyEnf,
+		clusterInformer:    clusterInformer,
 		userStateStorage:   userStateStorage,
 		staticAssets:       http.FS(staticFS),
 		db:                 dbInstance,
@@ -553,6 +558,7 @@ func (server *ArgoCDServer) Init(ctx context.Context) {
 	go server.projInformer.Run(ctx.Done())
 	go server.appInformer.Run(ctx.Done())
 	go server.appsetInformer.Run(ctx.Done())
+	go server.clusterInformer.Run(ctx.Done())
 	go server.configMapInformer.Run(ctx.Done())
 	go server.secretInformer.Run(ctx.Done())
 }
@@ -656,7 +662,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	go server.rbacPolicyLoader(ctx)
 	go func() { server.checkServeErr("tcpm", tcpm.Serve()) }()
 	go func() { server.checkServeErr("metrics", metricsServ.Serve(listeners.Metrics)) }()
-	if !cache.WaitForCacheSync(ctx.Done(), server.projInformer.HasSynced, server.appInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), server.projInformer.HasSynced, server.appInformer.HasSynced, server.clusterInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
 
@@ -1070,6 +1076,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.EnableScmProviders,
 		a.EnableGitHubAPIMetrics,
 		a.EnableK8sEvent,
+		a.clusterInformer,
 	)
 
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.EnableK8sEvent)

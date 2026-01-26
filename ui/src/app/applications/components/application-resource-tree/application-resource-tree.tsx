@@ -1085,7 +1085,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     graph.setNode(treeNodeKey(root), {...root, width: NODE_WIDTH, height: NODE_HEIGHT, root});
                 }
                 (childrenByParentKey.get(treeNodeKey(root)) || []).forEach(child => {
-                    if (root.namespace === child.namespace) {
+                    // Draw edge if nodes are in same namespace OR if parent is cluster-scoped (no namespace)
+                    if (root.namespace === child.namespace || !root.namespace) {
                         graph.setEdge(treeNodeKey(root), treeNodeKey(child), {colors: [colorByService.get(treeNodeKey(child))]});
                     }
                 });
@@ -1191,7 +1192,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             if (treeNodeKey(child) === treeNodeKey(root)) {
                 return;
             }
-            if (node.namespace === child.namespace) {
+            // Draw edge if nodes are in same namespace OR if parent is cluster-scoped (empty/undefined namespace)
+            const isParentClusterScoped = !node.namespace || node.namespace === '';
+            if (node.namespace === child.namespace || isParentClusterScoped) {
                 graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
             }
             processNode(child, root, colors);
