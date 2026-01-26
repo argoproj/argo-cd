@@ -431,10 +431,10 @@ func GetWebURLRegex(webURL string) (*regexp.Regexp, error) {
 func GetAPIURLRegex(apiURL string) (*regexp.Regexp, error) {
 	// 1. Optional: protocol (`http` or `https`) followed by `://`
 	// 2. Optional: username followed by `@`
-	// 3. Required: hostname parsed from `webURL`
+	// 3. Required: hostname parsed from `apiURL`
 	// 4. Optional: `:` followed by port number
-	// 5. Optional: `/` followed by path parsed from `webURL`
-	return getURLRegex(apiURL, `(?i)^(https?://)?(%[1]s@)?%[2]s(:\d+)?(/[\w.%/-]*)?$`)
+	// 5. Optional: `/` followed by path parsed from `apiURL` or any sub-path
+	return getURLRegex(apiURL, `(?i)^(https?://)?(%[1]s@)?%[2]s(:\d+)?(?:/%[3]s)?(?:/[\w.%/-]*)?$`)
 }
 
 func getURLRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error) {
