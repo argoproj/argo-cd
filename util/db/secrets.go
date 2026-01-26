@@ -159,7 +159,7 @@ func (db *db) watchSecrets(ctx context.Context,
 
 // URIToSecretName hashes an uri address to the secret name using a formula.
 // Part of the uri address is incorporated for debugging purposes
-func URIToSecretName(uriType, uri string) (string, error) {
+func URIToSecretName(uriType, uri string, name string) (string, error) {
 	parsedURI, err := url.ParseRequestURI(uri)
 	if err != nil {
 		return "", err
@@ -183,5 +183,5 @@ func URIToSecretName(uriType, uri string) (string, error) {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(uri))
 	host = strings.ToLower(host)
-	return fmt.Sprintf("%s-%s-%v", uriType, host, h.Sum32()), nil
+	return fmt.Sprintf("%s-%s-%s-%v", uriType, name, host, h.Sum32()), nil
 }

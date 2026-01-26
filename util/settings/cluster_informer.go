@@ -25,6 +25,8 @@ const (
 	ClusterCacheByURLIndexer = "byClusterURL"
 	// ClusterCacheByNameIndexer indexes clusters by name
 	ClusterCacheByNameIndexer = "byClusterName"
+	// ClusterCacheByURLAndNameIndexer indexes clusters by server URL and Name
+	ClusterCacheByURLAndNameIndexer = "byClusterURLAndName"
 )
 
 // ClusterInformer provides a cached view of cluster secrets as Cluster objects.
@@ -54,6 +56,13 @@ func NewClusterInformer(clientset kubernetes.Interface, namespace string) (*Clus
 				return nil, nil
 			}
 			return []string{strings.TrimRight(cluster.Server, "/")}, nil
+		},
+		ClusterCacheByURLAndNameIndexer: func(obj any) ([]string, error) {
+			cluster, ok := obj.(*appv1.Cluster)
+			if !ok {
+				return nil, nil
+			}
+			return []string{strings.TrimRight(cluster.Server, "/") + cluster.Name}, nil
 		},
 		ClusterCacheByNameIndexer: func(obj any) ([]string, error) {
 			cluster, ok := obj.(*appv1.Cluster)
@@ -102,6 +111,28 @@ func NewClusterInformer(clientset kubernetes.Interface, namespace string) (*Clus
 	}
 
 	return cc, nil
+}
+
+// GetClusterByURLAndName retrieves a cluster by its server URL and Name from the cache.
+// Returns the pre-converted Cluster object with zero conversion overhead.
+func (cc *ClusterInformer) GetClusterByURLAndName(url string, name string) (*appv1.Cluster, error) {
+	url = strings.TrimRight(url, "/")
+	items, err := cc.GetIndexer().ByIndex(ClusterCacheByURLAndNameIndexer, url+name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query cluster cache by URL: %w", err)
+	}
+
+	if len(items) == 0 {
+		return nil, fmt.Errorf("cluster %q not found in cache", url)
+	}
+
+	cluster, ok := items[0].(*appv1.Cluster)
+	if !ok {
+		return nil, fmt.Errorf("expected *appv1.Cluster, got %T (transform may have failed)", items[0])
+	}
+
+	// Return a copy to prevent callers from modifying the cached object
+	return cluster.DeepCopy(), nil
 }
 
 // GetClusterByURL retrieves a cluster by its server URL from the cache.
