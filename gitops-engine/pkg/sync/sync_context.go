@@ -206,12 +206,6 @@ func WithServerSideApplyManager(manager string) SyncOpt {
 	}
 }
 
-func WithMockResourceOperations(resourceOps kubeutil.ResourceOperations) SyncOpt {
-	return func(ctx *syncContext) {
-		ctx.resourceOps = resourceOps
-	}
-}
-
 // WithClientSideApplyMigration configures client-side apply migration for server-side apply.
 // When enabled, fields managed by the specified manager will be migrated to server-side apply.
 // Defaults to enabled=true with manager="kubectl-client-side-apply" if not configured.
