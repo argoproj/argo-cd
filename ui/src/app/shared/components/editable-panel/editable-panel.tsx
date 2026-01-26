@@ -147,15 +147,11 @@ function EditablePanel<T extends {} = {}>({
 
     const renderContent = (content: EditablePanelContent, api?: FormApi) => {
         if (isSubsection(content)) {
-            const itemsToRender = api ? content.items : content.items.filter(item => item.view !== false);
+            const itemsToRender = api ? content.items : content.items.filter(item => item.view);
             return (
                 <div key={content.sectionName} className='editable-panel__subsection'>
-                    <div className='row white-box__details-row'>
-                        <div className='columns small-12' style={{fontWeight: 'bold', fontSize: '14px', marginTop: '15px', marginBottom: '5px', textTransform: 'uppercase'}}>
-                            {content.sectionName}
-                        </div>
-                    </div>
-                    {itemsToRender.map(item => renderItem(item, api, true))}
+                    <div className='editable-panel__subsection-title'>{content.sectionName}</div>
+                    <div className='editable-panel__subsection-items'>{itemsToRender.map(item => renderItem(item, api, true))}</div>
                 </div>
             );
         }
