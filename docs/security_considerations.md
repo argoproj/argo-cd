@@ -32,7 +32,7 @@ no fix yet.
 
 ## Known Issues And Workarounds
 
-A recent security audit (thanks a lot to [Matt Hamilton](https://github.com/Eriner) of [https://soluble.ai](https://soluble.ai) )
+A recent security audit (thanks a lot to [Matt Hamilton](https://github.com/Eriner) of Soluble AI (acquired by https://www.fortinet.com) )
 has revealed several limitations in Argo CD which could compromise security.
 Most of the issues are related to the built-in user management implementation.
 
@@ -122,7 +122,7 @@ An attacker could use this information in an attempt to deduce the state of the 
 **Mitigation and/or workaround:**
 
 The recommended mitigation as described in the user documentation is to use SSO integration. The default admin password
-should only be used for initial configuration and then [disabled](../operator-manual/user-management/#disable-admin-user)
+should only be used for initial configuration and then [disabled](operator-manual/user-management/index.md#disable-admin-user)
 or at least changed to a more secure password.
 
 ### CVE-2020-8827 - Insufficient anti-automation/anti-brute force

@@ -27,6 +27,7 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/cache"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
@@ -39,6 +40,18 @@ var (
 
 	ErrOCINotEnabled = errors.New("could not perform the action when oci is not enabled")
 )
+
+// userAgentTransport wraps an http.RoundTripper to add User-Agent header to all requests
+type userAgentTransport struct {
+	Transport http.RoundTripper
+	UserAgent string
+}
+
+// RoundTrip implements the http.RoundTripper interface
+func (t *userAgentTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("User-Agent", t.UserAgent)
+	return t.Transport.RoundTrip(req)
+}
 
 type indexCache interface {
 	SetHelmIndex(repo string, indexData []byte) error
@@ -64,6 +77,14 @@ func WithIndexCache(indexCache indexCache) ClientOpts {
 func WithChartPaths(chartPaths utilio.TempPaths) ClientOpts {
 	return func(c *nativeHelmChart) {
 		c.chartCachePaths = chartPaths
+	}
+}
+
+// WithUserAgent sets a custom User-Agent string for HTTP requests.
+// If not set, a default User-Agent will be generated automatically.
+func WithUserAgent(userAgent string) ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.customUserAgent = userAgent
 	}
 }
 
@@ -98,6 +119,19 @@ type nativeHelmChart struct {
 	indexCache      indexCache
 	proxy           string
 	noProxy         string
+	customUserAgent string // Custom User-Agent string (optional)
+}
+
+// getUserAgent returns the User-Agent string to use for HTTP requests.
+// If a custom User-Agent is set, it will be used; otherwise, a default will be generated.
+func (c *nativeHelmChart) getUserAgent() string {
+	if c.customUserAgent != "" {
+		return c.customUserAgent
+	}
+
+	// Default User-Agent with version and platform info
+	version := common.GetVersion()
+	return fmt.Sprintf("argocd-repo-server/%s (%s)", version.Version, version.Platform)
 }
 
 func fileExist(filePath string) (bool, error) {
@@ -317,6 +351,10 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 	if err != nil {
 		return nil, fmt.Errorf("error creating HTTP request: %w", err)
 	}
+
+	// Set User-Agent header to comply with robot policies
+	req.Header.Set("User-Agent", c.getUserAgent())
+
 	helmPassword, err := c.creds.GetPassword()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get password for helm registry: %w", err)
@@ -448,11 +486,21 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 		if err != nil {
 			return nil, fmt.Errorf("failed setup tlsConfig: %w", err)
 		}
-		client := &http.Client{Transport: &http.Transport{
+
+		// Create base transport with TLS config and proxy
+		baseTransport := &http.Transport{
 			Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
 			TLSClientConfig:   tlsConf,
 			DisableKeepAlives: true,
-		}}
+		}
+
+		// Wrap transport to add User-Agent header to all requests
+		client := &http.Client{
+			Transport: &userAgentTransport{
+				Transport: baseTransport,
+				UserAgent: c.getUserAgent(),
+			},
+		}
 
 		repoHost, _, _ := strings.Cut(tagsURL, "/")
 

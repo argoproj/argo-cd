@@ -255,9 +255,6 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 		appNamespace := app.Spec.Destination.Namespace
 		apiVersions := argo.APIResourcesToStrings(apiResources, true)
-		if !sendRuntimeState {
-			appNamespace = ""
-		}
 
 		updateRevisions := processManifestGeneratePathsEnabled &&
 			// updating revisions result is not required if automated sync is not enabled
@@ -273,7 +270,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 				Revision:           revision,
 				SyncedRevision:     syncedRevision,
 				NoRevisionCache:    noRevisionCache,
-				Paths:              path.GetAppRefreshPaths(app),
+				Paths:              path.GetSourceRefreshPaths(app, source),
 				AppLabelKey:        appLabelKey,
 				AppName:            app.InstanceName(m.namespace),
 				Namespace:          appNamespace,

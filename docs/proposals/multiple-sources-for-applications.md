@@ -180,7 +180,7 @@ As a user, I have an Application that uses the [elasticsearch](https://github.co
 https://github.com/argoproj/argo-cd/issues/677
 
 #### Use case 2:
-As per one of the [comment]((https://github.com/argoproj/argo-cd/issues/2789#issuecomment-562495307)) on the issue [Helm chart + values files from Git](https://github.com/argoproj/argo-cd/issues/2789):
+As per one of the [comment](https://github.com/argoproj/argo-cd/issues/2789#issuecomment-562495307) on the issue [Helm chart + values files from Git](https://github.com/argoproj/argo-cd/issues/2789):
 ```
 We have a Helm Chart which is used in 30+ Services and each of them is customized for 3 possible environments.
 Replicating this Chart 30 times without a centralized Repo looks dirty. Can be a show stopper for the whole migration.
