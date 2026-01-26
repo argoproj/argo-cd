@@ -1272,8 +1272,8 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 
 	var err error
 	var message string
-	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace)
-	force := sc.force || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionForce)
+	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace) || (t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionReplace))
+	force := sc.force || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionForce) || (t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionForce))
 	serverSideApply := sc.shouldUseServerSideApply(t.targetObj, dryRun)
 
 	// Check if we need to perform client-side apply migration for server-side apply
