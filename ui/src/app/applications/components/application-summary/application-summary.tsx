@@ -8,6 +8,7 @@ import {
     DataLoader,
     EditablePanel,
     EditablePanelItem,
+    EditablePanelContent,
     Expandable,
     MapInputField,
     NumberField,
@@ -22,7 +23,7 @@ import {services} from '../../../shared/services';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource, helpTip} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
@@ -288,99 +289,115 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         });
     }
 
-    const sourceAttributes = [
-        !hasMultipleSources && {
+    const drySourceItems: EditablePanelItem[] = [
+        {
             title: 'REPO URL',
             view: <Repo url={source?.repoURL} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field={getRepoField(isHydrator)} component={Text} />
         },
-        ...(!hasMultipleSources
-            ? isHelm
-                ? [
-                      {
-                          title: 'CHART',
-                          view: <span>{source && `${source.chart}:${source.targetRevision}`}</span>,
-                          edit: (formApi: FormApi) =>
-                              hasMultipleSources ? (
-                                  helpTip('CHART is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
-                              ) : (
-                                  <DataLoader
-                                      input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL}}
-                                      load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
-                                      {(charts: models.HelmChart[]) => (
-                                          <div className='row'>
-                                              <div className='columns small-8'>
+        ...(isHelm
+            ? [
+                  {
+                      title: 'CHART',
+                      view: <span>{source && `${source.chart}:${source.targetRevision}`}</span>,
+                      edit: (formApi: FormApi) => (
+                          <DataLoader
+                              input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL}}
+                              load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
+                              {(charts: models.HelmChart[]) => (
+                                  <div className='row'>
+                                      <div className='columns small-8'>
+                                          <FormField
+                                              formApi={formApi}
+                                              field={isHydrator ? 'spec.sourceHydrator.drySource.chart' : 'spec.source.chart'}
+                                              component={AutocompleteField}
+                                              componentProps={{items: charts.map(chart => chart.name), filterSuggestions: true}}
+                                          />
+                                      </div>
+                                      <DataLoader
+                                          input={{charts, chart: getAppSpecDefaultSource(formApi.getFormState().values.spec).chart}}
+                                          load={async data => {
+                                              const chartInfo = data.charts.find(chart => chart.name === data.chart);
+                                              return (chartInfo && chartInfo.versions) || new Array<string>();
+                                          }}>
+                                          {(versions: string[]) => (
+                                              <div className='columns small-4'>
                                                   <FormField
                                                       formApi={formApi}
-                                                      field='spec.source.chart'
+                                                      field={isHydrator ? 'spec.sourceHydrator.drySource.targetRevision' : 'spec.source.targetRevision'}
                                                       component={AutocompleteField}
-                                                      componentProps={{
-                                                          items: charts.map(chart => chart.name),
-                                                          filterSuggestions: true
-                                                      }}
+                                                      componentProps={{items: versions}}
                                                   />
+                                                  <RevisionHelpIcon type='helm' top='0' />
                                               </div>
-                                              <DataLoader
-                                                  input={{charts, chart: getAppSpecDefaultSource(formApi.getFormState().values.spec).chart}}
-                                                  load={async data => {
-                                                      const chartInfo = data.charts.find(chart => chart.name === data.chart);
-                                                      return (chartInfo && chartInfo.versions) || new Array<string>();
-                                                  }}>
-                                                  {(versions: string[]) => (
-                                                      <div className='columns small-4'>
-                                                          <FormField
-                                                              formApi={formApi}
-                                                              field='spec.source.targetRevision'
-                                                              component={AutocompleteField}
-                                                              componentProps={{
-                                                                  items: versions
-                                                              }}
-                                                          />
-                                                          <RevisionHelpIcon type='helm' top='0' />
-                                                      </div>
-                                                  )}
-                                              </DataLoader>
-                                          </div>
-                                      )}
-                                  </DataLoader>
-                              )
-                      }
-                  ]
-                : [
-                      {
-                          title: 'TARGET REVISION',
-                          view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
-                          edit: (formApi: FormApi) =>
-                              hasMultipleSources ? (
-                                  helpTip('TARGET REVISION is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
-                              ) : (
-                                  <RevisionFormField
-                                      helpIconTop={'0'}
-                                      hideLabel={true}
-                                      formApi={formApi}
-                                      fieldValue={getTargetRevisionField(isHydrator)}
-                                      repoURL={source.repoURL}
-                                      repoType={repoType}
-                                  />
-                              )
-                      },
-                      {
-                          title: 'PATH',
-                          view: (
-                              <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
-                                  {processPath(source.path)}
-                              </Revision>
-                          ),
-                          edit: (formApi: FormApi) =>
-                              hasMultipleSources ? (
-                                  helpTip('PATH is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
-                              ) : (
-                                  <FormField formApi={formApi} field={getPathField(isHydrator)} component={Text} />
-                              )
-                      }
-                  ]
-            : [])
+                                          )}
+                                      </DataLoader>
+                                  </div>
+                              )}
+                          </DataLoader>
+                      )
+                  }
+              ]
+            : [
+                  {
+                      title: 'TARGET REVISION',
+                      view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
+                      edit: (formApi: FormApi) => (
+                          <RevisionFormField
+                              helpIconTop={'0'}
+                              hideLabel={true}
+                              formApi={formApi}
+                              fieldValue={getTargetRevisionField(isHydrator)}
+                              repoURL={source.repoURL}
+                              repoType={repoType}
+                          />
+                      )
+                  },
+                  {
+                      title: 'PATH',
+                      view: (
+                          <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
+                              {processPath(source.path)}
+                          </Revision>
+                      ),
+                      edit: (formApi: FormApi) => <FormField formApi={formApi} field={getPathField(isHydrator)} component={Text} />
+                  }
+              ])
     ];
+
+    const syncSourceItems: EditablePanelItem[] = [
+        {
+            title: 'TARGET BRANCH',
+            view: <Revision repoUrl={app.spec.sourceHydrator?.drySource?.repoURL} revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.syncSource.targetBranch' component={Text} />
+        },
+        {
+            title: 'PATH',
+            view: (
+                <Revision
+                    repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
+                    revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'}
+                    path={app.spec.sourceHydrator?.syncSource?.path}
+                    isForPath={true}>
+                    {processPath(app.spec.sourceHydrator?.syncSource?.path)}
+                </Revision>
+            ),
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.syncSource.path' component={Text} />
+        }
+    ];
+
+    const sourceAttributes: EditablePanelContent[] = isHydrator
+        ? [
+              {
+                  sectionName: 'Dry Source',
+                  items: drySourceItems
+              },
+              {
+                  sectionName: 'Sync Source',
+                  items: syncSourceItems
+              }
+          ]
+        : drySourceItems;
 
     async function setAutoSync(ctx: ContextApis, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean, enable: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);

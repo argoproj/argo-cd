@@ -121,11 +121,13 @@ function EditablePanel<T extends {} = {}>({
         onModeSwitch();
     }, [onModeSwitch]);
 
-    const renderItem = (item: EditablePanelItem, api?: FormApi) => (
+    const renderItem = (item: EditablePanelItem, api?: FormApi, isIndented = false) => (
         <Fragment key={item.key || item.title}>
             {item.before}
             <div className='row white-box__details-row'>
-                <div className='columns small-3'>{api && item.titleEdit ? item.titleEdit(api) : item.customTitle || item.title}</div>
+                <div className='columns small-3' style={isIndented ? {paddingLeft: '2em'} : undefined}>
+                    {api && item.titleEdit ? item.titleEdit(api) : item.customTitle || item.title}
+                </div>
                 <div className='columns small-9'>{api && item.edit ? item.edit(api) : item.view}</div>
             </div>
         </Fragment>
@@ -135,12 +137,16 @@ function EditablePanel<T extends {} = {}>({
         if (isSubsection(content)) {
             return (
                 <div key={content.sectionName} className='editable-panel__subsection'>
-                    <div className='editable-panel__subsection-title'>{content.sectionName}</div>
-                    <div className='editable-panel__subsection-items'>{content.items.map(item => renderItem(item, api))}</div>
+                    <div className='row white-box__details-row'>
+                        <div className='columns small-12' style={{fontWeight: 'bold', fontSize: '14px', marginTop: '15px', marginBottom: '5px', textTransform: 'uppercase'}}>
+                            {content.sectionName}
+                        </div>
+                    </div>
+                    {content.items.map(item => renderItem(item, api, true))}
                 </div>
             );
         }
-        return renderItem(content, api);
+        return renderItem(content, api, false);
     };
 
     return (
