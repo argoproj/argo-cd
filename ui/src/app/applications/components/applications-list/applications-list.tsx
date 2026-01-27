@@ -159,6 +159,13 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .map(decodeURIComponent)
                                 .filter(item => !!item);
                         }
+                        if (params.get('annotations') != null) {
+                            viewPref.annotationsFilter = params
+                                .get('annotations')
+                                .split(',')
+                                .map(decodeURIComponent)
+                                .filter(item => !!item);
+                        }
                         return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
                     })
                 )
@@ -430,6 +437,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                 namespace: newPref.namespacesFilter.join(','),
                 cluster: newPref.clustersFilter.join(','),
                 labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
+                annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
                 operation: newPref.operationFilter.join(',')
             },
             {replace: true}

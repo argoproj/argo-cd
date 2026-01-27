@@ -106,3 +106,19 @@ func (ctrl *ApplicationController) GetHydratorCommitMessageTemplate() (string, e
 
 	return sourceHydratorCommitMessageKey, nil
 }
+
+func (ctrl *ApplicationController) GetCommitAuthorName() (string, error) {
+	authorName, err := ctrl.settingsMgr.GetCommitAuthorName()
+	if err != nil {
+		return "", fmt.Errorf("failed to get commit author name: %w", err)
+	}
+	return authorName, nil
+}
+
+func (ctrl *ApplicationController) GetCommitAuthorEmail() (string, error) {
+	authorEmail, err := ctrl.settingsMgr.GetCommitAuthorEmail()
+	if err != nil {
+		return "", fmt.Errorf("failed to get commit author email: %w", err)
+	}
+	return authorEmail, nil
+}
