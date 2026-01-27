@@ -79,6 +79,12 @@ RUN mkdir -p tls && \
 
 ENV USER=argocd
 
+# Disable gRPC service config lookups via DNS TXT records to prevent excessive
+# DNS queries for _grpc_config.<hostname> which can cause timeouts in dual-stack
+# environments. This can be overridden via argocd-cmd-params-cm ConfigMap.
+# See https://github.com/argoproj/argo-cd/issues/24991
+ENV GRPC_ENABLE_TXT_SERVICE_CONFIG=false
+
 USER $ARGOCD_USER_ID
 WORKDIR /home/argocd
 
