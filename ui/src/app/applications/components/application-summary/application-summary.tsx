@@ -512,6 +512,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     fieldValue='spec.sourceHydrator.syncSource.targetBranch'
                     repoURL={source.repoURL}
                     repoType='git'
+                    revisionType='Branches'
                 />
             )
         },
