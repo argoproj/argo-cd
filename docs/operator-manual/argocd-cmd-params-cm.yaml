@@ -299,7 +299,7 @@ data:
   # The url used in the scm generator must exactly match one in the list
   applicationsetcontroller.allowed.scm.providers: "https://git.example.com/,https://gitlab.example.com/"
   # To disable SCM providers entirely (i.e. disable the SCM and PR generators), set this to "false". Default is "true".
-  applicationsetcontroller.enable.scm.providers: "false"
+  applicationsetcontroller.enable.scm.providers: "true"
   # Number of webhook requests processed concurrently (default 50)
   applicationsetcontroller.webhook.parallelism.limit: "50"
   # Override the default requeue time for the controller. (default 3m)
