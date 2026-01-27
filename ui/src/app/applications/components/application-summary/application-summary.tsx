@@ -344,11 +344,11 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
           ]
         : [];
 
-    const drySourceItems: EditablePanelItem[] = [
+    const sourceItems: EditablePanelItem[] = [
         {
             title: 'REPO URL',
-            view: <Repo url={source?.repoURL} />,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field={getRepoField(isHydrator)} component={Text} />
+            view: <Repo url={app.spec.source?.repoURL} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
         },
         ...(isHelm
             ? [
@@ -364,7 +364,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                       <div className='columns small-8'>
                                           <FormField
                                               formApi={formApi}
-                                              field={isHydrator ? 'spec.sourceHydrator.drySource.chart' : 'spec.source.chart'}
+                                              field='spec.source.chart'
                                               component={AutocompleteField}
                                               componentProps={{items: charts.map(chart => chart.name), filterSuggestions: true}}
                                           />
@@ -379,7 +379,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                               <div className='columns small-4'>
                                                   <FormField
                                                       formApi={formApi}
-                                                      field={isHydrator ? 'spec.sourceHydrator.drySource.targetRevision' : 'spec.source.targetRevision'}
+                                                      field='spec.source.targetRevision'
                                                       component={AutocompleteField}
                                                       componentProps={{items: versions}}
                                                   />
@@ -402,7 +402,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               helpIconTop={'0'}
                               hideLabel={true}
                               formApi={formApi}
-                              fieldValue={getTargetRevisionField(isHydrator)}
+                              fieldValue='spec.source.targetRevision'
                               repoURL={source.repoURL}
                               repoType={repoType}
                           />
@@ -415,7 +415,87 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               {processPath(source.path)}
                           </Revision>
                       ),
-                      edit: (formApi: FormApi) => <FormField formApi={formApi} field={getPathField(isHydrator)} component={Text} />
+                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text} />
+                  }
+              ])
+    ];
+
+    const drySourceItems: EditablePanelItem[] = [
+        {
+            title: 'REPO URL',
+            view: <Repo url={app.spec.sourceHydrator?.drySource?.repoURL} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.drySource.repoURL' component={Text} />
+        },
+        ...(isHelm
+            ? [
+                  {
+                      title: 'CHART',
+                      view: <span>{source && `${source.chart}:${source.targetRevision}`}</span>,
+                      edit: (formApi: FormApi) => (
+                          <DataLoader
+                              input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL}}
+                              load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
+                              {(charts: models.HelmChart[]) => (
+                                  <div className='row'>
+                                      <div className='columns small-8'>
+                                          <FormField
+                                              formApi={formApi}
+                                              field='spec.sourceHydrator.drySource.chart'
+                                              component={AutocompleteField}
+                                              componentProps={{items: charts.map(chart => chart.name), filterSuggestions: true}}
+                                          />
+                                      </div>
+                                      <DataLoader
+                                          input={{charts, chart: getAppSpecDefaultSource(formApi.getFormState().values.spec).chart}}
+                                          load={async data => {
+                                              const chartInfo = data.charts.find(chart => chart.name === data.chart);
+                                              return (chartInfo && chartInfo.versions) || new Array<string>();
+                                          }}>
+                                          {(versions: string[]) => (
+                                              <div className='columns small-4'>
+                                                  <FormField
+                                                      formApi={formApi}
+                                                      field='spec.sourceHydrator.drySource.targetRevision'
+                                                      component={AutocompleteField}
+                                                      componentProps={{items: versions}}
+                                                  />
+                                                  <RevisionHelpIcon type='helm' top='0' />
+                                              </div>
+                                          )}
+                                      </DataLoader>
+                                  </div>
+                              )}
+                          </DataLoader>
+                      )
+                  }
+              ]
+            : [
+                  {
+                      title: 'TARGET REVISION',
+                      view: <Revision repoUrl={app.spec.sourceHydrator?.drySource?.repoURL} revision={app.spec.sourceHydrator?.drySource?.targetRevision || 'HEAD'} />,
+                      edit: (formApi: FormApi) => (
+                          <RevisionFormField
+                              helpIconTop={'0'}
+                              hideLabel={true}
+                              formApi={formApi}
+                              fieldValue='spec.sourceHydrator.drySource.targetRevision'
+                              repoURL={app.spec.sourceHydrator?.drySource?.repoURL}
+                              repoType={repoType}
+                          />
+                      )
+                  },
+                  {
+                      title: 'PATH',
+                      view: (
+                          <Revision
+                              repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
+                              revision={app.spec.sourceHydrator?.drySource?.targetRevision || 'HEAD'}
+                              path={app.spec.sourceHydrator?.drySource?.path}
+                              isForPath={true}>
+                              {processPath(app.spec.sourceHydrator?.drySource?.path)}
+                          </Revision>
+                      ),
+                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.drySource.path' component={Text} />
                   }
               ])
     ];
@@ -462,7 +542,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                   items: syncSourceItems
               }
           ]
-        : [...standardSourceItems, ...drySourceItems];
+        : [...standardSourceItems, ...sourceItems];
 
     async function setAutoSync(ctx: ContextApis, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean, enable: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
