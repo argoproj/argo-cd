@@ -11,6 +11,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var varyHeadersTest = []string{
+	"Accept-Encoding",
+	"Accept",
+	"Authorization",
+}
+
 func setupFakeGithubServer(cacheHitCounter *int) *httptest.Server {
 	payload := []byte(`{"name": "main"}`)
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +34,7 @@ func setupFakeGithubServer(cacheHitCounter *int) *httptest.Server {
 			return
 		}
 		// Otherwise respond with 200 with Etag and payload
-		h := gh_hash_token.Hash(r.Header, VaryHeaders)
+		h := gh_hash_token.Hash(r.Header, varyHeadersTest)
 		h.Write(payload)
 		w.Header().Set("Etag", hex.EncodeToString(h.Sum(nil)))
 		w.WriteHeader(http.StatusOK)
@@ -45,12 +51,8 @@ func TestGitHubCache_Success(t *testing.T) {
 	cacheCtx := &GitHubCacheContext{
 		AppSecretName: "app-secret-name",
 	}
-	storage := NewLRUSStorage(cacheCtx, 100)
 	client := &http.Client{
-		Transport: NewGitHubCacheTransport(
-			storage,
-			nil,
-		),
+		Transport: NewGitHubCacheTransport(cacheCtx, 100, nil),
 	}
 	ctx := t.Context()
 
@@ -64,8 +66,8 @@ func TestGitHubCache_Success(t *testing.T) {
 	}
 	assert.Equal(t, http.StatusOK, res.StatusCode, "Expected ok status")
 
-	// Second request, should be served from cache with 304 even if Authorization header changed
-	req.Header.Set("Authorization", "token ok2")
+	// Second request, should be served from cache with 304 if same Authorization token
+	req.Header.Set("Authorization", "token ok1")
 	res, err = client.Do(req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -83,12 +85,8 @@ func TestGitHubCache_NotAuthorized(t *testing.T) {
 	cacheCtx := &GitHubCacheContext{
 		AppSecretName: "app-secret-name",
 	}
-	storage := NewLRUSStorage(cacheCtx, 100)
 	client := &http.Client{
-		Transport: NewGitHubCacheTransport(
-			storage,
-			nil,
-		),
+		Transport: NewGitHubCacheTransport(cacheCtx, 100, nil),
 	}
 	ctx := t.Context()
 
