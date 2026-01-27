@@ -355,6 +355,145 @@ func Test_SemverTags(t *testing.T) {
 	}
 }
 
+func Test_SemverTagsWithPrefix(t *testing.T) {
+	tempDir := t.TempDir()
+	ctx := t.Context()
+
+	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	// Helper to run git commands without editor prompts and without signing
+	runGitCmd := func(args ...string) error {
+		cmd := exec.CommandContext(ctx, "git", args...)
+		cmd.Dir = client.Root()
+		cmd.Env = append(os.Environ(), "GIT_EDITOR=true", "GIT_TERMINAL_PROMPT=0")
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
+	// Disable tag signing for this test
+	err = runGitCmd("config", "tag.gpgSign", "false")
+	require.NoError(t, err)
+
+	mapTagRefs := map[string]string{}
+	for _, tag := range []string{
+		"prod/v1.0.0-rc1",
+		"prod/v1.0.0-rc2",
+		"prod/v1.0.0",
+		"prod/v1.0",
+		"prod/v1.0.1",
+		"prod/v1.1.0",
+		"staging/v1.0.0",
+		"staging/v2.0.0",
+		"foo/bar/v1.0.0",
+		"foo/bar/v1.0.1",
+		"foo/baz/v1.0.0",
+		"v2.0.0",
+	} {
+		err = runGitCmd("commit", "-m", tag+" commit", "--allow-empty")
+		require.NoError(t, err)
+
+		// Create lightweight tag (no -a flag, no editor)
+		err = runGitCmd("tag", tag)
+		require.NoError(t, err)
+
+		sha, err := client.LsRemote("HEAD")
+		require.NoError(t, err)
+
+		mapTagRefs[tag] = sha
+	}
+
+	for _, tc := range []struct {
+		name     string
+		ref      string
+		expected string
+		error    bool
+	}{{
+		name:     "pinned version with prefix",
+		ref:      "prod/v1.0.0",
+		expected: mapTagRefs["prod/v1.0.0"],
+	}, {
+		name:     "pinned rc version with prefix",
+		ref:      "prod/v1.0.0-rc1",
+		expected: mapTagRefs["prod/v1.0.0-rc1"],
+	}, {
+		name:     "lt rc constraint with prefix",
+		ref:      "< prod/v1.0.0-rc3",
+		expected: mapTagRefs["prod/v1.0.0-rc2"],
+	}, {
+		name:     "patch wildcard with prefix",
+		ref:      "prod/v1.0.*",
+		expected: mapTagRefs["prod/v1.0.1"],
+	}, {
+		name:     "minor wildcard with prefix",
+		ref:      "prod/v1.*",
+		expected: mapTagRefs["prod/v1.1.0"],
+	}, {
+		name:     "patch tilde constraint with prefix",
+		ref:      "~prod/v1.0.0",
+		expected: mapTagRefs["prod/v1.0.1"],
+	}, {
+		name:     "gte constraint with prefix",
+		ref:      ">= prod/v1.0.0",
+		expected: mapTagRefs["prod/v1.1.0"],
+	}, {
+		name:     "range constraint with prefix",
+		ref:      "> prod/v1.0.0 < prod/v1.1.0",
+		expected: mapTagRefs["prod/v1.0.1"],
+	}, {
+		name:     "staging gt constraint",
+		ref:      "> staging/v1.0.0",
+		expected: mapTagRefs["staging/v2.0.0"],
+	}, {
+		name:     "staging wildcard",
+		ref:      "staging/v*",
+		expected: mapTagRefs["staging/v2.0.0"],
+	}, {
+		name:     "deep nested prefix patch wildcard",
+		ref:      "foo/bar/v1.0.*",
+		expected: mapTagRefs["foo/bar/v1.0.1"],
+	}, {
+		name:     "deep nested prefix exact",
+		ref:      "foo/baz/v1.0.0",
+		expected: mapTagRefs["foo/baz/v1.0.0"],
+	}, {
+		name:     "non-specific version with prefix",
+		ref:      "prod/v1.0",
+		expected: mapTagRefs["prod/v1.0"],
+	}, {
+		name:  "missing non-specific version with prefix",
+		ref:   "prod/v1.1",
+		error: true,
+	}, {
+		name:  "non-matching prefix returns error",
+		ref:   "dev/v1.0.*",
+		error: true,
+	}, {
+		name:  "mixed prefixes in constraint returns error",
+		ref:   "> prod/v1.0.0 < staging/v2.0.0",
+		error: true,
+	}, {
+		name:     "no prefix still works",
+		ref:      "v2.*",
+		expected: mapTagRefs["v2.0.0"],
+	}} {
+		t.Run(tc.name, func(t *testing.T) {
+			commitSHA, err := client.LsRemote(tc.ref)
+			if tc.error {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.True(t, IsCommitSHA(commitSHA))
+			assert.Equal(t, tc.expected, commitSHA)
+		})
+	}
+}
+
 func Test_nativeGitClient_Submodule(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "")
 	require.NoError(t, err)
