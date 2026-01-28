@@ -229,7 +229,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                     </Tooltip>
                                     {isSameKind &&
                                         res.kind === 'ReplicaSet' &&
-                                        ((nodeByKey.get(nodeKey(res)) as ResourceNode).info || [])
+                                        (((nodeByKey.get(nodeKey(res)) as ResourceNode | undefined)?.info || (res as unknown as ResourceNode).info || []) as models.InfoItem[])
                                             .filter(tag => !tag.name.includes('Node'))
                                             .slice(0, 4)
                                             .map((tag, i) => {
