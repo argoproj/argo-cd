@@ -118,6 +118,7 @@ type RepoServerInitConstants struct {
 	IncludeHiddenDirectories                     bool
 	CMPUseManifestGeneratePaths                  bool
 	EnableBuiltinGitConfig                       bool
+	HelmUserAgent                                string
 }
 
 var manifestGenerateLock = sync.NewKeyLock()
@@ -140,6 +141,10 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		newGitClient:              git.NewClientExt,
 		newOCIClient:              oci.NewClient,
 		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client {
+			// Add User-Agent option if configured
+			if initConstants.HelmUserAgent != "" {
+				opts = append(opts, helm.WithUserAgent(initConstants.HelmUserAgent))
+			}
 			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, noProxy, opts...)
 		},
 		initConstants:      initConstants,
@@ -2162,7 +2167,9 @@ func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []s
 		cmp.WithTarDoneChan(tarDoneCh),
 	}
 
-	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, rootPath, generateManifestStream, env, tarExcludedGlobs, opts...)
+	// Use the request context (ctx) rather than stream.Context() to avoid prematurely sending into a stream whose
+	// context may have been canceled by the gRPC internals or server-side handling.
+	err = cmp.SendRepoStream(ctx, appPath, rootPath, generateManifestStream, env, tarExcludedGlobs, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error sending file to cmp-server: %w", err)
 	}
@@ -2384,7 +2391,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 		return fmt.Errorf("error getting parametersAnnouncementStream: %w", err)
 	}
 
-	err = cmp.SendRepoStream(parametersAnnouncementStream.Context(), appPath, repoPath, parametersAnnouncementStream, env, tarExcludedGlobs)
+	err = cmp.SendRepoStream(ctx, appPath, repoPath, parametersAnnouncementStream, env, tarExcludedGlobs)
 	if err != nil {
 		return fmt.Errorf("error sending file to cmp-server: %w", err)
 	}

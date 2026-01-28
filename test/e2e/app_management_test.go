@@ -487,7 +487,8 @@ func TestDeleteAppResource(t *testing.T) {
 			}
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(ResourceHealthIs("Service", "guestbook-ui", health.HealthStatusMissing))
 }
 
 // Fix for issue #2677, support PATCH in HTTP service

@@ -291,9 +291,7 @@ func TestNamespacedAppCreationWithoutForceUpdate(t *testing.T) {
 
 func TestNamespacedDeleteAppResource(t *testing.T) {
 	ctx := Given(t)
-
-	ctx.
-		Path(guestbookPath).
+	ctx.Path(guestbookPath).
 		SetTrackingMethod("annotation").
 		SetAppNamespace(fixture.AppNamespace()).
 		When().
@@ -301,6 +299,7 @@ func TestNamespacedDeleteAppResource(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(_ *Application) {
 			// app should be listed
 			if _, err := fixture.RunCli("app", "delete-resource", ctx.AppQualifiedName(), "--kind", "Service", "--resource-name", "guestbook-ui"); err != nil {
@@ -308,7 +307,8 @@ func TestNamespacedDeleteAppResource(t *testing.T) {
 			}
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(ResourceHealthIs("Service", "guestbook-ui", health.HealthStatusMissing))
 }
 
 // demonstrate that we cannot use a standard sync when an immutable field is changed, we must use "force"
