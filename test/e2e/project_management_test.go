@@ -579,6 +579,61 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	assert.ErrorContains(t, err, "blocked by sync window")
 }
 
+func TestSyncWindowSyncOverrun(t *testing.T) {
+	fixture.EnsureCleanState(t)
+
+	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
+	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(
+		t.Context(), &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}}, metav1.CreateOptions{})
+	require.NoError(t, err, "Unable to create project")
+
+	// Test adding a sync window with --sync-overrun flag
+	_, err = fixture.RunCli("proj", "windows", "add", projectName,
+		"--kind", "deny",
+		"--schedule", "0 0 * * *",
+		"--duration", "1h",
+		"--applications", "*",
+		"--sync-overrun")
+	require.NoError(t, err, "Unable to add sync window with sync overrun")
+
+	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Len(t, proj.Spec.SyncWindows, 1)
+	assert.True(t, proj.Spec.SyncWindows[0].SyncOverrun, "SyncOverrun should be true after adding with flag")
+
+	// Test disabling sync overrun
+	_, err = fixture.RunCli("proj", "windows", "disable-sync-overrun", projectName, "0")
+	require.NoError(t, err, "Unable to disable sync overrun")
+
+	proj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.False(t, proj.Spec.SyncWindows[0].SyncOverrun, "SyncOverrun should be false after disabling")
+
+	// Test enabling sync overrun
+	_, err = fixture.RunCli("proj", "windows", "enable-sync-overrun", projectName, "0")
+	require.NoError(t, err, "Unable to enable sync overrun")
+
+	proj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.True(t, proj.Spec.SyncWindows[0].SyncOverrun, "SyncOverrun should be true after enabling")
+
+	// Add a second window without sync overrun to test multiple windows
+	_, err = fixture.RunCli("proj", "windows", "add", projectName,
+		"--kind", "deny",
+		"--schedule", "12 0 * * *",
+		"--duration", "2h",
+		"--applications", "*")
+	require.NoError(t, err, "Unable to add second sync window")
+
+	proj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(t.Context(), projectName, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Len(t, proj.Spec.SyncWindows, 2)
+	assert.True(t, proj.Spec.SyncWindows[0].SyncOverrun, "First window should still have SyncOverrun enabled")
+	assert.False(t, proj.Spec.SyncWindows[1].SyncOverrun, "Second window should not have SyncOverrun enabled")
+
+	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
+}
+
 func TestAddProjectDestinationServiceAccount(t *testing.T) {
 	fixture.EnsureCleanState(t)
 
