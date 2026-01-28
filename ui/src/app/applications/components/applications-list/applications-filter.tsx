@@ -231,7 +231,7 @@ const AppSetHealthFilter = (props: AppSetFilterProps) => (
     />
 );
 
-const AppLabelsFilter = (props: AppFilterProps) => {
+const LabelsFilter = (props: {apps: Array<{metadata: {labels?: {[key: string]: string}}}>; pref: {labelsFilter: string[]}; onChange: (labelsFilter: string[]) => void}) => {
     const labels = new Map<string, Set<string>>();
     props.apps
         .filter(app => app.metadata && app.metadata.labels)
@@ -254,33 +254,7 @@ const AppLabelsFilter = (props: AppFilterProps) => {
         return {label: s};
     });
 
-    return <Filter label='LABELS' selected={props.pref.labelsFilter} setSelected={s => props.onChange({...props.pref, labelsFilter: s})} field={true} options={labelOptions} />;
-};
-
-const AppSetLabelsFilter = (props: AppSetFilterProps) => {
-    const labels = new Map<string, Set<string>>();
-    props.apps
-        .filter(app => app.metadata && app.metadata.labels)
-        .forEach(app =>
-            Object.keys(app.metadata.labels).forEach(label => {
-                let values = labels.get(label);
-                if (!values) {
-                    values = new Set<string>();
-                    labels.set(label, values);
-                }
-                values.add(app.metadata.labels[label]);
-            })
-        );
-    const suggestions = new Array<string>();
-    Array.from(labels.entries()).forEach(([label, values]) => {
-        suggestions.push(label);
-        values.forEach(val => suggestions.push(`${label}=${val}`));
-    });
-    const labelOptions = suggestions.map(s => {
-        return {label: s};
-    });
-
-    return <Filter label='LABELS' selected={props.pref.labelsFilter} setSelected={s => props.onChange({...props.pref, labelsFilter: s})} field={true} options={labelOptions} />;
+    return <Filter label='LABELS' selected={props.pref.labelsFilter} setSelected={s => props.onChange(s)} field={true} options={labelOptions} />;
 };
 
 const AnnotationsFilter = (props: AppFilterProps) => {
@@ -385,38 +359,11 @@ const NamespaceFilter = (props: AppFilterProps) => {
     );
 };
 
-const AppFavoriteFilter = (props: AppFilterProps) => {
+const FavoriteFilter = (props: {pref: {showFavorites?: boolean}; onChange: (showFavorites: boolean) => void}) => {
     const ctx = React.useContext(Context);
     const onChange = (val: boolean) => {
         ctx.navigation.goto('.', {showFavorites: val}, {replace: true});
-        services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val}});
-    };
-    return (
-        <div
-            className={`filter filter__item ${props.pref.showFavorites ? 'filter__item--selected' : ''}`}
-            style={{margin: '0.5em 0', marginTop: '0.5em'}}
-            onClick={() => onChange(!props.pref.showFavorites)}>
-            <Checkbox
-                value={!!props.pref.showFavorites}
-                onChange={onChange}
-                style={{
-                    marginRight: '8px'
-                }}
-            />
-            <div style={{marginRight: '5px', textAlign: 'center', width: '25px'}}>
-                <i style={{color: '#FFCE25'}} className='fas fa-star' />
-            </div>
-            <div className='filter__item__label'>Favorites Only</div>
-        </div>
-    );
-};
-
-const AppSetFavoriteFilter = (props: AppSetFilterProps) => {
-    const ctx = React.useContext(Context);
-    const onChange = (val: boolean) => {
-        ctx.navigation.goto('.', {showFavorites: val}, {replace: true});
-        // Use appList since ViewPreferences shares preferences between apps and appsets
-        services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val} as AppsListPreferences});
+        props.onChange(val);
     };
     return (
         <div
@@ -518,11 +465,11 @@ const OperationFilter = (props: AppFilterProps) => (
 export const ApplicationsFilter = (props: AppFilterProps) => {
     return (
         <FiltersGroup title='Application filters' content={props.children} collapsed={props.collapsed}>
-            <AppFavoriteFilter {...props} />
+            <FavoriteFilter pref={props.pref} onChange={val => services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val}})} />
             <SyncFilter {...props} />
             <AppHealthFilter {...props} />
             <OperationFilter {...props} />
-            <AppLabelsFilter {...props} />
+            <LabelsFilter apps={props.apps} pref={props.pref} onChange={labelsFilter => props.onChange({...props.pref, labelsFilter})} />
             <AnnotationsFilter {...props} />
             <ProjectFilter {...props} />
             <ClusterFilter {...props} />
@@ -535,9 +482,9 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
 export const AppSetsFilter = (props: AppSetFilterProps) => {
     return (
         <FiltersGroup title='ApplicationSet filters' content={props.children} collapsed={props.collapsed}>
-            <AppSetFavoriteFilter {...props} />
+            <FavoriteFilter pref={props.pref} onChange={val => services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val} as AppsListPreferences})} />
             <AppSetHealthFilter {...props} />
-            <AppSetLabelsFilter {...props} />
+            <LabelsFilter apps={props.apps} pref={props.pref} onChange={labelsFilter => props.onChange({...props.pref, labelsFilter})} />
         </FiltersGroup>
     );
 };
