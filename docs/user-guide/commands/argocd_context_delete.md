@@ -1,40 +1,24 @@
-# `argocd logout` Command Reference
+# `argocd context delete` Command Reference
 
-## argocd logout
+## argocd context delete
 
-Log out from Argo CD
-
-### Synopsis
-
-Log out from Argo CD
+Delete Argo CD Context
 
 ```
-argocd logout CONTEXT [flags]
+argocd context delete [flags]
 ```
 
 ### Examples
 
 ```
-# Logout from the active Argo CD context
-# This can be helpful for security reasons or when you want to switch between different Argo CD contexts or accounts.
-argocd logout CONTEXT
-
-# Logout from a specific context named 'cd.argoproj.io'
-argocd logout cd.argoproj.io
-
-# Logout from multiple named contexts 'localhost:8080' and 'cd.argoproj.io'
-argocd logout localhost:8080 cd.argoproj.io
-
-# Logout from all contexts
-argocd logout --all
-
+  # Delete Argo CD Context
+	argocd context delete cd.argoproj.io
 ```
 
 ### Options
 
 ```
-      --all    To log out from all Argo CD Contexts
-  -h, --help   help for logout
+  -h, --help   help for delete
 ```
 
 ### Options inherited from parent commands
@@ -70,5 +54,5 @@ argocd logout --all
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd context](argocd_context.md)	 - Switch between contexts
 
