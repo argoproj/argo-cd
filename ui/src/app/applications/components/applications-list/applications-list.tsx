@@ -471,13 +471,14 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
     }
 
     function getPageTitle(view: string) {
+        const entityName = isListOfApplications ? 'Applications' : 'ApplicationSets';
         switch (view) {
             case List:
-                return 'Applications List';
+                return `${entityName} List`;
             case Tiles:
-                return 'Applications Tiles';
+                return `${entityName} Tiles`;
             case Summary:
-                return 'Applications Summary';
+                return `${entityName} Summary`;
         }
         return '';
     }
@@ -495,7 +496,14 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                     key={pref.view}
                                     title={getPageTitle(pref.view)}
                                     useTitleOnly={true}
-                                    toolbar={{breadcrumbs: [{title: 'Applications', path: '/applications'}]}}
+                                    toolbar={{
+                                        breadcrumbs: [
+                                            {
+                                                title: isListOfApplications ? 'Applications' : 'ApplicationSets',
+                                                path: isListOfApplications ? '/applications' : '/applicationsets'
+                                            }
+                                        ]
+                                    }}
                                     hideAuth={true}>
                                     <DataLoader
                                         input={pref.projectsFilter?.join(',')}
