@@ -26,9 +26,9 @@ kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubuse
 
 The `--server-side --force-conflicts` flags are required due to CRD size limitations. See the [getting started guide](getting_started.md) for details.
 
-Follow our [getting started guide](getting_started.md). Further user oriented [documentation](user-guide/)
+Follow our [getting started guide](getting_started.md). Further user oriented [documentation](user-guide/index.md)
 is provided for additional features. If you are looking to upgrade Argo CD, see the [upgrade guide](./operator-manual/upgrading/overview.md).
-Developer oriented [documentation](developer-guide/) is available for people interested in building third-party integrations.
+Developer oriented [documentation](developer-guide/index.md) is available for people interested in building third-party integrations.
 
 ## How it works
 
@@ -80,7 +80,7 @@ For additional details, see [architecture overview](operator-manual/architecture
 * CLI for automation and CI integration
 * Webhook integration (GitHub, BitBucket, GitLab)
 * Access tokens for automation
-* PreSync, Sync, PostSync hooks to support complex application rollouts (e.g.blue/green & canary upgrades)
+* PreSync, Sync, PostSync hooks to support complex application rollouts (e.g. blue/green & canary upgrades)
 * Audit trails for application events and API calls
 * Prometheus metrics
 * Parameter overrides for overriding helm parameters in Git

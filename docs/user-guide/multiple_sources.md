@@ -37,7 +37,7 @@ the resulting manifests.
 > [!WARNING]
 > **Do not abuse multiple sources**
 >
-> Note this feature is **NOT** destined as a generic way to group different/unrelated applications. Take a look at [applicationsets](../user-guide/application-set.md) and the [app-of-apps](../../operator-manual/cluster-bootstrapping/) pattern if you want to have a single entity for multiple applications. If you find yourself using more than 2-3 items in the `sources` array then you are almost certainly abusing this feature and you need to rethink your application grouping strategy.
+> Note this feature is **NOT** destined as a generic way to group different/unrelated applications. Take a look at [applicationsets](../user-guide/application-set.md) and the [app-of-apps](../operator-manual/cluster-bootstrapping.md) pattern if you want to have a single entity for multiple applications. If you find yourself using more than 2-3 items in the `sources` array then you are almost certainly abusing this feature and you need to rethink your application grouping strategy.
 
 If multiple sources produce the same resource (same `group`, `kind`, `name`, and `namespace`), the last source to 
 produce the resource will take precedence. Argo CD will produce a `RepeatedResourceWarning` in this case, but it will 
