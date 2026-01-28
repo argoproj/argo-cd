@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	bitbucketv1 "github.com/gfleury/go-bitbucket-v1"
 	log "github.com/sirupsen/logrus"
@@ -89,6 +90,8 @@ func (b *BitbucketService) List(_ context.Context) ([]*PullRequest, error) {
 				HeadSHA:      pull.FromRef.LatestCommit, // This is not defined in the official docs, but works in practice
 				Labels:       []string{},                // Not supported by library
 				Author:       pull.Author.User.Name,
+				CreatedAt:    time.Unix(pull.CreatedDate/1000, 0).UTC(),
+				UpdatedAt:    time.Unix(pull.UpdatedDate/1000, 0).UTC(),
 			})
 		}
 
