@@ -175,7 +175,6 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
     );
 };
 
-// Type-safe filter function for Applications
 function filterApplications(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
     const processedApps = applications.map(app => {
         let isAppOfAppsPattern = false;
@@ -199,7 +198,6 @@ function filterApplications(applications: models.Application[], pref: AppsListPr
     };
 }
 
-// Type-safe filter function for ApplicationSets
 function filterApplicationSets(
     appSets: models.ApplicationSet[],
     pref: AppSetsListPreferences,
@@ -445,7 +443,6 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
         services.applications.get(appName, appNamespace, objectListKind, 'normal');
     }
 
-    // Type-safe handler for Application filter changes
     function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
         services.viewPreferences.updatePreferences({appList: newPref});
         ctx.navigation.goto(
@@ -465,7 +462,6 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
         );
     }
 
-    // Type-safe handler for ApplicationSet filter changes
     function onAppSetFilterPrefChanged(ctx: ContextApis, newPref: AppSetsListPreferences) {
         // Use appList since ViewPreferences shares preferences between apps and appsets
         services.viewPreferences.updatePreferences({appList: newPref as AppsListPreferences});
@@ -540,7 +536,6 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                 }
                                             };
 
-                                            // Type-safe rendering based on entity type
                                             if (isListOfApplications) {
                                                 // Applications path - fully type-safe
                                                 const apps = applications as models.Application[];

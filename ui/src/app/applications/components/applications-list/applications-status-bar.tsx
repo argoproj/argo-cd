@@ -108,7 +108,6 @@ function StatusBarRenderer({readings}: {readings: Reading[]}) {
     );
 }
 
-// Type-safe component for Applications
 export interface AppsStatusBarProps {
     applications: models.Application[];
 }
@@ -120,7 +119,6 @@ export const AppsStatusBar = ({applications}: AppsStatusBarProps) => {
     return <StatusBarRenderer readings={getAppReadings(applications)} />;
 };
 
-// Type-safe component for ApplicationSets
 export interface AppSetsStatusBarProps {
     appSets: models.ApplicationSet[];
 }

@@ -197,7 +197,6 @@ const SyncFilter = (props: AppFilterProps) => (
     />
 );
 
-// Type-safe Health Filter for Applications
 const AppHealthFilter = (props: AppFilterProps) => (
     <Filter
         label='HEALTH STATUS'
@@ -215,7 +214,6 @@ const AppHealthFilter = (props: AppFilterProps) => (
     />
 );
 
-// Type-safe Health Filter for ApplicationSets
 const AppSetHealthFilter = (props: AppSetFilterProps) => (
     <Filter
         label='HEALTH STATUS'
@@ -233,7 +231,6 @@ const AppSetHealthFilter = (props: AppSetFilterProps) => (
     />
 );
 
-// Type-safe Labels Filter for Applications
 const AppLabelsFilter = (props: AppFilterProps) => {
     const labels = new Map<string, Set<string>>();
     props.apps
@@ -260,7 +257,6 @@ const AppLabelsFilter = (props: AppFilterProps) => {
     return <Filter label='LABELS' selected={props.pref.labelsFilter} setSelected={s => props.onChange({...props.pref, labelsFilter: s})} field={true} options={labelOptions} />;
 };
 
-// Type-safe Labels Filter for ApplicationSets
 const AppSetLabelsFilter = (props: AppSetFilterProps) => {
     const labels = new Map<string, Set<string>>();
     props.apps
@@ -389,7 +385,6 @@ const NamespaceFilter = (props: AppFilterProps) => {
     );
 };
 
-// Type-safe Favorite Filter for Applications
 const AppFavoriteFilter = (props: AppFilterProps) => {
     const ctx = React.useContext(Context);
     const onChange = (val: boolean) => {
@@ -416,7 +411,6 @@ const AppFavoriteFilter = (props: AppFilterProps) => {
     );
 };
 
-// Type-safe Favorite Filter for ApplicationSets
 const AppSetFavoriteFilter = (props: AppSetFilterProps) => {
     const ctx = React.useContext(Context);
     const onChange = (val: boolean) => {
@@ -521,7 +515,6 @@ const OperationFilter = (props: AppFilterProps) => (
     />
 );
 
-// Type-safe filter component for Applications
 export const ApplicationsFilter = (props: AppFilterProps) => {
     return (
         <FiltersGroup title='Application filters' content={props.children} collapsed={props.collapsed}>
@@ -539,7 +532,6 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
     );
 };
 
-// Type-safe filter component for ApplicationSets
 export const AppSetsFilter = (props: AppSetFilterProps) => {
     return (
         <FiltersGroup title='ApplicationSet filters' content={props.children} collapsed={props.collapsed}>
