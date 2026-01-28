@@ -175,7 +175,6 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
     );
 };
 
-// Type-safe filter function that uses the appropriate filter based on list type
 function filterApps(
     applications: models.AbstractApplication[],
     pref: AppsListPreferences,
@@ -528,7 +527,15 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                 <React.Fragment>
                                                     <FlexTopBar
                                                         toolbar={{
-                                                            tools: <ApplicationsToolbar applications={applications} pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} isListOfApplications={isListOfApplications} />,
+                                                            tools: (
+                                                                <ApplicationsToolbar
+                                                                    applications={applications}
+                                                                    pref={pref}
+                                                                    ctx={ctx}
+                                                                    healthBarPrefs={healthBarPrefs}
+                                                                    isListOfApplications={isListOfApplications}
+                                                                />
+                                                            ),
                                                             actionMenu: {
                                                                 items: isListOfApplications
                                                                     ? [
@@ -598,7 +605,9 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                         page={pref.page}
                                                                         emptyState={() => (
                                                                             <EmptyState icon='fa fa-search'>
-                                                                                <h4>{isListOfApplications ? 'No matching applications found' : 'No matching application sets found'}</h4>
+                                                                                <h4>
+                                                                                    {isListOfApplications ? 'No matching applications found' : 'No matching application sets found'}
+                                                                                </h4>
                                                                                 <h5>
                                                                                     Change filter criteria or&nbsp;
                                                                                     <a

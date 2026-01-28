@@ -22,7 +22,7 @@ import {
 } from '../../../shared/models';
 import {AbstractAppsListPreferences, AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
-import * as LabelSelector from '../label-selector';
+import {createMetadataSelector} from '../selectors';
 import {ComparisonStatusIcon, getAppDefaultSource, getAppSetHealthStatus, HealthStatusIcon, isApp, getOperationStateTitle} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
 import {COLORS} from '../../../shared/components/colors';
@@ -72,8 +72,10 @@ export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
     return 'Enabled';
 }
 
-
 export function getAppFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
+    const labelSelector = createMetadataSelector(pref.labelsFilter || []);
+    const annotationSelector = createMetadataSelector(pref.annotationsFilter || []);
+
     return applications.map(app => ({
         ...app,
         filterResult: {
@@ -81,8 +83,7 @@ export function getAppFilterResults(applications: Application[], pref: AppsListP
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
-            namespaces:
-                pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
+            namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
             favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
             clusters:
                 pref.clustersFilter.length === 0 ||
@@ -96,20 +97,22 @@ export function getAppFilterResults(applications: Application[], pref: AppsListP
                         return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
                     }
                 }),
-            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)),
-            annotations: pref.annotationsFilter.length === 0 || pref.annotationsFilter.every(selector => LabelSelector.match(selector, app.metadata.annotations)),
+            labels: pref.labelsFilter.length === 0 || labelSelector(app.metadata.labels),
+            annotations: pref.annotationsFilter.length === 0 || annotationSelector(app.metadata.annotations),
             operation: pref.operationFilter.length === 0 || pref.operationFilter.includes(getOperationStateTitle(app))
         }
     }));
 }
 
 export function getAppSetFilterResults(appSets: ApplicationSet[], pref: AbstractAppsListPreferences): ApplicationSetFilteredApp[] {
+    const labelSelector = createMetadataSelector(pref.labelsFilter || []);
+
     return appSets.map(appSet => ({
         ...appSet,
         filterResult: {
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(getAppSetHealthStatus(appSet)),
             favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(appSet.metadata.name)),
-            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, appSet.metadata.labels))
+            labels: pref.labelsFilter.length === 0 || labelSelector(appSet.metadata.labels)
         }
     }));
 }
