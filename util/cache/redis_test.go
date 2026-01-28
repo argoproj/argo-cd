@@ -91,6 +91,47 @@ func TestRedisSetCache(t *testing.T) {
 	})
 }
 
+func TestRedisSetCacheWithPrefix(t *testing.T) {
+	prefix := "argocd-dev:"
+	t.Setenv("ARGOCD_REDIS_KEY_PREFIX", prefix)
+	mr, err := miniredis.Run()
+	if err != nil {
+		panic(err)
+	}
+	defer mr.Close()
+	assert.NotNil(t, mr)
+
+	t.Run("Successful set", func(t *testing.T) {
+		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 60*time.Second, RedisCompressionNone)
+		err = client.Set(&Item{Key: "foo", Object: "bar"})
+		require.NoError(t, err)
+		keys := mr.Keys()
+		require.Len(t, keys, 1)
+		assert.Equal(t, prefix+"foo", keys[0])
+	})
+
+	t.Run("Successful get", func(t *testing.T) {
+		var res string
+		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
+		err = client.Get("foo", &res)
+		require.NoError(t, err)
+		assert.Equal(t, "bar", res)
+	})
+
+	t.Run("Successful delete", func(t *testing.T) {
+		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
+		err = client.Delete("foo")
+		require.NoError(t, err)
+	})
+
+	t.Run("Cache miss", func(t *testing.T) {
+		var res string
+		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
+		err = client.Get("foo", &res)
+		assert.ErrorContains(t, err, "cache: key is missing")
+	})
+}
+
 func TestRedisSetCacheCompressed(t *testing.T) {
 	mr, err := miniredis.Run()
 	if err != nil {
