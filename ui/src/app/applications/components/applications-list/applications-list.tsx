@@ -9,13 +9,13 @@ import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/
 import {AddAuthToToolbar, ClusterCtx, DataLoader, EmptyState, Page, Paginate, Spinner} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import {AppsListViewKey, AppsListPreferences, AbstractAppsListPreferences, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
+import {AppsListViewKey, AppsListPreferences, AppSetsListPreferences, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
-import {ApplicationsFilter, AbstractFilteredApp, getAppFilterResults, getAppSetFilterResults} from './applications-filter';
-import {ApplicationsStatusBar} from './applications-status-bar';
+import {ApplicationsFilter, AppSetsFilter, FilteredApp, ApplicationSetFilteredApp, getAppFilterResults, getAppSetFilterResults} from './applications-filter';
+import {AppsStatusBar, AppSetsStatusBar} from './applications-status-bar';
 import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
@@ -175,31 +175,37 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
     );
 };
 
-function filterApps(
-    applications: models.AbstractApplication[],
-    pref: AppsListPreferences,
-    search: string,
-    isListOfApplications: boolean
-): {filteredApps: models.AbstractApplication[]; filterResults: AbstractFilteredApp[]} {
-    let filterResults: AbstractFilteredApp[];
-
-    if (isListOfApplications) {
-        const processedApps = (applications as models.Application[]).map(app => {
-            let isAppOfAppsPattern = false;
-            if (app.status?.resources) {
-                for (const resource of app.status.resources) {
-                    if (resource.kind === 'Application') {
-                        isAppOfAppsPattern = true;
-                        break;
-                    }
+// Type-safe filter function for Applications
+function filterApplications(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
+    const processedApps = applications.map(app => {
+        let isAppOfAppsPattern = false;
+        if (app.status?.resources) {
+            for (const resource of app.status.resources) {
+                if (resource.kind === 'Application') {
+                    isAppOfAppsPattern = true;
+                    break;
                 }
             }
-            return {...app, isAppOfAppsPattern};
-        });
-        filterResults = getAppFilterResults(processedApps, pref);
-    } else {
-        filterResults = getAppSetFilterResults(applications as models.ApplicationSet[], pref);
-    }
+        }
+        return {...app, isAppOfAppsPattern};
+    });
+    const filterResults = getAppFilterResults(processedApps, pref);
+
+    return {
+        filterResults,
+        filteredApps: filterResults.filter(
+            app => (search === '' || app.metadata.name.includes(search) || app.metadata.namespace.includes(search)) && Object.values(app.filterResult).every(val => val)
+        )
+    };
+}
+
+// Type-safe filter function for ApplicationSets
+function filterApplicationSets(
+    appSets: models.ApplicationSet[],
+    pref: AppSetsListPreferences,
+    search: string
+): {filteredApps: models.ApplicationSet[]; filterResults: ApplicationSetFilteredApp[]} {
+    const filterResults = getAppSetFilterResults(appSets, pref);
 
     return {
         filterResults,
@@ -439,35 +445,38 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
         services.applications.get(appName, appNamespace, objectListKind, 'normal');
     }
 
-    function onFilterPrefChanged(ctx: ContextApis, newPref: AbstractAppsListPreferences) {
+    // Type-safe handler for Application filter changes
+    function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
+        services.viewPreferences.updatePreferences({appList: newPref});
+        ctx.navigation.goto(
+            '.',
+            {
+                proj: newPref.projectsFilter.join(','),
+                sync: newPref.syncFilter.join(','),
+                autoSync: newPref.autoSyncFilter.join(','),
+                health: newPref.healthFilter.join(','),
+                namespace: newPref.namespacesFilter.join(','),
+                cluster: newPref.clustersFilter.join(','),
+                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
+                annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
+                operation: newPref.operationFilter.join(',')
+            },
+            {replace: true}
+        );
+    }
+
+    // Type-safe handler for ApplicationSet filter changes
+    function onAppSetFilterPrefChanged(ctx: ContextApis, newPref: AppSetsListPreferences) {
+        // Use appList since ViewPreferences shares preferences between apps and appsets
         services.viewPreferences.updatePreferences({appList: newPref as AppsListPreferences});
-        if (isListOfApplications) {
-            const appPref = newPref as AppsListPreferences;
-            ctx.navigation.goto(
-                '.',
-                {
-                    proj: appPref.projectsFilter.join(','),
-                    sync: appPref.syncFilter.join(','),
-                    autoSync: appPref.autoSyncFilter.join(','),
-                    health: appPref.healthFilter.join(','),
-                    namespace: appPref.namespacesFilter.join(','),
-                    cluster: appPref.clustersFilter.join(','),
-                    labels: appPref.labelsFilter.map(encodeURIComponent).join(','),
-                    annotations: appPref.annotationsFilter.map(encodeURIComponent).join(','),
-                    operation: appPref.operationFilter.join(',')
-                },
-                {replace: true}
-            );
-        } else {
-            ctx.navigation.goto(
-                '.',
-                {
-                    health: newPref.healthFilter.join(','),
-                    labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
-                },
-                {replace: true}
-            );
-        }
+        ctx.navigation.goto(
+            '.',
+            {
+                health: newPref.healthFilter.join(','),
+                labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
+            },
+            {replace: true}
+        );
     }
 
     function getPageTitle(view: string) {
@@ -516,7 +525,6 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                         )}>
                                         {(applications: models.AbstractApplication[]) => {
                                             const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
-                                            const {filteredApps, filterResults} = filterApps(applications, pref, pref.search, isListOfApplications);
                                             const handleCreatePanelClose = async () => {
                                                 const outsideDiv = document.querySelector('.sliding-panel__outside');
                                                 const closeButton = document.querySelector('.sliding-panel__close');
@@ -531,46 +539,50 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                     ctx.navigation.goto('.', {new: null}, {replace: true});
                                                 }
                                             };
-                                            return (
-                                                <React.Fragment>
-                                                    <FlexTopBar
-                                                        toolbar={{
-                                                            tools: (
-                                                                <ApplicationsToolbar
-                                                                    applications={applications}
-                                                                    pref={pref}
-                                                                    ctx={ctx}
-                                                                    healthBarPrefs={healthBarPrefs}
-                                                                    isListOfApplications={isListOfApplications}
-                                                                />
-                                                            ),
-                                                            actionMenu: {
-                                                                items: isListOfApplications
-                                                                    ? [
-                                                                          {
-                                                                              title: 'New App',
-                                                                              iconClassName: 'fa fa-plus',
-                                                                              qeId: 'applications-list-button-new-app',
-                                                                              action: () => ctx.navigation.goto('.', {new: '{}'}, {replace: true})
-                                                                          },
-                                                                          {
-                                                                              title: 'Sync Apps',
-                                                                              iconClassName: 'fa fa-sync',
-                                                                              action: () => ctx.navigation.goto('.', {syncApps: true}, {replace: true})
-                                                                          },
-                                                                          {
-                                                                              title: 'Refresh Apps',
-                                                                              iconClassName: 'fa fa-redo',
-                                                                              action: () => ctx.navigation.goto('.', {refreshApps: true}, {replace: true})
-                                                                          }
-                                                                      ]
-                                                                    : [] // No action menu for ApplicationSets yet
-                                                            }
-                                                        }}
-                                                    />
-                                                    <div className='applications-list'>
-                                                        {applications.length === 0 && pref.projectsFilter?.length === 0 && (pref.labelsFilter || []).length === 0 ? (
-                                                            isListOfApplications ? (
+
+                                            // Type-safe rendering based on entity type
+                                            if (isListOfApplications) {
+                                                // Applications path - fully type-safe
+                                                const apps = applications as models.Application[];
+                                                const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search);
+
+                                                return (
+                                                    <React.Fragment>
+                                                        <FlexTopBar
+                                                            toolbar={{
+                                                                tools: (
+                                                                    <ApplicationsToolbar
+                                                                        applications={applications}
+                                                                        pref={pref}
+                                                                        ctx={ctx}
+                                                                        healthBarPrefs={healthBarPrefs}
+                                                                        isListOfApplications={isListOfApplications}
+                                                                    />
+                                                                ),
+                                                                actionMenu: {
+                                                                    items: [
+                                                                        {
+                                                                            title: 'New App',
+                                                                            iconClassName: 'fa fa-plus',
+                                                                            qeId: 'applications-list-button-new-app',
+                                                                            action: () => ctx.navigation.goto('.', {new: '{}'}, {replace: true})
+                                                                        },
+                                                                        {
+                                                                            title: 'Sync Apps',
+                                                                            iconClassName: 'fa fa-sync',
+                                                                            action: () => ctx.navigation.goto('.', {syncApps: true}, {replace: true})
+                                                                        },
+                                                                        {
+                                                                            title: 'Refresh Apps',
+                                                                            iconClassName: 'fa fa-redo',
+                                                                            action: () => ctx.navigation.goto('.', {refreshApps: true}, {replace: true})
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            }}
+                                                        />
+                                                        <div className='applications-list'>
+                                                            {apps.length === 0 && pref.projectsFilter?.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                                 <EmptyState icon='argo-icon-application'>
                                                                     <h4>No applications available to you just yet</h4>
                                                                     <h5>Create new application to start managing resources in your cluster</h5>
@@ -582,46 +594,236 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                     </button>
                                                                 </EmptyState>
                                                             ) : (
+                                                                <>
+                                                                    {ReactDOM.createPortal(
+                                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                            {allpref => (
+                                                                                <ApplicationsFilter
+                                                                                    apps={filterResults}
+                                                                                    onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
+                                                                                    pref={pref}
+                                                                                    collapsed={allpref.hideSidebar}
+                                                                                />
+                                                                            )}
+                                                                        </DataLoader>,
+                                                                        sidebarTarget?.current
+                                                                    )}
+
+                                                                    {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
+                                                                        <Paginate
+                                                                            header={filteredApps.length > 1 && <AppsStatusBar applications={filteredApps} />}
+                                                                            showHeader={healthBarPrefs.showHealthStatusBar}
+                                                                            preferencesKey='applications-list'
+                                                                            page={pref.page}
+                                                                            emptyState={() => (
+                                                                                <EmptyState icon='fa fa-search'>
+                                                                                    <h4>No matching applications found</h4>
+                                                                                    <h5>
+                                                                                        Change filter criteria or&nbsp;
+                                                                                        <a
+                                                                                            onClick={() => {
+                                                                                                AppsListPreferences.clearFilters(pref);
+                                                                                                onAppFilterPrefChanged(ctx, pref);
+                                                                                            }}>
+                                                                                            clear filters
+                                                                                        </a>
+                                                                                    </h5>
+                                                                                </EmptyState>
+                                                                            )}
+                                                                            sortOptions={[
+                                                                                {
+                                                                                    title: 'Name',
+                                                                                    compare: (a, b) => a.metadata.name.localeCompare(b.metadata.name, undefined, {numeric: true})
+                                                                                },
+                                                                                {
+                                                                                    title: 'Created At',
+                                                                                    compare: (b, a) => a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp)
+                                                                                },
+                                                                                {
+                                                                                    title: 'Synchronized',
+                                                                                    compare: (b, a) =>
+                                                                                        a.status.operationState?.finishedAt?.localeCompare(b.status.operationState?.finishedAt)
+                                                                                }
+                                                                            ]}
+                                                                            data={filteredApps}
+                                                                            onPageChange={page => ctx.navigation.goto('.', {page})}>
+                                                                            {data =>
+                                                                                (pref.view === 'tiles' && (
+                                                                                    <ApplicationTiles
+                                                                                        applications={data}
+                                                                                        syncApplication={(appName, appNamespace) =>
+                                                                                            ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true})
+                                                                                        }
+                                                                                        refreshApplication={refreshApp}
+                                                                                        deleteApplication={(appName, appNamespace) =>
+                                                                                            AppUtils.deleteApplication(appName, appNamespace, ctx)
+                                                                                        }
+                                                                                    />
+                                                                                )) || (
+                                                                                    <ApplicationsTable
+                                                                                        applications={data}
+                                                                                        syncApplication={(appName, appNamespace) =>
+                                                                                            ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true})
+                                                                                        }
+                                                                                        refreshApplication={refreshApp}
+                                                                                        deleteApplication={(appName, appNamespace) =>
+                                                                                            AppUtils.deleteApplication(appName, appNamespace, ctx)
+                                                                                        }
+                                                                                    />
+                                                                                )
+                                                                            }
+                                                                        </Paginate>
+                                                                    )}
+                                                                </>
+                                                            )}
+                                                            <ApplicationsSyncPanel
+                                                                key='syncsPanel'
+                                                                show={syncAppsInput}
+                                                                hide={() => ctx.navigation.goto('.', {syncApps: null}, {replace: true})}
+                                                                apps={filteredApps}
+                                                            />
+                                                            <ApplicationsRefreshPanel
+                                                                key='refreshPanel'
+                                                                show={refreshAppsInput}
+                                                                hide={() => ctx.navigation.goto('.', {refreshApps: null}, {replace: true})}
+                                                                apps={filteredApps}
+                                                            />
+                                                        </div>
+                                                        <DataLoader
+                                                            load={() =>
+                                                                observableQuery$.pipe(
+                                                                    mergeMap(params => {
+                                                                        const syncApp = params.get('syncApp');
+                                                                        const appNamespace = params.get('appNamespace');
+                                                                        return (syncApp && from(services.applications.get(syncApp, appNamespace, objectListKind))) || from([null]);
+                                                                    })
+                                                                )
+                                                            }>
+                                                            {app => (
+                                                                <ApplicationSyncPanel
+                                                                    key='syncPanel'
+                                                                    application={app}
+                                                                    selectedResource={'all'}
+                                                                    hide={() => ctx.navigation.goto('.', {syncApp: null}, {replace: true})}
+                                                                />
+                                                            )}
+                                                        </DataLoader>
+                                                        <SlidingPanel
+                                                            isShown={!!appInput}
+                                                            onClose={() => handleCreatePanelClose()}
+                                                            header={
+                                                                <div>
+                                                                    <button
+                                                                        qe-id='applications-list-button-create'
+                                                                        className='argo-button argo-button--base'
+                                                                        disabled={isAppCreatePending}
+                                                                        onClick={() => createApi && createApi.submitForm(null)}>
+                                                                        <Spinner show={isAppCreatePending} style={{marginRight: '5px'}} />
+                                                                        Create
+                                                                    </button>{' '}
+                                                                    <button
+                                                                        qe-id='applications-list-button-cancel'
+                                                                        onClick={() => ctx.navigation.goto('.', {new: null}, {replace: true})}
+                                                                        className='argo-button argo-button--base-o'>
+                                                                        Cancel
+                                                                    </button>
+                                                                </div>
+                                                            }>
+                                                            {appInput && (
+                                                                <ApplicationCreatePanel
+                                                                    getFormApi={api => {
+                                                                        setCreateApi(api);
+                                                                    }}
+                                                                    createApp={async app => {
+                                                                        setAppCreatePending(true);
+                                                                        try {
+                                                                            await services.applications.create(app);
+                                                                            ctx.navigation.goto('.', {new: null}, {replace: true});
+                                                                        } catch (e) {
+                                                                            ctx.notifications.show({
+                                                                                content: <ErrorNotification title='Unable to create application' e={e} />,
+                                                                                type: NotificationType.Error
+                                                                            });
+                                                                        } finally {
+                                                                            setAppCreatePending(false);
+                                                                        }
+                                                                    }}
+                                                                    app={appInput}
+                                                                    onAppChanged={app => ctx.navigation.goto('.', {new: JSON.stringify(app)}, {replace: true})}
+                                                                />
+                                                            )}
+                                                        </SlidingPanel>
+                                                    </React.Fragment>
+                                                );
+                                            } else {
+                                                // ApplicationSets path - fully type-safe
+                                                const appSets = applications as models.ApplicationSet[];
+                                                const appSetPref: AppSetsListPreferences = {
+                                                    labelsFilter: pref.labelsFilter,
+                                                    healthFilter: pref.healthFilter,
+                                                    showFavorites: pref.showFavorites,
+                                                    favoritesAppList: pref.favoritesAppList,
+                                                    view: pref.view,
+                                                    hideFilters: pref.hideFilters,
+                                                    statusBarView: pref.statusBarView,
+                                                    annotationsFilter: pref.annotationsFilter
+                                                };
+                                                const {filteredApps, filterResults} = filterApplicationSets(appSets, appSetPref, pref.search);
+
+                                                return (
+                                                    <React.Fragment>
+                                                        <FlexTopBar
+                                                            toolbar={{
+                                                                tools: (
+                                                                    <ApplicationsToolbar
+                                                                        applications={applications}
+                                                                        pref={pref}
+                                                                        ctx={ctx}
+                                                                        healthBarPrefs={healthBarPrefs}
+                                                                        isListOfApplications={isListOfApplications}
+                                                                    />
+                                                                ),
+                                                                actionMenu: {
+                                                                    items: [] // No action menu for ApplicationSets yet
+                                                                }
+                                                            }}
+                                                        />
+                                                        <div className='applications-list'>
+                                                            {appSets.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                                 <EmptyState icon='argo-icon-application'>
                                                                     <h4>No ApplicationSets available to you just yet</h4>
                                                                     <h5>ApplicationSets will appear here once created</h5>
                                                                 </EmptyState>
-                                                            )
-                                                        ) : (
-                                                            <>
-                                                                {ReactDOM.createPortal(
-                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                                        {allpref => (
-                                                                            <ApplicationsFilter
-                                                                                apps={filterResults}
-                                                                                onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
-                                                                                pref={pref}
-                                                                                collapsed={allpref.hideSidebar}
-                                                                            />
-                                                                        )}
-                                                                    </DataLoader>,
-                                                                    sidebarTarget?.current
-                                                                )}
+                                                            ) : (
+                                                                <>
+                                                                    {ReactDOM.createPortal(
+                                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                            {allpref => (
+                                                                                <AppSetsFilter
+                                                                                    apps={filterResults}
+                                                                                    onChange={newPrefs => onAppSetFilterPrefChanged(ctx, newPrefs)}
+                                                                                    pref={appSetPref}
+                                                                                    collapsed={allpref.hideSidebar}
+                                                                                />
+                                                                            )}
+                                                                        </DataLoader>,
+                                                                        sidebarTarget?.current
+                                                                    )}
 
-                                                                {(pref.view === 'summary' && isListOfApplications && (
-                                                                    <ApplicationsSummary applications={filteredApps as models.Application[]} />
-                                                                )) || (
                                                                     <Paginate
-                                                                        header={filteredApps.length > 1 && <ApplicationsStatusBar applications={filteredApps} />}
+                                                                        header={filteredApps.length > 1 && <AppSetsStatusBar appSets={filteredApps} />}
                                                                         showHeader={healthBarPrefs.showHealthStatusBar}
                                                                         preferencesKey='applications-list'
                                                                         page={pref.page}
                                                                         emptyState={() => (
                                                                             <EmptyState icon='fa fa-search'>
-                                                                                <h4>
-                                                                                    {isListOfApplications ? 'No matching applications found' : 'No matching application sets found'}
-                                                                                </h4>
+                                                                                <h4>No matching application sets found</h4>
                                                                                 <h5>
                                                                                     Change filter criteria or&nbsp;
                                                                                     <a
                                                                                         onClick={() => {
-                                                                                            AppsListPreferences.clearFilters(pref);
-                                                                                            onFilterPrefChanged(ctx, pref);
+                                                                                            AppSetsListPreferences.clearFilters(appSetPref);
+                                                                                            onAppSetFilterPrefChanged(ctx, appSetPref);
                                                                                         }}>
                                                                                         clear filters
                                                                                     </a>
@@ -636,11 +838,6 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                             {
                                                                                 title: 'Created At',
                                                                                 compare: (b, a) => a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp)
-                                                                            },
-                                                                            {
-                                                                                title: 'Synchronized',
-                                                                                compare: (b, a) =>
-                                                                                    a.status.operationState?.finishedAt?.localeCompare(b.status.operationState?.finishedAt)
                                                                             }
                                                                         ]}
                                                                         data={filteredApps}
@@ -649,114 +846,26 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                             (pref.view === 'tiles' && (
                                                                                 <ApplicationTiles
                                                                                     applications={data}
-                                                                                    syncApplication={(appName, appNamespace) =>
-                                                                                        ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true})
-                                                                                    }
-                                                                                    refreshApplication={refreshApp}
-                                                                                    deleteApplication={(appName, appNamespace) =>
-                                                                                        AppUtils.deleteApplication(appName, appNamespace, ctx)
-                                                                                    }
+                                                                                    syncApplication={() => {}}
+                                                                                    refreshApplication={() => {}}
+                                                                                    deleteApplication={() => {}}
                                                                                 />
                                                                             )) || (
                                                                                 <ApplicationsTable
                                                                                     applications={data}
-                                                                                    syncApplication={(appName, appNamespace) =>
-                                                                                        ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true})
-                                                                                    }
-                                                                                    refreshApplication={refreshApp}
-                                                                                    deleteApplication={(appName, appNamespace) =>
-                                                                                        AppUtils.deleteApplication(appName, appNamespace, ctx)
-                                                                                    }
+                                                                                    syncApplication={() => {}}
+                                                                                    refreshApplication={() => {}}
+                                                                                    deleteApplication={() => {}}
                                                                                 />
                                                                             )
                                                                         }
                                                                     </Paginate>
-                                                                )}
-                                                            </>
-                                                        )}
-                                                        {isListOfApplications && (
-                                                            <ApplicationsSyncPanel
-                                                                key='syncsPanel'
-                                                                show={syncAppsInput}
-                                                                hide={() => ctx.navigation.goto('.', {syncApps: null}, {replace: true})}
-                                                                apps={filteredApps as models.Application[]}
-                                                            />
-                                                        )}
-                                                        {isListOfApplications && (
-                                                            <ApplicationsRefreshPanel
-                                                                key='refreshPanel'
-                                                                show={refreshAppsInput}
-                                                                hide={() => ctx.navigation.goto('.', {refreshApps: null}, {replace: true})}
-                                                                apps={filteredApps as models.Application[]}
-                                                            />
-                                                        )}
-                                                    </div>
-                                                    <DataLoader
-                                                        load={() =>
-                                                            observableQuery$.pipe(
-                                                                mergeMap(params => {
-                                                                    const syncApp = params.get('syncApp');
-                                                                    const appNamespace = params.get('appNamespace');
-                                                                    return (syncApp && from(services.applications.get(syncApp, appNamespace, objectListKind))) || from([null]);
-                                                                })
-                                                            )
-                                                        }>
-                                                        {app => (
-                                                            <ApplicationSyncPanel
-                                                                key='syncPanel'
-                                                                application={app}
-                                                                selectedResource={'all'}
-                                                                hide={() => ctx.navigation.goto('.', {syncApp: null}, {replace: true})}
-                                                            />
-                                                        )}
-                                                    </DataLoader>
-                                                    <SlidingPanel
-                                                        isShown={!!appInput}
-                                                        onClose={() => handleCreatePanelClose()} //Separate handling for outside click.
-                                                        header={
-                                                            <div>
-                                                                <button
-                                                                    qe-id='applications-list-button-create'
-                                                                    className='argo-button argo-button--base'
-                                                                    disabled={isAppCreatePending}
-                                                                    onClick={() => createApi && createApi.submitForm(null)}>
-                                                                    <Spinner show={isAppCreatePending} style={{marginRight: '5px'}} />
-                                                                    Create
-                                                                </button>{' '}
-                                                                <button
-                                                                    qe-id='applications-list-button-cancel'
-                                                                    onClick={() => ctx.navigation.goto('.', {new: null}, {replace: true})}
-                                                                    className='argo-button argo-button--base-o'>
-                                                                    Cancel
-                                                                </button>
-                                                            </div>
-                                                        }>
-                                                        {appInput && (
-                                                            <ApplicationCreatePanel
-                                                                getFormApi={api => {
-                                                                    setCreateApi(api);
-                                                                }}
-                                                                createApp={async app => {
-                                                                    setAppCreatePending(true);
-                                                                    try {
-                                                                        await services.applications.create(app);
-                                                                        ctx.navigation.goto('.', {new: null}, {replace: true});
-                                                                    } catch (e) {
-                                                                        ctx.notifications.show({
-                                                                            content: <ErrorNotification title='Unable to create application' e={e} />,
-                                                                            type: NotificationType.Error
-                                                                        });
-                                                                    } finally {
-                                                                        setAppCreatePending(false);
-                                                                    }
-                                                                }}
-                                                                app={appInput}
-                                                                onAppChanged={app => ctx.navigation.goto('.', {new: JSON.stringify(app)}, {replace: true})}
-                                                            />
-                                                        )}
-                                                    </SlidingPanel>
-                                                </React.Fragment>
-                                            );
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </React.Fragment>
+                                                );
+                                            }
                                         }}
                                     </DataLoader>
                                 </Page>
