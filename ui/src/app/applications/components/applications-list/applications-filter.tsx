@@ -3,39 +3,66 @@ import * as minimatch from 'minimatch';
 import * as React from 'react';
 import {Context} from '../../../shared/context';
 import {
+    AbstractApplication,
     Application,
     ApplicationDestination,
+    ApplicationSet,
+    ApplicationSetSpec,
+    ApplicationSpec,
+    ApplicationStatus,
     Cluster,
     HealthStatusCode,
     HealthStatuses,
+    Operation,
     OperationStateTitle,
     OperationStateTitles,
     SyncPolicy,
     SyncStatusCode,
     SyncStatuses
 } from '../../../shared/models';
-import {AppsListPreferences, services} from '../../../shared/services';
+import {AbstractAppsListPreferences, AppsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
-import {createMetadataSelector} from '../selectors';
-import {ComparisonStatusIcon, getAppDefaultSource, HealthStatusIcon, getOperationStateTitle} from '../utils';
+import * as LabelSelector from '../label-selector';
+import {ComparisonStatusIcon, getAppDefaultSource, getAppSetHealthStatus, HealthStatusIcon, isApp, getOperationStateTitle} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
 import {COLORS} from '../../../shared/components/colors';
 
-export interface FilterResult {
+export interface AbstractFilterResult {
+    favourite: boolean;
+    labels: boolean;
+    health: boolean;
+}
+
+export interface FilterResult extends AbstractFilterResult {
     repos: boolean;
     sync: boolean;
     autosync: boolean;
-    health: boolean;
-    namespaces: boolean;
     clusters: boolean;
-    favourite: boolean;
-    labels: boolean;
-    annotations: boolean;
+    namespaces: boolean;
     operation: boolean;
+    annotations: boolean;
 }
 
-export interface FilteredApp extends Application {
+export interface ApplicationSetFilterResult extends AbstractFilterResult {
+    // For future use
+}
+
+export interface AbstractFilteredApp extends AbstractApplication {
+    filterResult: AbstractFilterResult;
+}
+
+export interface FilteredApp extends AbstractFilteredApp {
+    spec: ApplicationSpec;
+    status: ApplicationStatus;
+    operation?: Operation;
+    isAppOfAppsPattern?: boolean;
     filterResult: FilterResult;
+}
+
+export interface ApplicationSetFilteredApp extends AbstractFilteredApp {
+    spec: ApplicationSetSpec;
+    status?: ApplicationSet['status'];
+    filterResult: ApplicationSetFilterResult;
 }
 
 export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
@@ -45,10 +72,8 @@ export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
     return 'Enabled';
 }
 
-export function getFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
-    const labelSelector = createMetadataSelector(pref.labelsFilter || []);
-    const annotationSelector = createMetadataSelector(pref.annotationsFilter || []);
 
+export function getAppFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
     return applications.map(app => ({
         ...app,
         filterResult: {
@@ -56,7 +81,8 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
-            namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
+            namespaces:
+                pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
             favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
             clusters:
                 pref.clustersFilter.length === 0 ||
@@ -70,9 +96,20 @@ export function getFilterResults(applications: Application[], pref: AppsListPref
                         return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
                     }
                 }),
-            labels: pref.labelsFilter.length === 0 || labelSelector(app.metadata.labels),
-            annotations: pref.annotationsFilter.length === 0 || annotationSelector(app.metadata.annotations),
+            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, app.metadata.labels)),
+            annotations: pref.annotationsFilter.length === 0 || pref.annotationsFilter.every(selector => LabelSelector.match(selector, app.metadata.annotations)),
             operation: pref.operationFilter.length === 0 || pref.operationFilter.includes(getOperationStateTitle(app))
+        }
+    }));
+}
+
+export function getAppSetFilterResults(appSets: ApplicationSet[], pref: AbstractAppsListPreferences): ApplicationSetFilteredApp[] {
+    return appSets.map(appSet => ({
+        ...appSet,
+        filterResult: {
+            health: pref.healthFilter.length === 0 || pref.healthFilter.includes(getAppSetHealthStatus(appSet)),
+            favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(appSet.metadata.name)),
+            labels: pref.labelsFilter.length === 0 || pref.labelsFilter.every(selector => LabelSelector.match(selector, appSet.metadata.labels))
         }
     }));
 }
@@ -85,12 +122,26 @@ const optionsFrom = (options: string[], filter: string[]) => {
         });
 };
 
-interface AppFilterProps {
+interface AbstractAppFilterProps {
+    apps: AbstractFilteredApp[];
+    pref: AbstractAppsListPreferences;
+    onChange: (newPrefs: AbstractAppsListPreferences) => void;
+    children?: React.ReactNode;
+    collapsed?: boolean;
+}
+
+interface AppFilterProps extends AbstractAppFilterProps {
     apps: FilteredApp[];
     pref: AppsListPreferences;
     onChange: (newPrefs: AppsListPreferences) => void;
-    children?: React.ReactNode;
-    collapsed?: boolean;
+}
+
+export function isAppFilterProps(abstractAppFilterProps: AbstractAppFilterProps): abstractAppFilterProps is AppFilterProps {
+    // Check if we have apps and if the first one is an Application
+    if (abstractAppFilterProps.apps.length > 0) {
+        return isApp(abstractAppFilterProps.apps[0]);
+    }
+    return false;
 }
 
 const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, init?: string[]) => {
@@ -105,8 +156,37 @@ const getCounts = (apps: FilteredApp[], filterType: keyof FilterResult, filter: 
     return map;
 };
 
+const getAppSetCounts = (apps: ApplicationSetFilteredApp[], filterType: keyof ApplicationSetFilterResult, filter: (app: ApplicationSet) => string, init?: string[]) => {
+    const map = new Map<string, number>();
+    if (init) {
+        init.forEach(key => map.set(key, 0));
+    }
+    // filter out all apps that does not match other filters and ignore this filter result
+    apps.filter(app => filter(app) && Object.keys(app.filterResult).every((key: keyof ApplicationSetFilterResult) => key === filterType || app.filterResult[key])).forEach(app =>
+        map.set(filter(app), (map.get(filter(app)) || 0) + 1)
+    );
+    return map;
+};
+
 const getOptions = (apps: FilteredApp[], filterType: keyof FilterResult, filter: (app: Application) => string, keys: string[], getIcon?: (k: string) => React.ReactNode) => {
     const counts = getCounts(apps, filterType, filter, keys);
+    return keys.map(k => {
+        return {
+            label: k,
+            icon: getIcon && getIcon(k),
+            count: counts.get(k)
+        };
+    });
+};
+
+const getAppSetOptions = (
+    apps: ApplicationSetFilteredApp[],
+    filterType: keyof ApplicationSetFilterResult,
+    filter: (app: ApplicationSet) => string,
+    keys: string[],
+    getIcon?: (k: string) => React.ReactNode
+) => {
+    const counts = getAppSetCounts(apps, filterType, filter, keys);
     return keys.map(k => {
         return {
             label: k,
@@ -133,26 +213,38 @@ const SyncFilter = (props: AppFilterProps) => (
     />
 );
 
-const HealthFilter = (props: AppFilterProps) => (
-    <Filter
-        label='HEALTH STATUS'
-        selected={props.pref.healthFilter}
-        setSelected={s => props.onChange({...props.pref, healthFilter: s})}
-        options={getOptions(
-            props.apps,
-            'health',
-            app => app.status.health.status,
-            Object.keys(HealthStatuses),
-            s => (
-                <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
-            )
-        )}
-    />
-);
+const HealthFilter = (props: AbstractAppFilterProps) => {
+    const isApps = isAppFilterProps(props);
 
-const LabelsFilter = (props: AppFilterProps) => {
+    return (
+        <Filter
+            label='HEALTH STATUS'
+            selected={props.pref.healthFilter}
+            setSelected={s => props.onChange({...props.pref, healthFilter: s})}
+            options={
+                isApps
+                    ? getOptions(
+                          props.apps as FilteredApp[],
+                          'health',
+                          app => app.status.health.status,
+                          Object.keys(HealthStatuses),
+                          s => <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
+                      )
+                    : getAppSetOptions(
+                          props.apps as ApplicationSetFilteredApp[],
+                          'health',
+                          app => getAppSetHealthStatus(app),
+                          Object.keys(HealthStatuses),
+                          s => <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
+                      )
+            }
+        />
+    );
+};
+
+const LabelsFilter = (props: AbstractAppFilterProps) => {
     const labels = new Map<string, Set<string>>();
-    props.apps
+    (props.apps as AbstractFilteredApp[])
         .filter(app => app.metadata && app.metadata.labels)
         .forEach(app =>
             Object.keys(app.metadata.labels).forEach(label => {
@@ -278,11 +370,11 @@ const NamespaceFilter = (props: AppFilterProps) => {
     );
 };
 
-const FavoriteFilter = (props: AppFilterProps) => {
+const FavoriteFilter = (props: AbstractAppFilterProps) => {
     const ctx = React.useContext(Context);
     const onChange = (val: boolean) => {
         ctx.navigation.goto('.', {showFavorites: val}, {replace: true});
-        services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val}});
+        services.viewPreferences.updatePreferences({appList: {...props.pref, showFavorites: val} as AppsListPreferences});
     };
     return (
         <div
@@ -381,19 +473,21 @@ const OperationFilter = (props: AppFilterProps) => (
     />
 );
 
-export const ApplicationsFilter = (props: AppFilterProps) => {
+export const ApplicationsFilter = (props: AbstractAppFilterProps) => {
+    const isApps = isAppFilterProps(props);
+
     return (
-        <FiltersGroup title='Application filters' content={props.children} collapsed={props.collapsed}>
+        <FiltersGroup title={isApps ? 'Application filters' : 'ApplicationSet filters'} content={props.children} collapsed={props.collapsed}>
             <FavoriteFilter {...props} />
-            <SyncFilter {...props} />
+            {isApps && <SyncFilter {...(props as AppFilterProps)} />}
             <HealthFilter {...props} />
-            <OperationFilter {...props} />
+            {isApps && <OperationFilter {...(props as AppFilterProps)} />}
             <LabelsFilter {...props} />
-            <AnnotationsFilter {...props} />
-            <ProjectFilter {...props} />
-            <ClusterFilter {...props} />
-            <NamespaceFilter {...props} />
-            <AutoSyncFilter {...props} collapsed={true} />
+            {isApps && <AnnotationsFilter {...(props as AppFilterProps)} />}
+            {isApps && <ProjectFilter {...(props as AppFilterProps)} />}
+            {isApps && <ClusterFilter {...(props as AppFilterProps)} />}
+            {isApps && <NamespaceFilter {...(props as AppFilterProps)} />}
+            {isApps && <AutoSyncFilter {...(props as AppFilterProps)} collapsed={true} />}
         </FiltersGroup>
     );
 };
