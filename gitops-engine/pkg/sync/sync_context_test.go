@@ -890,6 +890,7 @@ func TestSync_Replace(t *testing.T) {
 	}{
 		{"NoAnnotation", testingutils.NewPod(), testingutils.NewPod(), "apply"},
 		{"AnnotationIsSet", withReplaceAnnotation(testingutils.NewPod()), testingutils.NewPod(), "replace"},
+		{"AnnotationIsSetOnLive", testingutils.NewPod(), withReplaceAnnotation(testingutils.NewPod()), "replace"},
 		{"LiveObjectMissing", withReplaceAnnotation(testingutils.NewPod()), nil, "create"},
 	}
 
@@ -1031,6 +1032,7 @@ func TestSync_Force(t *testing.T) {
 		{"NoAnnotation", testingutils.NewPod(), testingutils.NewPod(), "apply", false},
 		{"ForceApplyAnnotationIsSet", withForceAnnotation(testingutils.NewPod()), testingutils.NewPod(), "apply", true},
 		{"ForceReplaceAnnotationIsSet", withForceAndReplaceAnnotations(testingutils.NewPod()), testingutils.NewPod(), "replace", true},
+		{"ForceReplaceAnnotationIsSetOnLive", testingutils.NewPod(), withForceAndReplaceAnnotations(testingutils.NewPod()), "replace", true},
 		{"LiveObjectMissing", withReplaceAnnotation(testingutils.NewPod()), nil, "create", false},
 	}
 
