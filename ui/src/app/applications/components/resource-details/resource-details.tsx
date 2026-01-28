@@ -1,6 +1,7 @@
 import {DataLoader, DropDown, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
 import {useState} from 'react';
+import {BehaviorSubject} from 'rxjs';
 import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
@@ -32,6 +33,7 @@ interface ResourceDetailsProps {
     tree: ApplicationTree;
     tab?: string;
     appCxt: AppContext;
+    appChanged?: BehaviorSubject<any>;
 }
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
@@ -308,7 +310,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                 </button>
                                 <button
-                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources)}
+                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources, props.appChanged)}
                                     style={{marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
