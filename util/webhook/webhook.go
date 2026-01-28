@@ -432,7 +432,6 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 			continue
 		}
 
-		appCount := 0
 		// iterate over apps and check if any files specified in their sources have changed
 		for _, app := range filteredApps {
 			// get all sources, including sync source and dry source if source hydrator is configured

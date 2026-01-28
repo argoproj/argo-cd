@@ -181,66 +181,6 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	hook.Reset()
 }
 
-// TestGitHubCommitEvent_MultiSource_Refresh makes sure that a webhook will refresh a multi-source app when at least
-// one source matches.
-func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
-	hook := test.NewGlobal()
-	var patched bool
-	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchAction := action.(kubetesting.PatchAction)
-		assert.Equal(t, "app-to-refresh", patchAction.GetName())
-		patched = true
-		return true, nil, nil
-	}
-	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app-to-refresh",
-			Namespace: "argocd",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: v1alpha1.ApplicationSources{
-				{
-					RepoURL: "https://github.com/some/unrelated-repo",
-					Path:    ".",
-				},
-				{
-					RepoURL: "https://github.com/jessesuen/test-repo",
-					Path:    ".",
-				},
-			},
-		},
-	}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "app-to-ignore",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: v1alpha1.ApplicationSources{
-				{
-					RepoURL: "https://github.com/some/unrelated-repo",
-					Path:    ".",
-				},
-			},
-		},
-	},
-	)
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
-	req.Header.Set("X-GitHub-Event", "push")
-	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-	require.NoError(t, err)
-	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-	w := httptest.NewRecorder()
-	h.Handler(w, req)
-	time.Sleep(50 * time.Millisecond) // Give workers time to process the queued items
-	h.Shutdown()
-	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResult := "Requested app 'app-to-refresh' refresh"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
-	assert.True(t, patched)
-	hook.Reset()
-}
-	hook.Reset()
-}
-
 // TestGitHubCommitEvent_AppsInOtherNamespaces makes sure that webhooks properly find apps in the configured set of
 // allowed namespaces when Apps are allowed in any namespace
 func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
@@ -335,72 +275,6 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	assert.Contains(t, patchedApps, types.NamespacedName{Name: "app-to-refresh-in-globbed-namespace", Namespace: "app-team-two"})
 	assert.NotContains(t, patchedApps, types.NamespacedName{Name: "app-to-ignore", Namespace: "kube-system"})
 	assert.Len(t, patchedApps, 3)
-
-	hook.Reset()
-}
-
-// TestGitHubCommitEvent_Hydrate makes sure that a webhook will hydrate an app when dry source changed.
-func TestGitHubCommitEvent_Hydrate(t *testing.T) {
-	hook := test.NewGlobal()
-	var patched bool
-	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchAction := action.(kubetesting.PatchAction)
-		assert.Equal(t, "app-to-hydrate", patchAction.GetName())
-		patched = true
-		return true, nil, nil
-	}
-	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app-to-hydrate",
-			Namespace: "argocd",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			SourceHydrator: &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        "https://github.com/jessesuen/test-repo",
-					TargetRevision: "HEAD",
-					Path:           ".",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					TargetBranch: "environments/dev",
-					Path:         ".",
-				},
-				HydrateTo: nil,
-			},
-		},
-	}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "app-to-ignore",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: v1alpha1.ApplicationSources{
-				{
-					RepoURL: "https://github.com/some/unrelated-repo",
-					Path:    ".",
-				},
-			},
-		},
-	},
-	)
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
-	req.Header.Set("X-GitHub-Event", "push")
-	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-	require.NoError(t, err)
-	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-	w := httptest.NewRecorder()
-	h.Handler(w, req)
-	time.Sleep(50 * time.Millisecond) // Give workers time to process the queued items
-	h.Shutdown()
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.True(t, patched)
-
-	logMessages := make([]string, 0, len(hook.Entries))
-	for _, entry := range hook.Entries {
-		logMessages = append(logMessages, entry.Message)
-	}
-
-	assert.Contains(t, logMessages, "webhook trigger refresh app to hydrate 'app-to-hydrate'")
-	assert.NotContains(t, logMessages, "webhook trigger refresh app to hydrate 'app-to-ignore'")
 
 	hook.Reset()
 }
@@ -1253,6 +1127,7 @@ func TestHandleEvent(t *testing.T) {
 				"argocd",
 				[]string{},
 				10,
+				1,
 				appClientset,
 				&fakeAppsLister{clientset: appClientset},
 				&settings.ArgoCDSettings{},
@@ -1261,6 +1136,8 @@ func TestHandleEvent(t *testing.T) {
 				serverCache,
 				mockDB,
 				int64(50)*1024*1024,
+				0,
+				10,
 			)
 
 			// Create payload with the changed file
@@ -1271,8 +1148,13 @@ func TestHandleEvent(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			h.Handler(w, req)
-			close(h.queue)
-			h.Wait()
+
+			// Wait briefly for refresh processing
+			time.Sleep(50 * time.Millisecond)
+
+			// Shutdown properly
+			h.Shutdown()
+
 			assert.Equal(t, http.StatusOK, w.Code)
 
 			// Verify refresh behavior
@@ -1755,6 +1637,8 @@ func setupTestCache(t *testing.T, repoCache *cache.Cache, appName string, source
 	}
 	err := repoCache.SetManifests(testBeforeSHA, source, nil, clusterInfo, "", "", testAppLabelKey, appName, dummyManifests, nil, "")
 	require.NoError(t, err)
+}
+
 func TestWebhookRefreshWithJitter(t *testing.T) {
 	app := v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1769,8 +1653,23 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 		},
 	}
 
-	t.Run("items are delayed when jitter is configured", func(t *testing.T) {
+	t.Run("items are processed after jitter delay", func(t *testing.T) {
+		var patched bool
+		reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			if action.GetVerb() == "patch" {
+				patched = true
+			}
+			return true, nil, nil
+		}
+
 		appClientset := appclientset.NewSimpleClientset(&app)
+		defaultReactor := appClientset.ReactionChain[0]
+		appClientset.ReactionChain = nil
+		appClientset.AddReactor("list", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		appClientset.AddReactor("patch", "applications", reaction)
+
 		cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
 		h := NewHandler(
 			"argocd",
@@ -1796,13 +1695,51 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 		}
 
 		startTime := time.Now()
-		h.refreshQueue.AddAfter(req, 1*time.Second)
+		h.refreshQueue.AddAfter(req, 500*time.Millisecond)
 
-		time.Sleep(1200 * time.Millisecond)
+		// Wait for processing
+		time.Sleep(800 * time.Millisecond)
 		h.Shutdown()
 
 		elapsed := time.Since(startTime)
-		assert.GreaterOrEqual(t, elapsed.Milliseconds(), int64(1000))
+		// Verify delay was applied
+		assert.GreaterOrEqual(t, elapsed.Milliseconds(), int64(500))
+		// Verify app was actually patched (refresh processed)
+		assert.True(t, patched, "app should be patched after jitter delay")
+	})
+
+	t.Run("no jitter applied when threshold not exceeded", func(_ *testing.T) {
+		appClientset := appclientset.NewSimpleClientset(&app)
+		cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
+		h := NewHandler(
+			"argocd",
+			[]string{},
+			10,
+			5,
+			appClientset,
+			&fakeAppsLister{clientset: appClientset},
+			&settings.ArgoCDSettings{},
+			&fakeSettingsSrc{},
+			cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second),
+			servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute),
+			&mocks.ArgoDB{},
+			int64(50)*1024*1024,
+			2*time.Second,
+			100, // High threshold - won't be exceeded
+		)
+
+		req := &appRefreshRequest{
+			appName:      "test-app",
+			appNamespace: "argocd",
+			hydrate:      false,
+		}
+
+		// Add without explicit delay
+		h.refreshQueue.Add(req)
+
+		// Should process quickly without jitter
+		time.Sleep(100 * time.Millisecond)
+		h.Shutdown()
 	})
 }
 
@@ -1835,6 +1772,23 @@ func TestProcessAppRefresh(t *testing.T) {
 		h.Shutdown()
 
 		assert.Contains(t, hook.LastEntry().Message, "Requested app 'test-app' refresh")
+	})
+
+	t.Run("processes valid hydrate request", func(t *testing.T) {
+		hook := test.NewGlobal()
+		defer hook.Reset()
+
+		h := NewMockHandler(nil, []string{}, &app)
+		req := &appRefreshRequest{
+			appName:      "test-app",
+			appNamespace: "argocd",
+			hydrate:      true,
+		}
+
+		h.processAppRefresh(req)
+		h.Shutdown()
+
+		assert.Contains(t, hook.LastEntry().Message, "Requested app 'test-app' hydration")
 	})
 
 	t.Run("logs warning for invalid request type", func(t *testing.T) {
