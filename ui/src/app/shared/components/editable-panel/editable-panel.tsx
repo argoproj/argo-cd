@@ -18,6 +18,17 @@ export interface EditablePanelItem {
     titleEdit?: (formApi: FormApi) => ReactNode;
 }
 
+export interface EditablePanelSubsection {
+    sectionName: string;
+    items: EditablePanelItem[];
+}
+
+export type EditablePanelContent = EditablePanelItem | EditablePanelSubsection;
+
+function isSubsection(content: EditablePanelContent): content is EditablePanelSubsection {
+    return (content as EditablePanelSubsection).sectionName !== undefined;
+}
+
 export interface EditablePanelProps<T> {
     title?: string | ReactNode;
     titleCollapsed?: string | ReactNode;
@@ -25,7 +36,7 @@ export interface EditablePanelProps<T> {
     values: T;
     validate?: (values: T) => any;
     save?: (input: T, query: {validate?: boolean}) => Promise<any>;
-    items: EditablePanelItem[];
+    items: EditablePanelContent[];
     onModeSwitch?: () => any;
     noReadonlyMode?: boolean;
     view?: string | ReactNode;
@@ -110,6 +121,34 @@ function EditablePanel<T extends {} = {}>({
         onModeSwitch();
     }, [onModeSwitch]);
 
+    const renderItem = (item: EditablePanelItem, api?: FormApi, isIndented = false) => (
+        <Fragment key={item.key || item.title}>
+            {item.before}
+            <div className='row white-box__details-row'>
+                <div className='columns small-3' style={isIndented ? {paddingLeft: '2em'} : undefined}>
+                    {api && item.titleEdit ? item.titleEdit(api) : item.customTitle || item.title}
+                </div>
+                <div className='columns small-9'>{api && item.edit ? item.edit(api) : item.view}</div>
+            </div>
+        </Fragment>
+    );
+
+    const renderContent = (content: EditablePanelContent, api?: FormApi) => {
+        if (isSubsection(content)) {
+            return (
+                <div key={content.sectionName} className='editable-panel__subsection'>
+                    <div className='row white-box__details-row'>
+                        <div className='columns small-12' style={{fontWeight: 'bold', fontSize: '14px', marginTop: '15px', marginBottom: '5px', textTransform: 'uppercase'}}>
+                            {content.sectionName}
+                        </div>
+                    </div>
+                    {content.items.map(item => renderItem(item, api, true))}
+                </div>
+            );
+        }
+        return renderItem(content, api, false);
+    };
+
     return (
         <>
             {collapsible && isCollapsed ? (
@@ -163,16 +202,13 @@ function EditablePanel<T extends {} = {}>({
                             <>
                                 {view}
                                 {items
-                                    .filter(item => item.view)
-                                    .map(item => (
-                                        <Fragment key={item.key || item.title}>
-                                            {item.before}
-                                            <div className='row white-box__details-row'>
-                                                <div className='columns small-3'>{item.customTitle || item.title}</div>
-                                                <div className='columns small-9'>{item.view}</div>
-                                            </div>
-                                        </Fragment>
-                                    ))}
+                                    .filter(content => {
+                                        if (isSubsection(content)) {
+                                            return content.items.some(item => item.view);
+                                        }
+                                        return content.view;
+                                    })
+                                    .map(content => renderContent(content))}
                             </>
                         ) : (
                             <Form
@@ -188,15 +224,7 @@ function EditablePanel<T extends {} = {}>({
                                 {api => (
                                     <>
                                         {editProp && editProp(api)}
-                                        {items.map(item => (
-                                            <Fragment key={item.key || item.title}>
-                                                {item.before}
-                                                <div className='row white-box__details-row'>
-                                                    <div className='columns small-3'>{(item.titleEdit && item.titleEdit(api)) || item.customTitle || item.title}</div>
-                                                    <div className='columns small-9'>{(item.edit && item.edit(api)) || item.view}</div>
-                                                </div>
-                                            </Fragment>
-                                        ))}
+                                        {items.map(content => renderContent(content, api))}
                                     </>
                                 )}
                             </Form>
