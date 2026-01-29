@@ -75,15 +75,17 @@ func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) strin
 	result := ""
 	lastIndex := 0
 
+	var resultSb78 strings.Builder
 	for _, v := range re.FindAllSubmatchIndex([]byte(str), -1) {
 		groups := []string{}
 		for i := 0; i < len(v); i += 2 {
 			groups = append(groups, str[v[i]:v[i+1]])
 		}
 
-		result += str[lastIndex:v[0]] + groups[0] + repl
+		resultSb78.WriteString(str[lastIndex:v[0]] + groups[0] + repl)
 		lastIndex = v[1]
 	}
+	result += resultSb78.String()
 
 	return result + str[lastIndex:]
 }

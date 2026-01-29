@@ -14,8 +14,27 @@ type WorkloadIdentityTokenProvider struct {
 	tokenCredential azcore.TokenCredential
 }
 
-func NewWorkloadIdentityTokenProvider() TokenProvider {
-	cred, err := azidentity.NewDefaultAzureCredential(&azidentity.DefaultAzureCredentialOptions{})
+type TokenProviderOption func(*tokenProviderOptions)
+
+type tokenProviderOptions struct {
+	tenantID string
+}
+
+func WithTenantID(tenantID string) TokenProviderOption {
+	return func(o *tokenProviderOptions) {
+		o.tenantID = tenantID
+	}
+}
+
+func NewWorkloadIdentityTokenProvider(opts ...TokenProviderOption) TokenProvider {
+	options := &tokenProviderOptions{}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	cred, err := azidentity.NewDefaultAzureCredential(&azidentity.DefaultAzureCredentialOptions{
+		TenantID: options.tenantID,
+	})
 	initError = err
 	return WorkloadIdentityTokenProvider{tokenCredential: cred}
 }
