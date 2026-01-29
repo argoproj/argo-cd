@@ -203,7 +203,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     hideBannerContent: '',
     hideSidebar: false,
     position: '',
-    theme: 'light'
+    theme: 'auto'
 };
 
 export class ViewPreferencesService {
