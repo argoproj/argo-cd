@@ -80,6 +80,20 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
             });
         }
 
+        if (repository.type === 'git') {
+            items.push({
+                title: 'Enable partial clone',
+                view: repository.enablePartialClone ? 'Yes' : 'No',
+                edit: (formApi: FormApi) => <FormField formApi={formApi} field='enablePartialClone' component={Text} componentProps={{type: 'checkbox'}} />
+            });
+
+            items.push({
+                title: 'Sparse paths (comma-separated)',
+                view: repository.sparsePaths ? repository.sparsePaths.join(',') : '',
+                edit: (formApi: FormApi) => <FormField formApi={formApi} field='sparsePaths' component={Text} />
+            });
+        }
+
         return items;
     };
 
@@ -100,7 +114,9 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
         enableOCI: repo.enableOCI || false,
         forceHttpBasicAuth: repo.forceHttpBasicAuth || false,
         useAzureWorkloadIdentity: repo.useAzureWorkloadIdentity || false,
-        insecureOCIForceHttp: repo.insecureOCIForceHttp || false
+        insecureOCIForceHttp: repo.insecureOCIForceHttp || false,
+        enablePartialClone: repo.enablePartialClone || false,
+        sparsePaths: repo.sparsePaths ? repo.sparsePaths.join(',') : ''
     };
 
     return (
@@ -117,6 +133,8 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
                 params.username = input.username || '';
                 params.password = input.password || '';
                 params.bearerToken = input.bearerToken || '';
+                params.enablePartialClone = input.enablePartialClone || false;
+                params.sparsePaths = input.sparsePaths.join(',') || '';
                 save(params);
             }}
             title='CONNECTED REPOSITORY'

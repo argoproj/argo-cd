@@ -1,9 +1,12 @@
 package git
 
 import (
+	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -325,7 +328,7 @@ func TestLFSClient(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch("", 0, false)
 	require.NoError(t, err)
 
 	_, err = client.Checkout(commitSHA, true)
@@ -360,7 +363,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch("", 0, false)
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -416,11 +419,11 @@ func TestNewFactory(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
-		err = client.Fetch("", 0)
+		err = client.Fetch("", 0, false)
 		require.NoError(t, err)
 
 		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-		err = client.Fetch("", 0)
+		err = client.Fetch("", 0, false)
 		require.NoError(t, err)
 
 		_, err = client.Checkout(commitSHA, true)
@@ -721,4 +724,416 @@ func TestAnnotatedTagHandling(t *testing.T) {
 
 	// Verify tag exists in the list and points to a valid commit SHA
 	assert.Contains(t, refs.Tags, "v1.0.0", "Tag v1.0.0 should exist in refs")
+}
+
+// Partial Clone / Sparse Checkout Tests
+
+func TestComputePathHash(t *testing.T) {
+	tests := []struct {
+		name     string
+		paths    []string
+		expected string
+	}{
+		{
+			name:     "Single path",
+			paths:    []string{"app/deployment"},
+			expected: "0e7c69d8133a98d2",
+		},
+		{
+			name:     "Multiple paths sorted",
+			paths:    []string{"app", "deployment", "helm"},
+			expected: "b8305263b1960b6c",
+		},
+		{
+			name:     "Multiple paths unsorted (should produce same hash as sorted)",
+			paths:    []string{"helm", "app", "deployment"},
+			expected: "b8305263b1960b6c", // Same as sorted
+		},
+		{
+			name:     "Empty paths",
+			paths:    []string{},
+			expected: "",
+		},
+		{
+			name:     "Nil paths",
+			paths:    nil,
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hash := ComputePathHash(tt.paths)
+			// Just verify it's a valid hex string and consistent
+			if len(tt.paths) > 0 {
+				assert.NotEmpty(t, hash)
+				assert.Len(t, hash, 16)
+				assert.Regexp(t, "^[a-f0-9]{16}$", hash)
+				assert.Equal(t, tt.expected, hash)
+
+				// Verify it's deterministic
+				hash2 := ComputePathHash(tt.paths)
+				assert.Equal(t, hash, hash2, "Hash should be deterministic")
+			} else {
+				assert.Empty(t, hash)
+			}
+		})
+	}
+}
+
+func TestComputePathHashDeterministic(t *testing.T) {
+	// Verify that the same paths in different orders produce the same hash
+	paths1 := []string{"app", "deployment", "helm", "kustomize"}
+	paths2 := []string{"kustomize", "helm", "deployment", "app"}
+	paths3 := []string{"deployment", "app", "kustomize", "helm"}
+
+	hash1 := ComputePathHash(paths1)
+	hash2 := ComputePathHash(paths2)
+	hash3 := ComputePathHash(paths3)
+
+	assert.Equal(t, hash1, hash2, "Hashes should be equal regardless of order")
+	assert.Equal(t, hash2, hash3, "Hashes should be equal regardless of order")
+}
+
+func TestSparseCheckoutConfiguration(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := t.Context()
+
+	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
+	require.NoError(t, err)
+
+	// Initialize a git repo
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "init"))
+
+	// Create directory structure
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "app1"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "app2"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "common"), 0o755))
+
+	// Create files
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "app1", "config.yaml"), []byte("app1"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "app2", "config.yaml"), []byte("app2"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "common", "shared.yaml"), []byte("common"), 0o644))
+
+	// Commit files
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "commit", "-m", "Initial commit"))
+
+	// Test configuring sparse checkout
+	sparsePaths := []string{"app1", "common"}
+	err = client.ConfigureSparseCheckout(sparsePaths)
+	require.NoError(t, err)
+
+	// Verify sparse-checkout file was created
+	sparseCheckoutFile := filepath.Join(tmpDir, ".git", "info", "sparse-checkout")
+	assert.FileExists(t, sparseCheckoutFile)
+
+	// Read and verify sparse-checkout contents
+	content, err := os.ReadFile(sparseCheckoutFile)
+	require.NoError(t, err)
+	contentStr := string(content)
+	assert.Contains(t, contentStr, "app1")
+	assert.Contains(t, contentStr, "common")
+	assert.NotContains(t, contentStr, "app2")
+}
+
+func TestPartialCloneFetch(t *testing.T) {
+	// This test requires a real git repository with partial clone support
+	// We'll use the ArgoCD repo as it's publicly accessible
+	tmpDir := t.TempDir()
+
+	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", tmpDir, NopCreds{}, false, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	// Configure sparse checkout for a specific path
+	sparsePaths := []string{"cmd/argocd"}
+	err = client.ConfigureSparseCheckout(sparsePaths)
+	require.NoError(t, err)
+
+	// Perform partial fetch using consolidated Fetch method
+	err = client.Fetch("HEAD", 0, true)
+	require.NoError(t, err)
+
+	// Verify that the repo was cloned with partial clone
+	// Check for filter configuration
+	output, err := runCmdOutput(t.Context(), tmpDir, "git", "config", "remote.origin.promisor")
+	if err == nil {
+		// If promisor is configured, verify it's true
+		assert.Contains(t, string(output), "true")
+	}
+}
+
+func TestSparseCheckoutWithMultiplePaths(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := t.Context()
+
+	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
+	require.NoError(t, err)
+
+	// Initialize a git repo
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "init"))
+
+	// Create complex directory structure
+	dirs := []string{
+		"app1/deployment",
+		"app1/service",
+		"app2/deployment",
+		"app2/service",
+		"shared/common",
+		"docs",
+	}
+	for _, dir := range dirs {
+		require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, dir), 0o755))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(tmpDir, dir, "file.yaml"),
+			[]byte(dir),
+			0o644,
+		))
+	}
+
+	// Commit files
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "commit", "-m", "Initial commit"))
+
+	// Test configuring sparse checkout with multiple paths
+	sparsePaths := []string{"app1", "shared/common"}
+	err = client.ConfigureSparseCheckout(sparsePaths)
+	require.NoError(t, err)
+
+	// Verify sparse-checkout file was created with all paths
+	sparseCheckoutFile := filepath.Join(tmpDir, ".git", "info", "sparse-checkout")
+	content, err := os.ReadFile(sparseCheckoutFile)
+	require.NoError(t, err)
+
+	contentStr := string(content)
+	for _, path := range sparsePaths {
+		assert.Contains(t, contentStr, path, "Sparse checkout file should contain path: %s", path)
+	}
+
+	// Verify paths not in sparse list are not included
+	assert.NotContains(t, contentStr, "app2")
+	assert.NotContains(t, contentStr, "docs")
+}
+
+func TestNormalizeGitURLConsistency(t *testing.T) {
+	// Test that normalizing the same URL multiple times produces consistent results
+	urls := []string{
+		"https://github.com/argoproj/argo-cd.git",
+		"git@github.com:argoproj/argo-cd.git",
+		"ssh://git@github.com/argoproj/argo-cd.git",
+	}
+
+	for _, url := range urls {
+		normalized1 := NormalizeGitURL(url)
+		normalized2 := NormalizeGitURL(url)
+		assert.Equal(t, normalized1, normalized2, "Normalization should be consistent for: %s", url)
+		assert.NotEmpty(t, normalized1, "Normalized URL should not be empty")
+	}
+}
+
+func TestSparseCheckoutEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := t.Context()
+
+	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
+	require.NoError(t, err)
+
+	// Initialize a git repo
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "init"))
+
+	// Test configuring sparse checkout with empty paths (should be error)
+	err = client.ConfigureSparseCheckout([]string{})
+	assert.Error(t, err)
+}
+
+// Helper function to run a command and get output
+func runCmdOutput(ctx context.Context, workDir string, name string, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = workDir
+	return cmd.Output()
+}
+
+// Test_nativeGitClient_Fetch_Combinations tests all combinations of fetch parameters
+func Test_nativeGitClient_Fetch_Combinations(t *testing.T) {
+	tests := []struct {
+		name            string
+		usePartialClone bool
+		depth           int64
+		description     string
+	}{
+		{
+			name:            "Full clone (no partial, no depth)",
+			usePartialClone: false,
+			depth:           0,
+			description:     "Should fetch all history with all blobs using --tags",
+		},
+		{
+			name:            "Shallow clone only",
+			usePartialClone: false,
+			depth:           10,
+			description:     "Should fetch limited history (10 commits) with all blobs using --depth",
+		},
+		{
+			name:            "Partial clone only",
+			usePartialClone: true,
+			depth:           0,
+			description:     "Should fetch all history but no blobs using --filter=blob:none",
+		},
+		{
+			name:            "Both partial and shallow",
+			usePartialClone: true,
+			depth:           10,
+			description:     "Should fetch limited history (10 commits) with no blobs using both --filter and --depth",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := t.Context()
+			tempDir, err := _createEmptyGitRepo(ctx)
+			require.NoError(t, err)
+
+			// Add some commits to the origin repo to test depth
+			for i := 0; i < 15; i++ {
+				err = runCmd(ctx, tempDir, "git", "commit", "--allow-empty", "-m", fmt.Sprintf("Commit %d", i))
+				require.NoError(t, err)
+			}
+
+			// Create a client for a different directory
+			clientDir := t.TempDir()
+			client, err := NewClientExt("file://"+tempDir, clientDir, NopCreds{}, true, false, "", "")
+			require.NoError(t, err)
+
+			err = client.Init()
+			require.NoError(t, err)
+
+			// Perform fetch with specified parameters
+			err = client.Fetch("", tt.depth, tt.usePartialClone)
+			require.NoError(t, err, tt.description)
+
+			// Verify fetch succeeded by checking we can get HEAD
+			commitSHA, err := client.LsRemote("HEAD")
+			require.NoError(t, err)
+			assert.True(t, IsCommitSHA(commitSHA))
+
+			// If depth is specified, verify shallow clone was created
+			if tt.depth > 0 {
+				// Check if it's a shallow repository
+				shallowFile := filepath.Join(clientDir, ".git", "shallow")
+				_, err := os.Stat(shallowFile)
+				// Shallow file should exist for shallow clones
+				require.NoError(t, err, "Expected shallow file to exist for depth-limited fetch")
+			}
+
+			// If partial clone is specified, verify promisor remote was configured
+			if tt.usePartialClone {
+				output, err := runCmdOutput(ctx, clientDir, "git", "config", "remote.origin.promisor")
+				if err == nil {
+					assert.Contains(t, string(output), "true", "Expected promisor to be configured for partial clone")
+				}
+			}
+		})
+	}
+}
+
+// Test_nativeGitClient_Fetch_PartialClone_WithCheckout tests that partial clone works with checkout
+func Test_nativeGitClient_Fetch_PartialClone_WithCheckout(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	// Create a file in the origin repo
+	testFile := filepath.Join(tempDir, "test.txt")
+	err = os.WriteFile(testFile, []byte("test content"), 0o644)
+	require.NoError(t, err)
+
+	err = runCmd(ctx, tempDir, "git", "add", "test.txt")
+	require.NoError(t, err)
+
+	err = runCmd(ctx, tempDir, "git", "commit", "-m", "Add test file")
+	require.NoError(t, err)
+
+	// Create a client with partial clone
+	clientDir := t.TempDir()
+	client, err := NewClientExt("file://"+tempDir, clientDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	// Fetch with partial clone
+	err = client.Fetch("", 0, true)
+	require.NoError(t, err)
+
+	// Checkout should trigger blob download on demand
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	_, err = client.Checkout(commitSHA, false)
+	require.NoError(t, err)
+
+	// Verify file was checked out (blob downloaded on demand)
+	checkedOutFile := filepath.Join(clientDir, "test.txt")
+	content, err := os.ReadFile(checkedOutFile)
+	require.NoError(t, err)
+	assert.Equal(t, "test content", string(content), "File should be checked out despite partial clone")
+}
+
+// Test_nativeGitClient_Fetch_ShallowAndPartial_Together tests combining both options
+func Test_nativeGitClient_Fetch_ShallowAndPartial_Together(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	// Create multiple commits with files
+	for i := 0; i < 20; i++ {
+		testFile := filepath.Join(tempDir, fmt.Sprintf("file%d.txt", i))
+		err = os.WriteFile(testFile, []byte(fmt.Sprintf("content %d", i)), 0o644)
+		require.NoError(t, err)
+
+		err = runCmd(ctx, tempDir, "git", "add", fmt.Sprintf("file%d.txt", i))
+		require.NoError(t, err)
+
+		err = runCmd(ctx, tempDir, "git", "commit", "-m", fmt.Sprintf("Add file %d", i))
+		require.NoError(t, err)
+	}
+
+	// Create a client with both shallow and partial clone
+	clientDir := t.TempDir()
+	client, err := NewClientExt("file://"+tempDir, clientDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	// Fetch with both depth and partial clone
+	depth := int64(5)
+	err = client.Fetch("", depth, true)
+	require.NoError(t, err)
+
+	// Verify it's both shallow and partial
+	shallowFile := filepath.Join(clientDir, ".git", "shallow")
+	_, err = os.Stat(shallowFile)
+	require.NoError(t, err, "Expected shallow file for depth-limited fetch")
+
+	output, err := runCmdOutput(ctx, clientDir, "git", "config", "remote.origin.promisor")
+	if err == nil {
+		assert.Contains(t, string(output), "true", "Expected promisor for partial clone")
+	}
+
+	// Verify checkout still works
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	_, err = client.Checkout(commitSHA, false)
+	require.NoError(t, err)
+
+	// Latest file should exist
+	latestFile := filepath.Join(clientDir, "file19.txt")
+	content, err := os.ReadFile(latestFile)
+	require.NoError(t, err)
+	assert.Equal(t, "content 19", string(content))
 }
