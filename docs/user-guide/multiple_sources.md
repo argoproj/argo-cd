@@ -43,7 +43,7 @@ If multiple sources produce the same resource (same `group`, `kind`, `name`, and
 produce the resource will take precedence. Argo CD will produce a `RepeatedResourceWarning` in this case, but it will 
 sync the resources. This provides a convenient way to override a resource from a chart with a resource from a Git repo.
 
-## Helm value files from external Git repository
+## Helm value files from external Git or OCI repository
 
 One of the most common scenarios for using multiple sources is the following
 
@@ -53,8 +53,10 @@ One of the most common scenarios for using multiple sources is the following
 
 In this scenario you can use the multiple sources features to combine the external chart with your own local values.
 
-Helm sources can reference value files from git sources. This allows you to use a third-party Helm chart with custom,
-git-hosted values.
+Helm sources can reference value files from Git sources or OCI repositories. This allows you to use a third-party Helm chart with custom,
+git-hosted or OCI-hosted values.
+
+### Using Git repository for value files
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -72,17 +74,35 @@ spec:
     ref: values
 ```
 
-In the above example, the `prometheus` chart will use the value file from `git.example.com/org/value-files.git`. 
-For Argo to reference the external Git repository containing the value files, you must set the `ref` parameter on
-the repository. In the above example, the parameter `ref: values` maps to the variable `$values`, which resolves
-to the root of the `value-files` repository. 
+### Using OCI repository for value files
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  sources:
+  - repoURL: 'https://prometheus-community.github.io/helm-charts'
+    chart: prometheus
+    targetRevision: 15.7.1
+    helm:
+      valueFiles:
+      - $values/production/values.yaml
+  - repoURL: 'oci://registry.example.com/config/app-values'
+    targetRevision: v1.0.0
+    ref: values
+```
+
+In the above examples, the `prometheus` chart will use the value file from either the Git repository or the OCI repository.
+For Argo CD to reference the external repository containing the value files, you must set the `ref` parameter on
+the repository. In the examples, the parameter `ref: values` maps to the variable `$values`, which resolves
+to the root of the referenced repository.
 Note that the `$values` variable can only be used at the beginning of the value file path and that its path is always relative to the root of the referenced source.
 
-If the `path` field is set in the `$values` source, Argo CD will attempt to generate resources from the git repository
+If the `path` field is set in the `$values` source, Argo CD will attempt to generate resources from the repository
 at that URL. If the `path` field is not set, Argo CD will use the repository solely as a source of value files.
 
 > [!NOTE]
-> Sources with the `ref` field set cannot include the `chart` field. Currently, Argo CD does not support using another Helm chart as a source for value files.
+> Sources with the `ref` field set cannot include the `chart` field for Git repositories. However, OCI Helm charts are supported as ref sources for value files.
 
 > [!NOTE]
 > Even when the `ref` field is configured with the `path` field, `$value` still represents the root of sources with the `ref` field. Consequently, `valueFiles` must be specified as relative paths from the root of sources.
