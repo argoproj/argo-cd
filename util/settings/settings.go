@@ -2065,7 +2065,7 @@ func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
 	return a.URL, nil
 }
 
-func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) {
+func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request, baseHRef string) (string, error) {
 	if r == nil {
 		return "", errors.New("request is nil")
 	}
@@ -2073,7 +2073,7 @@ func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) 
 	if err != nil {
 		return "", err
 	}
-	return appendURLPath(base, common.CallbackEndpoint)
+	return appendURLPath(base, path.Join(baseHRef, common.CallbackEndpoint))
 }
 
 func (a *ArgoCDSettings) RedirectAdditionalURLs() ([]string, error) {

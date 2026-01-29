@@ -337,7 +337,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "/argocd", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		t.Run("should accept login redirecting on the main domain", func(t *testing.T) {
@@ -356,7 +356,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			require.NoError(t, err)
 			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
 			assert.Equal(t, "/auth", location.Path)
-			assert.Equal(t, "https://argocd.example.com/auth/callback", location.Query().Get("redirect_uri"))
+			assert.Equal(t, "https://argocd.example.com/argocd/auth/callback", location.Query().Get("redirect_uri"))
 		})
 
 		t.Run("should accept login redirecting on the alternative domains", func(t *testing.T) {
@@ -375,7 +375,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			require.NoError(t, err)
 			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
 			assert.Equal(t, "/auth", location.Path)
-			assert.Equal(t, "https://localhost:8080/auth/callback", location.Query().Get("redirect_uri"))
+			assert.Equal(t, "https://localhost:8080/argocd/auth/callback", location.Query().Get("redirect_uri"))
 		})
 
 		t.Run("should accept login redirecting on the alternative domains", func(t *testing.T) {
@@ -394,7 +394,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			require.NoError(t, err)
 			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
 			assert.Equal(t, "/auth", location.Path)
-			assert.Equal(t, "https://other.argocd.example.com/auth/callback", location.Query().Get("redirect_uri"))
+			assert.Equal(t, "https://other.argocd.example.com/argocd/auth/callback", location.Query().Get("redirect_uri"))
 		})
 
 		t.Run("should deny login redirecting on the alternative domains", func(t *testing.T) {
@@ -1561,7 +1561,7 @@ func TestClientApp_getRedirectURIForRequest(t *testing.T) {
 			if tt.req == nil {
 				return
 			}
-			expectedRedirectURI, err := app.settings.RedirectURLForRequest(tt.req)
+			expectedRedirectURI, err := app.settings.RedirectURLForRequest(tt.req, app.baseHRef)
 			if tt.expectError {
 				assert.Error(t, err)
 				return

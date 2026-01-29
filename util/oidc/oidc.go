@@ -227,7 +227,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 }
 
 func (a *ClientApp) getRedirectURIForRequest(req *http.Request) string {
-	redirectURI, err := a.settings.RedirectURLForRequest(req)
+	redirectURI, err := a.settings.RedirectURLForRequest(req, a.baseHRef)
 	if err != nil {
 		log.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v", err)
 		redirectURI = a.redirectURI
