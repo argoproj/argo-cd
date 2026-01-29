@@ -48,49 +48,55 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 	return outFilters, nil
 }
 
-func matchFilter(ctx context.Context, provider SCMProviderService, repo *Repository, filter *Filter) (bool, error) {
-	if filter.RepositoryMatch != nil && !filter.RepositoryMatch.MatchString(repo.Repository) {
-		return false, nil
-	}
-
-	if filter.BranchMatch != nil && !filter.BranchMatch.MatchString(repo.Branch) {
-		return false, nil
-	}
-
-	if filter.LabelMatch != nil {
-		found := false
-		for _, label := range repo.Labels {
-			if filter.LabelMatch.MatchString(label) {
-				found = true
-				break
-			}
-		}
-		if !found {
+func matchFilter(ctx context.Context, provider SCMProviderService, repo *Repository, filter *Filter, phase FilterType) (bool, error) {
+	// Repo-phase conditions: only check when phase is FilterTypeRepo or FilterTypeUndefined
+	if phase == FilterTypeRepo || phase == FilterTypeUndefined {
+		if filter.RepositoryMatch != nil && !filter.RepositoryMatch.MatchString(repo.Repository) {
 			return false, nil
 		}
-	}
 
-	if len(filter.PathsExist) != 0 {
-		for _, path := range filter.PathsExist {
-			path = strings.TrimRight(path, "/")
-			hasPath, err := provider.RepoHasPath(ctx, repo, path)
-			if err != nil {
-				return false, err
+		if filter.LabelMatch != nil {
+			found := false
+			for _, label := range repo.Labels {
+				if filter.LabelMatch.MatchString(label) {
+					found = true
+					break
+				}
 			}
-			if !hasPath {
+			if !found {
 				return false, nil
 			}
 		}
 	}
-	if len(filter.PathsDoNotExist) != 0 {
-		for _, path := range filter.PathsDoNotExist {
-			path = strings.TrimRight(path, "/")
-			hasPath, err := provider.RepoHasPath(ctx, repo, path)
-			if err != nil {
-				return false, err
+
+	// Branch-phase conditions: only check when phase is FilterTypeBranch or FilterTypeUndefined
+	if phase == FilterTypeBranch || phase == FilterTypeUndefined {
+		if filter.BranchMatch != nil && !filter.BranchMatch.MatchString(repo.Branch) {
+			return false, nil
+		}
+
+		if len(filter.PathsExist) != 0 {
+			for _, path := range filter.PathsExist {
+				path = strings.TrimRight(path, "/")
+				hasPath, err := provider.RepoHasPath(ctx, repo, path)
+				if err != nil {
+					return false, err
+				}
+				if !hasPath {
+					return false, nil
+				}
 			}
-			if hasPath {
-				return false, nil
+		}
+		if len(filter.PathsDoNotExist) != 0 {
+			for _, path := range filter.PathsDoNotExist {
+				path = strings.TrimRight(path, "/")
+				hasPath, err := provider.RepoHasPath(ctx, repo, path)
+				if err != nil {
+					return false, err
+				}
+				if hasPath {
+					return false, nil
+				}
 			}
 		}
 	}
@@ -118,7 +124,7 @@ func ListRepos(ctx context.Context, provider SCMProviderService, filters []argop
 	filteredRepos := make([]*Repository, 0, len(repos))
 	for _, repo := range repos {
 		for _, filter := range repoFilters {
-			matches, err := matchFilter(ctx, provider, repo, filter)
+			matches, err := matchFilter(ctx, provider, repo, filter, FilterTypeRepo)
 			if err != nil {
 				return nil, err
 			}
@@ -152,7 +158,7 @@ func getBranches(ctx context.Context, provider SCMProviderService, repos []*Repo
 	filteredRepos := make([]*Repository, 0, len(reposWithBranches))
 	for _, repo := range reposWithBranches {
 		for _, filter := range branchFilters {
-			matches, err := matchFilter(ctx, provider, repo, filter)
+			matches, err := matchFilter(ctx, provider, repo, filter, FilterTypeBranch)
 			if err != nil {
 				return nil, err
 			}
@@ -166,17 +172,25 @@ func getBranches(ctx context.Context, provider SCMProviderService, repos []*Repo
 }
 
 // getApplicableFilters returns a map of filters separated by type.
+// Filters are categorized based on their actual conditions, not just FilterType.
+// A filter with both repo-level and branch-level conditions is added to both groups
+// to ensure proper AND logic across filter phases.
 func getApplicableFilters(filters []*Filter) map[FilterType][]*Filter {
 	filterMap := map[FilterType][]*Filter{
 		FilterTypeBranch: {},
 		FilterTypeRepo:   {},
 	}
 	for _, filter := range filters {
-		switch filter.FilterType {
-		case FilterTypeBranch:
-			filterMap[FilterTypeBranch] = append(filterMap[FilterTypeBranch], filter)
-		case FilterTypeRepo:
+		hasRepoConditions := filter.RepositoryMatch != nil || filter.LabelMatch != nil
+		hasBranchConditions := filter.BranchMatch != nil ||
+			len(filter.PathsExist) > 0 ||
+			len(filter.PathsDoNotExist) > 0
+
+		if hasRepoConditions {
 			filterMap[FilterTypeRepo] = append(filterMap[FilterTypeRepo], filter)
+		}
+		if hasBranchConditions {
+			filterMap[FilterTypeBranch] = append(filterMap[FilterTypeBranch], filter)
 		}
 	}
 	return filterMap
