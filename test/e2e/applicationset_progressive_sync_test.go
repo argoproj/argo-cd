@@ -492,10 +492,6 @@ func TestProgressiveSyncMultipleAppsPerStep(t *testing.T) {
 		Expect(CheckApplicationInRightSteps("1", []string{"prog-sketch", "prog-build"})).
 		Expect(CheckApplicationInRightSteps("2", []string{"prog-verify", "prog-validate"})).
 		Expect(CheckApplicationInRightSteps("3", []string{"prog-ship", "prog-run"})).
-		//And(func() {
-		//	t.Log("Giving some time to complete syncing through all steps")
-		//	time.Sleep(20 * time.Second)
-		//}).
 		ExpectWithDuration(ApplicationSetHasApplicationStatus(6), TransitionTimeout).
 		// Cleanup
 		When().
