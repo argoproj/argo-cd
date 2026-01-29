@@ -100,7 +100,8 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
         enableOCI: repo.enableOCI || false,
         forceHttpBasicAuth: repo.forceHttpBasicAuth || false,
         useAzureWorkloadIdentity: repo.useAzureWorkloadIdentity || false,
-        insecureOCIForceHttp: repo.insecureOCIForceHttp || false
+        insecureOCIForceHttp: repo.insecureOCIForceHttp || false,
+        azureCloud: repo.azureCloud || ''
     };
 
     return (

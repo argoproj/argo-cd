@@ -95,6 +95,8 @@ message RepoAccessQuery {
 	string bearerToken = 21;
 	// Whether https should be disabled for an OCI repo
 	bool insecureOciForceHttp = 22;
+	// AzureCloud is the Azure cloud environment to use (e.g. AzurePublicCloud, AzureUSGovernment, etc.)
+	string azureCloud = 23;
 }
 
 message RepoResponse {}

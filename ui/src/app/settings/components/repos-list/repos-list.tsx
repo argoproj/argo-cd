@@ -45,6 +45,7 @@ export interface NewHTTPSRepoParams {
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
+    azureCloud: string;
 }
 
 interface NewGitHubAppRepoParams {
@@ -101,6 +102,7 @@ interface NewHTTPSRepoCredsParams {
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
+    azureCloud: string;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -187,7 +189,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     };
 
     const onChooseDefaultValues = (): FormValues => {
-        return {type: 'git', ghType: 'GitHub', write: false};
+        return {type: 'git', ghType: 'GitHub', write: false, azureCloud: 'AzurePublic'};
     };
 
     const onValidateErrors = (params: FormValues): FormErrors => {
@@ -378,7 +380,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 enableOCI: params.enableOCI,
                 write: params.write,
                 useAzureWorkloadIdentity: params.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: params.insecureOCIForceHttp
+                insecureOCIForceHttp: params.insecureOCIForceHttp,
+                azureCloud: params.azureCloud
             });
         } else {
             setConnecting(true);
@@ -1212,6 +1215,17 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Use Azure Workload Identity' field='useAzureWorkloadIdentity' component={CheckboxField} />
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    {formApi.getFormState().values.useAzureWorkloadIdentity && (
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label='Azure Cloud'
+                                                            field='azureCloud'
+                                                            component={FormSelect}
+                                                            componentProps={{options: ['AzurePublic', 'AzureUSGovernment', 'AzureChina']}}
+                                                        />
+                                                    )}
                                                 </div>
                                             </div>
                                         )}
