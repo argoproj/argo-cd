@@ -255,9 +255,12 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 		h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
 
 		// Request a refresh since we pushed a new commit.
-		err := h.dependencies.RequestAppRefresh(app.Name, app.Namespace)
-		if err != nil {
-			logCtx.WithFields(applog.GetAppLogFields(app)).WithError(err).Error("Failed to request app refresh after hydration")
+		// If a sync operation is in progress, the controller will handle the refresh request to ensure ordering.
+		if app.Operation == nil || app.Operation.Sync == nil {
+			err := h.dependencies.RequestAppRefresh(app.Name, app.Namespace)
+			if err != nil {
+				logCtx.WithFields(applog.GetAppLogFields(app)).WithError(err).Error("Failed to request app refresh after hydration")
+			}
 		}
 	}
 }
