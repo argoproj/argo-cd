@@ -23,3 +23,31 @@ func TestParseLabels(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, result)
 }
+
+func TestParseDeletion(t *testing.T) {
+	result, err := Parse([]string{"x-"})
+	require.NoError(t, err)
+	assert.Equal(t, deletionMarker, result["x"])
+
+	result, err = Parse([]string{"x=5", "y-"})
+	require.NoError(t, err)
+	assert.Equal(t, "5", result["x"])
+	assert.Equal(t, deletionMarker, result["y"])
+
+	_, err = Parse([]string{"-"})
+	require.Error(t, err)
+}
+
+func TestMerge(t *testing.T) {
+	result := Merge(map[string]string{"x": "5", "y": "10"}, map[string]string{"x": deletionMarker})
+	assert.Len(t, result, 1)
+	assert.Equal(t, "10", result["y"])
+
+	result = Merge(map[string]string{"x": "5", "y": "10"}, map[string]string{"x": "6", "y": deletionMarker})
+	assert.Len(t, result, 1)
+	assert.Equal(t, "6", result["x"])
+
+	result = Merge(map[string]string{"x": "5"}, map[string]string{"y": deletionMarker})
+	assert.Len(t, result, 1)
+	assert.Equal(t, "5", result["x"])
+}
