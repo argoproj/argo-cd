@@ -226,17 +226,12 @@ func (ctrl *ApplicationController) cleanupHooks(hookType HookType, liveObjs map[
 		deletePolicies := hook.DeletePolicies(obj)
 		shouldDelete := false
 
-		if len(deletePolicies) == 0 {
-			// If no delete policy is specified, always delete hooks during cleanup phase
-			shouldDelete = true
-		} else {
-			// Check if any delete policy matches the current hook state
-			for _, policy := range deletePolicies {
-				if (policy == common.HookDeletePolicyHookFailed && aggregatedHealth == health.HealthStatusDegraded) ||
-					(policy == common.HookDeletePolicyHookSucceeded && aggregatedHealth == health.HealthStatusHealthy) {
-					shouldDelete = true
-					break
-				}
+		// Only delete hooks if they have an explicit deletion policy that matches the current state
+		for _, policy := range deletePolicies {
+			if (policy == common.HookDeletePolicyHookFailed && aggregatedHealth == health.HealthStatusDegraded) ||
+				(policy == common.HookDeletePolicyHookSucceeded && aggregatedHealth == health.HealthStatusHealthy) {
+				shouldDelete = true
+				break
 			}
 		}
 
