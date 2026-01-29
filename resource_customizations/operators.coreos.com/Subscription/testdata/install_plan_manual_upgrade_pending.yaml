@@ -1,0 +1,87 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"operators.coreos.com/v1alpha1","kind":"Subscription","metadata":{"annotations":{},"labels":{"app.kubernetes.io/instance":"industrial-edge-datacenter"},"name":"camel-k","namespace":"manuela-data-lake"},"spec":{"channel":"stable-v2","installPlanApproval":"Manual","name":"camel-k","source":"community-operators","sourceNamespace":"openshift-marketplace","startingCSV":"camel-k-operator.v2.5.1"}}
+  creationTimestamp: "2025-03-05T20:13:35Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: industrial-edge-datacenter
+    operators.coreos.com/camel-k.manuela-data-lake: ""
+  name: camel-k
+  namespace: manuela-data-lake
+  resourceVersion: "45944"
+  uid: eeabc8c9-7a10-4f8d-babd-66e755f804ba
+spec:
+  channel: stable-v2
+  installPlanApproval: Manual
+  name: camel-k
+  source: community-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: camel-k-operator.v2.5.1
+status:
+  catalogHealth:
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: certified-operators
+      namespace: openshift-marketplace
+      resourceVersion: "36041"
+      uid: 4d85c991-bea0-48d9-adc3-26229bfb3747
+    healthy: true
+    lastUpdated: "2025-03-05T20:14:10Z"
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: community-operators
+      namespace: openshift-marketplace
+      resourceVersion: "36026"
+      uid: b578a8f6-63ca-44cf-a35e-0d8e065b0ecc
+    healthy: true
+    lastUpdated: "2025-03-05T20:14:10Z"
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: redhat-marketplace
+      namespace: openshift-marketplace
+      resourceVersion: "36006"
+      uid: 29e7d910-11b3-43a4-98bb-aa3bf1da0464
+    healthy: true
+    lastUpdated: "2025-03-05T20:14:10Z"
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: redhat-operators
+      namespace: openshift-marketplace
+      resourceVersion: "36216"
+      uid: c0a8229a-ceef-4dd5-b362-08bfee1fe64c
+    healthy: true
+    lastUpdated: "2025-03-05T20:14:10Z"
+  conditions:
+  - lastTransitionTime: "2025-03-05T20:14:13Z"
+    message: all available catalogsources are healthy
+    reason: AllCatalogSourcesHealthy
+    status: "False"
+    type: CatalogSourcesUnhealthy
+  - lastTransitionTime: "2025-03-05T20:16:14Z"
+    reason: RequiresApproval
+    status: "True"
+    type: InstallPlanPending
+  currentCSV: camel-k-operator.v2.6.0
+  installPlanGeneration: 2
+  installPlanRef:
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: InstallPlan
+    name: install-sm4qt
+    namespace: manuela-data-lake
+    resourceVersion: "45604"
+    uid: 86a26d57-b292-408b-8cc9-b829d5ecdb15
+  installedCSV: camel-k-operator.v2.5.1
+  installplan:
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: InstallPlan
+    name: install-sm4qt
+    uuid: 86a26d57-b292-408b-8cc9-b829d5ecdb15
+  lastUpdated: "2025-03-05T20:16:20Z"
+  state: UpgradePending
