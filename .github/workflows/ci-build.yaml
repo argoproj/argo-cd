@@ -445,6 +445,7 @@ jobs:
       ARGOCD_E2E_APISERVER_PORT: '8088'
       ARGOCD_APPLICATION_NAMESPACES: 'argocd-e2e-external,argocd-e2e-external-2'
       ARGOCD_SERVER: '127.0.0.1:8088'
+      ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS: true
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
     steps:
@@ -549,6 +550,7 @@ jobs:
           name: e2e-server-k8s${{ matrix.k3s.version }}.log
           path: /tmp/e2e-server.log
         if: ${{ failure() }}
+
 
   # workaround for status checks -- check this one job instead of each individual E2E job in the matrix
   # this allows us to skip the entire matrix when it doesn't need to run while still having accurate status checks
