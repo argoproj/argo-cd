@@ -1280,6 +1280,8 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 	// authentication keys (e.g. in ~/.ssh) -- this is especially important for
 	// running tests on local machines and/or CircleCI.
 	cmd.Env = append(cmd.Env, "HOME=/dev/null")
+	// Set $GIT_CONFIG_GLOBAL so that git can still find the config regardless of what $HOME is set to
+	cmd.Env = append(cmd.Env, "GIT_CONFIG_GLOBAL=/home/argocd/.gitconfig")
 	// Skip LFS for most Git operations except when explicitly requested
 	cmd.Env = append(cmd.Env, "GIT_LFS_SKIP_SMUDGE=1")
 	// Disable Git terminal prompts in case we're running with a tty
