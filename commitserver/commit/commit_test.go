@@ -96,15 +96,15 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		service, mockRepoClientFactory := newServiceWithMocks(t)
 
 		mockGitClient := gitmocks.NewClient(t)
-		mockGitClient.On("Init").Return(nil).Once()
-		mockGitClient.On("Fetch", mock.Anything, mock.Anything).Return(nil).Once()
-		mockGitClient.On("SetAuthor", "Custom Author", "custom@example.com").Return("", nil).Once()
-		mockGitClient.On("CheckoutOrOrphan", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("CheckoutOrNew", "main", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("GetCommitNote", mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
-		mockGitClient.On("AddAndPushNote", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-		mockGitClient.On("CommitSHA").Return("custom-author-sha", nil).Once()
-		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor("Custom Author", "custom@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
+		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("custom-author-sha", nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		requestWithCustomAuthor := &apiclient.CommitHydratedManifestsRequest{
 			Repo:          validRequest.Repo,
@@ -129,16 +129,16 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		service, mockRepoClientFactory := newServiceWithMocks(t)
 
 		mockGitClient := gitmocks.NewClient(t)
-		mockGitClient.On("Init").Return(nil).Once()
-		mockGitClient.On("Fetch", mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		// When only email is provided, name defaults to "Argo CD"
-		mockGitClient.On("SetAuthor", "Argo CD", "custom@example.com").Return("", nil).Once()
-		mockGitClient.On("CheckoutOrOrphan", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("CheckoutOrNew", "main", "env/test", false).Return("", nil).Once()
-		mockGitClient.On("GetCommitNote", mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
-		mockGitClient.On("AddAndPushNote", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-		mockGitClient.On("CommitSHA").Return("custom-email-only-sha", nil).Once()
-		mockRepoClientFactory.On("NewClient", mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+		mockGitClient.EXPECT().SetAuthor("Argo CD", "custom@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan("env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew("main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
+		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().CommitSHA().Return("custom-email-only-sha", nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		requestWithEmailOnly := &apiclient.CommitHydratedManifestsRequest{
 			Repo:          validRequest.Repo,
