@@ -134,7 +134,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                                                                         }
                                                                     } catch (e) {
                                                                         ctx.notifications.show({
-                                                                            content: <ErrorNotification title='Unable to delete token token' e={e} />,
+                                                                            content: <ErrorNotification title='Unable to delete token' e={e} />,
                                                                             type: NotificationType.Error
                                                                         });
                                                                     }

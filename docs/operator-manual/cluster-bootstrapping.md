@@ -2,7 +2,88 @@
 
 This guide is for operators who have already installed Argo CD, and have a new cluster and are looking to install many apps in that cluster.
 
-There's no one particular pattern to solve this problem, e.g. you could write a script to create your apps, or you could even manually create them. However, users of Argo CD tend to use the **app of apps pattern**.
+There's no one particular pattern to solve this problem, e.g. you could write a script to create your apps, or you could even manually create them.
+
+Our recommendation is to look at [ApplicationSets](./applicationset/index.md) and more specifically the [cluster generator](./applicationset/Generators-Cluster.md) which can handle most typical scenarios.
+
+## Application Sets and cluster labels (recommended)
+
+Following the [Declaratively setup guide](declarative-setup.md) you can create a cluster and assign it several labels.
+
+Example
+
+```yaml
+apiVersion: v1
+data:
+  [...snip..]
+kind: Secret
+metadata:
+  annotations:
+    managed-by: argocd.argoproj.io
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+    cloud: gcp
+    department: billing
+    env: qa
+    region: eu
+    type: workload
+  name: cluster-qa-eu-example
+  namespace: argocd
+```
+
+Then as soon as you add the cluster to Argo CD, any application set that uses these labels will deploy the respective applications.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: eu-only-appset
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - matrix:
+      generators:
+        - git:
+            repoURL: <a git repo>
+            revision: HEAD
+            directories:
+            - path: my-eu-apps/*
+        - clusters:    
+            selector:
+              matchLabels:
+                type: "workload"     
+                region: "eu"                     
+  template:      
+    metadata:
+      name: 'eu-only-{{index .path.segments 1}}-{{.name}}'     
+    spec:
+      project: default
+      source:
+        repoURL: <a git repo>
+        targetRevision: HEAD
+        path: '{{.path.path}}'
+      destination:
+        server: '{{.server}}'
+        namespace: 'eu-only-{{index .path.segments 1}}'
+
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true  
+        automated: 
+          prune: true
+          selfHeal: true 
+```
+
+If you use Application Sets you also have access to all [gotemplate functions](./applicationset/GoTemplate.md) as well as [Sprig methods](https://masterminds.github.io/sprig/). So no Helm templating is required.
+
+For more information see also [Templating](./applicationset/Template.md).
+
+
+## App Of Apps Pattern (Alternative)
+
+ You can also use the **app of apps pattern**.
 
 > [!WARNING]
 > **App of Apps is an admin-only tool**
@@ -13,8 +94,6 @@ There's no one particular pattern to solve this problem, e.g. you could write a 
 > Application. Projects with access to the namespace in which Argo CD is installed effectively have admin-level 
 > privileges.
 
-## App Of Apps Pattern
-
 [Declaratively](declarative-setup.md) specify one Argo CD app that consists only of other apps.
 
 ![Application of Applications](../assets/application-of-applications.png)
@@ -22,6 +101,7 @@ There's no one particular pattern to solve this problem, e.g. you could write a 
 ### Helm Example
 
 This example shows how to use Helm to achieve this. You can, of course, use another tool if you like.
+Notice that most Helm functions are also available in Application Sets. 
 
 A typical layout of your Git repository for this might be:
 
@@ -140,7 +220,7 @@ See [Deleting Applications in the UI](../user-guide/app_deletion.md#deleting-app
 
 ### Ignoring differences in child applications
 
-To allow changes in child apps without triggering an out-of-sync status, or modification for debugging etc, the app of apps pattern works with [diff customization](../user-guide/diffing/). The example below shows how to ignore changes to syncPolicy and other common values.
+To allow changes in child apps without triggering an out-of-sync status, or modification for debugging etc, the app of apps pattern works with [diff customization](../user-guide/diffing.md). The example below shows how to ignore changes to syncPolicy and other common values.
 
 ```yaml
 spec:
