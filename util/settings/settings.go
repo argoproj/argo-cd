@@ -1969,6 +1969,14 @@ func (a *ArgoCDSettings) OAuth2AllowedAudiences() []string {
 			}
 			return allowedAudiences
 		}
+
+		// resolve any secret references to audience values
+		resolvedAudience := []string{}
+		for _, audience := range config.AllowedAudiences {
+			resolvedAudience = append(resolvedAudience, ReplaceStringSecret(audience, a.Secrets))
+		}
+
+		config.AllowedAudiences = resolvedAudience
 		return config.AllowedAudiences
 	}
 	if a.DexConfig != "" {
