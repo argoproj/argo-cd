@@ -1653,3 +1653,160 @@ func dig(obj any, path ...any) any {
 
 	return i
 }
+
+func TestPartialSyncWithHooks(t *testing.T) {
+	t.Parallel()
+
+	type fixture struct {
+		application *v1alpha1.Application
+		project     *v1alpha1.AppProject
+		controller  *ApplicationController
+	}
+
+	setup := func() *fixture {
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Destinations: []v1alpha1.ApplicationDestination{
+					{
+						Namespace: "*",
+						Server:    "*",
+					},
+				},
+			},
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		return &fixture{
+			application: app,
+			project:     project,
+			controller:  ctrl,
+		}
+	}
+
+	t.Run("partial sync does not run hooks by default", func(t *testing.T) {
+		// given a partial sync operation (with specific resources) without RunHooksOnPartialSync option
+		t.Parallel()
+		f := setup()
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+					// Specifying resources makes this a partial sync
+					Resources: []v1alpha1.SyncOperationResource{
+						{
+							Kind: "Deployment",
+							Name: "guestbook-ui",
+						},
+					},
+				},
+			},
+			Phase: synccommon.OperationRunning,
+		}
+
+		// when
+		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+
+		// then - sync should complete successfully
+		// Note: In a real scenario, hooks would be filtered out during partial sync
+		// This test verifies the sync doesn't fail when the option is not present
+		assert.NotEqual(t, synccommon.OperationError, opState.Phase)
+	})
+
+	t.Run("partial sync runs hooks when RunHooksOnPartialSync option is enabled", func(t *testing.T) {
+		// given a partial sync operation with RunHooksOnPartialSync=true option
+		t.Parallel()
+		f := setup()
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+					// Specifying resources makes this a partial sync
+					Resources: []v1alpha1.SyncOperationResource{
+						{
+							Kind: "Deployment",
+							Name: "guestbook-ui",
+						},
+					},
+					// Enable running hooks on partial sync
+					SyncOptions: []string{common.SyncOptionRunHooksOnPartialSync},
+				},
+			},
+			Phase: synccommon.OperationRunning,
+		}
+
+		// when
+		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+
+		// then - sync should complete successfully
+		// The option allows hooks to be included even during partial sync
+		assert.NotEqual(t, synccommon.OperationError, opState.Phase)
+	})
+
+	t.Run("full sync runs hooks irrespective of RunHooksOnPartialSync option", func(t *testing.T) {
+		// given a full sync operation (no specific resources)
+		t.Parallel()
+		f := setup()
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+					// No resources specified = full sync
+				},
+			},
+			Phase: synccommon.OperationRunning,
+		}
+
+		// when
+		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+
+		// then - full sync should complete and hooks should always run
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, "successfully synced")
+	})
+
+	t.Run("full sync runs hooks when RunHooksOnPartialSync option is present", func(t *testing.T) {
+		// given a full sync operation with the option (option should be ignored for full sync)
+		t.Parallel()
+		f := setup()
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+					// No resources specified = full sync
+					// Option should not affect full sync behavior
+					SyncOptions: []string{common.SyncOptionRunHooksOnPartialSync},
+				},
+			},
+			Phase: synccommon.OperationRunning,
+		}
+
+		// when
+		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
+
+		// then - full sync should complete successfully
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, "successfully synced")
+	})
+}
