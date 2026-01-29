@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -365,7 +367,8 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 			// Patch deployment to use valid image
 			fixture.Patch(t, "progressive-sync/dev/deployment.yaml", `[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "quay.io/argoprojlabs/argocd-e2e-container:0.1"}]`)
 			// Refresh the app to detect git changes
-			fixture.RunCli("app", "get", "prog-dev", "--refresh")
+			_, err := fixture.RunCli("app", "get", "prog-dev", "--refresh")
+			require.NoError(t, err)
 			t.Log("After patching image and refreshing, Dev app should progress to Healthy")
 			t.Log("Staging app should now be in Progressing, and prod is waiting")
 		}).
@@ -374,7 +377,8 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 			// Patch deployment to use valid image
 			fixture.Patch(t, "progressive-sync/staging/deployment.yaml", `[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "quay.io/argoprojlabs/argocd-e2e-container:0.1"}]`)
 			// Refresh the app to detect git changes
-			fixture.RunCli("app", "get", "prog-staging", "--refresh")
+			_, err := fixture.RunCli("app", "get", "prog-staging", "--refresh")
+			require.NoError(t, err)
 			t.Log("Dev and staging are now Healthy")
 			t.Log("check Prod app is progressing")
 		}).
@@ -383,7 +387,8 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 			// Patch deployment to use valid image
 			fixture.Patch(t, "progressive-sync/prod/deployment.yaml", `[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "quay.io/argoprojlabs/argocd-e2e-container:0.1"}]`)
 			// Refresh the app to detect git changes
-			fixture.RunCli("app", "get", "prog-prod", "--refresh")
+			_, err := fixture.RunCli("app", "get", "prog-prod", "--refresh")
+			require.NoError(t, err)
 		}).
 		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectedAllHealthy), TransitionTimeout).
 		And(func() {
@@ -440,14 +445,13 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 		When().
 		Create(appSetInvalidStepConfiguration).
 		Then().
-		Expect(ApplicationSetHasConditions(expectedConditions)). //TODO: when no steps created, condition should reflect that.
+		Expect(ApplicationSetHasConditions(expectedConditions)). // TODO: when no steps created, condition should reflect that.
 		Expect(ApplicationSetDoesNotHaveApplicationStatus()).
 		// Cleanup
 		When().
 		Delete().
 		Then().
 		ExpectWithDuration(ApplicationsDoNotExist(expectedApps), TransitionTimeout)
-
 }
 
 func TestNoApplicationStatusWhenNoApplications(t *testing.T) {
@@ -498,7 +502,6 @@ func TestProgressiveSyncMultipleAppsPerStep(t *testing.T) {
 		Delete().
 		Then().
 		Expect(ApplicationsDoNotExist(expectedApps))
-
 }
 
 var appSetInvalidStepConfiguration = v1alpha1.ApplicationSet{
@@ -556,6 +559,7 @@ var appSetInvalidStepConfiguration = v1alpha1.ApplicationSet{
 		},
 	},
 }
+
 var appSetWithEmptyGenerator = v1alpha1.ApplicationSet{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "appset-empty-generator",
@@ -635,6 +639,7 @@ var appSetWithEmptyGenerator = v1alpha1.ApplicationSet{
 		},
 	},
 }
+
 var appSetWithMultipleAppsInEachStep = v1alpha1.ApplicationSet{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "progressive-sync-multi-apps",

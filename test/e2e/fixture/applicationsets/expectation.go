@@ -284,7 +284,7 @@ func CheckApplicationInRightSteps(step string, expectedApps []string) Expectatio
 		if len(stepApps) != len(expectedApps) {
 			return pending, fmt.Sprintf("expected %d apps in step '%s' for appset '%s', but got %d", len(expectedApps), step, c.context.GetName(), len(stepApps))
 		}
-		//Sort before comparing to avoid flakiness
+		// Sort before comparing to avoid flakiness
 		slices.Sort(stepApps)
 		slices.Sort(expectedApps)
 		if !slices.Equal(stepApps, expectedApps) {
@@ -315,11 +315,11 @@ func ApplicationSetHasApplicationStatus(expectedApplicationStatusLength int) Exp
 			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
 		}
 		if appSet.Status.ApplicationStatus == nil {
-			return failed, fmt.Sprintf("application set '%s' has no ApplicationStatus when '%s' expected", c.context.GetName(), expectedApplicationStatusLength)
+			return failed, fmt.Sprintf("application set '%s' has no ApplicationStatus when '%d' expected", c.context.GetName(), expectedApplicationStatusLength)
 		}
 
 		if len(appSet.Status.ApplicationStatus) != expectedApplicationStatusLength {
-			return failed, fmt.Sprintf("applicationset has '%s' applicationstatus, when '%s' are expected", len(appSet.Status.ApplicationStatus), expectedApplicationStatusLength)
+			return failed, fmt.Sprintf("applicationset has '%d' applicationstatus, when '%d' are expected", len(appSet.Status.ApplicationStatus), expectedApplicationStatusLength)
 		}
 
 		for _, appStatus := range appSet.Status.ApplicationStatus {
