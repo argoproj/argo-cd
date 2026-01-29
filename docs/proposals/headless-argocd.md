@@ -68,7 +68,7 @@ The `Headless Argo CD` is not intended to deprecate any of the existing operatio
 
 #### Headless Installation Manifests
 
-In order to simplify installation of Argo CD without API we need introduce `headless/install.yaml` in [manifests](../../manifests) directory.
+In order to simplify installation of Argo CD without API we need to introduce `headless/install.yaml` in the `manifests` directory.
 The installation manifests should include only non HA controller, repo-server, Redis components, and RBAC.
 
 #### Headless CLI

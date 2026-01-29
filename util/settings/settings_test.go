@@ -2132,7 +2132,7 @@ func TestIsImpersonationEnabled(t *testing.T) {
 	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	featureFlag, err := settingsManager.IsImpersonationEnabled()
 	require.False(t, featureFlag,
-		"with no argocd-cm config map, IsImpersonationEnabled() must return return false (default value)")
+		"with no argocd-cm config map, IsImpersonationEnabled() must return false (default value)")
 	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
 		"with no argocd-cm config map, IsImpersonationEnabled() must return an error")
 
@@ -2175,7 +2175,7 @@ func TestRequireOverridePrivilegeForRevisionSyncNoConfigMap(t *testing.T) {
 	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
 	require.False(t, featureFlag,
-		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return return false (default value)")
+		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
 	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
 		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return an error")
 }

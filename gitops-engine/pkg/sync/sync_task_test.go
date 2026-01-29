@@ -21,9 +21,9 @@ func Test_syncTask_hookType(t *testing.T) {
 		want   common.HookType
 	}{
 		{"Empty", fields{common.SyncPhaseSync, testingutils.NewPod()}, ""},
-		{"PreSyncHook", fields{common.SyncPhasePreSync, newHook(common.HookTypePreSync, common.HookDeletePolicyBeforeHookCreation)}, common.HookTypePreSync},
-		{"SyncHook", fields{common.SyncPhaseSync, newHook(common.HookTypeSync, common.HookDeletePolicyBeforeHookCreation)}, common.HookTypeSync},
-		{"PostSyncHook", fields{common.SyncPhasePostSync, newHook(common.HookTypePostSync, common.HookDeletePolicyBeforeHookCreation)}, common.HookTypePostSync},
+		{"PreSyncHook", fields{common.SyncPhasePreSync, newHook("hook", common.HookTypePreSync, common.HookDeletePolicyBeforeHookCreation)}, common.HookTypePreSync},
+		{"SyncHook", fields{common.SyncPhaseSync, newHook("hook", common.HookTypeSync, common.HookDeletePolicyBeforeHookCreation)}, common.HookTypeSync},
+		{"PostSyncHook", fields{common.SyncPhasePostSync, newHook("hook", common.HookTypePostSync, common.HookDeletePolicyBeforeHookCreation)}, common.HookTypePostSync},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

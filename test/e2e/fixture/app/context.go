@@ -1,13 +1,17 @@
 package app
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/certs"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/gpgkeys"
@@ -479,5 +483,18 @@ func (c *Context) Sources(sources []v1alpha1.ApplicationSource) *Context {
 func (c *Context) RegisterKustomizeVersion(version, path string) *Context {
 	c.T().Helper()
 	require.NoError(c.T(), fixture.RegisterKustomizeVersion(version, path))
+	return c
+}
+
+func (c *Context) Resource(content string) *Context {
+	c.T().Helper()
+	u := test.YamlToUnstructured(content)
+	mapping, err := fixture.Mapper.RESTMapping(u.GroupVersionKind().GroupKind(), u.GroupVersionKind().Version)
+	require.NoError(c.T(), err)
+	if mapping == nil {
+		require.NoError(c.T(), fmt.Errorf("cannot find mapping for %s", u.GroupVersionKind().String()))
+	}
+	_, err = fixture.DynamicClientset.Resource(mapping.Resource).Namespace(c.DeploymentNamespace()).Apply(c.T().Context(), u.GetName(), u, metav1.ApplyOptions{FieldManager: "e2e-given-step"})
+	require.NoError(c.T(), err)
 	return c
 }

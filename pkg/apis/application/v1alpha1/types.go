@@ -104,6 +104,10 @@ type ApplicationSpec struct {
 type IgnoreDifferences []ResourceIgnoreDifferences
 
 func (id IgnoreDifferences) Equals(other IgnoreDifferences) bool {
+	// Treat nil and empty slice as equivalent
+	if len(id) == 0 && len(other) == 0 {
+		return true
+	}
 	return reflect.DeepEqual(id, other)
 }
 
@@ -2294,8 +2298,14 @@ func (c *Cluster) Sanitized() *Cluster {
 			ProxyUrl:           c.Config.ProxyUrl,
 			DisableCompression: c.Config.DisableCompression,
 			TLSClientConfig: TLSClientConfig{
-				Insecure: c.Config.Insecure,
+				Insecure:   c.Config.Insecure,
+				ServerName: c.Config.ServerName,
 			},
+			// We can't know what the user has put into args or
+			// env vars on the exec provider that might be sensitive
+			// (e.g. --private-key=XXX, PASSWORD=XXX)
+			// Implicitly assumes the command executable name is non-sensitive
+			ExecProviderConfig: nil,
 		},
 	}
 }
