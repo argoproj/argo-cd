@@ -254,7 +254,7 @@ func CheckProgressiveSyncStatusCodeOfApplications(expectedStatuses map[string]v1
 			return pending, fmt.Sprintf("no ApplicationSet found with name '%s'", c.context.GetName())
 		}
 		if appSet.Status.ApplicationStatus == nil {
-			return failed, fmt.Sprintf("no application status found for ApplicationSet '%s'", c.context.GetName())
+			return pending, fmt.Sprintf("no application status found for ApplicationSet '%s'", c.context.GetName())
 		}
 		for _, appStatus := range appSet.Status.ApplicationStatus {
 			expectedstatus, found := expectedStatuses[appStatus.Application]
@@ -277,7 +277,7 @@ func CheckApplicationInRightSteps(step string, expectedApps []string) Expectatio
 			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
 		}
 		if appSet.Status.ApplicationStatus == nil {
-			return failed, fmt.Sprintf("no application status found for ApplicationSet '%s'", c.context.GetName())
+			return pending, fmt.Sprintf("no application status found for ApplicationSet '%s'", c.context.GetName())
 		}
 		var stepApps []string
 		for _, appStatus := range appSet.Status.ApplicationStatus {
@@ -321,7 +321,7 @@ func ApplicationSetHasApplicationStatus(expectedApplicationStatusLength int) Exp
 			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
 		}
 		if appSet.Status.ApplicationStatus == nil {
-			return failed, fmt.Sprintf("application set '%s' has no ApplicationStatus when '%d' expected", c.context.GetName(), expectedApplicationStatusLength)
+			return pending, fmt.Sprintf("application set '%s' has no ApplicationStatus when '%d' expected", c.context.GetName(), expectedApplicationStatusLength)
 		}
 
 		if len(appSet.Status.ApplicationStatus) != expectedApplicationStatusLength {

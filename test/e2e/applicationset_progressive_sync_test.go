@@ -7,11 +7,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets"
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -20,7 +21,6 @@ const (
 	TransitionTimeout = 60 * time.Second
 )
 
-// This test uses an external git repo instead of file repo in the other tests
 func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {
 		t.Skip("Skipping progressive sync tests - env variable not set to enable progressive sync")
@@ -43,8 +43,8 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/ranakan19/test-yamls",
-				Path:           "apps/app1",
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "guestbook",
 				TargetRevision: "HEAD",
 			},
 			Destination: v1alpha1.ApplicationDestination{
@@ -72,8 +72,8 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/ranakan19/test-yamls",
-				Path:           "apps/app2",
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "guestbook",
 				TargetRevision: "HEAD",
 			},
 			Destination: v1alpha1.ApplicationDestination{
@@ -100,8 +100,8 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/ranakan19/test-yamls",
-				Path:           "apps/app3",
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "guestbook",
 				TargetRevision: "HEAD",
 			},
 			Destination: v1alpha1.ApplicationDestination{
@@ -130,8 +130,8 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "default",
 						Source: &v1alpha1.ApplicationSource{
-							RepoURL:        "https://github.com/ranakan19/test-yamls",
-							Path:           "apps/{{.name}}",
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							Path:           "guestbook",
 							TargetRevision: "HEAD",
 						},
 						Destination: v1alpha1.ApplicationDestination{
@@ -146,7 +146,7 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						List: &v1alpha1.ListGenerator{
-							Elements: []v1.JSON{
+							Elements: []apiextensionsv1.JSON{
 								{Raw: []byte(`{"name": "app1", "environment": "dev"}`)},
 								{Raw: []byte(`{"name": "app2", "environment": "staging"}`)},
 								{Raw: []byte(`{"name": "app3", "environment": "prod"}`)},
@@ -311,7 +311,7 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						List: &v1alpha1.ListGenerator{
-							Elements: []v1.JSON{
+							Elements: []apiextensionsv1.JSON{
 								{Raw: []byte(`{"environment": "dev"}`)},
 								{Raw: []byte(`{"environment": "staging"}`)},
 								{Raw: []byte(`{"environment": "prod"}`)},
@@ -541,7 +541,7 @@ var appSetInvalidStepConfiguration = v1alpha1.ApplicationSet{
 		Generators: []v1alpha1.ApplicationSetGenerator{
 			{
 				List: &v1alpha1.ListGenerator{
-					Elements: []v1.JSON{
+					Elements: []apiextensionsv1.JSON{
 						{Raw: []byte(`{"environment": "dev"}`)},
 						{Raw: []byte(`{"environment": "staging"}`)},
 						{Raw: []byte(`{"environment": "prod"}`)},
@@ -597,7 +597,7 @@ var appSetWithEmptyGenerator = v1alpha1.ApplicationSet{
 		Generators: []v1alpha1.ApplicationSetGenerator{
 			{
 				List: &v1alpha1.ListGenerator{
-					Elements: []v1.JSON{
+					Elements: []apiextensionsv1.JSON{
 						// Empty Generator
 					},
 				},
@@ -673,7 +673,7 @@ var appSetWithMultipleAppsInEachStep = v1alpha1.ApplicationSet{
 		Generators: []v1alpha1.ApplicationSetGenerator{
 			{
 				List: &v1alpha1.ListGenerator{
-					Elements: []v1.JSON{
+					Elements: []apiextensionsv1.JSON{
 						{Raw: []byte(`{"environment": "dev", "name": "sketch"}`)},
 						{Raw: []byte(`{"environment": "dev", "name": "build"}`)},
 						{Raw: []byte(`{"environment": "staging", "name": "verify"}`)},
