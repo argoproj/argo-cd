@@ -1003,6 +1003,10 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		}
 	}
 
+	err = mgr.appendResourceOverridesFromSplitKeys(defaultIgnoreResourceUpdates, resourceOverrides)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply default ignoreResourceUpdates: %w", err)
+	}
 	err = mgr.appendResourceOverridesFromSplitKeys(argoCDCM.Data, resourceOverrides)
 	if err != nil {
 		return nil, err
