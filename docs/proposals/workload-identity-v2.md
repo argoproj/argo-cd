@@ -40,7 +40,6 @@ implementations of it have a few issues.
 - ArgoCD stores registry credentials (username/password, tokens) in Kubernetes secrets
 - These credentials are long-lived and must be manually rotated
 - Credential leakage poses significant security risks
-- No per-project credential isolation for multi-tenant deployments
 - The existing implementation of Workload Identity is in practice scoped on the whole repo-server, meaning that there
 is no granularity between projects.
 - There is only a single existing implementation for Azure, lacking support for other clouds as well as on-prem
@@ -58,9 +57,9 @@ generate manifests from credentials given, not wrangle with workload identity, n
 1. **Eliminate static credentials**: Enable repository authentication without storing long-lived passwords or tokens in secrets.
 2. **Support major cloud providers**:
 Implement native support for:
-- AWS IRSA (IAM Roles for Service Accounts) for ECR
-- GCP Workload Identity Federation for Artifact Registry
-- Azure Workload Identity for ACR
+   - AWS IRSA (IAM Roles for Service Accounts) for ECR
+   - GCP Workload Identity Federation for Artifact Registry
+   - Azure Workload Identity for ACR
 3. **Support SPIFFE/SPIRE**: Enable workload identity using SPIFFE JWT-SVIDs with delegated identity for per-project isolation.
 4. **Support generic token exchange**: Enable authentication to registries that supports exchanging an
   ID token for repo creds (e.g. Quay, JFrog Artifactory, etc.) via a flexible HTTP template authenticator.
@@ -72,26 +71,33 @@ Implement native support for:
 ### Non-Goals
 
 1. **Automatic cloud IAM setup**: Users must configure cloud provider IAM roles/policies manually.
-2. **Automatic configuration of service accounts**: An Argo CD admin needs to [manually] provision service accounts
+2. **Automatic configuration of service accounts**: An Argo CD admin needs to (manually) provision k8s service accounts, 
+at least for now. A future enhancement could be to automatically provision a service account whenever an AppProject is 
+created.
 
 ## Proposal
 
 ### Use Cases
 
 #### Use case 1: AWS ECR with IRSA
-As an operator running ArgoCD on EKS, I want to authenticate to ECR without storing AWS credentials, using IAM roles mapped to Kubernetes service accounts.
+As an operator running ArgoCD on EKS, I want to authenticate to ECR without storing AWS credentials, using IAM roles 
+mapped to Kubernetes service accounts.
 
 #### Use case 2: GCP Artifact Registry with Workload Identity
-As an operator running ArgoCD on GKE or any Kubernetes cluster, I want to authenticate to Artifact Registry using GCP Workload Identity Federation without service account keys.
+As an operator running ArgoCD on GKE or any Kubernetes cluster, I want to authenticate to Artifact Registry using GCP 
+Workload Identity Federation without service account keys.
 
 #### Use case 3: Azure ACR with Workload Identity
-As an operator running ArgoCD on AKS, I want to authenticate to ACR using Azure Workload Identity without storing service principal secrets.
+As an operator running ArgoCD on AKS, I want to authenticate to ACR using Azure Workload Identity without storing 
+service principal secrets.
 
 #### Use case 4: SPIFFE/SPIRE with Quay
-As an operator using SPIRE for workload identity, I want ArgoCD to authenticate to Quay using SPIFFE JWT-SVIDs with per-project SPIFFE identities.
+As an operator using SPIRE for workload identity, I want ArgoCD to authenticate to Quay using SPIFFE JWT-SVIDs with 
+per-project SPIFFE identities.
 
 #### Use case 5: Multi-tenant isolation
-As a platform team, I want different ArgoCD projects to use different cloud IAM roles, so project A can only access production ECR repositories while project B can only access staging repositories.
+As a platform team, I want different ArgoCD projects to use different cloud IAM roles, so project A can only access 
+production ECR repositories while project B can only access staging repositories.
 
 ### Implementation Details
 
@@ -170,7 +176,8 @@ Each identity provider has a default authenticator, but this can be overridden i
 
 #### Registry OIDC Federation Support
 
-The following registries support OIDC workload identity federation, enabling authentication with Kubernetes ServiceAccount tokens or SPIFFE JWT-SVIDs:
+The following registries support OIDC workload identity federation, enabling authentication with Kubernetes 
+ServiceAccount tokens or SPIFFE JWT-SVIDs:
 
 | Registry | OIDC Federation Support | Notes |
 |----------|------------------------|-------|
@@ -190,13 +197,13 @@ template authenticator handles the exchange.
 1. Request K8s token with audience `sts.amazonaws.com`
 2. Call STS `AssumeRoleWithWebIdentity` with the K8s JWT
 3. Use temporary credentials to call ECR `GetAuthorizationToken`
-4. Return ECR credentials (username: AWS, password: base64-decoded token)
+4. Return ECR credentials (username: `AWS`, password: base64-decoded token)
 
 **GCP (Workload Identity Federation):**
 1. Request K8s token with WIF provider audience
 2. Exchange K8s JWT for federated token via GCP STS
 3. Impersonate target GCP service account
-4. Return credentials (username: oauth2accesstoken, password: access token)
+4. Return credentials (username: `oauth2accesstoken`, password: access token)
 
 **Azure (Workload Identity):**
 1. Request K8s token with audience `api://AzureADTokenExchange`
