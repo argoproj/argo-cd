@@ -66,16 +66,17 @@ type namespacedResource struct {
 }
 
 type fakeData struct {
-	apps                           []runtime.Object
-	manifestResponse               *apiclient.ManifestResponse
-	manifestResponses              []*apiclient.ManifestResponse
-	managedLiveObjs                map[kube.ResourceKey]*unstructured.Unstructured
-	namespacedResources            map[kube.ResourceKey]namespacedResource
-	configMapData                  map[string]string
-	metricsCacheExpiration         time.Duration
-	applicationNamespaces          []string
-	updateRevisionForPathsResponse *apiclient.UpdateRevisionForPathsResponse
-	additionalObjs                 []runtime.Object
+	apps                            []runtime.Object
+	manifestResponse                *apiclient.ManifestResponse
+	manifestResponses               []*apiclient.ManifestResponse
+	managedLiveObjs                 map[kube.ResourceKey]*unstructured.Unstructured
+	namespacedResources             map[kube.ResourceKey]namespacedResource
+	configMapData                   map[string]string
+	metricsCacheExpiration          time.Duration
+	applicationNamespaces           []string
+	updateRevisionForPathsResponse  *apiclient.UpdateRevisionForPathsResponse
+	updateRevisionForPathsResponses []*apiclient.UpdateRevisionForPathsResponse
+	additionalObjs                  []runtime.Object
 }
 
 type MockKubectl struct {
@@ -125,10 +126,20 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		}
 	}
 
-	if revisionPathsErr != nil {
-		mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(nil, revisionPathsErr)
+	if len(data.updateRevisionForPathsResponses) > 0 {
+		for _, response := range data.updateRevisionForPathsResponses {
+			if revisionPathsErr != nil {
+				mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(response, revisionPathsErr)
+			} else {
+				mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(response, nil)
+			}
+		}
 	} else {
-		mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
+		if revisionPathsErr != nil {
+			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(nil, revisionPathsErr)
+		} else {
+			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
+		}
 	}
 
 	mockRepoClientset := &mockrepoclient.Clientset{RepoServerServiceClient: mockRepoClient}
