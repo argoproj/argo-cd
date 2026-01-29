@@ -1304,7 +1304,7 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	out, err := client.SetAuthor("test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(branch, 0, false)
 	require.NoError(t, err)
 
 	out, err = client.Checkout(branch, false)
@@ -1362,7 +1362,7 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	out, err := client.SetAuthor("test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(branch, 0, false)
 	require.NoError(t, err)
 
 	out, err = client.Checkout(branch, false)
@@ -1426,7 +1426,7 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	out, err := client.SetAuthor("test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch, 0)
+	err = client.Fetch(branch, 0, false)
 	require.NoError(t, err)
 
 	out, err = client.Checkout(branch, false)
