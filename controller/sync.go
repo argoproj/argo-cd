@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
 	cdcommon "github.com/argoproj/argo-cd/v3/common"
@@ -21,7 +22,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -33,6 +33,7 @@ import (
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
+	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
@@ -161,7 +162,15 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	compareResult, err := m.CompareAppState(app, project, revisions, sources, false, true, syncOp.Manifests, isMultiSourceSync)
 	if err != nil && !stderrors.Is(err, ErrCompareStateRepo) {
 		state.Phase = common.OperationError
-		state.Message = err.Error()
+
+		// Check if cluster has cache issues and provide a more helpful message
+		clusterURL := app.Spec.Destination.Server
+		taintedGVKs := m.liveStateCache.GetTaintedGVKs(clusterURL)
+		if len(taintedGVKs) > 0 {
+			state.Message = fmt.Sprintf("Application sync affected by tainted cluster cache. Some resources cannot be properly synchronized (affected GVKs: %v). Check cluster status for more details.", taintedGVKs)
+		} else {
+			state.Message = err.Error()
+		}
 		return
 	}
 
@@ -403,6 +412,28 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 			log.Errorf("using the original message since: %v", err)
 		} else {
 			res.Message = augmentedMsg
+		}
+
+		// Use centralized error analysis to detect cache-tainting issues during sync operations
+		if res.Message != "" {
+			analysis := argoerrors.AnalyzeMessage(res.Message)
+			if analysis.IsCacheTainting {
+				// Mark affected GVK as tainted using extracted GVK or resource info
+				gvk := analysis.ExtractedGVK
+				if gvk == "" {
+					// Try to create GVK from the resource info and use standard format
+					gvkObj := schema.GroupVersionKind{
+						Group:   res.ResourceKey.Group,
+						Version: res.Version,
+						Kind:    res.ResourceKey.Kind,
+					}
+					gvk = gvkObj.String()
+				}
+				if gvk != "" {
+					m.liveStateCache.MarkClusterTainted(destCluster.Server, res.Message, gvk, string(analysis.IssueType))
+					logEntry.Warnf("Marked GVK %s as tainted due to %s: %v", gvk, analysis.IssueType, res.Message)
+				}
+			}
 		}
 
 		state.SyncResult.Resources = append(state.SyncResult.Resources, &v1alpha1.ResourceResult{

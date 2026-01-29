@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
@@ -30,6 +31,28 @@ func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Conse
 	c.context.T().Helper()
 	block(c.actions.lastOutput, c.actions.lastError)
 	return c
+}
+
+// AndFailedResourceGVKsExist checks that the failedResourceGVKs field appears in CLI output
+func (c *Consequences) AndFailedResourceGVKsExist() *Consequences {
+	c.context.T().Helper()
+	if c.actions.lastError != nil {
+		c.context.T().Fatalf("Error in command: %v", c.actions.lastError)
+	}
+	if c.actions.lastOutput == "" {
+		c.context.T().Fatal("No output to check")
+	}
+
+	if !FailedResourceGVKsFieldExists(c.actions.lastOutput) {
+		c.context.T().Fatal("failedResourceGVKs field missing from output")
+	}
+
+	return c
+}
+
+// FailedResourceGVKsFieldExists checks if the failedResourceGVKs field exists in YAML output
+func FailedResourceGVKsFieldExists(output string) bool {
+	return output != "" && strings.Contains(output, "failedResourceGVKs:")
 }
 
 func (c *Consequences) cluster() (*v1alpha1.Cluster, error) {

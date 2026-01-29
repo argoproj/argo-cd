@@ -752,6 +752,67 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 	})
 }
 
+func TestClusterInfoWithFailedResourceGVKs(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+	cache := newServerInMemoryCache()
+
+	// Create a mock cluster with failed resource GVKs
+	mockCluster := appv1.Cluster{
+		Name:       "test-cluster",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+
+	// Create mock cluster info with failed resource GVKs
+	failedGVKs := []string{
+		"conversion.example.com/v1, Kind=Example",
+		"another.api.io/v2, Kind=Resource",
+	}
+	clusterInfo := &appv1.ClusterInfo{
+		ConnectionState: appv1.ConnectionState{
+			Status:  appv1.ConnectionStatusDegraded,
+			Message: "Cluster has 2 unavailable resource types",
+		},
+		ServerVersion: "1.22",
+		CacheInfo: appv1.ClusterCacheInfo{
+			ResourcesCount:     305,
+			APIsCount:          50,
+			FailedResourceGVKs: failedGVKs,
+		},
+	}
+
+	// Set up mock database
+	mockClusterList := appv1.ClusterList{
+		ListMeta: metav1.ListMeta{},
+		Items: []appv1.Cluster{
+			mockCluster,
+		},
+	}
+
+	db.On("ListClusters", mock.Anything).Return(&mockClusterList, nil)
+
+	// Set up mock cache to return our cluster info with failed GVKs
+	err := cache.SetClusterInfo(mockCluster.Server, clusterInfo)
+	require.NoError(t, err)
+
+	// Create server with our mocked DB and cache
+	server := NewServer(db, newNoopEnforcer(), cache, &kubetest.MockKubectlCmd{})
+
+	// Call the List API
+	response, err := server.List(t.Context(), &cluster.ClusterQuery{})
+	require.NoError(t, err)
+	require.NotNil(t, response)
+	require.Len(t, response.Items, 1)
+
+	// Verify the response contains our failed resource GVKs
+	clusterResponse := response.Items[0]
+	assert.Equal(t, mockCluster.Server, clusterResponse.Server)
+	assert.Equal(t, appv1.ConnectionStatusDegraded, clusterResponse.Info.ConnectionState.Status)
+	assert.Equal(t, "Cluster has 2 unavailable resource types", clusterResponse.Info.ConnectionState.Message)
+	assert.Equal(t, failedGVKs, clusterResponse.Info.CacheInfo.FailedResourceGVKs)
+	assert.Equal(t, int64(2), int64(len(clusterResponse.Info.CacheInfo.FailedResourceGVKs)))
+}
+
 func TestNoClusterEnumeration(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 

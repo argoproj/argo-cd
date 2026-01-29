@@ -42,6 +42,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 		{nil, nil, v1alpha1.ConnectionStatusUnknown},
 		{&now, nil, v1alpha1.ConnectionStatusSuccessful},
 		{&now, errors.New("sync failed"), v1alpha1.ConnectionStatusFailed},
+		{&now, errors.New("Cluster has 1 unavailable resource types due to conversion webhook errors"), v1alpha1.ConnectionStatusDegraded},
 	}
 
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
@@ -98,6 +99,11 @@ func TestClusterSecretUpdater(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, updatedK8sVersion, clusterInfo.ServerVersion)
 		assert.Equal(t, test.ExpectedStatus, clusterInfo.ConnectionState.Status)
+
+		// For degraded state, verify that the error message indicates conversion webhook errors
+		if test.ExpectedStatus == v1alpha1.ConnectionStatusDegraded {
+			assert.Contains(t, clusterInfo.ConnectionState.Message, "unavailable resource types")
+		}
 	}
 }
 
@@ -186,6 +192,100 @@ func TestUpdateClusterLabels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.wantErr(t, updateClusterLabels(t.Context(), tt.clusterInfo, tt.cluster, tt.updateCluster), fmt.Sprintf("updateClusterLabels(%v, %v, %v)", t.Context(), tt.clusterInfo, tt.cluster))
+		})
+	}
+}
+
+// Mock info source that supports GetTaintedGVKs
+type mockInfoSourceWithTaints struct {
+	taintedGVKs []string
+}
+
+func (m *mockInfoSourceWithTaints) GetClustersInfo() []clustercache.ClusterInfo {
+	return []clustercache.ClusterInfo{}
+}
+
+func (m *mockInfoSourceWithTaints) GetTaintedGVKs(_ string) []string {
+	return m.taintedGVKs
+}
+
+// Mock info source without taint support (falls back to string matching)
+type mockInfoSourceNoTaints struct{}
+
+func (m *mockInfoSourceNoTaints) GetClustersInfo() []clustercache.ClusterInfo {
+	return []clustercache.ClusterInfo{}
+}
+
+func TestHasClusterCacheIssues(t *testing.T) {
+	tests := []struct {
+		name       string
+		infoSource *clusterInfoUpdater
+		serverURL  string
+		err        error
+		expected   bool
+	}{
+		{
+			name:       "has tainted GVKs - should detect issues",
+			infoSource: &clusterInfoUpdater{infoSource: &mockInfoSourceWithTaints{taintedGVKs: []string{"example.com/v1, Kind=Example"}}},
+			serverURL:  "test-server",
+			err:        nil,
+			expected:   true,
+		},
+		{
+			name:       "no tainted GVKs - should not detect issues",
+			infoSource: &clusterInfoUpdater{infoSource: &mockInfoSourceWithTaints{taintedGVKs: []string{}}},
+			serverURL:  "test-server",
+			err:        nil,
+			expected:   false,
+		},
+		{
+			name:       "error analysis - conversion webhook error",
+			infoSource: &clusterInfoUpdater{infoSource: &mockInfoSourceNoTaints{}},
+			serverURL:  "test-server",
+			err:        errors.New("conversion webhook for example.com/v1, Kind=Example failed"),
+			expected:   true,
+		},
+		{
+			name:       "error analysis - unavailable resource types",
+			infoSource: &clusterInfoUpdater{infoSource: &mockInfoSourceNoTaints{}},
+			serverURL:  "test-server",
+			err:        errors.New("Cluster has 1 unavailable resource types"),
+			expected:   true,
+		},
+		{
+			name:       "error analysis - expired resource version (transient)",
+			infoSource: &clusterInfoUpdater{infoSource: &mockInfoSourceNoTaints{}},
+			serverURL:  "test-server",
+			err:        errors.New("Expired: too old resource version: 12345"),
+			expected:   true,
+		},
+		{
+			name:       "error analysis - connection refused (not cache tainting)",
+			infoSource: &clusterInfoUpdater{infoSource: &mockInfoSourceNoTaints{}},
+			serverURL:  "test-server",
+			err:        errors.New("connection refused"),
+			expected:   false,
+		},
+		{
+			name:       "error analysis - generic list failure (not cache tainting)",
+			infoSource: &clusterInfoUpdater{infoSource: &mockInfoSourceNoTaints{}},
+			serverURL:  "test-server",
+			err:        errors.New("failed to list resources for apps/v1"),
+			expected:   false,
+		},
+		{
+			name:       "error analysis - no error",
+			infoSource: &clusterInfoUpdater{infoSource: &mockInfoSourceNoTaints{}},
+			serverURL:  "test-server",
+			err:        nil,
+			expected:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.infoSource.hasClusterCacheIssues(tt.serverURL, tt.err)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

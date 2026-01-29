@@ -3,6 +3,7 @@ import {ApplicationsList} from './applications-list/applications-list';
 import UiTestUtilities from './UiTestUtilities';
 import {Base} from './base';
 import {AuthLoginPage} from './auth/login-page';
+import {SettingsPage} from './settings/settings-page';
 
 const NAVBAR_APPLICATIONS_BUTTON: By = By.css('#app .sidebar .argo-icon-application');
 const NAVBAR_SETTINGS_BUTTON: By = By.css('#app .sidebar .argo-icon-settings');
@@ -12,11 +13,13 @@ const NAVBAR_DOCS_BUTTON: By = By.css('#app .sidebar .argo-icon-docs');
 export class Navigation extends Base {
     private applicationsList: ApplicationsList;
     private authLoginPage: AuthLoginPage;
+    private settingsPage: SettingsPage;
 
     public constructor(driver: WebDriver) {
         super(driver);
         this.applicationsList = new ApplicationsList(this.driver);
         this.authLoginPage = new AuthLoginPage(this.driver);
+        this.settingsPage = new SettingsPage(this.driver);
     }
 
     public getLoginPage(): AuthLoginPage {
@@ -39,15 +42,16 @@ export class Navigation extends Base {
 
     /**
      * Click the Settings Nav Bar Button
-     * TODO return settings page
+     * Return: reference to SettingsPage
      */
-    public async clickSettingsNavBarButton() {
+    public async clickSettingsNavBarButton(): Promise<SettingsPage> {
         try {
             const navBarButton = await UiTestUtilities.findUiElement(this.driver, NAVBAR_SETTINGS_BUTTON);
             await navBarButton.click();
         } catch (err: any) {
             throw new Error(err);
         }
+        return this.settingsPage;
     }
 
     /**

@@ -60,7 +60,7 @@ func appManagedResourcesKey(appName string) string {
 }
 
 func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDiff) error {
-	err := c.GetItem(appManagedResourcesKey(appName), &res)
+	err := c.GetItem(appManagedResourcesKey(appName), res)
 	return err
 }
 
@@ -84,7 +84,7 @@ func clusterInfoKey(server string) string {
 }
 
 func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
-	err := c.GetItem(appResourcesTreeKey(appName, 0), &res)
+	err := c.GetItem(appResourcesTreeKey(appName, 0), res)
 	if res.ShardsCount > 1 {
 		for i := int64(1); i < res.ShardsCount; i++ {
 			var shard appv1.ApplicationTree
@@ -126,6 +126,6 @@ func (c *Cache) SetClusterInfo(server string, info *appv1.ClusterInfo) error {
 }
 
 func (c *Cache) GetClusterInfo(server string, res *appv1.ClusterInfo) error {
-	err := c.GetItem(clusterInfoKey(server), &res)
+	err := c.GetItem(clusterInfoKey(server), res)
 	return err
 }
