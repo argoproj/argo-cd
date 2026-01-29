@@ -249,21 +249,22 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 			org, err := git.ExtractOrgFromRepoURL(repo.Repo)
 			if err != nil {
 				log.Warnf("Failed to extract organization from repository URL %s for GitHub App auto-discovery: %v", repo.Repo, err)
-				return git.NopCreds{}
-			}
-			if org != "" {
+				// Proceed with installation ID 0 - the GitHubAppCreds layer will provide a clear error message
+			} else if org != "" {
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 
 				discoveredId, err := git.DiscoverGitHubAppInstallationID(ctx, repo.GithubAppId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, org)
 				if err != nil {
-					log.Warnf("Failed to auto-discover GitHub App installation ID for org %s: %v. Proceeding with installation ID 0.", org, err)
+					log.Warnf("Failed to auto-discover GitHub App installation ID for org %s: %v", org, err)
+					// Proceed with installation ID 0 - the GitHubAppCreds layer will provide a clear error message
 				} else {
 					log.Infof("Auto-discovered GitHub App installation ID %d for org %s", discoveredId, org)
 					installationId = discoveredId
 				}
 			} else {
 				log.Warnf("Could not extract organization from repository URL %s for GitHub App auto-discovery", repo.Repo)
+				// Proceed with installation ID 0 - the GitHubAppCreds layer will provide a clear error message
 			}
 		}
 

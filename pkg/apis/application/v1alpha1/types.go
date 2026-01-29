@@ -1874,7 +1874,8 @@ type SyncStatus struct {
 	Status SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
 	// ComparedTo contains information about what has been compared
 	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
-	// Revision contains information about the revision the comparison has been performed to
+	// Revision contains information about the revision the comparison has been performed to. When the sync status is
+	// Unknown, the revision is the app's target revision. Otherwise it is the synced SHA.
 	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
 	// Revisions contains information about the revisions of multiple sources the comparison has been performed to
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,4,opt,name=revisions"`

@@ -100,3 +100,54 @@ func TestGetGitCreds(t *testing.T) {
 		})
 	}
 }
+
+func TestGetGitCreds_GitHubApp_InstallationNotFound(t *testing.T) {
+	// This test verifies that when GitHub App credentials are provided but the installation
+	// cannot be discovered (e.g., non-existent org), GetGitCreds returns GitHubAppCreds with
+	// installation ID 0. When that credential is used, it should provide a clear error message
+	// indicating the app is not installed, rather than a confusing "404 Not Found" error.
+	repo := &Repository{
+		Repo:                "https://github.com/nonexistent-org-12345/repo.git",
+		GithubAppPrivateKey: "github-key",
+		GithubAppId:         123,
+		// GithubAppInstallationId is 0 (not set), triggering auto-discovery
+	}
+
+	creds := repo.GetGitCreds(nil)
+
+	// We should still get GitHubAppCreds (not NopCreds)
+	ghAppCreds, isGitHubAppCreds := creds.(git.GitHubAppCreds)
+	require.True(t, isGitHubAppCreds, "expected GitHubAppCreds when installation discovery fails, got %T", creds)
+
+	// When we try to use these credentials, we should get a clear error about installation ID 0
+	_, _, err := ghAppCreds.Environ()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "installation ID is 0")
+	assert.Contains(t, err.Error(), "app is not installed")
+}
+
+func TestGetGitCreds_GitHubApp_OrgExtractionFails(t *testing.T) {
+	// This test verifies that when the organization cannot be extracted from the repo URL,
+	// GetGitCreds still returns GitHubAppCreds with installation ID 0, which will provide
+	// a clear error message when used.
+	repo := &Repository{
+		Repo:                "invalid-url-format",
+		GithubAppPrivateKey: "github-key",
+		GithubAppId:         123,
+		// GithubAppInstallationId is 0 (not set), triggering auto-discovery
+	}
+
+	creds := repo.GetGitCreds(nil)
+
+	// We should still get GitHubAppCreds
+	ghAppCreds, isGitHubAppCreds := creds.(git.GitHubAppCreds)
+	require.True(t, isGitHubAppCreds, "expected GitHubAppCreds when org extraction fails, got %T", creds)
+
+	// When we try to use these credentials, we should get a clear error about installation ID 0
+	_, _, err := ghAppCreds.Environ()
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "installation ID is 0")
+	assert.Contains(t, err.Error(), "app is not installed")
+}
