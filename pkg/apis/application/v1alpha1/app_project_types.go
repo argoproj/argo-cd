@@ -443,6 +443,7 @@ func (proj *AppProject) RemoveFinalizer() {
 	setFinalizer(&proj.ObjectMeta, ResourcesFinalizerName, false)
 }
 
+// globMatch matches a value with a glob pattern
 func globMatch(pattern string, val string, allowNegation bool, separators ...rune) bool {
 	if allowNegation && isDenyPattern(pattern) {
 		return !glob.Match(pattern[1:], val, separators...)
@@ -526,11 +527,12 @@ func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 	return anyDestinationMatched
 }
 
+// isDenyPattern checks if a pattern contains negation
 func isDenyPattern(pattern string) bool {
 	return strings.HasPrefix(pattern, "!")
 }
 
-// TODO: document this method
+// NormalizeJWTTokens normalizes JWT Tokens
 func (proj *AppProject) NormalizeJWTTokens() bool {
 	needNormalize := false
 	for i, role := range proj.Spec.Roles {
