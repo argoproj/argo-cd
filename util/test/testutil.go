@@ -16,6 +16,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	TestConfigFilePath  = "../test/local.config"
+	WriteConfigFilePath = "../test/write.config"
+)
+
+var TestConfig = `contexts:
+- name: argocd1.example.com:443
+  server: argocd1.example.com:443
+  user: argocd1.example.com:443
+- name: argocd2.example.com:443
+  server: argocd2.example.com:443
+  user: argocd2.example.com:443
+- name: localhost:8080
+  server: localhost:8080
+  user: localhost:8080
+current-context: localhost:8080
+servers:
+- server: argocd1.example.com:443
+- server: argocd2.example.com:443
+- plain-text: true
+  server: localhost:8080
+users:
+- auth-token: vErrYS3c3tReFRe$hToken
+  name: argocd1.example.com:443
+  refresh-token: vErrYS3c3tReFRe$hToken
+- auth-token: vErrYS3c3tReFRe$hToken
+  name: argocd2.example.com:443
+  refresh-token: vErrYS3c3tReFRe$hToken
+- auth-token: vErrYS3c3tReFRe$hToken
+  name: localhost:8080`
+
 // Cert is a certificate for tests. It was generated like this:
 //
 //	opts := tls.CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
@@ -133,6 +164,20 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
   "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
   "claims_supported": ["sub", "aud", "exp"]
 }`, url)
+			require.NoError(t, err)
+		case "/api/dex/keys":
+			pubKey, err := jwt.ParseRSAPublicKeyFromPEM(Cert)
+			require.NoError(t, err)
+			jwks := jose.JSONWebKeySet{
+				Keys: []jose.JSONWebKey{
+					{
+						Key: pubKey,
+					},
+				},
+			}
+			out, err := json.Marshal(jwks)
+			require.NoError(t, err)
+			_, err = w.Write(out)
 			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
