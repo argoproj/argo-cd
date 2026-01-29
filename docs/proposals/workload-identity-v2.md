@@ -426,5 +426,5 @@ Use External Secrets Operator to sync credentials from cloud secret managers (AW
 - [Kubernetes TokenRequest API](https://kubernetes.io/docs/reference/kubernetes-api/authentication-resources/token-request-v1/)
 
 ### Related Projects and Implementations
-- [Flux: SPIFFE/SPIRE Workload Identity Proposal](fluxcd/flux2#5681) - Similar proposal for Flux with discussion of registry OIDC federation support
-- [Zot: OIDC Workload Identity Federation](project-zot/zot#3711) - Native OIDC bearer token authentication with CEL expression support
+- [Flux: SPIFFE/SPIRE Workload Identity Proposal](https://github.com/fluxcd/flux2/issues/5681) - Similar proposal for Flux with discussion of registry OIDC federation support
+- [Zot: OIDC Workload Identity Federation](https://github.com/project-zot/zot/pull/3711) - Native OIDC bearer token authentication with CEL expression support
