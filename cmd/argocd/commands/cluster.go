@@ -268,6 +268,18 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			// parse the annotations you're receiving from the annotation flag
 			annotationsMap, err := label.Parse(annotations)
 			errors.CheckError(err)
+
+			// fetch existing cluster to merge labels/annotations
+			if labelsMap != nil || annotationsMap != nil {
+				existing, err := clusterIf.Get(ctx, getQueryBySelector(clusterName))
+				errors.CheckError(err)
+				if labelsMap != nil {
+					labelsMap = label.Merge(existing.Labels, labelsMap)
+				}
+				if annotationsMap != nil {
+					annotationsMap = label.Merge(existing.Annotations, annotationsMap)
+				}
+			}
 			if updatedFields != nil {
 				clusterUpdateRequest := clusterpkg.ClusterUpdateRequest{
 					Cluster: &argoappv1.Cluster{
@@ -297,8 +309,8 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	}
 	command.Flags().StringVar(&clusterOptions.Name, "name", "", "Overwrite the cluster name")
 	command.Flags().StringArrayVar(&clusterOptions.Namespaces, "namespace", nil, "List of namespaces which are allowed to manage. Specify '*' to manage all namespaces")
-	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
-	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
+	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value) or unset them (e.g. --label key-)")
+	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value) or unset them (e.g. --annotation key-)")
 	return command
 }
 
