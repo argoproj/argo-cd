@@ -16,6 +16,8 @@ type argoCDService struct {
 	newFileGlobbingEnabled          bool
 	getGitFilesFromRepoServer       func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
 	getGitDirectoriesFromRepoServer func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
+	getOciFilesFromRepoServer       func(ctx context.Context, req *apiclient.OciFilesRequest) (*apiclient.OciFilesResponse, error)
+	getOciDirectoriesFromRepoServer func(ctx context.Context, req *apiclient.OciDirectoriesRequest) (*apiclient.OciDirectoriesResponse, error)
 }
 
 type Repos interface {
@@ -24,6 +26,12 @@ type Repos interface {
 
 	// GetDirectories returns a list of directories (not files) within the target repo
 	GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, error)
+
+	// GetOciFiles returns content of files (not directories) within the target OCI artifact
+	GetOciFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool) (map[string][]byte, error)
+
+	// GetOciDirectories returns a list of directories (not files) within the target OCI artifact
+	GetOciDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool) ([]string, error)
 }
 
 func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) Repos {
@@ -46,6 +54,22 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 			}
 			defer utilio.Close(closer)
 			return client.GetGitDirectories(ctx, dirRequest)
+		},
+		getOciFilesFromRepoServer: func(ctx context.Context, fileRequest *apiclient.OciFilesRequest) (*apiclient.OciFilesResponse, error) {
+			closer, client, err := repoClientset.NewRepoServerClient()
+			if err != nil {
+				return nil, fmt.Errorf("error initializing new repo server client: %w", err)
+			}
+			defer utilio.Close(closer)
+			return client.GetOciFiles(ctx, fileRequest)
+		},
+		getOciDirectoriesFromRepoServer: func(ctx context.Context, dirRequest *apiclient.OciDirectoriesRequest) (*apiclient.OciDirectoriesResponse, error) {
+			closer, client, err := repoClientset.NewRepoServerClient()
+			if err != nil {
+				return nil, fmt.Errorf("error initialising new repo server client: %w", err)
+			}
+			defer utilio.Close(closer)
+			return client.GetOciDirectories(ctx, dirRequest)
 		},
 	}
 }
@@ -89,6 +113,44 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, p
 	dirResponse, err := a.getGitDirectoriesFromRepoServer(ctx, dirRequest)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving Git Directories: %w", err)
+	}
+	return dirResponse.GetPaths(), nil
+}
+
+func (a *argoCDService) GetOciFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool) (map[string][]byte, error) {
+	repo, err := a.getRepository(ctx, repoURL, project)
+	if err != nil {
+		return nil, fmt.Errorf("error in GetRepository: %w", err)
+	}
+
+	fileRequest := &apiclient.OciFilesRequest{
+		Repo:            repo,
+		Revision:        revision,
+		Path:            pattern,
+		NoRevisionCache: noRevisionCache,
+	}
+	fileResponse, err := a.getOciFilesFromRepoServer(ctx, fileRequest)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving OCI files: %w", err)
+	}
+	return fileResponse.GetMap(), nil
+}
+
+func (a *argoCDService) GetOciDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool) ([]string, error) {
+	repo, err := a.getRepository(ctx, repoURL, project)
+	if err != nil {
+		return nil, fmt.Errorf("error in GetRepository: %w", err)
+	}
+
+	dirRequest := &apiclient.OciDirectoriesRequest{
+		Repo:            repo,
+		Revision:        revision,
+		NoRevisionCache: noRevisionCache,
+	}
+
+	dirResponse, err := a.getOciDirectoriesFromRepoServer(ctx, dirRequest)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving OCI Directories: %w", err)
 	}
 	return dirResponse.GetPaths(), nil
 }
