@@ -68,6 +68,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/text/label"
 )
 
+var newClientOrDie = headless.NewClientOrDie
+
 // NewApplicationCommand returns a new instance of an `argocd app` command
 func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
@@ -397,7 +399,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			acdClient := headless.NewClientOrDie(clientOpts, c)
+			acdClient := newClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer utilio.Close(conn)
 
