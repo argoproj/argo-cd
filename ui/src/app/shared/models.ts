@@ -1170,5 +1170,6 @@ export interface ApplicationSet extends AbstractApplication {
             targetRevisions?: string[];
         }>;
         resources?: ApplicationSetResource[];
+        resourcesCount?: number;
     };
 }
