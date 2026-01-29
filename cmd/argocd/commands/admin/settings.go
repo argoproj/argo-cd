@@ -221,7 +221,7 @@ var validatorsByGroup = map[string]settingValidator{
 			}
 		} else if ssoProvider != "" && general.URL != "" {
 		} else {
-			summary = "SSO is not configured"
+			summary = "SSO or JWT is not configured"
 		}
 		return summary, nil
 	}, func(manager *settings.SettingsManager) (string, error) {

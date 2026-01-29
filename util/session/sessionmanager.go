@@ -28,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	jwttoken "github.com/argoproj/argo-cd/v3/util/jwt/token"
 	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
 	passwordutil "github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -38,7 +39,7 @@ type SessionManager struct {
 	settingsMgr                   *settings.SettingsManager
 	projectsLister                v1alpha1.AppProjectNamespaceLister
 	client                        *http.Client
-	prov                          oidcutil.Provider
+	tokenVerifier                 jwttoken.Verifier
 	storage                       UserStateStorage
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
@@ -147,7 +148,7 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 		transport.TLSClientConfig = dex.TLSConfig(dexTLSConfig)
 		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTLSConfig)
 		s.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, s.client.Transport)
-	} else {
+	} else if !settings.IsJWTConfigured() {
 		transport.TLSClientConfig = settings.OIDCTLSConfig()
 	}
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
@@ -286,9 +287,13 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	}
 
 	newToken := ""
-	if exp, err := jwtutil.ExpirationTime(claims); err == nil {
-		tokenExpDuration := exp.Sub(issuedAt)
-		remainingDuration := time.Until(exp)
+	exp, expErr := jwtutil.ExpirationTime(claims)
+	iat, iatErr := jwtutil.IssuedAtTime(claims)
+
+	// Only attempt auto-regeneration if we have both expiration and issuedAt times
+	if expErr == nil && iatErr == nil && exp != nil && iat != nil {
+		tokenExpDuration := exp.Sub(*iat)
+		remainingDuration := time.Until(*exp)
 
 		if remainingDuration < autoRegenerateTokenDuration && capability == settings.AccountCapabilityLogin {
 			if uniqueId, err := uuid.NewRandom(); err == nil {
@@ -480,22 +485,22 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 
 // AuthMiddlewareFunc returns a function that can be used as an
 // authentication middleware for HTTP requests.
-func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp) func(http.Handler) http.Handler {
+func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool, argoSettings *settings.ArgoCDSettings, ssoClientApp *oidcutil.ClientApp) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
-		return WithAuthMiddleware(disabled, isSSOConfigured, ssoClientApp, mgr, h)
+		return WithAuthMiddleware(disabled, argoSettings, ssoClientApp, mgr, h)
 	}
 }
 
-// TokenVerifier defines the contract to invoke token
+// TokenVerifier defines the contract to invoke token within the session manager
 // verification logic
 type TokenVerifier interface {
 	VerifyToken(ctx context.Context, token string) (jwt.Claims, string, error)
 }
 
-// WithAuthMiddleware is an HTTP middleware used to ensure incoming
-// requests are authenticated before invoking the target handler. If
-// disabled is true, it will just invoke the next handler in the chain.
-func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp, authn TokenVerifier, next http.Handler) http.Handler {
+// WithAuthMiddleware is an HTTP middleware used to ensure incoming requests are authenticated before invoking the target handler.
+// If disabled is true, it will just invoke the next handler in the chain.
+// It checks for tokens in a configured header (for IAP JWTs) first, then falls back to cookies.
+func WithAuthMiddleware(disabled bool, argoSettings *settings.ArgoCDSettings, ssoClientApp *oidcutil.ClientApp, authn TokenVerifier, next http.Handler) http.Handler {
 	if disabled {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			next.ServeHTTP(w, r)
@@ -503,28 +508,50 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cookies := r.Cookies()
+		var tokenString string
+		var err error
 		ctx := r.Context()
-		tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
-		if err != nil {
-			http.Error(w, "Auth cookie not found", http.StatusBadRequest)
-			return
+
+		// 1. Check Header for JWT (if configured)
+		if argoSettings.IsJWTConfigured() {
+			tokenString = r.Header.Get(argoSettings.JWTConfig.HeaderName)
+			if tokenString != "" {
+				log.Debugf("Found token in header %s", argoSettings.JWTConfig.HeaderName)
+			}
 		}
+
+		// 2. Fallback to Cookie
+		if tokenString == "" {
+			cookies := r.Cookies()
+			tokenString, err = httputil.JoinCookies(common.AuthCookieName, cookies)
+			if err != nil {
+				http.Error(w, "Auth cookie not found", http.StatusBadRequest)
+				return
+			}
+			log.Debug("Found token in cookie")
+		}
+
+		// 3. Verify Token
 		claims, _, err := authn.VerifyToken(ctx, tokenString)
 		if err != nil {
+			log.Warnf("Token verification failed: %v", err)
+			// Add error to context for potential downstream handling (e.g., UI showing expired message)
+			//nolint:staticcheck
+			r = r.WithContext(context.WithValue(ctx, AuthErrorCtxKey, err))
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
 
 		finalClaims := claims
-		if isSSOConfigured {
+		if argoSettings.IsSSOConfigured() {
 			finalClaims, err = ssoClientApp.SetGroupsFromUserInfo(ctx, claims, SessionManagerClaimsIssuer)
 			if err != nil {
 				http.Error(w, "Invalid session", http.StatusUnauthorized)
 				return
 			}
 		}
-		// Add claims to the context to inspect for RBAC
+
+		// 4. Add claims to context
 		//nolint:staticcheck
 		ctx = context.WithValue(ctx, "claims", finalClaims)
 		r = r.WithContext(ctx)
@@ -533,74 +560,91 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 	})
 }
 
-// VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
-// We choose how to verify based on the issuer.
+// VerifyToken verifies if a token is correct. Tokens can be issued either from us, an IDP, or an IAP.
+// We choose how to verify based on settings and the token issuer.
 func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) (jwt.Claims, string, error) {
+	argoSettings, err := mgr.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, "", fmt.Errorf("cannot access settings while verifying the token: %w", err)
+	}
+	if argoSettings == nil {
+		return nil, "", errors.New("settings are not available while verifying the token")
+	}
+
+	// 1. Parse token unverified to check issuer for Argo CD or External JWT or OIDC flow
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	claims := jwt.MapClaims{}
-	_, _, err := parser.ParseUnverified(tokenString, &claims)
-	if err != nil {
-		return nil, "", err
+	_, _, parseErr := parser.ParseUnverified(tokenString, &claims)
+	if parseErr != nil {
+		// If we couldn't even parse it, and JWT verification didn't work (or wasn't configured), fail.
+		return nil, "", fmt.Errorf("failed to parse token: %w", parseErr)
 	}
-	// Get issuer from MapClaims
-	issuer, _ := claims["iss"].(string)
-	switch issuer {
-	case SessionManagerClaimsIssuer:
-		// Argo CD signed token
+
+	// 2. Check if it's an Argo CD issued token
+	issuer, issErr := claims.GetIssuer()
+	if issErr != nil {
+		log.Debugf("Could not get issuer claim, assuming not Argo CD token: %v", issErr)
+	} else if issuer == SessionManagerClaimsIssuer {
+		log.Debug("Attempting verification as Argo CD token")
 		return mgr.Parse(tokenString)
-	default:
-		// IDP signed token
-		prov, err := mgr.provider()
-		if err != nil {
-			return nil, "", err
-		}
-
-		argoSettings, err := mgr.settingsMgr.GetSettings()
-		if err != nil {
-			return nil, "", fmt.Errorf("cannot access settings while verifying the token: %w", err)
-		}
-		if argoSettings == nil {
-			return nil, "", errors.New("settings are not available while verifying the token")
-		}
-
-		idToken, err := prov.Verify(ctx, tokenString, argoSettings)
-		// The token verification has failed. If the token has expired, we will
-		// return a dummy claims only containing a value for the issuer, so the
-		// UI can handle expired tokens appropriately.
-		if err != nil {
-			log.Warnf("Failed to verify session token: %s", err)
-			tokenExpiredError := &oidc.TokenExpiredError{}
-			if errors.As(err, &tokenExpiredError) {
-				claims = jwt.MapClaims{
-					"iss": "sso",
-				}
-				return claims, "", common.ErrTokenVerification
-			}
-			return nil, "", common.ErrTokenVerification
-		}
-
-		var claims jwt.MapClaims
-		err = idToken.Claims(&claims)
-		if err != nil {
-			return nil, "", err
-		}
-		return claims, "", nil
 	}
+
+	// 3. Attempt verification (external OIDC or JWT)
+	log.Debugf("Attempting verification as external (IDP/DEX/JWT) token (issuer: %s)", issuer) // Use issuer variable from above
+	tokenVerifier, err := mgr.verifier()
+	if err != nil {
+		// If OIDC/Dex/JWT is not configured, but we reached here, the token is invalid
+		return nil, "", fmt.Errorf("failed to get token verifier for validation: %w", err)
+	}
+
+	verifiedClaims, err := tokenVerifier.Verify(ctx, tokenString, argoSettings)
+	if err != nil {
+		log.Warnf("Token verification failed: %s", err)
+		// Handle expired token specifically for UI hints using errors.As
+		var tokenExpiredError *oidc.TokenExpiredError
+		if errors.As(err, &tokenExpiredError) {
+			// Return minimal claims indicating SSO source for expired tokens
+			// Use issuer variable from above, handle potential error if it wasn't retrieved
+			issForExpired := "sso"
+			if issErr == nil {
+				issForExpired = issuer
+			}
+			expiredClaims := jwt.MapClaims{"iss": issForExpired}
+			log.Debugf("OIDC token expired: %v", err)
+			return expiredClaims, "", common.ErrTokenVerification // Return specific error? Maybe jwt.ErrTokenExpired?
+		}
+		// Check for other specific OIDC errors if needed
+		// ...
+		return nil, "", common.ErrTokenVerification // Return generic verification error
+	}
+
+	return verifiedClaims, "", nil
 }
 
-func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
-	if mgr.prov != nil {
-		return mgr.prov, nil
+func (mgr *SessionManager) verifier() (jwttoken.Verifier, error) {
+	if mgr.tokenVerifier != nil {
+		return mgr.tokenVerifier, nil
 	}
+
 	settings, err := mgr.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}
-	if !settings.IsSSOConfigured() {
-		return nil, errors.New("SSO is not configured")
+
+	if settings.IsJWTConfigured() {
+		// Argo has been configured to accept externally issued JWT tokens
+		mgr.tokenVerifier = jwttoken.NewExternalTokenVerifier(mgr.client)
+	} else if settings.IsSSOConfigured() {
+		// If sso is configured, we use the OIDC provider to verify tokens
+		mgr.tokenVerifier = oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
 	}
-	mgr.prov = oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
-	return mgr.prov, nil
+
+	// In the case of external JWT we need an OIDC provider to veryify tokens
+	if mgr.tokenVerifier == nil {
+		return nil, errors.New("SSO or JWT is not configured")
+	}
+
+	return mgr.tokenVerifier, nil
 }
 
 func (mgr *SessionManager) RevokeToken(ctx context.Context, id string, expiringAt time.Duration) error {
@@ -642,7 +686,12 @@ func Iat(ctx context.Context) (time.Time, error) {
 	if !ok {
 		return time.Time{}, errors.New("unable to extract token claims")
 	}
-	return jwtutil.IssuedAtTime(mapClaims)
+	t, err := jwtutil.IssuedAtTime(mapClaims)
+	if err != nil || t == nil {
+		// Return zero time and the error if extraction failed or result is nil
+		return time.Time{}, err
+	}
+	return *t, nil // Dereference the pointer
 }
 
 // GetUserIdentifier returns the user identifier from context, prioritizing federated claims over subject
@@ -654,12 +703,14 @@ func GetUserIdentifier(ctx context.Context) string {
 	return jwtutil.GetUserIdentifier(mapClaims)
 }
 
-func Groups(ctx context.Context, scopes []string) []string {
+func Groups(ctx context.Context, scopes []string) []string { // Added settingsMgr parameter
 	mapClaims, ok := mapClaims(ctx)
 	if !ok {
 		return nil
 	}
-	return jwtutil.GetGroups(mapClaims, scopes)
+	// Group extraction, includes JWT groups if set
+	groups := jwtutil.GetGroups(mapClaims, scopes)
+	return groups
 }
 
 func mapClaims(ctx context.Context) (jwt.MapClaims, bool) {

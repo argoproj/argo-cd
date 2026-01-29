@@ -340,12 +340,14 @@ func (e *Enforcer) EnforceErr(rvals ...any) error {
 			if s, ok := rvals[0].(jwt.Claims); ok {
 				claims, err := jwtutil.MapClaims(s)
 				if err == nil {
-					userId := jwtutil.GetUserIdentifier(claims)
-					if userId != "" {
-						rvalsStrs = append(rvalsStrs, "sub: "+userId)
-					}
-					if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
-						rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+					claims, err := jwtutil.MapClaims(claims)
+					if err == nil {
+						if jwtutil.GetUserIdentifier(claims) != "" {
+							rvalsStrs = append(rvalsStrs, "sub: "+jwtutil.GetUserIdentifier(claims))
+						}
+						if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil && issuedAtTime != nil {
+							rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
+						}
 					}
 				}
 			}
