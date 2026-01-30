@@ -7,6 +7,7 @@ import (
 	"path"
 	"testing"
 	"time"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
@@ -1257,6 +1258,28 @@ func TestSlugify(t *testing.T) {
 		result := SlugifyName(c.length, c.smartTruncate, c.branch)
 		assert.Equal(t, c.expectedBasePath, result, c.branch)
 	}
+
+	t.Run("slugify with concurrency stressed", func(t *testing.T) {
+		const numberOfRoutines = 2
+
+		for x := 0; x < 1000; x++ {
+			var wg sync.WaitGroup
+			wg.Add(numberOfRoutines)
+			for i := 0; i < numberOfRoutines; i++ {
+				go func(length int) {
+					defer wg.Done()
+					// Call the function concurrently
+					result := SlugifyName(length, false, "test")
+					if length == 1 {
+						assert.Equal(t, "t", result)
+					} else {
+						assert.Equal(t, "te", result)
+					}
+				}(i+1)
+			}
+			wg.Wait()
+		}
+	})
 }
 
 func TestGetTLSConfig(t *testing.T) {
