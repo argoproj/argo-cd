@@ -1,11 +1,9 @@
 package v1alpha1
 
 import (
-	"context"
 	"fmt"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
 
@@ -231,49 +229,26 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 }
 
 // GetGitCreds returns the credentials from a repository configuration used to authenticate at a Git repository
-func (repo *Repository) GetGitCreds(store git.CredsStore) (git.Creds, error) {
+func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	if repo == nil {
-		return git.NopCreds{}, nil
+		return git.NopCreds{}
 	}
 	if repo.Password != "" || repo.BearerToken != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.BearerToken, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), store, repo.ForceHttpBasicAuth), nil
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.BearerToken, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), store, repo.ForceHttpBasicAuth)
 	}
 	if repo.SSHPrivateKey != "" {
-		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), repo.Proxy), nil
+		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), repo.Proxy)
 	}
 	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 { // Promoter MVP: remove github-app-installation-id check since it is no longer a required field
-		installationId := repo.GithubAppInstallationId
-
-		// Auto-discover installation ID if not provided
-		if installationId == 0 {
-			org, err := git.ExtractOrgFromRepoURL(repo.Repo)
-			switch {
-			case err != nil:
-				return nil, fmt.Errorf("failed to extract organization from repository URL %s for GitHub App installation discovery: %w", repo.Repo, err)
-			case org == "":
-				return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", repo.Repo)
-			default:
-				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-				defer cancel()
-
-				discoveredId, err := git.DiscoverGitHubAppInstallationID(ctx, repo.GithubAppId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, org)
-				if err != nil {
-					return nil, fmt.Errorf("failed to discover GitHub App installation ID for organization %s: ensure the GitHub App (ID: %d) is installed for this organization: %w", org, repo.GithubAppId, err)
-				}
-				log.Infof("Auto-discovered GitHub App installation ID %d for org %s", discoveredId, org)
-				installationId = discoveredId
-			}
-		}
-
-		return git.NewGitHubAppCreds(repo.GithubAppId, installationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store), nil
+		return git.NewGitHubAppCredsWithRepo(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store, repo.Repo)
 	}
 	if repo.GCPServiceAccountKey != "" {
-		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store), nil
+		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
 	}
 	if repo.UseAzureWorkloadIdentity {
-		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider()), nil
+		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider())
 	}
-	return git.NopCreds{}, nil
+	return git.NopCreds{}
 }
 
 // GetHelmCreds returns the credentials from a repository configuration used to authenticate a Helm repository
