@@ -1329,6 +1329,10 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.Fatal(errors.ErrorGeneric, "While using --revisions and --source-names, length of values for both flags should be same.")
 			}
 
+			if local != "" && serverSideGenerate && clientOpts.GRPCWeb {
+				errors.Fatal(errors.ErrorGeneric, "The combination of --local and --server-side-generate requires client-side streaming, which is not supported when using --grpc-web. Please disable --grpc-web instead.")
+			}
+
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer utilio.Close(conn)
