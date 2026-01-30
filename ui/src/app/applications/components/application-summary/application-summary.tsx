@@ -64,6 +64,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const [, setChangeSync] = React.useState(false);
     const [isHydratorEnabled, setIsHydratorEnabled] = React.useState(!!app.spec.sourceHydrator);
     const [savedSyncSource, setSavedSyncSource] = React.useState(app.spec.sourceHydrator?.syncSource || {targetBranch: '', path: ''});
+    const [useCustomHydrateToBranch, setUseCustomHydrateToBranch] = React.useState(false);
 
     const notificationSubscriptions = useEditNotificationSubscriptions(app.metadata.annotations || {});
     const updateApp = notificationSubscriptions.withNotificationSubscriptions(props.updateApp);
@@ -523,6 +524,66 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         }
     ];
 
+    const hydrateToItems: EditablePanelItem[] = [
+        {
+            title: 'USE CUSTOM TARGET BRANCH',
+            view: false,
+            edit: (formApi: FormApi) => (
+                <Checkbox
+                    onChange={(val: boolean) => {
+                        setUseCustomHydrateToBranch(val);
+                        if (!val) {
+                            // Reset to auto-generated value when unchecked
+                            const syncSourceBranch = formApi.getFormState().values?.spec?.sourceHydrator?.syncSource?.targetBranch || '';
+                            const autoValue = syncSourceBranch ? `${syncSourceBranch}-next` : '';
+                            formApi.setValue('spec.sourceHydrator.hydrateTo.targetBranch', autoValue);
+                        }
+                    }}
+                    checked={useCustomHydrateToBranch}
+                    id='use-custom-hydrate-to-branch'
+                />
+            )
+        },
+        {
+            title: 'TARGET BRANCH',
+            view: (
+                <Revision
+                    repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
+                    revision={
+                        app.spec.sourceHydrator?.hydrateTo?.targetBranch ||
+                        (app.spec.sourceHydrator?.syncSource?.targetBranch ? `${app.spec.sourceHydrator.syncSource.targetBranch}-next` : 'HEAD')
+                    }
+                />
+            ),
+            edit: (formApi: FormApi) => {
+                const syncSourceBranch = formApi.getFormState().values?.spec?.sourceHydrator?.syncSource?.targetBranch || '';
+                const autoValue = syncSourceBranch ? `${syncSourceBranch}-next` : '';
+
+                // Auto-populate when checkbox is unchecked
+                if (!useCustomHydrateToBranch && autoValue) {
+                    const currentValue = formApi.getFormState().values?.spec?.sourceHydrator?.hydrateTo?.targetBranch || '';
+                    if (currentValue !== autoValue) {
+                        formApi.setValue('spec.sourceHydrator.hydrateTo.targetBranch', autoValue);
+                    }
+                }
+
+                return useCustomHydrateToBranch ? (
+                    <RevisionFormField
+                        helpIconTop={'0'}
+                        hideLabel={true}
+                        formApi={formApi}
+                        fieldValue='spec.sourceHydrator.hydrateTo.targetBranch'
+                        repoURL={source.repoURL}
+                        repoType='git'
+                        revisionType='Branches'
+                    />
+                ) : (
+                    <div style={{color: '#6d7f8b', fontStyle: 'italic'}}>{autoValue || 'Set sync source target branch first'}</div>
+                );
+            }
+        }
+    ];
+
     const sourceAttributes: (EditablePanelItem | EditablePanelContent)[] = isHydrator
         ? [
               ...standardSourceItems,
@@ -533,6 +594,10 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
               {
                   sectionName: 'Sync Source',
                   items: syncSourceItems
+              },
+              {
+                  sectionName: 'Hydrate To',
+                  items: hydrateToItems
               }
           ]
         : [...standardSourceItems, ...sourceItems];
