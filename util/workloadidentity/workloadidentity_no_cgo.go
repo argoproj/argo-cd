@@ -8,6 +8,8 @@ package workloadidentity
 
 import (
 	"errors"
+
+	azcloud "github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 )
 
 type WorkloadIdentityTokenProvider struct {
@@ -22,4 +24,9 @@ func NewWorkloadIdentityTokenProvider() TokenProvider {
 
 func (c WorkloadIdentityTokenProvider) GetToken(scope string) (*Token, error) {
 	return nil, errors.New(CGOError)
+}
+
+func (c WorkloadIdentityTokenProvider) GetCloudConfiguration() azcloud.Configuration {
+	// Fallback to default since CGO is not available
+	return azcloud.AzurePublic
 }
