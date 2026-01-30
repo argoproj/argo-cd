@@ -718,6 +718,14 @@ func (sc *syncContext) terminateHooksPreemptively(tasks syncTasks) bool {
 			continue
 		}
 
+		// If the task is not running, we generally skip it.
+		// HOWEVER, if it is stuck terminating (has deletion timestamp), we must process it
+		// to ensure finalizers are removed.
+		isTerminating := task.liveObj != nil && task.liveObj.GetDeletionTimestamp() != nil
+		if !task.running() && !isTerminating {
+			continue
+		}
+
 		if task.liveObj == nil {
 			// if we terminate preemtively after the task was run, it will not contain the live object yet
 			liveObj, err := sc.getResource(task)
