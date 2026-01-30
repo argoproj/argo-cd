@@ -318,6 +318,9 @@ spec:
           name: helm-working-dir
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
+        - name: git-config
+          mountPath: /home/argocd/.gitconfig
+          subPath: .gitconfig
       initContainers:
       - args:
           - /bin/cp --update=none /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -s /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
@@ -348,6 +351,10 @@ spec:
         - name: gpg-keys
           configMap:
             name: argocd-gpg-keys-cm
+        - name: git-config
+          configMap:
+            name: argocd-git-config-cm
+            optional: true
         - name: gpg-keyring
           emptyDir: {}
         - name: tmp
