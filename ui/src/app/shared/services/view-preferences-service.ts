@@ -71,10 +71,12 @@ export class AbstractAppsListPreferences {
     public static clearFilters(pref: AbstractAppsListPreferences) {
         pref.healthFilter = [];
         pref.labelsFilter = [];
+        pref.annotationsFilter = [];
         pref.showFavorites = false;
     }
 
     public labelsFilter: string[];
+    public annotationsFilter: string[];
     public healthFilter: string[];
     public view: AppsListViewType;
     public hideFilters: boolean;
@@ -89,6 +91,7 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
             pref.clustersFilter,
             pref.healthFilter,
             pref.labelsFilter,
+            pref.annotationsFilter,
             pref.namespacesFilter,
             pref.projectsFilter,
             pref.reposFilter,
@@ -180,6 +183,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
     appList: {
         view: 'tiles' as AppsListViewType,
         labelsFilter: new Array<string>(),
+        annotationsFilter: new Array<string>(),
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
         clustersFilter: new Array<string>(),

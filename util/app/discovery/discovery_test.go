@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"context"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -48,4 +49,36 @@ func TestAppType_Disabled(t *testing.T) {
 	appType, err = AppType(t.Context(), "./testdata", "./testdata", enableManifestGeneration, []string{}, []string{})
 	require.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
+}
+
+func Test_cmpSupports_invalidSocketPath_outsideDir(t *testing.T) {
+	// Use a temp dir as the base plugin socket dir and provide a fileName that
+	// resolves outside it to trigger the Inbound check.
+	pluginSockFilePath := t.TempDir()
+	// fileName with a path traversal that causes the address to be outside the plugin socket dir
+	fileName := "../outside.sock"
+
+	conn, client, found, err := cmpSupports(context.Background(), pluginSockFilePath, "appPath", "repoPath", fileName, nil, nil, true)
+	require.False(t, found)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "outside plugin socket dir")
+	assert.Nil(t, conn)
+	assert.Nil(t, client)
+}
+
+func Test_cmpSupports_dialFailure_returnsError(t *testing.T) {
+	// Use a temp dir as the base plugin socket dir and provide a socket filename
+	// that does not have a listening server; dialing should fail, and the error
+	// returned should reflect a dialing problem.
+	pluginSockFilePath := t.TempDir()
+	fileName := "nonexistent.sock"
+
+	conn, client, found, err := cmpSupports(context.Background(), pluginSockFilePath, "appPath", "repoPath", fileName, nil, nil, true)
+	require.False(t, found)
+	require.Error(t, err)
+	// We expect the error to at least indicate dialing failure; exact wording may vary,
+	// check for the dialing error prefix used in cmpSupports.
+	assert.Contains(t, err.Error(), "error dialing to cmp-server")
+	assert.Nil(t, conn)
+	assert.Nil(t, client)
 }
