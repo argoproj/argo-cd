@@ -7,7 +7,7 @@ A *selective sync* is one where only some resources are sync'd. You can choose w
 When doing so, bear in mind that:
 
 * Your sync is not recorded in the history, and so rollback is not possible.
-* [Hooks](sync-waves.md#sync-phases-and-waves) are not run.
+* [Hooks](sync-waves.md) are not run.
 
 ## Selective Sync Option
 
