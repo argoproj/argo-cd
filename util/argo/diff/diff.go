@@ -405,7 +405,7 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 				log.Warnf("DiffFromCache warning: error getting managed resources for app %s: %s", appName, err)
 			} else {
 				log.Errorf("DiffFromCache error: error getting managed resources for app %s: %s", appName, err)
-	        }
+			}
 			return false, nil
 		}
 		return true, cachedDiff
