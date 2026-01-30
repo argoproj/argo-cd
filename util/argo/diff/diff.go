@@ -413,6 +413,7 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 	}
 	return false, nil
 }
+}
 
 // preDiffNormalize applies the normalization of live and target resources before invoking
 // the diff. None of the attributes in the lives and targets params will be modified.
