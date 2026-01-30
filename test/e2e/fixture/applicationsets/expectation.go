@@ -3,6 +3,7 @@ package applicationsets
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -224,4 +225,96 @@ func appsAreEqual(one v1alpha1.Application, two v1alpha1.Application) bool {
 // conditionsAreEqual returns true if the appset status conditions are equal, comparing only fields of interest
 func conditionsAreEqual(one, two *[]v1alpha1.ApplicationSetCondition) bool {
 	return reflect.DeepEqual(filterConditionFields(one), filterConditionFields(two))
+}
+
+// CheckProgressiveSyncStatusCodeOfApplications checks whether the progressive sync status codes of applications in ApplicationSetApplicationStatus
+// match the expected values.
+func CheckProgressiveSyncStatusCodeOfApplications(expectedStatuses map[string]v1alpha1.ApplicationSetApplicationStatus) Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no ApplicationSet found with name '%s'", c.context.GetName())
+		}
+		if appSet.Status.ApplicationStatus == nil {
+			return pending, fmt.Sprintf("no application status found for ApplicationSet '%s'", c.context.GetName())
+		}
+		for _, appStatus := range appSet.Status.ApplicationStatus {
+			expectedstatus, found := expectedStatuses[appStatus.Application]
+			if !found {
+				continue // Appset has more apps than expected - not ideal
+			}
+			if appStatus.Status != expectedstatus.Status {
+				return pending, fmt.Sprintf("for application '%s': expected status '%s' but got '%s'", expectedstatus.Application, expectedstatus.Status, appStatus.Status)
+			}
+		}
+		return succeeded, fmt.Sprintf("all applications in ApplicationSet's: '%s' Application Status have expected statuses ", c.context.GetName())
+	}
+}
+
+// CheckApplicationInRightSteps checks that a step contains exactly the expected applications.
+func CheckApplicationInRightSteps(step string, expectedApps []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
+		}
+		if appSet.Status.ApplicationStatus == nil {
+			return pending, fmt.Sprintf("no application status found for ApplicationSet '%s'", c.context.GetName())
+		}
+		var stepApps []string
+		for _, appStatus := range appSet.Status.ApplicationStatus {
+			if appStatus.Step == step {
+				stepApps = append(stepApps, appStatus.Application)
+			}
+		}
+		if len(stepApps) != len(expectedApps) {
+			return pending, fmt.Sprintf("expected %d apps in step '%s' for appset '%s', but got %d", len(expectedApps), step, c.context.GetName(), len(stepApps))
+		}
+		// Sort before comparing to avoid flakiness
+		slices.Sort(stepApps)
+		slices.Sort(expectedApps)
+		if !slices.Equal(stepApps, expectedApps) {
+			return pending, fmt.Sprintf("In step '%s', expected apps: '%s', but got: '%s'", step, expectedApps, stepApps)
+		}
+		return succeeded, fmt.Sprintf("Step '%s' has expected apps: '%s'", step, expectedApps)
+	}
+}
+
+// ApplicationSetDoesNotHaveApplicationStatus checks that ApplicationSet.Status.ApplicationStatus is nil
+func ApplicationSetDoesNotHaveApplicationStatus() Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
+		}
+		if appSet.Status.ApplicationStatus != nil {
+			return failed, fmt.Sprintf("application set '%s' has ApplicationStatus when not expected", c.context.GetName())
+		}
+		return succeeded, fmt.Sprintf("Application '%s' does not have ApplicationStatus", c.context.GetName())
+	}
+}
+
+// ApplicationSetHasApplicationStatus checks that ApplicationSet has expected number of applications in its status
+// and all have progressive sync status Healthy.
+func ApplicationSetHasApplicationStatus(expectedApplicationStatusLength int) Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
+		}
+		if appSet.Status.ApplicationStatus == nil {
+			return pending, fmt.Sprintf("application set '%s' has no ApplicationStatus when '%d' expected", c.context.GetName(), expectedApplicationStatusLength)
+		}
+
+		if len(appSet.Status.ApplicationStatus) != expectedApplicationStatusLength {
+			return failed, fmt.Sprintf("applicationset has '%d' applicationstatus, when '%d' are expected", len(appSet.Status.ApplicationStatus), expectedApplicationStatusLength)
+		}
+
+		for _, appStatus := range appSet.Status.ApplicationStatus {
+			if appStatus.Status != v1alpha1.ProgressiveSyncHealthy {
+				return pending, fmt.Sprintf("Application '%s' not Healthy", appStatus.Application)
+			}
+		}
+		return succeeded, fmt.Sprintf("All Applications in ApplicationSet: '%s' are Healthy ", c.context.GetName())
+	}
 }
