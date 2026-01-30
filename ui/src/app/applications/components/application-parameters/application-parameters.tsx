@@ -1,7 +1,7 @@
 import {AutocompleteField, DataLoader, ErrorNotification, FormField, FormSelect, getNestedField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
-import {cloneDeep} from 'lodash-es';
+import {cloneDeep} from 'lodash';
 import {
     ArrayInputField,
     ArrayValueField,
