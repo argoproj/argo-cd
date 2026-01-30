@@ -714,7 +714,7 @@ func (sc *syncContext) getNamespaceCreationTask(tasks syncTasks) *syncTask {
 func (sc *syncContext) terminateHooksPreemptively(tasks syncTasks) bool {
 	terminateSuccessful := true
 	for _, task := range tasks {
-		if !task.isHook() || !task.running() {
+		if !task.isHook() {
 			continue
 		}
 
