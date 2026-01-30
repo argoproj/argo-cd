@@ -247,6 +247,7 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
   argocd cluster set CLUSTER_NAME --name new-cluster-name --namespace namespace-one --namespace namespace-two`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
+			var mergedLabels, mergedAnnotations map[string]string
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -263,21 +264,21 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				namespaces[0] = ""
 			}
 			// parse the labels you're receiving from the label flag
-			labelsMap, err := label.Parse(labels)
+			labelsMap, err := label.ParseLabelMap(labels)
 			errors.CheckError(err)
 			// parse the annotations you're receiving from the annotation flag
-			annotationsMap, err := label.Parse(annotations)
+			annotationsMap, err := label.ParseLabelMap(annotations)
 			errors.CheckError(err)
 
 			// fetch existing cluster to merge labels/annotations
-			if labelsMap != nil || annotationsMap != nil {
+			if labelsMap.Updates != nil || annotationsMap.Updates != nil {
 				existing, err := clusterIf.Get(ctx, getQueryBySelector(clusterName))
 				errors.CheckError(err)
 				if labelsMap != nil {
-					labelsMap = label.Merge(existing.Labels, labelsMap)
+					mergedLabels = labelsMap.Merge(existing.Labels)
 				}
 				if annotationsMap != nil {
-					annotationsMap = label.Merge(existing.Annotations, annotationsMap)
+					mergedAnnotations = annotationsMap.Merge(existing.Annotations)
 				}
 			}
 			if updatedFields != nil {
@@ -285,8 +286,8 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					Cluster: &argoappv1.Cluster{
 						Name:        clusterOptions.Name,
 						Namespaces:  namespaces,
-						Labels:      labelsMap,
-						Annotations: annotationsMap,
+						Labels:      mergedLabels,
+						Annotations: mergedAnnotations,
 					},
 					UpdatedFields: updatedFields,
 					Id: &clusterpkg.ClusterID{
