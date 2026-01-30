@@ -157,35 +157,7 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 				Strategy: &v1alpha1.ApplicationSetStrategy{
 					Type: "RollingSync",
 					RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-						Steps: []v1alpha1.ApplicationSetRolloutStep{
-							{
-								MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-									{
-										Key:      "environment",
-										Operator: "In",
-										Values:   []string{"dev"},
-									},
-								},
-							},
-							{
-								MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-									{
-										Key:      "environment",
-										Operator: "In",
-										Values:   []string{"staging"},
-									},
-								},
-							},
-							{
-								MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-									{
-										Key:      "environment",
-										Operator: "In",
-										Values:   []string{"prod"},
-									},
-								},
-							},
-						},
+						Steps: generateStandardRolloutSyncSteps(),
 					},
 				},
 			},
@@ -322,35 +294,7 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 				Strategy: &v1alpha1.ApplicationSetStrategy{
 					Type: "RollingSync",
 					RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-						Steps: []v1alpha1.ApplicationSetRolloutStep{
-							{
-								MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-									{
-										Key:      "environment",
-										Operator: "In",
-										Values:   []string{"dev"},
-									},
-								},
-							},
-							{
-								MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-									{
-										Key:      "environment",
-										Operator: "In",
-										Values:   []string{"staging"},
-									},
-								},
-							},
-							{
-								MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-									{
-										Key:      "environment",
-										Operator: "In",
-										Values:   []string{"prod"},
-									},
-								},
-							},
-						},
+						Steps: generateStandardRolloutSyncSteps(),
 					},
 				},
 			},
@@ -606,35 +550,7 @@ var appSetWithEmptyGenerator = v1alpha1.ApplicationSet{
 		Strategy: &v1alpha1.ApplicationSetStrategy{
 			Type: "RollingSync",
 			RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-				Steps: []v1alpha1.ApplicationSetRolloutStep{
-					{
-						MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-							{
-								Key:      "environment",
-								Operator: "In",
-								Values:   []string{"dev"},
-							},
-						},
-					},
-					{
-						MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-							{
-								Key:      "environment",
-								Operator: "In",
-								Values:   []string{"staging"},
-							},
-						},
-					},
-					{
-						MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-							{
-								Key:      "environment",
-								Operator: "In",
-								Values:   []string{"prod"},
-							},
-						},
-					},
-				},
+				Steps: generateStandardRolloutSyncSteps(),
 			},
 		},
 	},
@@ -687,35 +603,7 @@ var appSetWithMultipleAppsInEachStep = v1alpha1.ApplicationSet{
 		Strategy: &v1alpha1.ApplicationSetStrategy{
 			Type: "RollingSync",
 			RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-				Steps: []v1alpha1.ApplicationSetRolloutStep{
-					{
-						MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-							{
-								Key:      "environment",
-								Operator: "In",
-								Values:   []string{"dev"},
-							},
-						},
-					},
-					{
-						MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-							{
-								Key:      "environment",
-								Operator: "In",
-								Values:   []string{"staging"},
-							},
-						},
-					},
-					{
-						MatchExpressions: []v1alpha1.ApplicationMatchExpression{
-							{
-								Key:      "environment",
-								Operator: "In",
-								Values:   []string{"prod"},
-							},
-						},
-					},
-				},
+				Steps: generateStandardRolloutSyncSteps(),
 			},
 		},
 	},
@@ -747,6 +635,38 @@ func generateExpectedApp(prefix string, path string, name string, envVar string)
 			Destination: v1alpha1.ApplicationDestination{
 				Server:    "https://kubernetes.default.svc",
 				Namespace: prefix + name,
+			},
+		},
+	}
+}
+
+func generateStandardRolloutSyncSteps() []v1alpha1.ApplicationSetRolloutStep {
+	return []v1alpha1.ApplicationSetRolloutStep{
+		{
+			MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+				{
+					Key:      "environment",
+					Operator: "In",
+					Values:   []string{"dev"},
+				},
+			},
+		},
+		{
+			MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+				{
+					Key:      "environment",
+					Operator: "In",
+					Values:   []string{"staging"},
+				},
+			},
+		},
+		{
+			MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+				{
+					Key:      "environment",
+					Operator: "In",
+					Values:   []string{"prod"},
+				},
 			},
 		},
 	}
