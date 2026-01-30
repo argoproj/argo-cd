@@ -330,7 +330,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               id='enable-hydrator'
                           />
                           <label htmlFor='enable-hydrator'>SOURCE HYDRATOR ENABLED</label>
-                          <HelpIcon title='Enable source hydrator to sync rendered manifests to a separate Git repository' />
+                          <HelpIcon title='Enable source hydrator to push rendered manifests to a separate Git branch' />
                       </div>
                   )
               }
