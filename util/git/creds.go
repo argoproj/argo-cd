@@ -531,11 +531,6 @@ func (g GitHubAppCreds) getAppTransport() (*ghinstallation.AppsTransport, error)
 
 // getInstallationTransport creates a new GitHub transport for the app installation
 func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, error) {
-	// Check for invalid installation ID 0, which indicates installation discovery failed
-	if g.appInstallId == 0 {
-		return nil, fmt.Errorf("GitHub App installation ID is 0, which indicates the app is not installed for this repository or installation discovery failed. Please ensure the GitHub App (ID: %d) is installed for the repository's organization, or explicitly set the installation ID", g.appID)
-	}
-
 	// Compute hash of creds for lookup in cache
 	h := sha256.New()
 	_, err := fmt.Fprintf(h, "%s %d %d %s", g.privateKey, g.appID, g.appInstallId, g.baseURL)

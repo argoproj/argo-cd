@@ -648,32 +648,3 @@ func TestExtractOrgFromRepoURL(t *testing.T) {
 		})
 	}
 }
-
-func TestGitHubAppCreds_InstallationIDZero(t *testing.T) {
-	// This test verifies that when GitHubAppCreds has installation ID 0,
-	// it provides a clear error message indicating the app is not installed,
-	// rather than attempting to use installation ID 0 and getting a confusing
-	// "404 Not Found" error from GitHub's API.
-	creds := NewGitHubAppCreds(
-		123,                     // appID
-		0,                       // appInstallId - this is the bug case
-		fakeGitHubAppPrivateKey, // privateKey
-		"",                      // baseURL
-		"",                      // clientCertData
-		"",                      // clientCertKey
-		false,                   // insecure
-		"",                      // proxy
-		"",                      // noProxy
-		NoopCredsStore{},
-	)
-
-	ghAppCreds, ok := creds.(GitHubAppCreds)
-	require.True(t, ok, "expected GitHubAppCreds")
-
-	// When we try to use these credentials, we should get a clear error about installation ID 0
-	_, _, err := ghAppCreds.Environ()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "installation ID is 0")
-	assert.Contains(t, err.Error(), "app is not installed")
-	assert.Contains(t, err.Error(), "ID: 123") // Should mention the app ID
-}

@@ -231,15 +231,15 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 }
 
 // GetGitCreds returns the credentials from a repository configuration used to authenticate at a Git repository
-func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
+func (repo *Repository) GetGitCreds(store git.CredsStore) (git.Creds, error) {
 	if repo == nil {
-		return git.NopCreds{}
+		return git.NopCreds{}, nil
 	}
 	if repo.Password != "" || repo.BearerToken != "" {
-		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.BearerToken, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), store, repo.ForceHttpBasicAuth)
+		return git.NewHTTPSCreds(repo.Username, repo.Password, repo.BearerToken, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), store, repo.ForceHttpBasicAuth), nil
 	}
 	if repo.SSHPrivateKey != "" {
-		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), repo.Proxy)
+		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), repo.Proxy), nil
 	}
 	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 { // Promoter MVP: remove github-app-installation-id check since it is no longer a required field
 		installationId := repo.GithubAppInstallationId
@@ -249,35 +249,31 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 			org, err := git.ExtractOrgFromRepoURL(repo.Repo)
 			switch {
 			case err != nil:
-				log.Warnf("Failed to extract organization from repository URL %s for GitHub App auto-discovery: %v", repo.Repo, err)
-				// Proceed with installation ID 0 - the GitHubAppCreds layer will provide a clear error message
+				return nil, fmt.Errorf("failed to extract organization from repository URL %s for GitHub App installation discovery: %w", repo.Repo, err)
 			case org == "":
-				log.Warnf("Could not extract organization from repository URL %s for GitHub App auto-discovery", repo.Repo)
-				// Proceed with installation ID 0 - the GitHubAppCreds layer will provide a clear error message
+				return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", repo.Repo)
 			default:
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				defer cancel()
 
 				discoveredId, err := git.DiscoverGitHubAppInstallationID(ctx, repo.GithubAppId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, org)
 				if err != nil {
-					log.Warnf("Failed to auto-discover GitHub App installation ID for org %s: %v", org, err)
-					// Proceed with installation ID 0 - the GitHubAppCreds layer will provide a clear error message
-				} else {
-					log.Infof("Auto-discovered GitHub App installation ID %d for org %s", discoveredId, org)
-					installationId = discoveredId
+					return nil, fmt.Errorf("failed to discover GitHub App installation ID for organization %s: ensure the GitHub App (ID: %d) is installed for this organization: %w", org, repo.GithubAppId, err)
 				}
+				log.Infof("Auto-discovered GitHub App installation ID %d for org %s", discoveredId, org)
+				installationId = discoveredId
 			}
 		}
 
-		return git.NewGitHubAppCreds(repo.GithubAppId, installationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store)
+		return git.NewGitHubAppCreds(repo.GithubAppId, installationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store), nil
 	}
 	if repo.GCPServiceAccountKey != "" {
-		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
+		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store), nil
 	}
 	if repo.UseAzureWorkloadIdentity {
-		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider())
+		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider()), nil
 	}
-	return git.NopCreds{}
+	return git.NopCreds{}, nil
 }
 
 // GetHelmCreds returns the credentials from a repository configuration used to authenticate a Helm repository
