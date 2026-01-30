@@ -20,7 +20,7 @@ argocd proj windows add PROJECT \
     --applications "*" \
     --description "Ticket 123"
 
-#Add a deny sync window with the ability to manually sync.
+#Add a deny sync window with the ability to manually sync and sync overrun.
 argocd proj windows add PROJECT \
     --kind deny \
     --schedule "30 10 * * *" \
@@ -29,6 +29,7 @@ argocd proj windows add PROJECT \
     --namespaces "default,\\*-prod" \
     --clusters "prod,staging" \
     --manual-sync \
+    --sync-overrun \
     --description "Ticket 123"
 ```
 
