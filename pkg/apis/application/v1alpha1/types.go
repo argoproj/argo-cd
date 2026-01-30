@@ -269,7 +269,7 @@ func (spec *ApplicationSpec) GetHydrateToSource() ApplicationSource {
 
 func (spec *ApplicationSpec) GetSources() ApplicationSources {
 	if spec.SourceHydrator != nil {
-		return ApplicationSources{spec.SourceHydrator.GetSyncSource()}
+		return ApplicationSources{spec.SourceHydrator.GetDrySource(), spec.SourceHydrator.GetSyncSource()}
 	}
 	if spec.HasMultipleSources() {
 		return spec.Sources

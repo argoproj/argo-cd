@@ -13,6 +13,7 @@ interface RevisionFormFieldProps {
     repoURL: string;
     fieldValue?: string;
     repoType?: string;
+    revisionType?: 'Branches' | 'Tags';
 }
 
 export function RevisionFormField(props: RevisionFormFieldProps) {
@@ -22,7 +23,7 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
         setFilterType(newValue);
     };
 
-    const selectedFilter = filterType;
+    const selectedFilter = props.revisionType || filterType;
     const extraPadding = props.hideLabel ? '0em' : '1.53em';
     const rowClass = props.hideLabel ? '' : ' argo-form-row';
     return (
@@ -64,7 +65,7 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
                 <RevisionHelpIcon type='git' top={props.helpIconTop} right='0em' />
             </div>
             <div style={{paddingTop: extraPadding}} className='columns small-2'>
-                {props.repoType !== 'oci' && (
+                {props.repoType !== 'oci' && !props.revisionType && (
                     <DropDownMenu
                         anchor={() => (
                             <p>
