@@ -373,11 +373,33 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	}
 	paths := []*commitclient.PathDetails{pathDetails}
 	logCtx = logCtx.WithFields(log.Fields{"drySha": targetRevision})
-	// De-dupe, if the drySha was already hydrated log a debug and return using the data from the last successful hydration run.
-	// We only inspect one app. If apps have been added/removed, that will be handled on the next DRY commit.
-	if apps[0].Status.SourceHydrator.LastSuccessfulOperation != nil && targetRevision == apps[0].Status.SourceHydrator.LastSuccessfulOperation.DrySHA {
-		logCtx.Debug("Skipping hydration since the DRY commit was already hydrated")
-		return targetRevision, apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, nil, nil
+
+	// De-dupe check: Skip hydration only if all apps have already been hydrated with this drySha at their respective paths.
+	// We must check every app individually - if any app needs hydration, we must proceed.
+	if len(apps) > 0 {
+		allAppsAlreadyHydrated := true
+
+		for _, app := range apps {
+			if app.Status.SourceHydrator.LastSuccessfulOperation == nil {
+				allAppsAlreadyHydrated = false
+				break
+			}
+
+			lastDrySHA := app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+			lastPath := app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator.SyncSource.Path
+			currentPath := app.Spec.GetHydrateToSource().Path
+
+			// This app needs hydration if either drySha or path changed
+			if targetRevision != lastDrySHA || currentPath != lastPath {
+				allAppsAlreadyHydrated = false
+				break
+			}
+		}
+
+		if allAppsAlreadyHydrated {
+			// All apps already hydrated - return the hydratedSHA from the first app (all should have the same value)
+			return targetRevision, apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, nil, nil
+		}
 	}
 
 	eg, ctx := errgroup.WithContext(context.Background())
