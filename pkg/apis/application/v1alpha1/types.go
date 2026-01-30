@@ -3044,17 +3044,21 @@ func (w *SyncWindows) CanSync(isManual bool, operationStartTime *time.Time) (boo
 	hasActiveDeny, manualEnabled := active.hasDeny()
 
 	if hasActiveDeny {
+		if isManual && manualEnabled {
+			return true, nil
+		}
+
 		// Check if operation started before deny window and overrun is allowed
-		if operationStartTime != nil && !operationStartTime.IsZero() && active.allowsOverrun() {
+		if operationStartTime != nil && !operationStartTime.IsZero() && active.denyAllowsOverrun() {
 			wasAllowed, err := w.canSyncAtTime(isManual, *operationStartTime)
-			if err == nil && wasAllowed {
+			if err != nil {
+				return false, err
+			}
+			if wasAllowed {
 				return true, nil // Allow sync to continue (overrun into deny window)
 			}
 		}
 
-		if isManual && manualEnabled {
-			return true, nil
-		}
 		return false, nil
 	}
 
@@ -3067,17 +3071,21 @@ func (w *SyncWindows) CanSync(isManual bool, operationStartTime *time.Time) (boo
 		return false, fmt.Errorf("invalid sync windows: %w", err)
 	}
 	if inactiveAllows.HasWindows() {
+		if isManual && inactiveAllows.manualEnabled() {
+			return true, nil
+		}
+
 		// Check if operation started during an allow window and overrun is allowed
 		if operationStartTime != nil && !operationStartTime.IsZero() && inactiveAllows.inactiveAllowsAllowOverrun() {
 			wasAllowed, err := w.canSyncAtTime(isManual, *operationStartTime)
-			if err == nil && wasAllowed {
+			if err != nil {
+				return false, err
+			}
+			if wasAllowed {
 				return true, nil // Allow sync to continue (overrun out of allow window)
 			}
 		}
 
-		if isManual && inactiveAllows.manualEnabled() {
-			return true, nil
-		}
 		return false, nil
 	}
 
@@ -3135,11 +3143,11 @@ func (w *SyncWindows) manualEnabled() bool {
 	return true
 }
 
-// allowsOverrun will iterate over the SyncWindows and return true if all deny windows have
+// denyAllowsOverrun will iterate over the deny SyncWindows and return true if all deny windows have
 // SyncOverrun set to true. Returns false if it finds at least one deny window with
 // SyncOverrun set to false. This is used to determine if a sync can continue when a deny
 // window becomes active after the operation started.
-func (w *SyncWindows) allowsOverrun() bool {
+func (w *SyncWindows) denyAllowsOverrun() bool {
 	if !w.HasWindows() {
 		return false
 	}
@@ -3197,7 +3205,7 @@ func (w *SyncWindows) canSyncAtTime(isManual bool, checkTime time.Time) (bool, e
 		return true, nil
 	}
 
-	inactiveAllows, err := w.InactiveAllows()
+	inactiveAllows, err := w.inactiveAllows(checkTime)
 	if err != nil {
 		return false, fmt.Errorf("invalid sync windows: %w", err)
 	}

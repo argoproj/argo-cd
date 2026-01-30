@@ -48,6 +48,7 @@ Sync overrun can be configured on both `allow` and `deny` windows:
 #### Deny Window Overrun
 
 When `syncOverrun` is enabled on a deny window:
+
 - Syncs that started **before** the deny window became active will be allowed to complete
 - New syncs will still be blocked during the deny window
 - **All active deny windows must have syncOverrun enabled** for the overrun to be allowed
@@ -55,6 +56,7 @@ When `syncOverrun` is enabled on a deny window:
 #### Allow Window Overrun
 
 When `syncOverrun` is enabled on an allow window:
+
 - Syncs that started **during** the allow window will be allowed to continue even after the window ends
 - This is useful for long-running syncs that may extend beyond the scheduled window
 - **All inactive allow windows must have syncOverrun enabled** for the overrun to be allowed

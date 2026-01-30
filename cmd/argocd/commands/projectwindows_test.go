@@ -1,14 +1,11 @@
 package commands
 
 import (
-<<<<<<< HEAD
-=======
 	"bytes"
 	"io"
 	"os"
 	"regexp"
 	"strings"
->>>>>>> 4fc69c5276 (feat: add sync overrun option to sync windows)
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,34 +16,6 @@ import (
 )
 
 func TestPrintSyncWindows(t *testing.T) {
-<<<<<<< HEAD
-	proj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-project"},
-		Spec: v1alpha1.AppProjectSpec{
-			SyncWindows: v1alpha1.SyncWindows{
-				{
-					Kind:           "allow",
-					Schedule:       "* * * * *",
-					Duration:       "1h",
-					Applications:   []string{"app1"},
-					Namespaces:     []string{"ns1"},
-					Clusters:       []string{"cluster1"},
-					ManualSync:     true,
-					UseAndOperator: true,
-				},
-			},
-		},
-	}
-
-	output, err := captureOutput(func() error {
-		printSyncWindows(proj)
-		return nil
-	})
-	require.NoError(t, err)
-	t.Log(output)
-	assert.Contains(t, output, "ID  STATUS  KIND   SCHEDULE   DURATION  APPLICATIONS  NAMESPACES  CLUSTERS  MANUALSYNC  TIMEZONE  USEANDOPERATOR")
-	assert.Contains(t, output, "0   Active  allow  * * * * *  1h        app1          ns1         cluster1  Enabled               Enabled")
-=======
 	tests := []struct {
 		name           string
 		project        *v1alpha1.AppProject
@@ -272,5 +241,4 @@ func TestFormatBoolEnabledOutput(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
->>>>>>> 4fc69c5276 (feat: add sync overrun option to sync windows)
 }

@@ -5147,10 +5147,10 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 		}
 
 		// when - checking if overrun is allowed
-		allowsOverrun := windows.allowsOverrun()
+		denyAllowsOverrun := windows.denyAllowsOverrun()
 
 		// then - should return true (all deny windows allow it)
-		assert.True(t, allowsOverrun)
+		assert.True(t, denyAllowsOverrun)
 	})
 
 	t.Run("DisallowsOverrunWhenOneDenyWindowDoesntHaveIt", func(t *testing.T) {
@@ -5161,10 +5161,10 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 		}
 
 		// when - checking if overrun is allowed
-		allowsOverrun := windows.allowsOverrun()
+		denyAllowsOverrun := windows.denyAllowsOverrun()
 
 		// then - should return false (not all deny windows allow it)
-		assert.False(t, allowsOverrun)
+		assert.False(t, denyAllowsOverrun)
 	})
 
 	t.Run("DisallowsOverrunWhenNoDenyWindowsHaveIt", func(t *testing.T) {
@@ -5174,10 +5174,10 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 		}
 
 		// when - checking if overrun is allowed
-		allowsOverrun := windows.allowsOverrun()
+		denyAllowsOverrun := windows.denyAllowsOverrun()
 
 		// then - should return false
-		assert.False(t, allowsOverrun)
+		assert.False(t, denyAllowsOverrun)
 	})
 
 	t.Run("AllowsOverrunIgnoresAllowWindows", func(t *testing.T) {
@@ -5188,10 +5188,10 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 		}
 
 		// when - checking if overrun is allowed
-		allowsOverrun := windows.allowsOverrun()
+		denyAllowsOverrun := windows.denyAllowsOverrun()
 
 		// then - should return true (only deny windows matter)
-		assert.True(t, allowsOverrun)
+		assert.True(t, denyAllowsOverrun)
 	})
 
 	t.Run("AllowsSyncToContinueWhenStartedBeforeDenyWindowWithOverrun", func(t *testing.T) {
@@ -5477,76 +5477,6 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 		assert.False(t, canSync)
 	})
 
-	t.Run("AllowsSyncStartedInAllowWhenAllowEndsWithOverrun", func(t *testing.T) {
-		// Scenario: Sync starts during an allow window WITH overrun enabled,
-		// then the allow window ends and no deny window is active.
-		// Expected: Sync is ALLOWED because the allow window where it started had overrun enabled.
-		proj := newTestProject()
-		now := time.Now().In(time.UTC)
-
-		// Create an allow window that WAS active 1 hour ago for 30 minutes (with overrun)
-		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
-			Kind:         "allow",
-			Schedule:     allowSchedule,
-			Duration:     "30m",
-			Applications: []string{"*"},
-			SyncOverrun:  true,
-		}
-
-		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, allow)
-
-		// Sync started 45 minutes ago during the allow window
-		// Now the allow window has ended and there are no deny windows
-		operationStartTime := now.Add(-45 * time.Minute)
-
-		// when - checking if sync can continue after allow window ended
-		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
-
-		// then - sync should be allowed because allow window had overrun enabled
-		require.NoError(t, err)
-		assert.True(t, canSync)
-	})
-
-	t.Run("DeniesSyncStartedInAllowWhenCurrentDenyDoesNotAllowOverrun", func(t *testing.T) {
-		// Scenario: Sync starts during an allow window,
-		// then the current deny window (regardless of previous deny windows) does NOT allow overrun.
-		// Expected: Sync is DENIED because the current deny window doesn't support overrun.
-		proj := newTestProject()
-		now := time.Now().In(time.UTC)
-
-		// Create an allow window that WAS active 1 hour ago
-		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
-			Kind:         "allow",
-			Schedule:     allowSchedule,
-			Duration:     "30m",
-			Applications: []string{"*"},
-			SyncOverrun:  true,
-		}
-
-		// Create a deny window that's currently ACTIVE WITHOUT overrun
-		denySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny := &SyncWindow{
-			Kind:         "deny",
-			Schedule:     denySchedule,
-			Duration:     "1h",
-			Applications: []string{"*"},
-		}
-
-		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, allow, deny)
-
-		// Sync started 45 minutes ago during the allow window
-		operationStartTime := now.Add(-45 * time.Minute)
-
-		// when - checking if sync can continue
-		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
-
-		// then - sync should be denied because the current deny window doesn't allow overrun
-		require.NoError(t, err)
-		assert.False(t, canSync)
-	})
-
 	t.Run("AllowsSyncStartedInAllowWhenMultipleConcurrentDenyWindowsAllHaveOverrun", func(t *testing.T) {
 		// Scenario: Sync starts during an allow window,
 		// then multiple deny windows become active simultaneously, ALL with overrun enabled.
@@ -5721,6 +5651,146 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
 
 		// then - sync should be allowed because all inactive allow windows have overrun
+		require.NoError(t, err)
+		assert.True(t, canSync)
+	})
+
+	t.Run("AllowsSyncInMultipleActiveAllowWindowsWhenOneLacksOverrunAndEnds", func(t *testing.T) {
+		// Scenario: Sync starts during multiple ACTIVE allow windows (one with overrun, one without).
+		// One window (without overrun) ends while the other (with overrun) is still active.
+		// Expected: Sync is ALLOWED because there's still an active allow window.
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Create first allow window that WAS active 1 hour ago and ended (WITHOUT overrun)
+		allow1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow1 := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allow1Schedule,
+			Duration:     "30m", // Ended 30 minutes ago
+			Applications: []string{"*"},
+			SyncOverrun:  false, // No overrun
+		}
+
+		// Create second allow window that's still ACTIVE (WITH overrun)
+		allow2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
+		allow2 := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     allow2Schedule,
+			Duration:     "90m", // Still active for another 30 minutes
+			Applications: []string{"*"},
+			SyncOverrun:  true, // Has overrun
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, allow1, allow2)
+
+		// Sync started 45 minutes ago when both windows were active
+		operationStartTime := now.Add(-45 * time.Minute)
+
+		// when - checking if sync can continue (allow2 still active, allow1 ended)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be allowed because allow2 is still active
+		require.NoError(t, err)
+		assert.True(t, canSync)
+	})
+
+	t.Run("DeniesSyncWhenBothDenyAndAllowWindowsActiveAndDenyLacksOverrun", func(t *testing.T) {
+		// Scenario: Multiple allow AND deny windows are simultaneously active.
+		// Sync started during an earlier allow window.
+		// Expected: Sync is DENIED if any active deny window lacks overrun.
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Sync started 2 hours ago during this allow window (which has since ended)
+		pastAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-2*time.Hour).Hour())
+		pastAllow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     pastAllowSchedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		// Currently active allow window (WITH overrun)
+		activeAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		activeAllow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     activeAllowSchedule,
+			Duration:     "2h",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		// Currently active deny window (WITHOUT overrun)
+		activeDenySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		activeDeny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     activeDenySchedule,
+			Duration:     "1h",
+			Applications: []string{"*"},
+			SyncOverrun:  false, // No overrun
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, pastAllow, activeAllow, activeDeny)
+
+		// Sync started 1 hour 45 minutes ago during pastAllow
+		operationStartTime := now.Add(-105 * time.Minute)
+
+		// when - checking if sync can continue (both allow and deny are active)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be denied because deny window is active and lacks overrun
+		require.NoError(t, err)
+		assert.False(t, canSync)
+	})
+
+	t.Run("AllowsSyncWhenBothDenyAndAllowWindowsActiveAndDenyHasOverrun", func(t *testing.T) {
+		// Scenario: Multiple allow AND deny windows are simultaneously active.
+		// Sync started before the deny window became active.
+		// Expected: Sync is ALLOWED if all active deny windows have overrun.
+		proj := newTestProject()
+		now := time.Now().In(time.UTC)
+
+		// Sync started 2 hours ago during this allow window (which has since ended)
+		pastAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-2*time.Hour).Hour())
+		pastAllow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     pastAllowSchedule,
+			Duration:     "30m",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		// Currently active allow window (WITH overrun)
+		activeAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		activeAllow := &SyncWindow{
+			Kind:         "allow",
+			Schedule:     activeAllowSchedule,
+			Duration:     "2h",
+			Applications: []string{"*"},
+			SyncOverrun:  true,
+		}
+
+		// Currently active deny window (WITH overrun)
+		activeDenySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
+		activeDeny := &SyncWindow{
+			Kind:         "deny",
+			Schedule:     activeDenySchedule,
+			Duration:     "1h",
+			Applications: []string{"*"},
+			SyncOverrun:  true, // Has overrun
+		}
+
+		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, pastAllow, activeAllow, activeDeny)
+
+		// Sync started 1 hour 45 minutes ago during pastAllow (before deny became active)
+		operationStartTime := now.Add(-105 * time.Minute)
+
+		// when - checking if sync can continue (both allow and deny are active, deny has overrun)
+		canSync, err := proj.Spec.SyncWindows.CanSync(false, &operationStartTime)
+
+		// then - sync should be allowed because deny window has overrun enabled
 		require.NoError(t, err)
 		assert.True(t, canSync)
 	})
