@@ -400,7 +400,16 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 	if c.stateCache != nil {
 		err := c.stateCache.GetAppManagedResources(appName, &cachedDiff)
 		if err != nil {
-			log.Errorf("DiffFromCache error: error getting managed resources for app %s: %s", appName, err)
+			if strings.Contains(err.Error(), "cache: key is missing") {
+				log.Warnf(
+					"DiffFromCache warning: error getting managed resources for app %s: %s",
+					appName, err,
+				)
+			} else {
+				log.Errorf("DiffFromCache error: error getting managed resources for app %s: %s", 
+				appName, err
+		    	)
+	        }
 			return false, nil
 		}
 		return true, cachedDiff
