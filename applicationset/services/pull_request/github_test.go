@@ -95,7 +95,7 @@ func TestGitHubListReturnsRepositoryNotFoundError(t *testing.T) {
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	path := "/repos/nonexistent/nonexistent/pulls"
+	path := "/api/v3/repos/nonexistent/nonexistent/pulls"
 
 	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
 		// Return 404 status to simulate repository not found
