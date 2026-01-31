@@ -57,11 +57,15 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                     onClose={() => hide()}
                     header={
                         <div>
-                            <button className='argo-button argo-button--base' disabled={isPending} onClick={() => syncHandler(form, ctx, apps)}>
+                            <button
+                                qe-id='applications-sync-panel-button-synchronize'
+                                className='argo-button argo-button--base'
+                                disabled={isPending}
+                                onClick={() => syncHandler(form, ctx, apps)}>
                                 <Spinner show={isPending} style={{marginRight: '5px'}} />
                                 Sync
                             </button>{' '}
-                            <button onClick={() => hide()} className='argo-button argo-button--base-o'>
+                            <button onClick={() => hide()} qe-id='applications-sync-panel-button-cancel' className='argo-button argo-button--base-o'>
                                 Cancel
                             </button>
                         </div>
