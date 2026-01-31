@@ -126,6 +126,9 @@ const (
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5
 	// GithubAppCredsExpirationDuration is the default time used to cache the GitHub app credentials
 	GithubAppCredsExpirationDuration = time.Minute * 60
+	// AzureServicePrincipalCredsExpirationDuration is the default time used to cache the Azure service principal credentials
+	// SP tokens are valid for 60 minutes, so cache for 59 minutes to avoid issues with token expiration when taking the cleanup interval of 1 minute into account
+	AzureServicePrincipalCredsExpirationDuration = time.Minute * 59
 
 	// PasswordPatten is the default password patten
 	PasswordPatten = `^.{8,32}$`
@@ -286,6 +289,8 @@ const (
 	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
 	// EnvGithubAppCredsExpirationDuration controls the caching of Github app credentials. This value is in minutes (default: 60)
 	EnvGithubAppCredsExpirationDuration = "ARGOCD_GITHUB_APP_CREDS_EXPIRATION_DURATION"
+	// EnvAzureServicePrincipalCredsExpirationDuration controls the caching of Azure service principal credentials. This value is in minutes (default: 59). Any value greater than 59 will be set to 59 minutes
+	EnvAzureServicePrincipalCredsExpirationDuration = "ARGOCD_AZURE_SERVICE_PRINCIPAL_CREDS_EXPIRATION_DURATION"
 	// EnvHelmIndexCacheDuration controls how the helm repository index file is cached for (default: 0)
 	EnvHelmIndexCacheDuration = "ARGOCD_HELM_INDEX_CACHE_DURATION"
 	// EnvAppConfigPath allows to override the configuration path for repo server
