@@ -208,6 +208,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
 
 export class ViewPreferencesService {
     private preferencesSubj: BehaviorSubject<ViewPreferences>;
+    private backendDefaultTheme: string = '';
 
     public init() {
         if (!this.preferencesSubj) {
@@ -216,6 +217,12 @@ export class ViewPreferencesService {
                 this.preferencesSubj.next(this.loadPreferences());
             });
         }
+    }
+
+    public setBackendDefaultTheme(theme: string) {
+        this.backendDefaultTheme = theme;
+        // Reload preferences with the new backend default
+        this.preferencesSubj.next(this.loadPreferences());
     }
 
     public getPreferences(): Observable<ViewPreferences> {
@@ -243,6 +250,11 @@ export class ViewPreferencesService {
         } else {
             preferences = DEFAULT_PREFERENCES;
         }
-        return deepMerge(DEFAULT_PREFERENCES, preferences);
+        const merged = deepMerge(DEFAULT_PREFERENCES, preferences);
+        // If backend default theme is set and user hasn't explicitly set a theme, use backend default
+        if (this.backendDefaultTheme && (!preferencesStr || !JSON.parse(preferencesStr).theme)) {
+            merged.theme = this.backendDefaultTheme;
+        }
+        return merged;
     }
 }

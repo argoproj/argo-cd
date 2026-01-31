@@ -1017,6 +1017,44 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, time.Hour*10, s.UserSessionDuration)
 	})
+	t.Run("UiDefaultThemeNotProvided", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{}, func(secret *corev1.Secret) {
+			secret.Data["server.secretkey"] = []byte("test")
+		})
+		s, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Empty(t, s.UiDefaultTheme)
+	})
+	t.Run("UiDefaultThemeDark", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"ui.defaulttheme": "dark",
+		}, func(secret *corev1.Secret) {
+			secret.Data["server.secretkey"] = []byte("test")
+		})
+		s, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, "dark", s.UiDefaultTheme)
+	})
+	t.Run("UiDefaultThemeLight", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"ui.defaulttheme": "light",
+		}, func(secret *corev1.Secret) {
+			secret.Data["server.secretkey"] = []byte("test")
+		})
+		s, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, "light", s.UiDefaultTheme)
+	})
+	t.Run("UiDefaultThemeAuto", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"ui.defaulttheme": "auto",
+		}, func(secret *corev1.Secret) {
+			secret.Data["server.secretkey"] = []byte("test")
+		})
+		s, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, "auto", s.UiDefaultTheme)
+	})
 }
 
 func TestGetOIDCConfig(t *testing.T) {

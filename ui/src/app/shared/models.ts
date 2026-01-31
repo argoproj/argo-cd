@@ -611,6 +611,7 @@ export interface AuthSettings {
     userLoginsDisabled: boolean;
     kustomizeVersions: string[];
     uiCssURL: string;
+    uiDefaultTheme: string;
     uiBannerContent: string;
     uiBannerURL: string;
     uiBannerPermanent: boolean;
