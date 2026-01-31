@@ -231,33 +231,35 @@ const AppSetHealthFilter = (props: AppSetFilterProps) => (
     />
 );
 
-const LabelsFilter = (props: {apps: Array<{metadata: {labels?: {[key: string]: string}}}>; pref: {labelsFilter: string[]}; onChange: (labelsFilter: string[]) => void}) => {
-    const labels = new Map<string, Set<string>>();
-    props.apps
-        .filter(app => app.metadata && app.metadata.labels)
-        .forEach(app =>
-            Object.keys(app.metadata.labels).forEach(label => {
-                let values = labels.get(label);
-                if (!values) {
-                    values = new Set<string>();
-                    labels.set(label, values);
-                }
-                values.add(app.metadata.labels[label]);
-            })
-        );
-    const suggestions = new Array<string>();
-    Array.from(labels.entries()).forEach(([label, values]) => {
-        suggestions.push(label);
-        values.forEach(val => suggestions.push(`${label}=${val}`));
-    });
-    const labelOptions = suggestions.map(s => {
-        return {label: s};
-    });
+const LabelsFilter = React.memo(
+    (props: {apps: Array<{metadata: {labels?: {[key: string]: string}}}>; pref: {labelsFilter: string[]}; onChange: (labelsFilter: string[]) => void}) => {
+        const labelOptions = React.useMemo(() => {
+            const labels = new Map<string, Set<string>>();
+            props.apps
+                .filter(app => app.metadata && app.metadata.labels)
+                .forEach(app =>
+                    Object.keys(app.metadata.labels).forEach(label => {
+                        let values = labels.get(label);
+                        if (!values) {
+                            values = new Set<string>();
+                            labels.set(label, values);
+                        }
+                        values.add(app.metadata.labels[label]);
+                    })
+                );
+            const suggestions: string[] = [];
+            labels.forEach((values, label) => {
+                suggestions.push(label);
+                values.forEach(val => suggestions.push(`${label}=${val}`));
+            });
+            return suggestions.map(s => ({label: s}));
+        }, [props.apps]);
 
-    return <Filter label='LABELS' selected={props.pref.labelsFilter} setSelected={s => props.onChange(s)} field={true} options={labelOptions} />;
-};
+        return <Filter label='LABELS' selected={props.pref.labelsFilter} setSelected={s => props.onChange(s)} field={true} options={labelOptions} />;
+    }
+);
 
-const AnnotationsFilter = (props: AppFilterProps) => {
+const AnnotationsFilter = React.memo((props: AppFilterProps) => {
     const annotationOptions = React.useMemo(() => {
         const annotations = new Map<string, Set<string>>();
 
@@ -292,7 +294,7 @@ const AnnotationsFilter = (props: AppFilterProps) => {
             options={annotationOptions}
         />
     );
-};
+});
 
 const ProjectFilter = (props: AppFilterProps) => {
     const [projects, loading, error] = useData(
@@ -317,7 +319,7 @@ const ProjectFilter = (props: AppFilterProps) => {
     );
 };
 
-const ClusterFilter = (props: AppFilterProps) => {
+const ClusterFilter = React.memo((props: AppFilterProps) => {
     const getClusterDetail = (dest: ApplicationDestination, clusterList: Cluster[]): string => {
         const cluster = (clusterList || []).find(target => target.name === dest.name || target.server === dest.server);
         if (!cluster) {
@@ -327,9 +329,9 @@ const ClusterFilter = (props: AppFilterProps) => {
     };
 
     const [clusters, loading, error] = useData(() => services.clusters.list());
-    const clusterOptions = optionsFrom(
-        Array.from(new Set(props.apps.map(app => getClusterDetail(app.spec.destination, clusters)).filter(item => !!item))),
-        props.pref.clustersFilter
+    const clusterOptions = React.useMemo(
+        () => optionsFrom(Array.from(new Set(props.apps.map(app => getClusterDetail(app.spec.destination, clusters)).filter(item => !!item))), props.pref.clustersFilter),
+        [props.apps, clusters, props.pref.clustersFilter]
     );
 
     return (
@@ -344,10 +346,13 @@ const ClusterFilter = (props: AppFilterProps) => {
             loading={loading}
         />
     );
-};
+});
 
-const NamespaceFilter = (props: AppFilterProps) => {
-    const namespaceOptions = optionsFrom(Array.from(new Set(props.apps.map(app => app.spec.destination.namespace).filter(item => !!item))), props.pref.namespacesFilter);
+const NamespaceFilter = React.memo((props: AppFilterProps) => {
+    const namespaceOptions = React.useMemo(
+        () => optionsFrom(Array.from(new Set(props.apps.map(app => app.spec.destination.namespace).filter(item => !!item))), props.pref.namespacesFilter),
+        [props.apps, props.pref.namespacesFilter]
+    );
     return (
         <Filter
             label='NAMESPACES'
@@ -357,7 +362,7 @@ const NamespaceFilter = (props: AppFilterProps) => {
             options={namespaceOptions}
         />
     );
-};
+});
 
 const FavoriteFilter = (props: {pref: {showFavorites?: boolean}; onChange: (showFavorites: boolean) => void}) => {
     const ctx = React.useContext(Context);
