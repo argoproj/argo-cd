@@ -797,6 +797,22 @@ func checkOIDCConfigChange(currentOIDCConfig *settings_util.OIDCConfig, newArgoC
 	return false
 }
 
+func checkJWTConfigChange(currentJWTConfig *settings_util.JWTConfig, newArgoCDSettings *settings_util.ArgoCDSettings) bool {
+	newJWTConfig := newArgoCDSettings.JWTConfig
+
+	if (currentJWTConfig != nil && newJWTConfig == nil) || (currentJWTConfig == nil && newJWTConfig != nil) {
+		return true
+	}
+
+	if currentJWTConfig != nil && newJWTConfig != nil {
+		if !reflect.DeepEqual(*currentJWTConfig, *newJWTConfig) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // watchSettings watches the configmap and secret for any setting updates that would warrant a
 // restart of the API server.
 func (server *ArgoCDServer) watchSettings() {
@@ -805,6 +821,7 @@ func (server *ArgoCDServer) watchSettings() {
 
 	prevURL := server.settings.URL
 	prevAdditionalURLs := server.settings.AdditionalURLs
+	prevJWTConfig := server.settings.JWTConfig
 	prevOIDCConfig := server.settings.OIDCConfig()
 	prevDexCfgBytes, err := dexutil.GenerateDexConfigYAML(server.settings, server.DexTLSConfig == nil || server.DexTLSConfig.DisableTLS)
 	errorsutil.CheckError(err)
@@ -826,6 +843,10 @@ func (server *ArgoCDServer) watchSettings() {
 		errorsutil.CheckError(err)
 		if !bytes.Equal(newDexCfgBytes, prevDexCfgBytes) {
 			log.Infof("dex config modified. restarting")
+			break
+		}
+		if checkJWTConfigChange(prevJWTConfig, server.settings) {
+			log.Infof("jwt config modified. restarting")
 			break
 		}
 		if checkOIDCConfigChange(prevOIDCConfig, server.settings) {
@@ -1116,6 +1137,22 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	}
 }
 
+// jwt header matcher to copy custom token header name to grpc metadata
+func (server *ArgoCDServer) jwtHeaderMatcher(key string) (string, bool) {
+	// first try the default grpc matcher
+	if k, match := runtime.DefaultHeaderMatcher(key); match {
+		return k, true
+	}
+
+	// only check for jwt headers if not matched by default
+	k := strings.ToLower(key)
+	if k == server.settings.JWTConfig.HeaderName {
+		return k, true
+	}
+
+	return "", false
+}
+
 // translateGrpcCookieHeader conditionally sets a cookie on the response.
 func (server *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.ResponseWriter, resp golang_proto.Message) error {
 	if sessionResp, ok := resp.(*sessionpkg.SessionResponse); ok {
@@ -1191,9 +1228,15 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	// golang/protobuf. Which does not support types such as time.Time. gogo/protobuf does support
 	// time.Time, but does not support custom UnmarshalJSON() and MarshalJSON() methods. Therefore
 	// we use our own Marshaler
-	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler))
-	gwCookieOpts := runtime.WithForwardResponseOption(server.translateGrpcCookieHeader)
-	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
+	gwMuxOpts := []runtime.ServeMuxOption{
+		runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler)),
+		runtime.WithForwardResponseOption(server.translateGrpcCookieHeader),
+	}
+	// header -> grpc metadata matcher for custom JWT header names
+	if server.settings.IsJWTConfigured() && !strings.EqualFold(server.settings.JWTConfig.HeaderName, "authorization") {
+		gwMuxOpts = append(gwMuxOpts, runtime.WithIncomingHeaderMatcher(server.jwtHeaderMatcher))
+	}
+	gwmux := runtime.NewServeMux(gwMuxOpts...)
 
 	var handler http.Handler = gwmux
 	if server.EnableGZip {
@@ -1221,7 +1264,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
-	th := util_session.WithAuthMiddleware(server.DisableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, terminal)
+	th := util_session.WithAuthMiddleware(server.DisableAuth, server.settings, server.ssoClientApp, server.sessionMgr, terminal)
 	mux.Handle("/terminal", th)
 
 	// Proxy extension is currently an alpha feature and is disabled
@@ -1303,7 +1346,7 @@ func enforceContentTypes(handler http.Handler, types []string) http.Handler {
 func registerExtensions(mux *http.ServeMux, a *ArgoCDServer, metricsReg HTTPMetricsRegistry) {
 	a.log.Info("Registering extensions...")
 	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
-	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth, a.settings.IsSSOConfigured(), a.ssoClientApp)
+	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth, a.settings, a.ssoClientApp)
 	// auth middleware ensures that requests to all extensions are authenticated first
 	mux.Handle(extension.URLPrefix+"/", authMiddleware(extHandler))
 
@@ -1565,7 +1608,7 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	if !ok {
 		return nil, "", ErrNoSession
 	}
-	tokenString := getToken(md)
+	tokenString := server.getToken(md)
 	if tokenString == "" {
 		return nil, "", ErrNoSession
 	}
@@ -1598,13 +1641,25 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 }
 
 // getToken extracts the token from gRPC metadata or cookie headers
-func getToken(md metadata.MD) string {
+func (server *ArgoCDServer) getToken(md metadata.MD) string {
 	// check the "token" metadata
 	{
 		tokens, ok := md[apiclient.MetaDataTokenKey]
 		if ok && len(tokens) > 0 {
 			return tokens[0]
 		}
+	}
+
+	// look for an external JWT header if configured
+	if server.settings.IsJWTConfigured() {
+		// looks for the custom http header set in jwt config
+		jwtHeader := strings.ToLower(server.settings.JWTConfig.HeaderName)
+		for _, token := range md[jwtHeader] {
+			if jwtutil.IsValid(token) {
+				return token
+			}
+		}
+		log.Warnf("JWT conifigured but could not find valid token at header %q", server.settings.JWTConfig.HeaderName)
 	}
 
 	// looks for the HTTP header `Authorization: Bearer ...`

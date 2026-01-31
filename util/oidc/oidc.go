@@ -524,20 +524,19 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idToken, err := a.provider.Verify(ctx, idTokenRAW, a.settings)
+	jwtClaims, err := a.provider.Verify(ctx, idTokenRAW, a.settings)
 	if err != nil {
 		log.Warnf("Failed to verify oidc token: %s", err)
 		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
 		return
 	}
 
-	// Set cache
-	var claims jwt.MapClaims
-	err = idToken.Claims(&claims)
+	claims, err := jwtutil.MapClaims(jwtClaims)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	// save the accessToken in memory for later use
 	sub := jwtutil.StringField(claims, "sub")
 	err = a.SetValueInEncryptedCache(FormatAccessTokenCacheKey(sub), []byte(token.AccessToken), GetTokenExpiration(claims))
@@ -892,11 +891,11 @@ func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims,
 	switch header {
 	case "application/jwt":
 		// if body is JWT, first validate it before extracting claims
-		idToken, err := a.provider.Verify(ctx, string(rawBody), a.settings)
+		jwtClaims, err := a.provider.Verify(ctx, string(rawBody), a.settings)
 		if err != nil {
 			return claims, false, fmt.Errorf("user info response in jwt format not valid: %w", err)
 		}
-		err = idToken.Claims(claims)
+		claims, err = jwtutil.MapClaims(jwtClaims)
 		if err != nil {
 			return claims, false, fmt.Errorf("cannot get claims from userinfo jwt: %w", err)
 		}
