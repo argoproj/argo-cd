@@ -694,7 +694,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 		}
 
 		if deny || !deny && !allow && inactiveAllows {
-			s, err := windows.CanSync(true)
+			s, err := windows.CanSync(true, nil)
 			if err == nil && s {
 				status = "Manual Allowed"
 			} else {

@@ -884,6 +884,7 @@ export interface SyncWindow {
     timeZone: string;
     andOperator: boolean;
     description: string;
+    syncOverrun: boolean;
 }
 
 export interface Project {
