@@ -2002,3 +2002,114 @@ func TestValidateManagedByURL(t *testing.T) {
 		})
 	}
 }
+
+func Test_GetSyncedRefSources(t *testing.T) {
+	tests := []struct {
+		name            string
+		refSources      argoappv1.RefTargetRevisionMapping
+		sources         argoappv1.ApplicationSources
+		syncedRevisions []string
+		result          argoappv1.RefTargetRevisionMapping
+	}{
+		{
+			name: "multi ref sources",
+			refSources: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "main-1",
+					Chart:          "chart",
+				},
+				"$values_1": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd-1"},
+					TargetRevision: "main-2",
+					Chart:          "chart",
+				},
+			},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://helm.registry", TargetRevision: "0.0.1", Chart: "my-chart", Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"$values/path"}}},
+				{RepoURL: "https://github.com/argocd", TargetRevision: "main-1", Ref: "values"},
+				{RepoURL: "https://github.com/argocd-1", TargetRevision: "main-2", Ref: "values_1"},
+			},
+			syncedRevisions: []string{"0.0.1", "resolved-main-1", "resolved-main-2"},
+			result: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "resolved-main-1",
+					Chart:          "chart",
+				},
+				"$values_1": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd-1"},
+					TargetRevision: "resolved-main-2",
+					Chart:          "chart",
+				},
+			},
+		},
+		{
+			name: "ref source",
+			refSources: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "main-1",
+					Chart:          "chart",
+				},
+			},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://helm.registry", TargetRevision: "0.0.1", Chart: "my-chart", Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"$values/path"}}},
+				{RepoURL: "https://github.com/argocd", TargetRevision: "main-1", Ref: "values"},
+			},
+			syncedRevisions: []string{"0.0.1", "resolved-main-1"},
+			result: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "resolved-main-1",
+					Chart:          "chart",
+				},
+			},
+		},
+		{
+			name:       "empty ref source",
+			refSources: argoappv1.RefTargetRevisionMapping{},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://helm.registry", TargetRevision: "0.0.1", Chart: "my-chart"},
+			},
+			syncedRevisions: []string{"0.0.1"},
+			result:          argoappv1.RefTargetRevisionMapping{},
+		},
+		{
+			name:            "empty sources",
+			refSources:      argoappv1.RefTargetRevisionMapping{},
+			sources:         argoappv1.ApplicationSources{},
+			syncedRevisions: []string{},
+			result:          argoappv1.RefTargetRevisionMapping{},
+		},
+		{
+			name: "no synced revisions",
+			refSources: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "main-1",
+					Chart:          "chart",
+				},
+			},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://helm.registry", TargetRevision: "0.0.1", Chart: "my-chart", Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"$values/path"}}},
+				{RepoURL: "https://github.com/argocd", TargetRevision: "main-1", Ref: "values"},
+			},
+			syncedRevisions: []string{},
+			result: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "",
+					Chart:          "chart",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			syncedRefSources := GetSyncedRefSources(tt.refSources, tt.sources, tt.syncedRevisions)
+			assert.Equal(t, tt.result, syncedRefSources)
+		})
+	}
+}
