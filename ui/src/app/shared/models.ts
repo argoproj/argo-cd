@@ -628,12 +628,13 @@ export interface UserInfo {
     groups: string[];
 }
 
-export type ConnectionStatus = 'Unknown' | 'Successful' | 'Failed';
+export type ConnectionStatus = 'Unknown' | 'Successful' | 'Failed' | 'NotRegistered';
 
 export const ConnectionStatuses = {
     Unknown: 'Unknown',
     Failed: 'Failed',
-    Successful: 'Successful'
+    Successful: 'Successful',
+    NotRegistered: 'NotRegistered'
 };
 
 export interface ConnectionState {
