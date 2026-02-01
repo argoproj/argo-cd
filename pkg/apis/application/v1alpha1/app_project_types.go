@@ -456,15 +456,6 @@ func globMatch(pattern string, val string, allowNegation bool, separators ...run
 }
 
 // IsSourcePermitted validates if the provided application's source is a one of the allowed sources for the project.
-// Supports glob patterns with wildcards:
-//   - '*' matches within a single path segment (e.g., 'github.com/org/*' matches 'github.com/org/repo')
-//   - '**' matches across multiple path segments (e.g., 'github.com/**' matches 'github.com/org/repo')
-//   - Patterns can be negated with '!' prefix (e.g., '!github.com/**' denies all GitHub repos)
-// Examples:
-//   - '*' - all repositories
-//   - 'https://github.com/**' - all GitHub repositories
-//   - 'https://github.com/argoproj/*' - all repos in argoproj organization
-//   - '!https://github.com/forbidden/**' - deny all repos under forbidden organization
 func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 	srcNormalized := git.NormalizeGitURL(src.RepoURL)
 
