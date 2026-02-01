@@ -927,7 +927,10 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 					targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
 				}
 				if !hook.HasHookFinalizer(targetObj) {
-					targetObj.SetFinalizers(append(targetObj.GetFinalizers(), hook.HookFinalizer))
+					liveObj := sc.liveObj(targetObj)
+					if liveObj == nil || liveObj.GetDeletionTimestamp() == nil {
+						targetObj.SetFinalizers(append(targetObj.GetFinalizers(), hook.HookFinalizer))
+					}
 				}
 				hookTasks = append(hookTasks, &syncTask{phase: phase, targetObj: targetObj})
 			}
