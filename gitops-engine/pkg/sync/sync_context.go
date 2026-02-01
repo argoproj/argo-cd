@@ -714,7 +714,15 @@ func (sc *syncContext) getNamespaceCreationTask(tasks syncTasks) *syncTask {
 func (sc *syncContext) terminateHooksPreemptively(tasks syncTasks) bool {
 	terminateSuccessful := true
 	for _, task := range tasks {
-		if !task.isHook() || !task.running() {
+		if !task.isHook() {
+			continue
+		}
+
+		// If the task is not running, we generally skip it.
+		// HOWEVER, if it is stuck terminating (has deletion timestamp), we must process it
+		// to ensure finalizers are removed.
+		isTerminating := task.liveObj != nil && task.liveObj.GetDeletionTimestamp() != nil
+		if !task.running() && !isTerminating {
 			continue
 		}
 
