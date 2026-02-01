@@ -244,6 +244,7 @@ type ArgoCDServerOpts struct {
 	EnableK8sEvent          []string
 	HydratorEnabled         bool
 	SyncWithReplaceAllowed  bool
+	RequestTimeout          time.Duration
 }
 
 type ApplicationSetOpts struct {
@@ -912,6 +913,21 @@ func (server *ArgoCDServer) useTLS() bool {
 	return true
 }
 
+func requestTimeoutGRPCInterceptor(requestTimeout time.Duration) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		if requestTimeout == 0 {
+			res, err := handler(ctx, req)
+			return res, err
+		}
+
+		newCtx, cancel := context.WithTimeout(ctx, requestTimeout)
+		defer cancel()
+
+		res, err := handler(newCtx, req)
+		return res, err
+	}
+}
+
 func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registry) (*grpc.Server, application.AppResourceTreeFn) {
 	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if enableGRPCTimeHistogram {
@@ -933,6 +949,7 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 			},
 		),
 	}
+
 	sensitiveMethods := map[string]bool{
 		"/cluster.ClusterService/Create":                               true,
 		"/cluster.ClusterService/Update":                               true,
@@ -973,6 +990,7 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 		bug21955WorkaroundInterceptor,
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(server.log)),
 		serverMetrics.UnaryServerInterceptor(),
+		requestTimeoutGRPCInterceptor(server.RequestTimeout),
 		grpc_auth.UnaryServerInterceptor(server.Authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadUnaryServerInterceptor(server.log, true, func(_ context.Context, c interceptors.CallMeta) bool {
@@ -1166,18 +1184,31 @@ func compressHandler(handler http.Handler) http.Handler {
 	})
 }
 
+func requestTimeoutHTTPInterceptor(next http.Handler, requestTimeout time.Duration) http.Handler {
+	if requestTimeout == 0 {
+		return next
+	}
+
+	timeoutMsg := "context deadline exceeded"
+	return http.TimeoutHandler(next, requestTimeout, timeoutMsg)
+}
+
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
 // using grpc-gateway as a proxy to the gRPC server.
 func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandler http.Handler, appResourceTreeFn application.AppResourceTreeFn, conn *grpc.ClientConn, metricsReg HTTPMetricsRegistry) *http.Server {
 	endpoint := fmt.Sprintf("localhost:%d", port)
 	mux := http.NewServeMux()
+	reqTimeout := server.RequestTimeout
+
 	httpS := http.Server{
 		Addr: endpoint,
 		Handler: &handlerSwitcher{
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
-				"/api/badge":          badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces),
-				common.LogoutEndpoint: logout.NewHandler(server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef),
+				"/api/badge": requestTimeoutHTTPInterceptor(
+					badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces), reqTimeout),
+				common.LogoutEndpoint: requestTimeoutHTTPInterceptor(
+					logout.NewHandler(server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef), reqTimeout),
 			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,
@@ -1222,7 +1253,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	terminal := application.NewHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
 	th := util_session.WithAuthMiddleware(server.DisableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, terminal)
-	mux.Handle("/terminal", th)
+	mux.Handle("/terminal", requestTimeoutHTTPInterceptor(th, reqTimeout))
 
 	// Proxy extension is currently an alpha feature and is disabled
 	// by default.
@@ -1251,14 +1282,14 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", server.RootPath)
 	healthz.ServeHealthCheck(mux, server.healthCheck)
 
-	// Dex reverse proxy and OAuth2 login/callback
-	server.registerDexHandlers(mux)
+	// Dex reverse proxy and client app and OAuth2 login/callback
+	server.registerDexHandlers(mux, reqTimeout)
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
 	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
 
-	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
+	mux.HandleFunc("/api/webhook", requestTimeoutHTTPInterceptor(http.HandlerFunc(acdWebhookHandler.Handler), reqTimeout).ServeHTTP)
 
 	// Serve cli binaries directly from API server
 	registerDownloadHandlers(mux, "/download")
@@ -1357,15 +1388,20 @@ func (server *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.
 	}
 }
 
-// registerDexHandlers will register dex HTTP handlers
-func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
+// registerDexHandlers will register dex HTTP handlers, creating the OAuth client app
+func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux, reqTimeout time.Duration) {
 	if !server.settings.IsSSOConfigured() {
 		return
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
-	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(server.DexServerAddr, server.BaseHRef, server.DexTLSConfig))
-	mux.HandleFunc(common.LoginEndpoint, server.ssoClientApp.HandleLogin)
-	mux.HandleFunc(common.CallbackEndpoint, server.ssoClientApp.HandleCallback)
+	var err error
+	dexProxyFunc := dexutil.NewDexHTTPReverseProxy(server.DexServerAddr, server.BaseHRef, server.DexTLSConfig)
+	mux.HandleFunc(common.DexAPIEndpoint+"/", requestTimeoutHTTPInterceptor(http.HandlerFunc(dexProxyFunc), reqTimeout).ServeHTTP)
+
+	server.ssoClientApp, err = oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
+	errorsutil.CheckError(err)
+	mux.HandleFunc(common.LoginEndpoint, requestTimeoutHTTPInterceptor(http.HandlerFunc(server.ssoClientApp.HandleLogin), reqTimeout).ServeHTTP)
+	mux.HandleFunc(common.CallbackEndpoint, requestTimeoutHTTPInterceptor(http.HandlerFunc(server.ssoClientApp.HandleCallback), reqTimeout).ServeHTTP)
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
