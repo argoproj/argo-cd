@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -8,6 +9,33 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestGetSignedRequest(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns error when context is cancelled", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		url, err := getSignedRequest(ctx, "my-cluster", "", "")
+
+		require.Error(t, err)
+		assert.Empty(t, url)
+	})
+
+	t.Run("returns error for non-existent profile", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+		profile := "argocd-k8s-auth-test-nonexistent-profile-12345"
+
+		url, err := getSignedRequest(ctx, "my-cluster", "", profile)
+
+		require.Error(t, err)
+		assert.Empty(t, url)
+		assert.Contains(t, err.Error(), "configuration", "error should mention configuration load failed")
+	})
+}
 
 func TestGetSignedRequestWithRetry(t *testing.T) {
 	t.Parallel()
@@ -72,7 +100,7 @@ type signedRequestMock struct {
 	returnFunc            func(m *signedRequestMock) (string, error)
 }
 
-func (m *signedRequestMock) getSignedRequestMock(_, _ string, _ string) (string, error) {
+func (m *signedRequestMock) getSignedRequestMock(ctx context.Context, _, _ string, _ string) (string, error) {
 	m.getSignedRequestCalls++
 	return m.returnFunc(m)
 }
