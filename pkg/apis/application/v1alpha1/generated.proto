@@ -1855,11 +1855,14 @@ message RepoCreds {
   // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
   optional bool useAzureWorkloadIdentity = 24;
 
+  // AzureTenantId specifies the Azure tenant ID to use for Workload Identity authentication (overrides AZURE_TENANT_ID env var)
+  optional string azureTenantId = 25;
+
   // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
-  optional string bearerToken = 25;
+  optional string bearerToken = 26;
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
-  optional bool insecureOCIForceHttp = 26;
+  optional bool insecureOCIForceHttp = 27;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1944,14 +1947,17 @@ message Repository {
   // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
   optional bool useAzureWorkloadIdentity = 24;
 
+  // AzureTenantId specifies the Azure tenant ID to use for Workload Identity authentication (overrides AZURE_TENANT_ID env var)
+  optional string azureTenantId = 25;
+
   // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
-  optional string bearerToken = 25;
+  optional string bearerToken = 26;
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
-  optional bool insecureOCIForceHttp = 26;
+  optional bool insecureOCIForceHttp = 27;
 
   // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
-  optional int64 depth = 27;
+  optional int64 depth = 28;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

@@ -112,3 +112,29 @@ func TestCalculateCacheExpiryBasedOnTokenExpiry(t *testing.T) {
 		})
 	}
 }
+
+func TestNewWorkloadIdentityTokenProviderWithOptions(t *testing.T) {
+	t.Run("creates provider with empty tenant ID", func(t *testing.T) {
+		initError = nil
+		provider := NewWorkloadIdentityTokenProvider()
+		require.NotNil(t, provider)
+		_, ok := provider.(WorkloadIdentityTokenProvider)
+		assert.True(t, ok)
+	})
+
+	t.Run("creates provider with specific tenant ID", func(t *testing.T) {
+		initError = nil
+		provider := NewWorkloadIdentityTokenProvider(WithTenantID("tenant-b-id"))
+		require.NotNil(t, provider)
+		_, ok := provider.(WorkloadIdentityTokenProvider)
+		assert.True(t, ok)
+	})
+
+	t.Run("existing provider returns nil on init error", func(t *testing.T) {
+		initError = errors.New("initialization error")
+		provider := NewWorkloadIdentityTokenProvider(WithTenantID("test-tenant"))
+		require.NotNil(t, provider)
+		_, err := provider.GetToken("https://management.core.windows.net/.default")
+		require.Error(t, err)
+	})
+}
