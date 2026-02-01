@@ -208,10 +208,10 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		eventHandlers:           map[uint64]OnEventHandler{},
 		processEventsHandlers:   map[uint64]OnProcessEventsHandler{},
 		log:                     log,
-		listRetryLimit:      1,
-		listRetryUseBackoff: false,
-		listRetryFunc:       ListRetryFuncNever,
-		parentUIDToChildren: make(map[types.UID][]kube.ResourceKey),
+		listRetryLimit:          1,
+		listRetryUseBackoff:     false,
+		listRetryFunc:           ListRetryFuncNever,
+		parentUIDToChildren:     make(map[types.UID][]kube.ResourceKey),
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -520,7 +520,6 @@ func (c *clusterCache) rebuildParentToChildrenIndex() {
 		}
 	}
 }
-
 
 // addToParentUIDToChildren adds a child to the parent-to-children index
 func (c *clusterCache) addToParentUIDToChildren(parentUID types.UID, childKey kube.ResourceKey) {
@@ -1429,6 +1428,14 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 		lock.Unlock()
 
 		if managedObj == nil {
+			if targetObj.GetNamespace() != "" {
+				isNamespaced, err := c.IsNamespaced(targetObj.GroupVersionKind().GroupKind())
+				if err == nil && isNamespaced {
+					if _, nsExists := c.nsIndex[targetObj.GetNamespace()]; !nsExists {
+						return nil
+					}
+				}
+			}
 			if existingObj, exists := c.resources[key]; exists {
 				if existingObj.Resource != nil {
 					managedObj = existingObj.Resource
