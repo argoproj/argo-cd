@@ -82,6 +82,25 @@ func updateSecretString(secret *corev1.Secret, key, value string) {
 	}
 }
 
+func updateSecretStringArray(secret *corev1.Secret, key string, value []string) {
+	if _, present := secret.Data[key]; present || len(value) > 0 {
+		// Store as comma-separated values
+		secret.Data[key] = []byte(strings.Join(value, ","))
+	}
+}
+
+func stringArrayOrEmpty(secret *corev1.Secret, key string) []string {
+	if val, present := secret.Data[key]; present && len(val) > 0 {
+		// Parse comma-separated values
+		str := string(val)
+		if str == "" {
+			return []string{}
+		}
+		return strings.Split(str, ",")
+	}
+	return []string{}
+}
+
 func (db *db) createSecret(ctx context.Context, secret *corev1.Secret) (*corev1.Secret, error) {
 	return db.kubeclientset.CoreV1().Secrets(db.ns).Create(ctx, secret, metav1.CreateOptions{})
 }

@@ -483,20 +483,23 @@ func (c *Cache) SetRevisionChartDetails(repoURL, chart, revision string, item *a
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
-func gitFilesKey(repoURL, revision, pattern string) string {
-	return fmt.Sprintf("gitfiles|%s|%s|%s", repoURL, revision, pattern)
+func gitFilesKey(repoURL, revision, pathsSHA, pattern string) string {
+	if pathsSHA == "" {
+		return fmt.Sprintf("gitfiles|%s|%s|%s", repoURL, revision, pattern)
+	}
+	return fmt.Sprintf("gitfiles|%s|%s|%s|%s", repoURL, revision, pattern, pathsSHA)
 }
 
-func (c *Cache) SetGitFiles(repoURL, revision, pattern string, files map[string][]byte) error {
+func (c *Cache) SetGitFiles(repoURL, revision, pathsSHA, pattern string, files map[string][]byte) error {
 	return c.cache.SetItem(
-		gitFilesKey(repoURL, revision, pattern),
+		gitFilesKey(repoURL, revision, pathsSHA, pattern),
 		&files,
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
-func (c *Cache) GetGitFiles(repoURL, revision, pattern string) (map[string][]byte, error) {
+func (c *Cache) GetGitFiles(repoURL, revision, pathsSHA, pattern string) (map[string][]byte, error) {
 	var item map[string][]byte
-	err := c.cache.GetItem(gitFilesKey(repoURL, revision, pattern), &item)
+	err := c.cache.GetItem(gitFilesKey(repoURL, revision, pathsSHA, pattern), &item)
 	return item, err
 }
 
