@@ -135,8 +135,10 @@ The custom health check might return one of the following health statuses:
 
 By default, health typically returns a `Progressing` status.
 
-NOTE: As a security measure, access to the standard Lua libraries will be disabled by default. Admins can control access by
-setting `resource.customizations.useOpenLibs.<group>_<kind>`. In the following example, standard libraries are enabled for health check of `cert-manager.io/Certificate`.
+> [!NOTE]
+> As a security measure, access to the standard Lua libraries will be disabled by default.
+> Admins can control access by setting `resource.customizations.useOpenLibs.<group>_<kind>`.
+> In the following example, standard libraries are enabled for health check of `cert-manager.io/Certificate`.
 
 ```yaml
 data:
