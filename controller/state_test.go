@@ -416,6 +416,55 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 	assert.Empty(t, app.Status.Conditions)
 }
 
+func TestCompareAppStateRequireDeletion(t *testing.T) {
+	obj1 := NewPod()
+	obj1.SetName("my-pod-1")
+	obj1.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=confirm"})
+	obj2 := NewPod()
+	obj2.SetName("my-pod-2")
+	obj2.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Prune=confirm"})
+	obj3 := NewPod()
+	obj3.SetName("my-pod-3")
+
+	app := newFakeApp()
+	data := fakeData{
+		apps: []runtime.Object{app},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{toJSON(t, obj1), toJSON(t, obj2), toJSON(t, obj3)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(obj1): obj1,
+			kube.GetResourceKey(obj2): obj2,
+			kube.GetResourceKey(obj3): obj3,
+		},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
+	assert.Len(t, compRes.resources, 3)
+	assert.Len(t, compRes.managedResources, 3)
+	assert.Empty(t, app.Status.Conditions)
+
+	countRequireDeletion := 0
+	for _, res := range compRes.resources {
+		if res.RequiresDeletionConfirmation {
+			countRequireDeletion++
+		}
+	}
+	assert.Equal(t, 2, countRequireDeletion)
+}
+
 // checks that ignore resources are detected, but excluded from status
 func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	pod := NewPod()

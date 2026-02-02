@@ -1212,7 +1212,7 @@ export function getOperationType(application: appModels.Application) {
     return 'Unknown';
 }
 
-const getOperationStateTitle = (app: appModels.Application) => {
+export const getOperationStateTitle = (app: appModels.Application): appModels.OperationStateTitle => {
     const appOperationState = getAppOperationState(app);
     const operationType = getOperationType(app);
     switch (operationType) {
@@ -1720,6 +1720,35 @@ export function isApp(abstractApp: appModels.AbstractApplication): abstractApp i
 
 export function getRootPathByApp(abstractApp: appModels.AbstractApplication) {
     return isApp(abstractApp) ? '/applications' : '/applicationsets';
+}
+
+// Get ApplicationSet health status from its conditions
+// Priority: ErrorOccurred=True → Degraded, RolloutProgressing=True → Progressing, ResourcesUpToDate=True → Healthy, else Unknown
+export function getAppSetHealthStatus(appSet: appModels.ApplicationSet): appModels.HealthStatusCode {
+    const conditions = appSet.status?.conditions;
+    if (!conditions || conditions.length === 0) {
+        return 'Unknown';
+    }
+
+    // Check for errors first (indicates degraded state)
+    const errorCondition = conditions.find(c => c.type === 'ErrorOccurred' && c.status === 'True');
+    if (errorCondition) {
+        return 'Degraded';
+    }
+
+    // Check if rollout is progressing
+    const progressingCondition = conditions.find(c => c.type === 'RolloutProgressing' && c.status === 'True');
+    if (progressingCondition) {
+        return 'Progressing';
+    }
+
+    // Check if resources are up to date (healthy state)
+    const upToDateCondition = conditions.find(c => c.type === 'ResourcesUpToDate' && c.status === 'True');
+    if (upToDateCondition) {
+        return 'Healthy';
+    }
+
+    return 'Unknown';
 }
 
 export function appQualifiedName(app: appModels.AbstractApplication, nsEnabled: boolean): string {

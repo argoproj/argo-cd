@@ -28,7 +28,7 @@ on:
 jobs:
   cherry-pick:
     name: Cherry Pick to ${{ inputs.version_number }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Generate a token
         id: generate-token
@@ -38,7 +38,7 @@ jobs:
           private-key: ${{ secrets.CHERRYPICK_APP_PRIVATE_KEY }}
 
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 0
           token: ${{ steps.generate-token.outputs.token }}
@@ -69,7 +69,7 @@ jobs:
           git checkout -b "$CHERRY_PICK_BRANCH" "origin/$TARGET_BRANCH"
 
           # Perform cherry-pick
-          if git cherry-pick -m 1 "$MERGE_COMMIT"; then
+          if git cherry-pick -s -m 1 "$MERGE_COMMIT"; then
             echo "✅ Cherry-pick successful"
 
             # Extract Signed-off-by from the cherry-pick commit

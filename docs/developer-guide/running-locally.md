@@ -21,7 +21,7 @@ First push the installation manifest into argocd namespace:
 
 ```shell
 kubectl create namespace argocd
-kubectl apply -n argocd --server-side -f manifests/install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f manifests/install.yaml
 ```
 
 The services you will start later assume you are running in the namespace where Argo CD is installed. You can set the current context default namespace as follows:
@@ -222,6 +222,18 @@ Then you can build & push the image in one step:
 DOCKER_PUSH=true make image
 ```
 
+To speed up building of images you may use the DEV_IMAGE option that builds the argocd binaries in the users desktop environment
+(instead of building everything in Docker) and copies them into the result image:
+
+```bash
+DEV_IMAGE=true DOCKER_PUSH=true make image
+```
+
+> [!NOTE]
+> The first run of this build task may take a long time because it needs first to build the base image first; however,
+> once it's done, the build process should be much faster than a regular full image build in Docker.
+
+
 #### Configure manifests for your image
 
 With `IMAGE_REGISTRY`, `IMAGE_NAMESPACE` and `IMAGE_TAG` still set, run:
@@ -246,5 +258,5 @@ make manifests-local
 The final step is to push the manifests to your cluster, so it will pull and run your image:
 
 ```bash
-kubectl apply -n argocd --server-side -f manifests/install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f manifests/install.yaml
 ```

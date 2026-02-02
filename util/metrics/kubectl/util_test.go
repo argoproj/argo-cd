@@ -91,13 +91,13 @@ func Test_resolveK8sRequestVerb(t *testing.T) {
 		{
 			testName: "CRD List",
 			method:   "GET",
-			url:      "https://127.0.0.1/apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions",
+			url:      "https://127.0.0.1/apis/apiextensions.k8s.io/v1/customresourcedefinitions",
 			expected: "List",
 		},
 		{
 			testName: "CRD Get",
 			method:   "GET",
-			url:      "https://127.0.0.1/apis/apiextensions.k8s.io/v1beta1/customresourcedefinitions/dummies.argoproj.io",
+			url:      "https://127.0.0.1/apis/apiextensions.k8s.io/v1/customresourcedefinitions/dummies.argoproj.io",
 			expected: "Get",
 		},
 		{

@@ -170,6 +170,8 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	runtimeObjs = append(runtimeObjs, data.additionalObjs...)
 	kubeClient := fake.NewClientset(runtimeObjs...)
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClient, test.FakeArgoCDNamespace)
+	// Initialize the settings manager to ensure cluster cache is ready
+	_ = settingsMgr.ResyncInformers()
 	kubectl := &MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
@@ -188,7 +190,6 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		time.Second,
 		time.Minute,
 		nil,
-		time.Minute,
 		0,
 		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
@@ -3156,47 +3157,4 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 			assertDurationAround(t, tc.expectedDuration, duration)
 		})
 	}
-}
-
-func TestSelfHealBackoffCooldownElapsed(t *testing.T) {
-	cooldown := time.Second * 30
-	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
-	ctrl.selfHealBackoffCooldown = cooldown
-
-	app := &v1alpha1.Application{
-		Status: v1alpha1.ApplicationStatus{
-			OperationState: &v1alpha1.OperationState{
-				Phase: synccommon.OperationSucceeded,
-			},
-		},
-	}
-
-	t.Run("operation not completed", func(t *testing.T) {
-		app := app.DeepCopy()
-		app.Status.OperationState.FinishedAt = nil
-		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
-		assert.True(t, elapsed)
-	})
-
-	t.Run("successful operation finised after cooldown", func(t *testing.T) {
-		app := app.DeepCopy()
-		app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now().Add(-cooldown)}
-		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
-		assert.True(t, elapsed)
-	})
-
-	t.Run("unsuccessful operation finised after cooldown", func(t *testing.T) {
-		app := app.DeepCopy()
-		app.Status.OperationState.Phase = synccommon.OperationFailed
-		app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now().Add(-cooldown)}
-		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
-		assert.False(t, elapsed)
-	})
-
-	t.Run("successful operation finised before cooldown", func(t *testing.T) {
-		app := app.DeepCopy()
-		app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now()}
-		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
-		assert.False(t, elapsed)
-	})
 }

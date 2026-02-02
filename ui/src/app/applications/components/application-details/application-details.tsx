@@ -1,4 +1,4 @@
-import {DropDownMenu, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
+import {NotificationType, SlidingPanel, Tooltip, SplitButtonAction} from 'argo-ui';
 import * as classNames from 'classnames';
 import React, {useState, useEffect, useCallback, useRef, useContext, FC} from 'react';
 import * as ReactDOM from 'react-dom';
@@ -266,7 +266,7 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
     const rollbackApplication = useCallback(
         async (revisionHistory: appModels.RevisionHistory, application: appModels.Application) => {
             try {
-                const needDisableRollback = application.spec.syncPolicy && application.spec.syncPolicy.automated;
+                const needDisableRollback = application.spec.syncPolicy && application.spec.syncPolicy.automated && application.spec.syncPolicy.automated.enabled !== false;
                 let confirmationMessage = `Are you sure you want to rollback application '${props.match.params.name}'?`;
                 if (needDisableRollback) {
                     confirmationMessage = `Auto-Sync needs to be disabled in order for rollback to occur.
@@ -277,7 +277,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 if (confirmed) {
                     if (needDisableRollback) {
                         const update = JSON.parse(JSON.stringify(application)) as appModels.Application;
-                        update.spec.syncPolicy.automated = null;
+                        update.spec.syncPolicy.automated.enabled = false;
                         await services.applications.update(update, {validate: false});
                     }
                     await services.applications.rollback(props.match.params.name, getAppNamespace(), revisionHistory.id);
@@ -784,6 +784,13 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             const activeStatusExt = state.statusExtensionsMap[selectedExtension];
                             const activeTopBarActionMenuExt = state.topBarActionMenuExtsMap[selectedExtension];
 
+                            if (state.extensionsMap[pref.view] != null) {
+                                const extension = state.extensionsMap[pref.view];
+                                if (!extension.shouldDisplay(application)) {
+                                    appContext.navigation.goto('.', {view: Tree});
+                                }
+                            }
+
                             return (
                                 <div className={`application-details ${props.match.params.name}`}>
                                     <Page
@@ -1205,24 +1212,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                       },
                 {
                     iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
-                    title: (
-                        <React.Fragment>
-                            <ActionMenuItem actionLabel='Refresh' />{' '}
-                            <DropDownMenu
-                                items={[
-                                    {
-                                        title: 'Hard Refresh',
-                                        action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, objectListKind, 'hard')
-                                    }
-                                ]}
-                                anchor={() => (
-                                    <button className='argo-button--base application-details__dropdown-anchor-inner'>
-                                        <i className='fa fa-caret-down' />
-                                    </button>
-                                )}
-                            />
-                        </React.Fragment>
-                    ),
+                    title: <ActionMenuItem actionLabel='Refresh' />,
                     disabled: !!refreshing,
                     action: () => {
                         if (!refreshing) {
@@ -1230,8 +1220,14 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             AppUtils.setAppRefreshing(app);
                             appChanged.current.next(app);
                         }
-                    }
-                }
+                    },
+                    subActions: [
+                        {
+                            title: 'Hard Refresh',
+                            action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, objectListKind, 'hard')
+                        }
+                    ]
+                } as SplitButtonAction
             ];
         },
         [selectNode, appContext, confirmDeletion, setOperationStatusVisible, setRollbackPanelVisible, deleteApplication, objectListKind]

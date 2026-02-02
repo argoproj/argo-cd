@@ -16,11 +16,12 @@ import (
 )
 
 func TestKustomize2AppSource(t *testing.T) {
+	ctx := Given(t)
 	patchLabelMatchesFor := func(kind string) func(app *Application) {
 		return func(_ *Application) {
 			name := "k2-patched-guestbook-ui-deploy1"
 			labelValue, err := fixture.Run(
-				"", "kubectl", "-n="+fixture.DeploymentNamespace(),
+				"", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", kind, name,
 				"-ojsonpath={.metadata.labels.patched-by}")
 			require.NoError(t, err)
@@ -28,7 +29,7 @@ func TestKustomize2AppSource(t *testing.T) {
 		}
 	}
 
-	Given(t).
+	ctx.
 		Path(guestbookPath).
 		NamePrefix("k2-").
 		NameSuffix("-deploy1").
@@ -181,13 +182,14 @@ func TestKustomizeImages(t *testing.T) {
 
 // make sure we we can invoke the CLI to replace replicas and actual deployment is set to correct value
 func TestKustomizeReplicas2AppSource(t *testing.T) {
+	ctx := Given(t)
 	deploymentName := "guestbook-ui"
 	deploymentReplicas := 2
 	checkReplicasFor := func(kind string) func(app *Application) {
 		return func(_ *Application) {
 			name := deploymentName
 			replicas, err := fixture.Run(
-				"", "kubectl", "-n="+fixture.DeploymentNamespace(),
+				"", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", kind, name,
 				"-ojsonpath={.spec.replicas}")
 			require.NoError(t, err)
@@ -195,7 +197,7 @@ func TestKustomizeReplicas2AppSource(t *testing.T) {
 		}
 	}
 
-	Given(t).
+	ctx.
 		Path("guestbook").
 		When().
 		CreateApp().
@@ -289,8 +291,8 @@ func TestKustomizeUnsetOverrideDeployment(t *testing.T) {
 
 // make sure kube-version gets passed down to resources
 func TestKustomizeKubeVersion(t *testing.T) {
-	Given(t).
-		Path("kustomize-kube-version").
+	ctx := Given(t)
+	ctx.Path("kustomize-kube-version").
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
 				"-n", fixture.TestNamespace(),
@@ -302,7 +304,7 @@ func TestKustomizeKubeVersion(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			kubeVersion := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			kubeVersion := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
 			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
 			assert.LessOrEqual(t, fixture.GetVersions(t).ServerVersion.Format("v%s.%s"), kubeVersion)
@@ -314,15 +316,15 @@ func TestKustomizeKubeVersion(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			assert.Equal(t, "v999.999.999", errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			assert.Equal(t, "v999.999.999", errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string))
 		})
 }
 
 // make sure api versions gets passed down to resources
 func TestKustomizeApiVersions(t *testing.T) {
-	Given(t).
-		Path("kustomize-api-versions").
+	ctx := Given(t)
+	ctx.Path("kustomize-api-versions").
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
 				"-n", fixture.TestNamespace(),
@@ -334,7 +336,7 @@ func TestKustomizeApiVersions(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			apiVersions := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			apiVersions := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.apiVersions}")).(string)
 			// The v1 API shouldn't be going anywhere.
 			assert.Contains(t, apiVersions, "v1")
@@ -346,7 +348,7 @@ func TestKustomizeApiVersions(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			apiVersions := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", fixture.DeploymentNamespace(), "get", "cm", "my-map",
+			apiVersions := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.apiVersions}")).(string)
 			assert.Contains(t, apiVersions, "v1/MyTestResource")
 		})
