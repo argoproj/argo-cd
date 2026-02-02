@@ -3079,10 +3079,18 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 	return revision, syncedRevision, changed, nil
 }
 
-// UpdateRevisionForPaths compares two git revisions and checks if the files in the given paths have changed
-// If no files were changed, it will store the already cached manifest to the key corresponding to the old revision, avoiding an unnecessary generation.
-// Example: cache has key "a1a1a1" with manifest "x", and the files for that manifest have not changed,
-// "x" will be stored again with the new revision "b2b2b2".
+// UpdateRevisionForPaths compares git revisions for single and multi-source applications
+// and determines whether files in the specified paths have changed.
+//
+// For single-source applications, only the main git repository revision is compared.
+// For multi-source applications, all related ref sources are compared (multiple git repositories
+// referenced via `ref` in Helm value files).
+//
+// If no changes are detected, but revisions have advanced, the already cached manifest is copied
+// from the old revision key to the new one, avoiding unnecessary regeneration.
+//
+// Example: cache contains manifest "x" under revision "a1a1a1". If the revision moves to "b2b2b2"
+// and no relevant files have changed, "x" will be stored again under the new revision key.
 func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.UpdateRevisionForPathsRequest) (*apiclient.UpdateRevisionForPathsResponse, error) {
 	logCtx := log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace})
 
@@ -3090,7 +3098,8 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	newRepoRefs := make(map[string]string, 0)
 	oldRepoRefs := make(map[string]string, 0)
 	rRevision := request.Revision
-	revisionsMayHaveChanges := false
+	sRevision := request.SyncedRevision
+	revisionsAreDifferent := false
 	repo := request.GetRepo()
 	refreshPaths := request.GetPaths()
 
@@ -3117,9 +3126,10 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 				return nil, err
 			}
 			rRevision = resolvedRevision
+			sRevision = syncedRevision
 
 			if resolvedRevision != syncedRevision {
-				revisionsMayHaveChanges = true
+				revisionsAreDifferent = true
 			}
 
 			if sourceHasChanges {
@@ -3172,7 +3182,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 			}
 
 			if resolvedRevision != syncedRevision {
-				revisionsMayHaveChanges = true
+				revisionsAreDifferent = true
 			}
 
 			if sourceHasChanges {
@@ -3190,7 +3200,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	}
 
 	// this check is necessary to ensure that revisions have changed since the last sync
-	if !revisionsMayHaveChanges {
+	if !revisionsAreDifferent {
 		return &apiclient.UpdateRevisionForPathsResponse{
 			Changes:  false,
 			Revision: rRevision,
@@ -3198,7 +3208,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	}
 
 	// No changes detected, update the cache using resolved revisions
-	err := s.updateCachedRevision(logCtx, request.SyncedRevision, rRevision, request, oldRepoRefs, newRepoRefs)
+	err := s.updateCachedRevision(logCtx, sRevision, rRevision, request, oldRepoRefs, newRepoRefs)
 	if err != nil {
 		// Only warn with the error, no need to block anything if there is a caching error.
 		logCtx.Warnf("error updating cached revision for source %s with revision %s: %v", request.ApplicationSource.RepoURL, rRevision, err)
@@ -3215,7 +3225,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 }
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, oldRepoRefs map[string]string, newRepoRefs map[string]string) error {
-	err := s.cache.SetNewRevisionManifests(oldRev, newRev, request.ApplicationSource, request.RefSources, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, oldRepoRefs, newRepoRefs, request.InstallationID)
+	err := s.cache.SetNewRevisionManifests(newRev, oldRev, request.ApplicationSource, request.RefSources, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, oldRepoRefs, newRepoRefs, request.InstallationID)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
 			logCtx.Debugf("manifest cache miss during comparison for application %s in repo %s from revision %s", request.AppName, request.GetRepo().Repo, oldRev)
