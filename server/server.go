@@ -34,7 +34,6 @@ import (
 	"github.com/gorilla/handlers"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-middleware/providers/prometheus"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
-	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -142,6 +141,62 @@ const (
 
 // ErrNoSession indicates no auth token was supplied as part of a request
 var ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
+
+
+func isHealthMethod(fullMethod string) bool {
+        return fullMethod == "/grpc.health.v1.Health/Check" ||
+                fullMethod == "/grpc.health.v1.Health/Watch"
+}
+
+type serverStreamWithContext struct {
+        grpc.ServerStream
+        ctx context.Context
+}
+
+func (s *serverStreamWithContext) Context() context.Context {
+        return s.ctx
+}
+
+func (server *ArgoCDServer) authUnaryInterceptor(
+        ctx context.Context,
+        req interface{},
+        info *grpc.UnaryServerInfo,
+        handler grpc.UnaryHandler,
+) (interface{}, error) {
+        if isHealthMethod(info.FullMethod) {
+                return handler(ctx, req)
+        }
+        ctx, err := server.Authenticate(ctx)
+        if err != nil {
+                return nil, err
+        }
+        return handler(ctx, req)
+}
+
+func (server *ArgoCDServer) authStreamInterceptor(
+        srv interface{},
+        ss grpc.ServerStream,
+        info *grpc.StreamServerInfo,
+        handler grpc.StreamHandler,
+) error {
+        if isHealthMethod(info.FullMethod) {
+                return handler(srv, ss)
+        }
+        wrapped := &serverStreamWithContext{
+                ServerStream: ss,
+                ctx:          ss.Context(),
+        }
+        ctx, err := server.Authenticate(wrapped.Context())
+        if err != nil {
+                return err
+        }
+        wrapped.ctx = ctx
+        return handler(srv, wrapped)
+}
+
+
+
+
 
 var noCacheHeaders = map[string]string{
 	"Expires":         time.Unix(0, 0).Format(time.RFC1123),
@@ -960,7 +1015,7 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 	sOpts = append(sOpts, grpc.ChainStreamInterceptor(
 		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(server.log)),
 		serverMetrics.StreamServerInterceptor(),
-		grpc_auth.StreamServerInterceptor(server.Authenticate),
+		server.authStreamInterceptor,
 		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadStreamServerInterceptor(server.log, true, func(_ context.Context, c interceptors.CallMeta) bool {
 			return !sensitiveMethods[c.FullMethod()]
@@ -973,7 +1028,7 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 		bug21955WorkaroundInterceptor,
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(server.log)),
 		serverMetrics.UnaryServerInterceptor(),
-		grpc_auth.UnaryServerInterceptor(server.Authenticate),
+		server.authUnaryInterceptor,
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
 		grpc_util.PayloadUnaryServerInterceptor(server.log, true, func(_ context.Context, c interceptors.CallMeta) bool {
 			return !sensitiveMethods[c.FullMethod()]
