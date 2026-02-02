@@ -73,11 +73,12 @@ func TestGetGitCreds(t *testing.T) {
 		{
 			name: "GitHub App credentials",
 			repo: &Repository{
+				Repo:                    "https://github.com/argoproj/argo-cd",
 				GithubAppPrivateKey:     "github-key",
 				GithubAppId:             123,
 				GithubAppInstallationId: 456,
 			},
-			expected: git.NewGitHubAppCreds(123, 456, "github-key", "", "", "", false, "", "", nil),
+			expected: git.NewGitHubAppCreds(123, 456, "github-key", "", "", "", false, "", "", nil, "https://github.com/argoproj/argo-cd"),
 		},
 		{
 			name: "Google Cloud credentials",
