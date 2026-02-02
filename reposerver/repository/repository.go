@@ -3086,7 +3086,6 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.UpdateRevisionForPathsRequest) (*apiclient.UpdateRevisionForPathsResponse, error) {
 	logCtx := log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace})
 
-	// Check for changes in all sources from SourceMetas (main source and ref sources)
 	// Store resolved revisions for cache update
 	newRepoRefs := make(map[string]string, 0)
 	oldRepoRefs := make(map[string]string, 0)
