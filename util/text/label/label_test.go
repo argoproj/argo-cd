@@ -37,72 +37,84 @@ func TestParseRejectsDeletionSyntax(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "deletion syntax not supported")
 
-	// ParseLabelMap should accept deletion syntax
-	lm, err := ParseLabelMap([]string{"x-"})
+	// ParseMap should accept deletion syntax
+	lm, err := ParseMap([]string{"x-"})
 	require.NoError(t, err)
-	assert.True(t, lm.Updates["x"].Delete)
+	assert.True(t, lm["x"].Delete)
 }
 
-func TestParseLabelMap(t *testing.T) {
+func TestParseMap(t *testing.T) {
 	// Test basic parsing
-	result, err := ParseLabelMap([]string{"x=5", "y=10"})
+	result, err := ParseMap([]string{"x=5", "y=10"})
 	require.NoError(t, err)
-	assert.Len(t, result.Updates, 2)
-	assert.Equal(t, "5", result.Updates["x"].Value)
-	assert.False(t, result.Updates["x"].Delete)
-	assert.Equal(t, "10", result.Updates["y"].Value)
-	assert.False(t, result.Updates["y"].Delete)
+	assert.Len(t, result, 2)
+	assert.Equal(t, "5", result["x"].Value)
+	assert.False(t, result["x"].Delete)
+	assert.Equal(t, "10", result["y"].Value)
+	assert.False(t, result["y"].Delete)
 
 	// Test deletion syntax
-	result, err = ParseLabelMap([]string{"x-"})
+	result, err = ParseMap([]string{"x-"})
 	require.NoError(t, err)
-	assert.Len(t, result.Updates, 1)
-	assert.True(t, result.Updates["x"].Delete)
+	assert.Len(t, result, 1)
+	assert.True(t, result["x"].Delete)
 
 	// Test mixed syntax
-	result, err = ParseLabelMap([]string{"x=5", "y-"})
+	result, err = ParseMap([]string{"x=5", "y-"})
 	require.NoError(t, err)
-	assert.Len(t, result.Updates, 2)
-	assert.Equal(t, "5", result.Updates["x"].Value)
-	assert.False(t, result.Updates["x"].Delete)
-	assert.True(t, result.Updates["y"].Delete)
+	assert.Len(t, result, 2)
+	assert.Equal(t, "5", result["x"].Value)
+	assert.False(t, result["x"].Delete)
+	assert.True(t, result["y"].Delete)
 
 	// Test invalid deletion syntax
-	_, err = ParseLabelMap([]string{"-"})
+	_, err = ParseMap([]string{"-"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid label deletion syntax")
+
+	// Test nil input returns empty map
+	result, err = ParseMap(nil)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Empty(t, result)
+
+	// Test empty slice returns empty map
+	result, err = ParseMap([]string{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Empty(t, result)
 }
 
-func TestLabelMapMerge(t *testing.T) {
+func TestMapMerge(t *testing.T) {
 	// Test deletion
-	lm, _ := ParseLabelMap([]string{"x-"})
+	lm, _ := ParseMap([]string{"x-"})
 	result := lm.Merge(map[string]string{"x": "5", "y": "10"})
 	assert.Len(t, result, 1)
 	assert.Equal(t, "10", result["y"])
 	assert.NotContains(t, result, "x")
 
 	// Test update and deletion
-	lm, _ = ParseLabelMap([]string{"x=6", "y-"})
+	lm, _ = ParseMap([]string{"x=6", "y-"})
 	result = lm.Merge(map[string]string{"x": "5", "y": "10"})
 	assert.Len(t, result, 1)
 	assert.Equal(t, "6", result["x"])
 
 	// Test deletion of non-existing key
-	lm, _ = ParseLabelMap([]string{"z-"})
+	lm, _ = ParseMap([]string{"z-"})
 	result = lm.Merge(map[string]string{"x": "5"})
 	assert.Len(t, result, 1)
 	assert.Equal(t, "5", result["x"])
 
 	// Test update only
-	lm, _ = ParseLabelMap([]string{"x=6"})
+	lm, _ = ParseMap([]string{"x=6"})
 	result = lm.Merge(map[string]string{"x": "5", "y": "10"})
 	assert.Len(t, result, 2)
 	assert.Equal(t, "6", result["x"])
 	assert.Equal(t, "10", result["y"])
 }
 
-func TestLabelMapPlain(t *testing.T) {
-	lm, _ := ParseLabelMap([]string{"x=5", "y-", "z=10"})
+func TestMapPlain(t *testing.T) {
+	lm, _ := ParseMap([]string{"x=5", "y-", "z=10"})
 
 	result := lm.Plain()
 	assert.Len(t, result, 2)
@@ -111,9 +123,30 @@ func TestLabelMapPlain(t *testing.T) {
 	assert.NotContains(t, result, "y")
 }
 
-func TestNewLabelMap(t *testing.T) {
-	lm := NewLabelMap()
+func TestNewMap(t *testing.T) {
+	lm := NewMap()
 	assert.NotNil(t, lm)
-	assert.NotNil(t, lm.Updates)
-	assert.Empty(t, lm.Updates)
+	assert.Empty(t, lm)
+}
+
+func TestMapParse(t *testing.T) {
+	// Test direct Parse method on Map
+	lm := NewMap()
+	err := lm.Parse([]string{"x=5", "y=10"})
+	require.NoError(t, err)
+	assert.Len(t, lm, 2)
+	assert.Equal(t, "5", lm["x"].Value)
+	assert.False(t, lm["x"].Delete)
+
+	// Test Parse with nil
+	lm = NewMap()
+	err = lm.Parse(nil)
+	require.NoError(t, err)
+	assert.Empty(t, lm)
+
+	// Test Parse with empty slice
+	lm = NewMap()
+	err = lm.Parse([]string{})
+	require.NoError(t, err)
+	assert.Empty(t, lm)
 }
