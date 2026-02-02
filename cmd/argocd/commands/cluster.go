@@ -264,14 +264,14 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				namespaces[0] = ""
 			}
 			// parse the labels you're receiving from the label flag
-			labelsMap, err := label.ParseLabelMap(labels)
+			labelsMap, err := label.ParseMap(labels)
 			errors.CheckError(err)
 			// parse the annotations you're receiving from the annotation flag
-			annotationsMap, err := label.ParseLabelMap(annotations)
+			annotationsMap, err := label.ParseMap(annotations)
 			errors.CheckError(err)
 
 			// fetch existing cluster to merge labels/annotations
-			if labelsMap.Updates != nil || annotationsMap.Updates != nil {
+			if len(labelsMap) > 0 || len(annotationsMap) > 0 {
 				existing, err := clusterIf.Get(ctx, getQueryBySelector(clusterName))
 				errors.CheckError(err)
 				if labelsMap != nil {
