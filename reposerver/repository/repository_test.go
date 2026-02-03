@@ -682,6 +682,90 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestHelmChartReferencingOCIValues(t *testing.T) {
+	service := newService(t, ".")
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$ref/testdata/oci-ref-values/values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: "oci://registry.example.com/config/app-values"},
+		},
+	}
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+		return &v1alpha1.Repository{
+			Repo: "oci://registry.example.com/config/app-values",
+		}, nil
+	}, []string{})
+	require.NoError(t, err)
+	request := &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	response, err := service.GenerateManifest(t.Context(), request)
+	require.NoError(t, err)
+	assert.NotNil(t, response)
+	assert.Equal(t, &apiclient.ManifestResponse{
+		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
+		Namespace:  "",
+		Server:     "",
+		Revision:   "1.1.0",
+		SourceType: "Helm",
+		Commands:   []string{`helm template . --name-template "" --values ./testdata/my-chart/testdata/oci-ref-values/values.yaml --include-crds`},
+	}, response)
+}
+
+func TestHelmChartReferencingOCIValues_InvalidRefs(t *testing.T) {
+	// Test with non-existent ref - should fail
+	service := newService(t, ".")
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$ref/testdata/non-existent-values/values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: "oci://registry.example.com/config/app-values"},
+		},
+	}
+
+	getRepository := func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+		return &v1alpha1.Repository{
+			Repo: "oci://registry.example.com/config/app-values",
+		}, nil
+	}
+
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{})
+	require.NoError(t, err)
+
+	request := &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	response, err := service.GenerateManifest(t.Context(), request)
+	require.Error(t, err)
+	assert.Nil(t, response)
+
+	// Test with invalid ref name
+	spec = v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$invalidRef/testdata/oci-ref-values/values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: "oci://registry.example.com/config/app-values"},
+		},
+	}
+
+	refSources, err = argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{})
+	require.NoError(t, err)
+
+	request = &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	response, err = service.GenerateManifest(t.Context(), request)
+	require.Error(t, err)
+	assert.Nil(t, response)
+}
+
 func TestGenerateManifestsUseExactRevision(t *testing.T) {
 	service, gitClient, _ := newServiceWithMocks(t, ".", false)
 

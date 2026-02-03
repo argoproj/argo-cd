@@ -314,6 +314,24 @@ func (repo *Repository) GetOCICreds() oci.Creds {
 	}
 }
 
+// IsOCI returns true if the repository is an OCI repository
+func (repo *Repository) IsOCI() bool {
+	return IsOCIURL(repo.Repo)
+}
+
+// IsOCIURL returns true if the URL is an OCI registry URL
+func IsOCIURL(url string) bool {
+	return strings.HasPrefix(url, "oci://")
+}
+
+// NormalizeRepoURL returns the normalized repository URL
+func (repo *Repository) NormalizeRepoURL() string {
+	if repo.IsOCI() {
+		return repo.Repo
+	}
+	return git.NormalizeGitURL(repo.Repo)
+}
+
 func getCAPath(repoURL string) string {
 	// For git ssh protocol url without ssh://, url.Parse() will fail to parse.
 	// However, no warn log is output since ssh scheme url is a possible format.
