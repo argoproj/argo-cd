@@ -1,4 +1,4 @@
-import {ErrorNotification, NotificationType} from 'argo-ui';
+import {ErrorNotification, HelpIcon, NotificationType} from 'argo-ui';
 import * as classNames from 'classnames';
 import React, {type ReactNode, useCallback, useContext, useEffect, useRef, useState, Fragment} from 'react';
 import {Form, type FormApi} from 'react-form';
@@ -11,6 +11,7 @@ import './editable-panel.scss';
 export interface EditablePanelItem {
     title: string;
     customTitle?: string | ReactNode;
+    hint?: string;
     key?: string;
     before?: ReactNode;
     view: string | ReactNode;
@@ -126,7 +127,18 @@ function EditablePanel<T extends {} = {}>({
             {item.before}
             <div className='row white-box__details-row'>
                 <div className='columns small-3' style={isIndented ? {paddingLeft: '2em'} : undefined}>
-                    {api && item.titleEdit ? item.titleEdit(api) : item.customTitle || item.title}
+                    {api && item.titleEdit ? (
+                        item.titleEdit(api)
+                    ) : (
+                        <>
+                            {item.customTitle || item.title}
+                            {item.hint && (
+                                <span style={{marginLeft: '0.25em'}}>
+                                    <HelpIcon title={item.hint} />
+                                </span>
+                            )}
+                        </>
+                    )}
                 </div>
                 <div className='columns small-9'>{api && item.edit ? item.edit(api) : item.view}</div>
             </div>
