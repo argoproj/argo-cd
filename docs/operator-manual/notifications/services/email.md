@@ -21,9 +21,9 @@ When configuring Gmail as the SMTP service:
 
 To Generate an app password, follow this link https://myaccount.google.com/apppasswords
 
-!!! note
-    This applies to personal Gmail accounts (non-Google Workspace). For Google Workspace users, SMTP settings 
-    and authentication methods may differ.
+> [!NOTE]
+> This applies to personal Gmail accounts (non-Google Workspace). For Google Workspace users, SMTP settings 
+> and authentication methods may differ.
 
 ## Example
 

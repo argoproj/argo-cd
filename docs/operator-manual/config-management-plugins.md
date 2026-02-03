@@ -255,15 +255,14 @@ Plugin commands have access to
     produce this JSON:
    
         [{"name": "values-files", "array": ["values-dev.yaml"]}, {"name": "helm-parameters", "map": {"image.tag": "v1.2.3"}}]
-   
-    !!! note
-        Parameter announcements, even if they specify defaults, are _not_ sent to the plugin in `ARGOCD_APP_PARAMETERS`.
-        Only parameters explicitly set in the Application spec are sent to the plugin. It is up to the plugin to apply
-        the same defaults as the ones announced to the UI.
-   
+
+    Parameter announcements, even if they specify defaults, are _not_ sent to the plugin in `ARGOCD_APP_PARAMETERS`.
+    Only parameters explicitly set in the Application spec are sent to the plugin. It is up to the plugin to apply
+    the same defaults as the ones announced to the UI.
+
     The same parameters are also available as individual environment variables. The names of the environment variables
     follows this convention:
-   
+
            - name: some-string-param
              string: some-string-value
            # PARAM_SOME_STRING_PARAM=some-string-value
@@ -315,26 +314,24 @@ If you don't need to set any environment variables, you can set an empty plugin 
     plugin: {}
 ```
 
-> [!IMPORTANT]
-> If your CMP command runs too long, the command will be killed, and the UI will show an error. The CMP server
-> respects the timeouts set by the `server.repo.server.timeout.seconds` and `controller.repo.server.timeout.seconds` 
-> items in `argocd-cmd-params-cm`. Increase their values from the default of 60s.
->
-> Each CMP command will also independently timeout on the `ARGOCD_EXEC_TIMEOUT` set for the CMP sidecar. The default
-> is 90s. So if you increase the repo server timeout greater than 90s, be sure to set `ARGOCD_EXEC_TIMEOUT` on the
-> sidecar.
-    
-> [!NOTE]
-> Each Application can only have one config management plugin configured at a time. If you're converting an existing
-> plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure to update the plugin name to either `<metadata.name>-<spec.version>` 
-> if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. You can also remove the name altogether 
-> and let the automatic discovery to identify the plugin.
+### Errors and Timeouts
 
-> [!NOTE]
-> If a CMP renders blank manifests, and `prune` is set to `true`, Argo CD will automatically remove resources. CMP plugin authors should ensure errors are part of the exit code. Commonly something like `kustomize build . | cat` won't pass errors because of the pipe. Consider setting `set -o pipefail` so anything piped will pass errors on failure.
+If your CMP command runs too long, the command will be killed, and the UI will show an error. The CMP server
+respects the timeouts set by the `server.repo.server.timeout.seconds` and `controller.repo.server.timeout.seconds` 
+items in `argocd-cmd-params-cm`. Increase their values from the default of 60s.
 
-> [!NOTE]
-> If a CMP command fails to gracefully exit on `ARGOCD_EXEC_TIMEOUT`, it will be forcefully killed after an additional timeout of `ARGOCD_EXEC_FATAL_TIMEOUT`.
+Each CMP command will also independently timeout on the `ARGOCD_EXEC_TIMEOUT` set for the CMP sidecar. The default
+is 90s. So if you increase the repo server timeout greater than 90s, be sure to set `ARGOCD_EXEC_TIMEOUT` on the
+sidecar. If a CMP command fails to gracefully exit on `ARGOCD_EXEC_TIMEOUT`, it will be forcefully killed after an additional timeout of `ARGOCD_EXEC_FATAL_TIMEOUT`.
+
+Each Application can only have one config management plugin configured at a time. If you're converting an existing
+plugin configured through the `argocd-cm` ConfigMap to a sidecar, make sure to update the plugin name to either `<metadata.name>-<spec.version>` 
+if version was mentioned in the `ConfigManagementPlugin` spec or else just use `<metadata.name>`. You can also remove the name altogether 
+and let the automatic discovery to identify the plugin.
+
+If a CMP renders blank manifests, and `prune` is set to `true`, Argo CD will automatically remove resources. 
+CMP plugin authors should ensure errors are part of the exit code. Commonly something like `kustomize build . | cat` 
+won't pass errors because of the pipe. Consider setting `set -o pipefail` so anything piped will pass errors on failure.
 
 ## Debugging a CMP
 
