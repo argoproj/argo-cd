@@ -616,7 +616,7 @@ stringData:
     {
       "awsAuthConfig": {
         "clusterName": "my-eks-cluster-name",
-        "roleARN": "arn:aws:iam::<TARGET_AWS_ACCOUNT_ID>:role/<TARGET_IAM_ROLE_NAME>"
+        "roleARN": "arn:aws:iam::<TARGET_AWS_ACCOUNT_ID>:role/<TARGET_CLUSTER_IAM_ROLE>"
       },
       "tlsClientConfig": {
         "insecure": false,
@@ -650,7 +650,7 @@ The service accounts that need to assume this role are:
 - `argocd-applicationset-controller`
 - `argocd-server`
 
-If we create a role `arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>` for this purpose, 
+If we create a role `arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE>` for this purpose, 
 the following is an example trust policy suitable for this need. 
 Ensure that the Argo CD cluster has an [IAM OIDC provider configured](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) 
 or [Pod Identity agent running](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-agent-setup.html)
@@ -669,7 +669,7 @@ or [Pod Identity agent running](https://docs.aws.amazon.com/eks/latest/userguide
             "Action": "sts:AssumeRole",
             "Condition": {
                 "ArnLike": {
-                  "aws:PrincipalArn": "arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_ROLE_NAME>"
+                  "aws:PrincipalArn": "arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE>"
                 }
             }
         },
@@ -742,29 +742,29 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    eks.amazonaws.com/role-arn: "<arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+    eks.amazonaws.com/role-arn: "<arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE>"
   name: argocd-application-controller
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    eks.amazonaws.com/role-arn: "<arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+    eks.amazonaws.com/role-arn: "<arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE>"
   name: argocd-applicationset-controller
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    eks.amazonaws.com/role-arn: "<arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+    eks.amazonaws.com/role-arn: "<arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE>"
   name: argocd-server
 ```
 
 **for Pod Identity:**  
 ```shell
-aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-applicationset-controller --role-arn arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
-aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-application-controller --role-arn arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
-aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-server --role-arn arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
+aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-applicationset-controller --role-arn arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE>
+aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-application-controller --role-arn arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE>
+aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-server --role-arn arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE>
 ```
 
 #### Target Cluster IAM Role
@@ -792,7 +792,7 @@ The permissions are as below:
 
 ##### IAM Permission Policy
 
-The Argo CD management role (`arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>` in our example)
+The Argo CD management role (`arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE>` in our example)
 needs to be allowed to assume the Target Cluster IAM Role for each cluster to be added to Argo CD.
 
 Update the permission policy of the Argo CD Management IAM Role to include the following:
@@ -844,7 +844,7 @@ For the Target Cluster IAM Role we set its trust policy to give the Argo CD mana
 We're granting the Argo CD management role permission to assume this role above, but we also need to permit that action 
 in the cluster role's trust policy.
 
-A suitable trust policy allowing the `TARGET_CLUSTER_IAM_ROLE` to be assumed by the `ARGO_CD_MANAGEMENT_IAM_ROLE_NAME` role looks like this:
+A suitable trust policy allowing the `TARGET_CLUSTER_IAM_ROLE` to be assumed by the `ARGO_CD_MANAGEMENT_IAM_ROLE` looks like this:
 
 **for IRSA:**
 ```json
@@ -854,7 +854,7 @@ A suitable trust policy allowing the `TARGET_CLUSTER_IAM_ROLE` to be assumed by 
         {
             "Effect": "Allow",
             "Principal": {
-                "AWS": "arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+                "AWS": "arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE>"
             },
             "Action": "sts:AssumeRole"
         }
@@ -870,7 +870,7 @@ A suitable trust policy allowing the `TARGET_CLUSTER_IAM_ROLE` to be assumed by 
         {
             "Effect": "Allow",
             "Principal": {
-                "AWS": "arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+                "AWS": "arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE>"
             },
             "Action": [
                 "sts:TagSession",
@@ -925,7 +925,7 @@ An example assume role policy for a cluster which is managed by Argo CD:
       "Effect" : "Allow",
       "Action" : "sts:AssumeRole",
       "Principal" : {
-        "AWS" : "<arn:aws:iam::<ARGO_CD_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+        "AWS" : "<arn:aws:iam::<ARGO_CD_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE>"
       }
     }
   }
