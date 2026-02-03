@@ -41,7 +41,8 @@ kubectl get deployment
 The cluster mode grants full cluster access to the GitOps Agent. Use the following command to install an agent into the
 `gitops-agent` namespace and use it to manage resources in any cluster namespace.
 
-> Note. In cluster mode agents gets **full** cluster access.
+> [!NOTE]
+> In cluster mode agents gets **full** cluster access.
 > See [gitops-agent-cluster-role.yaml](./manifests/cluster-install/gitops-agent-cluster-role.yaml) definition for more information. 
 
 ```bash
