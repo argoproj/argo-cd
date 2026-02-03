@@ -142,9 +142,36 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 	// the provided parameter (which will touch the original resource object returned by client-go)
 	dest := g.GetTemplate(requestedGenerator).DeepCopy()
 
-	err := mergo.Merge(dest, applicationSetTemplate)
+	// If the generator template is empty, return the ApplicationSet template as is
+	if isEmptyTemplate(*dest) {
+		return applicationSetTemplate, nil
+	}
 
+	// Merge the ApplicationSet template into the generator template
+	err := mergo.Merge(dest, applicationSetTemplate)
 	return *dest, err
+}
+
+func isEmptyTemplate(template argoprojiov1alpha1.ApplicationSetTemplate) bool {
+	meta := template.ApplicationSetTemplateMeta
+	spec := template.Spec
+
+	// Check if metadata is empty
+	metaEmpty := meta.Name == "" &&
+		meta.Namespace == "" &&
+		len(meta.Labels) == 0 &&
+		len(meta.Annotations) == 0 &&
+		len(meta.Finalizers) == 0
+
+	// Check if spec is empty
+	specEmpty := spec.Project == "" &&
+		spec.Source == nil &&
+		spec.Sources == nil &&
+		spec.Destination.Server == "" &&
+		spec.Destination.Namespace == "" &&
+		spec.Destination.Name == ""
+
+	return metaEmpty && specEmpty
 }
 
 // InterpolateGenerator allows interpolating the matrix's 2nd child generator with values from the 1st child generator
