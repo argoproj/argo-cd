@@ -49,7 +49,9 @@ export default class UiTestUtilities {
 
         UiTestUtilities.log('Environment variables are:');
         const loadedConfig = require('dotenv').config({path: __dirname + '/../.env'});
-        loadedConfig["parsed"]["ARGOCD_AUTH_PASSWORD"] = "<REDACTED>"
+        if (loadedConfig && loadedConfig.parsed && loadedConfig.parsed["ARGOCD_AUTH_PASSWORD"] !== undefined) {
+            loadedConfig.parsed["ARGOCD_AUTH_PASSWORD"] = "<REDACTED>";
+        }
         UiTestUtilities.log(loadedConfig);
 
         // Navigate to the ArgoCD URL
@@ -74,7 +76,7 @@ export default class UiTestUtilities {
     public static async captureSession(driver: any, fileName: string) {
         const screenshot = await driver.takeScreenshot();
         const binaryBuffer: Buffer = Buffer.from(screenshot, 'base64');
-        fs.writeFileSync(`/root/.npm/_logs/${fileName}`, binaryBuffer);
+        fs.writeFileSync(`${Configuration.TEST_SCREENSHOTS_DIRECTORY}/${fileName}`, binaryBuffer);
         console.log(`Screenshot saved to: ${fileName}`);
     }
 

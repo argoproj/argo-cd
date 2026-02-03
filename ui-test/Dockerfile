@@ -23,4 +23,4 @@ RUN yarn install && yarn cache clean
 COPY . .
 
 ENTRYPOINT ["bash", "-c"]
-CMD ["npm rum compile && npm rum pretest && npm rum test"]
+CMD ["npm run compile && npm run pretest && npm run test"]

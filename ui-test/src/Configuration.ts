@@ -8,6 +8,7 @@ export default class Configuration {
     public static readonly TEST_ERROR_TOAST_TIMEOUT: number = parseInt(process.env.TEST_ERROR_TOAST_TIMEOUT ?? "1000");
     public static readonly TEST_IS_NOT_VISIBLE_TIMEOUT: number = parseInt(process.env.TEST_IS_NOT_VISIBLE_TIMEOUT ?? "10000");
     public static readonly TEST_SLIDING_PANEL_TIMEOUT: number = parseInt(process.env.TEST_SLIDING_PANEL_TIMEOUT ?? "5000");
+    public static readonly TEST_SCREENSHOTS_DIRECTORY: string = process.env.TEST_SCREENSHOTS_DIRECTORY ?? "/root/.npm/_logs/";
 
     // ArgoCD UI specific.  These are for single application-based tests, so one can quickly create an app based on the environment variables
     public static readonly ARGOCD_URL: string = process.env.ARGOCD_URL ? process.env.ARGOCD_URL : '';

@@ -4,7 +4,7 @@ import UiTestUtilities from './UiTestUtilities';
 import { Navigation } from './navigation';
 import Configuration from './Configuration';
 
-async function runTestCase(filePath: string, navigation: Navigation) {
+async function runTestCase(filePath: string, navigation: Navigation): Promise<boolean> {
     try {
         const testModule = require(filePath);
         if (typeof testModule.doTest === 'function') {
@@ -16,7 +16,9 @@ async function runTestCase(filePath: string, navigation: Navigation) {
         }
     } catch (error) {
         UiTestUtilities.logError(`[ERROR]: Failed to execute ${filePath}: ${error}`);
+        return false;
     }
+    return true;
 }
 
 async function runTestSuite() {
@@ -26,7 +28,9 @@ async function runTestSuite() {
         .filter(file => (file.endsWith('.ts') || file.endsWith('.js')) && !file.endsWith('.d.ts'))
         .sort();
 
-    UiTestUtilities.log(`--- Starting Test Suite: Found ${files.length} test cases ---\n`);
+    const total = files.length;
+    UiTestUtilities.log(`--- Starting Test Suite: Found ${total} test cases ---\n`);
+    let success = 0;
     for (const file of files) {
         let navigation: Navigation = await UiTestUtilities.init();
         try {
@@ -34,14 +38,20 @@ async function runTestSuite() {
                 await navigation.getLoginPage().loginWithCredentials();
             }
 
-            await runTestCase(path.join(testCasesDir, file), navigation);
+            if (await runTestCase(path.join(testCasesDir, file), navigation)) {
+                success += 1;
+            }
         } finally {
             UiTestUtilities.log(`[CLEANUP]: Closing browser for test ${file}`);
             await navigation.quit();
         }
     }
 
-    UiTestUtilities.log('--- Test Suite Execution Finished ---');
+    if (success !== total) {
+        UiTestUtilities.log('--- TEST FAILURE ---');
+        throw new Error(`test success ${success} - failure: ${total - success} - total: ${total}`);
+    }
+    UiTestUtilities.log(`--- Test Suite Execution Finished (success ${success}/${total}) ---`);
 }
 
 runTestSuite().catch(err => UiTestUtilities.logError(`Suite Level Failure: ${err}`));

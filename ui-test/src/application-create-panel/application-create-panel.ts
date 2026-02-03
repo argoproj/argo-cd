@@ -157,9 +157,9 @@ export class ApplicationCreatePanel extends Base {
             }
             await UiTestUtilities.sleep(200)
             await UiTestUtilities.captureSession(this.driver, "clickCreateButton_after.png")
-            await this.driver.wait(until.elementIsNotVisible(createButton), Configuration.TEST_TIMEOUT).catch((e) => {
+            await this.driver.wait(until.elementIsNotVisible(createButton), Configuration.TEST_TIMEOUT).catch(async (e) => {
                 UiTestUtilities.logError('The Create Application Sliding Panel did not disappear');
-                UiTestUtilities.captureSession(this.driver, "clickCreateButton_after_notdisapeared.png")
+                await UiTestUtilities.captureSession(this.driver, "clickCreateButton_after_notdisapeared.png")
                 throw e;
             });
         } catch (err: any) {
