@@ -48,7 +48,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 <Spinner show={isPending} style={{marginRight: '5px'}} />
                                 Synchronize
                             </button>{' '}
-                            <button onClick={() => hide()} qe-id='application-sync-panel-button-synchronize' className='argo-button argo-button--base-o'>
+                            <button onClick={() => hide()} qe-id='application-sync-panel-button-cancel' className='argo-button argo-button--base-o'>
                                 Cancel
                             </button>
                         </div>

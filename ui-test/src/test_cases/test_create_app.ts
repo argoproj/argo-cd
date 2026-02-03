@@ -3,7 +3,7 @@ import UiTestUtilities from '../UiTestUtilities';
 import assert = require("assert")
 import {ApplicationsList} from '../applications-list/applications-list';
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
-import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
+import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {PopupManager} from '../popup/popup-manager';
 import {Navigation} from '../navigation';
 
@@ -32,7 +32,7 @@ export async function doTest(navigation: Navigation) {
     )
 
     UiTestUtilities.log('Clicking on sync!');
-    const appsSyncPanel: ApplicationsSyncPanel = await appsList.clickSyncButtonOnApp(Configuration.APP_NAME);
+    const appsSyncPanel: ApplicationSyncPanel = await appsList.clickSyncButtonOnApp(Configuration.APP_NAME);
     await appsSyncPanel.clickSyncButton();
 
     await appsList.waitForHealthStatusOnApp(Configuration.APP_NAME);

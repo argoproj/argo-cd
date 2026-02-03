@@ -5,12 +5,13 @@ import assert = require("assert")
 import {ApplicationsList} from '../applications-list/applications-list';
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
+import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {PopupManager} from '../popup/popup-manager';
 import {Navigation} from '../navigation';
 
 async function syncApplication(appsList: ApplicationsList, appName: string) {
     UiTestUtilities.log('About to sync application');
-    const appsSyncPanel: ApplicationsSyncPanel = await appsList.clickSyncButtonOnApp(appName);
+    const appsSyncPanel: ApplicationSyncPanel = await appsList.clickSyncButtonOnApp(appName);
     await appsSyncPanel.clickSyncButton();
 
     await appsList.waitForHealthStatusOnApp(appName);
@@ -43,7 +44,7 @@ async function assertExternalLinks(navigation: Navigation) {
 }
 
 async function assertSourcesShown(navigation: Navigation) {
-    const locator: By = By.xpath('//div["@title=Repository:"]')
+    const locator: By = By.xpath('//div[@title="Repository:"]');
     assert(await UiTestUtilities.findUiElement(navigation.getDriver(), locator), "Repository info not found");
     await UiTestUtilities.captureSession(navigation.getDriver(), "assert_sources_shown.png");
 }

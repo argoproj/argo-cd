@@ -24,6 +24,7 @@ import (
 var appFields = map[string]func(app *v1alpha1.Application) any{
 	"metadata.name":              func(app *v1alpha1.Application) any { return app.Name },
 	"metadata.namespace":         func(app *v1alpha1.Application) any { return app.Namespace },
+	"metadata.annotation":        func(app *v1alpha1.Application) any { return app.Annotations },
 	"metadata.labels":            func(app *v1alpha1.Application) any { return app.Labels },
 	"metadata.creationTimestamp": func(app *v1alpha1.Application) any { return app.CreationTimestamp },
 	"metadata.deletionTimestamp": func(app *v1alpha1.Application) any { return app.DeletionTimestamp },

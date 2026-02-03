@@ -34,6 +34,7 @@ const WATCH_RETRY_TIMEOUT = 500;
 const APP_FIELDS = [
     'metadata.name',
     'metadata.namespace',
+    'metadata.annotations',
     'metadata.labels',
     'metadata.creationTimestamp',
     'metadata.deletionTimestamp',
@@ -181,7 +182,7 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
 function filterApplications(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
     const processedApps = applications.map(app => {
         let isAppOfAppsPattern = false;
-        if (app.status.summary.isAppOfApps === true) {
+        if (app.status.summary?.isAppOfApps === true) {
             isAppOfAppsPattern = true;
         }
         return {...app, isAppOfAppsPattern};

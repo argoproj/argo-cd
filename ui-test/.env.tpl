@@ -31,7 +31,7 @@ ARGOCD_NAMESPACE=argocd-e2e
 ARGOCD_AUTH_USERNAME=admin
 #
 # argocd credentials (if any)
-ARGOCD_AUTH_PASSWORD="passowrd"
+#ARGOCD_AUTH_PASSWORD=password
 #
 # Git repository where applications reside
 GIT_REPO=https://github.com/argoproj/argocd-example-apps
