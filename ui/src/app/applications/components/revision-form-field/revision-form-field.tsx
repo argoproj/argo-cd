@@ -5,6 +5,7 @@ import {FormApi} from 'react-form';
 import {AutocompleteField, DataLoader, DropDownMenu, FormField} from 'argo-ui';
 import {RevisionHelpIcon} from '../../../shared/components';
 import {services} from '../../../shared/services';
+import './revision-form-field.scss';
 
 interface RevisionFormFieldProps {
     formApi: FormApi;
@@ -24,11 +25,11 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
     };
 
     const selectedFilter = props.revisionType || filterType;
-    const extraPadding = props.hideLabel ? '0em' : '1.53em';
     const rowClass = props.hideLabel ? '' : ' argo-form-row';
+    const rowPaddingRight = !props.revisionType ? '45px' : undefined;
     return (
-        <div className={'row' + rowClass}>
-            <div className='columns small-10'>
+        <div className={'row' + rowClass + ' revision-form-field'} style={{paddingRight: rowPaddingRight}}>
+            <div className='revision-form-field__main'>
                 <DataLoader
                     input={{repoURL: props.repoURL, filterType: selectedFilter}}
                     load={async (src: any): Promise<string[]> => {
@@ -36,7 +37,7 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
                             return services.repos
                                 .ociTags(src.repoURL)
                                 .then(revisionsRes => ['HEAD'].concat(revisionsRes.tags || []))
-                                .catch(() => []);
+                                .catch((): string[] => []);
                         } else if (src.repoURL) {
                             return services.repos
                                 .revisions(src.repoURL)
@@ -45,7 +46,7 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
                                         .concat(selectedFilter === 'Branches' ? revisionsRes.branches || [] : [])
                                         .concat(selectedFilter === 'Tags' ? revisionsRes.tags || [] : [])
                                 )
-                                .catch(() => []);
+                                .catch((): string[] => []);
                         }
                         return [];
                     }}>
@@ -62,9 +63,8 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
                         />
                     )}
                 </DataLoader>
-                <RevisionHelpIcon type='git' top={props.helpIconTop} right='0em' />
             </div>
-            <div style={{paddingTop: extraPadding}} className='columns small-2'>
+            <div className='revision-form-field__dropdown'>
                 {props.repoType !== 'oci' && !props.revisionType && (
                     <DropDownMenu
                         anchor={() => (
@@ -82,6 +82,7 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
                     />
                 )}
             </div>
+            {!props.revisionType && <RevisionHelpIcon type='git' top={props.helpIconTop} right='0em' />}
         </div>
     );
 }

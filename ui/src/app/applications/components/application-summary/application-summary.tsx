@@ -391,14 +391,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                       title: 'TARGET REVISION',
                       view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
                       edit: (formApi: FormApi) => (
-                          <RevisionFormField
-                              helpIconTop={'0'}
-                              hideLabel={true}
-                              formApi={formApi}
-                              fieldValue='spec.source.targetRevision'
-                              repoURL={source.repoURL}
-                              repoType={repoType}
-                          />
+                          <RevisionFormField hideLabel={true} formApi={formApi} fieldValue='spec.source.targetRevision' repoURL={source.repoURL} repoType={repoType} />
                       )
                   },
                   {
@@ -468,7 +461,6 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                       view: <Revision repoUrl={app.spec.sourceHydrator?.drySource?.repoURL} revision={app.spec.sourceHydrator?.drySource?.targetRevision || 'HEAD'} />,
                       edit: (formApi: FormApi) => (
                           <RevisionFormField
-                              helpIconTop={'0'}
                               hideLabel={true}
                               formApi={formApi}
                               fieldValue='spec.sourceHydrator.drySource.targetRevision'
