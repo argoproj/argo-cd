@@ -1,5 +1,19 @@
 # UI Customization
 
+## Default Theme
+
+You can configure the default theme for the ArgoCD UI by setting the `ui.defaulttheme` key in the [argocd-cm](argocd-cm-yaml.md) ConfigMap.
+
+The following configuration:
+```yaml
+ui.defaulttheme: "auto"
+```
+
+**Behavior:**
+- First-time users will see the theme specified in `ui.defaulttheme`
+- Existing users will continue to see their previously selected theme (stored in browser localStorage)
+- Users can change their theme preference at any time, which will be persisted in their browser
+
 ## Default Application Details View
 
 By default, the Application Details will show the `Tree` view.
