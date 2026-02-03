@@ -59,6 +59,7 @@
 
     $pod-size: 25px;
     $gutter: 3px;
+    // Keep in sync with `POD_GROUP_PODS_PER_ROW` in `application-resource-tree.tsx`.
     $pods-per-row: 8;
     $pods-per-column: 4;
     $max-rows: 5;

@@ -86,6 +86,8 @@ const NODE_WIDTH = 282;
 const NODE_HEIGHT = 52;
 const POD_NODE_HEIGHT = 136;
 const POD_GROUP_ROW_HEIGHT = 20;
+// Keep in sync with `$pods-per-row` in `application-resource-tree.scss`.
+const POD_GROUP_PODS_PER_ROW = 8;
 const FILTERED_INDICATOR_NODE = '__filtered_indicator__';
 const EXTERNAL_TRAFFIC_NODE = '__external_traffic__';
 const INTERNAL_TRAFFIC_NODE = '__internal_traffic__';
@@ -415,7 +417,7 @@ function getPodGroupNumberOfRows(pods: models.Pod[], showPodGroupByStatus: boole
         }
         return statuses.size;
     }
-    return Math.ceil(pods.length / 8);
+    return Math.ceil(pods.length / POD_GROUP_PODS_PER_ROW);
 }
 
 function renderPodGroup(
@@ -443,8 +445,6 @@ function renderPodGroup(
         return acc;
     }, []);
     const childCount = nonPodChildren?.length;
-    const margin = 8;
-    let topExtra = 0;
     const podGroup = node.podGroup;
     const podGroupHealthy = [];
     const podGroupDegraded = [];
@@ -463,11 +463,10 @@ function renderPodGroup(
         }
     }
 
-    const numberOfRows = getPodGroupNumberOfRows(podGroup?.pods, showPodGroupByStatus);
-
-    if (podGroup) {
-        topExtra = margin + (POD_NODE_HEIGHT / 2 + POD_GROUP_ROW_HEIGHT * numberOfRows) / 2;
-    }
+    // Use Dagre's measured height directly to avoid duplicating sizing logic in the render path.
+    // Dagre assigns node.y as the node center; convert to DOM top-left for rendering.
+    const podGroupHeight = node.height;
+    const podGroupTop = node.y - podGroupHeight / 2;
 
     return (
         <div
@@ -479,9 +478,9 @@ function renderPodGroup(
             title={describeNode(node)}
             style={{
                 left: node.x,
-                top: node.y - topExtra,
+                top: podGroupTop,
                 width: node.width,
-                height: showPodGroupByStatus ? POD_NODE_HEIGHT + POD_GROUP_ROW_HEIGHT * numberOfRows : node.height
+                height: podGroupHeight
             }}>
             <NodeUpdateAnimation resourceVersion={node.resourceVersion} />
             <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} className={`application-resource-tree__node__top-part`}>
@@ -539,7 +538,7 @@ function renderPodGroup(
                         <>
                             <br />
                             <div
-                                style={{top: node.height / 2 - 6}}
+                                style={{top: podGroupHeight / 2 - 6}}
                                 className='application-resource-tree__node--podgroup--expansion'
                                 onClick={event => {
                                     expandCollapse(node, props);
