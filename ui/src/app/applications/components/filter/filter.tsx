@@ -151,7 +151,7 @@ export const Filter = (props: FilterProps) => {
                 <span className='filter__header__label' title={props.label || 'FILTER'}>
                     {props.label || 'FILTER'}
                 </span>
-                {props.selected.length > 0 || (props.field && Object.keys(values).length > 0) ? (
+                {(props.selected || []).length > 0 || (props.field && Object.keys(values).length > 0) ? (
                     <button
                         className='argo-button argo-button--base argo-button--sm argo-button--right'
                         onClick={() => {
@@ -188,7 +188,7 @@ export const Filter = (props: FilterProps) => {
                                 inputStyle={{marginBottom: '0.5em', backgroundColor: 'black', border: 'none', color: '#fff'}}
                             />
                         )}
-                        {(props.field ? tags : options).map((opt, i) => (
+                        {((props.field ? tags : options) || []).map((opt, i) => (
                             <CheckboxRow
                                 key={i}
                                 value={values[opt.label]}

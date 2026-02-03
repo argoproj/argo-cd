@@ -581,7 +581,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                             }}
                                                         />
                                                         <div className='applications-list'>
-                                                            {apps.length === 0 && pref.projectsFilter.length === 0 && pref.labelsFilter.length === 0 ? (
+                                                            {apps.length === 0 && pref.projectsFilter?.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                                 <EmptyState icon='argo-icon-application'>
                                                                     <h4>No applications available to you just yet</h4>
                                                                     <h5>Create new application to start managing resources in your cluster</h5>
@@ -788,7 +788,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                             }}
                                                         />
                                                         <div className='applications-list'>
-                                                            {appSets.length === 0 && pref.labelsFilter.length === 0 ? (
+                                                            {appSets.length === 0 && (pref.labelsFilter || []).length === 0 ? (
                                                                 <EmptyState icon='argo-icon-application'>
                                                                     <h4>No ApplicationSets available to you just yet</h4>
                                                                     <h5>ApplicationSets will appear here once created</h5>

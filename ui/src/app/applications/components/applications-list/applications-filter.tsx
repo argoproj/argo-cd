@@ -57,8 +57,8 @@ export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
 }
 
 export function getAppFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
-    const labelSelector = createMetadataSelector(pref.labelsFilter);
-    const annotationSelector = createMetadataSelector(pref.annotationsFilter);
+    const labelSelector = createMetadataSelector(pref.labelsFilter || []);
+    const annotationSelector = createMetadataSelector(pref.annotationsFilter || []);
 
     return applications.map(app => ({
         ...app,
@@ -89,7 +89,7 @@ export function getAppFilterResults(applications: Application[], pref: AppsListP
 }
 
 export function getAppSetFilterResults(appSets: ApplicationSet[], pref: AppSetsListPreferences): ApplicationSetFilteredApp[] {
-    const labelSelector = createMetadataSelector(pref.labelsFilter);
+    const labelSelector = createMetadataSelector(pref.labelsFilter || []);
 
     return appSets.map(appSet => ({
         ...appSet,
