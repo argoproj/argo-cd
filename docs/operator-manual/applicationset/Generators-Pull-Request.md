@@ -217,7 +217,7 @@ If you want to access a private repository, you must also provide the credential
 In case of Bitbucket App Token, go with `bearerToken` section.
 * `tokenRef`: A `Secret` name and key containing the app token to use for requests.
 
-In case self-signed BitBucket Server certificates, the following options can be usefully:
+In case of self-signed BitBucket Server certificates, the following options can be useful:
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 * `caRef`: Optional `ConfigMap` name and key containing the BitBucket server certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
@@ -282,7 +282,8 @@ You can use branch `filters` like
 - `branchMatch`: Optional regexp filter which should match the source branch name.
 - `targetBranchMatch`: Optional regexp filter which should match destination branch name.
 
-> Note: Labels are not supported by Bitbucket.
+> [!NOTE]
+> Labels are not supported by Bitbucket.
 
 If you want to access a private repository, Argo CD will need credentials to access repository in Bitbucket Cloud. You can use Bitbucket App Password (generated per user, with access to whole workspace), or Bitbucket App Token (generated per repository, with access limited to repository scope only). If both App Password and App Token are defined, App Token will be used.
 

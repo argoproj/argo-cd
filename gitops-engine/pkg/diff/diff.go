@@ -183,6 +183,9 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 		}
 	}
 
+	// Remarshal predictedLive to ensure it receives the same normalization as live.
+	predictedLive = remarshal(predictedLive, o)
+
 	Normalize(predictedLive, opts...)
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")
 

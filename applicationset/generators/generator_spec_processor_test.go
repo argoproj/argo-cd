@@ -1,7 +1,6 @@
 package generators
 
 import (
-	"context"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -16,8 +15,6 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	kubefake "k8s.io/client-go/kubernetes/fake"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -223,7 +220,7 @@ func TestTransForm(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			testGenerators := map[string]Generator{
-				"Clusters": getMockClusterGenerator(t.Context()),
+				"Clusters": getMockClusterGenerator(),
 			}
 
 			applicationSetInfo := argov1alpha1.ApplicationSet{
@@ -260,7 +257,7 @@ func emptyTemplate() argov1alpha1.ApplicationSetTemplate {
 	}
 }
 
-func getMockClusterGenerator(ctx context.Context) Generator {
+func getMockClusterGenerator() Generator {
 	clusters := []crtclient.Object{
 		&corev1.Secret{
 			TypeMeta: metav1.TypeMeta{
@@ -335,14 +332,8 @@ func getMockClusterGenerator(ctx context.Context) Generator {
 			Type: corev1.SecretType("Opaque"),
 		},
 	}
-	runtimeClusters := []runtime.Object{}
-	for _, clientCluster := range clusters {
-		runtimeClusters = append(runtimeClusters, clientCluster)
-	}
-	appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
-
 	fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
-	return NewClusterGenerator(ctx, fakeClient, appClientset, "namespace")
+	return NewClusterGenerator(fakeClient, "namespace")
 }
 
 func getMockGitGenerator() Generator {
@@ -354,7 +345,7 @@ func getMockGitGenerator() Generator {
 
 func TestGetRelevantGenerators(t *testing.T) {
 	testGenerators := map[string]Generator{
-		"Clusters": getMockClusterGenerator(t.Context()),
+		"Clusters": getMockClusterGenerator(),
 		"Git":      getMockGitGenerator(),
 	}
 
@@ -551,7 +542,7 @@ func TestInterpolateGeneratorError(t *testing.T) {
 			},
 			useGoTemplate:     true,
 			goTemplateOptions: []string{},
-		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: "failed to replace parameters in generator: failed to execute go template {{ index .rmap (default .override .test) }}: template: :1:3: executing \"\" at <index .rmap (default .override .test)>: error calling index: index of untyped nil"},
+		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: "failed to replace parameters in generator: failed to execute go template {{ index .rmap (default .override .test) }}: template: base:1:3: executing \"base\" at <index .rmap (default .override .test)>: error calling index: index of untyped nil"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

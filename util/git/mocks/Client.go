@@ -36,6 +36,69 @@ func (_m *Client) EXPECT() *Client_Expecter {
 	return &Client_Expecter{mock: &_m.Mock}
 }
 
+// AddAndPushNote provides a mock function for the type Client
+func (_mock *Client) AddAndPushNote(sha string, namespace string, note string) error {
+	ret := _mock.Called(sha, namespace, note)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddAndPushNote")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(string, string, string) error); ok {
+		r0 = returnFunc(sha, namespace, note)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Client_AddAndPushNote_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddAndPushNote'
+type Client_AddAndPushNote_Call struct {
+	*mock.Call
+}
+
+// AddAndPushNote is a helper method to define mock.On call
+//   - sha string
+//   - namespace string
+//   - note string
+func (_e *Client_Expecter) AddAndPushNote(sha interface{}, namespace interface{}, note interface{}) *Client_AddAndPushNote_Call {
+	return &Client_AddAndPushNote_Call{Call: _e.mock.On("AddAndPushNote", sha, namespace, note)}
+}
+
+func (_c *Client_AddAndPushNote_Call) Run(run func(sha string, namespace string, note string)) *Client_AddAndPushNote_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_AddAndPushNote_Call) Return(err error) *Client_AddAndPushNote_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Client_AddAndPushNote_Call) RunAndReturn(run func(sha string, namespace string, note string) error) *Client_AddAndPushNote_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ChangedFiles provides a mock function for the type Client
 func (_mock *Client) ChangedFiles(revision string, targetRevision string) ([]string, error) {
 	ret := _mock.Called(revision, targetRevision)
@@ -428,16 +491,16 @@ func (_c *Client_CommitSHA_Call) RunAndReturn(run func() (string, error)) *Clien
 }
 
 // Fetch provides a mock function for the type Client
-func (_mock *Client) Fetch(revision string) error {
-	ret := _mock.Called(revision)
+func (_mock *Client) Fetch(revision string, depth int64) error {
+	ret := _mock.Called(revision, depth)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Fetch")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(string) error); ok {
-		r0 = returnFunc(revision)
+	if returnFunc, ok := ret.Get(0).(func(string, int64) error); ok {
+		r0 = returnFunc(revision, depth)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -451,11 +514,143 @@ type Client_Fetch_Call struct {
 
 // Fetch is a helper method to define mock.On call
 //   - revision string
-func (_e *Client_Expecter) Fetch(revision interface{}) *Client_Fetch_Call {
-	return &Client_Fetch_Call{Call: _e.mock.On("Fetch", revision)}
+//   - depth int64
+func (_e *Client_Expecter) Fetch(revision interface{}, depth interface{}) *Client_Fetch_Call {
+	return &Client_Fetch_Call{Call: _e.mock.On("Fetch", revision, depth)}
 }
 
-func (_c *Client_Fetch_Call) Run(run func(revision string)) *Client_Fetch_Call {
+func (_c *Client_Fetch_Call) Run(run func(revision string, depth int64)) *Client_Fetch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_Fetch_Call) Return(err error) *Client_Fetch_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Client_Fetch_Call) RunAndReturn(run func(revision string, depth int64) error) *Client_Fetch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetCommitNote provides a mock function for the type Client
+func (_mock *Client) GetCommitNote(sha string, namespace string) (string, error) {
+	ret := _mock.Called(sha, namespace)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCommitNote")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, string) (string, error)); ok {
+		return returnFunc(sha, namespace)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, string) string); ok {
+		r0 = returnFunc(sha, namespace)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = returnFunc(sha, namespace)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Client_GetCommitNote_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommitNote'
+type Client_GetCommitNote_Call struct {
+	*mock.Call
+}
+
+// GetCommitNote is a helper method to define mock.On call
+//   - sha string
+//   - namespace string
+func (_e *Client_Expecter) GetCommitNote(sha interface{}, namespace interface{}) *Client_GetCommitNote_Call {
+	return &Client_GetCommitNote_Call{Call: _e.mock.On("GetCommitNote", sha, namespace)}
+}
+
+func (_c *Client_GetCommitNote_Call) Run(run func(sha string, namespace string)) *Client_GetCommitNote_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_GetCommitNote_Call) Return(s string, err error) *Client_GetCommitNote_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Client_GetCommitNote_Call) RunAndReturn(run func(sha string, namespace string) (string, error)) *Client_GetCommitNote_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// HasFileChanged provides a mock function for the type Client
+func (_mock *Client) HasFileChanged(filePath string) (bool, error) {
+	ret := _mock.Called(filePath)
+
+	if len(ret) == 0 {
+		panic("no return value specified for HasFileChanged")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string) (bool, error)); ok {
+		return returnFunc(filePath)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string) bool); ok {
+		r0 = returnFunc(filePath)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
+		r1 = returnFunc(filePath)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Client_HasFileChanged_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HasFileChanged'
+type Client_HasFileChanged_Call struct {
+	*mock.Call
+}
+
+// HasFileChanged is a helper method to define mock.On call
+//   - filePath string
+func (_e *Client_Expecter) HasFileChanged(filePath interface{}) *Client_HasFileChanged_Call {
+	return &Client_HasFileChanged_Call{Call: _e.mock.On("HasFileChanged", filePath)}
+}
+
+func (_c *Client_HasFileChanged_Call) Run(run func(filePath string)) *Client_HasFileChanged_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -468,12 +663,12 @@ func (_c *Client_Fetch_Call) Run(run func(revision string)) *Client_Fetch_Call {
 	return _c
 }
 
-func (_c *Client_Fetch_Call) Return(err error) *Client_Fetch_Call {
-	_c.Call.Return(err)
+func (_c *Client_HasFileChanged_Call) Return(b bool, err error) *Client_HasFileChanged_Call {
+	_c.Call.Return(b, err)
 	return _c
 }
 
-func (_c *Client_Fetch_Call) RunAndReturn(run func(revision string) error) *Client_Fetch_Call {
+func (_c *Client_HasFileChanged_Call) RunAndReturn(run func(filePath string) (bool, error)) *Client_HasFileChanged_Call {
 	_c.Call.Return(run)
 	return _c
 }

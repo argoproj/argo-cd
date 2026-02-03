@@ -645,6 +645,8 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, nil).Once()
 	d.EXPECT().GetWriteCredentials(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil).Once()
+	d.EXPECT().GetCommitAuthorName().Return("", nil).Once()
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil).Once()
 	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
 
 	h.ProcessHydrationQueueItem(hydrationKey)
@@ -804,6 +806,8 @@ func TestHydrator_hydrate_Success(t *testing.T) {
 	})
 	d.EXPECT().GetWriteCredentials(mock.Anything, readRepo.Repo, proj.Name).Return(writeRepo, nil)
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil)
+	d.EXPECT().GetCommitAuthorName().Return("", nil)
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil)
 	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "hydrated123"}, nil).Run(func(_ context.Context, in *commitclient.CommitHydratedManifestsRequest, _ ...grpc.CallOption) {
 		assert.Equal(t, "commit message", in.CommitMessage)
 		assert.Equal(t, "hydrated", in.SyncBranch)
@@ -1011,6 +1015,8 @@ func TestHydrator_hydrate_CommitHydratedManifestsError(t *testing.T) {
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	d.EXPECT().GetWriteCredentials(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
 	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil)
+	d.EXPECT().GetCommitAuthorName().Return("", nil)
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil)
 	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(nil, errors.New("commit error"))
 	logCtx := log.NewEntry(log.StandardLogger())
 
@@ -1093,4 +1099,37 @@ func TestHydrator_getManifests_GetRepoObjsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "repo error")
 	assert.Empty(t, rev)
 	assert.Nil(t, pathDetails)
+}
+
+func TestHydrator_hydrate_DeDupe_Success(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	h := &Hydrator{dependencies: d}
+
+	app1 := newTestApp("app1")
+	app2 := newTestApp("app2")
+	lastSuccessfulOperation := &v1alpha1.SuccessfulHydrateOperation{
+		DrySHA:      "sha123",
+		HydratedSHA: "hydrated123",
+	}
+	app1.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
+		LastSuccessfulOperation: lastSuccessfulOperation,
+	}
+
+	apps := []*v1alpha1.Application{app1, app2}
+	proj := newTestProject()
+	projects := map[string]*v1alpha1.AppProject{app1.Spec.Project: proj}
+
+	// Asserting .Once() confirms that we only make one call to repo-server to get the last hydrated DRY
+	// sha, and then we quit early.
+	d.On("GetRepoObjs", mock.Anything, app1, app1.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil).Once()
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	sha, hydratedSha, errs, err := h.hydrate(logCtx, apps, projects)
+
+	require.NoError(t, err)
+	assert.Equal(t, "sha123", sha)
+	assert.Equal(t, "hydrated123", hydratedSha)
+	assert.Empty(t, errs)
 }

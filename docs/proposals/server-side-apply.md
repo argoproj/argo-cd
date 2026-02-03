@@ -39,7 +39,7 @@ describes how ArgoCD can leverage SSA during syncs.
     * [[G-5] Register a proper manager](#g-5-register-a-proper-manager)
 * [Non-Goals](#non-goals)
 * [Proposal](#proposal)
-    * [Non-Functional Requirements](#non-functional-requirements)
+    * [Non-Functional Requirements](#non-goals)
     * [Use cases](#use-cases)
         * [[UC-1]: enable SSA at the controller level](#uc-1-as-a-user-i-would-like-enable-ssa-at-the-controller-level-so-all-application-are-applied-server-side)
         * [[UC-2]: enable SSA at the Application level](#uc-2-as-a-user-i-would-like-enable-ssa-at-the-application-level-so-all-resources-are-applied-server-side)
@@ -48,7 +48,7 @@ describes how ArgoCD can leverage SSA during syncs.
     * [Risks and Mitigations](#risks-and-mitigations)
         * [[R-1] Supported K8s version check](#r-1-supported-k8s-version-check)
         * [[R-2] Alternating Server-Side Client-Side syncs](#r-2-alternating-server-side-client-side-syncs)
-    * [Upgrade / Downgrade](#upgrade--downgrade)
+    * [Upgrade / Downgrade](#upgrade-downgrade)
 * [Drawbacks](#drawbacks)
 
 ---

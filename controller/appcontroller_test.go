@@ -66,16 +66,17 @@ type namespacedResource struct {
 }
 
 type fakeData struct {
-	apps                           []runtime.Object
-	manifestResponse               *apiclient.ManifestResponse
-	manifestResponses              []*apiclient.ManifestResponse
-	managedLiveObjs                map[kube.ResourceKey]*unstructured.Unstructured
-	namespacedResources            map[kube.ResourceKey]namespacedResource
-	configMapData                  map[string]string
-	metricsCacheExpiration         time.Duration
-	applicationNamespaces          []string
-	updateRevisionForPathsResponse *apiclient.UpdateRevisionForPathsResponse
-	additionalObjs                 []runtime.Object
+	apps                            []runtime.Object
+	manifestResponse                *apiclient.ManifestResponse
+	manifestResponses               []*apiclient.ManifestResponse
+	managedLiveObjs                 map[kube.ResourceKey]*unstructured.Unstructured
+	namespacedResources             map[kube.ResourceKey]namespacedResource
+	configMapData                   map[string]string
+	metricsCacheExpiration          time.Duration
+	applicationNamespaces           []string
+	updateRevisionForPathsResponse  *apiclient.UpdateRevisionForPathsResponse
+	updateRevisionForPathsResponses []*apiclient.UpdateRevisionForPathsResponse
+	additionalObjs                  []runtime.Object
 }
 
 type MockKubectl struct {
@@ -125,10 +126,20 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		}
 	}
 
-	if revisionPathsErr != nil {
-		mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(nil, revisionPathsErr)
+	if len(data.updateRevisionForPathsResponses) > 0 {
+		for _, response := range data.updateRevisionForPathsResponses {
+			if revisionPathsErr != nil {
+				mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(response, revisionPathsErr)
+			} else {
+				mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(response, nil)
+			}
+		}
 	} else {
-		mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
+		if revisionPathsErr != nil {
+			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(nil, revisionPathsErr)
+		} else {
+			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
+		}
 	}
 
 	mockRepoClientset := &mockrepoclient.Clientset{RepoServerServiceClient: mockRepoClient}
@@ -159,6 +170,8 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	runtimeObjs = append(runtimeObjs, data.additionalObjs...)
 	kubeClient := fake.NewClientset(runtimeObjs...)
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClient, test.FakeArgoCDNamespace)
+	// Initialize the settings manager to ensure cluster cache is ready
+	_ = settingsMgr.ResyncInformers()
 	kubectl := &MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
@@ -177,7 +190,6 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		time.Second,
 		time.Minute,
 		nil,
-		time.Minute,
 		0,
 		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
@@ -407,6 +419,37 @@ metadata:
 data:
 `
 
+var fakePreDeleteHook = `
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "pre-delete-hook",
+    "namespace": "default",
+    "labels": {
+      "app.kubernetes.io/instance": "my-app"
+    },
+    "annotations": {
+      "argocd.argoproj.io/hook": "PreDelete"
+    }
+  },
+  "spec": {
+    "containers": [
+      {
+        "name": "pre-delete-hook",
+        "image": "busybox",
+        "restartPolicy": "Never",
+        "command": [
+          "/bin/sh",
+          "-c",
+          "sleep 5 && echo hello from the pre-delete-hook pod"
+        ]
+      }
+    ]
+  }
+}
+`
+
 var fakePostDeleteHook = `
 {
   "apiVersion": "batch/v1",
@@ -551,6 +594,15 @@ func createFakeApp(testApp string) *v1alpha1.Application {
 func newFakeCM() map[string]any {
 	var cm map[string]any
 	err := yaml.Unmarshal([]byte(fakeStrayResource), &cm)
+	if err != nil {
+		panic(err)
+	}
+	return cm
+}
+
+func newFakePreDeleteHook() map[string]any {
+	var cm map[string]any
+	err := yaml.Unmarshal([]byte(fakePreDeleteHook), &cm)
 	if err != nil {
 		panic(err)
 	}
@@ -1114,6 +1166,40 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		testShouldDelete(app3)
 	})
 
+	t.Run("PreDelete_HookIsCreated", func(t *testing.T) {
+		app := newFakeApp()
+		app.SetPreDeleteFinalizer()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		ctrl := newFakeController(context.Background(), &fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePreDeleteHook},
+			}},
+			apps:            []runtime.Object{app, &defaultProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+		}, nil)
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		require.NoError(t, err)
+		// finalizer is not deleted
+		assert.False(t, patched)
+		// pre-delete hook is created
+		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
+		require.Equal(t, "pre-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
+	})
+
 	t.Run("PostDelete_HookIsCreated", func(t *testing.T) {
 		app := newFakeApp()
 		app.SetPostDeleteFinalizer()
@@ -1146,6 +1232,41 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		// post-delete hook is created
 		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
 		require.Equal(t, "post-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
+	})
+
+	t.Run("PreDelete_HookIsExecuted", func(t *testing.T) {
+		app := newFakeApp()
+		app.SetPreDeleteFinalizer()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		liveHook := &unstructured.Unstructured{Object: newFakePreDeleteHook()}
+		require.NoError(t, unstructured.SetNestedField(liveHook.Object, "Succeeded", "status", "phase"))
+		ctrl := newFakeController(context.Background(), &fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePreDeleteHook},
+			}},
+			apps: []runtime.Object{app, &defaultProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+				kube.GetResourceKey(liveHook): liveHook,
+			},
+		}, nil)
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		require.NoError(t, err)
+		// finalizer is removed
+		assert.True(t, patched)
 	})
 
 	t.Run("PostDelete_HookIsExecuted", func(t *testing.T) {
@@ -3036,47 +3157,4 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 			assertDurationAround(t, tc.expectedDuration, duration)
 		})
 	}
-}
-
-func TestSelfHealBackoffCooldownElapsed(t *testing.T) {
-	cooldown := time.Second * 30
-	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
-	ctrl.selfHealBackoffCooldown = cooldown
-
-	app := &v1alpha1.Application{
-		Status: v1alpha1.ApplicationStatus{
-			OperationState: &v1alpha1.OperationState{
-				Phase: synccommon.OperationSucceeded,
-			},
-		},
-	}
-
-	t.Run("operation not completed", func(t *testing.T) {
-		app := app.DeepCopy()
-		app.Status.OperationState.FinishedAt = nil
-		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
-		assert.True(t, elapsed)
-	})
-
-	t.Run("successful operation finised after cooldown", func(t *testing.T) {
-		app := app.DeepCopy()
-		app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now().Add(-cooldown)}
-		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
-		assert.True(t, elapsed)
-	})
-
-	t.Run("unsuccessful operation finised after cooldown", func(t *testing.T) {
-		app := app.DeepCopy()
-		app.Status.OperationState.Phase = synccommon.OperationFailed
-		app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now().Add(-cooldown)}
-		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
-		assert.False(t, elapsed)
-	})
-
-	t.Run("successful operation finised before cooldown", func(t *testing.T) {
-		app := app.DeepCopy()
-		app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now()}
-		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
-		assert.False(t, elapsed)
-	})
 }

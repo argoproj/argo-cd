@@ -533,3 +533,29 @@ Once the endpoint is enabled, you can use go profile tool to collect the CPU and
 $ kubectl port-forward svc/argocd-metrics 8082:8082
 $ go tool pprof http://localhost:8082/debug/pprof/heap
 ```
+
+## Shallow Clone
+
+Monorepos can be large and slow to clone. To speed up the clone process, you can use the `depth: "1"` repository option:
+
+```yaml
+apiVersion: v1
+stringData:
+  depth: "1"
+  type: "git"
+  url: "https://github.com/argoproj/argocd-example-apps.git"
+kind: Secret
+metadata:
+  annotations:
+    managed-by: argocd.argoproj.io
+  labels:
+    argocd.argoproj.io/secret-type: repository
+  name: my-repo
+  namespace: argocd
+type: Opaque
+```
+
+> [!NOTE]
+> You can use the `argocd repo add <repo-url> --depth` command to add a repository with shallow cloning enabled.
+
+When shallow cloning, the repository is cloned with a depth of 1, which means only the required commit is cloned as opposed to the full history. This approach makes sense when the repository has a large history.

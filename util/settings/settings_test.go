@@ -1020,43 +1020,94 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 }
 
 func TestGetOIDCConfig(t *testing.T) {
-	kubeClient := fake.NewClientset(
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
-			},
-			Data: map[string]string{
+	testCases := []struct {
+		name          string
+		configMapData map[string]string
+		testFunc      func(t *testing.T, settingsManager *SettingsManager)
+	}{
+		{
+			name: "requestedIDTokenClaims",
+			configMapData: map[string]string{
 				"oidc.config": "\n  requestedIDTokenClaims: {\"groups\": {\"essential\": true}}\n",
 			},
+			testFunc: func(t *testing.T, settingsManager *SettingsManager) {
+				t.Helper()
+				settings, err := settingsManager.GetSettings()
+				require.NoError(t, err)
+
+				oidcConfig := settings.OIDCConfig()
+				assert.NotNil(t, oidcConfig)
+
+				claim := oidcConfig.RequestedIDTokenClaims["groups"]
+				assert.NotNil(t, claim)
+				assert.True(t, claim.Essential)
+			},
 		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDSecretName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
+		{
+			name: "refreshTokenThreshold success",
+			configMapData: map[string]string{
+				"oidc.config": "\n  refreshTokenThreshold: 5m\n",
+			},
+			testFunc: func(t *testing.T, settingsManager *SettingsManager) {
+				t.Helper()
+				settings, err := settingsManager.GetSettings()
+				require.NoError(t, err)
+
+				oidcConfig := settings.OIDCConfig()
+				assert.NotNil(t, oidcConfig)
+
+				assert.Equal(t, 5*time.Minute, settings.RefreshTokenThreshold())
+			},
+		},
+		{
+			name: "refreshTokenThreshold parse failure",
+			configMapData: map[string]string{
+				"oidc.config": "\n  refreshTokenThreshold: 5xx\n",
+			},
+			testFunc: func(t *testing.T, settingsManager *SettingsManager) {
+				t.Helper()
+				settings, err := settingsManager.GetSettings()
+				require.NoError(t, err)
+
+				oidcConfig := settings.OIDCConfig()
+				assert.NotNil(t, oidcConfig)
+
+				assert.Equal(t, time.Duration(0), settings.RefreshTokenThreshold())
+			},
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			kubeClient := fake.NewClientset(
+				&corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      common.ArgoCDConfigMapName,
+						Namespace: "default",
+						Labels: map[string]string{
+							"app.kubernetes.io/part-of": "argocd",
+						},
+					},
+					Data: tc.configMapData,
 				},
-			},
-			Data: map[string][]byte{
-				"admin.password":   nil,
-				"server.secretkey": nil,
-			},
-		},
-	)
-	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-	settings, err := settingsManager.GetSettings()
-	require.NoError(t, err)
-
-	oidcConfig := settings.OIDCConfig()
-	assert.NotNil(t, oidcConfig)
-
-	claim := oidcConfig.RequestedIDTokenClaims["groups"]
-	assert.NotNil(t, claim)
-	assert.True(t, claim.Essential)
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      common.ArgoCDSecretName,
+						Namespace: "default",
+						Labels: map[string]string{
+							"app.kubernetes.io/part-of": "argocd",
+						},
+					},
+					Data: map[string][]byte{
+						"admin.password":   nil,
+						"server.secretkey": nil,
+					},
+				},
+			)
+			settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+			tc.testFunc(t, settingsManager)
+		})
+	}
 }
 
 func TestRedirectURL(t *testing.T) {
@@ -1441,7 +1492,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		// should have internal cert at this point
 		assert.NotNil(t, settings.Certificate)
 		assert.False(t, settings.CertificateIsExternal)
-		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
+		assert.Equal(t, "argocd-e2e-server", getCNFromCertificate(settings.Certificate))
 
 		externalTLSSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1524,7 +1575,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		// should now have an internal cert
 		assert.NotNil(t, settings.Certificate)
 		assert.False(t, settings.CertificateIsExternal)
-		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
+		assert.Equal(t, "argocd-e2e-server", getCNFromCertificate(settings.Certificate))
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
@@ -1561,7 +1612,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, settings.CertificateIsExternal)
 		assert.NotNil(t, settings.Certificate)
-		assert.Contains(t, getCNFromCertificate(settings.Certificate), "Argo CD E2E")
+		assert.Contains(t, getCNFromCertificate(settings.Certificate), "argocd-e2e-server")
 	})
 }
 
@@ -2081,7 +2132,7 @@ func TestIsImpersonationEnabled(t *testing.T) {
 	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	featureFlag, err := settingsManager.IsImpersonationEnabled()
 	require.False(t, featureFlag,
-		"with no argocd-cm config map, IsImpersonationEnabled() must return return false (default value)")
+		"with no argocd-cm config map, IsImpersonationEnabled() must return false (default value)")
 	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
 		"with no argocd-cm config map, IsImpersonationEnabled() must return an error")
 
@@ -2124,7 +2175,7 @@ func TestRequireOverridePrivilegeForRevisionSyncNoConfigMap(t *testing.T) {
 	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
 	require.False(t, featureFlag,
-		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return return false (default value)")
+		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
 	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
 		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return an error")
 }

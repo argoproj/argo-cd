@@ -19,7 +19,7 @@ which might cause health check to return `Progressing` state instead of `Healthy
 
 * `Ingress` is considered healthy if `status.loadBalancer.ingress` list is non-empty, with at least one value
   for `hostname` or `IP`. Some ingress controllers
-  ([contour](https://github.com/heptio/contour/issues/403)
+  ([contour](https://github.com/projectcontour/contour/issues/403)
   , [traefik](https://github.com/argoproj/argo-cd/issues/968#issuecomment-451082913)) don't update
   `status.loadBalancer.ingress` field which causes `Ingress` to stuck in `Progressing` state forever.
 
@@ -328,9 +328,68 @@ If for some reason authenticated Redis does not work for you and you want to use
     * Deployment: argocd-server
     * StatefulSet: argocd-application-controller
 
+5. If you have configured file-based Redis credentials using the `REDIS_CREDS_DIR_PATH` environment variable, remove this environment variable and delete the corresponding volume and volumeMount entries that mount the credentials directory from the following manifests:
+    * Deployment: argocd-repo-server
+    * Deployment: argocd-server
+    * StatefulSet: argocd-application-controller
+
 ## How do I provide my own Redis credentials?
 The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
 You can config your secret provider to generate Kubernetes secret accordingly.
+
+### Using file-based Redis credentials via `REDIS_CREDS_DIR_PATH`
+
+Argo CD components support reading Redis credentials from files mounted at a specified path inside the container.
+
+When the environment variable `REDIS_CREDS_DIR_PATH` is specified, it takes precedence and Argo CD components that require redis connectivity ( application-controller, repo-server and server) loads the redis credentials from the files located in the specified directory path and ignores any values set in the  environment variables
+
+Expected files when using `REDIS_CREDS_DIR_PATH`:
+
+- `auth`: Redis password (mandatory)
+- `auth_username`: Redis username
+- `sentinel_auth`: Redis Sentinel password
+- `sentinel_username`: Redis Sentinel username
+
+You can store these keys in a Kubernetes Secret and mount it into each Argo CD component that needs Redis access. Then point `REDIS_CREDS_DIR_PATH` to the mount directory.
+
+Example Secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: <secret-name>
+  namespace: argocd
+type: Opaque
+stringData:
+  auth: "<redis-password>"
+  auth_username: "<redis-username>"
+  sentinel_auth: "<sentinel-password>"
+  sentinel_username: "<sentinel-username>"
+```
+
+Example Argo CD component spec (e.g., add to `argocd-server`, `argocd-repo-server`, `argocd-application-controller`):
+
+```yaml
+spec:
+    containers:
+    - name: argocd-server
+      image: quay.io/argoproj/argocd:<version>
+      env:
+      - name: REDIS_CREDS_DIR_PATH
+        value: "/var/run/secrets/redis"
+        volumeMounts:
+        - name: redis-creds
+          mountPath: "/var/run/secrets/redis"
+          readOnly: true
+    volumes:
+    - name: redis-creds
+      secret:
+       secretName: <secret-name>
+```
+
+> [!NOTE]
+> This mechanism configures authentication for Argo CD components that connect to Redis. The Redis server itself should be configured independently (e.g., via `redis.conf`).
 
 ## How do I fix `Manifest generation error (cached)`?
 
@@ -382,3 +441,33 @@ If you can avoid using these features, you can avoid triggering the error. The o
    Excluding mutation webhooks from the diff could cause undesired diffing behavior.
 3. **Disable mutation webhooks when using server-side diff**: see [server-side diff docs](user-guide/diff-strategies.md#mutation-webhooks)
    for details about that feature. Disabling mutation webhooks may have undesired effects on sync behavior.
+
+### How do I fix `grpc: error while marshaling: string field contains invalid UTF-8`?
+
+On Kubernetes v1.34.x clusters, Argo CD components may stop working and pods may 
+fail to start with errors such as:
+
+```
+Error: grpc: error while marshaling: string field contains invalid UTF-8
+```
+This issue typically affects pods that reference Kubernetes secrets via environment variables, e.g. 
+```yaml
+env:
+  - name: REDIS_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: argocd-redis
+        key: auth
+        optional: false
+```
+Kubernetes environment variables must be valid UTF-8 strings. In affected clusters, the argocd-redis Secret contained non-UTF-8 (binary) data, while other clusters used
+ASCII-only values.
+
+#### How do I fix the issue?
+Inspect the decoded Redis password
+```bash
+kubectl get -n argocd secret argocd-redis -o json \
+    | jq -r '.data.auth' | base64 --decode | xxd
+```
+If the output contains non-printable characters or bytes outside the UTF-8 range, the Secret is invalid for use as an
+environment variable. It is recommended to regenerate the secret using a UTF-8-safe password.

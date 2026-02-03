@@ -27,7 +27,7 @@ Here is the template subfield from a Cluster generator:
 
 For details on all available parameters (like `.name`, `.nameNormalized`, etc.) please refer to the [Cluster Generator docs](./Generators-Cluster.md).
 
-The template subfields correspond directly to [the spec of an Argo CD `Application` resource](../../declarative-setup/#applications):
+The template subfields correspond directly to [the spec of an Argo CD `Application` resource](../declarative-setup.md#applications):
 
 - `project` refers to the [Argo CD Project](../../user-guide/projects.md) in use (`default` may be used here to utilize the default Argo CD Project)
 - `source` defines from which Git repository to extract the desired Application manifests

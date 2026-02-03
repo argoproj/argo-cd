@@ -61,7 +61,7 @@ troubleshoot connectivity issues. In this case, it is suggested to use the follo
 
 ```
 kubectl exec -n argocd -it \
-  $(kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-application-controller -o jsonpath='{.items[0].metadata.name}') bash
+  $(kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-application-controller -o jsonpath='{.items[0].metadata.name}') -- bash
 ```
 
 2 Use `argocd admin cluster kubeconfig` command to export kubeconfig file from the configured Secret:
@@ -76,4 +76,3 @@ argocd admin cluster kubeconfig https://<api-server-url> /tmp/kubeconfig --names
 export KUBECONFIG=/tmp/kubeconfig
 kubectl get pods -v 9
 ```
-
