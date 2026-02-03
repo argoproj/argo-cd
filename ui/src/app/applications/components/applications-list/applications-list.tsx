@@ -448,15 +448,15 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
         ctx.navigation.goto(
             '.',
             {
-                proj: newPref.projectsFilter.join(','),
-                sync: newPref.syncFilter.join(','),
-                autoSync: newPref.autoSyncFilter.join(','),
-                health: newPref.healthFilter.join(','),
-                namespace: newPref.namespacesFilter.join(','),
-                cluster: newPref.clustersFilter.join(','),
-                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
-                annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
-                operation: newPref.operationFilter.join(','),
+                proj: (newPref.projectsFilter || []).join(','),
+                sync: (newPref.syncFilter || []).join(','),
+                autoSync: (newPref.autoSyncFilter || []).join(','),
+                health: (newPref.healthFilter || []).join(','),
+                namespace: (newPref.namespacesFilter || []).join(','),
+                cluster: (newPref.clustersFilter || []).join(','),
+                labels: (newPref.labelsFilter || []).map(encodeURIComponent).join(','),
+                annotations: (newPref.annotationsFilter || []).map(encodeURIComponent).join(','),
+                operation: (newPref.operationFilter || []).join(','),
                 // Keep URL and preferences consistent. When false, remove the param entirely.
                 showFavorites: newPref.showFavorites ? 'true' : null
             },
@@ -470,8 +470,8 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
         ctx.navigation.goto(
             '.',
             {
-                health: newPref.healthFilter.join(','),
-                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
+                health: (newPref.healthFilter || []).join(','),
+                labels: (newPref.labelsFilter || []).map(encodeURIComponent).join(','),
                 // Keep URL and preferences consistent. When false, remove the param entirely.
                 showFavorites: newPref.showFavorites ? 'true' : null
             },
