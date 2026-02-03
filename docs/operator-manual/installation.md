@@ -7,8 +7,7 @@ Argo CD has two type of installations: multi-tenant and core.
 The multi-tenant installation is the most common way to install Argo CD. This type of installation is typically used to service multiple application developer teams
 in the organization and maintained by a platform team.
 
-The end-users can access Argo CD via the API server using the Web UI or `argocd` CLI. The `argocd` CLI has to be configured using `argocd login <server-host>` command
-(learn more [here](../user-guide/commands/argocd_login.md)).
+The end-users can access Argo CD via the API server using the Web UI or `argocd` CLI. The `argocd` CLI has to be [configured](../user-guide/commands/argocd_login.md) using `argocd login <server-host>` command.
 
 Two types of installation manifests are provided:
 
@@ -118,7 +117,7 @@ The Argo CD can be installed using [Helm](https://helm.sh/). The Helm chart is c
 
 ## Supported versions
 
-For detailed information regarding Argo CD's version support policy, please refer to the [Release Process and Cadence documentation](https://argo-cd.readthedocs.io/en/stable/developer-guide/release-process-and-cadence/).
+For detailed information regarding Argo CD's version support policy, please refer to the [Release Process and Cadence documentation](../developer-guide/release-process-and-cadence.md).
 
 ## Tested versions
 
