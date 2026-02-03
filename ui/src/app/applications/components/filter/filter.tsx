@@ -94,7 +94,7 @@ export const FiltersGroup = (props: {
 
 export const Filter = (props: FilterProps) => {
     const init = {} as {[label: string]: boolean};
-    (props.selected || []).forEach(s => (init[s] = true));
+    props.selected.forEach(s => (init[s] = true));
 
     const [values, setValues] = React.useState(init);
     const [tags, setTags] = React.useState([]);
@@ -106,7 +106,7 @@ export const Filter = (props: FilterProps) => {
         setOptions(props.options);
     }, [props.options]);
 
-    const labels = props.labels || (options || []).map(o => o.label);
+    const labels = props.labels || options.map(o => o.label);
 
     React.useEffect(() => {
         const {cleanedValues, selectedKeys} = Object.entries(values).reduce(
@@ -139,11 +139,11 @@ export const Filter = (props: FilterProps) => {
     }, [values]);
 
     React.useEffect(() => {
-        if ((props.selected || []).length === 0) {
+        if (props.selected.length === 0) {
             setValues({} as {[label: string]: boolean});
             setInput('');
         }
-    }, [(props.selected || []).length]);
+    }, [props.selected.length]);
 
     return (
         <div className='filter'>
@@ -151,7 +151,7 @@ export const Filter = (props: FilterProps) => {
                 <span className='filter__header__label' title={props.label || 'FILTER'}>
                     {props.label || 'FILTER'}
                 </span>
-                {(props.selected || []).length > 0 || (props.field && Object.keys(values).length > 0) ? (
+                {props.selected.length > 0 || (props.field && Object.keys(values).length > 0) ? (
                     <button
                         className='argo-button argo-button--base argo-button--sm argo-button--right'
                         onClick={() => {
@@ -188,7 +188,7 @@ export const Filter = (props: FilterProps) => {
                                 inputStyle={{marginBottom: '0.5em', backgroundColor: 'black', border: 'none', color: '#fff'}}
                             />
                         )}
-                        {((props.field ? tags : options) || []).map((opt, i) => (
+                        {(props.field ? tags : options).map((opt, i) => (
                             <CheckboxRow
                                 key={i}
                                 value={values[opt.label]}

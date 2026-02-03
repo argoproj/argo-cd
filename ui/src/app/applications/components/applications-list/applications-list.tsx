@@ -448,15 +448,15 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
         ctx.navigation.goto(
             '.',
             {
-                proj: (newPref.projectsFilter || []).join(','),
-                sync: (newPref.syncFilter || []).join(','),
-                autoSync: (newPref.autoSyncFilter || []).join(','),
-                health: (newPref.healthFilter || []).join(','),
-                namespace: (newPref.namespacesFilter || []).join(','),
-                cluster: (newPref.clustersFilter || []).join(','),
-                labels: (newPref.labelsFilter || []).map(encodeURIComponent).join(','),
-                annotations: (newPref.annotationsFilter || []).map(encodeURIComponent).join(','),
-                operation: (newPref.operationFilter || []).join(','),
+                proj: newPref.projectsFilter.join(','),
+                sync: newPref.syncFilter.join(','),
+                autoSync: newPref.autoSyncFilter.join(','),
+                health: newPref.healthFilter.join(','),
+                namespace: newPref.namespacesFilter.join(','),
+                cluster: newPref.clustersFilter.join(','),
+                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
+                annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
+                operation: newPref.operationFilter.join(','),
                 // Keep URL and preferences consistent. When false, remove the param entirely.
                 showFavorites: newPref.showFavorites ? 'true' : null
             },
@@ -470,8 +470,8 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
         ctx.navigation.goto(
             '.',
             {
-                health: (newPref.healthFilter || []).join(','),
-                labels: (newPref.labelsFilter || []).map(encodeURIComponent).join(','),
+                health: newPref.healthFilter.join(','),
+                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
                 // Keep URL and preferences consistent. When false, remove the param entirely.
                 showFavorites: newPref.showFavorites ? 'true' : null
             },
@@ -581,7 +581,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                             }}
                                                         />
                                                         <div className='applications-list'>
-                                                            {apps.length === 0 && pref.projectsFilter?.length === 0 && (pref.labelsFilter || []).length === 0 ? (
+                                                            {apps.length === 0 && pref.projectsFilter.length === 0 && pref.labelsFilter.length === 0 ? (
                                                                 <EmptyState icon='argo-icon-application'>
                                                                     <h4>No applications available to you just yet</h4>
                                                                     <h5>Create new application to start managing resources in your cluster</h5>
@@ -788,7 +788,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                             }}
                                                         />
                                                         <div className='applications-list'>
-                                                            {appSets.length === 0 && (pref.labelsFilter || []).length === 0 ? (
+                                                            {appSets.length === 0 && pref.labelsFilter.length === 0 ? (
                                                                 <EmptyState icon='argo-icon-application'>
                                                                     <h4>No ApplicationSets available to you just yet</h4>
                                                                     <h5>ApplicationSets will appear here once created</h5>

@@ -57,31 +57,21 @@ export function getAutoSyncStatus(syncPolicy?: SyncPolicy) {
 }
 
 export function getAppFilterResults(applications: Application[], pref: AppsListPreferences): FilteredApp[] {
-    const labelsFilter = pref.labelsFilter || [];
-    const annotationsFilter = pref.annotationsFilter || [];
-    const reposFilter = pref.reposFilter || [];
-    const syncFilter = pref.syncFilter || [];
-    const autoSyncFilter = pref.autoSyncFilter || [];
-    const healthFilter = pref.healthFilter || [];
-    const namespacesFilter = pref.namespacesFilter || [];
-    const clustersFilter = pref.clustersFilter || [];
-    const operationFilter = pref.operationFilter || [];
-
-    const labelSelector = createMetadataSelector(labelsFilter);
-    const annotationSelector = createMetadataSelector(annotationsFilter);
+    const labelSelector = createMetadataSelector(pref.labelsFilter);
+    const annotationSelector = createMetadataSelector(pref.annotationsFilter);
 
     return applications.map(app => ({
         ...app,
         filterResult: {
-            repos: reposFilter.length === 0 || reposFilter.includes(getAppDefaultSource(app).repoURL),
-            sync: syncFilter.length === 0 || syncFilter.includes(app.status.sync.status),
-            autosync: autoSyncFilter.length === 0 || autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
-            health: healthFilter.length === 0 || healthFilter.includes(app.status.health.status),
-            namespaces: namespacesFilter.length === 0 || namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
+            repos: pref.reposFilter.length === 0 || pref.reposFilter.includes(getAppDefaultSource(app).repoURL),
+            sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
+            autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
+            health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
+            namespaces: pref.namespacesFilter.length === 0 || pref.namespacesFilter.some(ns => app.spec.destination.namespace && minimatch(app.spec.destination.namespace, ns)),
             favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(app.metadata.name)),
             clusters:
-                clustersFilter.length === 0 ||
-                clustersFilter.some(filterString => {
+                pref.clustersFilter.length === 0 ||
+                pref.clustersFilter.some(filterString => {
                     const match = filterString.match('^(.*) [(](http.*)[)]$');
                     if (match?.length === 3) {
                         const [, name, url] = match;
@@ -91,33 +81,29 @@ export function getAppFilterResults(applications: Application[], pref: AppsListP
                         return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
                     }
                 }),
-            labels: labelsFilter.length === 0 || labelSelector(app.metadata.labels),
-            annotations: annotationsFilter.length === 0 || annotationSelector(app.metadata.annotations),
-            operation: operationFilter.length === 0 || operationFilter.includes(getOperationStateTitle(app))
+            labels: pref.labelsFilter.length === 0 || labelSelector(app.metadata.labels),
+            annotations: pref.annotationsFilter.length === 0 || annotationSelector(app.metadata.annotations),
+            operation: pref.operationFilter.length === 0 || pref.operationFilter.includes(getOperationStateTitle(app))
         }
     }));
 }
 
 export function getAppSetFilterResults(appSets: ApplicationSet[], pref: AppSetsListPreferences): ApplicationSetFilteredApp[] {
-    const labelsFilter = pref.labelsFilter || [];
-    const healthFilter = pref.healthFilter || [];
-
-    const labelSelector = createMetadataSelector(labelsFilter);
+    const labelSelector = createMetadataSelector(pref.labelsFilter);
 
     return appSets.map(appSet => ({
         ...appSet,
         filterResult: {
-            health: healthFilter.length === 0 || healthFilter.includes(getAppSetHealthStatus(appSet)),
+            health: pref.healthFilter.length === 0 || pref.healthFilter.includes(getAppSetHealthStatus(appSet)),
             favourite: !pref.showFavorites || (pref.favoritesAppList && pref.favoritesAppList.includes(appSet.metadata.name)),
-            labels: labelsFilter.length === 0 || labelSelector(appSet.metadata.labels)
+            labels: pref.labelsFilter.length === 0 || labelSelector(appSet.metadata.labels)
         }
     }));
 }
 
 const optionsFrom = (options: string[], filter: string[]) => {
-    const safeFilter = filter || [];
-    return (options || [])
-        .filter(s => safeFilter.indexOf(s) === -1)
+    return options
+        .filter(s => filter.indexOf(s) === -1)
         .map(item => {
             return {label: item};
         });
