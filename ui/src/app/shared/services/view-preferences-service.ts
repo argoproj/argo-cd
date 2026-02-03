@@ -225,9 +225,8 @@ export class ViewPreferencesService {
     public updatePreferences(change: Partial<ViewPreferences>) {
         const current = this.preferencesSubj.getValue();
         const nextPref = Object.assign({}, current, change, {version: minVer});
-        // Merge appList with current values to preserve all filter arrays
-        if (change.appList) {
-            nextPref.appList = {...current.appList, ...change.appList};
+        // Normalize appList to ensure all filter arrays are initialized
+        if (nextPref.appList) {
             this.normalizeAppListPreferences(nextPref.appList);
         }
         window.localStorage.setItem(VIEW_PREFERENCES_KEY, JSON.stringify(nextPref));
