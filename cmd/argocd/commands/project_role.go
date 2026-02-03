@@ -361,11 +361,22 @@ Create token succeeded for proj:test-project:test-role.
 			}
 
 			claims := token.Claims.(jwtgo.MapClaims)
-
-			issuedAt, _ := jwt.IssuedAt(claims)
-			expiresAt := int64(jwt.Float64Field(claims, "exp"))
 			id := jwt.StringField(claims, "jti")
 			subject := jwt.GetUserIdentifier(claims)
+
+			issuedAtPtr, err := jwt.IssuedAtTime(claims)
+			errors.CheckError(err)
+
+			var issuedAt int64
+			if issuedAtPtr != nil {
+				issuedAt = issuedAtPtr.Unix()
+			}
+			expPtr, _ := jwt.ExpirationTime(claims)
+			var expiresAt int64
+			if expPtr != nil {
+				expiresAt = expPtr.Unix()
+			}
+
 			if !outputTokenOnly {
 				fmt.Printf("Create token succeeded for %s.\n", subject)
 				fmt.Printf("  ID: %s\n  Issued At: %s\n  Expires At: %s\n",

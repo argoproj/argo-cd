@@ -111,8 +111,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	issuer := jwtutil.StringField(mapClaims, "iss")
 	id := jwtutil.StringField(mapClaims, "jti")
-	if exp, err := jwtutil.ExpirationTime(mapClaims); err == nil && id != "" {
-		if err := h.revokeToken(context.Background(), id, time.Until(exp)); err != nil {
+	if exp, err := jwtutil.ExpirationTime(mapClaims); err == nil && exp != nil && id != "" {
+		if err := h.revokeToken(context.Background(), id, time.Until(*exp)); err != nil {
 			log.Warnf("failed to invalidate token '%s': %v", id, err)
 		}
 	}
