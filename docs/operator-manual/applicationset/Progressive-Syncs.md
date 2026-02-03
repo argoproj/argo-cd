@@ -98,9 +98,9 @@ If there are any applications that don't match the listed expressions, they will
 
 #### Resource Pruning with RollingSync
 
-When using RollingSync, resources that are removed from Git are not automatically deleted from the cluster by default. This can cause applications to remain in an `OutOfSync` state indefinitely.
+By default, RollingSync does not automatically delete resources from the cluster when they are removed from Git. Applications will show an `OutOfSync` status to indicate the difference between Git and the cluster state.
 
-To enable automatic pruning of removed resources, set `defaultPrune: true` in your RollingSync configuration:
+If you want removed resources to be automatically deleted from the cluster, enable pruning by setting `defaultPrune: true` in your RollingSync configuration:
 ```yaml
 spec:
   strategy:
