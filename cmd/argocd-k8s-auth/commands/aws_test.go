@@ -20,7 +20,7 @@ func TestGetSignedRequest(t *testing.T) {
 
 		url, err := getSignedRequest(ctx, "my-cluster", "", "")
 
-		require.Error(t, err)
+		require.ErrorIs(t, err, context.Canceled)
 		assert.Empty(t, url)
 	})
 
