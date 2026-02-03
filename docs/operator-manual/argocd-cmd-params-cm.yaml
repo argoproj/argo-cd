@@ -237,6 +237,8 @@ data:
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
   # See https://github.com/argoproj/argo-cd/issues/24991
   reposerver.grpc.enable.txt.service.config: "false"
+  # Enables profile endpoint on the internal metrics port
+  reposerver.profile.enabled: "false"
 
   ## Commit-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")

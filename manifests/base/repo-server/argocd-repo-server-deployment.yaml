@@ -369,6 +369,13 @@ spec:
           name: var-files
         - emptyDir: {}
           name: plugins
+        - name: argocd-cmd-params-cm
+          configMap:
+            optional: true
+            name: argocd-cmd-params-cm
+            items:
+              - key: reposerver.profile.enabled
+                path: profiler.enabled
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
