@@ -79,7 +79,7 @@ func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Durat
 }
 
 func getSignedRequest(ctx context.Context, clusterName, roleARN string, profile string) (string, error) {
-	opts := []func(*config.LoadOptions) error{}
+	var opts []func(*config.LoadOptions) error
 	if profile != "" {
 		opts = append(opts, config.WithSharedConfigProfile(profile))
 	}
