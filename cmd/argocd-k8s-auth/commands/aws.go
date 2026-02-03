@@ -79,15 +79,28 @@ func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Durat
 }
 
 func getSignedRequest(ctx context.Context, clusterName, roleARN string, profile string) (string, error) {
-	var opts []func(*config.LoadOptions) error
+	cfg, err := loadAWSConfig(ctx, profile)
+	if err != nil {
+		return "", err
+	}
+	return getSignedRequestWithConfig(ctx, clusterName, roleARN, cfg)
+}
+
+func loadAWSConfig(ctx context.Context, profile string) (aws.Config, error) {
+	opts := []func(*config.LoadOptions) error{}
 	if profile != "" {
 		opts = append(opts, config.WithSharedConfigProfile(profile))
 	}
 	cfg, err := config.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
-		return "", fmt.Errorf("error loading AWS configuration: %w", err)
+		return aws.Config{}, fmt.Errorf("error loading AWS configuration: %w", err)
 	}
+	return cfg, nil
+}
 
+// getSignedRequestWithConfig presigns GetCallerIdentity using the given config. Used by getSignedRequest and by tests
+// that inject a config with static credentials to exercise the roleARN path without real AWS credentials.
+func getSignedRequestWithConfig(ctx context.Context, clusterName, roleARN string, cfg aws.Config) (string, error) {
 	// Use PresignOptions.ClientOptions + SetHeaderValue (same as aws-iam-authenticator) so the
 	// canonical request matches what EKS sends when validating. Build middleware can produce
 	// a different canonical form and thus an invalid signature for EKS.
