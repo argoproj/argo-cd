@@ -69,7 +69,7 @@ jobs:
           git checkout -b "$CHERRY_PICK_BRANCH" "origin/$TARGET_BRANCH"
 
           # Perform cherry-pick
-          if git cherry-pick -s -m 1 "$MERGE_COMMIT"; then
+          if git cherry-pick -m 1 "$MERGE_COMMIT"; then
             echo "✅ Cherry-pick successful"
 
             # Extract Signed-off-by from the cherry-pick commit
