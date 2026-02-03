@@ -142,94 +142,6 @@ const (
 // ErrNoSession indicates no auth token was supplied as part of a request
 var ErrNoSession = status.Errorf(codes.Unauthenticated, "no session information")
 
-
-func isHealthMethod(fullMethod string) bool {
-        return fullMethod == "/grpc.health.v1.Health/Check" ||
-                fullMethod == "/grpc.health.v1.Health/Watch"
-}
-
-type serverStreamWithContext struct {
-        grpc.ServerStream
-        ctx context.Context
-}
-
-func (s *serverStreamWithContext) Context() context.Context {
-        return s.ctx
-}
-
-func (server *ArgoCDServer) authUnaryInterceptor(
-        ctx context.Context,
-        req interface{},
-        info *grpc.UnaryServerInfo,
-        handler grpc.UnaryHandler,
-) (interface{}, error) {
-        if isHealthMethod(info.FullMethod) {
-                return handler(ctx, req)
-        }
-        ctx, err := server.Authenticate(ctx)
-        if err != nil {
-                return nil, err
-        }
-        return handler(ctx, req)
-}
-
-func (server *ArgoCDServer) authStreamInterceptor(
-        srv interface{},
-        ss grpc.ServerStream,
-        info *grpc.StreamServerInfo,
-        handler grpc.StreamHandler,
-) error {
-        if isHealthMethod(info.FullMethod) {
-                return handler(srv, ss)
-        }
-        wrapped := &serverStreamWithContext{
-                ServerStream: ss,
-                ctx:          ss.Context(),
-        }
-        ctx, err := server.Authenticate(wrapped.Context())
-        if err != nil {
-                return err
-        }
-        wrapped.ctx = ctx
-        return handler(srv, wrapped)
-}
-
-
-
-
-
-var noCacheHeaders = map[string]string{
-	"Expires":         time.Unix(0, 0).Format(time.RFC1123),
-	"Cache-Control":   "no-cache, private, max-age=0",
-	"Pragma":          "no-cache",
-	"X-Accel-Expires": "0",
-}
-
-var backoff = wait.Backoff{
-	Steps:    5,
-	Duration: 500 * time.Millisecond,
-	Factor:   1.0,
-	Jitter:   0.1,
-}
-
-var (
-	clientConstraint = ">= " + common.MinClientVersion
-	baseHRefRegex    = regexp.MustCompile(`<base href="(.*?)">`)
-	// limits number of concurrent login requests to prevent password brute forcing. If set to 0 then no limit is enforced.
-	maxConcurrentLoginRequestsCount = 50
-	replicasCount                   = 1
-	enableGRPCTimeHistogram         = true
-)
-
-func init() {
-	maxConcurrentLoginRequestsCount = env.ParseNumFromEnv(maxConcurrentLoginRequestsCountEnv, maxConcurrentLoginRequestsCount, 0, math.MaxInt32)
-	replicasCount = env.ParseNumFromEnv(replicasCountEnv, replicasCount, 0, math.MaxInt32)
-	if replicasCount > 0 {
-		maxConcurrentLoginRequestsCount = maxConcurrentLoginRequestsCount / replicasCount
-	}
-	enableGRPCTimeHistogram = env.ParseBoolFromEnv(common.EnvEnableGRPCTimeHistogramEnv, false)
-}
-
 // ArgoCDServer is the API server for Argo CD
 type ArgoCDServer struct {
 	ArgoCDServerOpts
@@ -265,6 +177,75 @@ type ArgoCDServer struct {
 	Shutdown           func()
 	terminateRequested atomic.Bool
 	available          atomic.Bool
+}
+
+func (server *ArgoCDServer) authUnaryInterceptor(
+	ctx context.Context,
+	req any,
+	info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler,
+) (any, error) {
+	if grpc_util.IsHealthMethod(info.FullMethod) {
+		return handler(ctx, req)
+	}
+	ctx, err := server.Authenticate(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return handler(ctx, req)
+}
+
+func (server *ArgoCDServer) authStreamInterceptor(
+	srv any,
+	ss grpc.ServerStream,
+	info *grpc.StreamServerInfo,
+	handler grpc.StreamHandler,
+) error {
+	if grpc_util.IsHealthMethod(info.FullMethod) {
+		return handler(srv, ss)
+	}
+	wrapped := &grpc_util.ServerStreamWithContext{
+		ServerStream: ss,
+		Ctx:          ss.Context(),
+	}
+	ctx, err := server.Authenticate(wrapped.Context())
+	if err != nil {
+		return err
+	}
+	wrapped.Ctx = ctx
+	return handler(srv, wrapped)
+}
+
+var noCacheHeaders = map[string]string{
+	"Expires":         time.Unix(0, 0).Format(time.RFC1123),
+	"Cache-Control":   "no-cache, private, max-age=0",
+	"Pragma":          "no-cache",
+	"X-Accel-Expires": "0",
+}
+
+var backoff = wait.Backoff{
+	Steps:    5,
+	Duration: 500 * time.Millisecond,
+	Factor:   1.0,
+	Jitter:   0.1,
+}
+
+var (
+	clientConstraint = ">= " + common.MinClientVersion
+	baseHRefRegex    = regexp.MustCompile(`<base href="(.*?)">`)
+	// limits number of concurrent login requests to prevent password brute forcing. If set to 0 then no limit is enforced.
+	maxConcurrentLoginRequestsCount = 50
+	replicasCount                   = 1
+	enableGRPCTimeHistogram         = true
+)
+
+func init() {
+	maxConcurrentLoginRequestsCount = env.ParseNumFromEnv(maxConcurrentLoginRequestsCountEnv, maxConcurrentLoginRequestsCount, 0, math.MaxInt32)
+	replicasCount = env.ParseNumFromEnv(replicasCountEnv, replicasCount, 0, math.MaxInt32)
+	if replicasCount > 0 {
+		maxConcurrentLoginRequestsCount = maxConcurrentLoginRequestsCount / replicasCount
+	}
+	enableGRPCTimeHistogram = env.ParseBoolFromEnv(common.EnvEnableGRPCTimeHistogramEnv, false)
 }
 
 type ArgoCDServerOpts struct {
