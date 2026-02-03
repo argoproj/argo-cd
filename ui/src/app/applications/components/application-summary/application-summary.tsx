@@ -64,10 +64,17 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const [, setChangeSync] = React.useState(false);
     const [isHydratorEnabled, setIsHydratorEnabled] = React.useState(!!app.spec.sourceHydrator);
     const [savedSyncSource, setSavedSyncSource] = React.useState(app.spec.sourceHydrator?.syncSource || {targetBranch: '', path: ''});
-    const [useCustomHydrateToBranch, setUseCustomHydrateToBranch] = React.useState(false);
 
     const notificationSubscriptions = useEditNotificationSubscriptions(app.metadata.annotations || {});
     const updateApp = notificationSubscriptions.withNotificationSubscriptions(props.updateApp);
+
+    const updateAppSource = async (input: models.Application, query: {validate?: boolean}) => {
+        const hydrateTo = input.spec.sourceHydrator?.hydrateTo;
+        if (hydrateTo && !hydrateTo.targetBranch?.trim() && input.spec.sourceHydrator) {
+            delete input.spec.sourceHydrator.hydrateTo;
+        }
+        return updateApp(input, query);
+    };
 
     const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
     const isHydrator = isHydratorEnabled;
@@ -412,77 +419,32 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             view: <Repo url={app.spec.sourceHydrator?.drySource?.repoURL} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.drySource.repoURL' component={Text} />
         },
-        ...(isHelm
-            ? [
-                  {
-                      title: 'CHART',
-                      view: <span>{source && `${source.chart}:${source.targetRevision}`}</span>,
-                      edit: (formApi: FormApi) => (
-                          <DataLoader
-                              input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL}}
-                              load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
-                              {(charts: models.HelmChart[]) => (
-                                  <div className='row'>
-                                      <div className='columns small-8'>
-                                          <FormField
-                                              formApi={formApi}
-                                              field='spec.sourceHydrator.drySource.chart'
-                                              component={AutocompleteField}
-                                              componentProps={{items: charts.map(chart => chart.name), filterSuggestions: true}}
-                                          />
-                                      </div>
-                                      <DataLoader
-                                          input={{charts, chart: getAppSpecDefaultSource(formApi.getFormState().values.spec).chart}}
-                                          load={async data => {
-                                              const chartInfo = data.charts.find(chart => chart.name === data.chart);
-                                              return (chartInfo && chartInfo.versions) || new Array<string>();
-                                          }}>
-                                          {(versions: string[]) => (
-                                              <div className='columns small-4'>
-                                                  <FormField
-                                                      formApi={formApi}
-                                                      field='spec.sourceHydrator.drySource.targetRevision'
-                                                      component={AutocompleteField}
-                                                      componentProps={{items: versions}}
-                                                  />
-                                                  <RevisionHelpIcon type='helm' top='0' />
-                                              </div>
-                                          )}
-                                      </DataLoader>
-                                  </div>
-                              )}
-                          </DataLoader>
-                      )
-                  }
-              ]
-            : [
-                  {
-                      title: 'TARGET REVISION',
-                      view: <Revision repoUrl={app.spec.sourceHydrator?.drySource?.repoURL} revision={app.spec.sourceHydrator?.drySource?.targetRevision || 'HEAD'} />,
-                      edit: (formApi: FormApi) => (
-                          <RevisionFormField
-                              hideLabel={true}
-                              formApi={formApi}
-                              fieldValue='spec.sourceHydrator.drySource.targetRevision'
-                              repoURL={app.spec.sourceHydrator?.drySource?.repoURL}
-                              repoType={repoType}
-                          />
-                      )
-                  },
-                  {
-                      title: 'PATH',
-                      view: (
-                          <Revision
-                              repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
-                              revision={app.spec.sourceHydrator?.drySource?.targetRevision || 'HEAD'}
-                              path={app.spec.sourceHydrator?.drySource?.path}
-                              isForPath={true}>
-                              {processPath(app.spec.sourceHydrator?.drySource?.path)}
-                          </Revision>
-                      ),
-                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.drySource.path' component={Text} />
-                  }
-              ])
+        {
+            title: 'TARGET REVISION',
+            view: <Revision repoUrl={app.spec.sourceHydrator?.drySource?.repoURL} revision={app.spec.sourceHydrator?.drySource?.targetRevision || 'HEAD'} />,
+            edit: (formApi: FormApi) => (
+                <RevisionFormField
+                    hideLabel={true}
+                    formApi={formApi}
+                    fieldValue='spec.sourceHydrator.drySource.targetRevision'
+                    repoURL={app.spec.sourceHydrator?.drySource?.repoURL}
+                    repoType={repoType}
+                />
+            )
+        },
+        {
+            title: 'PATH',
+            view: (
+                <Revision
+                    repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
+                    revision={app.spec.sourceHydrator?.drySource?.targetRevision || 'HEAD'}
+                    path={app.spec.sourceHydrator?.drySource?.path}
+                    isForPath={true}>
+                    {processPath(app.spec.sourceHydrator?.drySource?.path)}
+                </Revision>
+            ),
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.drySource.path' component={Text} />
+        }
     ];
 
     const syncSourceItems: EditablePanelItem[] = [
@@ -518,25 +480,6 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
 
     const hydrateToItems: EditablePanelItem[] = [
         {
-            title: 'USE CUSTOM TARGET BRANCH',
-            view: false,
-            edit: (formApi: FormApi) => (
-                <Checkbox
-                    onChange={(val: boolean) => {
-                        setUseCustomHydrateToBranch(val);
-                        if (!val) {
-                            // Reset to auto-generated value when unchecked
-                            const syncSourceBranch = formApi.getFormState().values?.spec?.sourceHydrator?.syncSource?.targetBranch || '';
-                            const autoValue = syncSourceBranch ? `${syncSourceBranch}-next` : '';
-                            formApi.setValue('spec.sourceHydrator.hydrateTo.targetBranch', autoValue);
-                        }
-                    }}
-                    checked={useCustomHydrateToBranch}
-                    id='use-custom-hydrate-to-branch'
-                />
-            )
-        },
-        {
             title: 'TARGET BRANCH',
             view: (
                 <Revision
@@ -547,32 +490,17 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     }
                 />
             ),
-            edit: (formApi: FormApi) => {
-                const syncSourceBranch = formApi.getFormState().values?.spec?.sourceHydrator?.syncSource?.targetBranch || '';
-                const autoValue = syncSourceBranch ? `${syncSourceBranch}-next` : '';
-
-                // Auto-populate when checkbox is unchecked
-                if (!useCustomHydrateToBranch && autoValue) {
-                    const currentValue = formApi.getFormState().values?.spec?.sourceHydrator?.hydrateTo?.targetBranch || '';
-                    if (currentValue !== autoValue) {
-                        formApi.setValue('spec.sourceHydrator.hydrateTo.targetBranch', autoValue);
-                    }
-                }
-
-                return useCustomHydrateToBranch ? (
-                    <RevisionFormField
-                        helpIconTop={'0'}
-                        hideLabel={true}
-                        formApi={formApi}
-                        fieldValue='spec.sourceHydrator.hydrateTo.targetBranch'
-                        repoURL={source.repoURL}
-                        repoType='git'
-                        revisionType='Branches'
-                    />
-                ) : (
-                    <div style={{color: '#6d7f8b', fontStyle: 'italic'}}>{autoValue || 'Set sync source target branch first'}</div>
-                );
-            }
+            edit: (formApi: FormApi) => (
+                <RevisionFormField
+                    helpIconTop={'0'}
+                    hideLabel={true}
+                    formApi={formApi}
+                    fieldValue='spec.sourceHydrator.hydrateTo.targetBranch'
+                    repoURL={source.repoURL}
+                    repoType='git'
+                    revisionType='Branches'
+                />
+            )
         }
     ];
 
@@ -707,7 +635,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             />
             {!hasMultipleSources && (
                 <EditablePanel
-                    save={updateApp}
+                    save={updateAppSource}
                     values={app}
                     title='SOURCE'
                     items={sourceAttributes}
