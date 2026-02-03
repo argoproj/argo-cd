@@ -108,7 +108,7 @@ It is defined by the following key pieces of information:
 > **Projects which can deploy to the Argo CD namespace grant admin access**
 >
 > If a Project's `destinations` configuration allows deploying to the namespace in which Argo CD is installed, then
-> Applications under that project have admin-level access. [RBAC access](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/)
+> Applications under that project have admin-level access. [RBAC access](rbac.md)
 > to admin-level Projects should be carefully restricted, and push access to allowed `sourceRepos` should be limited
 > to only admins.
 
@@ -597,7 +597,9 @@ stringData:
 
 ### EKS
 
-EKS cluster secret example using argocd-k8s-auth and [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) and [Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html):
+EKS clusters can be added from either the same account that hosts Argo CD or a separate account.
+
+EKS cluster secret example using argocd-k8s-auth and [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) or [Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html):
 
 ```yaml
 apiVersion: v1
@@ -614,28 +616,33 @@ stringData:
     {
       "awsAuthConfig": {
         "clusterName": "my-eks-cluster-name",
-        "roleARN": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"
+        "roleARN": "arn:aws:iam::<TARGET_AWS_ACCOUNT_ID>:role/<TARGET_IAM_ROLE_NAME>"
       },
       "tlsClientConfig": {
         "insecure": false,
         "caData": "<base64 encoded certificate>"
-      }        
+      }
     }
 ```
 
+An EKS cluster's `caData` is provided as base64 in the AWS EKS Console.
+
 This setup requires:
 
-1. [IRSA enabled](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) or [Pod Identity agent](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-agent-setup.html) on your Argo CD EKS cluster  
-2. An IAM role ("management role") for your Argo CD EKS cluster that has an appropriate trust policy and permission policies (see below)
-3. A role created for each cluster being added to Argo CD that is assumable by the Argo CD management role
-4. An [Access Entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) within each EKS cluster added to Argo CD that gives the cluster's role (from point 3) RBAC permissions
-to perform actions within the cluster
-    - Or, alternatively, an entry within the `aws-auth` ConfigMap within the cluster added to Argo CD ([deprecated by EKS](https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html))
+1. [IRSA enabled](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) or [Pod Identity agent](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-agent-setup.html) on your Argo CD EKS cluster.
+2. An [Argo CD Management IAM Role](#argo-cd-management-iam-role) in IAM for your Argo CD EKS cluster that has an appropriate trust policy and permission policies.
+3. A [Target Cluster IAM Role](#target-cluster-role-trust-policies) created for each cluster being added to Argo CD that is assumable by the Argo CD Management Role.
+4. An [Access Entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) within each target EKS cluster added 
+   to Argo CD that gives the Target Cluster Role the Kubernetes RBAC permissions to perform actions within the cluster.
+   Or, alternatively, an entry within the `aws-auth` ConfigMap in the target cluster to be added to Argo CD 
+   ([deprecated by EKS](https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html)).
+5. For cross-account clusters, the Target Cluster must either have public access to it's EKS API endpoint or you must provide the
+   network access required to reach the private endpoint.
 
-#### Argo CD Management Role
+#### Argo CD Management IAM Role
 
-The role created for Argo CD (the "management role") will need to have a trust policy suitable for assumption by certain 
-Argo CD Service Accounts *and by itself*.
+The role created for Argo CD will need to have a trust policy suitable for assumption by certain 
+Argo CD service accounts *and by itself*.
 
 The service accounts that need to assume this role are:
 
@@ -643,8 +650,10 @@ The service accounts that need to assume this role are:
 - `argocd-applicationset-controller`
 - `argocd-server`
 
-If we create role `arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>` for this purpose, the following
-is an example trust policy suitable for this need. Ensure that the Argo CD cluster has an [IAM OIDC provider configured](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) or [Pod Identity agent running](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-agent-setup.html)
+If we create a role `arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>` for this purpose, 
+the following is an example trust policy suitable for this need. 
+Ensure that the Argo CD cluster has an [IAM OIDC provider configured](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) 
+or [Pod Identity agent running](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-agent-setup.html)
 
 **for IRSA:**
 ```json
@@ -660,7 +669,7 @@ is an example trust policy suitable for this need. Ensure that the Argo CD clust
             "Action": "sts:AssumeRole",
             "Condition": {
                 "ArnLike": {
-                  "aws:PrincipalArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+                  "aws:PrincipalArn": "arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_ROLE_NAME>"
                 }
             }
         },
@@ -668,7 +677,7 @@ is an example trust policy suitable for this need. Ensure that the Argo CD clust
             "Sid": "ServiceAccountRoleAssumption",
             "Effect": "Allow",
             "Principal": {
-                "Federated": "arn:aws:iam::<AWS_ACCOUNT_ID>:oidc-provider/oidc.eks.<AWS_REGION>.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE"
+                "Federated": "arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:oidc-provider/oidc.eks.<AWS_REGION>.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE"
             },
             "Action": "sts:AssumeRoleWithWebIdentity",
             "Condition": {
@@ -718,53 +727,75 @@ is an example trust policy suitable for this need. Ensure that the Argo CD clust
 }
 ```
 
-#### Argo CD Service Accounts
+##### Argo CD Service Accounts
 
-The 3 service accounts need to be modified to include an annotation with the Argo CD management role ARN.
+The three service accounts need to be modified to include an annotation with the Argo CD Management Role ARN.
 
 Here's an example service account configurations for `argocd-application-controller`, `argocd-applicationset-controller`, and `argocd-server`.
 
 > [!WARNING]
 > Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
 
-**for IRSA:**   
+**for IRSA:**
 ```yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    eks.amazonaws.com/role-arn: "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+    eks.amazonaws.com/role-arn: "<arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
   name: argocd-application-controller
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    eks.amazonaws.com/role-arn: "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+    eks.amazonaws.com/role-arn: "<arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
   name: argocd-applicationset-controller
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
-    eks.amazonaws.com/role-arn: "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+    eks.amazonaws.com/role-arn: "<arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
   name: argocd-server
 ```
 
 **for Pod Identity:**  
 ```shell
-aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-applicationset-controller --role-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
-aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-application-controller --role-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
-aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-server --role-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
+aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-applicationset-controller --role-arn arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
+aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-application-controller --role-arn arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
+aws eks associate-pod-identity -- cluster-name <EKS_CLUSTER_NAME> --namespace argocd --service-account argocd-server --role-arn arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>
 ```
 
-#### IAM Permission Policy
+#### Target Cluster IAM Role
 
-The Argo CD management role (`arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>` in our example) additionally
-needs to be allowed to assume a role for each cluster added to Argo CD.
+Each AWS account with a cluster to be managed by Argo CD will need a Target Cluster IAM Role. This role is primarily 
+as a role to be assumed by the Argo CD Management IAM Role and mapped to EKS Access Entries. If you have multiple target clusters
+in a single account, only one role is required. 
 
-If we create a role named `<IAM_CLUSTER_ROLE>` for an EKS cluster we are adding to Argo CD, we would update the permission 
-policy of the Argo CD management role to include the following:
+The permissions are as below:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "eks:DescribeCluster"
+            ],
+            "Effect": "Allow",
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+##### IAM Permission Policy
+
+The Argo CD management role (`arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>` in our example)
+needs to be allowed to assume the Target Cluster IAM Role for each cluster to be added to Argo CD.
+
+Update the permission policy of the Argo CD Management IAM Role to include the following:
 
 **for IRSA:**
 ```json
@@ -774,7 +805,7 @@ policy of the Argo CD management role to include the following:
       "Effect" : "Allow",
       "Action" : "sts:AssumeRole",
       "Resource" : [
-        "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>"
+        "arn:aws:iam::<TARGET_AWS_ACCOUNT_ID>:role/<TARGET_CLUSTER_IAM_ROLE>"
       ]
     }
   }
@@ -791,30 +822,29 @@ policy of the Argo CD management role to include the following:
         "sts:TagSession"
       ],
       "Resource" : [
-        "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>"
+        "arn:aws:iam::<TARGET_AWS_ACCOUNT_ID>:role/<TARGET_CLUSTER_IAM_ROLE>"
       ]
     }
   }
 ```
 
-This allows the Argo CD management role to assume the cluster role.
+This allows the Argo CD Management IAM Role to assume the Target Cluster IAM Role.
 
-You can add permissions like above to the Argo CD management role for each cluster being managed by Argo CD (assuming you
-create a new role per cluster).
+If you create separate IAM roles for each target cluster or if the clusters are in separate accounts, you must add the above permissions
+to the Argo CD Management IAM Role for *each target*.
 
-#### Cluster Role Trust Policies
+##### Target Cluster Role Trust Policies
 
-As stated, each EKS cluster being added to Argo CD should have its own corresponding role. This role should not have any
-permission policies. Instead, it will be used to authenticate against the EKS cluster's API. The Argo CD management role
+Each AWS account with an EKS cluster being added to Argo CD should have its own corresponding role. 
+It will be used to authenticate against the EKS cluster's API. The Argo CD management role
 assumes this role, and calls the AWS API to get an auth token via argocd-k8s-auth. That token is used when connecting to
 the added cluster's API endpoint.
 
-If we create role `arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>` for a cluster being added to Argo CD, we should
-set its trust policy to give the Argo CD management role permission to assume it. Note that we're granting the Argo CD 
-management role permission to assume this role above, but we also need to permit that action via the cluster role's
-trust policy.
+For the Target Cluster IAM Role we set its trust policy to give the Argo CD management role permission to assume it. 
+We're granting the Argo CD management role permission to assume this role above, but we also need to permit that action 
+in the cluster role's trust policy.
 
-A suitable trust policy allowing the `IAM_CLUSTER_ROLE` to be assumed by the `ARGO_CD_MANAGEMENT_IAM_ROLE_NAME` role looks like this:
+A suitable trust policy allowing the `TARGET_CLUSTER_IAM_ROLE` to be assumed by the `ARGO_CD_MANAGEMENT_IAM_ROLE_NAME` role looks like this:
 
 **for IRSA:**
 ```json
@@ -824,7 +854,7 @@ A suitable trust policy allowing the `IAM_CLUSTER_ROLE` to be assumed by the `AR
         {
             "Effect": "Allow",
             "Principal": {
-                "AWS": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+                "AWS": "arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
             },
             "Action": "sts:AssumeRole"
         }
@@ -840,7 +870,7 @@ A suitable trust policy allowing the `IAM_CLUSTER_ROLE` to be assumed by the `AR
         {
             "Effect": "Allow",
             "Principal": {
-                "AWS": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+                "AWS": "arn:aws:iam::<ARGO_CD_MANAGEMENT_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
             },
             "Action": [
                 "sts:TagSession",
@@ -853,9 +883,9 @@ A suitable trust policy allowing the `IAM_CLUSTER_ROLE` to be assumed by the `AR
 
 #### Access Entries
 
-Each cluster's role (e.g. `arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>`) has no permission policy. Instead, we
-associate that role with an EKS permission policy, which grants that role the ability to generate authentication tokens
-to the cluster's API. This EKS permission policy decides what RBAC permissions are granted in that process.
+Each cluster's role (e.g. `arn:aws:iam::<TARGET_AWS_ACCOUNT_ID>:role/<TARGET_CLUSTER_IAM_ROLE>`) is
+associated with an EKS permission policy, which grants that role the ability to generate authentication tokens
+to the cluster's API. This EKS permission policy decides what Kubernetes RBAC permissions are granted.
 
 An [access entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) (and the policy associated to the role) can be created using the following commands:
 
@@ -863,7 +893,7 @@ An [access entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entrie
 # For each cluster being added to Argo CD
 aws eks create-access-entry \
     --cluster-name my-eks-cluster-name \
-    --principal-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE> \
+    --principal-arn arn:aws:iam::<TARGET_AWS_ACCOUNT_ID>:role/<TARGET_CLUSTER_IAM_ROLE> \
     --type STANDARD \
     --kubernetes-groups [] # No groups needed
 
@@ -871,14 +901,14 @@ aws eks associate-access-policy \
     --cluster-name my-eks-cluster-name \
     --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
     --access-scope type=cluster \
-    --principal-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>
+    --principal-arn arn:aws:iam::<TARGET_AWS_ACCOUNT_ID>:role/<TARGET_CLUSTER_IAM_ROLE>
 ```
 
 The above role is granted cluster admin permissions via `AmazonEKSClusterAdminPolicy`. The Argo CD management role that
 assume this role is therefore granted the same cluster admin permissions when it generates an API token when adding the 
 associated EKS cluster.
 
-**AWS Auth (Deprecated)**
+##### AWS Auth (Deprecated)
 
 Instead of using Access Entries, you may need to use the deprecated `aws-auth`.
 
@@ -895,7 +925,7 @@ An example assume role policy for a cluster which is managed by Argo CD:
       "Effect" : "Allow",
       "Action" : "sts:AssumeRole",
       "Principal" : {
-        "AWS" : "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+        "AWS" : "<arn:aws:iam::<ARGO_CD_AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
       }
     }
   }
@@ -907,25 +937,27 @@ Example kube-system/aws-auth configmap for your cluster managed by Argo CD:
 apiVersion: v1
 data:
   # Other groups and accounts omitted for brevity. Ensure that no other rolearns and/or groups are inadvertently removed, 
-  # or you risk borking access to your cluster.
+  # or you risk breaking access to your cluster.
   #
   # The group name is a RoleBinding which you use to map to a [Cluster]Role. See https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-binding-examples  
   mapRoles: |
     - "groups":
       - "<GROUP-NAME-IN-K8S-RBAC>"
-      "rolearn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>"
-      "username": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>"
+      "rolearn": "arn:aws:iam::<TARGET_AWS_ACCOUNT_ID>:role/<TARGET_CLUSTER_IAM_ROLE>"
+      "username": "arn:aws:iam::<TARGET_AWS_ACCOUNT_ID>:role/<TARGET_CLUSTER_IAM_ROLE>"
 ```
 
 Use the role ARN for both `rolearn` and `username`.
 
 #### Alternative EKS Authentication Methods
+
 In some scenarios it may not be possible to use IRSA, such as when the Argo CD cluster is running on a different cloud
 provider's platform. In this case, there are two options:
+
 1. Use `execProviderConfig` to call the AWS authentication mechanism which enables the injection of environment variables to supply credentials
 2. Leverage the new AWS profile option available in Argo CD release 2.10
 
-Both of these options will require the steps involving IAM and the `aws-auth` config map (defined above) to provide the 
+Both of these options will require the steps involving [AWS Auth](#aws-auth-deprecated) config map to provide the 
 principal with access to the cluster.
 
 ##### Using execProviderConfig with Environment Variables
@@ -967,16 +999,17 @@ This example assumes that the role being attached to the credentials that have b
 the role can be appended to the `args` section like so:
 
 ```yaml
-...
     "args": ["aws", "--cluster-name", "my-eks-cluster", "--role-arn", "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"],
-...
 ```
+
 This construct can be used in conjunction with something like the External Secrets Operator to avoid storing the keys in
 plain text and additionally helps to provide a foundation for key rotation.
 
 ##### Using An AWS Profile For Authentication
+
 The option to use profiles, added in release 2.10, provides a method for supplying credentials while still using the
 standard Argo CD EKS cluster declaration with an additional command flag that points to an AWS credentials file:
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -998,9 +1031,10 @@ stringData:
       "tlsClientConfig": {
         "insecure": false,
         "caData": "<base64 encoded certificate>"
-      }        
+      }
     }
 ```
+
 This will instruct Argo CD to read the file at the provided path and use the credentials defined within to authenticate to AWS. 
 The profile must be mounted in both the `argocd-server` and `argocd-application-controller` components in order for this to work.
 For example, the following values can be defined in a Helm-based Argo CD deployment:
@@ -1086,25 +1120,26 @@ Note that you must enable Workload Identity on your GKE cluster, create GCP serv
 
 Azure cluster secret example using argocd-k8s-auth and [kubelogin](https://github.com/Azure/kubelogin).  The option *azure* to the argocd-k8s-auth execProviderConfig encapsulates the *get-token* command for kubelogin.  Depending upon which authentication flow is desired (devicecode, spn, ropc, msi, azurecli, workloadidentity), set the environment variable AAD_LOGIN_METHOD with this value.  Set other appropriate environment variables depending upon which authentication flow is desired.
 
-|Variable Name|Description|
-|-------------|-----------|
-|AAD_LOGIN_METHOD|One of devicecode, spn, ropc, msi, azurecli, or workloadidentity|
-|AZURE_CLIENT_CERTIFICATE_PATH|Path to AAD client cert in pfx.  Used in spn login and WorkloadIdentityLogin flow|
-|AZURE_CLIENT_CERTIFICATE_PASSWORD|Password for the client cert in pfx.  Used in spn login|
-|AZURE_CLIENT_ID|AAD client application ID|
-|AZURE_CLIENT_SECRET|AAD client application secret|
-|AAD_USER_PRINCIPAL_NAME|Used in the ropc flow|
-|AAD_USER_PRINCIPAL_PASSWORD|Used in the ropc flow|
-|AZURE_TENANT_ID|The AAD tenant ID.|
-|AZURE_AUTHORITY_HOST|Used in the WorkloadIdentityLogin flow|
-|AZURE_FEDERATED_TOKEN_FILE|Used in the WorkloadIdentityLogin flow|
+| Variable Name                    | Description                            |
+|----------------------------------|----------------------------------------|
+|AAD_LOGIN_METHOD                  | One of devicecode, spn, ropc, msi, azurecli, or workloadidentity|
+|AZURE_CLIENT_CERTIFICATE_PATH     | Path to AAD client cert in pfx.  Used in spn login and WorkloadIdentityLogin flow|
+|AZURE_CLIENT_CERTIFICATE_PASSWORD | Password for the client cert in pfx.  Used in spn login|
+|AZURE_CLIENT_ID                   | AAD client application ID|
+|AZURE_CLIENT_SECRET               | AAD client application secret|
+|AAD_USER_PRINCIPAL_NAME           | Used in the ropc flow|
+|AAD_USER_PRINCIPAL_PASSWORD       | Used in the ropc flow|
+|AZURE_TENANT_ID                   | The AAD tenant ID.|
+|AZURE_AUTHORITY_HOST              | Used in the WorkloadIdentityLogin flow|
+|AZURE_FEDERATED_TOKEN_FILE        | Used in the WorkloadIdentityLogin flow|
 
-In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [here](https://github.com/azure/kubelogin#exec-plugin-format) for details.
+In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to `6dae42f8-4368-4678-94ff-3960e28e3630` if not specified.  
+The [exec plugin documentation](https://azure.github.io/kubelogin/concepts/exec-plugin.html) has more details.
 
-|Variable Name|Description|
-|-------------|-----------|
-|AAD_ENVIRONMENT_NAME|The azure environment to use, default of AzurePublicCloud|
-|AAD_SERVER_APPLICATION_ID|The optional AAD server application ID, defaults to 6dae42f8-4368-4678-94ff-3960e28e3630|
+|Variable Name             |Description|
+|--------------------------|-----------|
+|AAD_ENVIRONMENT_NAME      |The azure environment to use, default of AzurePublicCloud|
+|AAD_SERVER_APPLICATION_ID |The optional AAD server application ID, defaults to 6dae42f8-4368-4678-94ff-3960e28e3630|
 
 This is an example of using the [federated workload login flow](https://github.com/Azure/kubelogin#azure-workload-federated-identity-non-interactive).  The federated token file needs to be mounted as a secret into argoCD, so it can be used in the flow.  The location of the token file needs to be set in the environment variable AZURE_FEDERATED_TOKEN_FILE.
 

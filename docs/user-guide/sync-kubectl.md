@@ -131,7 +131,7 @@ operation:
 
 # Sync Options
 
-In an operation, you can also pass sync-options. Each of these options is passed as "name=value" pairs. For example:
+In an operation, you can also pass [sync-options](sync-options.md). Each of these options is passed as "name=value" pairs. For example:
 
 ```yaml
 operations:
@@ -140,5 +140,3 @@ operations:
       - Validate=false
       - Prune=false
 ```
-
-For more information about sync options, please refer to [sync-options](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/)

@@ -42,7 +42,7 @@ You have not defined `xxxx` in `argocd-notifications-cm` or parsing failed.
 
 ### GitHub.repoURL (\u003cno value\u003e) does not have a / using the configuration
 
-Likely caused by an Application with [multiple sources](https://argo-cd.readthedocs.io/en/stable/user-guide/multiple_sources/):
+Likely caused by an Application with [multiple sources](../../user-guide/multiple_sources.md):
 
 ```yaml
 spec:
