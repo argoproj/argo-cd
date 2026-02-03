@@ -87,7 +87,7 @@ func getSignedRequest(ctx context.Context, clusterName, roleARN string, profile 
 }
 
 func loadAWSConfig(ctx context.Context, profile string) (aws.Config, error) {
-	opts := []func(*config.LoadOptions) error{}
+	var opts []func(*config.LoadOptions) error
 	if profile != "" {
 		opts = append(opts, config.WithSharedConfigProfile(profile))
 	}
