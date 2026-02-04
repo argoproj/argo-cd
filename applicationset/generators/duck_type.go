@@ -10,6 +10,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/fields"
@@ -18,6 +19,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/common"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -149,6 +151,12 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 		return nil, nil
 	}
 
+	// Get cluster secrets to retrieve metadata (labels, annotations)
+	clusterSecrets, err := g.getSecretsByClusterName()
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster secrets: %w", err)
+	}
+
 	res := []map[string]any{}
 	for _, clusterDecision := range clusterDecisions {
 		cluster := findCluster(clustersFromArgoCD, clusterDecision, matchKey, statusListKey)
@@ -161,6 +169,11 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 		params := map[string]any{
 			"name":   cluster.Name,
 			"server": cluster.Server,
+		}
+
+		// Add metadata (labels, annotations) from the cluster secret
+		if secretForCluster, exists := clusterSecrets[cluster.Name]; exists {
+			appendClusterMetadata(params, &secretForCluster, appSet)
 		}
 
 		for key, value := range clusterDecision.(map[string]any) {
@@ -227,5 +240,47 @@ func collectParams(appSet *argoprojiov1alpha1.ApplicationSet, params map[string]
 		params["values"].(map[string]string)[key] = value
 	} else {
 		params["values."+key] = value
+	}
+}
+
+func (g *DuckTypeGenerator) getSecretsByClusterName() (map[string]corev1.Secret, error) {
+	clusterSecretList, err := g.clientset.CoreV1().Secrets(g.namespace).List(g.ctx,
+		metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
+	if err != nil {
+		return nil, err
+	}
+
+	res := map[string]corev1.Secret{}
+	for _, cluster := range clusterSecretList.Items {
+		clusterName := string(cluster.Data["name"])
+		res[clusterName] = cluster
+	}
+	return res, nil
+}
+
+func appendClusterMetadata(params map[string]any, cluster *corev1.Secret, appSet *argoprojiov1alpha1.ApplicationSet) {
+	if cluster == nil {
+		return
+	}
+
+	if appSet.Spec.GoTemplate {
+		meta := map[string]any{}
+
+		if len(cluster.Annotations) > 0 {
+			meta["annotations"] = cluster.Annotations
+		}
+		if len(cluster.Labels) > 0 {
+			meta["labels"] = cluster.Labels
+		}
+
+		params["metadata"] = meta
+	} else {
+		for key, value := range cluster.Annotations {
+			params["metadata.annotations."+key] = value
+		}
+
+		for key, value := range cluster.Labels {
+			params["metadata.labels."+key] = value
+		}
 	}
 }
