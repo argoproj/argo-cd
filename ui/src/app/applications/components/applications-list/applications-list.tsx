@@ -456,7 +456,9 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                 cluster: newPref.clustersFilter.join(','),
                 labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
                 annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
-                operation: newPref.operationFilter.join(',')
+                operation: newPref.operationFilter.join(','),
+                // Keep URL and preferences consistent. When false, remove the param entirely.
+                showFavorites: newPref.showFavorites ? 'true' : null
             },
             {replace: true}
         );
@@ -469,7 +471,9 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
             '.',
             {
                 health: newPref.healthFilter.join(','),
-                labels: newPref.labelsFilter.map(encodeURIComponent).join(',')
+                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
+                // Keep URL and preferences consistent. When false, remove the param entirely.
+                showFavorites: newPref.showFavorites ? 'true' : null
             },
             {replace: true}
         );
