@@ -56,7 +56,7 @@ to `exec` into pods
 
     This can be added either to the `argocd-cm` `Configmap` manifest or an `AppProject` manifest.
 
-   See [RBAC Configuration](rbac.md#exec-resource) for more info.
+   See [RBAC Configuration](rbac.md#the-exec-resource) for more info.
 
 ## Changing allowed shells
 

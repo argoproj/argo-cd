@@ -20,7 +20,7 @@ jobs:
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
 
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # 6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
 
       # Some codegen commands require Go to be setup
       - name: Setup Golang
@@ -30,7 +30,7 @@ jobs:
           go-version: 1.25.6
 
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@8cb0d4a6ab7d8bb90460a005f7bd33b80dd07ca8 #44.2.5
+        uses: renovatebot/github-action@3c68caaa9db5ff24332596591dc7c4fed8de16ce #46.0.1
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'

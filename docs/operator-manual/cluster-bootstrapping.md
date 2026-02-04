@@ -170,7 +170,8 @@ The parent app will appear as in-sync but the child apps will be out of sync:
 
 ![New App Of Apps](../assets/new-app-of-apps.png)
 
-> NOTE: You may want to modify this behavior to bootstrap your cluster in waves; see [the health assessment of Applications](./health.md#argocd-app) for information on changing this.
+> [!NOTE]
+> You may want to modify this behavior to bootstrap your cluster in waves; see [the health assessment of Applications](./health.md#argocd-app) for information on changing this.
 
 You can either sync via the UI, firstly filter by the correct label:
 
@@ -220,7 +221,7 @@ See [Deleting Applications in the UI](../user-guide/app_deletion.md#deleting-app
 
 ### Ignoring differences in child applications
 
-To allow changes in child apps without triggering an out-of-sync status, or modification for debugging etc, the app of apps pattern works with [diff customization](../user-guide/diffing/). The example below shows how to ignore changes to syncPolicy and other common values.
+To allow changes in child apps without triggering an out-of-sync status, or modification for debugging etc, the app of apps pattern works with [diff customization](../user-guide/diffing.md). The example below shows how to ignore changes to syncPolicy and other common values.
 
 ```yaml
 spec:
