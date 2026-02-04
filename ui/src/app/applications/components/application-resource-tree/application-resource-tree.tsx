@@ -922,9 +922,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         // @ts-expect-error its not any
         children: [],
         status: isApp(props.app) ? (props.app as models.Application).status.sync.status : null,
-        health: isApp(props.app)
-            ? (props.app as models.Application).status.health
-            : {status: getAppSetHealthStatus(props.app as models.ApplicationSet), message: ''},
+        health: isApp(props.app) ? (props.app as models.Application).status.health : {status: getAppSetHealthStatus(props.app as models.ApplicationSet), message: ''},
         uid: props.app.kind + '-' + props.app.metadata.namespace + '-' + props.app.metadata.name,
         info:
             overridesCount > 0
