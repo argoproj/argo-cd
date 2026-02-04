@@ -48,6 +48,20 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 )
 
+func TestNewApplicationCreateCommand(t *testing.T) {
+	clientOpts := &argocdclient.ClientOptions{
+		ServerAddr: "localhost:8080",
+		PlainText:  true,
+	}
+
+	cmd := NewApplicationCreateCommand(clientOpts)
+
+	assert.NotNil(t, cmd)
+	assert.Contains(t, cmd.Short, "application")
+
+	assert.True(t, cmd.Flags().HasFlags())
+}
+
 func Test_getInfos(t *testing.T) {
 	testCases := []struct {
 		name          string
