@@ -94,7 +94,7 @@ export const FiltersGroup = (props: {
 
 export const Filter = (props: FilterProps) => {
     const init = {} as {[label: string]: boolean};
-    (props.selected || []).forEach(s => (init[s] = true));
+    props.selected.forEach(s => (init[s] = true));
 
     const [values, setValues] = React.useState(init);
     const [tags, setTags] = React.useState([]);
@@ -106,7 +106,7 @@ export const Filter = (props: FilterProps) => {
         setOptions(props.options);
     }, [props.options]);
 
-    const labels = props.labels || (options || []).map(o => o.label);
+    const labels = props.labels || options.map(o => o.label);
 
     React.useEffect(() => {
         const {cleanedValues, selectedKeys} = Object.entries(values).reduce(
@@ -139,11 +139,11 @@ export const Filter = (props: FilterProps) => {
     }, [values]);
 
     React.useEffect(() => {
-        if ((props.selected || []).length === 0) {
+        if (props.selected.length === 0) {
             setValues({} as {[label: string]: boolean});
             setInput('');
         }
-    }, [(props.selected || []).length]);
+    }, [props.selected.length]);
 
     return (
         <div className='filter'>
