@@ -157,14 +157,24 @@ func (r *ClusterProfileReconciler) mutateSecret(secret *corev1.Secret, clusterPr
 	// If there is an exec provider, add it to the config.
 	if config.ExecProvider != nil {
 		apiConfig.ExecProviderConfig = &v1alpha1.ExecProviderConfig{
-			Command:    config.ExecProvider.Command,
-			Args:       config.ExecProvider.Args,
-			APIVersion: config.ExecProvider.APIVersion,
+			Command:            config.ExecProvider.Command,
+			Args:               config.ExecProvider.Args,
+			APIVersion:         config.ExecProvider.APIVersion,
+			ProvideClusterInfo: config.ExecProvider.ProvideClusterInfo,
 		}
 		if len(config.ExecProvider.Env) > 0 {
 			apiConfig.ExecProviderConfig.Env = make(map[string]string)
 			for _, env := range config.ExecProvider.Env {
 				apiConfig.ExecProviderConfig.Env[env.Name] = env.Value
+			}
+		}
+		// Preserve the exec provider's Config (e.g., clusterName from ClusterProfile extensions).
+		// This data originates from the ClusterProfile's cluster.extensions field with the reserved key
+		// "client.authentication.k8s.io/exec", as defined by the Kubernetes client authentication API.
+		// Reference: https://kubernetes.io/docs/reference/config-api/kubeconfig.v1/#ExecConfig
+		if config.ExecProvider.Config != nil {
+			if configData, err := json.Marshal(config.ExecProvider.Config); err == nil {
+				apiConfig.ExecProviderConfig.Config = &runtime.RawExtension{Raw: configData}
 			}
 		}
 	}

@@ -56,6 +56,17 @@ const (
 	HorizontalPodAutoscalerKind  = "HorizontalPodAutoscaler"
 )
 
+// clusterExecExtensionKey is the reserved extension key defined by the Kubernetes client authentication API
+// for passing per-cluster configuration to exec credential plugins. When a kubeconfig is written,
+// any ExecConfig.Config data must be placed in the cluster's extensions field under this key,
+// since the ExecConfig.Config field itself has json:"-" and is not directly serialized.
+//
+// This key is defined by SIG Auth as part of the client authentication specification:
+// - KEP: https://github.com/kubernetes/enhancements/tree/master/keps/sig-auth/541-external-credential-providers
+// - API Reference: https://kubernetes.io/docs/reference/config-api/kubeconfig.v1/#ExecConfig
+// - client-go source: k8s.io/client-go/tools/clientcmd/api/types.go (ExecConfig.Config field comment)
+const clusterExecExtensionKey = "client.authentication.k8s.io/exec"
+
 type ResourceInfoProvider interface {
 	IsNamespaced(gk schema.GroupKind) (bool, error)
 }
@@ -235,6 +246,34 @@ func NewKubeConfig(restConfig *rest.Config, namespace string) *clientcmdapi.Conf
 			proxyUrl = u.String()
 		}
 	}
+
+	cluster := &clientcmdapi.Cluster{
+		Server:                   restConfig.Host,
+		TLSServerName:            restConfig.ServerName,
+		InsecureSkipTLSVerify:    restConfig.Insecure,
+		CertificateAuthority:     restConfig.CAFile,
+		CertificateAuthorityData: restConfig.CAData,
+		ProxyURL:                 proxyUrl,
+	}
+
+	// If ExecProvider has a Config, add it as a cluster extension so it persists when
+	// the kubeconfig is written to a file (e.g., for kubectl operations).
+	//
+	// Background: The ExecConfig.Config field in client-go has `json:"-"` and is intentionally
+	// not serialized directly into the exec/user section of the kubeconfig. Instead, per-cluster
+	// configuration for exec plugins must be stored in the cluster's extensions field.
+	// When client-go loads a kubeconfig, it reads the extension with key clusterExecExtensionKey
+	// and populates ExecConfig.Config, which then flows to the exec plugin via
+	// KUBERNETES_EXEC_INFO environment variable as ExecCredential.Spec.Cluster.Config.
+	//
+	// This is necessary for multi-cluster credential plugins (like OCM's cp-creds) that need
+	// cluster-specific information (like cluster name) to fetch the correct credentials.
+	if restConfig.ExecProvider != nil && restConfig.ExecProvider.Config != nil {
+		cluster.Extensions = map[string]runtime.Object{
+			clusterExecExtensionKey: restConfig.ExecProvider.Config,
+		}
+	}
+
 	return &clientcmdapi.Config{
 		CurrentContext: restConfig.Host,
 		Contexts: map[string]*clientcmdapi.Context{
@@ -245,14 +284,7 @@ func NewKubeConfig(restConfig *rest.Config, namespace string) *clientcmdapi.Conf
 			},
 		},
 		Clusters: map[string]*clientcmdapi.Cluster{
-			restConfig.Host: {
-				Server:                   restConfig.Host,
-				TLSServerName:            restConfig.ServerName,
-				InsecureSkipTLSVerify:    restConfig.Insecure,
-				CertificateAuthority:     restConfig.CAFile,
-				CertificateAuthorityData: restConfig.CAData,
-				ProxyURL:                 proxyUrl,
-			},
+			restConfig.Host: cluster,
 		},
 		AuthInfos: map[string]*clientcmdapi.AuthInfo{
 			restConfig.Host: newAuthInfo(restConfig),
