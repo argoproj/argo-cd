@@ -2009,7 +2009,6 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
 
-	// Helper function to simulate UpdateFunc call
 	simulateUpdateFunc := func(oldApp, newApp *v1alpha1.Application) {
 		if !ctrl.canProcessApp(newApp) {
 			return
@@ -2026,7 +2025,6 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		oldOK := oldApp != nil
 		newOK := newApp != nil
 		if oldOK && newOK {
-			// Skip refresh requests for informer resync events (same ResourceVersion)
 			if oldApp.ResourceVersion == newApp.ResourceVersion {
 				if ctrl.hydrator != nil {
 					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
@@ -2043,7 +2041,6 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 				(oldApp.DeletionTimestamp != nil && newApp.DeletionTimestamp != nil && !oldApp.DeletionTimestamp.Equal(newApp.DeletionTimestamp))
 			appBeingDeleted := newApp.DeletionTimestamp != nil
 
-			// Skip refresh requests for status-only updates (spec unchanged)
 			if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) && !operationChanged && !deletionTimestampChanged && !appBeingDeleted {
 				oldAnnotations := oldApp.GetAnnotations()
 				newAnnotations := newApp.GetAnnotations()
@@ -2079,9 +2076,6 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 		ctrl.clusterSharding.UpdateApp(newApp)
 	}
 
-	// Helper to check if refresh was requested
-	// Note: isRefreshRequested uses appName directly, but requestAppRefresh uses toAppKey(appName)
-	// For qualified names (namespace/name), toAppKey returns the same value, so they should match
 	checkRefreshRequested := func(appName string, shouldBeRequested bool, msg string) {
 		key := ctrl.toAppKey(appName)
 		ctrl.refreshRequestedAppsMutex.Lock()
