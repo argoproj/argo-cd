@@ -1019,11 +1019,6 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	var logCtx *log.Entry
 
 	if !exists {
-		// App not in informer - this can happen if:
-		// 1. App was just created and informer hasn't synced yet
-		// 2. App is in a namespace not watched by informer (external namespace)
-		// 3. App was deleted
-		// Try to get it directly from API server to check for operations
 		parts := strings.Split(appKey, "/")
 		if len(parts) != 2 {
 			log.WithField("appkey", appKey).Warn("Unexpected appKey format, expected namespace/name")
@@ -1033,19 +1028,14 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		freshApp, apiErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace).Get(context.Background(), appName, metav1.GetOptions{})
 		if apiErr != nil {
 			if apierrors.IsNotFound(apiErr) {
-				// App was deleted, skip processing
 				return processNext
 			}
 			log.WithField("appkey", appKey).WithError(apiErr).Error("Failed to retrieve application from API server")
 			return processNext
 		}
-		// Only process if there's an operation - operations are the reason items are queued
-		// If there's no operation, it was likely queued before the app was created or the operation was cleared
 		if freshApp.Operation == nil {
-			// No operation, skip processing
 			return processNext
 		}
-		// We already have fresh data from API server, use it directly
 		app = freshApp
 		logCtx = log.WithFields(applog.GetAppLogFields(app))
 	} else {
@@ -1057,9 +1047,6 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		app = origApp.DeepCopy()
 		logCtx = log.WithFields(applog.GetAppLogFields(app))
 
-		// Always retrieve fresh data from API server when processing operations
-		// The informer might have stale data, and operations are time-sensitive
-		// We cannot rely on informer since applications might be updated by both application controller and api server
 		if app.Operation != nil {
 			freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 			if err != nil {
@@ -1068,9 +1055,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 				}
 				return processNext
 			}
-			// Check if operation was cleared (e.g., already processed by another worker)
 			if freshApp.Operation == nil {
-				// Operation was cleared, skip processing
 				return processNext
 			}
 			app = freshApp
@@ -2463,19 +2448,16 @@ func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 	return ctrl.clusterSharding.IsManagedCluster(destCluster)
 }
 
-// Checks if the operation was added or changed between old and new app
 func operationChanged(oldApp, newApp *appv1.Application) bool {
 	return (oldApp.Operation == nil && newApp.Operation != nil) ||
 		(oldApp.Operation != nil && newApp.Operation != nil && !equality.Semantic.DeepEqual(oldApp.Operation, newApp.Operation))
 }
 
-// Checks if the deletion timestamp changed between old and new app
 func deletionTimestampChanged(oldApp, newApp *appv1.Application) bool {
 	return (oldApp.DeletionTimestamp == nil && newApp.DeletionTimestamp != nil) ||
 		(oldApp.DeletionTimestamp != nil && newApp.DeletionTimestamp != nil && !oldApp.DeletionTimestamp.Equal(newApp.DeletionTimestamp))
 }
 
-// Checks if the update only changed status/metadata without changing spec, operations, or deletion timestamp
 func isStatusOnlyUpdate(oldApp, newApp *appv1.Application) bool {
 	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 		return false
@@ -2601,7 +2583,6 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				var delay *time.Duration
 
 				if oldOK && newOK {
-					// Skip refresh requests for informer resync events (same ResourceVersion)
 					if oldApp.ResourceVersion == newApp.ResourceVersion {
 						if ctrl.hydrator != nil {
 							ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
@@ -2610,8 +2591,6 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						return
 					}
 
-					// Skip refresh requests for status-only updates (spec unchanged)
-					// This prevents feedback loop: status update → UpdateFunc → requestAppRefresh → refresh → status update
 					if isStatusOnlyUpdate(oldApp, newApp) {
 						oldAnnotations := oldApp.GetAnnotations()
 						newAnnotations := newApp.GetAnnotations()
@@ -2649,7 +2628,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					return
 				}
 				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-				// key function.
+				// Key function.
 				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 				if err == nil {
 					// for deletes, we immediately add to the refresh queue

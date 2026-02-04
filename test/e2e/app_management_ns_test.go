@@ -2426,9 +2426,9 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 	}()
 
 	configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err, "Failed to get ConfigMap to verify update")
-	require.Equal(t, "0s", configMap.Data["timeout.reconciliation"], "ConfigMap timeout.reconciliation should be 0s")
-	require.Equal(t, "0s", configMap.Data["timeout.reconciliation.jitter"], "ConfigMap timeout.reconciliation.jitter should be 0s")
+	require.NoError(t, err)
+	require.Equal(t, "0s", configMap.Data["timeout.reconciliation"])
+	require.Equal(t, "0s", configMap.Data["timeout.reconciliation.jitter"])
 	configMapResourceVersion := configMap.ResourceVersion
 	configMapUpdateTime := time.Now()
 
@@ -2464,8 +2464,7 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 		}
 
 		return true
-	}, 30*time.Second, 1*time.Second, "Controller did not pick up ConfigMap changes within expected time. The controller may need more time to sync via informers.")
-	t.Logf("Verified controller has synced ConfigMap changes")
+	}, 30*time.Second, 1*time.Second, "controller did not sync ConfigMap in time")
 
 	Given(t).
 		Path(guestbookPath).
@@ -2483,7 +2482,7 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.AppNamespace()).Get(context.Background(), a.Name, metav1.GetOptions{})
 			require.NoError(t, err)
 			initialReconciledAt := app.Status.ReconciledAt
-			require.NotNil(t, initialReconciledAt, "Application should have reconciledAt timestamp after sync")
+			require.NotNil(t, initialReconciledAt)
 
 			ctx, cancel := context.WithTimeout(t.Context(), 4*time.Minute)
 			defer cancel()
@@ -2498,12 +2497,10 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 				}
 				if !lastReconciledAt.Equal(reconciledAt) {
 					refreshCount++
-					t.Logf("Refresh detected #%d: reconciledAt changed from %v to %v", refreshCount, lastReconciledAt.Time, reconciledAt.Time)
 					lastReconciledAt = reconciledAt.DeepCopy()
 				}
 			}
 
-			assert.LessOrEqual(t, refreshCount, 1,
-				"Application refreshed %d times (expected ≤1). With timeout.reconciliation=0s, refreshes should only occur from spec changes or explicit requests, not status-only updates.", refreshCount)
+			assert.LessOrEqual(t, refreshCount, 1, "application refreshed %d times (expected ≤1) with timeout.reconciliation=0s", refreshCount)
 		})
 }
