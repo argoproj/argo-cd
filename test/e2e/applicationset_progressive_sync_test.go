@@ -448,6 +448,12 @@ func TestProgressiveSyncMultipleAppsPerStep(t *testing.T) {
 		Expect(ApplicationsDoNotExist(expectedApps))
 }
 
+func TestProgressiveSyncWithReverseDeletionOrder(t *testing.T) {
+	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {
+		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")
+	}
+}
+
 var appSetInvalidStepConfiguration = v1alpha1.ApplicationSet{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "invalid-step-configuration",
