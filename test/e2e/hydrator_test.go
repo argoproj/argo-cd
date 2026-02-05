@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -261,13 +260,9 @@ func TestHydratorWithDirectory(t *testing.T) {
 }
 
 func TestHydratorWithPlugin(t *testing.T) {
-	Given(t).
-		Path("hydrator-plugin").
-		And(func() {
-			go startCMPServer(t, "./testdata/hydrator-plugin")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+	ctx := Given(t)
+	ctx.Path("hydrator-plugin").
+		RunningCMPServer("./testdata/hydrator-plugin").
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source = nil
