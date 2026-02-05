@@ -847,6 +847,48 @@ spec:
               key: log.format.timestamp
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_K8S_CLIENT_QPS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.client.qps
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_BURST
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.client.burst
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.client.max.idle.connections
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.tcp.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_KEEPALIVE
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.tcp.keepalive
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.tls.handshake.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_IDLE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.tcp.idle.timeout
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN
           valueFrom:
             configMapKeyRef:
@@ -1787,6 +1829,48 @@ spec:
               key: server.log.level
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_K8S_CLIENT_QPS
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.client.qps
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_BURST
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.client.burst
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.client.max.idle.connections
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.tcp.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_KEEPALIVE
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.tcp.keepalive
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.tls.handshake.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_IDLE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.tcp.idle.timeout
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_SERVER_REPO_SERVER
           valueFrom:
             configMapKeyRef:
@@ -2239,6 +2323,48 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_QPS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.client.qps
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_BURST
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.client.burst
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.client.max.idle.connections
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.tcp.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_KEEPALIVE
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.tcp.keepalive
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.tls.handshake.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_IDLE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.tcp.idle.timeout
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION
