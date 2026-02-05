@@ -139,7 +139,7 @@ $ argocd app set guestbook --sync-option ApplyOutOfSyncOnly=true
 
 By default, extraneous resources get pruned using the foreground deletion policy. The propagation policy can be controlled
 using the `PrunePropagationPolicy` sync option. Supported policies are background, foreground, and orphan.
-More information about those policies can be found in the Kubernetes [Garbage Collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) documentation.
+More information about those policies can be found [here](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#controlling-how-the-garbage-collector-deletes-dependents).
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

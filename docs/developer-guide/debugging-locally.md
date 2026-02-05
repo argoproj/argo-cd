@@ -18,7 +18,7 @@ For the next steps, we will use Argo CD `api-server` as an example of running a 
 ## Configure your IDE
 
 ### Locate your component configuration in `Procfile`
-The `Procfile` is used by Goreman when running Argo CD locally with the local toolchain. The [latest Procfile](https://github.com/argoproj/argo-cd/blob/master/Procfile) is located in the top-level directory in your cloned Argo CD repo folder. It contains all the needed component run configuration, and you will need to copy parts of this configuration to your IDE. 
+The `Procfile` is used by Goreman when running Argo CD locally with the local toolchain. The file is located in the top-level directory in your cloned Argo CD repo folder, you can view it's latest version [here](https://github.com/argoproj/argo-cd/blob/master/Procfile). It contains all the needed component run configuration, and you will need to copy parts of this configuration to your IDE. 
 
 Example for `api-server` configuration in `Procfile`:
 ``` text

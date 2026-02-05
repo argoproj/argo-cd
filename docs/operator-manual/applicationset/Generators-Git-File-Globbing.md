@@ -59,7 +59,7 @@ Note that the default may change in the future.
 
 ## Usage
 
-The new Git file generator globbing uses the [doublestar package](https://github.com/bmatcuk/doublestar).
+The new Git file generator globbing uses the `doublestar` package. You can find it [here](https://github.com/bmatcuk/doublestar).
 
 Below is a short excerpt from its documentation.
 

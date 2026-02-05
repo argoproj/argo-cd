@@ -130,11 +130,10 @@ export ARGOCD_OPTS="--plaintext --insecure"
 
 #### Docs Changes
 
-The doc-site can be run in a container with `make serve-docs` or locally using `make serve-docs-local`. 
-When the doc-site process is run locally, modifying the docs will auto-reload changes in a preview of the [documentation website](https://argo-cd.readthedocs.io/). 
+Modifying the docs auto-reloads the changes on the [documentation website](https://argo-cd.readthedocs.io/) that can be locally built using `make serve-docs-local` command. 
 Once running, you can view your locally built documentation on port 8000.
 
-The developer guide has detailed information the [doc-site process](https://argo-cd.readthedocs.io/en/latest/developer-guide/docs-site/).
+Read more about this [here](https://argo-cd.readthedocs.io/en/latest/developer-guide/docs-site/).
 
 #### UI Changes
 

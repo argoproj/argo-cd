@@ -32,7 +32,7 @@ spec:
 ## Temporarily toggling auto-sync for applications managed by ApplicationSets
 
 For a standalone application, toggling auto-sync is performed by changing the application's `spec.syncPolicy.automated` field. For an ApplicationSet managed application, changing the application's `spec.syncPolicy.automated` field will, however, have no effect.
-[Controlling Resource Modification](../operator-manual/applicationset/Controlling-Resource-Modification.md) has more details about how to perform the toggling for applications managed by ApplicationSets.
+Read more details about how to perform the toggling for applications managed by ApplicationSets [here](../operator-manual/applicationset/Controlling-Resource-Modification.md).
 
 
 ## Automatic Pruning
