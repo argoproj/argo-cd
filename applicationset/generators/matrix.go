@@ -62,15 +62,13 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 		return nil, ErrMoreThanMaxGenerators
 	}
 
-	res := []map[string]any{}
-
-	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil, client)
+	res, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil, client)
 	if err != nil {
 		return nil, fmt.Errorf("error failed to get params for first generator in matrix generator: %w", err)
 	}
 
 	for i := 1; i < numGens; i++ {
-		list := []map[string]interface{}{}
+		list := []map[string]any{}
 		gen := appSetGenerator.Matrix.Generators[i]
 		for _, prevParam := range res {
 			params, err := m.getParams(gen, appSet, prevParam, client)
@@ -79,7 +77,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 			}
 			for _, currParam := range params {
 				if appSet.Spec.GoTemplate {
-					tmp := map[string]interface{}{}
+					tmp := map[string]any{}
 					if err := mergo.Merge(&tmp, currParam, mergo.WithOverride); err != nil {
 						return nil, fmt.Errorf("failed to merge params map from generator %d with temp map in the matrix generator: %w", i, err)
 					}
@@ -92,7 +90,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 					if err != nil {
 						return nil, fmt.Errorf("failed to combine string maps with merging params for the matrix generator: %w", err)
 					}
-					list = append(list, utils.ConvertToMapStringInterface(val))
+					list = append(list, val)
 				}
 			}
 		}
