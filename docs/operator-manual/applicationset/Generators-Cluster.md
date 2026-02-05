@@ -57,9 +57,9 @@ spec:
         server: '{{.server}}' # 'server' field of the secret
         namespace: guestbook
 ```
-(*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/cluster).*)
+(*The [full example](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/cluster).*)
 
-In this example, the cluster secret's `name` and `server` fields are used to populate the `Application` resource `name` and `server` (which are then used to target that same cluster).
+In this example, the cluster secret's `name` and `server` fields are used to populate the `Application` resource `name` and `server`, which are then used to target that same cluster.
 
 ### Label selector
 
