@@ -338,7 +338,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&allowedScmProviders, "appset-allowed-scm-providers", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS", []string{}, ","), "The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)")
 	command.Flags().BoolVar(&enableNewGitFileGlobbing, "appset-enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
 	command.Flags().BoolVar(&enableGitHubAPIMetrics, "appset-enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
-	command.Flags().IntVar(&maxMatrixChildren, "appset-max-matrix-children", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_MAX_MATRIX_CHILDREN", 2, 0, math.MaxInt), "Max number of child generators allowed in a matrix generator")
+	command.Flags().IntVar(&maxMatrixChildren, "appset-max-matrix-children", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_MAX_MATRIX_CHILDREN", 2, 0, math.MaxInt), "Max number of child generators allowed in a matrix generator")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{

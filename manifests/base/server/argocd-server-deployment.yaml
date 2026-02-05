@@ -346,7 +346,7 @@ spec:
                   name: argocd-cmd-params-cm
                   key: applicationsetcontroller.enable.github.api.metrics
                   optional: true
-            - name: ARGOCD_APPLICATIONSET_CONTROLLER_MAX_MATRIX_CHILDREN
+            - name: ARGOCD_APPLICATIONSET_MAX_MATRIX_CHILDREN
               valueFrom:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm

@@ -11,11 +11,11 @@ By combining all the generators parameters and produce every possible combinatio
 
 Any set of generators may be used, with the combined values of those generators inserted into the `template` parameters, as usual.
 
-!!! note
-    If there are more than one Git generators as child generators, they must all use the `pathParamPrefix` option to avoid conflicts when merging the child generators’ items.
+> [!NOTE]
+> If there are more than one Git generators as child generators, they must all use the `pathParamPrefix` option to avoid conflicts when merging the child generators' items.
 
-!!! note
-    Matrix generator has a limit of two child generators by default. Set the controller flag `max-matrix-children` or the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_MAX_MATRIX_CHILDREN` on the ApplicationSet controller with a value higher than 2 for a higher limit, or 0 for unlimited.
+> [!NOTE]
+> Matrix generator has a limit of two child generators by default. To increase this limit (or set it to 0 for unlimited), it is recommended to set `applicationsetcontroller.matrix.children.max` in the `argocd-cmd-params-cm` ConfigMap. This value is read by both the API server and the ApplicationSet controller, and both components must be restarted for the change to take effect. Alternatively, you can set the flag `--max-matrix-children` or the environment variable `ARGOCD_APPLICATIONSET_MAX_MATRIX_CHILDREN`.
 
 ## Example: Git Directory generator + Cluster generator
 
@@ -358,7 +358,7 @@ Then, given the following file structure/content:
 
 ## Example: Git File generator + List generator + Cluster generator
 
-By default, there can only be two child generators in a Matrix generator. You can increase this limit by setting a higher value on the controller's `max-matrix-children` flag or `ARGOCD_APPLICATIONSET_CONTROLLER_MAX_MATRIX_CHILDREN` environment variable.
+By default, there can only be two child generators in a Matrix generator. You can increase this limit by setting a higher value on the controller's `max-matrix-children` flag or `ARGOCD_APPLICATIONSET_MAX_MATRIX_CHILDREN` environment variable.
 
 In this example, we have two applications to be deployed onto two clusters. Each application has two configurations, one for each Application.
 
