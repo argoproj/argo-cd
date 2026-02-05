@@ -223,7 +223,12 @@ export class ViewPreferencesService {
     }
 
     public updatePreferences(change: Partial<ViewPreferences>) {
-        const nextPref = Object.assign({}, this.preferencesSubj.getValue(), change, {version: minVer});
+        const current = this.preferencesSubj.getValue();
+        const nextPref = Object.assign({}, current, change, {version: minVer});
+        // Normalize appList to ensure all filter arrays are initialized
+        if (nextPref.appList) {
+            this.normalizeAppListPreferences(nextPref.appList);
+        }
         window.localStorage.setItem(VIEW_PREFERENCES_KEY, JSON.stringify(nextPref));
         this.preferencesSubj.next(nextPref);
     }
@@ -243,6 +248,23 @@ export class ViewPreferencesService {
         } else {
             preferences = DEFAULT_PREFERENCES;
         }
-        return deepMerge(DEFAULT_PREFERENCES, preferences);
+        const merged = deepMerge(DEFAULT_PREFERENCES, preferences);
+        // Ensure all filter arrays are initialized to prevent undefined errors
+        this.normalizeAppListPreferences(merged.appList);
+        return merged;
+    }
+
+    private normalizeAppListPreferences(appList: AppsListPreferences): void {
+        appList.labelsFilter = appList.labelsFilter || [];
+        appList.annotationsFilter = appList.annotationsFilter || [];
+        appList.projectsFilter = appList.projectsFilter || [];
+        appList.namespacesFilter = appList.namespacesFilter || [];
+        appList.clustersFilter = appList.clustersFilter || [];
+        appList.reposFilter = appList.reposFilter || [];
+        appList.syncFilter = appList.syncFilter || [];
+        appList.autoSyncFilter = appList.autoSyncFilter || [];
+        appList.healthFilter = appList.healthFilter || [];
+        appList.operationFilter = appList.operationFilter || [];
+        appList.favoritesAppList = appList.favoritesAppList || [];
     }
 }

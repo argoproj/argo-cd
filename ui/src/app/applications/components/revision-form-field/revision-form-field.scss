@@ -1,0 +1,16 @@
+.revision-form-field {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.revision-form-field__main {
+    flex: 1;
+    min-width: 0;
+}
+
+.revision-form-field__dropdown {
+    align-self: center;
+    display: flex;
+    align-items: center;
+}
