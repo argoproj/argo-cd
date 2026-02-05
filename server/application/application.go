@@ -1767,14 +1767,17 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 	}
 
 	items := make([]*v1alpha1.ResourceDiff, 0)
+	cacheAvailable := false
 	err = s.getCachedAppState(ctx, a, func() error {
 		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &items)
 	})
 	if err != nil {
 		log.Warnf("error getting cached app managed resources for %s/%s, cache unavailable, returning empty managed resources: %v", a.Namespace, a.Name, err)
-		return &application.ManagedResourcesResponse{Items: []*v1alpha1.ResourceDiff{}}, nil
+		return &application.ManagedResourcesResponse{Items: []*v1alpha1.ResourceDiff{}, CacheAvailable: &cacheAvailable}, nil
+	} else {
+		cacheAvailable = true
 	}
-	res := &application.ManagedResourcesResponse{}
+	res := &application.ManagedResourcesResponse{CacheAvailable: &cacheAvailable}
 	for i := range items {
 		item := items[i]
 		if !item.Hook && isMatchingResource(q, kube.ResourceKey{Name: item.Name, Namespace: item.Namespace, Kind: item.Kind, Group: item.Group}) {

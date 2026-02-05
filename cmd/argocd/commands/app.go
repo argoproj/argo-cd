@@ -3331,8 +3331,12 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			// either the application doesn't have manifests associated with it
 			// OR the redis cache is empty. Hence it is better to return early
 			if len(unstructureds) == 0 {
-				log.Infof("no Kubernetes resources found for application %q:"+
-					" manifests may not exist or the Redis cache is empty", appName)
+				if !*resources.CacheAvailable {
+					log.Infof("no Kubernetes resources found for application %q:"+
+						"since the Redis cache is empty", appName)
+				} else {
+					log.Infof("manifest doesn't exist")
+				}
 				return
 			}
 			for _, obj := range unstructureds {

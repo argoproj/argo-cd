@@ -5287,6 +5287,9 @@
     "applicationManagedResourcesResponse": {
       "type": "object",
       "properties": {
+        "cacheAvailable": {
+          "type": "boolean"
+        },
         "items": {
           "type": "array",
           "items": {
