@@ -19,24 +19,27 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 var _ Generator = (*DuckTypeGenerator)(nil)
 
 // DuckTypeGenerator generates Applications for some or all clusters registered with ArgoCD.
 type DuckTypeGenerator struct {
-	ctx       context.Context
-	dynClient dynamic.Interface
-	clientset kubernetes.Interface
-	namespace string // namespace is the Argo CD namespace
+	ctx             context.Context
+	dynClient       dynamic.Interface
+	clientset       kubernetes.Interface
+	namespace       string // namespace is the Argo CD namespace
+	clusterInformer *settings.ClusterInformer
 }
 
-func NewDuckTypeGenerator(ctx context.Context, dynClient dynamic.Interface, clientset kubernetes.Interface, namespace string) Generator {
+func NewDuckTypeGenerator(ctx context.Context, dynClient dynamic.Interface, clientset kubernetes.Interface, namespace string, clusterInformer *settings.ClusterInformer) Generator {
 	g := &DuckTypeGenerator{
-		ctx:       ctx,
-		dynClient: dynClient,
-		clientset: clientset,
-		namespace: namespace,
+		ctx:             ctx,
+		dynClient:       dynClient,
+		clientset:       clientset,
+		namespace:       namespace,
+		clusterInformer: clusterInformer,
 	}
 	return g
 }
@@ -65,8 +68,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 		return nil, ErrEmptyAppSetGenerator
 	}
 
-	// ListCluster from Argo CD's util/db package will include the local cluster in the list of clusters
-	clustersFromArgoCD, err := utils.ListClusters(g.ctx, g.clientset, g.namespace)
+	clustersFromArgoCD, err := utils.ListClusters(g.clusterInformer)
 	if err != nil {
 		return nil, fmt.Errorf("error listing clusters: %w", err)
 	}

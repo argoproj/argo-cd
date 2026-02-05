@@ -28,6 +28,12 @@ spec:
                 secretKeyRef:
                   key: auth
                   name: argocd-redis
+            - name: GRPC_ENABLE_TXT_SERVICE_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.grpc.enable.txt.service.config
+                  optional: true
             - name: ARGOCD_SERVER_INSECURE
               valueFrom:
                 configMapKeyRef:

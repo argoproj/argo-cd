@@ -416,6 +416,55 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 	assert.Empty(t, app.Status.Conditions)
 }
 
+func TestCompareAppStateRequireDeletion(t *testing.T) {
+	obj1 := NewPod()
+	obj1.SetName("my-pod-1")
+	obj1.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=confirm"})
+	obj2 := NewPod()
+	obj2.SetName("my-pod-2")
+	obj2.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Prune=confirm"})
+	obj3 := NewPod()
+	obj3.SetName("my-pod-3")
+
+	app := newFakeApp()
+	data := fakeData{
+		apps: []runtime.Object{app},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{toJSON(t, obj1), toJSON(t, obj2), toJSON(t, obj3)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(obj1): obj1,
+			kube.GetResourceKey(obj2): obj2,
+			kube.GetResourceKey(obj3): obj3,
+		},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
+	assert.Len(t, compRes.resources, 3)
+	assert.Len(t, compRes.managedResources, 3)
+	assert.Empty(t, app.Status.Conditions)
+
+	countRequireDeletion := 0
+	for _, res := range compRes.resources {
+		if res.RequiresDeletionConfirmation {
+			countRequireDeletion++
+		}
+	}
+	assert.Equal(t, 2, countRequireDeletion)
+}
+
 // checks that ignore resources are detected, but excluded from status
 func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	pod := NewPod()
@@ -1821,7 +1870,7 @@ func Test_normalizeClusterScopeTracking(t *testing.T) {
 	require.True(t, called, "normalization function should have called the callback function")
 }
 
-func TestCompareAppState_DoesNotCallUpdateRevisionForPaths_ForOCI(t *testing.T) {
+func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
 	app := newFakeApp()
 	// Enable the manifest-generate-paths annotation and set a synced revision
 	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
@@ -1837,14 +1886,70 @@ func TestCompareAppState_DoesNotCallUpdateRevisionForPaths_ForOCI(t *testing.T) 
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
 		},
+		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: false},
 	}
-	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
 
 	source := app.Spec.GetSource()
 	source.RepoURL = "oci://example.com/argo/argo-cd"
 	sources := make([]v1alpha1.ApplicationSource, 0)
 	sources = append(sources, source)
 
-	_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false)
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false)
 	require.NoError(t, err)
+	require.False(t, revisionsMayHaveChanges)
+}
+
+func TestCompareAppState_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T) {
+	app := newFakeApp()
+	// Enable the manifest-generate-paths annotation and set a synced revision
+	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Revision:  "abc123",
+		Status:    v1alpha1.SyncStatusCodeSynced,
+		Revisions: []string{"0.0.1", "resolved-abc123", "resolved-main"},
+	}
+
+	app.Spec.Sources = v1alpha1.ApplicationSources{
+		{RepoURL: "oci://example.com/argo/argo-cd", TargetRevision: "0.0.1", Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/my-path"}}},
+		{Ref: "values", RepoURL: "https://git.test.com", TargetRevision: "abc123"},
+		{TargetRevision: "main", RepoURL: "https://git.test.com", Path: "path/to/chart"},
+	}
+
+	data := fakeData{
+		manifestResponses: []*apiclient.ManifestResponse{
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "0.0.1",
+			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "main",
+			},
+		},
+		updateRevisionForPathsResponses: []*apiclient.UpdateRevisionForPathsResponse{
+			{Changes: false, Revision: "0.0.1"},
+			{Changes: false, Revision: "resolved-main"},
+		},
+	}
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
+
+	revisions := make([]string, 0)
+	revisions = append(revisions, "0.0.1", "abc123", "main")
+
+	sources := app.Spec.Sources
+
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "0.0.1", revisions, false, false, false, &defaultProj, false)
+	require.NoError(t, err)
+	require.False(t, revisionsMayHaveChanges)
 }
