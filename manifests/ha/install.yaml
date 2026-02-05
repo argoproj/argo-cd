@@ -6111,6 +6111,10 @@ spec:
                     items:
                       type: string
                     type: array
+                  isAppOfApps:
+                    description: IsAppOfApps holds true if the application has any
+                      application for child resource.
+                    type: boolean
                 type: object
               sync:
                 description: Sync contains information about the application's current

@@ -4159,6 +4159,29 @@ func TestGetSummary(t *testing.T) {
 	assert.Equal(t, url, summary.ExternalURLs[0])
 }
 
+func TestGetAppOfAppSummary(t *testing.T) {
+	app := newTestApp()
+	standardTree := &ApplicationTree{
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "any-service", Kind: "Service"}},
+		},
+	}
+
+	summary := standardTree.GetSummary(app)
+	assert.Empty(t, summary.ExternalURLs)
+	assert.Empty(t, summary.Images)
+	assert.False(t, summary.IsAppOfApps)
+
+	appOfAppsTree := &ApplicationTree{
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "children-app", Kind: "Application", Group: "argoproj.io"}},
+			{ResourceRef: ResourceRef{Name: "any-service", Kind: "Service", Group: ""}},
+		},
+	}
+	summary = appOfAppsTree.GetSummary(app)
+	assert.True(t, summary.IsAppOfApps)
+}
+
 func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{

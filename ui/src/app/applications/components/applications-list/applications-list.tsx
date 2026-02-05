@@ -38,17 +38,21 @@ const APP_FIELDS = [
     'metadata.labels',
     'metadata.creationTimestamp',
     'metadata.deletionTimestamp',
-    'spec',
+    'spec.destination',
+    'spec.project',
+    'spec.source',
+    'spec.sources',
+    'spec.sourceHydrator',
+    'spec.syncPolicy',
     'operation.sync',
     'status.sourceHydrator',
+    'status.summary',
     'status.sync.status',
     'status.sync.revision',
     'status.health',
     'status.operationState.phase',
-    'status.operationState.finishedAt',
-    'status.operationState.operation.sync',
-    'status.summary',
-    'status.resources'
+    'status.operationState.startedAt',
+    'status.operationState.finishedAt'
 ];
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
@@ -178,13 +182,8 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
 function filterApplications(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
     const processedApps = applications.map(app => {
         let isAppOfAppsPattern = false;
-        if (app.status?.resources) {
-            for (const resource of app.status.resources) {
-                if (resource.kind === 'Application') {
-                    isAppOfAppsPattern = true;
-                    break;
-                }
-            }
+        if (app.status.summary?.isAppOfApps === true) {
+            isAppOfAppsPattern = true;
         }
         return {...app, isAppOfAppsPattern};
     });
@@ -569,11 +568,13 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                         {
                                                                             title: 'Sync Apps',
                                                                             iconClassName: 'fa fa-sync',
+                                                                            qeId: 'applications-list-button-sync-apps',
                                                                             action: () => ctx.navigation.goto('.', {syncApps: true}, {replace: true})
                                                                         },
                                                                         {
                                                                             title: 'Refresh Apps',
                                                                             iconClassName: 'fa fa-redo',
+                                                                            qeId: 'applications-list-button-refresh-apps',
                                                                             action: () => ctx.navigation.goto('.', {refreshApps: true}, {replace: true})
                                                                         }
                                                                     ]
@@ -586,7 +587,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                     <h4>No applications available to you just yet</h4>
                                                                     <h5>Create new application to start managing resources in your cluster</h5>
                                                                     <button
-                                                                        qe-id='applications-list-button-create-application'
+                                                                        qe-id='applications-list-noapp-button-create-application'
                                                                         className='argo-button argo-button--base'
                                                                         onClick={() => ctx.navigation.goto('.', {new: JSON.stringify({})}, {replace: true})}>
                                                                         Create application
