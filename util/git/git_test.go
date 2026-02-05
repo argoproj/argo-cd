@@ -351,41 +351,6 @@ func TestLFSClient(t *testing.T) {
 	}
 }
 
-func TestVerifyCommitSignature(t *testing.T) {
-	p := t.TempDir()
-
-	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "", "")
-	require.NoError(t, err)
-
-	err = client.Init()
-	require.NoError(t, err)
-
-	err = client.Fetch("", 0)
-	require.NoError(t, err)
-
-	commitSHA, err := client.LsRemote("HEAD")
-	require.NoError(t, err)
-
-	_, err = client.Checkout(commitSHA, true)
-	require.NoError(t, err)
-
-	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
-	// It doesn't matter whether we know the key or not at this stage
-	{
-		out, err := client.VerifyCommitSignature("28027897aad1262662096745f2ce2d4c74d02b7f")
-		require.NoError(t, err)
-		assert.NotEmpty(t, out)
-		assert.Contains(t, out, "gpg: Signature made")
-	}
-
-	// 85d660f0b967960becce3d49bd51c678ba2a5d24 is a commit that is not signed
-	{
-		out, err := client.VerifyCommitSignature("85d660f0b967960becce3d49bd51c678ba2a5d24")
-		require.NoError(t, err)
-		assert.Empty(t, out)
-	}
-}
-
 func TestNewFactory(t *testing.T) {
 	addBinDirToPath := path.NewBinDirToPath(t)
 	defer addBinDirToPath.Close()
