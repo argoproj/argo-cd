@@ -1570,7 +1570,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				// synced after commit but before app. refresh (see #18153)
 				compareWith = CompareWithLatestForceResolve
 			}
-			//ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatestForceResolve.Pointer(), nil)
 			ctrl.requestAppRefresh(app.QualifiedName(), compareWith.Pointer(), nil)
 		} else {
 			logCtx.WithError(err).Warn("Fails to requeue application")
