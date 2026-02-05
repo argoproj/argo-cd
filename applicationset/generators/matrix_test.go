@@ -927,6 +927,130 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 	}
 }
 
+// TestMatrixGenerateThreeChildrenTemplating covers 3-generator matrix behavior and templating in one test:
+// - Gen 2 is templated from gen 1 (elementsYaml uses .configs from Git).
+// - Gen 3 is templated from gen 1 only (fromGen1), from gen 2 only (fromGen2), and from both (target).
+// So the 3rd generator demonstrates using params from the 1st only, the 2nd only, and both.
+func TestMatrixGenerateThreeChildrenTemplating(t *testing.T) {
+	// Child 1: Git (mocked) returns path (path.basename) and configs.
+	// Child 2: List with elementsYaml "{{ .configs | toJson }}" — templated from gen 1; produces configName.
+	// Child 3: List with one element that has fromGen1 (gen 1 only), fromGen2 (gen 2 only), target (both).
+	gitGenerator := &v1alpha1.GitGenerator{
+		RepoURL:  "RepoURL",
+		Revision: "Revision",
+		Files:    []v1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
+	}
+	listFromConfigs := &v1alpha1.ListGenerator{
+		Elements:     []apiextensionsv1.JSON{},
+		ElementsYaml: "{{ .configs | toJson }}",
+	}
+	listThird := &v1alpha1.ListGenerator{
+		Elements:     []apiextensionsv1.JSON{},
+		ElementsYaml: "[{\"fromGen1\": \"{{.path.basename}}\", \"fromGen2\": \"{{.configName}}\", \"target\": \"{{.path.basename}}-{{.configName}}\"}]",
+	}
+
+	genMock := &generatorsMock.Generator{}
+	appSet := &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "set"},
+		Spec:       v1alpha1.ApplicationSetSpec{GoTemplate: true},
+	}
+
+	genMock.EXPECT().GenerateParams(mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet, mock.Anything).Return([]map[string]any{
+		{
+			"path": map[string]string{"path": "argocd/app1/config.yaml", "basename": "app1", "basenameNormalized": "app1"},
+			"configs": []any{
+				map[string]any{"configName": "config1", "custom": "value1"},
+				map[string]any{"configName": "config2", "custom": "value2"},
+			},
+		},
+		{
+			"path": map[string]string{"path": "argocd/app2/config.yaml", "basename": "app2", "basenameNormalized": "app2"},
+			"configs": []any{
+				map[string]any{"configName": "config1", "custom": "value1"},
+				map[string]any{"configName": "config2", "custom": "value2"},
+			},
+		},
+	}, nil)
+	genMock.EXPECT().GetTemplate(mock.MatchedBy(func(g *v1alpha1.ApplicationSetGenerator) bool { return g.Git != nil })).
+		Return(&v1alpha1.ApplicationSetTemplate{})
+
+	matrixGenerator := NewMatrixGenerator(
+		map[string]Generator{
+			"Git":  genMock,
+			"List": &ListGenerator{},
+		}, NewMatrixConfig(0),
+	)
+
+	got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+		Matrix: &v1alpha1.MatrixGenerator{
+			Generators: []v1alpha1.ApplicationSetNestedGenerator{
+				{Git: gitGenerator},
+				{List: listFromConfigs},
+				{List: listThird},
+			},
+			Template: v1alpha1.ApplicationSetTemplate{},
+		},
+	}, appSet, nil)
+
+	require.NoError(t, err)
+	require.Len(t, got, 4, "expected 2 apps * 2 configs * 1 = 4 combinations")
+
+	seen := make(map[string]bool)
+	for _, p := range got {
+		pathBasename := ""
+		if path, ok := p["path"].(map[string]string); ok {
+			pathBasename = path["basename"]
+		}
+		configName, _ := p["configName"].(string)
+		fromGen1, _ := p["fromGen1"].(string)
+		fromGen2, _ := p["fromGen2"].(string)
+		target, _ := p["target"].(string)
+		key := pathBasename + "/" + configName
+		seen[key] = true
+
+		assert.Contains(t, p, "path", "path from generator 1")
+		assert.Contains(t, p, "configName", "configName from generator 2 (templated from gen 1)")
+		// 3rd generator: param from gen 1 only
+		assert.Equal(t, pathBasename, fromGen1, "fromGen1 must be templated from gen 1 (path.basename) only")
+		// 3rd generator: param from gen 2 only (configName is produced by gen 2, not by Git)
+		assert.Equal(t, configName, fromGen2, "fromGen2 must be templated from gen 2 (configName) only")
+		// 3rd generator: params from both
+		assert.Equal(t, pathBasename+"-"+configName, target, "target must be templated from both gen 1 and gen 2")
+	}
+	assert.Len(t, seen, 4, "all 4 combinations must be distinct")
+}
+
+// TestMatrixGenerateThreeChildrenParameterOverride verifies that when the same key appears in
+// multiple child generators, the first generator's value wins (doc: parameter override).
+func TestMatrixGenerateThreeChildrenParameterOverride(t *testing.T) {
+	appSet := &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "set"},
+		Spec:       v1alpha1.ApplicationSetSpec{GoTemplate: true},
+	}
+	matrixGenerator := NewMatrixGenerator(
+		map[string]Generator{"List": &ListGenerator{}},
+		NewMatrixConfig(0),
+	)
+
+	got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+		Matrix: &v1alpha1.MatrixGenerator{
+			Generators: []v1alpha1.ApplicationSetNestedGenerator{
+				{List: &v1alpha1.ListGenerator{Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"x": "1", "a": "A"}`)}}}},
+				{List: &v1alpha1.ListGenerator{Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"x": "2", "b": "B"}`)}}}},
+				{List: &v1alpha1.ListGenerator{Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"x": "3", "c": "C"}`)}}}},
+			},
+			Template: v1alpha1.ApplicationSetTemplate{},
+		},
+	}, appSet, nil)
+
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, "1", got[0]["x"], "first generator's value must win when same key in multiple generators")
+	assert.Equal(t, "A", got[0]["a"])
+	assert.Equal(t, "B", got[0]["b"])
+	assert.Equal(t, "C", got[0]["c"])
+}
+
 func TestMatrixGenerateListElementsYaml(t *testing.T) {
 	gitGenerator := &v1alpha1.GitGenerator{
 		RepoURL:  "RepoURL",

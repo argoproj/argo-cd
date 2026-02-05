@@ -463,11 +463,62 @@ It should yield the following result:
   custom: value2
 ```
 
+## Example: Three generators with 2nd and 3rd using params from earlier generators
+
+You can have both the second and third child generators use parameters produced by earlier generators. The second generator is interpolated with the first generator's params; the third is interpolated with the merged params from the first and second, so it can use values from **both** the first and the second generator.
+
+In the following example:
+
+- **Child 1 (Git files):** Discovers config files per app and exposes `path.basename` and file content (e.g. `configs`).
+- **Child 2 (List):** Uses the first generator's params — `elementsYaml: "{{ .configs | toJson }}"` expands to one list element per config from the Git file, producing `configName` (and other keys) per element.
+- **Child 3 (List):** Uses params from **both** generator 1 and 2 — `elementsYaml` references `{{.path.basename}}` (from the Git generator) and `{{.configName}}` (from the List generator) to build a single key `target` that identifies each app+config combination.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: matrix-three-with-templating
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - matrix:
+        generators:
+          # Child 1: Git files — produces path.basename and configs per app
+          - git:
+              repoURL: https://github.com/example/repo.git
+              revision: HEAD
+              files:
+                - path: "argocd/*/config.yaml"
+          # Child 2: uses params from child 1 — .configs from the Git file content
+          - list:
+              elements: []
+              elementsYaml: "{{ .configs | toJson }}"
+          # Child 3: uses params from BOTH child 1 and 2 — path.basename and configName
+          - list:
+              elements: []
+              elementsYaml: '[{"target": "{{.path.basename}}-{{.configName}}"}]'
+  template:
+    metadata:
+      name: '{{.target}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/example/repo.git
+        targetRevision: HEAD
+        path: '{{.path.path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{.path.basename}}'
+```
+
+Here, the **second** generator's `elementsYaml` is templated with the first generator's `configs`. The **third** generator's `elementsYaml` is templated with both `path.basename` (from generator 1) and `configName` (from generator 2), so each generated Application has a `target` value like `app1-config1` or `app2-config2`. The Application `template` receives the merged params from all three (e.g. `path`, `path.basename`, `configName`, `target`).
+
 ## Restrictions
 
-1. The Matrix generator currently only supports combining the outputs of only two child generators (eg does not support generating combinations for 3 or more).
+1. The Matrix generator supports two child generators by default. To use three or more child generators, configure `applicationsetcontroller.matrix.children.max` in `argocd-cmd-params-cm` (or the equivalent flag/env) as described in the note above.
 
-1. You should specify only a single generator per array entry, eg this is not valid:
+2. You should specify only a single generator per array entry, eg this is not valid:
 
         - matrix:
             generators:
@@ -476,7 +527,7 @@ It should yield the following result:
 
     - While this *will* be accepted by Kubernetes API validation, the controller will report an error on generation. Each generator should be specified in a separate array element, as in the examples above.
 
-1. The Matrix generator does not currently support [`template` overrides](Template.md#generator-templates) specified on child generators, eg this `template` will not be processed:
+3. The Matrix generator does not currently support [`template` overrides](Template.md#generator-templates) specified on child generators, eg this `template` will not be processed:
 
         - matrix:
             generators:
@@ -485,7 +536,7 @@ It should yield the following result:
                     - # (...)
                   template: { } # Not processed
 
-1. Combination-type generators (matrix or merge) can only be nested once. For example, this will not work:
+4. Combination-type generators (matrix or merge) can only be nested once. For example, this will not work:
 
         - matrix:
             generators:
@@ -497,7 +548,7 @@ It should yield the following result:
                               elements:
                                 - # (...)
 
-1. When using parameters from one child generator inside another child generator, the child generator that *consumes* the parameters **must come after** the child generator that *produces* the parameters.
+5. When using parameters from one child generator inside another child generator, the child generator that *consumes* the parameters **must come after** the child generator that *produces* the parameters.
 For example, the below example would be invalid (cluster-generator must come after the git-files generator):
 
         - matrix:
@@ -515,7 +566,7 @@ For example, the below example would be invalid (cluster-generator must come aft
                   files:
                     - path: "examples/git-generator-files-discovery/cluster-config/**/config.json"
 
-1. You cannot have child generators consuming parameters from each another in a nonsequential order. In the example below, the cluster generator is consuming the `{{.path.basename}}` parameter produced by the git-files generator, whereas the git-files generator is consuming the `{{.name}}` parameter produced by the cluster generator. This will result in a circular dependency, which is invalid.
+6. You cannot have child generators consuming parameters from each another in a nonsequential order. In the example below, the cluster generator is consuming the `{{.path.basename}}` parameter produced by the git-files generator, whereas the git-files generator is consuming the `{{.name}}` parameter produced by the cluster generator. This will result in a circular dependency, which is invalid.
 
         - matrix:
             generators:
