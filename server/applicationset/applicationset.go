@@ -66,6 +66,7 @@ type Server struct {
 	AllowedScmProviders      []string
 	EnableScmProviders       bool
 	EnableGitHubAPIMetrics   bool
+	MaxMatrixChildren        int
 }
 
 // NewServer returns a new instance of the ApplicationSet service
@@ -90,6 +91,7 @@ func NewServer(
 	enableGitHubAPIMetrics bool,
 	enableK8sEvent []string,
 	clusterInformer *settings.ClusterInformer,
+	maxMatrixChildren int,
 ) applicationset.ApplicationSetServiceServer {
 	s := &Server{
 		ns:                       namespace,
@@ -112,6 +114,7 @@ func NewServer(
 		AllowedScmProviders:      allowedScmProviders,
 		EnableScmProviders:       enableScmProviders,
 		EnableGitHubAPIMetrics:   enableGitHubAPIMetrics,
+		MaxMatrixChildren:        maxMatrixChildren,
 	}
 	return s
 }
@@ -256,7 +259,7 @@ func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.E
 
 	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, s.EnableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
 	argoCDService := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
-	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, s.ns, argoCDService, s.dynamicClient, scmConfig, s.clusterInformer, generators.NewMatrixConfig(0))
+	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, s.ns, argoCDService, s.dynamicClient, scmConfig, s.clusterInformer, generators.NewMatrixConfig(s.MaxMatrixChildren))
 
 	apps, _, err := appsettemplate.GenerateApplications(logEntry, appset, appSetGenerators, &appsetutils.Render{}, s.client)
 	if err != nil {
