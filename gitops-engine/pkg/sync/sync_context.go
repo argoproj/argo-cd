@@ -17,10 +17,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/csaupgrade"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2/textlogger"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -1259,6 +1262,81 @@ func (sc *syncContext) performClientSideApplyMigration(targetObj *unstructured.U
 	return nil
 }
 
+// isAnnotationTooLargeError checks if the error is due to the last-applied-configuration
+// annotation exceeding the maximum allowed size of 262144 bytes.
+func isAnnotationTooLargeError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "Too long: must have at most 262144 bytes") ||
+		strings.Contains(errStr, "Too long: may not be more than 262144 bytes")
+}
+
+// performCSAUpgradeMigration uses the csaupgrade package to migrate managed fields
+// from a client-side apply manager to the server-side apply manager.
+// This is used as a fallback when normal CSA migration fails due to the
+// last-applied-configuration annotation being too large (> 262144 bytes).
+// Unlike CSA migration, this approach directly patches the managedFields without
+// needing to write the annotation, thus avoiding the size limit.
+func (sc *syncContext) performCSAUpgradeMigration(liveObj *unstructured.Unstructured, csaFieldManager string) error {
+	sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).V(1).Info(
+		"Performing csaupgrade-based migration (annotation too large for CSA)")
+
+	// Generate the migration patch using the csaupgrade package
+	// This unions the CSA manager's fields into the SSA manager and removes the CSA manager entry
+	patchData, err := csaupgrade.UpgradeManagedFieldsPatch(
+		liveObj,
+		sets.New(csaFieldManager),
+		sc.serverSideApplyManager,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to generate csaupgrade migration patch: %w", err)
+	}
+	if patchData == nil {
+		// No migration needed
+		return nil
+	}
+
+	// Get the dynamic resource interface for the live object
+	resIf, err := sc.getResourceIfForObject(liveObj)
+	if err != nil {
+		return fmt.Errorf("failed to get resource interface: %w", err)
+	}
+
+	// Apply the migration patch to transfer field ownership
+	_, err = resIf.Patch(context.TODO(), liveObj.GetName(), types.JSONPatchType, patchData, metav1.PatchOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to apply csaupgrade migration patch: %w", err)
+	}
+
+	// Remove the last-applied-configuration annotation since it can't be maintained
+	// for resources this large, and CSA will never work for them anyway
+	removeAnnotationPatch := []byte(`[{"op":"remove","path":"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration"}]`)
+	_, err = resIf.Patch(context.TODO(), liveObj.GetName(), types.JSONPatchType, removeAnnotationPatch, metav1.PatchOptions{})
+	if err != nil && !apierrors.IsNotFound(err) && !strings.Contains(err.Error(), "doesn't exist") {
+		// Log but don't fail - the annotation might not exist
+		sc.log.V(1).Info("Failed to remove last-applied-configuration annotation (may not exist)", "error", err)
+	}
+
+	sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).Info(
+		"Successfully migrated managed fields using csaupgrade")
+
+	return nil
+}
+
+// getResourceIfForObject returns a dynamic resource interface for the given unstructured object
+func (sc *syncContext) getResourceIfForObject(obj *unstructured.Unstructured) (dynamic.ResourceInterface, error) {
+	gvk := obj.GroupVersionKind()
+	apiResource, err := kubeutil.ServerResourceForGroupVersionKind(sc.disco, gvk, "patch")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get api resource for %s: %w", gvk, err)
+	}
+	res := kubeutil.ToGroupVersionResource(gvk.GroupVersion().String(), apiResource)
+	resIf := kubeutil.ToResourceInterface(sc.dynamicIf, apiResource, res, obj.GetNamespace())
+	return resIf, nil
+}
+
 func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.ResultCode, string) {
 	dryRunStrategy := cmdutil.DryRunNone
 	if dryRun {
@@ -1281,7 +1359,17 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 		if sc.needsClientSideApplyMigration(t.liveObj, sc.clientSideApplyMigrationManager) {
 			err = sc.performClientSideApplyMigration(t.targetObj, sc.clientSideApplyMigrationManager)
 			if err != nil {
-				return common.ResultCodeSyncFailed, fmt.Sprintf("Failed to perform client-side apply migration: %v", err)
+				// If CSA migration failed due to annotation being too large (> 262144 bytes),
+				// fallback to using csaupgrade which directly patches managedFields
+				// without needing to write the annotation
+				if isAnnotationTooLargeError(err) {
+					sc.log.WithValues("resource", kubeutil.GetResourceKey(t.targetObj)).Info(
+						"CSA migration failed due to annotation size limit, falling back to csaupgrade")
+					err = sc.performCSAUpgradeMigration(t.liveObj, sc.clientSideApplyMigrationManager)
+				}
+				if err != nil {
+					return common.ResultCodeSyncFailed, fmt.Sprintf("Failed to perform client-side apply migration: %v", err)
+				}
 			}
 		}
 	}
