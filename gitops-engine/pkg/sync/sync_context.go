@@ -1299,10 +1299,13 @@ func (sc *syncContext) performCSAUpgradeMigration(liveObj *unstructured.Unstruct
 	}
 
 	// Get the dynamic resource interface for the live object
-	resIf, err := sc.getResourceIfForObject(liveObj)
+	gvk := liveObj.GroupVersionKind()
+	apiResource, err := kubeutil.ServerResourceForGroupVersionKind(sc.disco, gvk, "patch")
 	if err != nil {
-		return fmt.Errorf("failed to get resource interface: %w", err)
+		return fmt.Errorf("failed to get api resource for %s: %w", gvk, err)
 	}
+	res := kubeutil.ToGroupVersionResource(gvk.GroupVersion().String(), apiResource)
+	resIf := kubeutil.ToResourceInterface(sc.dynamicIf, apiResource, res, liveObj.GetNamespace())
 
 	// Apply the migration patch to transfer field ownership
 	_, err = resIf.Patch(context.TODO(), liveObj.GetName(), types.JSONPatchType, patchData, metav1.PatchOptions{})
@@ -1323,18 +1326,6 @@ func (sc *syncContext) performCSAUpgradeMigration(liveObj *unstructured.Unstruct
 		"Successfully migrated managed fields using csaupgrade")
 
 	return nil
-}
-
-// getResourceIfForObject returns a dynamic resource interface for the given unstructured object
-func (sc *syncContext) getResourceIfForObject(obj *unstructured.Unstructured) (dynamic.ResourceInterface, error) {
-	gvk := obj.GroupVersionKind()
-	apiResource, err := kubeutil.ServerResourceForGroupVersionKind(sc.disco, gvk, "patch")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get api resource for %s: %w", gvk, err)
-	}
-	res := kubeutil.ToGroupVersionResource(gvk.GroupVersion().String(), apiResource)
-	resIf := kubeutil.ToResourceInterface(sc.dynamicIf, apiResource, res, obj.GetNamespace())
-	return resIf, nil
 }
 
 func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.ResultCode, string) {
