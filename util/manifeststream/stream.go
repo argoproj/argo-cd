@@ -12,10 +12,10 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
-	"github.com/argoproj/argo-cd/v2/util/tgzstream"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
+	"github.com/argoproj/argo-cd/v3/util/tgzstream"
 )
 
 // Defines the contract for the application sender, i.e. the CLI
@@ -45,7 +45,7 @@ func SendApplicationManifestQueryWithFiles(ctx context.Context, stream Applicati
 		return fmt.Errorf("failed to compress files: %w", err)
 	}
 	if filesWritten == 0 {
-		return fmt.Errorf("no files to send")
+		return errors.New("no files to send")
 	}
 
 	err = stream.Send(&applicationpkg.ApplicationManifestQueryWithFilesWrapper{
@@ -107,7 +107,7 @@ func ReceiveApplicationManifestQueryWithFiles(stream ApplicationStreamReceiver) 
 		return nil, fmt.Errorf("failed to receive header: %w", err)
 	}
 	if header == nil || header.GetQuery() == nil {
-		return nil, fmt.Errorf("error getting stream query: query is nil")
+		return nil, errors.New("error getting stream query: query is nil")
 	}
 	return header.GetQuery(), nil
 }
@@ -142,7 +142,7 @@ func SendRepoStream(repoStream RepoStreamSender, appStream ApplicationStreamRece
 			return fmt.Errorf("stream Recv error: %w", err)
 		}
 		if part == nil || part.GetChunk() == nil {
-			return fmt.Errorf("error getting stream chunk: chunk is nil")
+			return errors.New("error getting stream chunk: chunk is nil")
 		}
 
 		err = repoStream.Send(&apiclient.ManifestRequestWithFiles{
@@ -166,7 +166,7 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 		return nil, nil, fmt.Errorf("failed to receive header: %w", err)
 	}
 	if header == nil || header.GetRequest() == nil {
-		return nil, nil, fmt.Errorf("error getting stream request: request is nil")
+		return nil, nil, errors.New("error getting stream request: request is nil")
 	}
 	request := header.GetRequest()
 
@@ -175,7 +175,7 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 		return nil, nil, fmt.Errorf("failed to receive header: %w", err)
 	}
 	if header2 == nil || header2.GetMetadata() == nil {
-		return nil, nil, fmt.Errorf("error getting stream metadata: metadata is nil")
+		return nil, nil, errors.New("error getting stream metadata: metadata is nil")
 	}
 	metadata := header2.GetMetadata()
 
@@ -223,7 +223,7 @@ func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum stri
 		}
 		c := req.GetChunk()
 		if c == nil {
-			return nil, fmt.Errorf("stream request chunk is nil")
+			return nil, errors.New("stream request chunk is nil")
 		}
 		size += len(c.Chunk)
 		if size > int(maxSize) {

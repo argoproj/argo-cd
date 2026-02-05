@@ -1,50 +1,67 @@
 package app
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/certs"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/gpgkeys"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/certs"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/gpgkeys"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-// this implements the "given" part of given/when/then
+// Context implements the "given" part of given/when/then.
+// It embeds fixture.TestState to provide test-specific state that enables parallel test execution.
 type Context struct {
-	t           *testing.T
-	path        string
-	chart       string
-	repoURLType fixture.RepoURLType
+	*fixture.TestState
+	path            string
+	chart           string
+	ociRegistry     string
+	ociRegistryPath string
+	repoURLType     fixture.RepoURLType
 	// seconds
-	timeout                int
-	name                   string
-	appNamespace           string
-	destServer             string
-	destName               string
-	env                    string
-	parameters             []string
-	namePrefix             string
-	nameSuffix             string
-	resource               string
-	prune                  bool
-	configManagementPlugin string
-	async                  bool
-	localPath              string
-	project                string
-	revision               string
-	force                  bool
-	applyOutOfSyncOnly     bool
-	directoryRecurse       bool
-	replace                bool
-	helmPassCredentials    bool
-	helmSkipCrds           bool
-	trackingMethod         v1alpha1.TrackingMethod
-	sources                []v1alpha1.ApplicationSource
+	timeout int
+
+	appNamespace             string
+	destServer               string
+	destName                 string
+	isDestServerInferred     bool
+	env                      string
+	parameters               []string
+	namePrefix               string
+	nameSuffix               string
+	resource                 string
+	prune                    bool
+	configManagementPlugin   string
+	async                    bool
+	localPath                string
+	project                  string
+	revision                 string
+	force                    bool
+	applyOutOfSyncOnly       bool
+	directoryRecurse         bool
+	replace                  bool
+	helmPassCredentials      bool
+	helmSkipCrds             bool
+	helmSkipSchemaValidation bool
+	helmSkipTests            bool
+	trackingMethod           v1alpha1.TrackingMethod
+	sources                  []v1alpha1.ApplicationSource
+	drySourceRevision        string
+	drySourcePath            string
+	syncSourceBranch         string
+	syncSourcePath           string
+	hydrateToBranch          string
 }
 
 type ContextArgs struct {
@@ -52,162 +69,209 @@ type ContextArgs struct {
 }
 
 func Given(t *testing.T, opts ...fixture.TestOption) *Context {
-	fixture.EnsureCleanState(t, opts...)
-	return GivenWithSameState(t)
+	t.Helper()
+	state := fixture.EnsureCleanState(t, opts...)
+	return GivenWithSameState(state)
 }
 
 func GivenWithNamespace(t *testing.T, namespace string) *Context {
+	t.Helper()
 	ctx := Given(t)
 	ctx.appNamespace = namespace
 	return ctx
 }
 
-func GivenWithSameState(t *testing.T) *Context {
-	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
+// GivenWithSameState creates a new Context that shares the same TestState as an existing context.
+// Use this when you need multiple fixture contexts within the same test.
+func GivenWithSameState(ctx fixture.TestContext) *Context {
+	ctx.T().Helper()
+	// ARGOCD_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
 	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 20, 0, 180)
 	return &Context{
-		t:              t,
+		TestState:      fixture.NewTestStateFromContext(ctx),
 		destServer:     v1alpha1.KubernetesInternalAPIServerAddr,
+		destName:       "in-cluster",
 		repoURLType:    fixture.RepoURLTypeFile,
-		name:           fixture.Name(),
 		timeout:        timeout,
 		project:        "default",
 		prune:          true,
-		trackingMethod: argo.TrackingMethodLabel,
+		trackingMethod: v1alpha1.TrackingMethodLabel,
 	}
 }
 
+func (c *Context) Name(name string) *Context {
+	c.SetName(name)
+	return c
+}
+
+// AppName returns the unique application name for the test context.
+// Unique application names protects from potential conflicts between test run
+// caused by the tracking annotation on existing objects
 func (c *Context) AppName() string {
-	return c.name
+	return c.GetName()
 }
 
 func (c *Context) AppQualifiedName() string {
 	if c.appNamespace != "" {
 		return c.appNamespace + "/" + c.AppName()
-	} else {
-		return c.AppName()
 	}
+	return c.AppName()
 }
 
 func (c *Context) AppNamespace() string {
 	if c.appNamespace != "" {
 		return c.appNamespace
-	} else {
-		return fixture.TestNamespace()
 	}
+	return fixture.TestNamespace()
 }
 
 func (c *Context) SetAppNamespace(namespace string) *Context {
 	c.appNamespace = namespace
-	// fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
+	// errors.CheckError(fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation"))
 	return c
 }
 
 func (c *Context) GPGPublicKeyAdded() *Context {
-	gpgkeys.AddGPGPublicKey()
+	gpgkeys.AddGPGPublicKey(c.T())
 	return c
 }
 
 func (c *Context) GPGPublicKeyRemoved() *Context {
-	gpgkeys.DeleteGPGPublicKey()
+	gpgkeys.DeleteGPGPublicKey(c.T())
 	return c
 }
 
 func (c *Context) CustomCACertAdded() *Context {
-	certs.AddCustomCACert()
+	certs.AddCustomCACert(c.T())
 	return c
 }
 
 func (c *Context) CustomSSHKnownHostsAdded() *Context {
-	certs.AddCustomSSHKnownHostsKeys()
+	certs.AddCustomSSHKnownHostsKeys(c.T())
 	return c
 }
 
-func (c *Context) HTTPSRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPS)
+func (c *Context) HTTPSRepoURLAdded(withCreds bool, opts ...repos.AddRepoOpts) *Context {
+	repos.AddHTTPSRepo(c.T(), false, withCreds, "", fixture.RepoURLTypeHTTPS, opts...)
 	return c
 }
 
-func (c *Context) HTTPSInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddHTTPSRepo(true, withCreds, fixture.RepoURLTypeHTTPS)
+func (c *Context) HTTPSInsecureRepoURLAdded(withCreds bool, opts ...repos.AddRepoOpts) *Context {
+	repos.AddHTTPSRepo(c.T(), true, withCreds, "", fixture.RepoURLTypeHTTPS, opts...)
 	return c
 }
 
 func (c *Context) HTTPSInsecureRepoURLWithClientCertAdded() *Context {
-	repos.AddHTTPSRepoClientCert(true)
+	repos.AddHTTPSRepoClientCert(c.T(), true)
 	return c
 }
 
 func (c *Context) HTTPSRepoURLWithClientCertAdded() *Context {
-	repos.AddHTTPSRepoClientCert(false)
+	repos.AddHTTPSRepoClientCert(c.T(), false)
 	return c
 }
 
 func (c *Context) SubmoduleHTTPSRepoURLAdded(withCreds bool) *Context {
-	fixture.CreateSubmoduleRepos("https")
-	repos.AddHTTPSRepo(false, withCreds, fixture.RepoURLTypeHTTPSSubmoduleParent)
+	fixture.CreateSubmoduleRepos(c.T(), "https")
+	repos.AddHTTPSRepo(c.T(), false, withCreds, "", fixture.RepoURLTypeHTTPSSubmoduleParent)
+	return c
+}
+
+func (c *Context) WriteCredentials(insecure bool) *Context {
+	repos.AddWriteCredentials(c.T(), c.GetName(), insecure, c.repoURLType)
 	return c
 }
 
 func (c *Context) SSHRepoURLAdded(withCreds bool) *Context {
-	repos.AddSSHRepo(false, withCreds, fixture.RepoURLTypeSSH)
+	repos.AddSSHRepo(c.T(), false, withCreds, fixture.RepoURLTypeSSH)
 	return c
 }
 
 func (c *Context) SSHInsecureRepoURLAdded(withCreds bool) *Context {
-	repos.AddSSHRepo(true, withCreds, fixture.RepoURLTypeSSH)
+	repos.AddSSHRepo(c.T(), true, withCreds, fixture.RepoURLTypeSSH)
 	return c
 }
 
 func (c *Context) SubmoduleSSHRepoURLAdded(withCreds bool) *Context {
-	fixture.CreateSubmoduleRepos("ssh")
-	repos.AddSSHRepo(false, withCreds, fixture.RepoURLTypeSSHSubmoduleParent)
+	fixture.CreateSubmoduleRepos(c.T(), "ssh")
+	repos.AddSSHRepo(c.T(), false, withCreds, fixture.RepoURLTypeSSHSubmoduleParent)
 	return c
 }
 
 func (c *Context) HelmRepoAdded(name string) *Context {
-	repos.AddHelmRepo(name)
+	repos.AddHelmRepo(c.T(), name)
 	return c
 }
 
 func (c *Context) HelmOCIRepoAdded(name string) *Context {
-	repos.AddHelmOCIRepo(name)
+	repos.AddHelmOCIRepo(c.T(), name)
+	return c
+}
+
+func (c *Context) PushImageToOCIRegistry(pathName, tag string) *Context {
+	repos.PushImageToOCIRegistry(c.T(), pathName, tag)
+	return c
+}
+
+func (c *Context) PushImageToAuthenticatedOCIRegistry(pathName, tag string) *Context {
+	repos.PushImageToAuthenticatedOCIRegistry(c.T(), pathName, tag)
 	return c
 }
 
 func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
-	repos.PushChartToOCIRegistry(chartPathName, chartName, chartVersion)
+	repos.PushChartToOCIRegistry(c.T(), chartPathName, chartName, chartVersion)
+	return c
+}
+
+func (c *Context) PushChartToAuthenticatedOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
+	repos.PushChartToAuthenticatedOCIRegistry(c.T(), chartPathName, chartName, chartVersion)
 	return c
 }
 
 func (c *Context) HTTPSCredentialsUserPassAdded() *Context {
-	repos.AddHTTPSCredentialsUserPass()
+	repos.AddHTTPSCredentialsUserPass(c.T())
 	return c
 }
 
 func (c *Context) HelmHTTPSCredentialsUserPassAdded() *Context {
-	repos.AddHelmHTTPSCredentialsTLSClientCert()
+	repos.AddHelmHTTPSCredentialsTLSClientCert(c.T())
 	return c
 }
 
 func (c *Context) HelmoOCICredentialsWithoutUserPassAdded() *Context {
-	repos.AddHelmoOCICredentialsWithoutUserPass()
+	repos.AddHelmoOCICredentialsWithoutUserPass(c.T())
 	return c
 }
 
 func (c *Context) HTTPSCredentialsTLSClientCertAdded() *Context {
-	repos.AddHTTPSCredentialsTLSClientCert()
+	repos.AddHTTPSCredentialsTLSClientCert(c.T())
 	return c
 }
 
 func (c *Context) SSHCredentialsAdded() *Context {
-	repos.AddSSHCredentials()
+	repos.AddSSHCredentials(c.T())
+	return c
+}
+
+func (c *Context) OCIRepoAdded(name, imagePath string) *Context {
+	repos.AddOCIRepo(c.T(), name, imagePath)
+	return c
+}
+
+func (c *Context) AuthenticatedOCIRepoAdded(name, imagePath string) *Context {
+	repos.AddAuthenticatedOCIRepo(c.T(), name, imagePath)
+	return c
+}
+
+func (c *Context) OCIRegistry(registry string) *Context {
+	c.ociRegistry = registry
 	return c
 }
 
 func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
-	fixture.SetProjectSpec(c.project, spec)
+	c.T().Helper()
+	require.NoError(c.T(), fixture.SetProjectSpec(c.project, spec))
 	return c
 }
 
@@ -221,17 +285,33 @@ func (c *Context) RepoURLType(urlType fixture.RepoURLType) *Context {
 	return c
 }
 
-func (c *Context) GetName() string {
-	return c.name
-}
-
-func (c *Context) Name(name string) *Context {
-	c.name = name
+func (c *Context) Path(path string) *Context {
+	c.path = path
 	return c
 }
 
-func (c *Context) Path(path string) *Context {
-	c.path = path
+func (c *Context) DrySourceRevision(revision string) *Context {
+	c.drySourceRevision = revision
+	return c
+}
+
+func (c *Context) DrySourcePath(path string) *Context {
+	c.drySourcePath = path
+	return c
+}
+
+func (c *Context) SyncSourceBranch(branch string) *Context {
+	c.syncSourceBranch = branch
+	return c
+}
+
+func (c *Context) SyncSourcePath(path string) *Context {
+	c.syncSourcePath = path
+	return c
+}
+
+func (c *Context) HydrateToBranch(branch string) *Context {
+	c.hydrateToBranch = branch
 	return c
 }
 
@@ -242,6 +322,11 @@ func (c *Context) Recurse() *Context {
 
 func (c *Context) Chart(chart string) *Context {
 	c.chart = chart
+	return c
+}
+
+func (c *Context) OCIRegistryPath(ociPath string) *Context {
+	c.ociRegistryPath = ociPath
 	return c
 }
 
@@ -257,11 +342,17 @@ func (c *Context) Timeout(timeout int) *Context {
 
 func (c *Context) DestServer(destServer string) *Context {
 	c.destServer = destServer
+	c.isDestServerInferred = false
 	return c
 }
 
 func (c *Context) DestName(destName string) *Context {
+	if destName != "in-cluster" {
+		suffix := "-" + c.ShortID()
+		destName = fixture.DnsFriendly(strings.TrimSuffix(destName, suffix), suffix)
+	}
 	c.destName = destName
+	c.isDestServerInferred = true
 	return c
 }
 
@@ -292,12 +383,14 @@ func (c *Context) NameSuffix(nameSuffix string) *Context {
 }
 
 func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) *Context {
-	fixture.SetResourceOverrides(overrides)
+	c.T().Helper()
+	require.NoError(c.T(), fixture.SetResourceOverrides(overrides))
 	return c
 }
 
 func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
-	fixture.SetResourceFilter(filter)
+	c.T().Helper()
+	require.NoError(c.T(), fixture.SetResourceFilter(filter))
 	return c
 }
 
@@ -307,8 +400,7 @@ func (c *Context) And(block func()) *Context {
 }
 
 func (c *Context) When() *Actions {
-	// in case any settings have changed, pause for 1s, not great, but fine
-	time.Sleep(1 * time.Second)
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Actions{context: c}
 }
 
@@ -357,8 +449,25 @@ func (c *Context) HelmSkipCrds() *Context {
 	return c
 }
 
+func (c *Context) HelmSkipSchemaValidation() *Context {
+	c.helmSkipSchemaValidation = true
+	return c
+}
+
+func (c *Context) HelmSkipTests() *Context {
+	c.helmSkipTests = true
+	return c
+}
+
 func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
-	fixture.SetTrackingMethod(trackingMethod)
+	c.T().Helper()
+	require.NoError(c.T(), fixture.SetTrackingMethod(trackingMethod))
+	return c
+}
+
+func (c *Context) SetInstallationID(installationID string) *Context {
+	c.T().Helper()
+	require.NoError(c.T(), fixture.SetInstallationID(installationID))
 	return c
 }
 
@@ -368,5 +477,24 @@ func (c *Context) GetTrackingMethod() v1alpha1.TrackingMethod {
 
 func (c *Context) Sources(sources []v1alpha1.ApplicationSource) *Context {
 	c.sources = sources
+	return c
+}
+
+func (c *Context) RegisterKustomizeVersion(version, path string) *Context {
+	c.T().Helper()
+	require.NoError(c.T(), fixture.RegisterKustomizeVersion(version, path))
+	return c
+}
+
+func (c *Context) Resource(content string) *Context {
+	c.T().Helper()
+	u := test.YamlToUnstructured(content)
+	mapping, err := fixture.Mapper.RESTMapping(u.GroupVersionKind().GroupKind(), u.GroupVersionKind().Version)
+	require.NoError(c.T(), err)
+	if mapping == nil {
+		require.NoError(c.T(), fmt.Errorf("cannot find mapping for %s", u.GroupVersionKind().String()))
+	}
+	_, err = fixture.DynamicClientset.Resource(mapping.Resource).Namespace(c.DeploymentNamespace()).Apply(c.T().Context(), u.GetName(), u, metav1.ApplyOptions{FieldManager: "e2e-given-step"})
+	require.NoError(c.T(), err)
 	return c
 }

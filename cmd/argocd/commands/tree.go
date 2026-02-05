@@ -9,13 +9,12 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"k8s.io/apimachinery/pkg/util/duration"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 const (
 	firstElemPrefix = `├─`
 	lastElemPrefix  = `└─`
-	indent          = "  "
 	pipe            = `│ `
 )
 
@@ -24,7 +23,7 @@ func extractHealthStatusAndReason(node v1alpha1.ResourceNode) (healthStatus heal
 		healthStatus = node.Health.Status
 		reason = node.Health.Message
 	}
-	return
+	return healthStatus, reason
 }
 
 func treeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentToChildMap map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState, w *tabwriter.Writer) {
@@ -36,7 +35,7 @@ func treeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode
 		_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Kind+"/"+parent.Name, "", healthStatus, "")
 	}
 	chs := parentToChildMap[parent.UID]
-	for i, childUid := range chs {
+	for i, childUID := range chs {
 		var p string
 		switch i {
 		case len(chs) - 1:
@@ -44,7 +43,7 @@ func treeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode
 		default:
 			p = prefix + firstElemPrefix
 		}
-		treeViewAppGet(p, uidToNodeMap, parentToChildMap, uidToNodeMap[childUid], mapNodeNameToResourceState, w)
+		treeViewAppGet(p, uidToNodeMap, parentToChildMap, uidToNodeMap[childUID], mapNodeNameToResourceState, w)
 	}
 }
 
@@ -75,9 +74,7 @@ func detailedTreeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.Reso
 }
 
 func treeViewAppResourcesNotOrphaned(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, w *tabwriter.Writer) {
-	if len(parent.ParentRefs) == 0 {
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", parent.Group, parent.Kind, parent.Namespace, parent.Name, "No")
-	}
+	_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Group, parent.Kind, parent.Namespace, parent.Name, "No")
 	chs := parentChildMap[parent.UID]
 	for i, child := range chs {
 		var p string
@@ -92,7 +89,7 @@ func treeViewAppResourcesNotOrphaned(prefix string, uidToNodeMap map[string]v1al
 }
 
 func treeViewAppResourcesOrphaned(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, w *tabwriter.Writer) {
-	_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", parent.Group, parent.Kind, parent.Namespace, parent.Name, "Yes")
+	_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Group, parent.Kind, parent.Namespace, parent.Name, "Yes")
 	chs := parentChildMap[parent.UID]
 	for i, child := range chs {
 		var p string
@@ -107,14 +104,12 @@ func treeViewAppResourcesOrphaned(prefix string, uidToNodeMap map[string]v1alpha
 }
 
 func detailedTreeViewAppResourcesNotOrphaned(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, w *tabwriter.Writer) {
-	if len(parent.ParentRefs) == 0 {
-		healthStatus, reason := extractHealthStatusAndReason(parent)
-		age := "<unknown>"
-		if parent.CreatedAt != nil {
-			age = duration.HumanDuration(time.Since(parent.CreatedAt.Time))
-		}
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", parent.Group, parent.Kind, parent.Namespace, parent.Name, "No", age, healthStatus, reason)
+	healthStatus, reason := extractHealthStatusAndReason(parent)
+	age := "<unknown>"
+	if parent.CreatedAt != nil {
+		age = duration.HumanDuration(time.Since(parent.CreatedAt.Time))
 	}
+	_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Group, parent.Kind, parent.Namespace, parent.Name, "No", age, healthStatus, reason)
 	chs := parentChildMap[parent.UID]
 	for i, child := range chs {
 		var p string
@@ -134,7 +129,7 @@ func detailedTreeViewAppResourcesOrphaned(prefix string, uidToNodeMap map[string
 	if parent.CreatedAt != nil {
 		age = duration.HumanDuration(time.Since(parent.CreatedAt.Time))
 	}
-	_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", parent.Group, parent.Kind, parent.Namespace, parent.Name, "Yes", age, healthStatus, reason)
+	_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Group, parent.Kind, parent.Namespace, parent.Name, "Yes", age, healthStatus, reason)
 
 	chs := parentChildMap[parent.UID]
 	for i, child := range chs {

@@ -1,0 +1,23 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: Permission
+metadata:
+  generation: 1
+  name: example-rabbit
+  namespace: example-rabbit
+spec:
+  permissions:
+    configure: .*
+    read: .*
+    write: .*
+  rabbitmqClusterReference:
+    name: example-rabbit
+    namespace: exmple-rabbit
+  user: example_user
+  vhost: /
+status:
+  conditions:
+    - lastTransitionTime: 2025-02-24T17:51:10Z
+      reason: SuccessfulCreateOrUpdate
+      status: "True"
+      type: Ready
+  observedGeneration: 1

@@ -1,0 +1,33 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Initializing pull request
+  inputPath: testdata/no-status.yaml
+- healthStatus:
+    status: Progressing
+    message: Pull request is being deleted
+  inputPath: testdata/deleting.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for pull request spec update to be observed
+  inputPath: testdata/observed-generation-outdated.yaml
+- healthStatus:
+    status: Degraded
+    message: "Pull request reconciliation failed: Something went wrong"
+  inputPath: testdata/reconciliation-error.yaml
+- healthStatus:
+    status: Degraded
+    message: "Pull request reconciliation failed: Failed to create pull request: authentication failed"
+  inputPath: testdata/non-reconciliation-error.yaml
+- healthStatus:
+    status: Progressing
+    message: Pull request is not ready yet
+  inputPath: testdata/no-ready-condition.yaml
+- healthStatus:
+    status: Healthy
+    message: Pull request is healthy
+  inputPath: testdata/healthy-no-id-or-state.yaml
+- healthStatus:
+    status: Healthy
+    message: Pull request is open as PR 123
+  inputPath: testdata/healthy-with-id-and-state.yaml

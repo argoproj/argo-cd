@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings";
+option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings";
 
 // Settings Service
 //
@@ -8,8 +8,8 @@ package cluster;
 
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
-import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
-import "github.com/argoproj/argo-cd/v2/server/settings/oidc/claims.proto";
+import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v3/server/settings/oidc/claims.proto";
 
 // SettingsQuery is a query for Argo CD settings
 message SettingsQuery {
@@ -20,16 +20,16 @@ message Settings {
     DexConfig dexConfig = 2;
     OIDCConfig oidcConfig = 3 [(gogoproto.customname) = "OIDCConfig"];
     string appLabelKey = 4;
-    map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ResourceOverride> resourceOverrides = 5;
+    map<string, github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceOverride> resourceOverrides = 5;
     bool statusBadgeEnabled = 6;
     GoogleAnalyticsConfig googleAnalytics = 7;
-    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 8;
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 8;
     // Help settings
     Help help = 9;
     repeated Plugin plugins = 10;
     bool userLoginsDisabled = 11;
     // Deprecated: use sidecar plugins instead.
-    repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ConfigManagementPlugin configManagementPlugins = 12;
+    repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ConfigManagementPlugin configManagementPlugins = 12;
     repeated string kustomizeVersions = 13;
     string uiCssURL = 14;
     string uiBannerContent = 15;
@@ -43,6 +43,10 @@ message Settings {
     string controllerNamespace = 23;
     bool appsInAnyNamespaceEnabled = 24;
     bool impersonationEnabled = 25;
+    string installationID = 26;
+    repeated string additionalUrls = 27 [(gogoproto.customname) = "AdditionalURLs"];
+    bool hydratorEnabled = 28;
+    bool syncWithReplaceAllowed = 29;
 }
 
 message GoogleAnalyticsConfig {

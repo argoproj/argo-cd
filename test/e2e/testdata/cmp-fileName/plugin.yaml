@@ -5,6 +5,7 @@ metadata:
 spec:
   version: v1.0
   generate:
-    command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$ARGOCD_ENV_FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
+    # The -z test is to ensure that environment variables are made available to the plugin, even if they're empty. https://serverfault.com/a/382740/462962
+    command: [sh, -c, 'if [ -z "${ARGOCD_ENV_EMPTY+set}" ]; then echo "ARGOCD_ENV_EMPTY should have been set." && exit 1; fi; echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$ARGOCD_ENV_FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"']
   discover:
     fileName: "subdir/s*.yaml"

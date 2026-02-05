@@ -3,7 +3,7 @@ import * as minimatch from 'minimatch';
 
 import {Application, ApplicationTree, State} from '../models';
 
-type ExtensionsEventType = 'resource' | 'systemLevel' | 'appView' | 'statusPanel' | 'top-bar';
+type ExtensionsEventType = 'resource' | 'systemLevel' | 'appView' | 'statusPanel' | 'topBar';
 type ExtensionsType = ResourceTabExtension | SystemLevelExtension | AppViewExtension | StatusPanelExtension | TopBarActionMenuExt;
 
 class ExtensionsEventTarget {
@@ -50,8 +50,8 @@ function registerSystemLevelExtension(component: ExtensionComponent, title: stri
     extensions.eventTarget.emit('systemLevel', ext);
 }
 
-function registerAppViewExtension(component: ExtensionComponent, title: string, icon: string) {
-    const ext = {component, title, icon};
+function registerAppViewExtension(component: AppViewExtensionComponent, title: string, icon: string, shouldDisplay?: (app: Application) => boolean) {
+    const ext = {component, title, icon, shouldDisplay: shouldDisplay || (() => true)};
     extensions.appViewExtensions.push(ext);
     extensions.eventTarget.emit('appView', ext);
 }
@@ -73,7 +73,7 @@ function registerTopBarActionMenuExt(
 ) {
     const ext = {component, flyout, shouldDisplay, title, id, iconClassName, isMiddle};
     extensions.topBarActionMenuExts.push(ext);
-    extensions.eventTarget.emit('top-bar', ext);
+    extensions.eventTarget.emit('topBar', ext);
 }
 
 let legacyInitialized = false;
@@ -109,6 +109,7 @@ export interface AppViewExtension {
     component: AppViewExtensionComponent;
     title: string;
     icon?: string;
+    shouldDisplay: (app: Application) => boolean;
 }
 
 export interface StatusPanelExtension {

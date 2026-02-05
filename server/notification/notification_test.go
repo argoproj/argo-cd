@@ -1,7 +1,6 @@
 package notification
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -11,13 +10,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
-	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
-	"github.com/argoproj/argo-cd/v2/util/notification/settings"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/notification"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
+	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
+	"github.com/argoproj/argo-cd/v3/util/notification/k8s"
+	"github.com/argoproj/argo-cd/v3/util/notification/settings"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/kubectl/pkg/scheme"
@@ -35,8 +34,8 @@ func TestNotificationServer(t *testing.T) {
 	require.NoError(t, err)
 	cm.Namespace = testNamespace
 
-	kubeclientset := fake.NewSimpleClientset(&corev1.ConfigMap{
-		ObjectMeta: v1.ObjectMeta{
+	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
 			Name:      "argocd-notifications-cm",
 		},
@@ -47,14 +46,14 @@ func TestNotificationServer(t *testing.T) {
 		},
 	},
 		&corev1.Secret{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      "argocd-notifications-secret",
 				Namespace: testNamespace,
 			},
 			Data: map[string][]byte{},
 		})
 
-	ctx := context.Background()
+	ctx := t.Context()
 	secretInformer := k8s.NewSecretInformer(kubeclientset, testNamespace, "argocd-notifications-secret")
 	configMapInformer := k8s.NewConfigMapInformer(kubeclientset, testNamespace, "argocd-notifications-cm")
 	go secretInformer.Run(ctx.Done())

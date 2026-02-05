@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPlugin(t *testing.T) {
@@ -30,20 +30,14 @@ func TestPlugin(t *testing.T) {
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
-	client, err := NewPluginService(context.Background(), "plugin-test", ts.URL, token, 0)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	client, err := NewPluginService("plugin-test", ts.URL, token, 0)
+	require.NoError(t, err)
 
-	data, err := client.List(context.Background(), nil)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	data, err := client.List(t.Context(), nil)
+	require.NoError(t, err)
 
 	var expectedData ServiceResponse
 	err = json.Unmarshal([]byte(expectedJSON), &expectedData)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	assert.Equal(t, &expectedData, data)
 }

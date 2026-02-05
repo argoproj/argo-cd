@@ -1,17 +1,19 @@
 package applicationsets
 
 import (
-	"context"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
+	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
 )
 
 type state = string
@@ -79,14 +81,31 @@ func ApplicationsExist(expectedApps []v1alpha1.Application) Expectation {
 	}
 }
 
-// ApplicationSetHasConditions checks whether each of the 'expectedConditions' exist in the ApplicationSet status, and are
-// equivalent to provided values.
-func ApplicationSetHasConditions(applicationSetName string, expectedConditions []v1alpha1.ApplicationSetCondition) Expectation {
+// ApplicationSetHasHealthStatus checks whether the ApplicationSet has the expected health status.
+func ApplicationSetHasHealthStatus(expectedHealthStatus health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		// retrieve the application set
-		foundApplicationSet := c.applicationSet(applicationSetName)
+		foundApplicationSet := c.applicationSet(c.context.GetName())
 		if foundApplicationSet == nil {
-			return pending, fmt.Sprintf("application set '%s' not found", applicationSetName)
+			return pending, fmt.Sprintf("application set '%s' not found", c.context.GetName())
+		}
+
+		if foundApplicationSet.Status.Health.Status != expectedHealthStatus {
+			return pending, fmt.Sprintf("application set health status is '%s', expected '%s'",
+				foundApplicationSet.Status.Health.Status, expectedHealthStatus)
+		}
+		return succeeded, fmt.Sprintf("application set has expected health status '%s'", expectedHealthStatus)
+	}
+}
+
+// ApplicationSetHasConditions checks whether each of the 'expectedConditions' exist in the ApplicationSet status, and are
+// equivalent to provided values.
+func ApplicationSetHasConditions(expectedConditions []v1alpha1.ApplicationSetCondition) Expectation {
+	return func(c *Consequences) (state, string) {
+		// retrieve the application set
+		foundApplicationSet := c.applicationSet(c.context.GetName())
+		if foundApplicationSet == nil {
+			return pending, fmt.Sprintf("application set '%s' not found", c.context.GetName())
 		}
 
 		if !conditionsAreEqual(&expectedConditions, &foundApplicationSet.Status.Conditions) {
@@ -115,9 +134,10 @@ func ApplicationsDoNotExist(expectedApps []v1alpha1.Application) Expectation {
 }
 
 // Pod checks whether a specified condition is true for any of the pods in the namespace
-func Pod(predicate func(p corev1.Pod) bool) Expectation {
-	return func(c *Consequences) (state, string) {
-		pods, err := pods(utils.ApplicationsResourcesNamespace)
+func Pod(t *testing.T, predicate func(p corev1.Pod) bool) Expectation {
+	t.Helper()
+	return func(_ *Consequences) (state, string) {
+		pods, err := pods(t, utils.ApplicationsResourcesNamespace)
 		if err != nil {
 			return failed, err.Error()
 		}
@@ -130,16 +150,17 @@ func Pod(predicate func(p corev1.Pod) bool) Expectation {
 	}
 }
 
-func pods(namespace string) (*corev1.PodList, error) {
-	fixtureClient := utils.GetE2EFixtureK8sClient()
+func pods(t *testing.T, namespace string) (*corev1.PodList, error) {
+	t.Helper()
+	fixtureClient := utils.GetE2EFixtureK8sClient(t)
 
-	pods, err := fixtureClient.KubeClientset.CoreV1().Pods(namespace).List(context.Background(), metav1.ListOptions{})
+	pods, err := fixtureClient.KubeClientset.CoreV1().Pods(namespace).List(t.Context(), metav1.ListOptions{})
 	return pods, err
 }
 
 // getDiff returns a string containing a comparison result of two applications (for test output/debug purposes)
-func getDiff(orig, new v1alpha1.Application) (string, error) {
-	bytes, _, err := diff.CreateTwoWayMergePatch(orig, new, orig)
+func getDiff(orig, newApplication v1alpha1.Application) (string, error) {
+	bytes, _, err := diff.CreateTwoWayMergePatch(orig, newApplication, orig)
 	if err != nil {
 		return "", err
 	}
@@ -148,15 +169,15 @@ func getDiff(orig, new v1alpha1.Application) (string, error) {
 }
 
 // getConditionDiff returns a string containing a comparison result of two ApplicationSetCondition (for test output/debug purposes)
-func getConditionDiff(orig, new []v1alpha1.ApplicationSetCondition) (string, error) {
-	if len(orig) != len(new) {
-		return fmt.Sprintf("mismatch between condition sizes: %v %v", len(orig), len(new)), nil
+func getConditionDiff(orig, newApplicationSetCondition []v1alpha1.ApplicationSetCondition) (string, error) {
+	if len(orig) != len(newApplicationSetCondition) {
+		return fmt.Sprintf("mismatch between condition sizes: %v %v", len(orig), len(newApplicationSetCondition)), nil
 	}
 
 	var bytes []byte
 
 	for index := range orig {
-		b, _, err := diff.CreateTwoWayMergePatch(orig[index], new[index], orig[index])
+		b, _, err := diff.CreateTwoWayMergePatch(orig[index], newApplicationSetCondition[index], orig[index])
 		if err != nil {
 			return "", err
 		}
@@ -222,4 +243,96 @@ func appsAreEqual(one v1alpha1.Application, two v1alpha1.Application) bool {
 // conditionsAreEqual returns true if the appset status conditions are equal, comparing only fields of interest
 func conditionsAreEqual(one, two *[]v1alpha1.ApplicationSetCondition) bool {
 	return reflect.DeepEqual(filterConditionFields(one), filterConditionFields(two))
+}
+
+// CheckProgressiveSyncStatusCodeOfApplications checks whether the progressive sync status codes of applications in ApplicationSetApplicationStatus
+// match the expected values.
+func CheckProgressiveSyncStatusCodeOfApplications(expectedStatuses map[string]v1alpha1.ApplicationSetApplicationStatus) Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no ApplicationSet found with name '%s'", c.context.GetName())
+		}
+		if appSet.Status.ApplicationStatus == nil {
+			return pending, fmt.Sprintf("no application status found for ApplicationSet '%s'", c.context.GetName())
+		}
+		for _, appStatus := range appSet.Status.ApplicationStatus {
+			expectedstatus, found := expectedStatuses[appStatus.Application]
+			if !found {
+				continue // Appset has more apps than expected - not ideal
+			}
+			if appStatus.Status != expectedstatus.Status {
+				return pending, fmt.Sprintf("for application '%s': expected status '%s' but got '%s'", expectedstatus.Application, expectedstatus.Status, appStatus.Status)
+			}
+		}
+		return succeeded, fmt.Sprintf("all applications in ApplicationSet's: '%s' Application Status have expected statuses ", c.context.GetName())
+	}
+}
+
+// CheckApplicationInRightSteps checks that a step contains exactly the expected applications.
+func CheckApplicationInRightSteps(step string, expectedApps []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
+		}
+		if appSet.Status.ApplicationStatus == nil {
+			return pending, fmt.Sprintf("no application status found for ApplicationSet '%s'", c.context.GetName())
+		}
+		var stepApps []string
+		for _, appStatus := range appSet.Status.ApplicationStatus {
+			if appStatus.Step == step {
+				stepApps = append(stepApps, appStatus.Application)
+			}
+		}
+		if len(stepApps) != len(expectedApps) {
+			return pending, fmt.Sprintf("expected %d apps in step '%s' for appset '%s', but got %d", len(expectedApps), step, c.context.GetName(), len(stepApps))
+		}
+		// Sort before comparing to avoid flakiness
+		slices.Sort(stepApps)
+		slices.Sort(expectedApps)
+		if !slices.Equal(stepApps, expectedApps) {
+			return pending, fmt.Sprintf("In step '%s', expected apps: '%s', but got: '%s'", step, expectedApps, stepApps)
+		}
+		return succeeded, fmt.Sprintf("Step '%s' has expected apps: '%s'", step, expectedApps)
+	}
+}
+
+// ApplicationSetDoesNotHaveApplicationStatus checks that ApplicationSet.Status.ApplicationStatus is nil
+func ApplicationSetDoesNotHaveApplicationStatus() Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
+		}
+		if appSet.Status.ApplicationStatus != nil {
+			return failed, fmt.Sprintf("application set '%s' has ApplicationStatus when not expected", c.context.GetName())
+		}
+		return succeeded, fmt.Sprintf("Application '%s' does not have ApplicationStatus", c.context.GetName())
+	}
+}
+
+// ApplicationSetHasApplicationStatus checks that ApplicationSet has expected number of applications in its status
+// and all have progressive sync status Healthy.
+func ApplicationSetHasApplicationStatus(expectedApplicationStatusLength int) Expectation {
+	return func(c *Consequences) (state, string) {
+		appSet := c.applicationSet(c.context.GetName())
+		if appSet == nil {
+			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
+		}
+		if appSet.Status.ApplicationStatus == nil {
+			return pending, fmt.Sprintf("application set '%s' has no ApplicationStatus when '%d' expected", c.context.GetName(), expectedApplicationStatusLength)
+		}
+
+		if len(appSet.Status.ApplicationStatus) != expectedApplicationStatusLength {
+			return failed, fmt.Sprintf("applicationset has '%d' applicationstatus, when '%d' are expected", len(appSet.Status.ApplicationStatus), expectedApplicationStatusLength)
+		}
+
+		for _, appStatus := range appSet.Status.ApplicationStatus {
+			if appStatus.Status != v1alpha1.ProgressiveSyncHealthy {
+				return pending, fmt.Sprintf("Application '%s' not Healthy", appStatus.Application)
+			}
+		}
+		return succeeded, fmt.Sprintf("All Applications in ApplicationSet: '%s' are Healthy ", c.context.GetName())
+	}
 }

@@ -8,6 +8,22 @@ if obj.status ~= nil then
         hs.message = condition.message
         return hs
       end
+    end
+    for i, condition in pairs(obj.status.conditions) do
+      if condition.type == "ResourcesUpToDate" and condition.status == "False" then
+        hs.status = "Degraded"
+        hs.message = condition.message
+        return hs
+      end
+    end
+    for i, condition in pairs(obj.status.conditions) do
+      if condition.type == "RolloutProgressing" and condition.status == "True" then
+        hs.status = "Progressing"
+        hs.message = condition.message
+        return hs
+      end
+    end
+    for i, condition in pairs(obj.status.conditions) do
       if condition.type == "ResourcesUpToDate" and condition.status == "True" then
         hs.status = "Healthy"
         hs.message = condition.message
@@ -17,8 +33,6 @@ if obj.status ~= nil then
   end
 end
 
--- Conditions were introduced in ApplicationSet v0.3. To give v0.2 users a good experience, we default to "Healthy".
--- Once v0.3 is more generally adopted, we'll default to "Progressing" instead.
-hs.status = "Healthy"
-hs.message = ""
+hs.status = "Progressing"
+hs.message = "Waiting for the status to be reported"
 return hs

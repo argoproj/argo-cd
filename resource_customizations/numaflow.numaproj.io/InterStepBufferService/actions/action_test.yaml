@@ -1,0 +1,4 @@
+actionTests:
+- action: force-promote
+  inputPath: testdata/isbservice.yaml
+  expectedOutputPath: testdata/isbservice-force-promote.yaml

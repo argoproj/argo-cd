@@ -37,8 +37,7 @@ type Consistent struct {
 	loadMap           map[string]*Host
 	totalLoad         int64
 	replicationFactor int
-
-	sync.RWMutex
+	lock              sync.RWMutex
 }
 
 type item struct {
@@ -68,8 +67,8 @@ func NewWithReplicationFactor(replicationFactor int) *Consistent {
 }
 
 func (c *Consistent) Add(server string) {
-	c.Lock()
-	defer c.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
 	if _, ok := c.loadMap[server]; ok {
 		return
@@ -87,8 +86,8 @@ func (c *Consistent) Add(server string) {
 // As described in https://en.wikipedia.org/wiki/Consistent_hashing
 // It returns ErrNoHosts if the ring has no servers in it.
 func (c *Consistent) Get(client string) (string, error) {
-	c.RLock()
-	defer c.RUnlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 
 	if c.clients.Len() == 0 {
 		return "", ErrNoHosts
@@ -116,8 +115,8 @@ func (c *Consistent) Get(client string) (string, error) {
 // https://research.googleblog.com/2017/04/consistent-hashing-with-bounded-loads.html
 // It returns ErrNoHosts if the ring has no hosts in it.
 func (c *Consistent) GetLeast(client string) (string, error) {
-	c.RLock()
-	defer c.RUnlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 
 	if c.clients.Len() == 0 {
 		return "", ErrNoHosts
@@ -138,22 +137,21 @@ func (c *Consistent) GetLeast(client string) (string, error) {
 			foundItem = c.clients.Min()
 		}
 		key := c.clients.Get(foundItem)
-		if key != nil {
-			host := c.servers[key.(item).value]
-			if c.loadOK(host) {
-				return host, nil
-			}
-			h = key.(item).value
-		} else {
+		if key == nil {
 			return client, nil
 		}
+		host := c.servers[key.(item).value]
+		if c.loadOK(host) {
+			return host, nil
+		}
+		h = key.(item).value
 	}
 }
 
 // Sets the load of `server` to the given `load`
 func (c *Consistent) UpdateLoad(server string, load int64) {
-	c.Lock()
-	defer c.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
 	if _, ok := c.loadMap[server]; !ok {
 		return
@@ -167,8 +165,8 @@ func (c *Consistent) UpdateLoad(server string, load int64) {
 //
 // should only be used with if you obtained a host with GetLeast
 func (c *Consistent) Inc(server string) {
-	c.Lock()
-	defer c.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
 	if _, ok := c.loadMap[server]; !ok {
 		return
@@ -181,8 +179,8 @@ func (c *Consistent) Inc(server string) {
 //
 // should only be used with if you obtained a host with GetLeast
 func (c *Consistent) Done(server string) {
-	c.Lock()
-	defer c.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
 	if _, ok := c.loadMap[server]; !ok {
 		return
@@ -193,8 +191,8 @@ func (c *Consistent) Done(server string) {
 
 // Deletes host from the ring
 func (c *Consistent) Remove(server string) bool {
-	c.Lock()
-	defer c.Unlock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
 	for i := 0; i < c.replicationFactor; i++ {
 		h := c.hash(fmt.Sprintf("%s%d", server, i))
@@ -207,8 +205,8 @@ func (c *Consistent) Remove(server string) bool {
 
 // Return the list of servers in the ring
 func (c *Consistent) Servers() (servers []string) {
-	c.RLock()
-	defer c.RUnlock()
+	c.lock.RLock()
+	defer c.lock.RUnlock()
 	for k := range c.loadMap {
 		servers = append(servers, k)
 	}
@@ -262,7 +260,7 @@ func (c *Consistent) loadOK(server string) bool {
 		panic(fmt.Sprintf("given host(%s) not in loadsMap", bserver.Name))
 	}
 
-	return float64(bserver.Load)+1 <= avgLoadPerNode
+	return float64(bserver.Load) < avgLoadPerNode
 }
 
 func (c *Consistent) delSlice(val uint64) {

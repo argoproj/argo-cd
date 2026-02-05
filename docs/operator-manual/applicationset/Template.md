@@ -27,7 +27,7 @@ Here is the template subfield from a Cluster generator:
 
 For details on all available parameters (like `.name`, `.nameNormalized`, etc.) please refer to the [Cluster Generator docs](./Generators-Cluster.md).
 
-The template subfields correspond directly to [the spec of an Argo CD `Application` resource](../../declarative-setup/#applications):
+The template subfields correspond directly to [the spec of an Argo CD `Application` resource](../declarative-setup.md#applications):
 
 - `project` refers to the [Argo CD Project](../../user-guide/projects.md) in use (`default` may be used here to utilize the default Argo CD Project)
 - `source` defines from which Git repository to extract the desired Application manifests
@@ -51,13 +51,28 @@ While the ApplicationSet spec provides a basic form of templating, it is not int
 
 ### Deploying ApplicationSet resources as part of a Helm chart
 
-ApplicationSet uses the same templating notation as Helm (`{{}}`). If the ApplicationSet templates aren't written as
-Helm string literals, Helm will throw an error like `function "cluster" not defined`. To avoid that error, write the
-template as a Helm string literal. For example:
+ApplicationSet uses the same templating notation as Helm (`{{}}`). When Helm renders the chart templates, it will also
+process the template meant for ApplicationSet rendering. If the ApplicationSet template uses a function like:
 
 ```yaml
     metadata:
-      name: '{{`{{ .nameNormalized }}`}}-guestbook'
+      name: '{{ "guestbook" | normalize }}'
+```
+
+Helm will throw an error like: `function "normalize" not defined`. If the ApplicationSet template uses a generator parameter like:
+
+```yaml
+    metadata:
+      name: '{{.cluster}}-guestbook'
+```
+
+Helm will silently replace `.cluster` with an empty string.
+
+To avoid those errors, write the template as a Helm string literal. For example:
+
+```yaml
+    metadata:
+      name: '{{`{{ .cluster | normalize }}`}}-guestbook'
 ```
 
 This _only_ applies if you use Helm to deploy your ApplicationSet resources.
@@ -169,14 +184,18 @@ spec:
     {{- end }}
 ```
 
-!!! important
-    The `templatePatch` can apply arbitrary changes to the template. If parameters include untrustworthy user input, it 
-    may be possible to inject malicious changes into the template. It is recommended to use `templatePatch` only with 
-    trusted input or to carefully escape the input before using it in the template. Piping input to `toJson` should help
-    prevent, for example, a user from successfully injecting a string with newlines.
+> [!IMPORTANT]
+> `templatePatch` only works when [go templating](../applicationset/GoTemplate.md) is enabled.
+> This means that the `goTemplate` field under `spec` needs to be set to `true` for template patching to work.
 
-    The `spec.project` field is not supported in `templatePatch`. If you need to change the project, you can use the
-    `spec.project` field in the `template` field.
+> [!IMPORTANT]
+> The `templatePatch` can apply arbitrary changes to the template. If parameters include untrustworthy user input, it 
+> may be possible to inject malicious changes into the template. It is recommended to use `templatePatch` only with 
+> trusted input or to carefully escape the input before using it in the template. Piping input to `toJson` should help
+> prevent, for example, a user from successfully injecting a string with newlines.
+>
+> The `spec.project` field is not supported in `templatePatch`. If you need to change the project, you can use the
+> `spec.project` field in the `template` field.
 
-!!! important
-    When writing a `templatePatch`, you're crafting a patch. So, if the patch includes an empty `spec: # nothing in here`, it will effectively clear out existing fields. See [#17040](https://github.com/argoproj/argo-cd/issues/17040) for an example of this behavior.
+> [!IMPORTANT]
+> When writing a `templatePatch`, you're crafting a patch. So, if the patch includes an empty `spec: # nothing in here`, it will effectively clear out existing fields. See [#17040](https://github.com/argoproj/argo-cd/issues/17040) for an example of this behavior.

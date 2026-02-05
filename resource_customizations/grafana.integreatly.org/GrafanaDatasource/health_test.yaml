@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: ""
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: ""
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "can't find matching grafana instance"
+  inputPath: testdata/degraded.yaml

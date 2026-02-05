@@ -4,11 +4,11 @@ import (
 	"fmt"
 )
 
-func appendTemplatedValues(values map[string]string, params map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) error {
+func appendTemplatedValues(values map[string]string, params map[string]any, useGoTemplate bool, goTemplateOptions []string) error {
 	// We create a local map to ensure that we do not fall victim to a billion-laughs attack. We iterate through the
 	// cluster values map and only replace values in said map if it has already been allowlisted in the params map.
 	// Once we iterate through all the cluster values we can then safely merge the `tmp` map into the main params map.
-	tmp := map[string]interface{}{}
+	tmp := map[string]any{}
 
 	for key, value := range values {
 		result, err := replaceTemplatedString(value, params, useGoTemplate, goTemplateOptions)
@@ -22,7 +22,7 @@ func appendTemplatedValues(values map[string]string, params map[string]interface
 			}
 			tmp["values"].(map[string]string)[key] = result
 		} else {
-			tmp[fmt.Sprintf("values.%s", key)] = result
+			tmp["values."+key] = result
 		}
 	}
 
@@ -33,7 +33,7 @@ func appendTemplatedValues(values map[string]string, params map[string]interface
 	return nil
 }
 
-func replaceTemplatedString(value string, params map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error) {
+func replaceTemplatedString(value string, params map[string]any, useGoTemplate bool, goTemplateOptions []string) (string, error) {
 	replacedTmplStr, err := render.Replace(value, params, useGoTemplate, goTemplateOptions)
 	if err != nil {
 		return "", fmt.Errorf("failed to replace templated string with rendered values: %w", err)

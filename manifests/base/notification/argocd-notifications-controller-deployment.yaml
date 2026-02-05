@@ -48,6 +48,12 @@ spec:
                   key: notificationscontroller.log.level
                   name: argocd-cmd-params-cm
                   optional: true
+            - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: log.format.timestamp
+                  optional: true
             - name: ARGOCD_APPLICATION_NAMESPACES
               valueFrom:
                 configMapKeyRef:
@@ -89,3 +95,5 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      nodeSelector:
+        kubernetes.io/os: linux

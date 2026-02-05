@@ -13,11 +13,6 @@ Before submitting code for a new feature (and also, to some extent, for more com
 [raise an Enhancement Proposal or Bug Issue](https://github.com/argoproj/argo-cd/issues/new/choose)
 first.
 
-Each enhancement proposal needs to go through our
-[triage process](#triage-process)
-before we accept code contributions. To facilitate triage and to provide transparency, we use
-[this GitHub project](https://github.com/orgs/argoproj/projects/18) to keep track of this process' outcome.
-
 _Please_ do not spend too much time on larger features or refactorings before the corresponding enhancement has been triaged. This may save everyone some amount of frustration and time, as the enhancement proposal might be rejected, and the code would never get merged. However, sometimes it's helpful to have some PoC code along with a proposal.
 
 We will do our best to triage incoming enhancement proposals quickly, with one of the following outcomes:
@@ -35,7 +30,7 @@ to understand our toolchain and our continuous integration processes. It contain
 ## Quick start
 
 If you want a quick start contributing to Argo CD, take a look at issues that are labeled with
-[help wanted](https://github.com/argoproj/argo-cd/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
+[help-wanted](https://github.com/argoproj/argo-cd/issues?q=is%3Aopen+is%3Aissue+label%3A%22help-wanted%22)
 or
 [good first issue](https://github.com/argoproj/argo-cd/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22).
 

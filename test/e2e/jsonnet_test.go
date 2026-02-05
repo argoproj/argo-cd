@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-	. "github.com/argoproj/argo-cd/v2/util/errors"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func TestJsonnetAppliedCorrectly(t *testing.T) {
@@ -75,7 +75,8 @@ func TestJsonnetTlaParameterAppliedCorrectly(t *testing.T) {
 }
 
 func TestJsonnetTlaEnv(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("jsonnet-tla-cm").
 		When().
 		CreateApp("--jsonnet-tla-str", "foo=$ARGOCD_APP_NAME", "--jsonnet-tla-code", "bar='$ARGOCD_APP_NAME'").
@@ -83,14 +84,15 @@ func TestJsonnetTlaEnv(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			assert.Equal(t, Name(), FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
-			assert.Equal(t, Name(), FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.bar}")).(string))
+		And(func(_ *Application) {
+			assert.Equal(t, ctx.GetName(), errors.NewHandler(t).FailOnErr(Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
+			assert.Equal(t, ctx.GetName(), errors.NewHandler(t).FailOnErr(Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.bar}")).(string))
 		})
 }
 
 func TestJsonnetExtVarEnv(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("jsonnet-ext-var").
 		When().
 		CreateApp("--jsonnet-ext-var-str", "foo=$ARGOCD_APP_NAME", "--jsonnet-ext-var-code", "bar='$ARGOCD_APP_NAME'").
@@ -98,9 +100,9 @@ func TestJsonnetExtVarEnv(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			assert.Equal(t, Name(), FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
-			assert.Equal(t, Name(), FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.bar}")).(string))
+		And(func(_ *Application) {
+			assert.Equal(t, ctx.GetName(), errors.NewHandler(t).FailOnErr(Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
+			assert.Equal(t, ctx.GetName(), errors.NewHandler(t).FailOnErr(Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.bar}")).(string))
 		})
 }
 

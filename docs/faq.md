@@ -19,7 +19,7 @@ which might cause health check to return `Progressing` state instead of `Healthy
 
 * `Ingress` is considered healthy if `status.loadBalancer.ingress` list is non-empty, with at least one value
   for `hostname` or `IP`. Some ingress controllers
-  ([contour](https://github.com/heptio/contour/issues/403)
+  ([contour](https://github.com/projectcontour/contour/issues/403)
   , [traefik](https://github.com/argoproj/argo-cd/issues/968#issuecomment-451082913)) don't update
   `status.loadBalancer.ingress` field which causes `Ingress` to stuck in `Progressing` state forever.
 
@@ -53,10 +53,14 @@ a secret named `argocd-initial-admin-secret`.
 
 To change the password, edit the `argocd-secret` secret and update the `admin.password` field with a new bcrypt hash.
 
-!!! note "Generating a bcrypt hash"
-    Use the following command to generate a bcrypt hash for `admin.password`
-
-        argocd account bcrypt --password <YOUR-PASSWORD-HERE>
+> [!NOTE]
+> **Generating a bcrypt hash**
+>
+> Use the following command to generate a bcrypt hash for `admin.password`
+> 
+> ```shell
+> argocd account bcrypt --password <YOUR-PASSWORD-HERE>
+> ```
 
 To apply the new password hash, use the following command (replacing the hash with your own):
 
@@ -140,21 +144,30 @@ Argo CD automatically sets the `app.kubernetes.io/instance` label and uses it to
 If the tool does this too, this causes confusion. You can change this label by setting
 the `application.instanceLabelKey` value in the `argocd-cm`. We recommend that you use `argocd.argoproj.io/instance`.
 
-!!! note
-    When you make this change your applications will become out of sync and will need re-syncing.
+> [!NOTE]
+> When you make this change your applications will become out of sync and will need re-syncing.
 
 See [#1482](https://github.com/argoproj/argo-cd/issues/1482).
 
 ## How often does Argo CD check for changes to my Git or Helm repository ?
 
-The default polling interval is 3 minutes (180 seconds) with a configurable jitter.
-You can change the setting by updating the `timeout.reconciliation` value and the `timeout.reconciliation.jitter` in the [argocd-cm](https://github.com/argoproj/argo-cd/blob/2d6ce088acd4fb29271ffb6f6023dbb27594d59b/docs/operator-manual/argocd-cm.yaml#L279-L282) config map. If there are any Git changes, Argo CD will only update applications with the [auto-sync setting](user-guide/auto_sync.md) enabled. If you set it to `0` then Argo CD will stop polling Git repositories automatically and you can only use alternative methods such as [webhooks](operator-manual/webhook.md) and/or manual syncs for deploying applications.
+By default, Argo CD checks (polls) Git repositories every 3 minutes to detect changes.
+This default interval is calculated as 120 seconds + up to 60 seconds of jitter (a small random delay to avoid simultaneous polling). You can customize this behavior by updating the following keys in the `argocd-cm` ConfigMap:
+```yaml
+timeout.reconciliation: 120s
+timeout.reconciliation.jitter: 60s 
+```
+During each polling cycle, Argo CD checks whether your tracked repositories have changed. If changes are found:
+- Applications with auto-sync enabled will automatically sync to match the new state.
+- Applications without auto-sync will simply be marked as OutOfSync in the UI.
 
+Setting `timeout.reconciliation` to 0 completely disables automatic polling. In that case, Argo CD will only detect changes when triggered through webhooks or a manual refresh. When setting it to 0, it may also be required to configure ARGOCD_DEFAULT_CACHE_EXPIRATION.
+However, setting this value to 0 is not recommended for several reasons such as failure of webhooks due to network issues, misconfiguration etc. If you are using webhooks and are interested in improving Argo CD performance / resource consumption, you can set `timeout.reconciliation` to a lower-frequency interval to reduce the frequency of explicit polling, for example `15m`, `1h` or other interval that is appropriate for your case. 
 
-## Why Are My Resource Limits `Out Of Sync`?
+## Why is my ArgoCD application `Out Of Sync` when there are no actual changes to the resource limits (or other fields with unit values)?
 
-Kubernetes has normalized your resource limits when they are applied, and then Argo CD has then compared the version in
-your generated manifests to the normalized one is Kubernetes - they won't match.
+Kubernetes has normalized your resource limits when they are applied, and then Argo CD has compared the version in
+your generated manifests from git to the normalized ones in the Kubernetes cluster - they may not match.
 
 E.g.
 
@@ -162,9 +175,9 @@ E.g.
 * `'0.1'` normalized to `'100m'`
 * `'3072Mi'` normalized to `'3Gi'`
 * `3072` normalized to `'3072'` (quotes added)
+* `8760h` normalized to `8760h0m0s`
 
-To fix this use diffing
-customizations [settings](./user-guide/diffing.md#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc).
+To fix this use [diffing customizations](./user-guide/diffing.md#known-kubernetes-types-in-crds-resource-limits-volume-mounts-etc).
 
 ## How Do I Fix `invalid cookie, longer than max length 4093`?
 
@@ -190,7 +203,7 @@ argocd ... --grpc-web
 ## Why Am I Getting `x509: certificate signed by unknown authority` When Using The CLI?
 
 The certificate created by default by Argo CD is not automatically recognised by the Argo CD CLI, in order
-to create a secure system you must follow the instructions to [install a certificate](/operator-manual/tls/)
+to create a secure system you must follow the instructions to [install a certificate](operator-manual/tls.md)
 and configure your client OS to trust that certificate.
 
 If you're not running in a production system (e.g. you're testing Argo CD out), try the `--insecure` flag:
@@ -199,7 +212,8 @@ If you're not running in a production system (e.g. you're testing Argo CD out), 
 argocd ... --insecure
 ```
 
-!!! warning "Do not use `--insecure` in production"
+> [!WARNING]
+> Do not use `--insecure` in production.
 
 ## I have configured Dex via `dex.config` in `argocd-cm`, it still says Dex is unconfigured. Why?
 
@@ -266,13 +280,15 @@ In this case, the duplicated keys have been **emphasized** to help you identify 
 
 The most common instance of this error is with `env:` fields for `containers`.
 
-!!! note "Dynamic applications"
-    It's possible that your application is being generated by a tool in which case the duplication might not be evident within the scope of a single file. If you have trouble debugging this problem, consider filing a ticket to the owner of the generator tool asking them to improve its validation and error reporting.
+> [!NOTE]
+> **Dynamic applications**
+>
+> It's possible that your application is being generated by a tool in which case the duplication might not be evident within the scope of a single file. If you have trouble debugging this problem, consider filing a ticket to the owner of the generator tool asking them to improve its validation and error reporting.
 
 ## How to rotate Redis secret?
 * Delete `argocd-redis` secret in the namespace where Argo CD is installed.
 ```bash
-kubectl delete secret argocd-redis -n <argocd namesapce>
+kubectl delete secret argocd-redis -n <argocd namespace>
 ```
 * If you are running Redis in HA mode, restart Redis in HA.
 ```bash
@@ -312,9 +328,68 @@ If for some reason authenticated Redis does not work for you and you want to use
     * Deployment: argocd-server
     * StatefulSet: argocd-application-controller
 
+5. If you have configured file-based Redis credentials using the `REDIS_CREDS_DIR_PATH` environment variable, remove this environment variable and delete the corresponding volume and volumeMount entries that mount the credentials directory from the following manifests:
+    * Deployment: argocd-repo-server
+    * Deployment: argocd-server
+    * StatefulSet: argocd-application-controller
+
 ## How do I provide my own Redis credentials?
 The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
 You can config your secret provider to generate Kubernetes secret accordingly.
+
+### Using file-based Redis credentials via `REDIS_CREDS_DIR_PATH`
+
+Argo CD components support reading Redis credentials from files mounted at a specified path inside the container.
+
+When the environment variable `REDIS_CREDS_DIR_PATH` is specified, it takes precedence and Argo CD components that require redis connectivity ( application-controller, repo-server and server) loads the redis credentials from the files located in the specified directory path and ignores any values set in the  environment variables
+
+Expected files when using `REDIS_CREDS_DIR_PATH`:
+
+- `auth`: Redis password (mandatory)
+- `auth_username`: Redis username
+- `sentinel_auth`: Redis Sentinel password
+- `sentinel_username`: Redis Sentinel username
+
+You can store these keys in a Kubernetes Secret and mount it into each Argo CD component that needs Redis access. Then point `REDIS_CREDS_DIR_PATH` to the mount directory.
+
+Example Secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: <secret-name>
+  namespace: argocd
+type: Opaque
+stringData:
+  auth: "<redis-password>"
+  auth_username: "<redis-username>"
+  sentinel_auth: "<sentinel-password>"
+  sentinel_username: "<sentinel-username>"
+```
+
+Example Argo CD component spec (e.g., add to `argocd-server`, `argocd-repo-server`, `argocd-application-controller`):
+
+```yaml
+spec:
+    containers:
+    - name: argocd-server
+      image: quay.io/argoproj/argocd:<version>
+      env:
+      - name: REDIS_CREDS_DIR_PATH
+        value: "/var/run/secrets/redis"
+        volumeMounts:
+        - name: redis-creds
+          mountPath: "/var/run/secrets/redis"
+          readOnly: true
+    volumes:
+    - name: redis-creds
+      secret:
+       secretName: <secret-name>
+```
+
+> [!NOTE]
+> This mechanism configures authentication for Argo CD components that connect to Redis. The Redis server itself should be configured independently (e.g., via `redis.conf`).
 
 ## How do I fix `Manifest generation error (cached)`?
 
@@ -366,3 +441,33 @@ If you can avoid using these features, you can avoid triggering the error. The o
    Excluding mutation webhooks from the diff could cause undesired diffing behavior.
 3. **Disable mutation webhooks when using server-side diff**: see [server-side diff docs](user-guide/diff-strategies.md#mutation-webhooks)
    for details about that feature. Disabling mutation webhooks may have undesired effects on sync behavior.
+
+### How do I fix `grpc: error while marshaling: string field contains invalid UTF-8`?
+
+On Kubernetes v1.34.x clusters, Argo CD components may stop working and pods may 
+fail to start with errors such as:
+
+```
+Error: grpc: error while marshaling: string field contains invalid UTF-8
+```
+This issue typically affects pods that reference Kubernetes secrets via environment variables, e.g. 
+```yaml
+env:
+  - name: REDIS_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: argocd-redis
+        key: auth
+        optional: false
+```
+Kubernetes environment variables must be valid UTF-8 strings. In affected clusters, the argocd-redis Secret contained non-UTF-8 (binary) data, while other clusters used
+ASCII-only values.
+
+#### How do I fix the issue?
+Inspect the decoded Redis password
+```bash
+kubectl get -n argocd secret argocd-redis -o json \
+    | jq -r '.data.auth' | base64 --decode | xxd
+```
+If the output contains non-printable characters or bytes outside the UTF-8 range, the Secret is invalid for use as an
+environment variable. It is recommended to regenerate the secret using a UTF-8-safe password.

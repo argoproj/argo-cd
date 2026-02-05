@@ -29,6 +29,12 @@ spec:
               secretKeyRef:
                 key: auth
                 name: argocd-redis
+          - name: GRPC_ENABLE_TXT_SERVICE_CONFIG
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.grpc.enable.txt.service.config
+                optional: true
           - name: ARGOCD_RECONCILIATION_TIMEOUT
             valueFrom:
               configMapKeyRef:
@@ -46,6 +52,12 @@ spec:
               configMapKeyRef:
                 name: argocd-cmd-params-cm
                 key: reposerver.log.level
+                optional: true
+          - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: log.format.timestamp
                 optional: true
           - name: ARGOCD_REPO_SERVER_PARALLELISM_LIMIT
             valueFrom:
@@ -137,6 +149,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: otlp.headers
                   optional: true
+          - name: ARGOCD_REPO_SERVER_OTLP_ATTRS
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: otlp.attrs
+                  optional: true
           - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
             valueFrom:
               configMapKeyRef:
@@ -148,6 +166,12 @@ spec:
               configMapKeyRef:
                 name: argocd-cmd-params-cm
                 key: reposerver.plugin.tar.exclusions
+                optional: true
+          - name: ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.plugin.use.manifest.generate.paths
+                name: argocd-cmd-params-cm
                 optional: true
           - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
             valueFrom:
@@ -179,6 +203,24 @@ spec:
                 name: argocd-cmd-params-cm
                 key: reposerver.disable.helm.manifest.max.extracted.size
                 optional: true
+          - name: ARGOCD_REPO_SERVER_OCI_MANIFEST_MAX_EXTRACTED_SIZE
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.oci.manifest.max.extracted.size
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_REPO_SERVER_DISABLE_OCI_MANIFEST_MAX_EXTRACTED_SIZE
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.disable.oci.manifest.max.extracted.size
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.oci.layer.media.types
+                name: argocd-cmd-params-cm
+                optional: true
           - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
             valueFrom:
               configMapKeyRef:
@@ -203,6 +245,12 @@ spec:
                 key: reposerver.git.request.timeout
                 name: argocd-cmd-params-cm
                 optional: true
+          - name: ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.enable.builtin.git.config
+                optional: true
           - name: ARGOCD_GRPC_MAX_SIZE_MB
             valueFrom:
               configMapKeyRef:
@@ -213,6 +261,12 @@ spec:
             valueFrom:
               configMapKeyRef:
                 key: reposerver.include.hidden.directories
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_HELM_USER_AGENT
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.helm.user.agent
                 name: argocd-cmd-params-cm
                 optional: true
           - name: HELM_CACHE_HOME
@@ -265,11 +319,11 @@ spec:
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
       initContainers:
-      - command:
-        - /bin/cp
-        - -n
-        - /usr/local/bin/argocd
-        - /var/run/argocd/argocd-cmp-server
+      - args:
+          - /bin/cp --update=none /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -s /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
+        command:
+          - sh
+          - '-c'
         image: quay.io/argoproj/argocd:latest
         name: copyutil
         securityContext:
@@ -330,3 +384,5 @@ spec:
                 matchLabels:
                   app.kubernetes.io/part-of: argocd
               topologyKey: kubernetes.io/hostname
+      nodeSelector:
+        kubernetes.io/os: linux

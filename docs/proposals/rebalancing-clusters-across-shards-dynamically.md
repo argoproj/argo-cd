@@ -86,7 +86,7 @@ The below logic can be used to perform application controller to shard assignmen
 
 1) If a new application controller is added, that is, a new shard is added, we would perform the re-distribution of clusters among the shards with the existing sharding algorithm being used.
 
-2) In scenarios when one of the application controllers is identified to be unhealthy, we will not trigger the re-ditribution of clusters across shards. The new instance of the application controller will claim this unassigned shard and start managing the shard. 
+2) In scenarios when one of the application controllers is identified to be unhealthy, we will not trigger the re-distribution of clusters across shards. The new instance of the application controller will claim this unassigned shard and start managing the shard. 
 
 How will this work? 
 * The application controller will query the ConfigMap for the status of all the application controllers and last updated heartbeat timestamps.
@@ -102,7 +102,7 @@ How will this work?
 
 ### Cons
 
-* ~~Possibility of race conditions while flagging the shard as Unhealthy during the heartbeat process. Although this can be handled using the [distributed locks](https://redis.io/docs/manual/patterns/distributed-locks/) in Redis.~~
+* ~~Possibility of race conditions while flagging the shard as Unhealthy during the heartbeat process. Although this can be handled using the [distributed locks](https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/) in Redis.~~
 As we are using ConfigMap, this Con get's removed. Kubernetes would give conflict errors in case multiple edits are tried on the ConfigMap at the same time. We can leverage this error messages to avoid race conditions.
 
 * ~~In scenarios when Redis becomes unavailable, the heartbeat mechanism will pause working till the redis comes back online again. This will also pause the dynamic redistribution of clusters till Redis comes back online. The redistribution of clusters will be triggered again when Redis comes back online.~~ We would not see this issue by using ConfigMap instead of Redis.
@@ -119,7 +119,7 @@ As we are using ConfigMap, this Con get's removed. Kubernetes would give conflic
 
 * Working ArgoCD itself should not affected. An initial restart of all the application controller pods is expected when we switch from StatefulSet to Deployment or vice-versa.
 
-* There would be some initial delays in the reconciliation process during the transistion from StatefulSet to Deployment. If someone is not using sharding at all, they should not face any issues.
+* There would be some initial delays in the reconciliation process during the transition from StatefulSet to Deployment. If someone is not using sharding at all, they should not face any issues.
 
 ## Alternatives
 

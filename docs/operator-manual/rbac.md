@@ -23,11 +23,12 @@ These default built-in role definitions can be seen in [builtin-policy.csv](http
 
 When a user is authenticated in Argo CD, it will be granted the role specified in `policy.default`.
 
-!!! warning "Restricting Default Permissions"
-
-    **All authenticated users get _at least_ the permissions granted by the default policies. This access cannot be blocked
-    by a `deny` rule.** It is recommended to create a new `role:authenticated` with the minimum set of permissions possible,
-    then grant permissions to individual roles as needed.
+> [!WARNING]
+> **Restricting Default Permissions**
+>
+> **All authenticated users get _at least_ the permissions granted by the default policies. This access cannot be blocked
+> by a `deny` rule.** It is recommended to create a new `role:authenticated` with the minimum set of permissions possible,
+> then grant permissions to individual roles as needed.
 
 ## Anonymous Access
 
@@ -35,21 +36,21 @@ Enabling anonymous access to the Argo CD instance allows users to assume the def
 
 The anonymous access to Argo CD can be enabled using the `users.anonymous.enabled` field in `argocd-cm` (see [argocd-cm.yaml](argocd-cm-yaml.md)).
 
-!!! warning
-
-    When enabling anonymous access, consider creating a new default role and assigning it to the default policies
-    with `policy.default: role:unauthenticated`.
+> [!WARNING]
+> When enabling anonymous access, consider creating a new default role and assigning it to the default policies
+> with `policy.default: role:unauthenticated`.
 
 ## RBAC Model Structure
 
-The model syntax is based on [Casbin](https://casbin.org/docs/overview). There are two different types of syntax: one for assigning policies, and another one for assigning users to internal roles.
+The model syntax is based on [Casbin](https://casbin.org/docs/overview) (an open source ACL/ACLs). There are two different types of syntax: one for assigning policies, and another one for assigning users to internal roles.
 
 **Group**: Allows to assign authenticated users/groups to internal roles.
 
 Syntax: `g, <user/group>, <role>`
 
 - `<user/group>`: The entity to whom the role will be assigned. It can be a local user or a user authenticated with SSO.
-  When SSO is used, the `user` will be based on the `sub` claims, while the group is one of the values returned by the `scopes` configuration.
+  When SSO is used, the `user` is derived from the token’s `federated_claims.user_id` field, and groups are populated from the values returned
+  by the OIDC provider under the configured scopes (e.g., groups, roles).
 - `<role>`: The internal role to which the entity will be assigned.
 
 **Policy**: Allows to assign permissions to an entity.
@@ -114,16 +115,27 @@ The `applications` resource is an [Application-Specific Policy](#application-spe
 
 #### Fine-grained Permissions for `update`/`delete` action
 
-The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself **and** all of its resources.
-It can be desirable to only allow `update` or `delete` on specific resources within an application.
+The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself,
+but not on its resources.
 
-To do so, when the action if performed on an application's resource, the `<action>` will have the `<action>/<group>/<kind>/<ns>/<name>` format.
+To allow an action on the application's resources, specify the action as `<action>/<group>/<kind>/<ns>/<name>`.
 
 For instance, to grant access to `example-user` to only delete Pods in the `prod-app` Application, the policy could be:
 
 ```csv
-p, example-user, applications, delete/*/Pod/*, default/prod-app, allow
+p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
 ```
+
+> [!WARNING]
+> **Understand glob pattern behavior**
+>
+> Argo CD RBAC does not use `/` as a separator when evaluating glob patterns. So the pattern `delete/*/kind/*`
+> will match `delete/<group>/kind/<namespace>/<name>` but also `delete/<group>/<kind>/kind/<name>`.
+>
+> The fact that both of these match will generally not be a problem, because resource kinds generally contain capital
+> letters, and namespaces cannot contain capital letters. However, it is possible for a resource kind to be lowercase.
+> So it is better to just always include all the parts of the resource in the pattern (in other words, always use four
+> slashes).
 
 If we want to grant access to the user to update all resources of an application, but not the application itself:
 
@@ -135,18 +147,35 @@ If we want to explicitly deny delete of the application, but allow the user to d
 
 ```csv
 p, example-user, applications, delete, default/prod-app, deny
-p, example-user, applications, delete/*/Pod/*, default/prod-app, allow
+p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
 ```
 
-!!! note
+If we want to explicitly allow updates to the application, but deny updates to any sub-resources:
 
-    It is not possible to deny fine-grained permissions for a sub-resource if the action was **explicitly allowed on the application**.
-    For instance, the following policies will **allow** a user to delete the Pod and any other resources in the application:
+```csv
+p, example-user, applications, update, default/prod-app, allow
+p, example-user, applications, update/*, default/prod-app, deny
+```
 
-    ```csv
-    p, example-user, applications, delete, default/prod-app, allow
-    p, example-user, applications, delete/*/Pod/*, default/prod-app, deny
-    ```
+> [!NOTE]
+> **Preserve Application permission Inheritance (Since v3.0.0)**
+>
+> Prior to v3, `update` and `delete` actions (without a `/*`) were also evaluated
+> on sub-resources.
+> 
+> To preserve this behavior, you can set the config value
+> `server.rbac.disableApplicationFineGrainedRBACInheritance` to `false` in
+> the Argo CD ConfigMap `argocd-cm`.
+> 
+> When disabled, it is not possible to deny fine-grained permissions for a sub-resource
+> if the action was **explicitly allowed on the application**.
+> For instance, the following policies will **allow** a user to delete the Pod and any
+> other resources in the application:
+> 
+> ```csv
+> p, example-user, applications, delete, default/prod-app, allow
+> p, example-user, applications, delete/*/Pod/*, default/prod-app, deny
+> ```
 
 #### The `action` action
 
@@ -177,8 +206,20 @@ p, example-user, applications, action/*, default/*, allow
 
 #### The `override` action
 
-When granted along with the `sync` action, the override action will allow a user to synchronize local manifests to the Application.
-These manifests will be used instead of the configured source, until the next sync is performed.
+The `override` action privilege can be used to allow passing arbitrary manifests or different revisions when syncing an `Application`. This can e.g. be used for development or testing purposes. 
+
+**Attention:** This allows users to completely change/delete the deployed resources of the application. 
+
+While the `sync` action privilege gives the right to synchronize the objects in the cluster to the desired state as defined in the `Application` Object, the `override` action privilege will allow a user to synchronize arbitrary local manifests to the Application. These manifests will be used _instead of_ the configured source, until the next sync is performed. After performing such a override sync, the application will most probably be OutOfSync with the state defined via the `Application` object. 
+It is not possible to perform an `override` sync when auto-sync is enabled.
+
+New since v3.2: 
+
+When `application.sync.requireOverridePrivilegeForRevisionSync: 'true'` is set in the `argcd-cm` configmap, 
+passing a revision when syncing an `Application` is also considered as an `override`, to prevent synchronizing to arbitrary revisions other than the revision(s) given in the `Application` object. Similar as synching to an arbitrary yaml manifest, syncing to a different revision/branch/commit will also bring the controlled objects to a state differing, and thus OufOfSync from the state as defined in the `Application`.
+
+The default setting of this flag is 'false', to prevent breaking changes in existing installations. It is recommended to set this setting to 'true' and only grant the `override` privilege per AppProject to the users that actually need this behavior.
+
 
 ### The `applicationsets` resource
 
@@ -189,10 +230,9 @@ The `applicationsets` resource is an [Application-Specific policy](#application-
 Allowing the `create` action on the resource effectively grants the ability to create Applications. While it doesn't allow the
 user to create Applications directly, they can create Applications via an ApplicationSet.
 
-!!! note
-
-    In v2.5, it is not possible to create an ApplicationSet with a templated Project field (e.g. `project: {{path.basename}}`)
-    via the API (or, by extension, the CLI). Disallowing templated projects makes project restrictions via RBAC safe:
+> [!NOTE]
+> In v2.5, it is not possible to create an ApplicationSet with a templated Project field (e.g. `project: {{path.basename}}`)
+> via the API (or, by extension, the CLI). Disallowing templated projects makes project restrictions via RBAC safe:
 
 With the resource being application-specific, the `<object>` of the applicationsets policy will have the format `<app-project>/<app-name>`.
 However, since an ApplicationSet does belong to any project, the `<app-project>` value represents the projects in which the ApplicationSet will be able to create Applications.
@@ -282,7 +322,7 @@ If omitted, it defaults to `'[groups]'`. The scope value can be a string, or a l
 
 For more information on `scopes` please review the [User Management Documentation](user-management/index.md).
 
-The following example shows targeting `email` as well as `groups` from your OIDC provider.
+The following example shows targeting `email` as well as `groups` from your OIDC provider, and also demonstrates explicit role assignments and role-to-role inheritance:
 
 ```yaml
 apiVersion: v1
@@ -298,12 +338,18 @@ data:
     p, my-org:team-alpha, applications, sync, my-project/*, allow
     g, my-org:team-beta, role:admin
     g, user@example.org, role:admin
+    g, admin, role:admin
+    g, role:admin, role:readonly
   policy.default: role:readonly
   scopes: '[groups, email]'
 ```
 
-This can be useful to associate users' emails and groups directly in AppProject.
+Here:
+1. `g, admin, role:admin` explicitly binds the built-in admin user to the admin role.
+2. `g, role:admin, role:readonly` shows role inheritance, so anyone granted `role:admin` also automatically has all the permissions of      
+   `role:readonly`.
 
+This approach can be combined with AppProjects to associate users' emails and groups directly at the project level:
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -315,7 +361,7 @@ spec:
     - name: admin
       description: Admin privileges to team-beta
       policies:
-        - p, proj:team-beta-project:admin, applications, *, *, allow
+        - p, proj:team-beta-project:admin, applications, *, team-beta-project/*, allow
       groups:
         - user@example.org # Value from the email scope
         - my-org:team-beta # Value from the groups scope
@@ -338,23 +384,24 @@ This example shows how to assign a role to a local user.
 g, my-local-user, role:admin
 ```
 
-!!! warning "Ambiguous Group Assignments"
-
-    If you have [enabled SSO](user-management/index.md#sso), any SSO user with a scope that matches a local user will be
-    added to the same roles as the local user. For example, if local user `sally` is assigned to `role:admin`, and if an
-    SSO user has a scope which happens to be named `sally`, that SSO user will also be assigned to `role:admin`.
-
-    An example of where this may be a problem is if your SSO provider is an SCM, and org members are automatically
-    granted scopes named after the orgs. If a user can create or add themselves to an org in the SCM, they can gain the
-    permissions of the local user with the same name.
-
-    To avoid ambiguity, if you are using local users and SSO, it is recommended to assign policies directly to local
-    users, and not to assign roles to local users. In other words, instead of using `g, my-local-user, role:admin`, you
-    should explicitly assign policies to `my-local-user`:
-
-    ```yaml
-    p, my-local-user, *, *, *, allow
-    ```
+> [!WARNING]
+> **Ambiguous Group Assignments**
+>
+> If you have [enabled SSO](user-management/index.md#sso), any SSO user with a scope that matches a local user will be
+> added to the same roles as the local user. For example, if local user `sally` is assigned to `role:admin`, and if an
+> SSO user has a scope which happens to be named `sally`, that SSO user will also be assigned to `role:admin`.
+> 
+> An example of where this may be a problem is if your SSO provider is an SCM, and org members are automatically
+> granted scopes named after the orgs. If a user can create or add themselves to an org in the SCM, they can gain the
+> permissions of the local user with the same name.
+> 
+> To avoid ambiguity, if you are using local users and SSO, it is recommended to assign policies directly to local
+> users, and not to assign roles to local users. In other words, instead of using `g, my-local-user, role:admin`, you
+> should explicitly assign policies to `my-local-user`:
+> 
+> ```yaml
+> p, my-local-user, *, *, *, allow
+> ```
 
 ## Policy CSV Composition
 

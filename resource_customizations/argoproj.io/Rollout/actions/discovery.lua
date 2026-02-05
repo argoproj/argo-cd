@@ -1,5 +1,8 @@
 local actions = {}
-actions["restart"] = {["disabled"] = false}
+actions["restart"] = {
+    ["disabled"] = false,
+    ["displayName"] = "Restart Pods"
+}
 
 local paused = false
 if obj.status ~= nil and obj.status.pauseConditions ~= nil then
@@ -12,6 +15,7 @@ actions["resume"] = {["disabled"] = not(paused)}
 local fullyPromoted = obj.status.currentPodHash == obj.status.stableRS
 actions["abort"] = {["disabled"] = fullyPromoted or obj.status.abort}
 actions["retry"] = {["disabled"] = fullyPromoted or not(obj.status.abort)}
+actions["pause"] = {["disabled"] = fullyPromoted or obj.status.abort or obj.spec.paused }
 
 actions["promote-full"] = {["disabled"] = true}
 if obj.status ~= nil and not(fullyPromoted) then
@@ -24,5 +28,7 @@ if obj.status ~= nil and not(fullyPromoted) then
         actions["promote-full"]["disabled"] = false
     end
 end
+
+actions["skip-current-step"] = {["disabled"] = obj.spec.strategy.canary == nil or obj.spec.strategy.canary.steps == nil or obj.status.currentStepIndex == table.getn(obj.spec.strategy.canary.steps)}
 
 return actions

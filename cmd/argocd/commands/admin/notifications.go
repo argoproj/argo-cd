@@ -1,24 +1,23 @@
 package admin
 
 import (
-	"fmt"
 	"log"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/env"
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
-	settings "github.com/argoproj/argo-cd/v2/util/notification/settings"
-	"github.com/argoproj/argo-cd/v2/util/tls"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/env"
+	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
+	"github.com/argoproj/argo-cd/v3/util/notification/settings"
+	"github.com/argoproj/argo-cd/v3/util/tls"
 
 	"github.com/argoproj/notifications-engine/pkg/cmd"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 var applications = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationPlural}
@@ -31,11 +30,12 @@ func NewNotificationsCommand() *cobra.Command {
 	)
 
 	var argocdService service.Service
+
 	toolsCommand := cmd.NewToolsCommand(
 		"notifications",
 		"argocd admin notifications",
 		applications,
-		settings.GetFactorySettingsForCLI(&argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false),
+		settings.GetFactorySettingsForCLI(func() service.Service { return argocdService }, "argocd-notifications-secret", "argocd-notifications-cm", false),
 		func(clientConfig clientcmd.ClientConfig) {
 			k8sCfg, err := clientConfig.ClientConfig()
 			if err != nil {
@@ -51,8 +51,8 @@ func NewNotificationsCommand() *cobra.Command {
 			}
 			if !tlsConfig.DisableTLS && tlsConfig.StrictValidation {
 				pool, err := tls.LoadX509CertPool(
-					fmt.Sprintf("%s/reposerver/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
-					fmt.Sprintf("%s/reposerver/tls/ca.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
+					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/tls.crt",
+					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/ca.crt",
 				)
 				if err != nil {
 					log.Fatalf("Failed to load tls certs: %v", err)

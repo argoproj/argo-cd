@@ -13,7 +13,7 @@ type Repository struct {
 	Branch       string
 	SHA          string
 	Labels       []string
-	RepositoryId interface{}
+	RepositoryId any
 }
 
 type SCMProviderService interface {

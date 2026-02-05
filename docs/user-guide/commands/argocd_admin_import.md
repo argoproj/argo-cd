@@ -11,8 +11,8 @@ argocd admin import SOURCE [flags]
 ### Options
 
 ```
-      --application-namespaces strings      Comma separated list of namespace globs to which import of applications is allowed. If not provided value from 'application.namespaces' in argocd-cmd-params-cm will be used,if it's not defined only applications without an explicit namespace will be imported to the Argo CD namespace
-      --applicationset-namespaces strings   Comma separated list of namespace globs which import of applicationsets is allowed. If not provided value from 'applicationsetcontroller.namespaces' in argocd-cmd-params-cm will be used,if it's not defined only applicationsets without an explicit namespace will be imported to the Argo CD namespace
+      --application-namespaces strings      Comma separated list of namespace globs to which import of applications is allowed. If not provided, value from 'application.namespaces' in argocd-cmd-params-cm will be used. If it's not defined, only applications without an explicit namespace will be imported to the Argo CD namespace
+      --applicationset-namespaces strings   Comma separated list of namespace globs which import of applicationsets is allowed. If not provided, value from 'applicationsetcontroller.namespaces' in argocd-cmd-params-cm will be used. If it's not defined, only applicationsets without an explicit namespace will be imported to the Argo CD namespace
       --as string                           Username to impersonate for the operation
       --as-group stringArray                Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                       UID to impersonate for the operation
@@ -28,11 +28,14 @@ argocd admin import SOURCE [flags]
       --insecure-skip-tls-verify            If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                   Path to a kube config. Only required if out-of-cluster
   -n, --namespace string                    If present, the namespace scope for this CLI request
+      --override-on-conflict                Override the resource on conflict when updating resources
       --password string                     Password for basic authentication to the API server
+      --prompts-enabled                     Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --proxy-url string                    If provided, this URL will be used to connect via proxy
       --prune                               Prune secrets, applications and projects which do not appear in the backup
       --request-timeout string              The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
       --server string                       The address and port of the Kubernetes API server
+      --skip-resources-with-label string    Skip importing resources based on the label e.g. '--skip-resources-with-label my-label/example.io=true'
       --stop-operation                      Stop any existing operations
       --tls-server-name string              If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                        Bearer token for authentication to the API server
@@ -57,11 +60,12 @@ argocd admin import SOURCE [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: text|json (default "text")
+      --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --redis-compress string           Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none) (default "gzip")
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")

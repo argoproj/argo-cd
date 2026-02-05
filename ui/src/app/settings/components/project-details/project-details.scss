@@ -36,4 +36,9 @@
             margin-top: 1em;
         }
     }
+
+    .small-8-elements {
+        flex: 0 0 12.5%;
+        max-width: 12.5%;
+    }
 }

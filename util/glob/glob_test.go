@@ -3,7 +3,7 @@ package glob
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_Match(t *testing.T) {
@@ -24,7 +24,7 @@ func Test_Match(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			res := Match(tt.pattern, tt.input)
-			assert.Equal(t, tt.result, res)
+			require.Equal(t, tt.result, res)
 		})
 	}
 }
@@ -53,7 +53,36 @@ func Test_MatchList(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			res := MatchStringInList(tt.list, tt.input, tt.patternMatch)
-			assert.Equal(t, tt.result, res)
+			require.Equal(t, tt.result, res)
+		})
+	}
+}
+
+func Test_MatchWithError(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		pattern     string
+		result      bool
+		expectedErr string
+	}{
+		{"Exact match", "hello", "hello", true, ""},
+		{"Non-match exact", "hello", "hell", false, ""},
+		{"Long glob match", "hello", "hell*", true, ""},
+		{"Short glob match", "hello", "h*", true, ""},
+		{"Glob non-match", "hello", "e*", false, ""},
+		{"Invalid pattern", "e[[a*", "e[[a*", false, "unexpected end of input"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := MatchWithError(tt.pattern, tt.input)
+			require.Equal(t, tt.result, res)
+			if tt.expectedErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tt.expectedErr)
+			}
 		})
 	}
 }

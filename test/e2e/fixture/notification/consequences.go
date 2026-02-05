@@ -2,9 +2,10 @@ package notification
 
 import (
 	"context"
+	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/notification"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
 // this implements the "then" part of given/when/then
@@ -14,19 +15,25 @@ type Consequences struct {
 }
 
 func (c *Consequences) Services(block func(services *notification.ServiceList, err error)) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block(c.listServices())
 	return c
 }
 
+func (c *Consequences) Healthy(block func(healthy bool)) *Consequences {
+	c.context.T().Helper()
+	block(c.actions.healthy)
+	return c
+}
+
 func (c *Consequences) Triggers(block func(services *notification.TriggerList, err error)) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block(c.listTriggers())
 	return c
 }
 
 func (c *Consequences) Templates(block func(services *notification.TemplateList, err error)) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block(c.listTemplates())
 	return c
 }
@@ -47,6 +54,7 @@ func (c *Consequences) listTemplates() (*notification.TemplateList, error) {
 }
 
 func (c *Consequences) When() *Actions {
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return c.actions
 }
 

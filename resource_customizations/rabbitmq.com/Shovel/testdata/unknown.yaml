@@ -1,0 +1,9 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: Shovel
+metadata:
+  namespace: example-rabbit
+  name: example-rabbit
+spec:
+  name: example-rabbit
+  vhost: example-rabbit
+status: {}

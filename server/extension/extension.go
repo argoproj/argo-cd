@@ -16,14 +16,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	"github.com/argoproj/argo-cd/v2/util/security"
-	"github.com/argoproj/argo-cd/v2/util/session"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/security"
+	"github.com/argoproj/argo-cd/v3/util/session"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -32,6 +34,12 @@ const (
 	DefaultKeepAlive             = 15 * time.Second
 	DefaultIdleConnectionTimeout = 60 * time.Second
 	DefaultMaxIdleConnections    = 30
+
+	// HeaderArgoCDNamespace defines the namespace of the
+	// argo control plane to be passed to the extension handler.
+	// Example:
+	//     Argocd-Namespace: "namespace"
+	HeaderArgoCDNamespace = "Argocd-Namespace"
 
 	// HeaderArgoCDApplicationName defines the name of the
 	// expected application header to be passed to the extension
@@ -66,9 +74,13 @@ const (
 	// handler.
 	HeaderArgoCDTargetClusterName = "Argocd-Target-Cluster-Name"
 
-	// HeaderArgoCDUsername is the header name that defines the logged
+	// HeaderArgoCDUsername is the header name that defines the username of the logged
 	// in user authenticated by Argo CD.
 	HeaderArgoCDUsername = "Argocd-Username"
+
+	// HeaderArgoCDUserId is the header name that defines the internal user id of the logged
+	// in user authenticated by Argo CD.
+	HeaderArgoCDUserId = "Argocd-User-Id"
 
 	// HeaderArgoCDGroups is the header name that provides the 'groups'
 	// claim from the users authenticated in Argo CD.
@@ -276,7 +288,8 @@ func (p *DefaultProjectGetter) GetClusters(project string) ([]*v1alpha1.Cluster,
 
 // UserGetter defines the contract to retrieve info from the logged in user.
 type UserGetter interface {
-	GetUser(ctx context.Context) string
+	GetUserId(ctx context.Context) string
+	GetUsername(ctx context.Context) string
 	GetGroups(ctx context.Context) []string
 }
 
@@ -292,9 +305,14 @@ func NewDefaultUserGetter(policyEnf *rbacpolicy.RBACPolicyEnforcer) *DefaultUser
 	}
 }
 
-// GetUser will return the current logged in user
-func (u *DefaultUserGetter) GetUser(ctx context.Context) string {
+// GetUsername will return the username of the current logged in user
+func (u *DefaultUserGetter) GetUsername(ctx context.Context) string {
 	return session.Username(ctx)
+}
+
+// GetUserId will return the user id of the current logged in user
+func (u *DefaultUserGetter) GetUserId(ctx context.Context) string {
+	return session.GetUserIdentifier(ctx)
 }
 
 // GetGroups will return the groups associated with the logged in user.
@@ -326,16 +344,18 @@ func (a *DefaultApplicationGetter) Get(ns, name string) (*v1alpha1.Application, 
 
 // RbacEnforcer defines the contract to enforce rbac rules
 type RbacEnforcer interface {
-	EnforceErr(rvals ...interface{}) error
+	EnforceErr(rvals ...any) error
 }
 
 // Manager is the object that will be responsible for registering
 // and handling proxy extensions.
 type Manager struct {
 	log         *log.Entry
+	namespace   string
 	settings    SettingsGetter
 	application ApplicationGetter
 	project     ProjectGetter
+	cluster     argo.ClusterGetter
 	rbac        RbacEnforcer
 	registry    ExtensionRegistry
 	metricsReg  ExtensionMetricsRegistry
@@ -355,12 +375,14 @@ type ExtensionMetricsRegistry interface {
 }
 
 // NewManager will initialize a new manager.
-func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, rbac RbacEnforcer, ug UserGetter) *Manager {
+func NewManager(log *log.Entry, namespace string, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, cg argo.ClusterGetter, rbac RbacEnforcer, ug UserGetter) *Manager {
 	return &Manager{
 		log:         log,
+		namespace:   namespace,
 		settings:    sg,
 		application: ag,
 		project:     pg,
+		cluster:     cg,
 		rbac:        rbac,
 		userGetter:  ug,
 	}
@@ -386,8 +408,11 @@ func NewProxyRegistry() ProxyRegistry {
 // ProxyKey defines the struct used as a key in the proxy registry
 // map (ProxyRegistry).
 type ProxyKey struct {
+	//nolint:unused // used as part of a map kay
 	extensionName string
-	clusterName   string
+	//nolint:unused // used as part of a map kay
+	clusterName string
+	//nolint:unused // used as part of a map kay
 	clusterServer string
 }
 
@@ -402,28 +427,46 @@ func proxyKey(extName, cName, cServer string) ProxyKey {
 }
 
 func parseAndValidateConfig(s *settings.ArgoCDSettings) (*ExtensionConfigs, error) {
-	if s.ExtensionConfig == "" {
-		return nil, fmt.Errorf("no extensions configurations found")
-	}
-
-	extConfigMap := map[string]interface{}{}
-	err := yaml.Unmarshal([]byte(s.ExtensionConfig), &extConfigMap)
-	if err != nil {
-		return nil, fmt.Errorf("invalid extension config: %w", err)
-	}
-
-	parsedExtConfig := settings.ReplaceMapSecrets(extConfigMap, s.Secrets)
-	parsedExtConfigBytes, err := yaml.Marshal(parsedExtConfig)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling parsed extension config: %w", err)
+	if len(s.ExtensionConfig) == 0 {
+		return nil, errors.New("no extensions configurations found")
 	}
 
 	configs := ExtensionConfigs{}
-	err = yaml.Unmarshal(parsedExtConfigBytes, &configs)
-	if err != nil {
-		return nil, fmt.Errorf("invalid parsed extension config: %w", err)
+	for extName, extConfig := range s.ExtensionConfig {
+		extConfigMap := map[string]any{}
+		err := yaml.Unmarshal([]byte(extConfig), &extConfigMap)
+		if err != nil {
+			return nil, fmt.Errorf("invalid extension config: %w", err)
+		}
+
+		parsedExtConfig := settings.ReplaceMapSecrets(extConfigMap, s.Secrets)
+		parsedExtConfigBytes, err := yaml.Marshal(parsedExtConfig)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling parsed extension config: %w", err)
+		}
+		// empty extName means that this is the main configuration defined by
+		// the 'extension.config' configmap key
+		if extName == "" {
+			mainConfig := ExtensionConfigs{}
+			err = yaml.Unmarshal(parsedExtConfigBytes, &mainConfig)
+			if err != nil {
+				return nil, fmt.Errorf("invalid parsed extension config: %w", err)
+			}
+			configs.Extensions = append(configs.Extensions, mainConfig.Extensions...)
+		} else {
+			backendConfig := BackendConfig{}
+			err = yaml.Unmarshal(parsedExtConfigBytes, &backendConfig)
+			if err != nil {
+				return nil, fmt.Errorf("invalid parsed backend extension config for extension %s: %w", extName, err)
+			}
+			ext := ExtensionConfig{
+				Name:    extName,
+				Backend: backendConfig,
+			}
+			configs.Extensions = append(configs.Extensions, ext)
+		}
 	}
-	err = validateConfigs(&configs)
+	err := validateConfigs(&configs)
 	if err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
@@ -435,10 +478,10 @@ func validateConfigs(configs *ExtensionConfigs) error {
 	exts := make(map[string]struct{})
 	for _, ext := range configs.Extensions {
 		if ext.Name == "" {
-			return fmt.Errorf("extensions.name must be configured")
+			return errors.New("extensions.name must be configured")
 		}
 		if !nameSafeRegex.MatchString(ext.Name) {
-			return fmt.Errorf("invalid extensions.name: only alphanumeric characters, hyphens, and underscores are allowed")
+			return errors.New("invalid extensions.name: only alphanumeric characters, hyphens, and underscores are allowed")
 		}
 		if _, found := exts[ext.Name]; found {
 			return fmt.Errorf("duplicated extension found in the configs for %q", ext.Name)
@@ -450,23 +493,23 @@ func validateConfigs(configs *ExtensionConfigs) error {
 		}
 		for _, svc := range ext.Backend.Services {
 			if svc.URL == "" {
-				return fmt.Errorf("extensions.backend.services.url must be configured")
+				return errors.New("extensions.backend.services.url must be configured")
 			}
 			if svcTotal > 1 && svc.Cluster == nil {
-				return fmt.Errorf("extensions.backend.services.cluster must be configured when defining more than one service per extension")
+				return errors.New("extensions.backend.services.cluster must be configured when defining more than one service per extension")
 			}
 			if svc.Cluster != nil {
 				if svc.Cluster.Name == "" && svc.Cluster.Server == "" {
-					return fmt.Errorf("cluster.name or cluster.server must be defined when cluster is provided in the configuration")
+					return errors.New("cluster.name or cluster.server must be defined when cluster is provided in the configuration")
 				}
 			}
 			if len(svc.Headers) > 0 {
 				for _, header := range svc.Headers {
 					if header.Name == "" {
-						return fmt.Errorf("header.name must be defined when providing service headers in the configuration")
+						return errors.New("header.name must be defined when providing service headers in the configuration")
 					}
 					if header.Value == "" {
-						return fmt.Errorf("header.value must be defined when providing service headers in the configuration")
+						return errors.New("header.value must be defined when providing service headers in the configuration")
 					}
 				}
 			}
@@ -538,7 +581,7 @@ func (m *Manager) RegisterExtensions() error {
 	if err != nil {
 		return fmt.Errorf("error getting settings: %w", err)
 	}
-	if settings.ExtensionConfig == "" {
+	if len(settings.ExtensionConfig) == 0 {
 		m.log.Infof("No extensions configured.")
 		return nil
 	}
@@ -614,10 +657,18 @@ func appendProxy(registry ProxyRegistry,
 		}
 		registry[key] = proxy
 	}
+	if service.Cluster.Name != "" && service.Cluster.Server != "" {
+		key := proxyKey(extName, service.Cluster.Name, service.Cluster.Server)
+		if _, exist := registry[key]; exist {
+			return fmt.Errorf("duplicated proxy configuration found for extension key %q", key)
+		}
+		registry[key] = proxy
+	}
+
 	return nil
 }
 
-// authorize will enforce rbac rules are satified for the given RequestResources.
+// authorize will enforce rbac rules are satisfied for the given RequestResources.
 // The following validations are executed:
 //   - enforce the subject has permission to read application/project provided
 //     in HeaderArgoCDApplicationName and HeaderArgoCDProjectName.
@@ -625,17 +676,17 @@ func appendProxy(registry ProxyRegistry,
 //     extName.
 //   - enforce that the project has permission to access the destination cluster.
 //
-// If all validations are satified it will return the Application resource
+// If all validations are satisfied it will return the Application resource
 func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName string) (*v1alpha1.Application, error) {
 	if m.rbac == nil {
-		return nil, fmt.Errorf("rbac enforcer not set in extension manager")
+		return nil, errors.New("rbac enforcer not set in extension manager")
 	}
 	appRBACName := security.RBACName(rr.ApplicationNamespace, rr.ProjectName, rr.ApplicationNamespace, rr.ApplicationName)
-	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
+	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, appRBACName); err != nil {
 		return nil, fmt.Errorf("application authorization error: %w", err)
 	}
 
-	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExtensions, rbacpolicy.ActionInvoke, extName); err != nil {
+	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbac.ResourceExtensions, rbac.ActionInvoke, extName); err != nil {
 		return nil, fmt.Errorf("unauthorized to invoke extension %q: %w", extName, err)
 	}
 
@@ -659,12 +710,16 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 	if proj == nil {
 		return nil, fmt.Errorf("invalid project provided in the %q header", HeaderArgoCDProjectName)
 	}
-	permitted, err := proj.IsDestinationPermitted(app.Spec.Destination, m.project.GetClusters)
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.cluster)
+	if err != nil {
+		return nil, fmt.Errorf("error getting destination cluster: %w", err)
+	}
+	permitted, err := proj.IsDestinationPermitted(destCluster, app.Spec.Destination.Namespace, m.project.GetClusters)
 	if err != nil {
 		return nil, fmt.Errorf("error validating project destinations: %w", err)
 	}
 	if !permitted {
-		return nil, fmt.Errorf("the provided project is not allowed to access the cluster configured in the Application destination")
+		return nil, errors.New("the provided project is not allowed to access the cluster configured in the Application destination")
 	}
 
 	return app, nil
@@ -703,7 +758,7 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		segments := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
 		if segments[0] != "extensions" {
-			http.Error(w, fmt.Sprintf("Invalid URL: first segment must be %s", URLPrefix), http.StatusBadRequest)
+			http.Error(w, "Invalid URL: first segment must be "+URLPrefix, http.StatusBadRequest)
 			return
 		}
 		extName := segments[1]
@@ -738,10 +793,19 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		user := m.userGetter.GetUser(r.Context())
+		userId := m.userGetter.GetUserId(r.Context())
+		username := m.userGetter.GetUsername(r.Context())
 		groups := m.userGetter.GetGroups(r.Context())
-		prepareRequest(r, extName, app, user, groups)
-		m.log.Debugf("proxing request for extension %q", extName)
+		prepareRequest(r, m.namespace, extName, app, userId, username, groups)
+		m.log.WithFields(log.Fields{
+			HeaderArgoCDUserId:          userId,
+			HeaderArgoCDUsername:        username,
+			HeaderArgoCDGroups:          strings.Join(groups, ","),
+			HeaderArgoCDNamespace:       m.namespace,
+			HeaderArgoCDApplicationName: fmt.Sprintf("%s:%s", app.GetNamespace(), app.GetName()),
+			"extension":                 extName,
+			"path":                      r.URL.Path,
+		}).Info("sending proxy extension request")
 		// httpsnoop package is used to properly wrap the responseWriter
 		// and avoid optional intefaces issue:
 		// https://github.com/felixge/httpsnoop#why-this-package-exists
@@ -763,16 +827,21 @@ func registerMetrics(extName string, metrics httpsnoop.Metrics, extensionMetrics
 // the Argo CD extension API section from it. It provides additional information to
 // the backend service appending them in the outgoing request headers. The appended
 // headers are:
+//   - Control plane namespace
 //   - Cluster destination name
 //   - Cluster destination server
 //   - Argo CD authenticated username
-func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application, username string, groups []string) {
+func prepareRequest(r *http.Request, namespace string, extName string, app *v1alpha1.Application, userId string, username string, groups []string) {
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
+	r.Header.Set(HeaderArgoCDNamespace, namespace)
 	if app.Spec.Destination.Name != "" {
 		r.Header.Set(HeaderArgoCDTargetClusterName, app.Spec.Destination.Name)
 	}
 	if app.Spec.Destination.Server != "" {
 		r.Header.Set(HeaderArgoCDTargetClusterURL, app.Spec.Destination.Server)
+	}
+	if userId != "" {
+		r.Header.Set(HeaderArgoCDUserId, userId)
 	}
 	if username != "" {
 		r.Header.Set(HeaderArgoCDUsername, username)

@@ -9,41 +9,44 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func Test_getQueryBySelector(t *testing.T) {
 	query := getQueryBySelector("my-cluster")
 	assert.Equal(t, "my-cluster", query.Name)
-	assert.Equal(t, "", query.Server)
+	assert.Empty(t, query.Server)
 
 	query = getQueryBySelector("http://my-server")
-	assert.Equal(t, "", query.Name)
+	assert.Empty(t, query.Name)
 	assert.Equal(t, "http://my-server", query.Server)
 
 	query = getQueryBySelector("https://my-server")
-	assert.Equal(t, "", query.Name)
+	assert.Empty(t, query.Name)
 	assert.Equal(t, "https://my-server", query.Server)
 }
 
-func Test_printClusterTable(t *testing.T) {
+func Test_printClusterTable(_ *testing.T) {
 	printClusterTable([]v1alpha1.Cluster{
 		{
 			Server: "my-server",
 			Name:   "my-name",
 			Config: v1alpha1.ClusterConfig{
-				Username:        "my-username",
-				Password:        "my-password",
-				BearerToken:     "my-bearer-token",
-				TLSClientConfig: v1alpha1.TLSClientConfig{},
-				AWSAuthConfig:   nil,
+				Username:           "my-username",
+				Password:           "my-password",
+				BearerToken:        "my-bearer-token",
+				TLSClientConfig:    v1alpha1.TLSClientConfig{},
+				AWSAuthConfig:      nil,
+				DisableCompression: false,
 			},
-			ConnectionState: v1alpha1.ConnectionState{
-				Status:     "my-status",
-				Message:    "my-message",
-				ModifiedAt: &metav1.Time{},
+			Info: v1alpha1.ClusterInfo{
+				ConnectionState: v1alpha1.ConnectionState{
+					Status:     "my-status",
+					Message:    "my-message",
+					ModifiedAt: &metav1.Time{},
+				},
+				ServerVersion: "my-version",
 			},
-			ServerVersion: "my-version",
 		},
 	})
 }
@@ -92,17 +95,17 @@ func Test_getRestConfig(t *testing.T) {
 			},
 			nil,
 			true,
-			"Context not-exist does not exist in kubeconfig",
+			"context not-exist does not exist in kubeconfig",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, err := getRestConfig(tt.args.pathOpts, tt.args.ctxName); err == nil {
-				require.Equal(t, tt.expected, got)
-			} else if tt.wantErr {
-				require.Equal(t, tt.expectedErr, err.Error())
+			got, err := getRestConfig(tt.args.pathOpts, tt.args.ctxName)
+			if tt.wantErr {
+				require.EqualError(t, err, tt.expectedErr)
 			} else {
-				t.Errorf("An unexpected error occurred during test %s:\n%s", tt.name, err.Error())
+				require.NoErrorf(t, err, "An unexpected error occurred during test %s", tt.name)
+				require.Equal(t, tt.expected, got)
 			}
 		})
 	}

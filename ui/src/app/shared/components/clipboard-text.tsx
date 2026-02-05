@@ -6,7 +6,7 @@ export const ClipboardText = ({text}: {text: string}) => {
     const [justClicked, setJustClicked] = useState<boolean>(false);
 
     if (!text) {
-        return <></>;
+        return null;
     }
 
     return (

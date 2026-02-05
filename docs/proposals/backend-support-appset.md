@@ -3,7 +3,7 @@ title: Adding backend support for ApplicationSets RBAC CLI/Web requests
 authors:
   - "@jgwest" # Authors' github accounts here.
 sponsors:
-  - TBD        # List all intereste parties here.
+  - TBD        # List all interested parties here.
 reviewers:
   - "@alexmt"
   - "@jannis"

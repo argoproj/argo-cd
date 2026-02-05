@@ -1,8 +1,7 @@
 package manifeststream_test
 
 import (
-	"context"
-	"fmt"
+	"errors"
 	"io"
 	"math"
 	"os"
@@ -13,11 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
-	"github.com/argoproj/argo-cd/v2/util/manifeststream"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
+	"github.com/argoproj/argo-cd/v3/util/manifeststream"
 )
 
 type applicationStreamMock struct {
@@ -32,7 +31,7 @@ func (m *applicationStreamMock) Recv() (*applicationpkg.ApplicationManifestQuery
 	case <-m.done:
 		return nil, io.EOF
 	case <-time.After(500 * time.Millisecond):
-		return nil, fmt.Errorf("timeout receiving message mock")
+		return nil, errors.New("timeout receiving message mock")
 	}
 }
 
@@ -62,7 +61,7 @@ func (m *repoStreamMock) Recv() (*apiclient.ManifestRequestWithFiles, error) {
 	case <-m.done:
 		return nil, io.EOF
 	case <-time.After(500 * time.Millisecond):
-		return nil, fmt.Errorf("timeout receiving message mock")
+		return nil, errors.New("timeout receiving message mock")
 	}
 }
 
@@ -89,7 +88,7 @@ func TestManifestStream(t *testing.T) {
 	appDir := filepath.Join(getTestDataDir(t), "app")
 
 	go func() {
-		err := manifeststream.SendApplicationManifestQueryWithFiles(context.Background(), appStreamMock, "test", "test", appDir, nil)
+		err := manifeststream.SendApplicationManifestQueryWithFiles(t.Context(), appStreamMock, "test", "test", appDir, nil)
 		assert.NoError(t, err)
 		appStreamMock.done <- true
 	}()
@@ -106,7 +105,7 @@ func TestManifestStream(t *testing.T) {
 		repoStreamMock.done <- true
 	}()
 
-	req2, meta, err := manifeststream.ReceiveManifestFileStream(context.Background(), repoStreamMock, workdir, math.MaxInt64, math.MaxInt64)
+	req2, meta, err := manifeststream.ReceiveManifestFileStream(t.Context(), repoStreamMock, workdir, math.MaxInt64, math.MaxInt64)
 	require.NoError(t, err)
 	require.NotNil(t, req2)
 	require.NotNil(t, meta)
@@ -122,5 +121,6 @@ func TestManifestStream(t *testing.T) {
 }
 
 func getTestDataDir(t *testing.T) string {
+	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
 }

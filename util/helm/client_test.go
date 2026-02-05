@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -16,11 +17,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 
-	"github.com/argoproj/argo-cd/v2/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
 type fakeIndexCache struct {
 	data []byte
+}
+
+type fakeTagsList struct {
+	Tags []string `json:"tags"`
 }
 
 func (f *fakeIndexCache) SetHelmIndex(_ string, indexData []byte) error {
@@ -35,18 +42,18 @@ func (f *fakeIndexCache) GetHelmIndex(_ string, indexData *[]byte) error {
 
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
-		client := NewClient("", Creds{}, false, "", "")
+		client := NewClient("", HelmCreds{}, false, "", "")
 		_, err := client.GetIndex(false, 10000)
 		require.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "")
+		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
 		index, err := client.GetIndex(false, 10000)
 		require.NoError(t, err)
 		assert.NotNil(t, index)
 	})
 	t.Run("BasicAuth", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{
+		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{
 			Username: "my-password",
 			Password: "my-username",
 		}, false, "", "")
@@ -61,7 +68,7 @@ func TestIndex(t *testing.T) {
 		err := yaml.NewEncoder(&data).Encode(fakeIndex)
 		require.NoError(t, err)
 
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
+		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
 		index, err := client.GetIndex(false, 10000)
 
 		require.NoError(t, err)
@@ -69,7 +76,7 @@ func TestIndex(t *testing.T) {
 	})
 
 	t.Run("Limited", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "")
+		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
 		_, err := client.GetIndex(false, 100)
 
 		assert.ErrorContains(t, err, "unexpected end of stream")
@@ -77,26 +84,26 @@ func TestIndex(t *testing.T) {
 }
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", "", false, math.MaxInt64, true)
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
 	require.NoError(t, err)
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 	info, err := os.Stat(path)
 	require.NoError(t, err)
 	assert.True(t, info.IsDir())
 }
 
 func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "")
-	_, _, err := client.ExtractChart("argo-cd", "0.7.1", "", false, 100, false)
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
+	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false)
 	require.Error(t, err, "error while iterating on tar reader: unexpected EOF")
 }
 
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", Creds{InsecureSkipVerify: true}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", "", false, math.MaxInt64, true)
+	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{InsecureSkipVerify: true}, false, "", "")
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
 	require.NoError(t, err)
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 	info, err := os.Stat(path)
 	require.NoError(t, err)
 	assert.True(t, info.IsDir())
@@ -159,7 +166,7 @@ func TestGetIndexURL(t *testing.T) {
 	t.Run("URL with invalid escaped characters", func(t *testing.T) {
 		rawURL := fmt.Sprintf(urlTemplate, "mygroup%**myproject")
 		got, err := getIndexURL(rawURL)
-		assert.Equal(t, "", got)
+		assert.Empty(t, got)
 		require.Error(t, err)
 	})
 }
@@ -168,33 +175,34 @@ func TestGetTagsFromUrl(t *testing.T) {
 	t.Run("should return tags correctly while following the link header", func(t *testing.T) {
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			t.Logf("called %s", r.URL.Path)
-			responseTags := TagsList{}
+			var responseTags fakeTagsList
 			w.Header().Set("Content-Type", "application/json")
 			if !strings.Contains(r.URL.String(), "token") {
 				w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
-				responseTags.Tags = []string{"first"}
+				responseTags = fakeTagsList{
+					Tags: []string{"first"},
+				}
 			} else {
-				responseTags.Tags = []string{
-					"second",
-					"2.8.0",
-					"2.8.0-prerelease",
-					"2.8.0_build",
-					"2.8.0-prerelease_build",
-					"2.8.0-prerelease.1_build.1234",
+				responseTags = fakeTagsList{
+					Tags: []string{
+						"second",
+						"2.8.0",
+						"2.8.0-prerelease",
+						"2.8.0_build",
+						"2.8.0-prerelease_build",
+						"2.8.0-prerelease.1_build.1234",
+					},
 				}
 			}
 			w.WriteHeader(http.StatusOK)
-			err := json.NewEncoder(w).Encode(responseTags)
-			if err != nil {
-				t.Fatal(err)
-			}
+			require.NoError(t, json.NewEncoder(w).Encode(responseTags))
 		}))
 
-		client := NewClient(server.URL, Creds{InsecureSkipVerify: true}, true, "", "")
+		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, true, "", "")
 
 		tags, err := client.GetTags("mychart", true)
 		require.NoError(t, err)
-		assert.ElementsMatch(t, tags.Tags, []string{
+		assert.ElementsMatch(t, tags, []string{
 			"first",
 			"second",
 			"2.8.0",
@@ -206,27 +214,31 @@ func TestGetTagsFromUrl(t *testing.T) {
 	})
 
 	t.Run("should return an error not when oci is not enabled", func(t *testing.T) {
-		client := NewClient("example.com", Creds{}, false, "", "")
+		client := NewClient("example.com", HelmCreds{}, false, "", "")
 
 		_, err := client.GetTags("my-chart", true)
-		assert.ErrorIs(t, OCINotEnabledErr, err)
+		assert.ErrorIs(t, ErrOCINotEnabled, err)
 	})
 }
 
 func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
+	username := "my-username"
+	password := "my-password"
+	expectedAuthorization := "Basic bXktdXNlcm5hbWU6bXktcGFzc3dvcmQ=" // base64(user:password)
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("called %s", r.URL.Path)
 
 		authorization := r.Header.Get("Authorization")
+
 		if authorization == "" {
 			w.Header().Set("WWW-Authenticate", `Basic realm="helm repo to get tags"`)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		t.Logf("authorization received %s", authorization)
+		assert.Equal(t, expectedAuthorization, authorization)
 
-		responseTags := TagsList{
+		responseTags := fakeTagsList{
 			Tags: []string{
 				"2.8.0",
 				"2.8.0-prerelease",
@@ -238,10 +250,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		err := json.NewEncoder(w).Encode(responseTags)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, json.NewEncoder(w).Encode(responseTags))
 	}))
 	t.Cleanup(server.Close)
 
@@ -258,7 +267,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root with http scheme",
-			repoURL: fmt.Sprintf("%s/my-repo", server.URL),
+			repoURL: server.URL + "/my-repo",
 		},
 		{
 			name:    "should login correctly when the repo path is in the server root without http scheme",
@@ -266,22 +275,22 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 		},
 		{
 			name:    "should login correctly when the repo path is not in the server root without http scheme",
-			repoURL: fmt.Sprintf("%s/my-repo", serverURL.Host),
+			repoURL: serverURL.Host + "/my-repo",
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			client := NewClient(testCase.repoURL, Creds{
+			client := NewClient(testCase.repoURL, HelmCreds{
 				InsecureSkipVerify: true,
-				Username:           "my-username",
-				Password:           "my-password",
+				Username:           username,
+				Password:           password,
 			}, true, "", "")
 
 			tags, err := client.GetTags("mychart", true)
 
 			require.NoError(t, err)
-			assert.ElementsMatch(t, tags.Tags, []string{
+			assert.ElementsMatch(t, tags, []string{
 				"2.8.0",
 				"2.8.0-prerelease",
 				"2.8.0+build",
@@ -290,4 +299,409 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *testing.T) {
+	expectedAuthorization := "Basic MDAwMDAwMDAtMDAwMC0wMDAwLTAwMDAtMDAwMDAwMDAwMDAwOmFjY2Vzc1Rva2Vu" // base64(00000000-0000-0000-0000-000000000000:accessToken)
+	mockServerURL := ""
+	mockedServerURL := func() string {
+		return mockServerURL
+	}
+
+	workloadIdentityMock := &mocks.TokenProvider{}
+	workloadIdentityMock.EXPECT().GetToken("https://management.core.windows.net/.default").Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
+
+	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("called %s", r.URL.Path)
+
+		switch r.URL.Path {
+		case "/v2/":
+			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm=%q,service=%q`, mockedServerURL(), mockedServerURL()[8:]))
+			w.WriteHeader(http.StatusUnauthorized)
+
+		case "/oauth2/exchange":
+			response := `{"refresh_token":"accessToken"}`
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte(response))
+			require.NoError(t, err)
+		default:
+			authorization := r.Header.Get("Authorization")
+
+			if authorization == "" {
+				w.Header().Set("WWW-Authenticate", `Basic realm="helm repo to get tags"`)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			assert.Equal(t, expectedAuthorization, authorization)
+
+			responseTags := fakeTagsList{
+				Tags: []string{
+					"2.8.0",
+					"2.8.0-prerelease",
+					"2.8.0_build",
+					"2.8.0-prerelease_build",
+					"2.8.0-prerelease.1_build.1234",
+				},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+		}
+	}))
+	mockServerURL = mockServer.URL
+	t.Cleanup(mockServer.Close)
+
+	serverURL, err := url.Parse(mockServer.URL)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name    string
+		repoURL string
+	}{
+		{
+			name:    "should login correctly when the repo path is in the server root with http scheme",
+			repoURL: mockServer.URL,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root with http scheme",
+			repoURL: mockServer.URL + "/my-repo",
+		},
+		{
+			name:    "should login correctly when the repo path is in the server root without http scheme",
+			repoURL: serverURL.Host,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root without http scheme",
+			repoURL: serverURL.Host + "/my-repo",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			client := NewClient(testCase.repoURL, AzureWorkloadIdentityCreds{
+				repoURL:            mockServer.URL[8:],
+				InsecureSkipVerify: true,
+				tokenProvider:      workloadIdentityMock,
+			}, true, "", "")
+
+			tags, err := client.GetTags("mychart", true)
+
+			require.NoError(t, err)
+			assert.ElementsMatch(t, tags, []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0+build",
+				"2.8.0-prerelease+build",
+				"2.8.0-prerelease.1+build.1234",
+			})
+		})
+	}
+}
+
+func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
+	bearerToken := "Zm9vOmJhcg=="
+	expectedAuthorization := "Basic " + bearerToken
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("called %s", r.URL.Path)
+
+		authorization := r.Header.Get("Authorization")
+		if authorization == "" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="helm repo to get tags"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		assert.Equal(t, expectedAuthorization, authorization)
+
+		responseTags := fakeTagsList{
+			Tags: []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0_build",
+				"2.8.0-prerelease_build",
+				"2.8.0-prerelease.1_build.1234",
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+	}))
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	t.Setenv("DOCKER_CONFIG", tempDir)
+
+	config := fmt.Sprintf(`{"auths":{%q:{"auth":%q}}}`, server.URL, bearerToken)
+	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o666))
+
+	testCases := []struct {
+		name    string
+		repoURL string
+	}{
+		{
+			name:    "should login correctly when the repo path is in the server root with http scheme",
+			repoURL: server.URL,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root with http scheme",
+			repoURL: server.URL + "/my-repo",
+		},
+		{
+			name:    "should login correctly when the repo path is in the server root without http scheme",
+			repoURL: serverURL.Host,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root without http scheme",
+			repoURL: serverURL.Host + "/my-repo",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			client := NewClient(testCase.repoURL, HelmCreds{
+				InsecureSkipVerify: true,
+			}, true, "", "")
+
+			tags, err := client.GetTags("mychart", true)
+
+			require.NoError(t, err)
+			assert.ElementsMatch(t, tags, []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0+build",
+				"2.8.0-prerelease+build",
+				"2.8.0-prerelease.1+build.1234",
+			})
+		})
+	}
+}
+
+func TestGetTagsCaching(t *testing.T) {
+	requestCount := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		t.Logf("request %d called %s", requestCount, r.URL.Path)
+
+		responseTags := fakeTagsList{
+			Tags: []string{
+				"1.0.0",
+				"1.1.0",
+				"2.0.0_beta",
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+	}))
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	t.Run("should cache tags correctly", func(t *testing.T) {
+		cache := &fakeIndexCache{}
+		client := NewClient(serverURL.Host, HelmCreds{
+			InsecureSkipVerify: true,
+		}, true, "", "", WithIndexCache(cache))
+
+		tags1, err := client.GetTags("mychart", false)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags1, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 1, requestCount)
+
+		requestCount = 0
+
+		tags2, err := client.GetTags("mychart", false)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags2, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 0, requestCount)
+
+		assert.NotEmpty(t, cache.data)
+
+		type entriesStruct struct {
+			Tags []string
+		}
+		var entries entriesStruct
+		err = json.Unmarshal(cache.data, &entries)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, entries.Tags, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+	})
+
+	t.Run("should bypass cache when noCache is true", func(t *testing.T) {
+		cache := &fakeIndexCache{}
+		client := NewClient(serverURL.Host, HelmCreds{
+			InsecureSkipVerify: true,
+		}, true, "", "", WithIndexCache(cache))
+
+		requestCount = 0
+
+		tags1, err := client.GetTags("mychart", true)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags1, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 1, requestCount)
+
+		tags2, err := client.GetTags("mychart", true)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags2, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 2, requestCount)
+	})
+}
+
+func TestUserAgentIsSet(t *testing.T) {
+	t.Run("Default User-Agent for traditional Helm repo", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+
+			// Return a valid minimal index.yaml
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client and make a request
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		// Verify User-Agent was set and contains expected components
+		assert.NotEmpty(t, receivedUserAgent, "User-Agent header should be set")
+		assert.Contains(t, receivedUserAgent, "argocd-repo-server", "User-Agent should contain 'argocd-repo-server'")
+		t.Logf("User-Agent sent: %s", receivedUserAgent)
+	})
+
+	t.Run("Custom User-Agent via WithUserAgent option", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+
+			// Return a valid minimal index.yaml
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client with custom User-Agent
+		customUA := "my-custom-app/1.2.3 (contact@example.com)"
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "", WithUserAgent(customUA))
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		// Verify custom User-Agent was used
+		assert.Equal(t, customUA, receivedUserAgent, "Custom User-Agent should be used")
+		t.Logf("Custom User-Agent sent: %s", receivedUserAgent)
+	})
+}
+
+func TestUserAgentRequiredByServer(t *testing.T) {
+	t.Run("Server rejects requests without User-Agent", func(t *testing.T) {
+		// Create a test server that mimics Wikimedia's behavior
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userAgent := r.Header.Get("User-Agent")
+
+			t.Logf("Server received User-Agent: '%s'", userAgent)
+
+			if userAgent == "" {
+				// Mimic Wikimedia's rejection of empty User-Agent
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`authorization failed: Please set a user-agent and respect our robot policy`))
+				return
+			}
+
+			// Accept request with User-Agent
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client (should automatically set User-Agent)
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+		_, err := client.GetIndex(false, 10000)
+
+		// Should succeed because our implementation sets User-Agent
+		require.NoError(t, err, "Request should succeed with User-Agent set")
+		t.Logf("Success! Server accepted request with User-Agent")
+	})
+}
+
+func TestUserAgentPriority(t *testing.T) {
+	t.Run("Custom User-Agent set via WithUserAgent option", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Set custom User-Agent using WithUserAgent option
+		customUA := "CustomAgent/1.0 (test)"
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "", WithUserAgent(customUA))
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		// Verify custom User-Agent was used
+		assert.Equal(t, customUA, receivedUserAgent, "Custom User-Agent should be used when set")
+		t.Logf("Custom User-Agent sent: %s", receivedUserAgent)
+	})
+
+	t.Run("Default User-Agent used when no custom value provided", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client without custom User-Agent
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		// Verify default User-Agent was used
+		assert.Contains(t, receivedUserAgent, "argocd-repo-server", "Should use default User-Agent format")
+		t.Logf("Default User-Agent sent: %s", receivedUserAgent)
+	})
 }

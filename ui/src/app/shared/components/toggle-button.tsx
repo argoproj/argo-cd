@@ -20,7 +20,7 @@ export const ToggleButton = ({
     children?: ReactNode;
     title: string;
     disabled?: boolean;
-    icon: Icon;
+    icon?: Icon;
     rotate?: boolean;
 }) => (
     <Button

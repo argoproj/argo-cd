@@ -1,3 +1,4 @@
 - when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded']
   description: Application syncing has succeeded
   send: [app-sync-succeeded]
+  oncePer: app.status.operationState?.syncResult?.revision

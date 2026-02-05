@@ -14,11 +14,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
 
 func TestTgz(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		file *os.File
 	}
@@ -108,31 +110,21 @@ func TestUntgz(t *testing.T) {
 	createTmpDir := func(t *testing.T) string {
 		t.Helper()
 		tmpDir, err := os.MkdirTemp(getTestDataDir(t), "")
-		if err != nil {
-			t.Fatalf("error creating tmpDir: %s", err)
-		}
+		require.NoErrorf(t, err, "error creating tmpDir: %s", err)
 		return tmpDir
 	}
 	deleteTmpDir := func(t *testing.T, dirname string) {
 		t.Helper()
-		err := os.RemoveAll(dirname)
-		if err != nil {
-			t.Errorf("error removing tmpDir: %s", err)
-		}
+		assert.NoError(t, os.RemoveAll(dirname), "error removing tmpDir")
 	}
 	createTgz := func(t *testing.T, fromDir, destDir string) *os.File {
 		t.Helper()
 		f, err := os.CreateTemp(destDir, "")
-		if err != nil {
-			t.Fatalf("error creating tmpFile in %q: %s", destDir, err)
-		}
+		require.NoErrorf(t, err, "error creating tmpFile in %q: %s", destDir, err)
 		_, err = files.Tgz(fromDir, nil, nil, f)
-		if err != nil {
-			t.Fatalf("error during Tgz: %s", err)
-		}
-		if _, err := f.Seek(0, io.SeekStart); err != nil {
-			t.Fatalf("seek error: %s", err)
-		}
+		require.NoErrorf(t, err, "error during Tgz: %s", err)
+		_, err = f.Seek(0, io.SeekStart)
+		require.NoErrorf(t, err, "seek error: %s", err)
 		return f
 	}
 	readFiles := func(t *testing.T, basedir string) map[string]string {
@@ -154,9 +146,7 @@ func TestUntgz(t *testing.T) {
 			names[relativePath] = link
 			return nil
 		})
-		if err != nil {
-			t.Fatalf("error reading files: %s", err)
-		}
+		require.NoErrorf(t, err, "error reading files: %s", err)
 		return names
 	}
 	t.Run("will untgz successfully", func(t *testing.T) {
@@ -179,7 +169,7 @@ func TestUntgz(t *testing.T) {
 		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/readme-symlink")
-		assert.Equal(t, filepath.Join(destDir, "README.md"), names["applicationset/readme-symlink"])
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
 	})
 	t.Run("will protect against symlink exploit", func(t *testing.T) {
 		// given
@@ -195,8 +185,23 @@ func TestUntgz(t *testing.T) {
 		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "illegal filepath in symlink")
+		assert.ErrorContains(t, err, "illegal filepath in symlink")
+	})
+	t.Run("will protect against symlink exploit when relativizing symlinks", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		tgzFile := createTgz(t, filepath.Join(getTestDataDir(t), "symlink-exploit"), tmpDir)
+
+		defer tgzFile.Close()
+
+		destDir := filepath.Join(tmpDir, "untgz2")
+
+		// when
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
+
+		// then
+		assert.ErrorContains(t, err, "illegal filepath in symlink")
 	})
 
 	t.Run("preserves file mode", func(t *testing.T) {
@@ -209,14 +214,31 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz1")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, true)
 		require.NoError(t, err)
 
 		// then
 
 		scriptFileInfo, err := os.Stat(path.Join(destDir, "script.sh"))
 		require.NoError(t, err)
-		assert.Equal(t, os.FileMode(0o644), scriptFileInfo.Mode())
+		assert.Equal(t, os.FileMode(0o755), scriptFileInfo.Mode())
+	})
+	t.Run("relativizes symlinks", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		tgzFile := createTgz(t, getTestAppDir(t), tmpDir)
+		defer tgzFile.Close()
+
+		destDir := filepath.Join(tmpDir, "symlink-relativize")
+
+		// when
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
+
+		// then
+		require.NoError(t, err)
+		names := readFiles(t, destDir)
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
 	})
 }
 
@@ -252,11 +274,13 @@ func read(tgz *os.File) (map[string]string, error) {
 // getTestAppDir will return the full path of the app dir under
 // the 'testdata' folder.
 func getTestAppDir(t *testing.T) string {
+	t.Helper()
 	return filepath.Join(getTestDataDir(t), "app")
 }
 
 // getTestDataDir will return the full path of the testdata dir
 // under the running test folder.
 func getTestDataDir(t *testing.T) string {
+	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
 }

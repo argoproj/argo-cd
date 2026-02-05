@@ -1,5 +1,11 @@
 # Dynamic Cluster Distribution
 
+> [!WARNING]
+> **Alpha Feature (Since v2.9.0)**
+>
+> This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha) feature.
+> It may be removed in future releases or modified in backwards-incompatible ways.
+
 *Current Status: [Alpha][1] (Since v2.9.0)*
 
 By default, clusters are assigned to shards indefinitely. For users of the default, hash-based sharding algorithm, this 
@@ -19,8 +25,8 @@ which does not require a restart of the application controller pods.
 
 This feature is disabled by default while it is in alpha. In order to utilize the feature, the manifests `manifests/ha/base/controller-deployment/` can be applied as a Kustomize overlay. This overlay sets the StatefulSet replicas to `0` and deploys the application controller as a Deployment. Also, you must set the environment `ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION` to true when running the Application Controller as a deployment.
 
-!!! important
-    The use of a Deployment instead of a StatefulSet is an implementation detail which may change in future versions of this feature. Therefore, the directory name of the Kustomize overlay may change as well. Monitor the release notes to avoid issues.
+> [!IMPORTANT]
+> The use of a Deployment instead of a StatefulSet is an implementation detail which may change in future versions of this feature. Therefore, the directory name of the Kustomize overlay may change as well. Monitor the release notes to avoid issues.
 
 Note the introduction of new environment variable `ARGOCD_CONTROLLER_HEARTBEAT_TIME`. The environment variable is explained in [working of Dynamic Distribution Heartbeat Process](#working-of-dynamic-distribution)
 
@@ -49,5 +55,3 @@ The new sharding mechanism does not monitor the environment variable `ARGOCD_CON
 In the scenario when the number of Application Controller replicas increases, a new entry is added to the list of mappings in the `argocd-app-controller-shard-cm` ConfigMap and the cluster distribution is triggered to re-distribute the clusters.
 
 In the scenario when the number of Application Controller replicas decreases, the mappings in the `argocd-app-controller-shard-cm` ConfigMap are reset and every controller acquires the shard again thus triggering the re-distribution of the clusters.
-
-[1]: https://github.com/argoproj/argoproj/blob/master/community/feature-status.md

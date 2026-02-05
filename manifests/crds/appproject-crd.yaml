@@ -52,13 +52,17 @@ spec:
                 description: ClusterResourceBlacklist contains list of blacklisted
                   cluster level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: ClusterResourceRestrictionItem is a cluster resource
+                    that is restricted by the project's whitelist or blacklist
                   properties:
                     group:
                       type: string
                     kind:
+                      type: string
+                    name:
+                      description: |-
+                        Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.
+                        Unlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.
                       type: string
                   required:
                   - group
@@ -69,13 +73,17 @@ spec:
                 description: ClusterResourceWhitelist contains list of whitelisted
                   cluster level resources
                 items:
-                  description: |-
-                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
-                    concepts during lookup stages without having partially valid types
+                  description: ClusterResourceRestrictionItem is a cluster resource
+                    that is restricted by the project's whitelist or blacklist
                   properties:
                     group:
                       type: string
                     kind:
+                      type: string
+                    name:
+                      description: |-
+                        Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.
+                        Unlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.
                       type: string
                   required:
                   - group
@@ -84,6 +92,7 @@ spec:
                 type: array
               description:
                 description: Description contains optional project description
+                maxLength: 255
                 type: string
               destinationServiceAccounts:
                 description: DestinationServiceAccounts holds information about the
@@ -95,7 +104,7 @@ spec:
                     sync operation.
                   properties:
                     defaultServiceAccount:
-                      description: ServiceAccountName to be used for impersonation
+                      description: DefaultServiceAccount to be used for impersonation
                         during the sync operation
                       type: string
                     namespace:
@@ -106,6 +115,9 @@ spec:
                       description: Server specifies the URL of the target cluster's
                         Kubernetes control plane API.
                       type: string
+                  required:
+                  - defaultServiceAccount
+                  - server
                   type: object
                 type: array
               destinations:
@@ -275,6 +287,10 @@ spec:
                   description: SyncWindow contains the kind, time, duration and attributes
                     that are used to assign the syncWindows to apps
                   properties:
+                    andOperator:
+                      description: UseAndOperator use AND operator for matching applications,
+                        namespaces and clusters instead of the default OR operator
+                      type: boolean
                     applications:
                       description: Applications contains a list of applications that
                         the window will apply to
@@ -287,6 +303,11 @@ spec:
                       items:
                         type: string
                       type: array
+                    description:
+                      description: Description of the sync that will be applied to
+                        the schedule, can be used to add any information such as a
+                        ticket number for example
+                      type: string
                     duration:
                       description: Duration is the amount of time the sync window
                         will be open

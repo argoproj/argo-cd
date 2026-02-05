@@ -3,10 +3,12 @@ package pull_request
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 
-	"github.com/google/go-github/v63/github"
-	"golang.org/x/oauth2"
+	"github.com/google/go-github/v69/github"
+
+	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
 )
 
 type GithubService struct {
@@ -18,24 +20,28 @@ type GithubService struct {
 
 var _ PullRequestService = (*GithubService)(nil)
 
-func NewGithubService(ctx context.Context, token, url, owner, repo string, labels []string) (PullRequestService, error) {
-	var ts oauth2.TokenSource
+func NewGithubService(token, url, owner, repo string, labels []string, optionalHTTPClient ...*http.Client) (PullRequestService, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
 	}
-	if token != "" {
-		ts = oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: token},
-		)
-	}
-	httpClient := oauth2.NewClient(ctx, ts)
+
 	var client *github.Client
+	httpClient := appsetutils.GetOptionalHTTPClient(optionalHTTPClient...)
+
 	if url == "" {
-		client = github.NewClient(httpClient)
+		if token == "" {
+			client = github.NewClient(httpClient)
+		} else {
+			client = github.NewClient(httpClient).WithAuthToken(token)
+		}
 	} else {
 		var err error
-		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
+		if token == "" {
+			client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
+		} else {
+			client, err = github.NewClient(httpClient).WithAuthToken(token).WithEnterpriseURLs(url, url)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -58,6 +64,11 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 	for {
 		pulls, resp, err := g.client.PullRequests.List(ctx, g.owner, g.repo, opts)
 		if err != nil {
+			if resp != nil && resp.StatusCode == http.StatusNotFound {
+				// return a custom error indicating that the repository is not found,
+				// but also returning the empty result since the decision to continue or not in this case is made by the caller
+				return pullRequests, NewRepositoryNotFoundError(err)
+			}
 			return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", g.owner, g.repo, err)
 		}
 		for _, pull := range pulls {
@@ -65,7 +76,7 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 				continue
 			}
 			pullRequests = append(pullRequests, &PullRequest{
-				Number:       *pull.Number,
+				Number:       int64(*pull.Number),
 				Title:        *pull.Title,
 				Branch:       *pull.Head.Ref,
 				TargetBranch: *pull.Base.Ref,

@@ -8,6 +8,7 @@ import {useCallback, useEffect} from 'react';
 import {debounceTime, takeUntil} from 'rxjs/operators';
 import {fromEvent, ReplaySubject, Subject} from 'rxjs';
 import {Context} from '../../../shared/context';
+import {Tooltip} from 'argo-ui/v2';
 import {ErrorNotification, NotificationType} from 'argo-ui';
 export interface PodTerminalViewerProps {
     applicationName: string;
@@ -24,6 +25,16 @@ export interface ShellFrame {
     rows?: number;
     cols?: number;
 }
+
+const TooltipWrapper = (props: {content: React.ReactNode | string; disabled?: boolean; inverted?: boolean} & React.PropsWithRef<any>) => {
+    return !props.disabled ? (
+        <Tooltip content={props.content} inverted={props.inverted}>
+            {props.children}
+        </Tooltip>
+    ) : (
+        props.children
+    );
+};
 
 export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
     selectedNode,
@@ -231,26 +242,41 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
         }
     ];
 
+    const isContainerRunning = (container: any): boolean => {
+        const containerStatus =
+            podState.status?.containerStatuses?.find((status: {name: string}) => status.name === container.name) ||
+            podState.status?.initContainerStatuses?.find((status: {name: string}) => status.name === container.name);
+        return containerStatus?.state?.running != null;
+    };
+
     return (
-        <div className='row'>
+        <div className='row pod-terminal-viewer__container'>
             <div className='columns small-3 medium-2'>
                 {containerGroups.map(group => (
                     <div key={group.title} style={{marginBottom: '1em'}}>
                         {group.containers.length > 0 && <p>{group.title}</p>}
-                        {group.containers.map((container: any, i: number) => (
-                            <div
-                                className='application-details__container'
-                                key={container.name}
-                                onClick={() => {
-                                    if (container.name !== containerName) {
-                                        disconnect();
-                                        onClickContainer(group, i, 'exec');
-                                    }
-                                }}>
-                                {container.name === containerName && <i className='fa fa-angle-right negative-space-arrow' />}
-                                <span title={container.name}>{container.name}</span>
-                            </div>
-                        ))}
+                        {group.containers.map((container: any, i: number) => {
+                            const running = isContainerRunning(container);
+                            return (
+                                <TooltipWrapper key={container.name} content={!running ? 'Container is not running' : ''} disabled={running}>
+                                    <div
+                                        className={`application-details__container pod-terminal-viewer__tab ${!running ? 'pod-terminal-viewer__tab--disabled' : ''}`}
+                                        onClick={() => {
+                                            if (!running) {
+                                                return;
+                                            }
+                                            if (container.name !== containerName) {
+                                                disconnect();
+                                                onClickContainer(group, i, 'exec');
+                                            }
+                                        }}
+                                        title={!running ? 'Container is not running' : container.name}>
+                                        {container.name === containerName && <i className='pod-terminal-viewer__icon fa fa-angle-right negative-space-arrow' />}
+                                        <span>{container.name}</span>
+                                    </div>
+                                </TooltipWrapper>
+                            );
+                        })}
                     </div>
                 ))}
             </div>

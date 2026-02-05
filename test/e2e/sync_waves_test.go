@@ -2,29 +2,31 @@ package e2e
 
 import (
 	"testing"
-
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 
-	v1 "k8s.io/api/core/v1"
+	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 )
 
 func TestFixingDegradedApp(t *testing.T) {
+	var lastTransitionTime string
 	Given(t).
 		Path("sync-waves").
 		When().
 		IgnoreErrors().
 		CreateApp().
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			require.NoError(t, SetResourceOverrides(map[string]ResourceOverride{
 				"ConfigMap": {
 					HealthLua: `return { status = obj.metadata.annotations and obj.metadata.annotations['health'] or 'Degraded' }`,
 				},
-			})
+			}))
 		}).
 		Sync().
 		Then().
@@ -36,6 +38,11 @@ func TestFixingDegradedApp(t *testing.T) {
 		Expect(ResourceHealthIs("ConfigMap", "cm-1", health.HealthStatusDegraded)).
 		Expect(ResourceSyncStatusIs("ConfigMap", "cm-2", SyncStatusCodeOutOfSync)).
 		Expect(ResourceHealthIs("ConfigMap", "cm-2", health.HealthStatusMissing)).
+		When().
+		Then().
+		And(func(app *Application) {
+			lastTransitionTime = app.Status.Health.LastTransitionTime.UTC().Format(time.RFC3339)
+		}).
 		When().
 		PatchFile("cm-1.yaml", `[{"op": "replace", "path": "/metadata/annotations/health", "value": "Healthy"}]`).
 		PatchFile("cm-2.yaml", `[{"op": "replace", "path": "/metadata/annotations/health", "value": "Healthy"}]`).
@@ -53,7 +60,13 @@ func TestFixingDegradedApp(t *testing.T) {
 		Expect(ResourceSyncStatusIs("ConfigMap", "cm-1", SyncStatusCodeSynced)).
 		Expect(ResourceHealthIs("ConfigMap", "cm-1", health.HealthStatusHealthy)).
 		Expect(ResourceSyncStatusIs("ConfigMap", "cm-2", SyncStatusCodeSynced)).
-		Expect(ResourceHealthIs("ConfigMap", "cm-2", health.HealthStatusHealthy))
+		Expect(ResourceHealthIs("ConfigMap", "cm-2", health.HealthStatusHealthy)).
+		When().
+		Then().
+		And(func(app *Application) {
+			// check that the last transition time is updated
+			require.NotEqual(t, lastTransitionTime, app.Status.Health.LastTransitionTime.UTC().Format(time.RFC3339))
+		})
 }
 
 func TestOneProgressingDeploymentIsSucceededAndSynced(t *testing.T) {
@@ -142,6 +155,6 @@ func TestSyncPruneOrderWithSyncWaves(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "pod-with-finalizers" })).
+		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "pod-with-finalizers" })).
 		Expect(ResourceResultNumbering(4))
 }

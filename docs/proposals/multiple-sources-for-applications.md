@@ -3,7 +3,7 @@ title: Neat-enhancement-idea
 authors:
   - "@ishitasequeira" # Authors' github accounts here.
 sponsors:
-  - TBD        # List all intereste parties here.
+  - TBD        # List all interested parties here.
 reviewers:
   - "@jannfis"
   - "@crenshaw-dev"
@@ -180,7 +180,7 @@ As a user, I have an Application that uses the [elasticsearch](https://github.co
 https://github.com/argoproj/argo-cd/issues/677
 
 #### Use case 2:
-As per one of the [comment]((https://github.com/argoproj/argo-cd/issues/2789#issuecomment-562495307)) on the issue [Helm chart + values files from Git](https://github.com/argoproj/argo-cd/issues/2789):
+As per one of the [comment](https://github.com/argoproj/argo-cd/issues/2789#issuecomment-562495307) on the issue [Helm chart + values files from Git](https://github.com/argoproj/argo-cd/issues/2789):
 ```
 We have a Helm Chart which is used in 30+ Services and each of them is customized for 3 possible environments.
 Replicating this Chart 30 times without a centralized Repo looks dirty. Can be a show stopper for the whole migration.
@@ -201,7 +201,7 @@ To avoid complexity on the deciding the list of sources, if both `source` and `s
 
 Argo CD benefits from the assumption of a single repo per application to detect changes and to cache the results. But this enhancement now requires us to look at all the source repo "HEAD"s and invalidate the cache if any one of them changes.
 
-#### Reconcilation of the Application
+#### Reconciliation of the Application
 
 As we would have multiple sources as part of the same Application, we would need to track updates to each source and reconcile the Application for each source. When one of the sources change, we would need to ensure that target revisions of other sources are up-to-date, e.g. force a simple refresh to see if target revision of the source (e.g. HEAD), still points to revisionX for example.
 

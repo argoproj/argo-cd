@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for solr to exist"
+  inputPath: testdata/provisioning.yaml
+- healthStatus:
+    status: Progressing
+    message: "Not all replicas are ready"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: "Solr is ready"
+  inputPath: testdata/healthy.yaml

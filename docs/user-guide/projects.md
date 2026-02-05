@@ -9,7 +9,7 @@ Projects provide a logical grouping of applications, which is useful when Argo C
 
 ### The Default Project
 
-Every application belongs to a single project. If unspecified, an application belongs to the `default` project, which is created automatically and by default, permits deployments from any source repo, to any cluster, and all resource Kinds. The default project can be modified, but not deleted. When initially created, it's specification is configured to be the most permissive:
+Every application belongs to a single project. If unspecified, an application belongs to the `default` project, which is created automatically and by default, permits deployments from any source repo, to any cluster, and all resource Kinds. When initially created, it's specification is configured to be the most permissive:
 
 ```yaml
 spec:
@@ -22,6 +22,26 @@ spec:
   - group: '*'
     kind: '*'
 ```
+
+The `default` project can be modified, but not deleted. The project is useful for initial testing, but it is recommended to create dedicated projects with explicit source, destination, and resource permissions.
+
+To remove all permissions from the `default` project, apply the following manifest to the namespace where Argo CD is installed:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: default
+spec:
+  sourceRepos: []
+  sourceNamespaces: []
+  destinations: []
+  namespaceResourceBlacklist:
+  - group: '*'
+    kind: '*'
+```
+
+After you modify the `default` project, any application that attempts to use it will be denied until you explicitly move the application to a more permissive project.
 
 ### Creating Projects
 
@@ -108,9 +128,37 @@ Permitted destination K8s resource kinds are managed with the commands. Note tha
 
 ```bash
 argocd proj allow-cluster-resource <PROJECT> <GROUP> <KIND>
-argocd proj allow-namespace-resource <PROJECT> <GROUP> <KIND>
+argocd proj allow-namespace-resource <PROJECT> <GROUP> <KIND> [<NAME>]
 argocd proj deny-cluster-resource <PROJECT> <GROUP> <KIND>
-argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND>
+argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND> [<NAME>]
+```
+
+#### Restrict Cluster-Scoped Resources by Name
+
+Since the names of certain cluster-scoped resources such as Namespaces and CustomResourceDefinitions (CRDs) have special
+significance, it can be useful to allow only specific resources of these kinds. For example, the following AppProject
+config allows only namespaces starting with `team1-`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+spec:
+  clusterResourceWhitelist:
+  - group: ''
+    kind: Namespace
+    name: team1-*
+```
+
+It is also possible to deny specific names of cluster-scoped resources.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+spec:
+  clusterResourceBlacklist:
+  - group: ''
+    kind: Namespace
+    name: kube-*
 ```
 
 ### Assign Application To A Project
@@ -123,7 +171,7 @@ argocd app set guestbook-default --project myproject
 
 ## Project Roles
 
-Projects include a feature called roles that can be used to determine who and what can be done applications associated with the project. As an example, it can be used to give a CI pipeline a restricted set of permissions allowing sync operations on a single app (but not change its source or destination).
+Projects include a feature called roles that can be used to determine who and what can be done to the applications associated with the project. As an example, it can be used to give a CI pipeline a restricted set of permissions allowing sync operations on a single app (but not change its source or destination).
 
 Projects can have multiple roles, and those roles can have different access granted to them. These permissions are called policies which follows the same [RBAC pattern used in Argo CD configuration](../operator-manual/rbac.md). They are stored within the role as a list of policy strings. A role's policy can only grant access to that role. Users are associated with roles based on the groups list. Consider the hypothetical AppProject definition below:
 
@@ -135,25 +183,25 @@ metadata:
 spec:
   ...
   roles:
-  - description: some-role
+  - name: custom-project-role
+    description: The "custom-project-role" will be applied to the `some-user` group.
     groups:
     - some-user
-    name: admin
     policies:
-    - p, proj:sample-test-project:some-role, applications, *, *, allow
+    - p, proj:sample-test-project:custom-project-role, applications, *, *, allow
   ...
 ```
 
 Argo CD will use the policies defined in the AppProject roles while authorizing users actions. To determine which role a given users is associated with, it will dynamically create groups based on the role name in runtime. The project definition above will generate the following Casbin RBAC rules:
 
 ```
-    p, proj:sample-test-project:some-role, applications, *, *, allow
-    g, some-user, proj:sample-test-project:some-role
+    p, proj:sample-test-project:custom-project-role, applications, *, *, allow
+    g, some-user, proj:sample-test-project:custom-project-role
 ```
 
 _Note 1_: It is very important that policy roles follow the pattern `proj:<project-name>:<role-name>` or they won't be effective during the Argo CD authorization process.
 
-_Note 2_: The example above used `applications` as the resource for the policy definition. However other types of resources can also be used: `repositories`, `clusters`, `logs`, `exec` and `projects`. See the [RBAC documentation](../operator-manual/rbac.md) for more details about those resources.
+_Note 2_: The example above used `applications` as the resource for the policy definition. However other types of resources can also be used: `applicationsets`, `repositories`, `clusters`, `logs` and `exec`. See the [RBAC documentation](../operator-manual/rbac.md) for more details about those resources.
 
 In order to create roles in a project and add policies to a role, a user will need permission to update a project.  The following commands can be used to manage a role.
 
@@ -175,7 +223,7 @@ argocd proj role create-token PROJECT ROLE-NAME
 argocd proj role delete-token PROJECT ROLE-NAME ISSUED-AT
 ```
 
-Since the JWT tokens aren't stored in Argo CD, they can only be retrieved when they are created. A user can leverage them in the cli by either passing them in using the `--auth-token` flag or setting the ARGOCD_AUTH_TOKEN environment variable. The JWT tokens can be used until they expire or are revoked.  The JWT tokens can created with or without an expiration, but the default on the cli is creates them without an expirations date.  Even if a token has not expired, it cannot be used if the token has been revoked.
+Since the JWT tokens aren't stored in Argo CD, they can only be retrieved when they are created. A user can leverage them in the cli by either passing them in using the `--auth-token` flag or setting the ARGOCD_AUTH_TOKEN environment variable. The JWT tokens can be used until they expire or are revoked.  The JWT tokens can be created with or without an expiration.  By default, the cli creates them without an expirations date.  Even if a token has not expired, it cannot be used if the token has been revoked.
 
 Below is an example of leveraging a JWT token to access a guestbook application.  It makes the assumption that the user already has a project named myproject and an application called guestbook-default.
 
@@ -212,7 +260,7 @@ argocd app get $APP --auth-token $JWT
 
 ## Configuring RBAC With Projects
 
-The project Roles allows configuring RBAC rules scoped to the project. The following sample project provides read-only permissions on project applications to any member of `my-oidc-group` group.
+Project roles allow configuring RBAC rules scoped to the project. The following sample project provides read-only permissions on project applications to any member of `my-oidc-group` group.
 
 *AppProject example:*
 
@@ -277,7 +325,7 @@ It is possible to offer a self-service process for developers so that they can a
 For this purpose Argo CD supports project-scoped repositories and clusters.
 
 To begin the process, Argo CD admins must configure RBAC security to allow this self-service behavior.
-For example, to allow users to add project scoped repositories and admin would have to add the following RBAC rules:
+For example, to allow users to add project scoped repositories an admin would have to add the following RBAC rules:
 
 ```
 p, proj:my-project:admin, repositories, create, my-project/*, allow
@@ -314,12 +362,13 @@ stringData:
   password: ****
 ```
 
-!!! warning
-Please keep in mind when using a project-scoped repository, only applications from the same project can make use of
-it. When using applicationsets with the Git generator, only non-scoped repositories can be used (i.e. repositories that
-do _not_ have a `project` set).
+> [!WARNING]
+> Please keep in mind when using a project-scoped repository, only applications or applicationsets with a matching project 
+> name can make use of it. When using an applicationset with a Git generator that also makes use of a templated `project` 
+> (i.e. it contains ``{{ ... }}``) only non-scoped repositories can be used with the applicationset (i.e. repositories 
+> that do _not_ have a `project` set).
 
-All the examples above talk about Git repositories, but the same principles apply to clusters as well.
+All the examples above concern Git repositories, but the same principles apply to clusters as well.
 
 ```yaml
 apiVersion: v1

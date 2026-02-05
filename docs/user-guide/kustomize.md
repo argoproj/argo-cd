@@ -19,6 +19,7 @@ spec:
     namespace: default
     server: 'https://kubernetes.default.svc'
 ```
+
 If the `kustomization.yaml` file exists at the location pointed to by `repoURL` and `path`, Argo CD will render the manifests using Kustomize.
 
 The following configuration options are available for Kustomize:
@@ -28,19 +29,21 @@ The following configuration options are available for Kustomize:
 * `images` is a list of Kustomize image overrides
 * `replicas` is a list of Kustomize replica overrides
 * `commonLabels` is a string map of additional labels
-* `labelWithoutSelector` is a boolean value which defines if the common label(s) should be applied to resource selectors and templates.
-* `forceCommonLabels` is a boolean value which defines if it's allowed to override existing labels
+* `labelWithoutSelector` is a boolean value which defines if the common label(s) should be applied to resource selectors. It also excludes common labels from templates unless `labelIncludeTemplates` is set to true.
+* `labelIncludeTemplates` is a boolean value which defines if the common label(s) should be applied to resource templates.
 * `commonAnnotations` is a string map of additional annotations
 * `namespace` is a Kubernetes resources namespace
-* `forceCommonAnnotations` is a boolean value which defines if it's allowed to override existing annotations
-* `commonAnnotationsEnvsubst` is a boolean value which enables env variables substition in annotation  values
+* `commonAnnotationsEnvsubst` is a boolean value which enables env variables substitution in annotation  values
 * `patches` is a list of Kustomize patches that supports inline updates
 * `components` is a list of Kustomize components
+* `ignoreMissingComponents` prevents kustomize from failing when components do not exist locally by not appending them to kustomization file
+* `forceCommonLabels` is a boolean value. When true, Argo CD passes --force to kustomize edit add label, allowing an existing commonLabels/labels entry in kustomization.yaml to be replaced. When false, generation fails if the label key already exists.
+* `forceCommonAnnotations` is a boolean value. When true, Argo CD passes --force to kustomize edit add annotation, allowing an existing commonAnnotations entry in kustomization.yaml to be replaced. When false, generation fails if the annotation key already exists. 
 
 To use Kustomize with an overlay, point your path to the overlay.
 
-!!! tip
-    If you're generating resources, you should read up how to ignore those generated resources using the [`IgnoreExtraneous` compare option](compare-options.md).
+> [!TIP]
+> If you're generating resources, you should read up how to ignore those generated resources using the [`IgnoreExtraneous` compare option](compare-options.md).
 
 ## Patches
 Patches are a way to kustomize resources using inline configurations in Argo CD applications.  `patches`  follow the same logic as the corresponding Kustomization.  Any patches that target existing Kustomization file will be merged.
@@ -129,7 +132,8 @@ spec:
 ```
 
 ## Components
-Kustomize [components](https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md) encapsulate both resources and patches together. They provide a powerful way to modularize and reuse configuration in Kubernetes applications.
+Kustomize [components](https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md) encapsulate both resources and patches together. They provide a powerful way to modularize and reuse configuration in Kubernetes applications. 
+If Kustomize is passed a non-existing component directory, it will error out. Missing component directories can be ignored (meaning, not passed to Kustomize) using `ignoreMissingComponents`. This can be particularly helpful to implement a [default/override pattern].
 
 Outside of Argo CD, to utilize components, you must add the following to the `kustomization.yaml` that the Application references. For example:
 ```yaml
@@ -157,13 +161,14 @@ spec:
     kustomize:
       components:
         - ../component  # relative to the kustomization.yaml (`source.path`).
+      ignoreMissingComponents: true
 ```
 
 ## Private Remote Bases
 
 If you have remote bases that are either (a) HTTPS and need username/password (b) SSH and need SSH private key, then they'll inherit that from the app's repo.
 
-This will work if the remote bases uses the same credentials/private key. It will not work if they use different ones. For security reasons your app only ever knows about its own repo (not other team's or users repos), and so you won't be able to access other private repos, even if Argo CD knows about them.
+This will work if the remote bases use the same credentials/private key. It will not work if they use different ones. For security reasons your app only ever knows about its own repo (not other team's or users repos), and so you won't be able to access other private repos, even if Argo CD knows about them.
 
 Read more about [private repos](private-repositories.md).
 

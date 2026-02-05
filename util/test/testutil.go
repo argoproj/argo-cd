@@ -3,13 +3,16 @@ package test
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
+	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/golang-jwt/jwt/v4"
+	log "github.com/sirupsen/logrus"
+
+	"github.com/go-jose/go-jose/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 )
 
@@ -108,11 +111,12 @@ B3XwyYtAFsaO5r7oEc1Bv6oNSbE+FNJzRdjkWEIhdLVKlepil/w=
 -----END RSA PRIVATE KEY-----`)
 
 func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
 		case "/api/dex/.well-known/openid-configuration":
-			_, err := io.WriteString(w, fmt.Sprintf(`
+			_, err := fmt.Fprintf(w, `
 {
   "issuer": "%[1]s/api/dex",
   "authorization_endpoint": "%[1]s/api/dex/auth",
@@ -128,7 +132,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
   "scopes_supported": ["openid"],
   "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
   "claims_supported": ["sub", "aud", "exp"]
-}`, url))
+}`, url)
 			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -137,7 +141,8 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 }
 
 func GetDexTestServer(t *testing.T) *httptest.Server {
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	t.Helper()
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -146,12 +151,13 @@ func GetDexTestServer(t *testing.T) *httptest.Server {
 	return ts
 }
 
-func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Request) {
+func oidcMockHandler(t *testing.T, url string, tokenRequestPreHandler func(r *http.Request)) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
 		case "/.well-known/openid-configuration":
-			_, err := io.WriteString(w, fmt.Sprintf(`
+			_, err := fmt.Fprintf(w, `
 {
   "issuer": "%[1]s",
   "authorization_endpoint": "%[1]s/auth",
@@ -167,16 +173,16 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
   "scopes_supported": ["openid"],
   "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
   "claims_supported": ["sub", "aud", "exp"]
-}`, url))
+}`, url)
 			require.NoError(t, err)
 		case "/userinfo":
 			w.Header().Set("content-type", "application/json")
-			_, err := io.WriteString(w, fmt.Sprintf(`
+			_, err := fmt.Fprintf(w, `
 {
 	"groups":["githubOrg:engineers"],
 	"iss": "%[1]s",
 	"sub": "randomUser"
-}`, url))
+}`, url)
 
 			require.NoError(t, err)
 		case "/keys":
@@ -193,18 +199,104 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
 			require.NoError(t, err)
 			_, err = w.Write(out)
 			require.NoError(t, err)
+		case "/token":
+			if tokenRequestPreHandler != nil {
+				tokenRequestPreHandler(r)
+			}
+			response, err := mockTokenEndpointResponse(url)
+			require.NoError(t, err)
+			out, err := json.Marshal(response)
+			require.NoError(t, err)
+			_, err = w.Write(out)
+			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
 	}
 }
 
-func GetOIDCTestServer(t *testing.T) *httptest.Server {
-	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func GetOIDCTestServer(t *testing.T, tokenRequestPreHandler func(r *http.Request)) *httptest.Server {
+	t.Helper()
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		oidcMockHandler(t, ts.URL)(w, r)
+		oidcMockHandler(t, ts.URL, tokenRequestPreHandler)(w, r)
 	})
 	return ts
+}
+
+func GetAzureOIDCTestServer(t *testing.T, tokenRequestPreHandler func(r *http.Request)) *httptest.Server {
+	t.Helper()
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		// Start with a placeholder. We need the server URL before setting up the real handler.
+	}))
+	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		oidcMockHandler(t, ts.URL, tokenRequestPreHandler)(w, r)
+	})
+	return ts
+}
+
+type TokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+	IDToken      string `json:"id_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+func mockTokenEndpointResponse(issuer string) (TokenResponse, error) {
+	token, err := generateJWTToken(issuer)
+	return TokenResponse{
+		AccessToken:  token,
+		TokenType:    "Bearer",
+		ExpiresIn:    3600,
+		IDToken:      token,
+		RefreshToken: token,
+	}, err
+}
+
+// Helper function to generate a JWT token
+func generateJWTToken(issuer string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodRS512, jwt.MapClaims{
+		"sub":  "1234567890",
+		"aud":  "test-client-id",
+		"name": "John Doe",
+		"iat":  time.Now().Unix(),
+		"iss":  issuer,
+		"exp":  time.Now().Add(time.Hour).Unix(), // Set the expiration time
+	})
+	key, err := jwt.ParseRSAPrivateKeyFromPEM(PrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse RSA private key: %w", err)
+	}
+	tokenString, err := token.SignedString(key)
+	if err != nil {
+		return "", err
+	}
+	return tokenString, nil
+}
+
+type LogHook struct {
+	Entries []log.Entry
+}
+
+func (h *LogHook) Levels() []log.Level {
+	return []log.Level{log.WarnLevel}
+}
+
+func (h *LogHook) Fire(entry *log.Entry) error {
+	h.Entries = append(h.Entries, *entry)
+	return nil
+}
+
+func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
+	re := regexp.MustCompile(match)
+	matches := make([]string, 0)
+	for _, entry := range h.Entries {
+		if re.MatchString(entry.Message) {
+			matches = append(matches, entry.Message)
+		}
+	}
+	return matches
 }

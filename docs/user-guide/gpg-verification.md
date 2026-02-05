@@ -23,16 +23,18 @@ the `argocd-server`, `argocd-repo-server`, `argocd-application-controller` and
 Verification of GnuPG signatures is only supported with Git repositories. It is
 not possible using Helm repositories.
 
-!!!note "A few words about trust"
-    ArgoCD uses a very simple trust model for the keys you import: Once the key
-    is imported, ArgoCD will trust it. ArgoCD does not support more complex
-    trust models, and it is not necessary (nor possible) to sign the public keys
-    you are going to import into ArgoCD.
+> [!NOTE]
+> **A few words about trust**
+>
+> ArgoCD uses a very simple trust model for the keys you import: Once the key
+> is imported, ArgoCD will trust it. ArgoCD does not support more complex
+> trust models, and it is not necessary (nor possible) to sign the public keys
+> you are going to import into ArgoCD.
 
 
-!!!note Limitations
-  Signature verification is not supported for the templated `project` field when 
-  using the Git generator.
+> [!NOTE]
+> Signature verification is not supported for the templated `project` field when 
+> using the Git generator.
 
 ## Signature verification targets
 
@@ -61,9 +63,9 @@ Once you have configured one or more keys to be required for verification for
 a given project, enforcement is active for all applications associated with
 this project.
 
-!!!warning
-    If signature verification is enforced, you will not be able to sync from
-    local sources (i.e. `argocd app sync --local`) anymore.
+> [!WARNING]
+> If signature verification is enforced, you will not be able to sync from
+> local sources (i.e. `argocd app sync --local`) anymore.
 
 ## RBAC rules for managing GnuPG keys
 
@@ -94,11 +96,11 @@ You can configure the GnuPG public keys that ArgoCD will use for verification
 of commit signatures using either the CLI, the web UI or configuring it using
 declarative setup.
 
-!!!note
-    After you have imported a GnuPG key, it may take a while until the key is
-    propagated within the cluster, even if listed as configured. If you still
-    cannot sync to commits signed by the already imported key, please see the
-    troubleshooting section below.
+> [!NOTE]
+> After you have imported a GnuPG key, it may take a while until the key is
+> propagated within the cluster, even if listed as configured. If you still
+> cannot sync to commits signed by the already imported key, please see the
+> troubleshooting section below.
 
 Users wanting to manage the GnuPG public key configuration require the RBAC
 permissions for `gpgkeys` resources.
@@ -211,7 +213,7 @@ argocd proj remove-signature-key myproj 4AEE18F83AFDEB23
 #### Showing allowed key IDs for a project
 
 To see which key IDs are allowed for a given project, you can inspect the
-output of the `argocd proj get` command, i.e for a project named `gpg`:
+output of the `argocd proj get` command, i.e. for a project named `gpg`:
 
 ```bash
 $ argocd proj get gpg
@@ -299,13 +301,13 @@ pods of `argocd-repo-server`. The keys in the keyring are synchronized to the
 configuration stored in the `argocd-gpg-keys-cm` ConfigMap resource, which is
 volume-mounted to the `argocd-repo-server` pods.
 
-!!!note
-    The GnuPG key ring in the pods is transient and gets recreated from the
-    configuration on each restart of the pods. You should never add or remove
-    keys manually to the key ring, because your changes will be lost. Also,
-    any of the private keys found in the key ring are transient and will be
-    regenerated upon each restart. The private key is only used to build the
-    trust DB for the running pod.
+> [!NOTE]
+> The GnuPG key ring in the pods is transient and gets recreated from the
+> configuration on each restart of the pods. You should never add or remove
+> keys manually to the key ring, because your changes will be lost. Also,
+> any of the private keys found in the key ring are transient and will be
+> regenerated upon each restart. The private key is only used to build the
+> trust DB for the running pod.
 
 To check whether the keys are actually in sync, you can `kubectl exec` into the
 repository server's pods and inspect the key ring, which is located at path

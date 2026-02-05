@@ -2,6 +2,7 @@ package discovery
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,17 +10,17 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
 
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	log "github.com/sirupsen/logrus"
 
-	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/cmp"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/kustomize"
+	pluginclient "github.com/argoproj/argo-cd/v3/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/cmp"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/kustomize"
 )
 
 func IsManifestGenerationEnabled(sourceType v1alpha1.ApplicationSourceType, enableGenerateManifests map[string]bool) bool {
@@ -40,7 +41,7 @@ func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManif
 	conn, _, err := DetectConfigManagementPlugin(ctx, appPath, repoPath, "", env, tarExcludedGlobs)
 	if err == nil {
 		// Found CMP
-		io.Close(conn)
+		utilio.Close(conn)
 
 		apps["."] = string(v1alpha1.ApplicationSourceTypePlugin)
 		return apps, nil
@@ -87,10 +88,11 @@ func AppType(ctx context.Context, appPath, repoPath string, enableGenerateManife
 // check cmpSupports()
 // if supported return conn for the cmp-server
 
-func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, pluginName string, env []string, tarExcludedGlobs []string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
-	var conn io.Closer
+func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, pluginName string, env []string, tarExcludedGlobs []string) (utilio.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
+	var conn utilio.Closer
 	var cmpClient pluginclient.ConfigManagementPluginServiceClient
 	var connFound bool
+	var lastErr error
 
 	pluginSockFilePath := common.GetPluginSockFilePath()
 	log.WithFields(log.Fields{
@@ -100,25 +102,31 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, plugin
 
 	if pluginName != "" {
 		// check if the given plugin supports the repo
-		conn, cmpClient, connFound = cmpSupports(ctx, pluginSockFilePath, appPath, repoPath, fmt.Sprintf("%v.sock", pluginName), env, tarExcludedGlobs, true)
+		conn, cmpClient, connFound, lastErr = cmpSupports(ctx, pluginSockFilePath, appPath, repoPath, fmt.Sprintf("%v.sock", pluginName), env, tarExcludedGlobs, true)
 		if !connFound {
-			return nil, nil, fmt.Errorf("couldn't find cmp-server plugin with name %q supporting the given repository", pluginName)
+			if lastErr != nil {
+				return nil, nil, fmt.Errorf("could not find cmp-server plugin with name %q supporting the given repository: %w", pluginName, lastErr)
+			}
+			return nil, nil, fmt.Errorf("could not find cmp-server plugin with name %q supporting the given repository", pluginName)
 		}
 	} else {
 		fileList, err := os.ReadDir(pluginSockFilePath)
 		if err != nil {
-			return nil, nil, fmt.Errorf("Failed to list all plugins in dir, error=%w", err)
+			return nil, nil, fmt.Errorf("failed to list all plugins in dir: %w", err)
 		}
 		for _, file := range fileList {
 			if file.Type() == os.ModeSocket {
-				conn, cmpClient, connFound = cmpSupports(ctx, pluginSockFilePath, appPath, repoPath, file.Name(), env, tarExcludedGlobs, false)
+				conn, cmpClient, connFound, lastErr = cmpSupports(ctx, pluginSockFilePath, appPath, repoPath, file.Name(), env, tarExcludedGlobs, false)
 				if connFound {
 					break
 				}
 			}
 		}
 		if !connFound {
-			return nil, nil, fmt.Errorf("could not find plugin supporting the given repository")
+			if lastErr != nil {
+				return nil, nil, fmt.Errorf("could not find plugin supporting the given repository: %w", lastErr)
+			}
+			return nil, nil, errors.New("could not find plugin supporting the given repository")
 		}
 	}
 	return conn, cmpClient, nil
@@ -144,16 +152,20 @@ func matchRepositoryCMP(ctx context.Context, appPath, repoPath string, client pl
 	return resp.GetIsSupported(), resp.GetIsDiscoveryEnabled(), nil
 }
 
-func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fileName string, env []string, tarExcludedGlobs []string, namedPlugin bool) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, bool) {
+// cmpSupports checks if the given plugin socket supports the repo. If namedPlugin is true
+// a plugin that is not discovery-configured will be considered a match.
+// Returns a utilio.Closer, the client, a bool indicating a match, and an error describing
+// any lower-level failure that occurred while probing the plugin.
+func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fileName string, env []string, tarExcludedGlobs []string, namedPlugin bool) (utilio.Closer, pluginclient.ConfigManagementPluginServiceClient, bool, error) {
 	absPluginSockFilePath, err := filepath.Abs(pluginSockFilePath)
 	if err != nil {
 		log.Errorf("error getting absolute path for plugin socket dir %v, %v", pluginSockFilePath, err)
-		return nil, nil, false
+		return nil, nil, false, fmt.Errorf("error getting absolute path for plugin socket dir %q: %w", pluginSockFilePath, err)
 	}
 	address := filepath.Join(absPluginSockFilePath, fileName)
 	if !files.Inbound(address, absPluginSockFilePath) {
 		log.Errorf("invalid socket file path, %v is outside plugin socket dir %v", fileName, pluginSockFilePath)
-		return nil, nil, false
+		return nil, nil, false, fmt.Errorf("invalid socket file path, %q is outside plugin socket dir %q", fileName, pluginSockFilePath)
 	}
 
 	cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address)
@@ -164,18 +176,23 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 			common.SecurityField:    common.SecurityMedium,
 			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 		}).Errorf("error dialing to cmp-server for plugin %s, %v", fileName, err)
-		return nil, nil, false
+		return nil, nil, false, fmt.Errorf("error dialing to cmp-server for plugin %s: %w", fileName, err)
 	}
 
 	cfg, err := cmpClient.CheckPluginConfiguration(ctx, &empty.Empty{})
 	if err != nil {
 		log.Errorf("error checking plugin configuration %s, %v", fileName, err)
-		return nil, nil, false
+		utilio.Close(conn)
+		return nil, nil, false, fmt.Errorf("error checking plugin configuration %s: %w", fileName, err)
 	}
 
-	// if discovery is not configured, return the client without further checks
 	if !cfg.IsDiscoveryConfigured {
-		return conn, cmpClient, true
+		// If discovery isn't configured but the plugin is named, then the plugin supports the repo.
+		if namedPlugin {
+			return conn, cmpClient, true, nil
+		}
+		utilio.Close(conn)
+		return nil, nil, false, nil
 	}
 
 	isSupported, isDiscoveryEnabled, err := matchRepositoryCMP(ctx, appPath, repoPath, cmpClient, env, tarExcludedGlobs)
@@ -184,21 +201,21 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 			common.SecurityField:    common.SecurityMedium,
 			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 		}).Errorf("repository %s is not the match because %v", repoPath, err)
-		io.Close(conn)
-		return nil, nil, false
+		utilio.Close(conn)
+		return nil, nil, false, fmt.Errorf("error checking repository support for plugin %s: %w", fileName, err)
 	}
 
 	if !isSupported {
 		// if discovery is not set and the plugin name is specified, let app use the plugin
 		if !isDiscoveryEnabled && namedPlugin {
-			return conn, cmpClient, true
+			return conn, cmpClient, true, nil
 		}
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityLow,
 			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 		}).Debugf("Response from socket file %s does not support %v", fileName, repoPath)
-		io.Close(conn)
-		return nil, nil, false
+		utilio.Close(conn)
+		return nil, nil, false, nil
 	}
-	return conn, cmpClient, true
+	return conn, cmpClient, true, nil
 }

@@ -19,3 +19,7 @@ tests:
     status: Suspended
     message: "ScaledObject is paused"
   inputPath: testdata/keda-suspended.yaml
+- healthStatus:
+    status: Degraded
+    message: "At least one trigger is falling back on this scaled object"
+  inputPath: testdata/keda-fallback.yaml

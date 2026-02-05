@@ -3,6 +3,7 @@ package admin
 import (
 	"bytes"
 	"context"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -15,20 +16,21 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/lua"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/lua"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 type settingsOpts struct {
@@ -51,7 +53,7 @@ func collectLogs(callback func()) string {
 	return out.String()
 }
 
-func setSettingsMeta(obj v1.Object) {
+func setSettingsMeta(obj metav1.Object) {
 	obj.SetNamespace("default")
 	labels := obj.GetLabels()
 	if labels == nil {
@@ -63,19 +65,20 @@ func setSettingsMeta(obj v1.Object) {
 
 func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
 	var argocdCM *corev1.ConfigMap
-	if opts.argocdCMPath == "" && !opts.loadClusterSettings {
-		return nil, fmt.Errorf("either --argocd-cm-path must be provided or --load-cluster-settings must be set to true")
-	} else if opts.argocdCMPath == "" {
+	switch {
+	case opts.argocdCMPath == "" && !opts.loadClusterSettings:
+		return nil, stderrors.New("either --argocd-cm-path must be provided or --load-cluster-settings must be set to true")
+	case opts.argocdCMPath == "":
 		realClientset, ns, err := opts.getK8sClient()
 		if err != nil {
 			return nil, err
 		}
 
-		argocdCM, err = realClientset.CoreV1().ConfigMaps(ns).Get(ctx, common.ArgoCDConfigMapName, v1.GetOptions{})
+		argocdCM, err = realClientset.CoreV1().ConfigMaps(ns).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
-	} else {
+	default:
 		data, err := os.ReadFile(opts.argocdCMPath)
 		if err != nil {
 			return nil, err
@@ -88,7 +91,8 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 	setSettingsMeta(argocdCM)
 
 	var argocdSecret *corev1.Secret
-	if opts.argocdSecretPath != "" {
+	switch {
+	case opts.argocdSecretPath != "":
 		data, err := os.ReadFile(opts.argocdSecretPath)
 		if err != nil {
 			return nil, err
@@ -98,18 +102,18 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 			return nil, err
 		}
 		setSettingsMeta(argocdSecret)
-	} else if opts.loadClusterSettings {
+	case opts.loadClusterSettings:
 		realClientset, ns, err := opts.getK8sClient()
 		if err != nil {
 			return nil, err
 		}
-		argocdSecret, err = realClientset.CoreV1().Secrets(ns).Get(ctx, common.ArgoCDSecretName, v1.GetOptions{})
+		argocdSecret, err = realClientset.CoreV1().Secrets(ns).Get(ctx, common.ArgoCDSecretName, metav1.GetOptions{})
 		if err != nil {
 			return nil, err
 		}
-	} else {
+	default:
 		argocdSecret = &corev1.Secret{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name: common.ArgoCDSecretName,
 			},
 			Data: map[string][]byte{
@@ -119,7 +123,7 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 		}
 	}
 	setSettingsMeta(argocdSecret)
-	clientset := fake.NewSimpleClientset(argocdSecret, argocdCM)
+	clientset := fake.NewClientset(argocdSecret, argocdCM)
 
 	manager := settings.NewSettingsManager(ctx, clientset, "default")
 	errors.CheckError(manager.ResyncInformers())
@@ -159,7 +163,7 @@ func NewSettingsCommand() *cobra.Command {
 
 	command.AddCommand(NewValidateSettingsCommand(&opts))
 	command.AddCommand(NewResourceOverridesCommand(&opts))
-	command.AddCommand(NewRBACCommand(&opts))
+	command.AddCommand(NewRBACCommand())
 
 	opts.clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.PersistentFlags().StringVar(&opts.argocdCMPath, "argocd-cm-path", "", "Path to local argocd-cm.yaml file")
@@ -211,7 +215,7 @@ var validatorsByGroup = map[string]settingValidator{
 		}
 		var summary string
 		if ssoProvider != "" {
-			summary = fmt.Sprintf("%s is configured", ssoProvider)
+			summary = ssoProvider + " is configured"
 			if general.URL == "" {
 				summary = summary + " ('url' field is missing)"
 			}
@@ -244,19 +248,6 @@ var validatorsByGroup = map[string]settingValidator{
 		}
 		return summary, err
 	},
-	"repositories": joinValidators(func(manager *settings.SettingsManager) (string, error) {
-		repos, err := manager.GetRepositories()
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("%d repositories", len(repos)), nil
-	}, func(manager *settings.SettingsManager) (string, error) {
-		creds, err := manager.GetRepositoryCredentials()
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("%d repository credentials", len(creds)), nil
-	}),
 	"accounts": func(manager *settings.SettingsManager) (string, error) {
 		accounts, err := manager.GetAccounts()
 		if err != nil {
@@ -294,7 +285,7 @@ argocd admin settings validate --argocd-cm-path ./argocd-cm.yaml
 
 #Validates accounts and plugins settings in Kubernetes cluster of current kubeconfig context
 argocd admin settings validate --group accounts --group plugins --load-cluster-settings`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			settingsManager, err := cmdCtx.createSettingsManager(ctx)
@@ -510,15 +501,15 @@ argocd admin settings resource-overrides health ./deploy.yaml --argocd-cm-path .
 				os.Exit(1)
 			}
 
-			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
+			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, _ v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				resHealth, err := healthutil.GetResourceHealth(&res, lua.ResourceHealthOverrides(overrides))
-
-				if err != nil {
+				switch {
+				case err != nil:
 					errors.CheckError(err)
-				} else if resHealth == nil {
+				case resHealth == nil:
 					fmt.Printf("Health script is not configured for '%s/%s'\n", gvk.Group, gvk.Kind)
-				} else {
+				default:
 					_, _ = fmt.Printf("STATUS: %s\n", resHealth.Status)
 					_, _ = fmt.Printf("MESSAGE: %s\n", resHealth.Message)
 				}
@@ -573,13 +564,15 @@ argocd admin settings resource-overrides action list /tmp/deploy.yaml --argocd-c
 }
 
 func NewResourceActionRunCommand(cmdCtx commandContext) *cobra.Command {
+	var resourceActionParameters []string
+
 	command := &cobra.Command{
 		Use:     "run-action RESOURCE_YAML_PATH ACTION",
 		Aliases: []string{"action"},
 		Short:   "Executes resource action",
 		Long:    "Executes resource action using the lua script configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap and outputs updated fields",
 		Example: `
-argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml`,
+argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -588,6 +581,23 @@ argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --a
 				os.Exit(1)
 			}
 			action := args[1]
+
+			// Parse resource action parameters
+			parsedParams := make([]*applicationpkg.ResourceActionParameters, 0)
+			if len(resourceActionParameters) > 0 {
+				for _, param := range resourceActionParameters {
+					parts := strings.SplitN(param, "=", 2)
+					if len(parts) != 2 {
+						log.Fatalf("Invalid parameter format: %s", param)
+					}
+					name := parts[0]
+					value := parts[1]
+					parsedParams = append(parsedParams, &applicationpkg.ResourceActionParameters{
+						Name:  &name,
+						Value: &value,
+					})
+				}
+			}
 
 			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
@@ -600,7 +610,7 @@ argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --a
 				action, err := luaVM.GetResourceAction(&res, action)
 				errors.CheckError(err)
 
-				modifiedRes, err := luaVM.ExecuteResourceAction(&res, action.ActionLua)
+				modifiedRes, err := luaVM.ExecuteResourceAction(&res, action.ActionLua, parsedParams)
 				errors.CheckError(err)
 
 				for _, impactedResource := range modifiedRes {
@@ -625,5 +635,7 @@ argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --a
 			})
 		},
 	}
+
+	command.Flags().StringArrayVar(&resourceActionParameters, "param", []string{}, "Action parameters (e.g. --param key1=value1)")
 	return command
 }

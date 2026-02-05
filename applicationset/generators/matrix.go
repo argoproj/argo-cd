@@ -1,25 +1,24 @@
 package generators
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-
-	log "github.com/sirupsen/logrus"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*MatrixGenerator)(nil)
 
 var (
-	ErrMaxChildrenEqualsOne       = fmt.Errorf("invalid max number of children, value must not equal to one")
-	ErrLessThanTwoGenerators      = fmt.Errorf("found less than two generators, Matrix support only two")
-	ErrMoreThenOneInnerGenerators = fmt.Errorf("found more than one generator in matrix.Generators")
-	ErrMoreThanMaxGenerators      = fmt.Errorf("found more than the max allowed of child generators")
+	ErrMaxChildrenEqualsOne       = errors.New("invalid max number of children, value must not equal to one")
+	ErrLessThanTwoGenerators      = errors.New("found less than two generators, Matrix support only two")
+	ErrMoreThenOneInnerGenerators = errors.New("found more than one generator in matrix.Generators")
+	ErrMoreThanMaxGenerators      = errors.New("found more than the max allowed of child generators")
 )
 
 type MatrixGenerator struct {
@@ -45,9 +44,9 @@ func NewMatrixGenerator(supportedGenerators map[string]Generator, matrixConfig M
 	return m
 }
 
-func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]interface{}, error) {
+func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]any, error) {
 	if appSetGenerator.Matrix == nil {
-		return nil, EmptyAppSetGeneratorError
+		return nil, ErrEmptyAppSetGenerator
 	}
 
 	if m.maxChildren == 1 {
@@ -63,7 +62,9 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 		return nil, ErrMoreThanMaxGenerators
 	}
 
-	res, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil, client)
+	res := []map[string]any{}
+
+	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil, client)
 	if err != nil {
 		return nil, fmt.Errorf("error failed to get params for first generator in matrix generator: %w", err)
 	}
@@ -102,26 +103,14 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	return res, nil
 }
 
-func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, params map[string]interface{}, client client.Client) ([]map[string]interface{}, error) {
+func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, params map[string]any, client client.Client) ([]map[string]any, error) {
 	matrixGen, err := getMatrixGenerator(appSetBaseGenerator)
 	if err != nil {
 		return nil, err
 	}
-	if matrixGen != nil && !appSet.Spec.ApplyNestedSelectors {
-		foundSelector := dropDisabledNestedSelectors(matrixGen.Generators)
-		if foundSelector {
-			log.Warnf("AppSet '%v' defines selector on nested matrix generator's generator without enabling them via 'spec.applyNestedSelectors', ignoring nested selectors", appSet.Name)
-		}
-	}
 	mergeGen, err := getMergeGenerator(appSetBaseGenerator)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving merge generator: %w", err)
-	}
-	if mergeGen != nil && !appSet.Spec.ApplyNestedSelectors {
-		foundSelector := dropDisabledNestedSelectors(mergeGen.Generators)
-		if foundSelector {
-			log.Warnf("AppSet '%v' defines selector on nested merge generator's generator without enabling them via 'spec.applyNestedSelectors', ignoring nested selectors", appSet.Name)
-		}
 	}
 
 	t, err := Transform(
@@ -147,7 +136,7 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 	}
 
 	if len(t) == 0 {
-		return nil, fmt.Errorf("child generator generated no parameters")
+		return nil, errors.New("child generator generated no parameters")
 	}
 
 	if len(t) > 1 {
@@ -190,9 +179,8 @@ func (m *MatrixGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 
 	if found {
 		return res
-	} else {
-		return NoRequeueAfter
 	}
+	return NoRequeueAfter
 }
 
 func getMatrixGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*argoprojiov1alpha1.MatrixGenerator, error) {

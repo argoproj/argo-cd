@@ -3,7 +3,6 @@ package cache
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -13,11 +12,10 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/reposerver/cache/mocks"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/reposerver/cache/mocks"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 )
 
 type MockedCache struct {
@@ -44,21 +42,21 @@ func TestCache_GetRevisionMetadata(t *testing.T) {
 	mockCache := fixtures.mockCache
 	// cache miss
 	_, err := cache.GetRevisionMetadata("my-repo-url", "my-revision")
-	assert.Equal(t, ErrCacheMiss, err)
+	require.ErrorIs(t, err, ErrCacheMiss)
 	mockCache.RedisClient.AssertCalled(t, "Get", mock.Anything, mock.Anything)
 	// populate cache
-	err = cache.SetRevisionMetadata("my-repo-url", "my-revision", &RevisionMetadata{Message: "my-message"})
+	err = cache.SetRevisionMetadata("my-repo-url", "my-revision", &v1alpha1.RevisionMetadata{Message: "my-message"})
 	require.NoError(t, err)
 	// cache miss
 	_, err = cache.GetRevisionMetadata("other-repo-url", "my-revision")
-	assert.Equal(t, ErrCacheMiss, err)
+	require.ErrorIs(t, err, ErrCacheMiss)
 	// cache miss
 	_, err = cache.GetRevisionMetadata("my-repo-url", "other-revision")
-	assert.Equal(t, ErrCacheMiss, err)
+	require.ErrorIs(t, err, ErrCacheMiss)
 	// cache hit
 	value, err := cache.GetRevisionMetadata("my-repo-url", "my-revision")
 	require.NoError(t, err)
-	assert.Equal(t, &RevisionMetadata{Message: "my-message"}, value)
+	assert.Equal(t, &v1alpha1.RevisionMetadata{Message: "my-message"}, value)
 	mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 4})
 }
 
@@ -69,16 +67,16 @@ func TestCache_ListApps(t *testing.T) {
 	mockCache := fixtures.mockCache
 	// cache miss
 	_, err := cache.ListApps("my-repo-url", "my-revision")
-	assert.Equal(t, ErrCacheMiss, err)
+	require.ErrorIs(t, err, ErrCacheMiss)
 	// populate cache
 	err = cache.SetApps("my-repo-url", "my-revision", map[string]string{"foo": "bar"})
 	require.NoError(t, err)
 	// cache miss
 	_, err = cache.ListApps("other-repo-url", "my-revision")
-	assert.Equal(t, ErrCacheMiss, err)
+	require.ErrorIs(t, err, ErrCacheMiss)
 	// cache miss
 	_, err = cache.ListApps("my-repo-url", "other-revision")
-	assert.Equal(t, ErrCacheMiss, err)
+	require.ErrorIs(t, err, ErrCacheMiss)
 	// cache hit
 	value, err := cache.ListApps("my-repo-url", "my-revision")
 	require.NoError(t, err)
@@ -94,43 +92,43 @@ func TestCache_GetManifests(t *testing.T) {
 	// cache miss
 	q := &apiclient.ManifestRequest{}
 	value := &CachedManifestResponse{}
-	err := cache.GetManifests("my-revision", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil)
-	assert.Equal(t, ErrCacheMiss, err)
+	err := cache.GetManifests("my-revision", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil, "")
+	require.ErrorIs(t, err, ErrCacheMiss)
 	// populate cache
 	res := &CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{SourceType: "my-source-type"}}
-	err = cache.SetManifests("my-revision", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", res, nil)
+	err = cache.SetManifests("my-revision", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", res, nil, "")
 	require.NoError(t, err)
 	t.Run("expect cache miss because of changed revision", func(t *testing.T) {
-		err = cache.GetManifests("other-revision", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil)
-		assert.Equal(t, ErrCacheMiss, err)
+		err = cache.GetManifests("other-revision", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil, "")
+		require.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed path", func(t *testing.T) {
-		err = cache.GetManifests("my-revision", &ApplicationSource{Path: "other-path"}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil)
-		assert.Equal(t, ErrCacheMiss, err)
+		err = cache.GetManifests("my-revision", &v1alpha1.ApplicationSource{Path: "other-path"}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil, "")
+		require.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed namespace", func(t *testing.T) {
-		err = cache.GetManifests("my-revision", &ApplicationSource{}, q.RefSources, q, "other-namespace", "", "my-app-label-key", "my-app-label-value", value, nil)
-		assert.Equal(t, ErrCacheMiss, err)
+		err = cache.GetManifests("my-revision", &v1alpha1.ApplicationSource{}, q.RefSources, q, "other-namespace", "", "my-app-label-key", "my-app-label-value", value, nil, "")
+		require.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed app label key", func(t *testing.T) {
-		err = cache.GetManifests("my-revision", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "other-app-label-key", "my-app-label-value", value, nil)
-		assert.Equal(t, ErrCacheMiss, err)
+		err = cache.GetManifests("my-revision", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "other-app-label-key", "my-app-label-value", value, nil, "")
+		require.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed app label value", func(t *testing.T) {
-		err = cache.GetManifests("my-revision", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "other-app-label-value", value, nil)
-		assert.Equal(t, ErrCacheMiss, err)
+		err = cache.GetManifests("my-revision", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "other-app-label-value", value, nil, "")
+		require.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache miss because of changed referenced source", func(t *testing.T) {
-		err = cache.GetManifests("my-revision", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "other-app-label-value", value, map[string]string{"my-referenced-source": "my-referenced-revision"})
-		assert.Equal(t, ErrCacheMiss, err)
+		err = cache.GetManifests("my-revision", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "other-app-label-value", value, map[string]string{"my-referenced-source": "my-referenced-revision"}, "")
+		require.ErrorIs(t, err, ErrCacheMiss)
 	})
 	t.Run("expect cache hit", func(t *testing.T) {
 		err = cache.SetManifests(
-			"my-revision1", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value",
-			&CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{SourceType: "my-source-type", Revision: "my-revision2"}}, nil)
+			"my-revision1", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value",
+			&CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{SourceType: "my-source-type", Revision: "my-revision2"}}, nil, "")
 		require.NoError(t, err)
 
-		err = cache.GetManifests("my-revision1", &ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil)
+		err = cache.GetManifests("my-revision1", &v1alpha1.ApplicationSource{}, q.RefSources, q, "my-namespace", "", "my-app-label-key", "my-app-label-value", value, nil, "")
 		require.NoError(t, err)
 
 		assert.Equal(t, "my-source-type", value.ManifestResponse.SourceType)
@@ -146,20 +144,20 @@ func TestCache_GetAppDetails(t *testing.T) {
 	mockCache := fixtures.mockCache
 	// cache miss
 	value := &apiclient.RepoAppDetailsResponse{}
-	emptyRefSources := map[string]*RefTarget{}
-	err := cache.GetAppDetails("my-revision", &ApplicationSource{}, emptyRefSources, value, "", nil)
-	assert.Equal(t, ErrCacheMiss, err)
+	emptyRefSources := map[string]*v1alpha1.RefTarget{}
+	err := cache.GetAppDetails("my-revision", &v1alpha1.ApplicationSource{}, emptyRefSources, value, "", nil)
+	require.ErrorIs(t, err, ErrCacheMiss)
 	res := &apiclient.RepoAppDetailsResponse{Type: "my-type"}
-	err = cache.SetAppDetails("my-revision", &ApplicationSource{}, emptyRefSources, res, "", nil)
+	err = cache.SetAppDetails("my-revision", &v1alpha1.ApplicationSource{}, emptyRefSources, res, "", nil)
 	require.NoError(t, err)
 	// cache miss
-	err = cache.GetAppDetails("other-revision", &ApplicationSource{}, emptyRefSources, value, "", nil)
-	assert.Equal(t, ErrCacheMiss, err)
+	err = cache.GetAppDetails("other-revision", &v1alpha1.ApplicationSource{}, emptyRefSources, value, "", nil)
+	require.ErrorIs(t, err, ErrCacheMiss)
 	// cache miss
-	err = cache.GetAppDetails("my-revision", &ApplicationSource{Path: "other-path"}, emptyRefSources, value, "", nil)
-	assert.Equal(t, ErrCacheMiss, err)
+	err = cache.GetAppDetails("my-revision", &v1alpha1.ApplicationSource{Path: "other-path"}, emptyRefSources, value, "", nil)
+	require.ErrorIs(t, err, ErrCacheMiss)
 	// cache hit
-	err = cache.GetAppDetails("my-revision", &ApplicationSource{}, emptyRefSources, value, "", nil)
+	err = cache.GetAppDetails("my-revision", &v1alpha1.ApplicationSource{}, emptyRefSources, value, "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, &apiclient.RepoAppDetailsResponse{Type: "my-type"}, value)
 	mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 4})
@@ -186,7 +184,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 		Revision:  "revision",
 		Manifests: []string{"sample-text"},
 	}
-	appSrc := &ApplicationSource{}
+	appSrc := &v1alpha1.ApplicationSource{}
 	appKey := "key"
 	appValue := "value"
 
@@ -199,10 +197,8 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 		NumberOfConsecutiveFailures:     0,
 	}
 	q := &apiclient.ManifestRequest{}
-	err := repoCache.SetManifests(response.Revision, appSrc, q.RefSources, q, response.Namespace, "", appKey, appValue, store, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err := repoCache.SetManifests(response.Revision, appSrc, q.RefSources, q, response.Namespace, "", appKey, appValue, store, nil, "")
+	require.NoError(t, err)
 
 	// Get the cache entry of the set value directly from the in memory cache, and check the values
 	var cacheKey string
@@ -221,18 +217,14 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 		assert.Equal(t, cmr.ManifestResponse, store.ManifestResponse)
 
 		regeneratedHash, err := cmr.generateCacheEntryHash()
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		assert.Equal(t, cmr.CacheEntryHash, regeneratedHash)
 	}
 
 	// Retrieve the value using 'GetManifests' and confirm it works
 	retrievedVal := &CachedManifestResponse{}
-	err = repoCache.GetManifests(response.Revision, appSrc, q.RefSources, q, response.Namespace, "", appKey, appValue, retrievedVal, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = repoCache.GetManifests(response.Revision, appSrc, q.RefSources, q, response.Namespace, "", appKey, appValue, retrievedVal, nil, "")
+	require.NoError(t, err)
 	assert.Equal(t, retrievedVal, store)
 
 	// Corrupt the hash so that it doesn't match
@@ -244,14 +236,12 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 			Key:    cacheKey,
 			Object: &newCmr,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 	}
 
 	// Retrieve the value using GetManifests and confirm it returns a cache miss
 	retrievedVal = &CachedManifestResponse{}
-	err = repoCache.GetManifests(response.Revision, appSrc, q.RefSources, q, response.Namespace, "", appKey, appValue, retrievedVal, nil)
+	err = repoCache.GetManifests(response.Revision, appSrc, q.RefSources, q, response.Namespace, "", appKey, appValue, retrievedVal, nil, "")
 
 	assert.Equal(t, err, cacheutil.ErrCacheMiss)
 
@@ -261,17 +251,14 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 }
 
 func getInMemoryCacheContents(t *testing.T, inMemCache *cacheutil.InMemoryCache) map[string]*CachedManifestResponse {
-	items, err := inMemCache.Items(func() interface{} { return &CachedManifestResponse{} })
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Helper()
+	items, err := inMemCache.Items(func() any { return &CachedManifestResponse{} })
+	require.NoError(t, err)
 
 	result := map[string]*CachedManifestResponse{}
 	for key, val := range items {
 		obj, ok := val.(*CachedManifestResponse)
-		if !ok {
-			t.Fatal(errors.New("Unexpected type in cache"))
-		}
+		require.True(t, ok, "Unexpected type in cache")
 
 		result[key] = obj
 	}
@@ -318,7 +305,7 @@ func TestCachedManifestResponse_ShallowCopyExpectedFields(t *testing.T) {
 		return
 	}
 
-	jsonMap := map[string]interface{}{}
+	jsonMap := map[string]any{}
 	err = json.Unmarshal(str, &jsonMap)
 	if err != nil {
 		assert.FailNow(t, "Unable to unmarshal", err)
@@ -330,7 +317,7 @@ func TestCachedManifestResponse_ShallowCopyExpectedFields(t *testing.T) {
 		"numberOfConsecutiveFailures", "numberOfCachedResponsesReturned",
 	}
 
-	assert.Equal(t, len(jsonMap), len(expectedFields))
+	assert.Len(t, jsonMap, len(expectedFields))
 
 	// If this test failed, you probably also forgot to update CachedManifestResponse.shallowCopy(), so
 	// go do that first :)
@@ -348,7 +335,7 @@ func TestGetGitReferences(t *testing.T) {
 		var references []*plumbing.Reference
 		lockOwner, err := cache.GetGitReferences("test-repo", &references)
 		require.NoError(t, err, "Error is cache miss handled inside function")
-		assert.Equal(t, "", lockOwner, "Lock owner should be empty")
+		assert.Empty(t, lockOwner, "Lock owner should be empty")
 		assert.Nil(t, references)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
 	})
@@ -360,7 +347,7 @@ func TestGetGitReferences(t *testing.T) {
 		var references []*plumbing.Reference
 		lockOwner, err := cache.GetGitReferences("test-repo", &references)
 		require.NoError(t, err, "Error is cache miss handled inside function")
-		assert.Equal(t, "", lockOwner, "Lock owner should be empty")
+		assert.Empty(t, lockOwner, "Lock owner should be empty")
 		assert.Nil(t, references)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
 	})
@@ -374,7 +361,7 @@ func TestGetGitReferences(t *testing.T) {
 		var references []*plumbing.Reference
 		lockOwner, err := cache.GetGitReferences("test-repo", &references)
 		require.NoError(t, err)
-		assert.Equal(t, "", lockOwner, "Lock owner should be empty")
+		assert.Empty(t, lockOwner, "Lock owner should be empty")
 		assert.Len(t, references, 1)
 		assert.Equal(t, "test", (references)[0].Target().String())
 		assert.Equal(t, "test-repo", (references)[0].Name().String())
@@ -390,7 +377,7 @@ func TestGetGitReferences(t *testing.T) {
 		var references []*plumbing.Reference
 		lockOwner, err := cache.GetGitReferences("test-repo", &references)
 		require.ErrorContains(t, err, "test cache error", "Error should be propagated")
-		assert.Equal(t, "", lockOwner, "Lock owner should be empty")
+		assert.Empty(t, lockOwner, "Lock owner should be empty")
 		assert.Nil(t, references)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
 	})
@@ -430,7 +417,7 @@ func TestTryLockGitRefCache_OwnershipFlows(t *testing.T) {
 	fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
 	require.NoError(t, err)
 	var output [][2]string
-	key := fmt.Sprintf("git-refs|%s", "my-repo-url")
+	key := "git-refs|" + "my-repo-url"
 	err = utilCache.GetItem(key, &output)
 	fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 2})
 	require.NoError(t, err)
@@ -468,7 +455,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
 		require.NoError(t, err)
 		assert.Equal(t, "test-lock-id", lockId)
-		assert.NotEqual(t, "", lockId, "Lock id should be set")
+		assert.NotEmpty(t, lockId, "Lock id should be set")
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 2})
 	})
 
@@ -482,7 +469,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
 		require.NoError(t, err)
 		assert.NotEqual(t, "test-lock-id", lockId)
-		assert.Equal(t, "", lockId, "Lock id should not be set")
+		assert.Empty(t, lockId, "Lock id should not be set")
 		assert.Equal(t, "test-repo", references[0].Name().String())
 		assert.Equal(t, "test", references[0].Target().String())
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
@@ -503,7 +490,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
 		require.NoError(t, err)
 		assert.NotEqual(t, "test-lock-id", lockId)
-		assert.Equal(t, "", lockId, "Lock id should not be set")
+		assert.Empty(t, lockId, "Lock id should not be set")
 		assert.Equal(t, "test-repo", references[0].Name().String())
 		assert.Equal(t, "test", references[0].Target().String())
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
@@ -516,7 +503,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		cache := fixtures.cache
 		fixtures.mockCache.RedisClient.On("Get", mock.Anything, mock.Anything).Unset()
-		fixtures.mockCache.RedisClient.On("Get", mock.Anything, mock.Anything).Return(cacheutil.ErrCacheMiss).Once().Run(func(args mock.Arguments) {
+		fixtures.mockCache.RedisClient.On("Get", mock.Anything, mock.Anything).Return(cacheutil.ErrCacheMiss).Once().Run(func(_ mock.Arguments) {
 			err := cache.SetGitReferences("test-repo", *GitRefCacheItemToReferences([][2]string{{"test-repo", "ref: test"}}))
 			require.NoError(t, err)
 		}).On("Get", mock.Anything, mock.Anything).Return(nil)
@@ -524,7 +511,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
 		require.NoError(t, err)
 		assert.NotEqual(t, "test-lock-id", lockId)
-		assert.Equal(t, "", lockId, "Lock id should not be set")
+		assert.Empty(t, lockId, "Lock id should not be set")
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 2, ExternalGets: 2})
 	})
 
@@ -540,7 +527,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
 		require.NoError(t, err)
 		assert.Equal(t, "test-lock-id", lockId)
-		assert.NotEqual(t, "", lockId, "Lock id should be set")
+		assert.NotEmpty(t, lockId, "Lock id should be set")
 		cache.revisionCacheLockTimeout = 10 * time.Second
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1})
 	})
@@ -557,7 +544,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
 		require.NoError(t, err)
 		assert.Equal(t, "test-lock-id", lockId)
-		assert.NotEqual(t, "", lockId, "Lock id should be set")
+		assert.NotEmpty(t, lockId, "Lock id should be set")
 		fixtures.mockCache.RedisClient.AssertNumberOfCalls(t, "Set", 2)
 		fixtures.mockCache.RedisClient.AssertNumberOfCalls(t, "Get", 4)
 	})
@@ -570,8 +557,7 @@ func TestUnlockGitReferences(t *testing.T) {
 
 	t.Run("Test not locked", func(t *testing.T) {
 		err := cache.UnlockGitReferences("test-repo", "")
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "key is missing")
+		assert.ErrorContains(t, err, "key is missing")
 	})
 
 	t.Run("Test unlock", func(t *testing.T) {
@@ -580,7 +566,7 @@ func TestUnlockGitReferences(t *testing.T) {
 		lockId, err := cache.GetOrLockGitReferences("test-repo", "test-lock-id", &references)
 		require.NoError(t, err)
 		assert.Equal(t, "test-lock-id", lockId)
-		assert.NotEqual(t, "", lockId, "Lock id should be set")
+		assert.NotEmpty(t, lockId, "Lock id should be set")
 		// Release lock
 		err = cache.UnlockGitReferences("test-repo", lockId)
 		require.NoError(t, err)
@@ -613,14 +599,14 @@ func TestRevisionChartDetails(t *testing.T) {
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		details, err := fixtures.cache.GetRevisionChartDetails("test-repo", "test-revision", "v1.0.0")
 		require.ErrorIs(t, err, ErrCacheMiss)
-		assert.Equal(t, &appv1.ChartDetails{}, details)
+		assert.Equal(t, &v1alpha1.ChartDetails{}, details)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
 	})
 	t.Run("GetRevisionChartDetails cache miss local", func(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		cache := fixtures.cache
-		expectedItem := &appv1.ChartDetails{
+		expectedItem := &v1alpha1.ChartDetails{
 			Description: "test-chart",
 			Home:        "v1.0.0",
 			Maintainers: []string{"test-maintainer"},
@@ -640,7 +626,7 @@ func TestRevisionChartDetails(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		cache := fixtures.cache
-		expectedItem := &appv1.ChartDetails{
+		expectedItem := &v1alpha1.ChartDetails{
 			Description: "test-chart",
 			Home:        "v1.0.0",
 			Maintainers: []string{"test-maintainer"},
@@ -659,7 +645,7 @@ func TestRevisionChartDetails(t *testing.T) {
 	t.Run("SetRevisionChartDetails", func(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
-		expectedItem := &appv1.ChartDetails{
+		expectedItem := &v1alpha1.ChartDetails{
 			Description: "test-chart",
 			Home:        "v1.0.0",
 			Maintainers: []string{"test-maintainer"},

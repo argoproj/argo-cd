@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	jwtgo "github.com/golang-jwt/jwt/v4"
+	jwtgo "github.com/golang-jwt/jwt/v5"
 )
 
 // MapClaims converts a jwt.Claims to a MapClaims
@@ -56,7 +56,7 @@ func GetScopeValues(claims jwtgo.MapClaims, scopes []string) []string {
 		}
 
 		switch val := scopeIf.(type) {
-		case []interface{}:
+		case []any:
 			for _, groupIf := range val {
 				group, ok := groupIf.(string)
 				if ok {
@@ -107,7 +107,7 @@ func ExpirationTime(m jwtgo.MapClaims) (time.Time, error) {
 	return time.Unix(exp, 0), err
 }
 
-func Claims(in interface{}) jwtgo.Claims {
+func Claims(in any) jwtgo.Claims {
 	claims, ok := in.(jwtgo.Claims)
 	if ok {
 		return claims
@@ -138,4 +138,30 @@ func GetGroups(mapClaims jwtgo.MapClaims, scopes []string) []string {
 
 func IsValid(token string) bool {
 	return len(strings.SplitN(token, ".", 3)) == 3
+}
+
+// GetUserIdentifier returns a consistent user identifier, checking federated_claims.user_id when Dex is in use
+func GetUserIdentifier(c jwtgo.MapClaims) string {
+	if c == nil {
+		return ""
+	}
+
+	// Fallback to sub if federated_claims.user_id is not set.
+	fallback := StringField(c, "sub")
+
+	f := c["federated_claims"]
+	if f == nil {
+		return fallback
+	}
+	federatedClaims, ok := f.(map[string]any)
+	if !ok {
+		return fallback
+	}
+
+	userId, ok := federatedClaims["user_id"].(string)
+	if !ok || userId == "" {
+		return fallback
+	}
+
+	return userId
 }

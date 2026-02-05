@@ -1,10 +1,15 @@
 # Application Sync using impersonation
 
-!!! warning "Alpha Feature"
-    This is an experimental, alpha-quality feature that allows you to control the service account used for the sync operation. The configured service account, could have lesser privileges required for creating resources compared to the highly privileged access required for the control plane operations.
+> [!WARNING]
+> **Alpha Feature (Since 2.13.0)**
+>
+> This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha) 
+> feature that allows you to control the service account used for the sync operation. The configured service account 
+> could have lesser privileges required for creating resources compared to the highly privileged access required for 
+> the control plane operations.
 
-!!! warning
-    Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
+> [!WARNING]
+> Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
 
 ## Introduction
 
@@ -14,14 +19,18 @@ By default, application syncs in Argo CD have the same privileges as the Argo CD
 
 Some manual steps will need to be performed by the Argo CD administrator in order to enable this feature, as it is disabled by default.
 
-!!! note
-    This feature is considered alpha as of now. Some of the implementation details may change over the course of time until it is promoted to a stable status. We will be happy if early adopters use this feature and provide us with bug reports and feedback.
+> [!NOTE]
+> This feature is considered alpha as of now. Some of the implementation details may change over the course of time until it is promoted to a stable status. We will be happy if early adopters use this feature and provide us with bug reports and feedback.
 
 ### What is Impersonation
 
 Impersonation is a feature in Kubernetes and enabled in the `kubectl` CLI client, using which, a user can act as another user through impersonation headers. For example, an admin could use this feature to debug an authorization policy by temporarily impersonating another user and seeing if a request was denied.
 
 Impersonation requests first authenticate as the requesting user, then switch to the impersonated user info.
+
+### Feature scope 
+
+Impersonation is currently only supported for the lifecycle of objects managed by an Application directly, which includes sync operations (creation, update and pruning of resources) and deletion as part of Application finalizer logic. This *does not* includes operations triggered via ArgoCD's UI, which will still be executed with Argo CD's control-plane service account.
 
 ## Prerequisites
 
@@ -62,11 +71,11 @@ data:
   application.sync.impersonation.enabled: "false"
 ```
 
-!!! note
-    This feature is disabled by default.
+> [!NOTE]
+> This feature is disabled by default.
 
-!!! note
-    This feature can be enabled/disabled only at the system level and once enabled/disabled it is applicable to all Applications managed by ArgoCD.
+> [!NOTE]
+> This feature can be enabled/disabled only at the system level and once enabled/disabled it is applicable to all Applications managed by ArgoCD.
 
 ## Configuring destination service accounts
 
@@ -94,7 +103,7 @@ spec:
   sourceRepos:
     - '*'
   destinations:
-    - *
+    - '*'
   destinationServiceAccounts:
     - server: https://kubernetes.default.svc
       namespace: guestbook

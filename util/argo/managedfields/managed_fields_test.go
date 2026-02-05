@@ -12,8 +12,8 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
 
-	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
-	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
+	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
+	"github.com/argoproj/argo-cd/v3/util/argo/testdata"
 )
 
 func TestNormalize(t *testing.T) {
@@ -135,13 +135,13 @@ func TestNormalize(t *testing.T) {
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(liveResult.Object, &vwcLive)
 		require.NoError(t, err)
 		assert.Len(t, vwcLive.Webhooks, 1)
-		assert.Equal(t, "", string(vwcLive.Webhooks[0].ClientConfig.CABundle))
+		assert.Empty(t, string(vwcLive.Webhooks[0].ClientConfig.CABundle))
 
 		var vwcConfig arv1.ValidatingWebhookConfiguration
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(desiredResult.Object, &vwcConfig)
 		require.NoError(t, err)
 		assert.Len(t, vwcConfig.Webhooks, 1)
-		assert.Equal(t, "", string(vwcConfig.Webhooks[0].ClientConfig.CABundle))
+		assert.Empty(t, string(vwcConfig.Webhooks[0].ClientConfig.CABundle))
 	})
 	t.Run("does not fail if object fails validation schema", func(t *testing.T) {
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
@@ -170,7 +170,7 @@ func getNestedFloat64(t *testing.T, obj *unstructured.Unstructured, fields ...st
 }
 
 func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
 	if err != nil {
 		panic(err)

@@ -47,7 +47,7 @@ Your code failed to lint correctly, or modifications were performed by the `gola
 
 ### Why does the test or e2e steps fail?
 
-You should check for the cause of the failure in the check's detail page as described above. This will give you the name of the test that has failed, and details about why. If your test are passing locally (using the virtualized toolchain), chances are that the test might be flaky and will pass the next time it is run. Please retrigger the CI pipeline as described above and see if the test step now passes.
+You should check for the cause of the failure in the check's detail page as described above. This will give you the name of the test that has failed, and details about why. If your test is passing locally (using the virtualized toolchain), chances are that the test might be flaky and will pass the next time it is run. Please retrigger the CI pipeline as described above and see if the test step now passes.
 
 ## Updating The Builder Image
 
@@ -68,9 +68,9 @@ make builder-image IMAGE_NAMESPACE=argoproj IMAGE_TAG=v1.0.0
 Every commit to master is built and published to `ghcr.io/argoproj/argo-cd/argocd:<version>-<short-sha>`. The list of images is available at
 [https://github.com/argoproj/argo-cd/packages](https://github.com/argoproj/argo-cd/packages).
 
-!!! note
-    GitHub docker registry [requires](https://github.community/t5/GitHub-Actions/docker-pull-from-public-GitHub-Package-Registry-fail-with-quot/m-p/32888#M1294) authentication to read
-    even publicly available packages. Follow the steps from Kubernetes [documentation](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry)
-    to configure image pull secret if you want to use `ghcr.io/argoproj/argo-cd/argocd` image.
+> [!NOTE]
+> GitHub docker registry [requires](https://github.community/t5/GitHub-Actions/docker-pull-from-public-GitHub-Package-Registry-fail-with-quot/m-p/32888#M1294) authentication to read
+> even publicly available packages. Follow the steps from Kubernetes [documentation](https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry)
+> to configure image pull secret if you want to use `ghcr.io/argoproj/argo-cd/argocd` image.
 
 The image is automatically deployed to the dev Argo CD instance: [https://cd.apps.argoproj.io/](https://cd.apps.argoproj.io/)

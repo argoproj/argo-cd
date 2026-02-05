@@ -1,0 +1,78 @@
+apiVersion: numaflow.numaproj.io/v1alpha1
+kind: InterStepBufferService
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"numaflow.numaproj.io/v1alpha1","kind":"InterStepBufferService","metadata":{"annotations":{},"name":"default","namespace":"numaflow-system"},"spec":{"jetstream":{"persistence":{"volumeSize":"3Gi"},"version":"latest"}}}
+  creationTimestamp: "2024-10-08T18:21:09Z"
+  finalizers:
+  - isbsvc-controller
+  generation: 2
+  name: default
+  namespace: numaflow-system
+  resourceVersion: "357862"
+  uid: e175db66-3918-4ef8-993d-12b37eb9a964
+spec:
+  jetstream:
+    persistence:
+      volumeSize: 3Gi
+    replicas: 3
+    version: latest
+status:
+  conditions:
+  - lastTransitionTime: "2024-10-08T18:21:53Z"
+    message: |
+      partitioned roll out complete: 3 new pods have been updated...
+    reason: Healthy
+    status: "True"
+    type: ChildrenResourcesHealthy
+  - lastTransitionTime: "2024-10-08T18:21:53Z"
+    message: Successful
+    reason: Successful
+    status: "True"
+    type: Configured
+  - lastTransitionTime: "2024-10-08T18:21:53Z"
+    message: Successful
+    reason: Successful
+    status: "True"
+    type: Deployed
+  config:
+    jetstream:
+      auth:
+        basic:
+          password:
+            key: client-auth-password
+            name: isbsvc-default-js-client-auth
+          user:
+            key: client-auth-user
+            name: isbsvc-default-js-client-auth
+      streamConfig: |
+        consumer:
+          ackwait: 60s
+          maxackpending: 25000
+        otbucket:
+          history: 1
+          maxbytes: 0
+          maxvaluesize: 0
+          replicas: 3
+          storage: 0
+          ttl: 3h
+        procbucket:
+          history: 1
+          maxbytes: 0
+          maxvaluesize: 0
+          replicas: 3
+          storage: 0
+          ttl: 72h
+        stream:
+          duplicates: 60s
+          maxage: 72h
+          maxbytes: -1
+          maxmsgs: 100000
+          replicas: 3
+          retention: 0
+          storage: 0
+      url: nats://isbsvc-default-js-svc.numaflow-system.svc:4222
+  observedGeneration: 1
+  phase: Running
+  type: jetstream

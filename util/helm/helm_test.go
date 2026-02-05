@@ -6,12 +6,12 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/util/io/path"
+	"github.com/argoproj/argo-cd/v3/util/io/path"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -42,14 +42,15 @@ func TestHelmTemplateParams(t *testing.T) {
 	assert.Len(t, objs, 5)
 
 	for _, obj := range objs {
-		if obj.GetKind() == "Service" && obj.GetName() == "test-minio" {
-			var svc apiv1.Service
-			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &svc)
-			require.NoError(t, err)
-			assert.Equal(t, apiv1.ServiceTypeLoadBalancer, svc.Spec.Type)
-			assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
-			assert.Equal(t, "true", svc.ObjectMeta.Annotations["prometheus.io/scrape"])
+		if obj.GetKind() != "Service" || obj.GetName() != "test-minio" {
+			continue
 		}
+		var svc corev1.Service
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &svc)
+		require.NoError(t, err)
+		assert.Equal(t, corev1.ServiceTypeLoadBalancer, svc.Spec.Type)
+		assert.Equal(t, int32(1234), svc.Spec.Ports[0].TargetPort.IntVal)
+		assert.Equal(t, "true", svc.Annotations["prometheus.io/scrape"])
 	}
 }
 
@@ -137,7 +138,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 			var stateful appsv1.StatefulSet
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &stateful)
 			require.NoError(t, err)
-			assert.Equal(t, "my-release-redis-master", stateful.ObjectMeta.Name)
+			assert.Equal(t, "my-release-redis-master", stateful.Name)
 		}
 	}
 }
@@ -154,7 +155,7 @@ func TestHelmTemplateReleaseName(t *testing.T) {
 			var stateful appsv1.StatefulSet
 			err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &stateful)
 			require.NoError(t, err)
-			assert.Equal(t, "test-redis-master", stateful.ObjectMeta.Name)
+			assert.Equal(t, "test-redis-master", stateful.Name)
 		}
 	}
 }
@@ -166,6 +167,8 @@ func TestHelmArgCleaner(t *testing.T) {
 		`not, clean`: `not\, clean`,
 		`a\,b,c`:     `a\,b\,c`,
 		`{a,b,c}`:    `{a,b,c}`,
+		`,,,,,\,`:    `\,\,\,\,\,\,`,
+		`\,,\\,,`:    `\,\,\\,\,`,
 	} {
 		cleaned := cleanSetParameters(input)
 		assert.Equal(t, expected, cleaned)
@@ -173,7 +176,7 @@ func TestHelmArgCleaner(t *testing.T) {
 }
 
 func TestVersion(t *testing.T) {
-	ver, err := Version(false)
+	ver, err := Version()
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
@@ -182,21 +185,21 @@ func Test_flatVals(t *testing.T) {
 	t.Run("Map", func(t *testing.T) {
 		output := map[string]string{}
 
-		flatVals(map[string]interface{}{"foo": map[string]interface{}{"bar": "baz"}}, output)
+		flatVals(map[string]any{"foo": map[string]any{"bar": "baz"}}, output)
 
 		assert.Equal(t, map[string]string{"foo.bar": "baz"}, output)
 	})
 	t.Run("Array", func(t *testing.T) {
 		output := map[string]string{}
 
-		flatVals(map[string]interface{}{"foo": []interface{}{"bar", "baz"}}, output)
+		flatVals(map[string]any{"foo": []any{"bar", "baz"}}, output)
 
 		assert.Equal(t, map[string]string{"foo[0]": "bar", "foo[1]": "baz"}, output)
 	})
 	t.Run("Val", func(t *testing.T) {
 		output := map[string]string{}
 
-		flatVals(map[string]interface{}{"foo": 1}, output)
+		flatVals(map[string]any{"foo": 1}, output)
 
 		assert.Equal(t, map[string]string{"foo": "1"}, output)
 	})
@@ -217,6 +220,29 @@ func TestAPIVersions(t *testing.T) {
 	assert.Equal(t, "sample/v2", objs[0].GetAPIVersion())
 }
 
+func TestKubeVersionWithSymbol(t *testing.T) {
+	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false)
+	require.NoError(t, err)
+
+	objs, err := template(h, &TemplateOpts{KubeVersion: "1.30.11+IKS"})
+	require.NoError(t, err)
+	require.Len(t, objs, 2)
+
+	for _, obj := range objs {
+		if obj.GetKind() != "ConfigMap" {
+			continue
+		}
+		var configMap corev1.ConfigMap
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &configMap)
+		require.NoError(t, err)
+		if data, ok := configMap.Data["kubeVersion"]; ok {
+			assert.Equal(t, "v1.30.11", data)
+			return
+		}
+		t.Fatal("expected kubeVersion key not found in configMap")
+	}
+}
+
 func TestSkipCrds(t *testing.T) {
 	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", "", false)
 	require.NoError(t, err)
@@ -230,6 +256,23 @@ func TestSkipCrds(t *testing.T) {
 	require.Len(t, objs, 1)
 
 	objs, err = template(h, &TemplateOpts{SkipCrds: true})
+	require.NoError(t, err)
+	require.Empty(t, objs)
+}
+
+func TestSkipTests(t *testing.T) {
+	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false)
+	require.NoError(t, err)
+
+	objs, err := template(h, &TemplateOpts{SkipTests: false})
+	require.NoError(t, err)
+	require.Len(t, objs, 2)
+
+	objs, err = template(h, &TemplateOpts{})
+	require.NoError(t, err)
+	require.Len(t, objs, 2)
+
+	objs, err = template(h, &TemplateOpts{SkipTests: true})
 	require.NoError(t, err)
 	require.Empty(t, objs)
 }

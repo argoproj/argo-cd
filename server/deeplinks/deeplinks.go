@@ -11,9 +11,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
@@ -31,6 +31,7 @@ const (
 	AppDeepLinkShortKey = "app"
 	ClusterDeepLinkKey  = "cluster"
 	ProjectDeepLinkKey  = "project"
+	ManagedByURLKey     = "managedByURL"
 )
 
 type ClusterLinksData struct {
@@ -62,14 +63,25 @@ func SanitizeCluster(cluster *v1alpha1.Cluster) (*unstructured.Unstructured, err
 	})
 }
 
-func CreateDeepLinksObject(resourceObj *unstructured.Unstructured, app *unstructured.Unstructured, cluster *unstructured.Unstructured, project *unstructured.Unstructured) map[string]interface{} {
-	deeplinkObj := map[string]interface{}{}
+func CreateDeepLinksObject(resourceObj *unstructured.Unstructured, app *unstructured.Unstructured, cluster *unstructured.Unstructured, project *unstructured.Unstructured) map[string]any {
+	deeplinkObj := map[string]any{}
 	if resourceObj != nil {
 		deeplinkObj[ResourceDeepLinkKey] = resourceObj.Object
 	}
 	if app != nil {
 		deeplinkObj[AppDeepLinkKey] = app.Object
 		deeplinkObj[AppDeepLinkShortKey] = app.Object
+
+		// Add managed-by URL if present in annotations
+		if app.Object["metadata"] != nil {
+			if metadata, ok := app.Object["metadata"].(map[string]any); ok {
+				if annotations, ok := metadata["annotations"].(map[string]any); ok {
+					if managedByURL, ok := annotations[v1alpha1.AnnotationKeyManagedByURL].(string); ok {
+						deeplinkObj[ManagedByURLKey] = managedByURL
+					}
+				}
+			}
+		}
 	}
 	if cluster != nil {
 		deeplinkObj[ClusterDeepLinkKey] = cluster.Object
@@ -80,7 +92,7 @@ func CreateDeepLinksObject(resourceObj *unstructured.Unstructured, app *unstruct
 	return deeplinkObj
 }
 
-func EvaluateDeepLinksResponse(obj map[string]interface{}, name string, links []settings.DeepLink) (*application.LinksResponse, []string) {
+func EvaluateDeepLinksResponse(obj map[string]any, name string, links []settings.DeepLink) (*application.LinksResponse, []string) {
 	finalLinks := []*application.LinkInfo{}
 	errors := []string{}
 	for _, link := range links {

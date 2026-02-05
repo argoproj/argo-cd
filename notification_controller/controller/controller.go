@@ -6,17 +6,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/glob"
+	"github.com/argoproj/argo-cd/v3/util/glob"
 
-	"github.com/argoproj/argo-cd/v2/util/notification/k8s"
+	"github.com/argoproj/argo-cd/v3/util/notification/k8s"
 
-	service "github.com/argoproj/argo-cd/v2/util/notification/argocd"
+	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
 
-	argocert "github.com/argoproj/argo-cd/v2/util/cert"
+	argocert "github.com/argoproj/argo-cd/v3/util/cert"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v2/util/notification/settings"
+	"github.com/argoproj/argo-cd/v3/util/notification/settings"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/controller"
@@ -24,7 +24,7 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/subscriptions"
 	httputil "github.com/argoproj/notifications-engine/pkg/util/http"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 const (
@@ -52,6 +52,14 @@ func newAppProjClient(client dynamic.Interface, namespace string) dynamic.Resour
 type NotificationController interface {
 	Run(ctx context.Context, processors int)
 	Init(ctx context.Context) error
+}
+
+type notificationController struct {
+	ctrl              controller.NotificationController
+	appInformer       cache.SharedIndexInformer
+	appProjInformer   cache.SharedIndexInformer
+	secretInformer    cache.SharedIndexInformer
+	configMapInformer cache.SharedIndexInformer
 }
 
 func NewController(
@@ -78,7 +86,7 @@ func NewController(
 	appProjInformer := newInformer(newAppProjClient(client, namespace), namespace, []string{namespace}, "")
 	var notificationConfigNamespace string
 	if selfServiceNotificationEnabled {
-		notificationConfigNamespace = v1.NamespaceAll
+		notificationConfigNamespace = metav1.NamespaceAll
 	} else {
 		notificationConfigNamespace = namespace
 	}
@@ -91,9 +99,8 @@ func NewController(
 		configMapInformer: configMapInformer,
 		appInformer:       appInformer,
 		appProjInformer:   appProjInformer,
-		apiFactory:        apiFactory,
 	}
-	skipProcessingOpt := controller.WithSkipProcessing(func(obj v1.Object) (bool, string) {
+	skipProcessingOpt := controller.WithSkipProcessing(func(obj metav1.Object) (bool, string) {
 		app, ok := (obj).(*unstructured.Unstructured)
 		if !ok {
 			return false, ""
@@ -125,7 +132,7 @@ func checkAppNotInAdditionalNamespaces(app *unstructured.Unstructured, namespace
 	return namespace != app.GetNamespace() && !glob.MatchStringInList(applicationNamespaces, app.GetNamespace(), glob.REGEXP)
 }
 
-func (c *notificationController) alterDestinations(obj v1.Object, destinations services.Destinations, cfg api.Config) services.Destinations {
+func (c *notificationController) alterDestinations(obj metav1.Object, destinations services.Destinations, cfg api.Config) services.Destinations {
 	app, ok := (obj).(*unstructured.Unstructured)
 	if !ok {
 		return destinations
@@ -141,7 +148,7 @@ func (c *notificationController) alterDestinations(obj v1.Object, destinations s
 func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string, applicationNamespaces []string, selector string) cache.SharedIndexInformer {
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 				// We are only interested in apps that exist in namespaces the
 				// user wants to be enabled.
 				options.LabelSelector = selector
@@ -158,7 +165,7 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 				appList.Items = newItems
 				return appList, nil
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				options.LabelSelector = selector
 				return resClient.Watch(context.TODO(), options)
 			},
@@ -172,15 +179,6 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 	return informer
 }
 
-type notificationController struct {
-	apiFactory        api.Factory
-	ctrl              controller.NotificationController
-	appInformer       cache.SharedIndexInformer
-	appProjInformer   cache.SharedIndexInformer
-	secretInformer    cache.SharedIndexInformer
-	configMapInformer cache.SharedIndexInformer
-}
-
 func (c *notificationController) Init(ctx context.Context) error {
 	// resolve certificates using injected "argocd-tls-certs-cm" ConfigMap
 	httputil.SetCertResolver(argocert.GetCertificateForConnect)
@@ -191,7 +189,7 @@ func (c *notificationController) Init(ctx context.Context) error {
 	go c.configMapInformer.Run(ctx.Done())
 
 	if !cache.WaitForCacheSync(ctx.Done(), c.appInformer.HasSynced, c.appProjInformer.HasSynced, c.secretInformer.HasSynced, c.configMapInformer.HasSynced) {
-		return errors.New("Timed out waiting for caches to sync")
+		return errors.New("timed out waiting for caches to sync")
 	}
 	return nil
 }

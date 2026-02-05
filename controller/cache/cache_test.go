@@ -9,11 +9,12 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
+	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -24,13 +25,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/controller/metrics"
-	"github.com/argoproj/argo-cd/v2/controller/sharding"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
-	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/controller/metrics"
+	"github.com/argoproj/argo-cd/v3/controller/sharding"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
+	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 type netError string
@@ -39,12 +40,42 @@ func (n netError) Error() string   { return string(n) }
 func (n netError) Timeout() bool   { return false }
 func (n netError) Temporary() bool { return false }
 
-func TestHandleModEvent_HasChanges(t *testing.T) {
+func fixtures(ctx context.Context, data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *argosettings.SettingsManager) {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: data,
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{},
+	}
+	for i := range opts {
+		opts[i](secret)
+	}
+	kubeClient := fake.NewClientset(cm, secret)
+	settingsManager := argosettings.NewSettingsManager(ctx, kubeClient, "default")
+
+	return kubeClient, settingsManager
+}
+
+func TestHandleModEvent_HasChanges(_ *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
-	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
-	clusterCache.On("EnsureSynced").Return(nil).Once()
+	clusterCache.EXPECT().Invalidate(mock.Anything, mock.Anything).Return().Once()
+	clusterCache.EXPECT().EnsureSynced().Return(nil).Once()
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1)
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
 			"https://mycluster": clusterCache,
@@ -64,16 +95,15 @@ func TestHandleModEvent_HasChanges(t *testing.T) {
 
 func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
-	clusterCache.On("Invalidate", mock.Anything, mock.Anything).Return(nil).Once()
-	clusterCache.On("EnsureSynced").Return(nil).Once()
+	clusterCache.EXPECT().Invalidate(mock.Anything, mock.Anything).Return().Once()
+	clusterCache.EXPECT().EnsureSynced().Return(nil).Once()
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
 	clustersCache := liveStateCache{
 		db:          nil,
 		appInformer: nil,
-		onObjectUpdated: func(managedByApp map[string]bool, ref v1.ObjectReference) {
+		onObjectUpdated: func(_ map[string]bool, _ corev1.ObjectReference) {
 		},
-		kubectl:       nil,
 		settingsMgr:   &argosettings.SettingsManager{},
 		metricsServer: &metrics.MetricsServer{},
 		// returns a shard that never process any cluster
@@ -96,12 +126,12 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	assert.Len(t, clustersCache.clusters, 1)
 }
 
-func TestHandleModEvent_NoChanges(t *testing.T) {
+func TestHandleModEvent_NoChanges(_ *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
-	clusterCache.On("Invalidate", mock.Anything).Panic("should not invalidate")
-	clusterCache.On("EnsureSynced").Return(nil).Panic("should not re-sync")
+	clusterCache.EXPECT().Invalidate(mock.Anything).Panic("should not invalidate").Maybe()
+	clusterCache.EXPECT().EnsureSynced().Return(nil).Panic("should not re-sync").Maybe()
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
 			"https://mycluster": clusterCache,
@@ -120,7 +150,7 @@ func TestHandleModEvent_NoChanges(t *testing.T) {
 
 func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
 	clustersCache := liveStateCache{
 		clusters:        map[string]cache.ClusterCache{},
 		clusterSharding: sharding.NewClusterSharding(db, 0, 2, common.DefaultShardingAlgorithm),
@@ -139,10 +169,9 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		Config: appv1.ClusterConfig{Username: "bar"},
 	}
 	db := &dbmocks.ArgoDB{}
-	db.On("GetApplicationControllerReplicas").Return(1)
-	fakeClient := fake.NewSimpleClientset()
-	settingsMgr := argosettings.NewSettingsManager(context.TODO(), fakeClient, "argocd")
-	liveStateCacheLock := sync.RWMutex{}
+	db.EXPECT().GetApplicationControllerReplicas().Return(1)
+	fakeClient := fake.NewClientset()
+	settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "argocd")
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
@@ -150,9 +179,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		},
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 		settingsMgr:     settingsMgr,
-		// Set the lock here so we can reference it later
-		// nolint We need to overwrite here to have access to the lock
-		lock: liveStateCacheLock,
+		lock:            sync.RWMutex{},
 	}
 	channel := make(chan string)
 	// Mocked lock held by the gitops-engine cluster cache
@@ -173,7 +200,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	handleDeleteWasCalled.Lock()
 	engineHoldsEngineLock.Lock()
 
-	gitopsEngineClusterCache.On("EnsureSynced").Run(func(args mock.Arguments) {
+	gitopsEngineClusterCache.EXPECT().EnsureSynced().Run(func() {
 		gitopsEngineClusterCacheLock.Lock()
 		t.Log("EnsureSynced: Engine has engine lock")
 		engineHoldsEngineLock.Unlock()
@@ -187,7 +214,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		ensureSyncedCompleted.Unlock()
 	}).Return(nil).Once()
 
-	gitopsEngineClusterCache.On("Invalidate").Run(func(args mock.Arguments) {
+	gitopsEngineClusterCache.EXPECT().Invalidate().Run(func(_ ...cache.UpdateSettingsFunc) {
 		// Allow EnsureSynced to continue now that we're in the deadlock condition
 		handleDeleteWasCalled.Unlock()
 		// Wait until gitops engine holds the gitops lock
@@ -200,7 +227,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 		t.Log("Invalidate: Invalidate has engine lock")
 		gitopsEngineClusterCacheLock.Unlock()
 		invalidateCompleted.Unlock()
-	}).Return()
+	}).Return().Maybe()
 	go func() {
 		// Start the gitops-engine lock holds
 		go func() {
@@ -238,15 +265,15 @@ func TestIsRetryableError(t *testing.T) {
 		assert.False(t, isRetryableError(nil))
 	})
 	t.Run("ResourceQuotaConflictErr", func(t *testing.T) {
-		assert.False(t, isRetryableError(apierr.NewConflict(schema.GroupResource{}, "", nil)))
-		assert.True(t, isRetryableError(apierr.NewConflict(schema.GroupResource{Group: "v1", Resource: "resourcequotas"}, "", nil)))
+		assert.False(t, isRetryableError(apierrors.NewConflict(schema.GroupResource{}, "", nil)))
+		assert.True(t, isRetryableError(apierrors.NewConflict(schema.GroupResource{Group: "v1", Resource: "resourcequotas"}, "", nil)))
 	})
 	t.Run("ExceededQuotaErr", func(t *testing.T) {
-		assert.False(t, isRetryableError(apierr.NewForbidden(schema.GroupResource{}, "", nil)))
-		assert.True(t, isRetryableError(apierr.NewForbidden(schema.GroupResource{Group: "v1", Resource: "pods"}, "", errors.New("exceeded quota"))))
+		assert.False(t, isRetryableError(apierrors.NewForbidden(schema.GroupResource{}, "", nil)))
+		assert.True(t, isRetryableError(apierrors.NewForbidden(schema.GroupResource{Group: "v1", Resource: "pods"}, "", errors.New("exceeded quota"))))
 	})
 	t.Run("TooManyRequestsDNS", func(t *testing.T) {
-		assert.True(t, isRetryableError(apierr.NewTooManyRequests("", 0)))
+		assert.True(t, isRetryableError(apierrors.NewTooManyRequests("", 0)))
 	})
 	t.Run("DNSError", func(t *testing.T) {
 		assert.True(t, isRetryableError(&net.DNSError{}))
@@ -278,7 +305,7 @@ func TestIsRetryableError(t *testing.T) {
 func Test_asResourceNode_owner_refs(t *testing.T) {
 	resNode := asResourceNode(&cache.Resource{
 		ResourceVersion: "",
-		Ref: v1.ObjectReference{
+		Ref: corev1.ObjectReference{
 			APIVersion: "v1",
 		},
 		OwnerRefs: []metav1.OwnerReference{
@@ -296,21 +323,23 @@ func Test_asResourceNode_owner_refs(t *testing.T) {
 		CreationTimestamp: nil,
 		Info:              nil,
 		Resource:          nil,
-	})
+	}, nil)
 	expected := appv1.ResourceNode{
 		ResourceRef: appv1.ResourceRef{
 			Version: "v1",
 		},
 		ParentRefs: []appv1.ResourceRef{
 			{
-				Group: "",
-				Kind:  "ConfigMap",
-				Name:  "cm-1",
+				Group:   "",
+				Kind:    "ConfigMap",
+				Version: "v1",
+				Name:    "cm-1",
 			},
 			{
-				Group: "",
-				Kind:  "ConfigMap",
-				Name:  "cm-2",
+				Group:   "",
+				Kind:    "ConfigMap",
+				Version: "v1",
+				Name:    "cm-2",
 			},
 		},
 		Info:            nil,
@@ -334,7 +363,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "ok: cm1->app1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -354,7 +383,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "ok: cm1->cm2->app1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -363,7 +392,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -382,7 +411,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "cm1->cm2->app1 & cm1->cm3->app1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -392,7 +421,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -400,7 +429,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm3"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm3",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -421,7 +450,7 @@ func Test_getAppRecursive(t *testing.T) {
 			// Issue #11699, fixed #12667.
 			name: "ok: cm1->cm2 & cm1->cm3->cm2 & cm1->cm3->app1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -431,12 +460,12 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm3"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm3",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -456,7 +485,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "cycle: cm1<->cm2",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -465,7 +494,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm1"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm1",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -473,7 +502,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -487,7 +516,7 @@ func Test_getAppRecursive(t *testing.T) {
 		{
 			name: "cycle: cm1->cm2->cm3->cm1",
 			r: &cache.Resource{
-				Ref: v1.ObjectReference{
+				Ref: corev1.ObjectReference{
 					Name: "cm1",
 				},
 				OwnerRefs: []metav1.OwnerReference{
@@ -496,7 +525,7 @@ func Test_getAppRecursive(t *testing.T) {
 			},
 			ns: map[kube.ResourceKey]*cache.Resource{
 				kube.NewResourceKey("", "", "", "cm1"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm1",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -504,7 +533,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm2"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm2",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -512,7 +541,7 @@ func Test_getAppRecursive(t *testing.T) {
 					},
 				},
 				kube.NewResourceKey("", "", "", "cm3"): {
-					Ref: v1.ObjectReference{
+					Ref: corev1.ObjectReference{
 						Name: "cm3",
 					},
 					OwnerRefs: []metav1.OwnerReference{
@@ -535,12 +564,12 @@ func Test_getAppRecursive(t *testing.T) {
 
 func TestSkipResourceUpdate(t *testing.T) {
 	var (
-		hash1_x string = "x"
-		hash2_y string = "y"
-		hash3_x string = "x"
+		hash1X = "x"
+		hash2Y = "y"
+		hash3X = "x"
 	)
 	info := &ResourceInfo{
-		manifestHash: hash1_x,
+		manifestHash: hash1X,
 		Health: &health.HealthStatus{
 			Status:  health.HealthStatusHealthy,
 			Message: "default",
@@ -560,51 +589,51 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 		}, &ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 		}))
 	})
 	t.Run("Same hash value", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 		}))
 	})
 	t.Run("Different hash value", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 		}, &ResourceInfo{
-			manifestHash: hash2_y,
+			manifestHash: hash2Y,
 		}))
 	})
 	t.Run("Same hash, empty health", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health:       &health.HealthStatus{},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health:       &health.HealthStatus{},
 		}))
 	})
 	t.Run("Same hash, old health", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health: &health.HealthStatus{
 				Status: health.HealthStatusHealthy,
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health:       nil,
 		}))
 	})
 	t.Run("Same hash, new health", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health:       &health.HealthStatus{},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health: &health.HealthStatus{
 				Status: health.HealthStatusHealthy,
 			},
@@ -612,13 +641,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, same health", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
@@ -627,13 +656,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, different health status", func(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusDegraded,
 				Message: "same",
@@ -642,13 +671,13 @@ func TestSkipResourceUpdate(t *testing.T) {
 	})
 	t.Run("Same hash, different health message", func(t *testing.T) {
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
-			manifestHash: hash1_x,
+			manifestHash: hash1X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "same",
 			},
 		}, &ResourceInfo{
-			manifestHash: hash3_x,
+			manifestHash: hash3X,
 			Health: &health.HealthStatus{
 				Status:  health.HealthStatusHealthy,
 				Message: "different",
@@ -726,9 +755,200 @@ func TestShouldHashManifest(t *testing.T) {
 				test.un.SetAnnotations(test.annotations)
 			}
 			got := shouldHashManifest(test.appName, test.gvk, test.un)
-			if test.want != got {
-				t.Fatalf("test=%v want %v got %v", test.name, test.want, got)
-			}
+			require.Equalf(t, test.want, got, "test=%v", test.name)
 		})
 	}
+}
+
+func Test_GetVersionsInfo_error_redacted(t *testing.T) {
+	c := liveStateCache{}
+	cluster := &appv1.Cluster{
+		Server: "https://localhost:1234",
+		Config: appv1.ClusterConfig{
+			Username: "admin",
+			Password: "password",
+		},
+	}
+	_, _, err := c.GetVersionsInfo(cluster)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "password")
+}
+
+func TestLoadCacheSettings(t *testing.T) {
+	_, settingsManager := fixtures(t.Context(), map[string]string{
+		"application.instanceLabelKey":       "testLabel",
+		"application.resourceTrackingMethod": string(appv1.TrackingMethodLabel),
+		"installationID":                     "123456789",
+	})
+	ch := liveStateCache{
+		settingsMgr: settingsManager,
+	}
+	label, err := settingsManager.GetAppInstanceLabelKey()
+	require.NoError(t, err)
+	trackingMethod, err := settingsManager.GetTrackingMethod()
+	require.NoError(t, err)
+	res, err := ch.loadCacheSettings()
+	require.NoError(t, err)
+
+	assert.Equal(t, label, res.appInstanceLabelKey)
+	assert.Equal(t, string(appv1.TrackingMethodLabel), trackingMethod)
+	assert.Equal(t, "123456789", res.installationID)
+
+	// By default the values won't be nil
+	assert.NotNil(t, res.resourceOverrides)
+	assert.NotNil(t, res.clusterSettings)
+	assert.True(t, res.ignoreResourceUpdatesEnabled)
+}
+
+func Test_ownerRefGV(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    metav1.OwnerReference
+		expected schema.GroupVersion
+	}{
+		{
+			name: "valid API Version",
+			input: metav1.OwnerReference{
+				APIVersion: "apps/v1",
+			},
+			expected: schema.GroupVersion{
+				Group:   "apps",
+				Version: "v1",
+			},
+		},
+		{
+			name: "custom defined version",
+			input: metav1.OwnerReference{
+				APIVersion: "custom-version",
+			},
+			expected: schema.GroupVersion{
+				Version: "custom-version",
+				Group:   "",
+			},
+		},
+		{
+			name: "empty APIVersion",
+			input: metav1.OwnerReference{
+				APIVersion: "",
+			},
+			expected: schema.GroupVersion{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := ownerRefGV(tt.input)
+			assert.Equal(t, tt.expected, res)
+		})
+	}
+}
+
+func Test_asResourceNode_cross_namespace_parent(t *testing.T) {
+	// Test that a namespaced resource with a cluster-scoped parent
+	// correctly sets the parent namespace to empty string
+
+	// Create a Role (namespaced) with an owner reference to a ClusterRole (cluster-scoped)
+	roleResource := &cache.Resource{
+		Ref: corev1.ObjectReference{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "Role",
+			Namespace:  "my-namespace",
+			Name:       "my-role",
+		},
+		OwnerRefs: []metav1.OwnerReference{
+			{
+				APIVersion: "rbac.authorization.k8s.io/v1",
+				Kind:       "ClusterRole",
+				Name:       "my-cluster-role",
+				UID:        "cluster-role-uid",
+			},
+		},
+	}
+
+	// Create namespace resources map (ClusterRole won't be in here since it's cluster-scoped)
+	namespaceResources := map[kube.ResourceKey]*cache.Resource{
+		// Add some other namespace resources but not the ClusterRole
+		{
+			Group:     "rbac.authorization.k8s.io",
+			Kind:      "Role",
+			Namespace: "my-namespace",
+			Name:      "other-role",
+		}: {
+			Ref: corev1.ObjectReference{
+				APIVersion: "rbac.authorization.k8s.io/v1",
+				Kind:       "Role",
+				Namespace:  "my-namespace",
+				Name:       "other-role",
+			},
+		},
+	}
+
+	resNode := asResourceNode(roleResource, namespaceResources)
+
+	// The parent reference should have empty namespace since ClusterRole is cluster-scoped
+	assert.Len(t, resNode.ParentRefs, 1)
+	assert.Equal(t, "ClusterRole", resNode.ParentRefs[0].Kind)
+	assert.Equal(t, "my-cluster-role", resNode.ParentRefs[0].Name)
+	assert.Empty(t, resNode.ParentRefs[0].Namespace, "ClusterRole parent should have empty namespace")
+}
+
+func Test_asResourceNode_same_namespace_parent(t *testing.T) {
+	// Test that a namespaced resource with a namespaced parent in the same namespace
+	// correctly sets the parent namespace
+
+	// Create a ReplicaSet with an owner reference to a Deployment (both namespaced)
+	rsResource := &cache.Resource{
+		Ref: corev1.ObjectReference{
+			APIVersion: "apps/v1",
+			Kind:       "ReplicaSet",
+			Namespace:  "my-namespace",
+			Name:       "my-rs",
+		},
+		OwnerRefs: []metav1.OwnerReference{
+			{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Name:       "my-deployment",
+				UID:        "deployment-uid",
+			},
+		},
+	}
+
+	// Create namespace resources map with the Deployment
+	deploymentKey := kube.ResourceKey{
+		Group:     "apps",
+		Kind:      "Deployment",
+		Namespace: "my-namespace",
+		Name:      "my-deployment",
+	}
+	namespaceResources := map[kube.ResourceKey]*cache.Resource{
+		deploymentKey: {
+			Ref: corev1.ObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Namespace:  "my-namespace",
+				Name:       "my-deployment",
+				UID:        "deployment-uid",
+			},
+			Resource: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]any{
+						"name":      "my-deployment",
+						"namespace": "my-namespace",
+						"uid":       "deployment-uid",
+					},
+				},
+			},
+		},
+	}
+
+	resNode := asResourceNode(rsResource, namespaceResources)
+
+	// The parent reference should have the same namespace
+	assert.Len(t, resNode.ParentRefs, 1)
+	assert.Equal(t, "Deployment", resNode.ParentRefs[0].Kind)
+	assert.Equal(t, "my-deployment", resNode.ParentRefs[0].Name)
+	assert.Equal(t, "my-namespace", resNode.ParentRefs[0].Namespace, "Deployment parent should have same namespace")
 }

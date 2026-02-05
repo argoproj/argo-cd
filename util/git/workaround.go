@@ -85,6 +85,12 @@ func listRemote(r *git.Remote, o *git.ListOptions, insecure bool, creds Creds, p
 
 	var resultRefs []*plumbing.Reference
 	_ = refs.ForEach(func(ref *plumbing.Reference) error {
+		if ref.Name().IsTag() {
+			if peeled, ok := ar.Peeled[ref.Name().String()]; ok {
+				resultRefs = append(resultRefs, plumbing.NewHashReference(ref.Name(), peeled))
+				return nil
+			}
+		}
 		resultRefs = append(resultRefs, ref)
 		return nil
 	})

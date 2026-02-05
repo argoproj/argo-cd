@@ -8,12 +8,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	extv1beta1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 const depWithoutSelector = `
@@ -73,9 +73,10 @@ func TestSetLabels(t *testing.T) {
 		require.NoError(t, err)
 
 		// the following makes sure we are not falling into legacy code which injects labels
-		if yamlStr == depWithoutSelector {
+		switch yamlStr {
+		case depWithoutSelector:
 			assert.Nil(t, depV1Beta1.Spec.Selector)
-		} else if yamlStr == depWithSelector {
+		case depWithSelector:
 			assert.Len(t, depV1Beta1.Spec.Selector.MatchLabels, 1)
 			assert.Equal(t, "nginx", depV1Beta1.Spec.Selector.MatchLabels["app"])
 		}
@@ -147,13 +148,13 @@ func TestSetSvcLabel(t *testing.T) {
 	require.NoError(t, err)
 	log.Println(string(manifestBytes))
 
-	var s apiv1.Service
+	var s corev1.Service
 	err = json.Unmarshal(manifestBytes, &s)
 	require.NoError(t, err)
 
 	log.Println(s.Name)
 	log.Println(s.ObjectMeta)
-	assert.Equal(t, "my-app", s.ObjectMeta.Labels[common.LabelKeyAppInstance])
+	assert.Equal(t, "my-app", s.Labels[common.LabelKeyAppInstance])
 }
 
 func TestIsValidResourceName(t *testing.T) {
@@ -176,13 +177,13 @@ func TestSetAppInstanceAnnotation(t *testing.T) {
 	require.NoError(t, err)
 	log.Println(string(manifestBytes))
 
-	var s apiv1.Service
+	var s corev1.Service
 	err = json.Unmarshal(manifestBytes, &s)
 	require.NoError(t, err)
 
 	log.Println(s.Name)
 	log.Println(s.ObjectMeta)
-	assert.Equal(t, "my-app", s.ObjectMeta.Annotations[common.LabelKeyAppInstance])
+	assert.Equal(t, "my-app", s.Annotations[common.LabelKeyAppInstance])
 }
 
 func TestSetAppInstanceAnnotationWithInvalidData(t *testing.T) {
@@ -192,8 +193,7 @@ func TestSetAppInstanceAnnotationWithInvalidData(t *testing.T) {
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	require.NoError(t, err)
 	err = SetAppInstanceAnnotation(&obj, common.LabelKeyAppInstance, "my-app")
-	require.Error(t, err)
-	assert.Equal(t, "failed to get annotations from target object /v1, Kind=Service /my-service: .metadata.annotations accessor error: contains non-string value in the map under key \"invalid-annotation\": <nil> is of the type <nil>, expected string", err.Error())
+	assert.EqualError(t, err, "failed to get annotations from target object /v1, Kind=Service /my-service: .metadata.annotations accessor error: contains non-string value in the map under key \"invalid-annotation\": <nil> is of the type <nil>, expected string")
 }
 
 func TestGetAppInstanceAnnotation(t *testing.T) {
@@ -218,8 +218,7 @@ func TestGetAppInstanceAnnotationWithInvalidData(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = GetAppInstanceAnnotation(&obj, "valid-annotation")
-	require.Error(t, err)
-	assert.Equal(t, "failed to get annotations from target object /v1, Kind=Service /my-service: .metadata.annotations accessor error: contains non-string value in the map under key \"invalid-annotation\": <nil> is of the type <nil>, expected string", err.Error())
+	assert.EqualError(t, err, "failed to get annotations from target object /v1, Kind=Service /my-service: .metadata.annotations accessor error: contains non-string value in the map under key \"invalid-annotation\": <nil> is of the type <nil>, expected string")
 }
 
 func TestGetAppInstanceLabel(t *testing.T) {
@@ -242,8 +241,7 @@ func TestGetAppInstanceLabelWithInvalidData(t *testing.T) {
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	require.NoError(t, err)
 	_, err = GetAppInstanceLabel(&obj, "valid-label")
-	require.Error(t, err)
-	assert.Equal(t, "failed to get labels for /v1, Kind=Service /my-service: .metadata.labels accessor error: contains non-string value in the map under key \"invalid-label\": <nil> is of the type <nil>, expected string", err.Error())
+	assert.EqualError(t, err, "failed to get labels for /v1, Kind=Service /my-service: .metadata.labels accessor error: contains non-string value in the map under key \"invalid-label\": <nil> is of the type <nil>, expected string")
 }
 
 func TestRemoveLabel(t *testing.T) {
@@ -268,6 +266,5 @@ func TestRemoveLabelWithInvalidData(t *testing.T) {
 	require.NoError(t, err)
 
 	err = RemoveLabel(&obj, "valid-label")
-	require.Error(t, err)
-	assert.Equal(t, "failed to get labels for /v1, Kind=Service /my-service: .metadata.labels accessor error: contains non-string value in the map under key \"invalid-label\": <nil> is of the type <nil>, expected string", err.Error())
+	assert.EqualError(t, err, "failed to get labels for /v1, Kind=Service /my-service: .metadata.labels accessor error: contains non-string value in the map under key \"invalid-label\": <nil> is of the type <nil>, expected string")
 }

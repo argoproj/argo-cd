@@ -1,10 +1,10 @@
 # Private Repositories
 
-!!!note
-    Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
-    specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
-    repository URL suffixed with `.git`. Argo CD will **not** follow these redirects, so you have to
-    adapt your repository URL to be suffixed with `.git`.
+> [!NOTE]
+> Some Git hosters - notably GitLab and possibly on-premise GitLab instances as well - require you to
+> specify the `.git` suffix in the repository URL, otherwise they will send a HTTP 301 redirect to the
+> repository URL suffixed with `.git`. Argo CD will **not** follow these redirects, so you have to
+> adapt your repository URL to be suffixed with `.git`.
 
 ## Credentials
 
@@ -47,8 +47,11 @@ Instead of using username and password you might use access token. Following ins
 
 Then, connect the repository using any non-empty string as username and the access token value as a password. 
 
-!!!note
-    For some services, you might have to specify your account name as the username instead of any string.
+> [!NOTE]
+> For some services, you might have to specify your account name as the username instead of any string.
+
+> [!NOTE]
+> For BitBucket Cloud and BitBucket Data Center, you have to specify your username as `x-token-auth`.
 
 ### TLS Client Certificates for HTTPS repositories
 
@@ -62,11 +65,11 @@ Of course, you can also use this in combination with the `--username` and `--pas
 
 Your TLS client certificate and corresponding key can also be configured using the UI, see instructions for adding Git repos using HTTPS.
 
-!!! note
-    Your client certificate and key data must be in PEM format, other formats (such as PKCS12) are not understood. Also make sure that your certificate's key is not password protected, otherwise it cannot be used by Argo CD.
+> [!NOTE]
+> Your client certificate and key data must be in PEM format, other formats (such as PKCS12) are not supported. Also make sure that your certificate's key is not password protected, otherwise it cannot be used by Argo CD.
 
-!!! note
-    When pasting TLS client certificate and key in the text areas in the web UI, make sure they contain no unintended line breaks or additional characters.
+> [!NOTE]
+> When pasting TLS client certificate and key in the text areas in the web UI, make sure they contain no unintended line breaks or additional characters.
 
 ### SSH Private Key Credential
 
@@ -74,11 +77,11 @@ Private repositories that require an SSH private key have a URL that typically s
 
 You can configure your Git repository using SSH either using the CLI or the UI.
 
-!!! note
-    Argo CD 2.4 upgraded to OpenSSH 8.9. OpenSSH 8.8 
-    [dropped support for the `ssh-rsa` SHA-1 key signature algorithm](https://www.openssh.com/txt/release-8.8).
-    See the [2.3 to 2.4 upgrade guide](../operator-manual/upgrading/2.3-2.4.md) for details about testing SSH servers 
-    for compatibility with Argo CD and for working around servers that do not support newer algorithms.
+> [!NOTE]
+> Argo CD 2.4 upgraded to OpenSSH 8.9. OpenSSH 8.8 
+> [dropped support for the `ssh-rsa` SHA-1 key signature algorithm](https://www.openssh.com/txt/release-8.8).
+> See the [2.3 to 2.4 upgrade guide](../operator-manual/upgrading/2.3-2.4.md) for details about testing SSH servers 
+> for compatibility with Argo CD and for working around servers that do not support newer algorithms.
 
 Using the CLI:
 
@@ -98,18 +101,18 @@ Using the UI:
 
 3. Click `Connect` to test the connection and have the repository added 
 
-!!!note
-    When pasting SSH private key in the UI, make sure there are no unintended line breaks or additional characters in the text area
+> [!NOTE]
+> When pasting SSH private key in the UI, make sure there are no unintended line breaks or additional characters in the text area
 
-!!!note 
-    When your SSH repository is served from a non-standard port, you have to use `ssh://`-style URLs to specify your repository. The scp-style `git@yourgit.com:yourrepo` URLs do **not** support port specification, and will treat any port number as part of the repository's path.
+> [!NOTE]
+> When your SSH repository is served from a non-standard port, you have to use `ssh://`-style URLs to specify your repository. The scp-style `git@yourgit.com:yourrepo` URLs do **not** support port specification, and will treat any port number as part of the repository's path.
 
 ### GitHub App Credential
 
 Private repositories that are hosted on GitHub.com or GitHub Enterprise can be accessed using credentials from a GitHub Application. Consult the [GitHub documentation](https://docs.github.com/en/developers/apps/about-apps#about-github-apps) on how to create an application.
 
-!!!note
-    Ensure your application has at least `Read-only` permissions to the `Contents` of the repository. This is the minimum requirement.
+> [!NOTE]
+> Ensure your application has at least `Read-only` permissions to the `Contents` of the repository. This is the minimum requirement.
 
 You can configure access to your Git repository hosted by GitHub.com or GitHub Enterprise using the GitHub App method by either using the CLI or the UI.
 
@@ -119,27 +122,35 @@ Using the CLI:
 argocd repo add https://github.com/argoproj/argocd-example-apps.git --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
 ```
 
+> [!NOTE]
+> To add a private Git repository on GitHub Enterprise using the CLI add `--github-app-enterprise-base-url https://ghe.example.com/api/v3` flag.
+
+> [!NOTE]
+> The `--github-app-installation-id` flag is optional. If omitted, Argo CD will automatically discover the installation ID based on the repository's organization.
+
 Using the UI:
 
 1. Navigate to `Settings/Repositories`
 
     ![connect repo overview](../assets/repo-add-overview.png)
 
-2. Click `Connect Repo using GitHub App` button, enter the URL, App Id, Installation Id, and the app's private key.
+2. Click `Connect Repo using GitHub App` button, choose type: `GitHub` or `GitHub Enterprise`, enter the URL, App Id, Installation Id (optional), and the app's private key.
 
-    ![connect repo](../assets/repo-add-github-app.png)
+> [!NOTE]
+> Enter the GitHub Enterprise Base URL for type `GitHub Enterprise`.
+> ![connect repo](../assets/repo-add-github-app.png)
 
 3. Click `Connect` to test the connection and have the repository added
 
-!!!note
-    When pasting GitHub App private key in the UI, make sure there are no unintended line breaks or additional characters in the text area
+> [!NOTE]
+> When pasting GitHub App private key in the UI, make sure there are no unintended line breaks or additional characters in the text area
 
 ### Google Cloud Source
 
 Private repositories hosted on Google Cloud Source can be accessed using Google Cloud service account key in JSON format. Consult [Google Cloud documentation](https://cloud.google.com/iam/docs/creating-managing-service-accounts) on how to create a service account.
 
-!!!note
-    Ensure your application has at least `Source Repository Reader` permissions for the Google Cloud project. This is the minimum requirement.
+> [!NOTE]
+> Ensure your application has at least `Source Repository Reader` permissions for the Google Cloud project. This is the minimum requirement.
 
 You can configure access to your Git repository hosted on Google Cloud Source using the CLI or the UI.
 
@@ -161,6 +172,76 @@ Using the UI:
 
 3. Click `Connect` to test the connection and have the repository added
 
+
+### Azure Container Registry/Azure Repos using Azure Workload Identity
+
+Before using this feature, you must perform the following steps to enable workload identity configuration in Argo CD:
+
+- **Label the Pods:** Add the `azure.workload.identity/use: "true"` label to the repo-server pods.
+- **Create Federated Identity Credential:** Generate an Azure federated identity credential for the repo-server service account. Refer to the [Federated Identity Credential](https://azure.github.io/azure-workload-identity/docs/topics/federated-identity-credential.html) documentation for detailed instructions.
+- **Add Annotation to Service Account:** Add `azure.workload.identity/client-id: "$CLIENT_ID"` annotation to the repo-server service account, using the `CLIENT_ID` from the workload identity.
+- **Configure ACR Permissions:** Grant the workload identity the necessary permissions on Azure Container Registry or Azure Repos.
+- **Set ACR Token Resource Variable:** Configure the Argo CD repo server env variable `AZURE_ARM_TOKEN_RESOURCE`=https://containerregistry.azure.net so Argo CD can request valid ACR access tokens.
+
+Using CLI for Helm OCI with Azure workload identity:
+
+```
+argocd repo add contoso.azurecr.io/charts --type helm --enable-oci --use-azure-workload-identity
+```
+
+Using CLI for Azure Repos with Azure workload identity:
+
+```
+argocd repo add https://contoso@dev.azure.com/my-projectcollection/my-project/_git/my-repo --use-azure-workload-identity
+```
+
+Using the UI:
+
+- Navigate to `Settings/Repositories`
+
+   ![connect repo overview](../assets/repo-add-overview.png)
+- Click on `+ Connect Repo`
+- On the connection page:
+    - Choose Connection Method as `VIA HTTPS`
+    - Select the type as `git` or `helm`
+    - Enter the Repository URL
+    - Enter name, if the repo type is helm
+    - Select `Enable OCI`, if repo type is helm
+    - Select `Use Azure Workload Identity`
+
+    ![connect repo](../assets/repo-add-azure-workload-identity.png)
+- Click `Connect`
+
+Using secret definition:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: helm-private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  url: contoso.azurecr.io/charts
+  name: contosocharts
+  enableOCI: "true"
+  useAzureWorkloadIdentity: "true"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: git-private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://contoso@dev.azure.com/my-projectcollection/my-project/_git/my-repo
+  useAzureWorkloadIdentity: "true"
+```
+
 ## Credential templates
 
 You can also set up credentials to serve as templates for connecting repositories, without having to repeat credential configuration. For example, if you setup credential templates for the URL prefix `https://github.com/argoproj`, these credentials will be used for all repositories with this URL as prefix (e.g. `https://github.com/argoproj/argocd-example-apps`) that do not have their own credentials configured.
@@ -174,11 +255,11 @@ In order for Argo CD to use a credential template for any given repository, the 
 * The repository must either not be configured at all, or if configured, must not contain any credential information 
 * The URL configured for a credential template (e.g. `https://github.com/argoproj`) must match as prefix for the repository URL (e.g. `https://github.com/argoproj/argocd-example-apps`). 
 
-!!! note
-    Repositories that require authentication can be added using CLI or Web UI without specifying credentials only after a matching repository credential has been set up
+> [!NOTE]
+> Repositories that require authentication can be added using CLI or Web UI without specifying credentials only after a matching repository credential has been set up
 
-!!! note
-    Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
+> [!NOTE]
+> Matching credential template URL prefixes is done on a _best match_ effort, so the longest (best) match will take precedence. The order of definition is not important, as opposed to pre v1.4 configuration.
 
 The following is an example CLI session, depicting repository credential set-up:
 
@@ -210,14 +291,14 @@ If you are connecting a repository on a HTTPS server using a self-signed certifi
 
 2. You can configure ArgoCD to use a custom certificate for the verification of the server's certificate using the `cert add-tls` command of the `argocd` CLI utility. This is the recommended method and suitable for production use. In order to do so, you will need the server's certificate, or the certificate of the CA used to sign the server's certificate, in PEM format.
 
-!!! note
-    For invalid server certificates, such as those without matching server name, or those that are expired, adding a CA certificate will not help. In this case, your only option will be to use the `--insecure-skip-server-verification` flag to connect the repository. You are strongly urged to use a valid certificate on the repository server, or to urge the server's administrator to replace the faulty certificate with a valid one.
+> [!NOTE]
+> For invalid server certificates, such as those without matching server name, or those that are expired, adding a CA certificate will not help. In this case, your only option will be to use the `--insecure-skip-server-verification` flag to connect the repository. You are strongly urged to use a valid certificate on the repository server, or to urge the server's administrator to replace the faulty certificate with a valid one.
 
-!!! note
-    TLS certificates are configured on a per-server, not on a per-repository basis. If you connect multiple repositories from the same server, you only have to configure the certificates once for this server.
+> [!NOTE]
+> TLS certificates are configured on a per-server, not on a per-repository basis. If you connect multiple repositories from the same server, you only have to configure the certificates once for this server.
 
-!!! note
-    It can take up to a couple of minutes until the changes performed by the `argocd cert` command are propagated across your cluster, depending on your Kubernetes setup.
+> [!NOTE]
+> It can take up to a couple of minutes until the changes performed by the `argocd cert` command are propagated across your cluster, depending on your Kubernetes setup.
 
 ### Managing TLS certificates using the CLI
 
@@ -250,8 +331,8 @@ You can also add more than one PEM for a server by concatenating them into the i
 cat cert1.pem cert2.pem | argocd cert add-tls git.example.com --upsert
 ```
 
-!!! note
-    To replace an existing certificate for a server, use the `--upsert` flag to the `cert add-tls` CLI command. 
+> [!NOTE]
+> To replace an existing certificate for a server, use the `--upsert` flag to the `cert add-tls` CLI command. 
 
 Finally, TLS certificates can be removed using the `argocd cert rm` command with the `--cert-type https` modifier:
 
@@ -280,7 +361,7 @@ It is possible to add and remove TLS certificates using the ArgoCD web UI:
 ### Managing TLS certificates using declarative configuration
 
 You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object `argocd-tls-certs-cm`.
-Please refer to the [Operator Manual](../../operator-manual/declarative-setup/#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca) for more information.
+Please refer to the [Operator Manual](../operator-manual/declarative-setup.md#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca) for more information.
 
 ## Unknown SSH Hosts
 
@@ -290,11 +371,11 @@ If you are using a privately hosted Git service over SSH, then you have the foll
 
 2. You can make the server's SSH public key known to ArgoCD by using the `cert add-ssh` command of the `argocd` CLI utility. This is the recommended method and suitable for production use. In order to do so, you will need the server's SSH public host key, in the `known_hosts` format understood by `ssh`. You can get the server's public SSH host key e.g. by using the `ssh-keyscan` utility.
 
-!!! note
-    It can take up to a couple of minutes until the changes performed by the `argocd cert` command are propagated across your cluster, depending on your Kubernetes setup.
-  
-!!! note
-    When importing SSH known hosts key from a `known_hosts` file, the hostnames or IP addresses in the input data must **not** be hashed. If your `known_hosts` file contains hashed entries, it cannot be used as input source for adding SSH known hosts - neither in the CLI nor in the UI. If you absolutely wish to use hashed known hosts data, the only option will be using declarative setup (see below). Be aware that this will break CLI and UI certificate management, so it is generally not recommended.
+> [!NOTE]
+> It can take up to a couple of minutes until the changes performed by the `argocd cert` command are propagated across your cluster, depending on your Kubernetes setup.
+> 
+> [!NOTE]
+> When importing SSH known hosts key from a `known_hosts` file, the hostnames or IP addresses in the input data must **not** be hashed. If your `known_hosts` file contains hashed entries, it cannot be used as input source for adding SSH known hosts - neither in the CLI nor in the UI. If you absolutely wish to use hashed known hosts data, the only option will be using declarative setup (see below). Be aware that this will break CLI and UI certificate management, so it is generally not recommended.
 
 ### Managing SSH Known Hosts using the CLI
 
@@ -360,6 +441,74 @@ It is possible to add and remove SSH known hosts entries using the ArgoCD web UI
 ### Managing SSH known hosts data using declarative setup
 
 You can also manage SSH known hosts entries in a declarative, self-managed ArgoCD setup. All SSH public host keys are stored in the ConfigMap object `argocd-ssh-known-hosts-cm`. For more details, please refer to the [Operator Manual](../operator-manual/declarative-setup.md#ssh-known-host-public-keys).
+
+## Helm
+
+Helm charts can be sourced from protected Helm repositories or OCI registries. You can configure access to protected Helm charts by using either the CLI or the UI by specifying `helm` as the _type_ of HTTPS based repository.
+
+Using the CLI:
+
+Specify the `--type` flag of the `argocd repo add` command:
+
+```bash
+argocd repo add https://argoproj.github.io/argo-helm --type=helm <additional-flags>
+```
+
+Using the UI:
+
+1. Navigate to `Settings/Repositories`
+
+    ![connect repo overview](../assets/repo-add-overview.png)
+
+2. Click the `Connect Repo` button
+
+3. Select `VIA HTTPS` as the Connection Method
+
+4. Select `helm` as the Type.
+
+    ![helm repository type](../assets/repo-type-helm.png)
+
+5. Click `Connect` to test the connection and have the repository added
+
+Helm charts stored in protected OCI registries should use the steps described previously as well as explicitly specifying that the source is an Helm chart stored in an OCI registry.
+
+Using CLI:
+
+Specify the `--enable-oci` flag of the `argocd repo add` command:
+
+```bash
+argocd repo add registry-1.docker.io/bitnamicharts --type=helm --enable-oci=true <additional-flags>
+```
+
+> [!NOTE]
+> The protocol, such as `oci://` should be omitted when referencing an OCI registry
+
+Using the UI:
+
+Select the _Enable OCI_ checkbox when adding a HTTPS based _helm_ repository.
+
+### Custom HTTP User-Agent
+
+Some Helm repository providers (like Wikimedia) require a specific User-Agent header as part of their robot access policies. Argo CD automatically sends a default User-Agent header (`argocd-repo-server/<version> (<platform>)`) for all Helm repository requests.
+
+If you need to customize the User-Agent (for example, to include your organization name or contact information), set the `ARGOCD_HELM_USER_AGENT` environment variable on the `argocd-repo-server` deployment:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-repo-server
+        env:
+        - name: ARGOCD_HELM_USER_AGENT
+          value: "my-org/argocd (team@example.com)"
+```
+
+This environment variable applies globally to all Helm repository requests.
 
 ## Git Submodules
 

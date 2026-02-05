@@ -1,20 +1,33 @@
 # Running Argo CD locally
 
-## Run Argo CD outside of Kubernetes
+## Prerequisites
+1. [Development Environment](development-environment.md)   
+2. [Toolchain Guide](toolchain-guide.md)
+3. [Development Cycle](development-cycle.md)
 
-During development, it might be viable to run Argo CD outside a Kubernetes cluster. This will greatly speed up development, as you don't have to constantly build, push and install new Argo CD Docker images with your latest changes.
+## Preface
+During development, it is recommended to start with Argo CD running locally (outside of a K8s cluster). This will greatly speed up development, as you don't have to constantly build, push and install new Argo CD Docker images with your latest changes.
 
-You will still need a working Kubernetes cluster, as described in the [Toolchain Guide](toolchain-guide.md), where Argo CD will store all of its resources and configuration.
+After you have tested locally, you can move to the second phase of building a docker image, running Argo CD in your cluster and testing further.
 
-If you followed the [Toolchain Guide](toolchain-guide.md) in setting up your toolchain, you can run Argo CD locally with these simple steps:
+For both cases, you will need a working K8s cluster, where Argo CD will store all of its resources and configuration.
 
-### Install Argo CD resources to your cluster
+In order to have all the required resources in your cluster, you will deploy Argo CD from your development branch and then scale down all it's instances.
+This will ensure you have all the relevant configuration (such as Argo CD Config Maps and CRDs) in the cluster while the instances themselves are stopped.
+
+### Deploy Argo CD resources to your cluster
 
 First push the installation manifest into argocd namespace:
 
 ```shell
 kubectl create namespace argocd
-kubectl apply -n argocd --force -f manifests/install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f manifests/install.yaml
+```
+
+The services you will start later assume you are running in the namespace where Argo CD is installed. You can set the current context default namespace as follows:
+
+```bash
+kubectl config set-context --current --namespace=argocd
 ```
 
 ### Scale down any Argo CD instance in your cluster
@@ -31,18 +44,24 @@ kubectl -n argocd scale deployment/argocd-applicationset-controller --replicas 0
 kubectl -n argocd scale deployment/argocd-notifications-controller --replicas 0
 ```
 
-### Start local services (virtualized toolchain inside Docker)
+## Running Argo CD locally, outside of K8s cluster
+#### Prerequisites
+1. [Deploy Argo CD resources to your cluster](running-locally.md#deploy-argo-cd-resources-to-your-cluster)   
+2. [Scale down any Argo CD instance in your cluster](running-locally.md#scale-down-any-argo-cd-instance-in-your-cluster)
 
-The started services assume you are running in the namespace where Argo CD is installed. You can set the current context default namespace as follows:
-
-```bash
-kubectl config set-context --current --namespace=argocd
-```
-
+### Start local services (virtualized toolchain)
 When you use the virtualized toolchain, starting local services is as simple as running
 
 ```bash
+cd argo-cd
 make start
+```
+
+By default, Argo CD uses Docker. To use Podman instead, set the `DOCKER` environment variable to `podman` before running the `make` command:
+
+```shell
+cd argo-cd
+DOCKER=podman make start
 ```
 
 This will start all Argo CD services and the UI in a Docker container and expose the following ports to your host:
@@ -50,14 +69,6 @@ This will start all Argo CD services and the UI in a Docker container and expose
 * The Argo CD API server on port 8080
 * The Argo CD UI server on port 4000
 * The Helm registry server on port 5000
-
-You may get an error listening on port 5000 on macOS:
-
-```text
-docker: Error response from daemon: Ports are not available: exposing port TCP 0.0.0.0:5000 -> 0.0.0.0:0: listen tcp 0.0.0.0:5000: bind: address already in use.
-```
-
-In that case, you can disable "AirPlay Receiver" in macOS System Preferences.
 
 You can now use either the web UI by pointing your browser to `http://localhost:4000` or use the CLI against the API at `http://localhost:8080`. Be sure to use the `--insecure` and `--plaintext` options to the CLI. Webpack will take a while to bundle resources initially, so the first page load can take several seconds or minutes.
 
@@ -68,51 +79,33 @@ export ARGOCD_SERVER=127.0.0.1:8080
 export ARGOCD_OPTS="--plaintext --insecure"
 ```
 
-### Start local services (running on local machine)
+### Start local services (local toolchain)
+When you use the local toolchain, starting local services can be performed in 3 ways:
 
-The `make start` command of the virtualized toolchain runs the build and programs inside a Docker container using the test tools image. That makes everything repeatable, but can slow down the development workflow. Particularly on macOS where Docker and the Linux kernel run inside a VM, you may want to try developing fully locally.
-
-Docker should be installed already. Assuming you manage installed software using [Homebrew](https://brew.sh/), you can install other prerequisites like this:
-
-```sh
-# goreman is used to start all needed processes to get a working Argo CD development
-# environment (defined in `Procfile`)
-brew install goreman
-
-# You can use `kind` to run Kubernetes inside Docker. But pointing to any other
-# development cluster works fine as well as long as Argo CD can reach it.
-brew install kind
+#### With "make start-local"
+```shell
+cd argo-cd
+make start-local ARGOCD_GPG_ENABLED=false
 ```
 
-To set up Kubernetes, you can use kind:
-
-```sh
-kind create cluster --kubeconfig ~/.kube/config-kind
-
-# The started services assume you are running in the namespace where Argo CD is
-# installed. Set the current context default namespace.
-export KUBECONFIG=~/.kube/config-kind
-kubectl config set-context --current --namespace=argocd
+#### With "make run"
+```shell
+cd argo-cd
+make run ARGOCD_GPG_ENABLED=false
 ```
 
-Follow the above sections "Install Argo CD resources to your cluster" and "Scale down any Argo CD instance in your cluster" to deploy all needed manifests such as config maps.
-
-Start local services:
-
-```sh
-# Ensure you point to the correct Kubernetes cluster as shown above. For example:
-export KUBECONFIG=~/.kube/config-kind
-
-make start-local
+#### With "goreman start"
+```shell
+cd argo-cd
+ARGOCD_GPG_ENABLED=false && goreman start
 ```
 
-This will start all Argo CD services and the UI in a Docker container and expose the following ports to your host:
+Any of those options will start all Argo CD services and the UI:
 
 * The Argo CD API server on port 8080
 * The Argo CD UI server on port 4000
 * The Helm registry server on port 5000
 
-If you get firewall dialogs, for example on macOS, you can click "Deny", since no access from outside your computer is typically desired.
 
 Check that all programs have started:
 
@@ -123,23 +116,9 @@ $ goreman run status
 [...]
 ```
 
-If not all critical processes run (marked with `*`), check logs to see why they terminated.
+If some of the processes fail to start (not marked with `*`), check logs to see why they are not running. The logs are on `DEBUG` level by default. If the logs are too noisy to find the problem, try editing log levels for the commands in the `Procfile` in the root of the Argo CD repo.
 
-In case of an error like `gpg: key generation failed: Unknown elliptic curve` (a [gnupg bug](https://dev.gnupg.org/T5444)), disable GPG verification before running `make start-local`:
-
-```sh
-export ARGOCD_GPG_ENABLED=false
-```
-
-You may get an error listening on port 5000 on macOS:
-
-```text
-docker: Error response from daemon: Ports are not available: exposing port TCP 0.0.0.0:5000 -> 0.0.0.0:0: listen tcp 0.0.0.0:5000: bind: address already in use.
-```
-
-In that case, you can disable "AirPlay Receiver" in macOS System Preferences.
-
-You can now use either the web UI by pointing your browser to `http://localhost:4000` or use the CLI against the API at `http://localhost:8080`. Be sure to use the `--insecure` and `--plaintext` options to the CLI. Webpack will take a while to bundle resources initially, so the first page load can take several seconds or minutes.
+You can now use either use the web UI by pointing your browser to `http://localhost:4000` or use the CLI against the API at `http://localhost:8080`. Be sure to use the `--insecure` and `--plaintext` options to the CLI. Webpack will take a while to bundle resources initially, so the first page load can take several seconds or minutes.
 
 As an alternative to using the above command line parameters each time you call `argocd` CLI, you can set the following environment variables:
 
@@ -147,37 +126,67 @@ As an alternative to using the above command line parameters each time you call 
 export ARGOCD_SERVER=127.0.0.1:8080
 export ARGOCD_OPTS="--plaintext --insecure"
 ```
+### Making code changes while Argo CD is running on your machine
 
-After making a code change, ensure to rebuild and restart the respective service:
+#### Docs Changes
+
+Modifying the docs auto-reloads the changes on the [documentation website](https://argo-cd.readthedocs.io/) that can be locally built using `make serve-docs-local` command. 
+Once running, you can view your locally built documentation on port 8000.
+
+Read more about this [here](https://argo-cd.readthedocs.io/en/latest/developer-guide/docs-site/).
+
+#### UI Changes
+
+Modifying the User-Interface (by editing .tsx or .scss files) auto-reloads the changes on port 4000.
+
+#### Backend Changes
+
+Modifying the API server, repo server, or a controller requires restarting the current `make start` for virtualized toolchain.
+For `make start-local` with the local toolchain, it is enough to rebuild and restart only the respective service:
 
 ```sh
 # Example for working on the repo server Go code, see other service names in `Procfile`
 goreman run restart repo-server
 ```
 
-Clean up when you're done:
+#### CLI Changes
 
-```sh
-kind delete cluster; rm -f ~/.kube/config-kind
+Modifying the CLI requires restarting the current `make start` or `make start-local` session to reflect the changes. Those targets also rebuild the CLI.
+
+To test most CLI commands, you will need to log in.
+
+First, get the auto-generated secret:
+
+```shell
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
 ```
 
+Then log in using that password and username `admin`:
+
+```shell
+dist/argocd login localhost:8080
+```
+
+## Running Argo CD inside of K8s cluster
 ### Scale up Argo CD in your cluster
 
 Once you have finished testing your changes locally and want to bring back Argo CD in your development cluster, simply scale the deployments up again:
 
 ```bash
 kubectl -n argocd scale statefulset/argocd-application-controller --replicas 1
+kubectl -n argocd scale deployment/argocd-applicationset-controller --replicas 1
 kubectl -n argocd scale deployment/argocd-dex-server --replicas 1
 kubectl -n argocd scale deployment/argocd-repo-server --replicas 1
 kubectl -n argocd scale deployment/argocd-server --replicas 1
 kubectl -n argocd scale deployment/argocd-redis --replicas 1
+kubectl -n argocd scale deployment/argocd-notifications-controller --replicas 1
 ```
 
-## Run your own Argo CD images on your cluster
+### Run your own Argo CD images on your cluster
 
 For your final tests, it might be necessary to build your own images and run them in your development cluster.
 
-### Create Docker account and login
+#### Create Docker account and login
 
 You might need to create an account on [Docker Hub](https://hub.docker.com) if you don't have one already. Once you created your account, login from your development environment:
 
@@ -185,11 +194,12 @@ You might need to create an account on [Docker Hub](https://hub.docker.com) if y
 docker login
 ```
 
-### Create and push Docker images
+#### Create and push Docker images
 
 You will need to push the built images to your own Docker namespace:
 
 ```bash
+export IMAGE_REGISTRY=docker.io
 export IMAGE_NAMESPACE=youraccount
 ```
 
@@ -199,29 +209,54 @@ If you don't set `IMAGE_TAG` in your environment, the default of `:latest` will 
 export IMAGE_TAG=1.5.0-myrc
 ```
 
+> [!NOTE]
+> The image will be built for `linux/amd64` platform by default. If you are running on Mac with Apple chip (ARM),
+> you need to specify the correct buld platform by running:
+> ```bash
+> export TARGET_ARCH=linux/arm64 
+> ```
+
 Then you can build & push the image in one step:
 
 ```bash
 DOCKER_PUSH=true make image
 ```
 
-### Configure manifests for your image
+To speed up building of images you may use the DEV_IMAGE option that builds the argocd binaries in the users desktop environment
+(instead of building everything in Docker) and copies them into the result image:
 
-With `IMAGE_NAMESPACE` and `IMAGE_TAG` still set, run:
+```bash
+DEV_IMAGE=true DOCKER_PUSH=true make image
+```
+
+> [!NOTE]
+> The first run of this build task may take a long time because it needs first to build the base image first; however,
+> once it's done, the build process should be much faster than a regular full image build in Docker.
+
+
+#### Configure manifests for your image
+
+With `IMAGE_REGISTRY`, `IMAGE_NAMESPACE` and `IMAGE_TAG` still set, run:
 
 ```bash
 make manifests
 ```
 
-to build a new set of installation manifests which include your specific image reference.
+or 
 
-!!!note
-    Do not commit these manifests to your repository. If you want to revert the changes, the easiest way is to unset `IMAGE_NAMESPACE` and `IMAGE_TAG` from your environment and run `make manifests` again. This will re-create the default manifests.
+```bash
+make manifests-local
+```
 
-### Configure your cluster with custom manifests
+(depending on your toolchain) to build a new set of installation manifests which include your specific image reference.
+
+> [!NOTE]
+> Do not commit these manifests to your repository. If you want to revert the changes, the easiest way is to unset `IMAGE_REGISTRY`, `IMAGE_NAMESPACE` and `IMAGE_TAG` from your environment and run `make manifests` again. This will re-create the default manifests.
+
+#### Configure your cluster with custom manifests
 
 The final step is to push the manifests to your cluster, so it will pull and run your image:
 
 ```bash
-kubectl apply -n argocd --force -f manifests/install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f manifests/install.yaml
 ```

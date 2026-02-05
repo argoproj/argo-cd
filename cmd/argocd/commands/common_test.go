@@ -16,7 +16,7 @@ baz: foo
 foo: bar
 `
 
-const expectJsonSingle = `{
+const expectJSONSingle = `{
   "bar": "",
   "baz": "foo",
   "foo": "bar"
@@ -33,7 +33,7 @@ two:
   foo: bar
 `
 
-const expectJsonList = `{
+const expectJSONList = `{
   "one": {
     "bar": "",
     "baz": "foo",
@@ -81,14 +81,14 @@ func Test_PrintResource(t *testing.T) {
 		return err
 	})
 	require.NoError(t, err)
-	assert.Equal(t, expectYamlSingle, str)
+	assert.YAMLEq(t, expectYamlSingle, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResource(testResource, "json")
 		return err
 	})
 	require.NoError(t, err)
-	assert.Equal(t, expectJsonSingle, str)
+	assert.JSONEq(t, expectJSONSingle, str)
 
 	err = PrintResource(testResource, "unknown")
 	require.Error(t, err)
@@ -116,28 +116,28 @@ func Test_PrintResourceList(t *testing.T) {
 		return err
 	})
 	require.NoError(t, err)
-	assert.Equal(t, expectYamlList, str)
+	assert.YAMLEq(t, expectYamlList, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource, "json", false)
 		return err
 	})
 	require.NoError(t, err)
-	assert.Equal(t, expectJsonList, str)
+	assert.JSONEq(t, expectJSONList, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource2, "yaml", true)
 		return err
 	})
 	require.NoError(t, err)
-	assert.Equal(t, expectYamlSingle, str)
+	assert.YAMLEq(t, expectYamlSingle, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource2, "json", true)
 		return err
 	})
 	require.NoError(t, err)
-	assert.Equal(t, expectJsonSingle, str)
+	assert.JSONEq(t, expectJSONSingle, str)
 
 	err = PrintResourceList(testResource, "unknown", false)
 	require.Error(t, err)

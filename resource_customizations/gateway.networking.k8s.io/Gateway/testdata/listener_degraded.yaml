@@ -1,0 +1,56 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: example-gateway
+  namespace: default
+spec:
+  gatewayClassName: example-gateway-class
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+status:
+  conditions:
+  - lastTransitionTime: "2023-03-02T15:00:00Z"
+    message: Gateway has been programmed
+    observedGeneration: 1
+    reason: Programmed
+    status: "True"
+    type: Programmed
+  - lastTransitionTime: "2023-03-02T15:00:00Z"
+    message: Gateway has been accepted
+    observedGeneration: 1
+    reason: Accepted
+    status: "True"
+    type: Accepted
+  - lastTransitionTime: "2023-03-02T15:00:00Z"
+    message: All references resolved
+    observedGeneration: 1
+    reason: ResolvedRefs
+    status: "True"
+    type: ResolvedRefs
+  listeners:
+  - attachedRoutes: 0
+    conditions:
+    - lastTransitionTime: "2023-03-02T15:00:00Z"
+      message: Listener is ready
+      observedGeneration: 1
+      reason: Ready
+      status: "True"
+      type: Programmed
+    - lastTransitionTime: "2023-03-02T15:00:00Z"
+      message: Listener has not been accepted
+      observedGeneration: 1
+      reason: ListenerNotAccepted
+      status: "False"
+      type: Accepted
+    - lastTransitionTime: "2023-03-02T15:00:00Z"
+      message: All references resolved
+      observedGeneration: 1
+      reason: ResolvedRefs
+      status: "True"
+      type: ResolvedRefs
+    name: http
+    supportedKinds:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute

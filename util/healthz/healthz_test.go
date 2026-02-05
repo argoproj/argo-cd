@@ -1,18 +1,26 @@
 package healthz
 
 import (
-	"fmt"
+	"errors"
 	"net"
 	"net/http"
 	"testing"
+	"time"
+
+	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHealthCheck(t *testing.T) {
 	sentinel := false
-
+	lc := &net.ListenConfig{}
+	ctx := t.Context()
+	svcErrMsg := "This is a dummy error"
 	serve := func(c chan<- string) {
 		// listen on first available dynamic (unprivileged) port
-		listener, err := net.Listen("tcp", ":0")
+		listener, err := lc.Listen(ctx, "tcp", ":0")
 		if err != nil {
 			panic(err)
 		}
@@ -21,9 +29,9 @@ func TestHealthCheck(t *testing.T) {
 		c <- listener.Addr().String()
 
 		mux := http.NewServeMux()
-		ServeHealthCheck(mux, func(r *http.Request) error {
+		ServeHealthCheck(mux, func(_ *http.Request) error {
 			if sentinel {
-				return fmt.Errorf("This is a dummy error")
+				return errors.New(svcErrMsg)
 			}
 			return nil
 		})
@@ -40,19 +48,34 @@ func TestHealthCheck(t *testing.T) {
 
 	server := "http://" + address
 
-	resp, err := http.Get(server + "/healthz")
-	if err != nil {
-		t.Fatal(err)
-	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server+"/healthz", http.NoBody)
+	require.NoError(t, err)
 
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("Was expecting status code 200 from health check, but got %d instead", resp.StatusCode)
-	}
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.Equalf(t, http.StatusOK, resp.StatusCode, "Was expecting status code 200 from health check, but got %d instead", resp.StatusCode)
 
 	sentinel = true
+	hook := test.NewGlobal()
 
-	resp, _ = http.Get(server + "/healthz")
-	if resp.StatusCode != http.StatusServiceUnavailable {
-		t.Fatalf("Was expecting status code 503 from health check, but got %d instead", resp.StatusCode)
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, server+"/healthz", http.NoBody)
+	require.NoError(t, err)
+	resp, err = http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.Equalf(t, http.StatusServiceUnavailable, resp.StatusCode, "Was expecting status code 503 from health check, but got %d instead", resp.StatusCode)
+	assert.NotEmpty(t, hook.Entries, "Was expecting at least one log entry from health check, but got none")
+	expectedMsg := "Error serving health check request"
+	var foundEntry log.Entry
+	for _, entry := range hook.Entries {
+		if entry.Level == log.ErrorLevel &&
+			entry.Message == expectedMsg {
+			foundEntry = entry
+			break
+		}
 	}
+	require.NotEmpty(t, foundEntry, "Expected an error message '%s', but it was't found", expectedMsg)
+	actualErr, ok := foundEntry.Data["error"].(error)
+	require.True(t, ok, "Expected 'error' field to contain an error, but it doesn't")
+	assert.Equal(t, svcErrMsg, actualErr.Error(), "expected original error message '"+svcErrMsg+"', but got '"+actualErr.Error()+"'")
+	assert.Greater(t, foundEntry.Data["duration"].(time.Duration), time.Duration(0))
 }

@@ -5,4 +5,5 @@ entries:
       urls:
         - http://127.0.0.1:9080/argo-e2e/testdata.git/helm-repo/helm-1.0.0.tgz
       version: 1.0.0
+      name: helm
 

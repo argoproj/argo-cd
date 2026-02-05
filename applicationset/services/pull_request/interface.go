@@ -7,7 +7,8 @@ import (
 
 type PullRequest struct {
 	// Number is a number that will be the ID of the pull request.
-	Number int
+	// Gitlab uses int64 for the pull request number.
+	Number int64
 	// Title of the pull request.
 	Title string
 	// Branch is the name of the branch from which the pull request originated.
@@ -30,4 +31,5 @@ type PullRequestService interface {
 type Filter struct {
 	BranchMatch       *regexp.Regexp
 	TargetBranchMatch *regexp.Regexp
+	TitleMatch        *regexp.Regexp
 }

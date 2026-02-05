@@ -1,0 +1,42 @@
+discoveryTests:
+  - inputPath: testdata/suspended.yaml
+    result:
+      - name: resume
+        iconClass: 'fa fa-fw fa-play'
+      - name: terminate
+        iconClass: 'fa fa-fw fa-stop'
+  - inputPath: testdata/active.yaml
+    result:
+      - name: suspend
+        iconClass: 'fa fa-fw fa-pause'
+      - name: terminate
+        iconClass: 'fa fa-fw fa-stop'
+  - inputPath: testdata/completed.yaml
+    result: []
+  - inputPath: testdata/failed.yaml
+    result: []
+  - inputPath: testdata/terminated.yaml
+    result: []
+
+actionTests:
+  - action: resume
+    inputPath: testdata/suspended.yaml
+    expectedOutputPath: testdata/suspended-output.yaml
+  - action: suspend
+    inputPath: testdata/resumed.yaml
+    expectedOutputPath: testdata/resumed-output.yaml
+  - action: suspend
+    inputPath: testdata/created.yaml
+    expectedOutputPath: testdata/created-output.yaml
+  - action: terminate
+    inputPath: testdata/active.yaml
+    expectedOutputPath: testdata/terminated.yaml
+  - action: terminate
+    inputPath: testdata/resumed.yaml
+    expectedOutputPath: testdata/resumed-terminated-output.yaml
+  - action: terminate
+    inputPath: testdata/completed.yaml
+    expectedOutputPath: testdata/completed.yaml
+  - action: terminate
+    inputPath: testdata/failed.yaml
+    expectedOutputPath: testdata/failed.yaml

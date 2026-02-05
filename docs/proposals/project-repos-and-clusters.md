@@ -138,7 +138,7 @@ The security considerations are explained in `Project RBAC Changes` section.
 
 ### Risks and Mitigations
 
-#### Deverlopers Might Overload Argo CD
+#### Developers Might Overload Argo CD
 
 The developers are typically not responsible for Argo CD health and don't have access to Argo CD metrics. So adding too many clusters might overload Argo CD.
 Two improvements are proposed to mitigate that risk:

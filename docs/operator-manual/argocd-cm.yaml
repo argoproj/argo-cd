@@ -88,8 +88,8 @@ data:
 
   # Configuration to customize resource behavior (optional) can be configured via splitted sub keys.
   # Keys are in the form: resource.customizations.ignoreDifferences.<group_kind>, resource.customizations.health.<group_kind>
-  # resource.customizations.actions.<group_kind>, resource.customizations.knownTypeFields.<group-kind>
-  # resource.customizations.ignoreResourceUpdates.<group-kind>
+  # resource.customizations.actions.<group_kind>, resource.customizations.knownTypeFields.<group_kind>
+  # resource.customizations.ignoreResourceUpdates.<group_kind>
   resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
     jsonPointers:
     - /webhooks/0/clientConfig/caBundle
@@ -107,8 +107,8 @@ data:
     - /spec/replicas
 
   # Enable resource.customizations.ignoreResourceUpdates rules. If "false," those rules are not applied, and all updates
-  # to resources are applied to the cluster cache. Default is false.
-  resource.ignoreResourceUpdatesEnabled: "false"
+  # to resources are applied to the cluster cache. Default is true.
+  resource.ignoreResourceUpdatesEnabled: "true"
 
   # Configuration to define customizations ignoring differences during watched resource updates to skip application reconciles.
   resource.customizations.ignoreResourceUpdates.all: |
@@ -133,7 +133,7 @@ data:
     - /metadata/annotations/autoscaling.alpha.kubernetes.io~1metrics
     - /metadata/annotations/autoscaling.alpha.kubernetes.io~1current-metrics
 
-  resource.customizations.health.certmanager.k8s.io-Certificate: |
+  resource.customizations.health.certmanager.k8s.io_Certificate: |
     hs = {}
     if obj.status ~= nil then
       if obj.status.conditions ~= nil then
@@ -222,6 +222,9 @@ data:
       clusters:
       - "*.local"
 
+  # An optional comma-separated list of annotation keys to mask in UI/CLI on secrets
+  resource.sensitive.mask.annotations: openshift.io/token-secret.value,api-key
+
   # An optional comma-separated list of metadata.labels to observe in the UI.
   resource.customLabels: tier
 
@@ -234,16 +237,15 @@ data:
   # An optional comma-separated list of metadata.labels keys to exclude from Kubernetes events generated for Applications. Supports wildcards.
   resource.excludeEventLabelKeys: environment,bu
 
-
   resource.compareoptions: |
     # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
     ignoreAggregatedRoles: true
 
     # disables status field diffing in specified resource types
-    # 'crd' - CustomResourceDefinitions (default)
-    # 'all' - all resources
+    # 'crd' - CustomResourceDefinitions 
+    # 'all' - all resources (default)
     # 'none' - disabled
-    ignoreResourceStatusField: crd
+    ignoreResourceStatusField: all
 
   # configuration to instruct controller to only watch for resources that it has permissions to list
   # can be either empty, "normal" or "strict". By default, it is empty i.e. disabled.
@@ -251,9 +253,9 @@ data:
 
   # A set of settings that allow enabling or disabling the config management tool.
   # If unset, each defaults to "true".
-  kustomize.enabled: "true"
-  jsonnet.enabled: "true"
-  helm.enabled: "true"
+  kustomize.enable: "true"
+  jsonnet.enable: "true"
+  helm.enable: "true"
 
   # Build options/parameters to use with `kustomize build` (optional)
   kustomize.buildOptions: --load_restrictor none
@@ -275,13 +277,19 @@ data:
   # If omitted, Argo CD injects the app name into the label: 'app.kubernetes.io/instance'
   application.instanceLabelKey: mycompany.com/appname
 
+  # An optional comma-separated list of node labels to propagate to the application pod view.
+  application.allowedNodeLabels: topology.kubernetes.io/zone,node.kubernetes.io/instance-type
+
   # You can change the resource tracking method Argo CD uses by changing the
   # setting application.resourceTrackingMethod to the desired method.
   # The following methods are available:
-  # - label            : Uses the application.instanceLabelKey label for tracking
   # - annotation       : Uses an annotation with additional metadata for tracking instead of the label
   # - annotation+label : Also uses an annotation for tracking, but additionally labels the resource with the application name
+  # - label            : Uses the application.instanceLabelKey label for tracking
   application.resourceTrackingMethod: annotation
+
+  # Optional installation id. Allows to have multiple installations of Argo CD in the same cluster.
+  installationID: "my-unique-id"
 
   # disables admin user. Admin is enabled by default
   admin.enabled: "false"
@@ -320,29 +328,31 @@ data:
   # at the bottom of the page. Change the value as needed.
   # ui.bannerposition: "bottom"
 
-  # Application reconciliation timeout is the max amount of time required to discover if a new manifests version got
-  # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.
-  # > Note: argocd-repo-server deployment must be manually restarted after changing the setting.
-  timeout.reconciliation: 180s
+  # Application reconciliation timeout is the amount of time spent before Argo tries to discover if a new manifests version got
+  # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Two minutes by default with additional jitter.
+  # For the argocd-repo-server this setting defines the expiration
+  # value for cached git revisions.
+  # When set to 0, the cache expiration value will be taken from the
+  # --default-cache-expiration parameter, which is 24 hours by
+  # default, unless another value is set using the
+  # ARGOCD_DEFAULT_CACHE_EXPIRATION variable).
+  # > Note: The argocd-repo-server deployment and the argocd-application-controller statefulset (or deployment, if
+  # configured) must be manually restarted after changing the setting.
+  timeout.reconciliation: 120s
+
   # With a large number of applications, the periodic refresh for each application can cause a spike in the refresh queue
   # and can cause a spike in the repo-server component. To avoid this, you can set a jitter to the sync timeout, which will
   # spread out the refreshes and give time to the repo-server to catch up. The jitter is the maximum duration that can be
   # added to the sync timeout. So, if the sync timeout is 3 minutes and the jitter is 1 minute, then the actual timeout will
-  # be between 3 and 4 minutes. Disabled when the value is 0, defaults to 0.
-  timeout.reconciliation.jitter: 0
+  # be between 3 and 4 minutes. Disabled when the value is 0, defaults to 1 minute.
+  timeout.reconciliation.jitter: 60s
 
   # cluster.inClusterEnabled indicates whether to allow in-cluster server address. This is enabled by default.
   cluster.inClusterEnabled: "true"
 
   # The maximum number of pod logs to render in UI. If the application has more than this number of pods, the logs will not be rendered.
   # This is to prevent the UI from becoming unresponsive when rendering a large number of logs. Default is 10.
-  server.maxPodLogsToRender: 10
-
-  # Application pod logs RBAC enforcement enables control over who can and who can't view application pod logs.
-  # When you enable the switch, pod logs will be visible only to admin role by default. Other roles/users will not be able to view them via cli and UI.
-  # When you enable the switch, viewing pod logs for other roles/users will require explicit RBAC allow policies (allow get on logs subresource).
-  # When you disable the switch (either add it to the configmap with a "false" value or do not add it to the configmap), no actual RBAC enforcement will take place.
-  server.rbac.log.enforce.enable: "false"
+  server.maxPodLogsToRender: "10"
 
   # exec.enabled indicates whether the UI exec feature is enabled. It is disabled by default.
   exec.enabled: "false"
@@ -425,7 +435,42 @@ data:
                 name: some-cluster
                 server: https://some-cluster
   # The maximum size of the payload that can be sent to the webhook server.
-  webhook.maxPayloadSizeMB: 1024
+  webhook.maxPayloadSizeMB: "50"
 
-  # application.sync.impersonation.enabled indicates whether the application sync can be decoupled from control plane service account using impersonation.
+  # application.sync.impersonation.enabled enables application sync to use a custom service account, via impersonation. This allows decoupling sync from control-plane service account.
   application.sync.impersonation.enabled: "false"
+
+  # If true, passing passing a different revision from the one given in the application when syncing requires the `override` privilege. 
+  # The current default setting up to now (`false`) requires only `sync` privilege for syncing to a different revision. 
+  # We highly recommend that this be set to `true`. The next major release will set the default to be `true`.  
+  application.sync.requireOverridePrivilegeForRevisionSync: "true"  
+
+  ### SourceHydrator commit author name (optional).
+  # Configures the author name for commits created by the Source Hydrator.
+  # If not specified, defaults to "Argo CD".
+  commit.author.name: "Argo CD"
+
+  ### SourceHydrator commit author email (optional).
+  # Configures the author email for commits created by the Source Hydrator.
+  # If not specified, defaults to "argo-cd@example.com".
+  commit.author.email: "argo-cd@example.com"
+
+  ### SourceHydrator commit message template.
+  # This template iterates through the fields in the `.metadata` object,
+  # and formats them based on their type (map, array, or primitive values).
+  # This is the default template and targets specific metadata properties
+  sourceHydrator.commitMessageTemplate: |
+    {{.metadata.drySha | trunc 7}}: {{ .metadata.subject }}
+    {{- if .metadata.body }}
+    
+    {{ .metadata.body }}
+    {{- end }}
+    {{ range $ref := .metadata.references }}
+    {{- if and $ref.commit $ref.commit.author }}
+    Co-authored-by: {{ $ref.commit.author }}
+    {{- end }}
+    {{- end }}
+    {{- if .metadata.author }}
+    Co-authored-by: {{ .metadata.author }}
+    {{- end }}
+

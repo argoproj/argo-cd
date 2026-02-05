@@ -374,6 +374,56 @@
         }
       }
     },
+    "/api/v1/applications/{appName}/server-side-diff": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ServerSideDiff performs server-side diff calculation using dry-run apply",
+        "operationId": "ApplicationService_ServerSideDiff",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "appName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "targetManifests",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationServerSideDiffResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{application.metadata.name}": {
       "put": {
         "tags": [
@@ -920,6 +970,11 @@
             "type": "string",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "matchCase",
+            "in": "query"
           }
         ],
         "responses": {
@@ -993,6 +1048,11 @@
             },
             "collectionFormat": "multi",
             "name": "revisions",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "noCache",
             "in": "query"
           }
         ],
@@ -1152,6 +1212,11 @@
           {
             "type": "string",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "matchCase",
             "in": "query"
           }
         ],
@@ -1463,10 +1528,11 @@
         }
       },
       "post": {
+        "description": "Deprecated: use RunResourceActionV2 instead. This version does not support resource action parameters but is\nmaintained for backward compatibility. It will be removed in a future release.",
         "tags": [
           "ApplicationService"
         ],
-        "summary": "RunResourceAction run resource action",
+        "summary": "RunResourceAction runs a resource action",
         "operationId": "ApplicationService_RunResourceAction",
         "parameters": [
           {
@@ -1517,6 +1583,45 @@
             "type": "string",
             "name": "project",
             "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{name}/resource/actions/v2": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "RunResourceActionV2 runs a resource action with parameters",
+        "operationId": "ApplicationService_RunResourceActionV2",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationResourceActionRunRequestV2"
+            }
           }
         ],
         "responses": {
@@ -1718,6 +1823,70 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/v1alpha1RevisionMetadata"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{name}/revisions/{revision}/ocimetadata": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Get the chart metadata (description, maintainers, home) for a specific revision of the application",
+        "operationId": "ApplicationService_GetOCIMetadata",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the application's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the revision of the app",
+            "name": "revision",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "source index (for multi source apps).",
+            "name": "sourceIndex",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "versionId from historical data (for multi source apps).",
+            "name": "versionId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1OCIMetadata"
             }
           },
           "default": {
@@ -1990,6 +2159,39 @@
         }
       }
     },
+    "/api/v1/applicationsets/generate": {
+      "post": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "Generate generates",
+        "operationId": "ApplicationSetService_Generate",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationsetApplicationSetGenerateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationsetApplicationSetGenerateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applicationsets/{name}": {
       "get": {
         "tags": [
@@ -2052,6 +2254,44 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/applicationsetApplicationSetResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applicationsets/{name}/events": {
+      "get": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "ListResourceEvents returns a list of event resources",
+        "operationId": "ApplicationSetService_ListResourceEvents",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the applicationsets's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1EventList"
             }
           },
           "default": {
@@ -3568,6 +3808,49 @@
         }
       }
     },
+    "/api/v1/repositories/{repo}/oci-tags": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "operationId": "RepositoryService_ListOCITags",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRefs"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/repositories/{repo}/refs": {
       "get": {
         "tags": [
@@ -3737,6 +4020,24 @@
             "type": "boolean",
             "description": "Whether to force HTTP basic auth.",
             "name": "forceHttpBasicAuth",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to use azure workload identity for authentication.",
+            "name": "useAzureWorkloadIdentity",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "BearerToken contains the bearer token used for Git auth at the repo server.",
+            "name": "bearerToken",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether https should be disabled for an OCI repo.",
+            "name": "insecureOciForceHttp",
             "in": "query"
           }
         ],
@@ -4084,6 +4385,522 @@
         }
       }
     },
+    "/api/v1/write-repocreds": {
+      "get": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "ListWriteRepositoryCredentials gets a list of all configured repository credential sets that have write access",
+        "operationId": "RepoCredsService_ListWriteRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query.",
+            "name": "url",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCredsList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "CreateWriteRepositoryCredentials creates a new repository credential set with write access",
+        "operationId": "RepoCredsService_CreateWriteRepositoryCredentials",
+        "parameters": [
+          {
+            "description": "Repository definition",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to create in upsert mode.",
+            "name": "upsert",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repocreds/{creds.url}": {
+      "put": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "UpdateWriteRepositoryCredentials updates a repository credential set with write access",
+        "operationId": "RepoCredsService_UpdateWriteRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "URL is the URL to which these credentials match",
+            "name": "creds.url",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repocreds/{url}": {
+      "delete": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "DeleteWriteRepositoryCredentials deletes a repository credential set with write access from the configuration",
+        "operationId": "RepoCredsService_DeleteWriteRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "url",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repocredsRepoCredsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repositories": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "ListWriteRepositories gets a list of all configured write repositories",
+        "operationId": "RepositoryService_ListWriteRepositories",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query.",
+            "name": "repo",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepositoryList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "CreateWriteRepository creates a new write repository configuration",
+        "operationId": "RepositoryService_CreateWriteRepository",
+        "parameters": [
+          {
+            "description": "Repository definition",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to create in upsert mode.",
+            "name": "upsert",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to operate on credential set instead of repository.",
+            "name": "credsOnly",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repositories/{repo.repo}": {
+      "put": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "UpdateWriteRepository updates a write repository configuration",
+        "operationId": "RepositoryService_UpdateWriteRepository",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo contains the URL to the remote repository",
+            "name": "repo.repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repositories/{repo}": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "GetWrite returns a repository or its write credentials",
+        "operationId": "RepositoryService_GetWrite",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "DeleteWriteRepository deletes a write repository from the configuration",
+        "operationId": "RepositoryService_DeleteWriteRepository",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repositories/{repo}/validate": {
+      "post": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "ValidateWriteAccess validates write access to a repository with given parameters",
+        "operationId": "RepositoryService_ValidateWriteAccess",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The URL to the repo",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "The URL to the repo",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "description": "Username for accessing repo.",
+            "name": "username",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Password for accessing repo.",
+            "name": "password",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Private key data for accessing SSH repository.",
+            "name": "sshPrivateKey",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to skip certificate or host key validation.",
+            "name": "insecure",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "TLS client cert data for accessing HTTPS repository.",
+            "name": "tlsClientCertData",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "TLS client cert key for accessing HTTPS repository.",
+            "name": "tlsClientCertKey",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "The type of the repo.",
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "The name of the repo.",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether helm-oci support should be enabled for this repo.",
+            "name": "enableOci",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Github App Private Key PEM data.",
+            "name": "githubAppPrivateKey",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "Github App ID of the app used to access the repo.",
+            "name": "githubAppID",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "Github App Installation ID of the installed GitHub App.",
+            "name": "githubAppInstallationID",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Github App Enterprise base url if empty will default to https://api.github.com.",
+            "name": "githubAppEnterpriseBaseUrl",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "HTTP/HTTPS proxy to access the repository.",
+            "name": "proxy",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity.",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Google Cloud Platform service account key.",
+            "name": "gcpServiceAccountKey",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force HTTP basic auth.",
+            "name": "forceHttpBasicAuth",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to use azure workload identity for authentication.",
+            "name": "useAzureWorkloadIdentity",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "BearerToken contains the bearer token used for Git auth at the repo server.",
+            "name": "bearerToken",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether https should be disabled for an OCI repo.",
+            "name": "insecureOciForceHttp",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/version": {
       "get": {
         "tags": [
@@ -4295,6 +5112,20 @@
         }
       }
     },
+    "applicationApplicationServerSideDiffResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceDiff"
+          }
+        },
+        "modified": {
+          "type": "boolean"
+        }
+      }
+    },
     "applicationApplicationSyncRequest": {
       "type": "object",
       "title": "ApplicationSyncRequest is a request to apply the config state to live state",
@@ -4467,6 +5298,55 @@
     "applicationOperationTerminateResponse": {
       "type": "object"
     },
+    "applicationResourceActionParameters": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationResourceActionRunRequestV2": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "appNamespace": {
+          "type": "string"
+        },
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        },
+        "resourceActionParameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationResourceActionParameters"
+          }
+        },
+        "resourceName": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
     "applicationResourceActionsListResponse": {
       "type": "object",
       "properties": {
@@ -4536,38 +5416,51 @@
       }
     },
     "applicationv1alpha1ResourceStatus": {
+      "description": "ResourceStatus holds the current synchronization and health status of a Kubernetes resource.",
       "type": "object",
-      "title": "ResourceStatus holds the current sync and health status of a resource\nTODO: describe members of this type",
       "properties": {
         "group": {
+          "description": "Group represents the API group of the resource (e.g., \"apps\" for Deployments).",
           "type": "string"
         },
         "health": {
           "$ref": "#/definitions/v1alpha1HealthStatus"
         },
         "hook": {
+          "description": "Hook is true if the resource is used as a lifecycle hook in an Argo CD application.",
           "type": "boolean"
         },
         "kind": {
+          "description": "Kind specifies the type of the resource (e.g., \"Deployment\", \"Service\").",
           "type": "string"
         },
         "name": {
+          "description": "Name is the unique name of the resource within the namespace.",
           "type": "string"
         },
         "namespace": {
+          "description": "Namespace defines the Kubernetes namespace where the resource is located.",
           "type": "string"
         },
+        "requiresDeletionConfirmation": {
+          "description": "RequiresDeletionConfirmation is true if the resource requires explicit user confirmation before deletion.",
+          "type": "boolean"
+        },
         "requiresPruning": {
+          "description": "RequiresPruning is true if the resource needs to be pruned (deleted) as part of synchronization.",
           "type": "boolean"
         },
         "status": {
+          "description": "Status represents the synchronization state of the resource (e.g., Synced, OutOfSync).",
           "type": "string"
         },
         "syncWave": {
+          "description": "SyncWave determines the order in which resources are applied during a sync operation.\nLower values are applied first.",
           "type": "integer",
           "format": "int64"
         },
         "version": {
+          "description": "Version indicates the API version of the resource (e.g., \"v1\", \"v1beta1\").",
           "type": "string"
         }
       }
@@ -4688,6 +5581,12 @@
     "clusterSettings": {
       "type": "object",
       "properties": {
+        "additionalUrls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "appLabelKey": {
           "type": "string"
         },
@@ -4716,8 +5615,14 @@
         "help": {
           "$ref": "#/definitions/clusterHelp"
         },
+        "hydratorEnabled": {
+          "type": "boolean"
+        },
         "impersonationEnabled": {
           "type": "boolean"
+        },
+        "installationID": {
+          "type": "string"
         },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
@@ -4751,6 +5656,9 @@
         },
         "statusBadgeRootUrl": {
           "type": "string"
+        },
+        "syncWithReplaceAllowed": {
+          "type": "boolean"
         },
         "trackingMethod": {
           "type": "string"
@@ -5656,6 +6564,17 @@
         }
       }
     },
+    "v1NodeSwapStatus": {
+      "description": "NodeSwapStatus represents swap memory information.",
+      "type": "object",
+      "properties": {
+        "capacity": {
+          "type": "integer",
+          "format": "int64",
+          "title": "Total amount of swap memory in bytes.\n+optional"
+        }
+      }
+    },
     "v1NodeSystemInfo": {
       "description": "NodeSystemInfo is a set of ids/uuids to uniquely identify the node.",
       "type": "object",
@@ -5695,6 +6614,9 @@
         "osImage": {
           "description": "OS Image reported by the node from /etc/os-release (e.g. Debian GNU/Linux 7 (wheezy)).",
           "type": "string"
+        },
+        "swap": {
+          "$ref": "#/definitions/v1NodeSwapStatus"
         },
         "systemUUID": {
           "type": "string",
@@ -5849,6 +6771,7 @@
     },
     "v1PortStatus": {
       "type": "object",
+      "title": "PortStatus represents the error condition of a service port",
       "properties": {
         "error": {
           "type": "string",
@@ -5885,6 +6808,24 @@
         "roleARN": {
           "description": "RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.",
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1AppHealthStatus": {
+      "type": "object",
+      "title": "AppHealthStatus contains information about the currently observed health state of an application",
+      "properties": {
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "message": {
+          "description": "Deprecated: this field is not used and will be removed in a future release.",
+          "type": "string",
+          "title": "Message is a human-readable informational message describing the health status"
+        },
+        "status": {
+          "type": "string",
+          "title": "Status holds the status code of the application"
         }
       }
     },
@@ -5926,19 +6867,19 @@
           "type": "array",
           "title": "ClusterResourceBlacklist contains list of blacklisted cluster level resources",
           "items": {
-            "$ref": "#/definitions/v1GroupKind"
+            "$ref": "#/definitions/v1alpha1ClusterResourceRestrictionItem"
           }
         },
         "clusterResourceWhitelist": {
           "type": "array",
           "title": "ClusterResourceWhitelist contains list of whitelisted cluster level resources",
           "items": {
-            "$ref": "#/definitions/v1GroupKind"
+            "$ref": "#/definitions/v1alpha1ClusterResourceRestrictionItem"
           }
         },
         "description": {
           "type": "string",
-          "title": "Description contains optional project description"
+          "title": "Description contains optional project description\n+kubebuilder:validation:MaxLength=255"
         },
         "destinationServiceAccounts": {
           "description": "DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.",
@@ -6084,7 +7025,7 @@
       "properties": {
         "defaultServiceAccount": {
           "type": "string",
-          "title": "ServiceAccountName to be used for impersonation during the sync operation"
+          "title": "DefaultServiceAccount to be used for impersonation during the sync operation"
         },
         "namespace": {
           "description": "Namespace specifies the target namespace for the application's resources.",
@@ -6147,7 +7088,7 @@
     },
     "v1alpha1ApplicationSet": {
       "type": "object",
-      "title": "ApplicationSet is a set of Application resources\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
+      "title": "ApplicationSet is a set of Application resources.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
@@ -6177,7 +7118,7 @@
         },
         "status": {
           "type": "string",
-          "title": "Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)"
+          "title": "Status contains the AppSet's perceived status of the managed Application resource"
         },
         "step": {
           "type": "string",
@@ -6358,8 +7299,8 @@
       "type": "object",
       "properties": {
         "applyNestedSelectors": {
-          "type": "boolean",
-          "title": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators"
+          "description": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators.\n\nDeprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future\nversion of the ApplicationSet CRD.",
+          "type": "boolean"
         },
         "generators": {
           "type": "array",
@@ -6416,12 +7357,20 @@
             "$ref": "#/definitions/v1alpha1ApplicationSetCondition"
           }
         },
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus"
+        },
         "resources": {
           "description": "Resources is a list of Applications resources managed by this application set.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/applicationv1alpha1ResourceStatus"
           }
+        },
+        "resourcesCount": {
+          "description": "ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when\nthe number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).",
+          "type": "integer",
+          "format": "int64"
         }
       }
     },
@@ -6429,6 +7378,10 @@
       "description": "ApplicationSetStrategy configures how generated Applications are updated in sequence.",
       "type": "object",
       "properties": {
+        "deletionOrder": {
+          "type": "string",
+          "title": "DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.\naccepts values \"AllAtOnce\" and \"Reverse\""
+        },
         "rollingSync": {
           "$ref": "#/definitions/v1alpha1ApplicationSetRolloutStrategy"
         },
@@ -6523,6 +7476,10 @@
         "kustomize": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
         },
+        "name": {
+          "description": "Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.",
+          "type": "string"
+        },
         "path": {
           "description": "Path is a directory path within the Git repository, and is only valid for applications sourced from Git.",
           "type": "string"
@@ -6613,6 +7570,14 @@
         "skipCrds": {
           "type": "boolean",
           "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
+        },
+        "skipSchemaValidation": {
+          "type": "boolean",
+          "title": "SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)"
+        },
+        "skipTests": {
+          "description": "SkipTests skips test manifest installation step (Helm's --skip-tests).",
+          "type": "boolean"
         },
         "valueFiles": {
           "type": "array",
@@ -6705,6 +7670,10 @@
           "type": "boolean",
           "title": "ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps"
         },
+        "ignoreMissingComponents": {
+          "type": "boolean",
+          "title": "IgnoreMissingComponents prevents kustomize from failing when components do not exist locally by not appending them to kustomization file"
+        },
         "images": {
           "type": "array",
           "title": "Images is a list of Kustomize image override specifications",
@@ -6715,6 +7684,10 @@
         "kubeVersion": {
           "description": "KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD\nuses the Kubernetes version of the target cluster.",
           "type": "string"
+        },
+        "labelIncludeTemplates": {
+          "type": "boolean",
+          "title": "LabelIncludeTemplates specifies whether to apply common labels to resource templates or not"
         },
         "labelWithoutSelector": {
           "type": "boolean",
@@ -6833,6 +7806,9 @@
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydrator"
+        },
         "sources": {
           "type": "array",
           "title": "Sources is a reference to the location of the application's manifests or chart",
@@ -6861,7 +7837,7 @@
           "title": "ControllerNamespace indicates the namespace in which the application controller is located"
         },
         "health": {
-          "$ref": "#/definitions/v1alpha1HealthStatus"
+          "$ref": "#/definitions/v1alpha1AppHealthStatus"
         },
         "history": {
           "type": "array",
@@ -6889,6 +7865,9 @@
           "items": {
             "$ref": "#/definitions/applicationv1alpha1ResourceStatus"
           }
+        },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydratorStatus"
         },
         "sourceType": {
           "type": "string",
@@ -6930,34 +7909,34 @@
       }
     },
     "v1alpha1ApplicationTree": {
+      "description": "ApplicationTree represents the hierarchical structure of resources associated with an Argo CD application.",
       "type": "object",
-      "title": "ApplicationTree holds nodes which belongs to the application\nTODO: describe purpose of this type",
       "properties": {
         "hosts": {
+          "description": "Hosts provides a list of Kubernetes nodes that are running pods related to the application.",
           "type": "array",
-          "title": "Hosts holds list of Kubernetes nodes that run application related pods",
           "items": {
             "$ref": "#/definitions/v1alpha1HostInfo"
           }
         },
         "nodes": {
-          "description": "Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.",
+          "description": "Nodes contains a list of resources that are either directly managed by the application\nor are children of directly managed resources.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceNode"
           }
         },
         "orphanedNodes": {
-          "description": "OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.",
+          "description": "OrphanedNodes contains resources that exist in the same namespace as the application\nbut are not managed by it. This list is populated only if orphaned resource tracking\nis enabled in the application's project settings.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceNode"
           }
         },
         "shardsCount": {
+          "description": "ShardsCount represents the total number of shards the application tree is split into.\nThis is used to distribute resource processing across multiple shards.",
           "type": "integer",
-          "format": "int64",
-          "title": "ShardsCount contains total number of shards the application tree is split into"
+          "format": "int64"
         }
       }
     },
@@ -7137,11 +8116,19 @@
           "description": "Server requires Bearer authentication. This client will not attempt to use\nrefresh tokens for an OAuth2 flow.\nTODO: demonstrate an OAuth2 compatible client.",
           "type": "string"
         },
+        "disableCompression": {
+          "description": "DisableCompression bypasses automatic GZip compression requests to the server.",
+          "type": "boolean"
+        },
         "execProviderConfig": {
           "$ref": "#/definitions/v1alpha1ExecProviderConfig"
         },
         "password": {
           "type": "string"
+        },
+        "proxyUrl": {
+          "type": "string",
+          "title": "ProxyURL is the URL to the proxy to be used for all requests send to the server"
         },
         "tlsClientConfig": {
           "$ref": "#/definitions/v1alpha1TLSClientConfig"
@@ -7156,6 +8143,10 @@
       "description": "ClusterGenerator defines a generator to match against clusters registered with ArgoCD.",
       "type": "object",
       "properties": {
+        "flatList": {
+          "type": "boolean",
+          "title": "returns the clusters a single 'clusters' value in the template"
+        },
         "selector": {
           "$ref": "#/definitions/v1LabelSelector"
         },
@@ -7214,6 +8205,22 @@
         }
       }
     },
+    "v1alpha1ClusterResourceRestrictionItem": {
+      "type": "object",
+      "title": "ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "description": "Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.\nUnlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1Command": {
       "type": "object",
       "title": "Command holds binary path and arguments list",
@@ -7229,6 +8236,36 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1CommitMetadata": {
+      "description": "CommitMetadata contains metadata about a commit that is related in some way to another commit.",
+      "type": "object",
+      "properties": {
+        "author": {
+          "description": "Author is the author of the commit, i.e. `git show -s --format=%an <%ae>`.\nMust be formatted according to RFC 5322 (mail.Address.String()).\nComes from the Argocd-reference-commit-author trailer.",
+          "type": "string"
+        },
+        "body": {
+          "description": "Body is the commit message body minus the subject line, i.e. `git show -s --format=%b`.\nComes from the Argocd-reference-commit-body trailer.",
+          "type": "string"
+        },
+        "date": {
+          "description": "Date is the date of the commit, formatted as by `git show -s --format=%aI` (RFC 3339).\nIt can also be an empty string if the date is unknown.\nComes from the Argocd-reference-commit-date trailer.",
+          "type": "string"
+        },
+        "repoUrl": {
+          "description": "RepoURL is the URL of the repository where the commit is located.\nComes from the Argocd-reference-commit-repourl trailer.\nThis value is not validated and should not be used to construct UI links unless it is properly\nvalidated and/or sanitized first.",
+          "type": "string"
+        },
+        "sha": {
+          "description": "SHA is the commit hash.\nComes from the Argocd-reference-commit-sha trailer.",
+          "type": "string"
+        },
+        "subject": {
+          "description": "Subject is the commit message subject line, i.e. `git show -s --format=%s`.\nComes from the Argocd-reference-commit-subject trailer.",
+          "type": "string"
         }
       }
     },
@@ -7277,7 +8314,7 @@
       }
     },
     "v1alpha1ConfigMapKeyRef": {
-      "description": "Utility struct for a reference to a configmap key.",
+      "description": "ConfigMapKeyRef struct for a reference to a configmap key.",
       "type": "object",
       "properties": {
         "configMapName": {
@@ -7302,6 +8339,36 @@
         "status": {
           "type": "string",
           "title": "Status contains the current status indicator for the connection"
+        }
+      }
+    },
+    "v1alpha1DrySource": {
+      "description": "DrySource specifies a location for dry \"don't repeat yourself\" manifest source information.",
+      "type": "object",
+      "properties": {
+        "directory": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
+        },
+        "helm": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
+        },
+        "kustomize": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
+        },
+        "path": {
+          "type": "string",
+          "title": "Path is a directory path within the Git repository where the manifests are located"
+        },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"
+        },
+        "repoURL": {
+          "type": "string",
+          "title": "RepoURL is the URL to the git repository that contains the application manifests"
+        },
+        "targetRevision": {
+          "type": "string",
+          "title": "TargetRevision defines the revision of the source to hydrate"
         }
       }
     },
@@ -7381,6 +8448,9 @@
     "v1alpha1GitFileGeneratorItem": {
       "type": "object",
       "properties": {
+        "exclude": {
+          "type": "boolean"
+        },
         "path": {
           "type": "string"
         }
@@ -7448,7 +8518,7 @@
         },
         "subType": {
           "type": "string",
-          "title": "SubType holds the key's sub type (e.g. rsa4096)"
+          "title": "SubType holds the key's subtype (e.g. rsa4096)"
         },
         "trust": {
           "type": "string",
@@ -7473,15 +8543,18 @@
     },
     "v1alpha1HealthStatus": {
       "type": "object",
-      "title": "HealthStatus contains information about the currently observed health state of an application or resource",
+      "title": "HealthStatus contains information about the currently observed health state of a resource",
       "properties": {
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time"
+        },
         "message": {
           "type": "string",
           "title": "Message is a human-readable informational message describing the health status"
         },
         "status": {
           "type": "string",
-          "title": "Status holds the status code of the application or resource"
+          "title": "Status holds the status code of the resource"
         }
       }
     },
@@ -7518,13 +8591,22 @@
       }
     },
     "v1alpha1HostInfo": {
+      "description": "HostInfo holds metadata and resource usage metrics for a specific host in the cluster.",
       "type": "object",
-      "title": "HostInfo holds host name and resources metrics\nTODO: describe purpose of this type\nTODO: describe members of this type",
       "properties": {
+        "labels": {
+          "description": "Labels holds the labels attached to the host.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "name": {
+          "description": "Name is the hostname or node name in the Kubernetes cluster.",
           "type": "string"
         },
         "resourcesInfo": {
+          "description": "ResourcesInfo provides a list of resource usage details for different resource types on this host.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1HostResourceInfo"
@@ -7536,23 +8618,68 @@
       }
     },
     "v1alpha1HostResourceInfo": {
+      "description": "HostResourceInfo represents resource usage details for a specific resource type on a host.",
       "type": "object",
-      "title": "TODO: describe this type",
       "properties": {
         "capacity": {
+          "description": "Capacity represents the total available capacity of this resource on the host.",
           "type": "integer",
           "format": "int64"
         },
         "requestedByApp": {
+          "description": "RequestedByApp indicates the total amount of this resource requested by the application running on the host.",
           "type": "integer",
           "format": "int64"
         },
         "requestedByNeighbors": {
+          "description": "RequestedByNeighbors indicates the total amount of this resource requested by other workloads on the same host.",
           "type": "integer",
           "format": "int64"
         },
         "resourceName": {
+          "description": "ResourceName specifies the type of resource (e.g., CPU, memory, storage).",
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1HydrateOperation": {
+      "type": "object",
+      "title": "HydrateOperation contains information about the most recent hydrate operation",
+      "properties": {
+        "drySHA": {
+          "type": "string",
+          "title": "DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
+        },
+        "finishedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "hydratedSHA": {
+          "type": "string",
+          "title": "HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains a message describing the current status of the hydrate operation"
+        },
+        "phase": {
+          "type": "string",
+          "title": "Phase indicates the status of the hydrate operation"
+        },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydrator"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/v1Time"
+        }
+      }
+    },
+    "v1alpha1HydrateTo": {
+      "description": "HydrateTo specifies a location to which hydrated manifests should be pushed as a \"staging area\" before being moved to\nthe SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.",
+      "type": "object",
+      "properties": {
+        "targetBranch": {
+          "type": "string",
+          "title": "TargetBranch is the branch to which hydrated manifests should be committed"
         }
       }
     },
@@ -7626,13 +8753,15 @@
       }
     },
     "v1alpha1KnownTypeField": {
+      "description": "KnownTypeField contains a mapping between a Custom Resource Definition (CRD) field\nand a well-known Kubernetes type. This mapping is primarily used for unit conversions\nin resources where the type is not explicitly defined (e.g., converting \"0.1\" to \"100m\" for CPU requests).",
       "type": "object",
-      "title": "KnownTypeField contains mapping between CRD field and known Kubernetes type.\nThis is mainly used for unit conversion in unknown resources (e.g. 0.1 == 100mi)\nTODO: Describe the members of this type",
       "properties": {
         "field": {
-          "type": "string"
+          "type": "string",
+          "title": "Field represents the JSON path to the specific field in the CRD that requires type conversion.\nExample: \"spec.resources.requests.cpu\""
         },
         "type": {
+          "description": "Type specifies the expected Kubernetes type for the field, such as \"cpu\" or \"memory\".\nThis helps in converting values between different formats (e.g., \"0.1\" to \"100m\" for CPU).",
           "type": "string"
         }
       }
@@ -7656,12 +8785,20 @@
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
       "properties": {
         "binaryPath": {
+          "description": "Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.\nIf this field is set, it will be used as the Kustomize binary path.\nOtherwise, Versions is used.",
           "type": "string",
           "title": "BinaryPath holds optional path to kustomize binary"
         },
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
+        },
+        "versions": {
+          "description": "Versions is a list of Kustomize versions and their corresponding binary paths and build options.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KustomizeVersion"
+          }
         }
       }
     },
@@ -7722,6 +8859,24 @@
         },
         "resId": {
           "$ref": "#/definitions/v1alpha1KustomizeResId"
+        }
+      }
+    },
+    "v1alpha1KustomizeVersion": {
+      "type": "object",
+      "title": "KustomizeVersion holds information about additional Kustomize versions",
+      "properties": {
+        "buildOptions": {
+          "type": "string",
+          "title": "BuildOptions that are specific to a Kustomize version"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name holds Kustomize version name"
+        },
+        "path": {
+          "type": "string",
+          "title": "Path holds the corresponding binary path"
         }
       }
     },
@@ -7794,6 +8949,33 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        }
+      }
+    },
+    "v1alpha1OCIMetadata": {
+      "type": "object",
+      "title": "OCIMetadata contains metadata for a specific revision in an OCI repository",
+      "properties": {
+        "authors": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "docsUrl": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "sourceUrl": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
         }
       }
     },
@@ -8019,6 +9201,10 @@
         "bitbucketServer": {
           "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucketServer"
         },
+        "continueOnRepoNotFoundError": {
+          "description": "ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.",
+          "type": "boolean"
+        },
         "filters": {
           "description": "Filters for which pull requests should be considered.",
           "type": "array",
@@ -8042,6 +9228,13 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        },
+        "values": {
+          "type": "object",
+          "title": "Values contains key/value pairs which are passed directly as parameters to the template",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
@@ -8141,6 +9334,9 @@
         },
         "targetBranchMatch": {
           "type": "string"
+        },
+        "titleMatch": {
+          "type": "string"
         }
       }
     },
@@ -8171,8 +9367,8 @@
           "type": "string"
         },
         "pullRequestState": {
-          "type": "string",
-          "title": "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states)"
+          "description": "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states).\nValid values: opened, closed, merged, locked\".",
+          "type": "string"
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
@@ -8191,6 +9387,13 @@
           "description": "Allow insecure tls, for self-signed certificates; default: false.",
           "type": "boolean"
         },
+        "labels": {
+          "type": "array",
+          "title": "Labels is used to filter the PRs that you want to target",
+          "items": {
+            "type": "string"
+          }
+        },
         "owner": {
           "description": "Gitea org or user to scan. Required.",
           "type": "string"
@@ -8205,7 +9408,7 @@
       }
     },
     "v1alpha1PullRequestGeneratorGithub": {
-      "description": "PullRequestGenerator defines connection info specific to GitHub.",
+      "description": "PullRequestGeneratorGithub defines connection info specific to GitHub.",
       "type": "object",
       "properties": {
         "api": {
@@ -8240,6 +9443,10 @@
       "type": "object",
       "title": "RepoCreds holds the definition for repository credentials",
       "properties": {
+        "bearerToken": {
+          "type": "string",
+          "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
+        },
         "enableOCI": {
           "type": "boolean",
           "title": "EnableOCI specifies whether helm-oci support should be enabled for this repo"
@@ -8270,6 +9477,10 @@
           "type": "string",
           "title": "GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app"
         },
+        "insecureOCIForceHttp": {
+          "description": "InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.",
+          "type": "boolean"
+        },
         "noProxy": {
           "type": "string",
           "title": "NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied"
@@ -8295,12 +9506,16 @@
           "title": "TLSClientCertKey specifies the TLS client cert key for authenticating at the repo server"
         },
         "type": {
-          "description": "Type specifies the type of the repoCreds. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
+          "description": "Type specifies the type of the repoCreds. Can be either \"git\", \"helm\" or \"oci\". \"git\" is assumed if empty or absent.",
           "type": "string"
         },
         "url": {
           "type": "string",
           "title": "URL is the URL to which these credentials match"
+        },
+        "useAzureWorkloadIdentity": {
+          "type": "boolean",
+          "title": "UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication"
         },
         "username": {
           "type": "string",
@@ -8327,8 +9542,17 @@
       "type": "object",
       "title": "Repository is a repository holding application configurations",
       "properties": {
+        "bearerToken": {
+          "type": "string",
+          "title": "BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server"
+        },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
+        },
+        "depth": {
+          "description": "Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.",
+          "type": "integer",
+          "format": "int64"
         },
         "enableLfs": {
           "description": "EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.",
@@ -8376,6 +9600,10 @@
           "type": "boolean",
           "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured\nUsed only for Git repos"
         },
+        "insecureOCIForceHttp": {
+          "description": "InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.",
+          "type": "boolean"
+        },
         "name": {
           "type": "string",
           "title": "Name specifies a name to be used for this repo. Only used with Helm repos"
@@ -8415,6 +9643,10 @@
         "type": {
           "description": "Type specifies the type of the repo. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
           "type": "string"
+        },
+        "useAzureWorkloadIdentity": {
+          "type": "boolean",
+          "title": "UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication"
         },
         "username": {
           "type": "string",
@@ -8481,22 +9713,27 @@
       }
     },
     "v1alpha1ResourceAction": {
+      "description": "ResourceAction represents an individual action that can be performed on a resource.\nIt includes parameters, an optional disabled flag, an icon for display, and a name for the action.",
       "type": "object",
-      "title": "TODO: describe this type\nTODO: describe members of this type",
       "properties": {
         "disabled": {
+          "description": "Disabled indicates whether the action is disabled.",
           "type": "boolean"
         },
         "displayName": {
+          "description": "DisplayName provides a user-friendly name for the action.",
           "type": "string"
         },
         "iconClass": {
+          "description": "IconClass specifies the CSS class for the action's icon.",
           "type": "string"
         },
         "name": {
+          "description": "Name is the name or identifier for the action.",
           "type": "string"
         },
         "params": {
+          "description": "Params contains the parameters required to execute the action.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceActionParam"
@@ -8505,67 +9742,66 @@
       }
     },
     "v1alpha1ResourceActionParam": {
+      "description": "ResourceActionParam represents a parameter for a resource action.\nIt includes a name, value, type, and an optional default value for the parameter.",
       "type": "object",
-      "title": "TODO: describe this type\nTODO: describe members of this type",
       "properties": {
-        "default": {
-          "type": "string"
-        },
         "name": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string"
-        },
-        "value": {
+          "description": "Name is the name of the parameter.",
           "type": "string"
         }
       }
     },
     "v1alpha1ResourceDiff": {
+      "description": "ResourceDiff holds the diff between a live and target resource object in Argo CD.\nIt is used to compare the desired state (from Git/Helm) with the actual state in the cluster.",
       "type": "object",
-      "title": "ResourceDiff holds the diff of a live and target resource object\nTODO: describe members of this type",
       "properties": {
         "diff": {
-          "type": "string",
-          "title": "Diff contains the JSON patch between target and live resource\nDeprecated: use NormalizedLiveState and PredictedLiveState to render the difference"
+          "description": "Diff contains the JSON patch representing the difference between the live and target resource.\nDeprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.",
+          "type": "string"
         },
         "group": {
+          "description": "Group represents the API group of the resource (e.g., \"apps\" for Deployments).",
           "type": "string"
         },
         "hook": {
+          "description": "Hook indicates whether this resource is a hook resource (e.g., pre-sync or post-sync hooks).",
           "type": "boolean"
         },
         "kind": {
+          "description": "Kind represents the Kubernetes resource kind (e.g., \"Deployment\", \"Service\").",
           "type": "string"
         },
         "liveState": {
-          "type": "string",
-          "title": "TargetState contains the JSON live resource manifest"
+          "description": "LiveState contains the JSON-serialized resource manifest of the resource currently running in the cluster.",
+          "type": "string"
         },
         "modified": {
+          "description": "Modified indicates whether the live resource has changes compared to the target resource.",
           "type": "boolean"
         },
         "name": {
+          "description": "Name is the name of the resource.",
           "type": "string"
         },
         "namespace": {
+          "description": "Namespace specifies the namespace where the resource exists.",
           "type": "string"
         },
         "normalizedLiveState": {
-          "type": "string",
-          "title": "NormalizedLiveState contains JSON serialized live resource state with applied normalizations"
+          "description": "NormalizedLiveState contains the JSON-serialized live resource state after applying normalizations.\nNormalizations may include ignoring irrelevant fields like timestamps or defaults applied by Kubernetes.",
+          "type": "string"
         },
         "predictedLiveState": {
-          "type": "string",
-          "title": "PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state"
+          "description": "PredictedLiveState contains the JSON-serialized resource state that Argo CD predicts based on the\ncombination of the normalized live state and the desired target state.",
+          "type": "string"
         },
         "resourceVersion": {
+          "description": "ResourceVersion is the Kubernetes resource version, which helps in tracking changes.",
           "type": "string"
         },
         "targetState": {
-          "type": "string",
-          "title": "TargetState contains the JSON serialized resource manifest defined in the Git/Helm"
+          "description": "TargetState contains the JSON-serialized resource manifest as defined in the Git/Helm repository.",
+          "type": "string"
         }
       }
     },
@@ -8607,35 +9843,39 @@
       }
     },
     "v1alpha1ResourceNetworkingInfo": {
+      "description": "ResourceNetworkingInfo holds networking-related information for a resource.",
       "type": "object",
-      "title": "ResourceNetworkingInfo holds networking resource related information\nTODO: describe members of this type",
       "properties": {
         "externalURLs": {
-          "description": "ExternalURLs holds list of URLs which should be available externally. List is populated for ingress resources using rules hostnames.",
+          "description": "ExternalURLs holds a list of URLs that should be accessible externally.\nThis field is typically populated for Ingress resources based on their hostname rules.",
           "type": "array",
           "items": {
             "type": "string"
           }
         },
         "ingress": {
+          "description": "Ingress provides information about external access points (e.g., load balancer ingress) for this resource.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1LoadBalancerIngress"
           }
         },
         "labels": {
+          "description": "Labels holds the labels associated with this networking resource.",
           "type": "object",
           "additionalProperties": {
             "type": "string"
           }
         },
         "targetLabels": {
+          "description": "TargetLabels represents labels associated with the target resources that this resource communicates with.",
           "type": "object",
           "additionalProperties": {
             "type": "string"
           }
         },
         "targetRefs": {
+          "description": "TargetRefs contains references to other resources that this resource interacts with, such as Services or Pods.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceRef"
@@ -8644,8 +9884,8 @@
       }
     },
     "v1alpha1ResourceNode": {
+      "description": "ResourceNode contains information about a live Kubernetes resource and its relationships with other resources.",
       "type": "object",
-      "title": "ResourceNode contains information about live resource and its children\nTODO: describe members of this type",
       "properties": {
         "createdAt": {
           "$ref": "#/definitions/v1Time"
@@ -8654,12 +9894,14 @@
           "$ref": "#/definitions/v1alpha1HealthStatus"
         },
         "images": {
+          "description": "Images lists container images associated with the resource.\nThis is primarily useful for pods and other workload resources.",
           "type": "array",
           "items": {
             "type": "string"
           }
         },
         "info": {
+          "description": "Info provides additional metadata or annotations about the resource.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1InfoItem"
@@ -8669,12 +9911,14 @@
           "$ref": "#/definitions/v1alpha1ResourceNetworkingInfo"
         },
         "parentRefs": {
+          "description": "ParentRefs lists the parent resources that reference this resource.\nThis helps in understanding ownership and hierarchical relationships.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceRef"
           }
         },
         "resourceVersion": {
+          "description": "ResourceVersion indicates the version of the resource, used to track changes.",
           "type": "string"
         }
       },
@@ -8686,12 +9930,14 @@
     },
     "v1alpha1ResourceOverride": {
       "type": "object",
-      "title": "ResourceOverride holds configuration to customize resource diffing and health assessment\nTODO: describe the members of this type",
+      "title": "ResourceOverride holds configuration to customize resource diffing and health assessment",
       "properties": {
         "actions": {
+          "description": "Actions defines the set of actions that can be performed on the resource, as a Lua script.",
           "type": "string"
         },
         "healthLua": {
+          "description": "HealthLua contains a Lua script that defines custom health checks for the resource.",
           "type": "string"
         },
         "ignoreDifferences": {
@@ -8701,12 +9947,14 @@
           "$ref": "#/definitions/v1alpha1OverrideIgnoreDiff"
         },
         "knownTypeFields": {
+          "description": "KnownTypeFields lists fields for which unit conversions should be applied.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1KnownTypeField"
           }
         },
         "useOpenLibs": {
+          "description": "UseOpenLibs indicates whether to use open-source libraries for the resource.",
           "type": "boolean"
         }
       }
@@ -8751,6 +9999,13 @@
           "type": "string",
           "title": "HookType specifies the type of the hook. Empty for non-hook resources"
         },
+        "images": {
+          "type": "array",
+          "title": "Images contains the images related to the ResourceResult",
+          "items": {
+            "type": "string"
+          }
+        },
         "kind": {
           "type": "string",
           "title": "Kind specifies the API kind of the resource"
@@ -8792,6 +10047,10 @@
           "description": "Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed.",
           "type": "integer",
           "format": "int64"
+        },
+        "refresh": {
+          "type": "boolean",
+          "title": "Refresh indicates if the latest revision should be used on retry instead of the initial one (default: false)"
         }
       }
     },
@@ -8837,8 +10096,8 @@
       }
     },
     "v1alpha1RevisionMetadata": {
+      "description": "RevisionMetadata contains metadata for a specific revision in a Git repository. This field is used by the\nSource Hydrator feature which may be removed in the future.",
       "type": "object",
-      "title": "RevisionMetadata contains metadata for a specific revision in a Git repository",
       "properties": {
         "author": {
           "type": "string",
@@ -8851,6 +10110,13 @@
           "description": "Message contains the message associated with the revision, most likely the commit message.",
           "type": "string"
         },
+        "references": {
+          "description": "References contains references to information that's related to this commit in some way.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1RevisionReference"
+          }
+        },
         "signatureInfo": {
           "description": "SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.",
           "type": "string"
@@ -8861,6 +10127,15 @@
           "items": {
             "type": "string"
           }
+        }
+      }
+    },
+    "v1alpha1RevisionReference": {
+      "description": "RevisionReference contains a reference to a some information that is related in some way to another commit. For now,\nit supports only references to a commit. In the future, it may support other types of references.",
+      "type": "object",
+      "properties": {
+        "commit": {
+          "$ref": "#/definitions/v1alpha1CommitMetadata"
         }
       }
     },
@@ -9142,7 +10417,7 @@
       }
     },
     "v1alpha1SecretRef": {
-      "description": "Utility struct for a reference to a secret key.",
+      "description": "SecretRef struct for a reference to a secret key.",
       "type": "object",
       "properties": {
         "key": {
@@ -9163,10 +10438,59 @@
         }
       }
     },
+    "v1alpha1SourceHydrator": {
+      "description": "SourceHydrator specifies a dry \"don't repeat yourself\" source for manifests, a sync source from which to sync\nhydrated manifests, and an optional hydrateTo location to act as a \"staging\" aread for hydrated manifests.",
+      "type": "object",
+      "properties": {
+        "drySource": {
+          "$ref": "#/definitions/v1alpha1DrySource"
+        },
+        "hydrateTo": {
+          "$ref": "#/definitions/v1alpha1HydrateTo"
+        },
+        "syncSource": {
+          "$ref": "#/definitions/v1alpha1SyncSource"
+        }
+      }
+    },
+    "v1alpha1SourceHydratorStatus": {
+      "type": "object",
+      "title": "SourceHydratorStatus contains information about the current state of source hydration",
+      "properties": {
+        "currentOperation": {
+          "$ref": "#/definitions/v1alpha1HydrateOperation"
+        },
+        "lastSuccessfulOperation": {
+          "$ref": "#/definitions/v1alpha1SuccessfulHydrateOperation"
+        }
+      }
+    },
+    "v1alpha1SuccessfulHydrateOperation": {
+      "type": "object",
+      "title": "SuccessfulHydrateOperation contains information about the most recent successful hydrate operation",
+      "properties": {
+        "drySHA": {
+          "type": "string",
+          "title": "DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
+        },
+        "hydratedSHA": {
+          "type": "string",
+          "title": "HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation"
+        },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydrator"
+        }
+      }
+    },
     "v1alpha1SyncOperation": {
       "description": "SyncOperation contains details about a sync operation.",
       "type": "object",
       "properties": {
+        "autoHealAttemptsCount": {
+          "type": "integer",
+          "format": "int64",
+          "title": "SelfHealAttemptsCount contains the number of auto-heal attempts"
+        },
         "dryRun": {
           "type": "boolean",
           "title": "DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync"
@@ -9307,6 +10631,10 @@
           "type": "boolean",
           "title": "AllowEmpty allows apps have zero live resources (default: false)"
         },
+        "enabled": {
+          "type": "boolean",
+          "title": "Enable allows apps to explicitly control automated sync"
+        },
         "prune": {
           "type": "boolean",
           "title": "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)"
@@ -9314,6 +10642,20 @@
         "selfHeal": {
           "type": "boolean",
           "title": "SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)"
+        }
+      }
+    },
+    "v1alpha1SyncSource": {
+      "description": "SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the\nassociated DrySource config in the SourceHydrator.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "Path is a directory path within the git repository where hydrated manifests should be committed to and synced\nfrom. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which\nhydrated manifests will be synced.\n\n+kubebuilder:validation:Required\n+kubebuilder:validation:MinLength=1\n+kubebuilder:validation:Pattern=`^.{2,}|[^./]$`",
+          "type": "string"
+        },
+        "targetBranch": {
+          "description": "TargetBranch is the branch from which hydrated manifests will be synced.\nIf HydrateTo is not set, this is also the branch to which hydrated manifests are committed.",
+          "type": "string"
         }
       }
     },
@@ -9376,6 +10718,10 @@
       "type": "object",
       "title": "SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
       "properties": {
+        "andOperator": {
+          "type": "boolean",
+          "title": "UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator"
+        },
         "applications": {
           "type": "array",
           "title": "Applications contains a list of applications that the window will apply to",
@@ -9389,6 +10735,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "description": {
+          "type": "string",
+          "title": "Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example"
         },
         "duration": {
           "type": "string",

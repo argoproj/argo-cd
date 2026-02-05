@@ -119,12 +119,12 @@ kubectl delete secret argocd-manager-token-XXXXXX -n kube-system
 argocd cluster add CONTEXTNAME
 ```
 
-!!! note
-    Kubernetes 1.24 [stopped automatically creating tokens for Service Accounts](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.24.md#no-really-you-must-read-this-before-you-upgrade).
-    [Starting in Argo CD 2.4](https://github.com/argoproj/argo-cd/pull/9546), `argocd cluster add` creates a 
-    ServiceAccount _and_ a non-expiring Service Account token Secret when adding 1.24 clusters. In the future, Argo CD 
-    will [add support for the Kubernetes TokenRequest API](https://github.com/argoproj/argo-cd/issues/9610) to avoid 
-    using long-lived tokens.
+> [!NOTE]
+> Kubernetes 1.24 [stopped automatically creating tokens for Service Accounts](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.24.md#no-really-you-must-read-this-before-you-upgrade).
+> [Starting in Argo CD 2.4](https://github.com/argoproj/argo-cd/pull/9546), `argocd cluster add` creates a 
+> ServiceAccount _and_ a non-expiring Service Account token Secret when adding 1.24 clusters. In the future, Argo CD 
+> will [add support for the Kubernetes TokenRequest API](https://github.com/argoproj/argo-cd/issues/9610) to avoid 
+> using long-lived tokens.
 
 To revoke Argo CD's access to a managed cluster, delete the RBAC artifacts against the *_managed_*
 cluster, and remove the cluster entry from Argo CD:
@@ -136,11 +136,9 @@ kubectl delete clusterrole argocd-manager-role
 kubectl delete clusterrolebinding argocd-manager-role-binding
 argocd cluster rm https://your-kubernetes-cluster-addr
 ```
-<!-- markdownlint-disable MD027 -->
-> NOTE: for AWS EKS clusters, the [get-token](https://docs.aws.amazon.com/cli/latest/reference/eks/get-token.html) command
-  is used to authenticate to the external cluster, which uses IAM roles in lieu of locally stored
-  tokens, so token rotation is not needed, and revocation is handled through IAM.
-<!-- markdownlint-enable MD027 -->
+
+> [!NOTE]
+> For AWS EKS clusters, the [get-token](https://docs.aws.amazon.com/cli/latest/reference/eks/get-token.html) command is used to authenticate to the external cluster, which uses IAM roles in lieu of locally stored tokens, so token rotation is not needed, and revocation is handled through IAM.
 
 ## Cluster RBAC
 
@@ -172,8 +170,8 @@ kubectl edit clusterrole argocd-server
 kubectl edit clusterrole argocd-application-controller
 ```
 
-!!! tip
-    If you want to deny Argo CD access to a kind of resource then add it as an [excluded resource](declarative-setup.md#resource-exclusion).
+> [!TIP]
+> If you want to deny Argo CD access to a kind of resource then add it as an [excluded resource](declarative-setup.md#resource-exclusioninclusion).
 
 ## Auditing
 
@@ -226,8 +224,8 @@ Security-related logs are tagged with a `security` field to make them easier to 
 
 Where applicable, a `CWE` field is also added specifying the [Common Weakness Enumeration](https://cwe.mitre.org/index.html) number.
 
-!!! warning
-    Please be aware that not all security logs are comprehensively tagged yet and these examples are not necessarily implemented.
+> [!WARNING]
+> Please be aware that not all security logs are comprehensively tagged yet and these examples are not necessarily implemented.
 
 ### API Logs
 
@@ -237,6 +235,14 @@ can be found in [server/server.go](https://github.com/argoproj/argo-cd/blob/abba
 
 Argo CD does not log IP addresses of clients requesting API endpoints, since the API server is typically behind a proxy. Instead, it is recommended
 to configure IP addresses logging in the proxy server that sits in front of the API server.
+
+### Standard Application log fields
+
+For logs related to an Application, Argo CD will log the following standard fields :
+
+* *application*: the Application name, without the namespace
+* *app-namespace*: the Application's namespace
+* *project*: the Application's project
 
 ## ApplicationSets
 

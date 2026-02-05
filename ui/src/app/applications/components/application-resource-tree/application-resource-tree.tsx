@@ -22,7 +22,10 @@ import {
     NodeId,
     nodeKey,
     PodHealthIcon,
-    getUsrMsgKeyToDisplay
+    getUsrMsgKeyToDisplay,
+    getApplicationLinkURLFromNode,
+    getManagedByURLFromNode,
+    formatResourceInfo
 } from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
@@ -67,6 +70,7 @@ export interface ApplicationResourceTreeProps {
     filters?: string[];
     setTreeFilterGraph?: (filterGraph: any[]) => void;
     nameDirection: boolean;
+    nameWrap: boolean;
     setNodeExpansion: (node: string, isExpanded: boolean) => any;
     getNodeExpansion: (node: string) => boolean;
 }
@@ -209,7 +213,7 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         const numberA = Number(a);
         const numberB = Number(b);
         if (isNaN(numberA) || isNaN(numberB)) {
-            return a.localeCompare(b);
+            return a.localeCompare(b, undefined, {numeric: true});
         }
         return Math.sign(numberA - numberB);
     }
@@ -228,13 +232,13 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
         return (
             orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
             compareRevision(getRevision(second), getRevision(first)) ||
-            nodeKey(first).localeCompare(nodeKey(second)) ||
+            nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true}) ||
             0
         );
     }
     return (
         orphanedToInt(first.orphaned) - orphanedToInt(second.orphaned) ||
-        nodeKey(first).localeCompare(nodeKey(second)) ||
+        nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true}) ||
         compareRevision(getRevision(first), getRevision(second)) ||
         0
     );
@@ -283,7 +287,7 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
         <React.Fragment>
             <div className='application-resource-tree__node' style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
                 <div className='application-resource-tree__node-kind-icon'>
-                    <ResourceIcon kind={node.kind} />
+                    <ResourceIcon group={node.group} kind={node.kind} />
                     <br />
                     <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>
                 </div>
@@ -291,7 +295,7 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
                     className='application-resource-tree__node-title application-resource-tree__direction-center-left'
                     onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}
                     title={`Click to see details of ${node.count} collapsed ${node.kind} and doesn't contains any active pods`}>
-                    {node.count} {node.kind}s
+                    {node.count} {node.kind.endsWith('s') ? node.kind : `${node.kind}s`}
                     <span style={{paddingLeft: '.5em', fontSize: 'small'}}>
                         {node.kind === 'ReplicaSet' ? (
                             <i
@@ -445,7 +449,8 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
         <div
             className={classNames('application-resource-tree__node', {
                 'active': fullName === props.selectedNodeFullName,
-                'application-resource-tree__node--orphaned': node.orphaned
+                'application-resource-tree__node--orphaned': node.orphaned,
+                'application-resource-tree__node--grouped-node': !showPodGroupByStatus
             })}
             title={describeNode(node)}
             style={{
@@ -460,11 +465,15 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                     className={classNames('application-resource-tree__node-kind-icon', {
                         'application-resource-tree__node-kind-icon--big': rootNode
                     })}>
-                    <ResourceIcon kind={node.kind || 'Unknown'} />
+                    <ResourceIcon group={node.group} kind={node.kind || 'Unknown'} />
                     <br />
                     {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
                 </div>
-                <div className='application-resource-tree__node-content'>
+                <div
+                    className={classNames('application-resource-tree__node-content', {
+                        'application-resource-tree__fullname': props.nameWrap,
+                        'application-resource-tree__wrappedname': !props.nameWrap
+                    })}>
                     <span
                         className={classNames('application-resource-tree__node-title', {
                             'application-resource-tree__direction-right': props.nameDirection,
@@ -482,11 +491,22 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
                         {appNode && !rootNode && (
                             <Consumer>
-                                {ctx => (
-                                    <a href={ctx.baseHref + 'applications/' + node.namespace + '/' + node.name} title='Open application'>
-                                        <i className='fa fa-external-link-alt' />
-                                    </a>
-                                )}
+                                {ctx => {
+                                    // For nested applications, use the node's data to construct the URL
+                                    const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
+                                    return (
+                                        <a
+                                            href={linkInfo.url}
+                                            target={linkInfo.isExternal ? '_blank' : undefined}
+                                            rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                            onClick={e => {
+                                                e.stopPropagation();
+                                            }}
+                                            title={getManagedByURLFromNode(node) ? `Open application\nmanaged-by-url: ${getManagedByURLFromNode(node)}` : 'Open application'}>
+                                            <i className='fa fa-external-link-alt' />
+                                        </a>
+                                    );
+                                }}
                             </Consumer>
                         )}
                         <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
@@ -524,11 +544,19 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         <Tooltip
                             content={
                                 <>
-                                    {(node.info || []).map(i => (
-                                        <div key={i.name}>
-                                            {i.name}: {i.value}
-                                        </div>
-                                    ))}
+                                    {(node.info || []).map(i => {
+                                        // Use common formatting function for CPU and Memory
+                                        if (i.name === 'cpu' || i.name === 'memory') {
+                                            const {tooltipValue} = formatResourceInfo(i.name, `${i.value}`);
+                                            return <div key={i.name}>{tooltipValue}</div>;
+                                        } else {
+                                            return (
+                                                <div key={i.name}>
+                                                    {i.name}: {i.value}
+                                                </div>
+                                            );
+                                        }
+                                    })}
                                 </>
                             }
                             key={node.uid}>
@@ -656,9 +684,9 @@ function expandCollapse(node: ResourceTreeNode, props: ApplicationResourceTreePr
 
 function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: string}) {
     if (kind === 'Pod') {
-        const val = `${tag.name}`;
+        const val = tag.name;
         if (val === 'Status Reason') {
-            if (`${tag.value}` !== 'ImagePullBackOff')
+            if (String(tag.value) !== 'ImagePullBackOff')
                 return (
                     <span className='application-resource-tree__node-label' title={`Status: ${tag.value}`}>
                         {tag.value}
@@ -674,10 +702,10 @@ function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: st
                 );
             }
         } else if (val === 'Containers') {
-            const arr = `${tag.value}`.split('/');
+            const arr = String(tag.value).split('/');
             const title = `Number of containers in total: ${arr[1]} \nNumber of ready containers: ${arr[0]}`;
             return (
-                <span className='application-resource-tree__node-label' title={`${title}`}>
+                <span className='application-resource-tree__node-label' title={title}>
                     {tag.value}
                 </span>
             );
@@ -691,6 +719,14 @@ function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: st
             return (
                 <span className='application-resource-tree__node-label' title={`The revision in which pod present is: ${tag.value}`}>
                     {tag.value}
+                </span>
+            );
+        } else if (val === 'cpu' || val === 'memory') {
+            // Use common formatting function for CPU and Memory
+            const {displayValue, tooltipValue} = formatResourceInfo(val, String(tag.value));
+            return (
+                <span className='application-resource-tree__node-label' title={tooltipValue}>
+                    {displayValue}
                 </span>
             );
         } else {
@@ -740,11 +776,15 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 className={classNames('application-resource-tree__node-kind-icon', {
                     'application-resource-tree__node-kind-icon--big': rootNode
                 })}>
-                <ResourceIcon kind={node.kind} />
+                <ResourceIcon group={node.group} kind={node.kind} />
                 <br />
                 {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
             </div>
-            <div className='application-resource-tree__node-content'>
+            <div
+                className={classNames('application-resource-tree__node-content', {
+                    'application-resource-tree__fullname': props.nameWrap,
+                    'application-resource-tree__wrappedname': !props.nameWrap
+                })}>
                 <div
                     className={classNames('application-resource-tree__node-title', {
                         'application-resource-tree__direction-right': props.nameDirection,
@@ -761,11 +801,22 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
                     {appNode && !rootNode && (
                         <Consumer>
-                            {ctx => (
-                                <a href={ctx.baseHref + 'applications/' + node.namespace + '/' + node.name} title='Open application'>
-                                    <i className='fa fa-external-link-alt' />
-                                </a>
-                            )}
+                            {ctx => {
+                                // For nested applications, use the node's data to construct the URL
+                                const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
+                                return (
+                                    <a
+                                        href={linkInfo.url}
+                                        target={linkInfo.isExternal ? '_blank' : undefined}
+                                        rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                        onClick={e => {
+                                            e.stopPropagation();
+                                        }}
+                                        title={getManagedByURLFromNode(node) ? `Open application\nmanaged-by-url: ${getManagedByURLFromNode(node)}` : 'Open application'}>
+                                        <i className='fa fa-external-link-alt' />
+                                    </a>
+                                );
+                            }}
                         </Consumer>
                     )}
                     <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
@@ -783,27 +834,35 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
             </div>
             <div className='application-resource-tree__node-labels'>
                 {node.createdAt || rootNode ? (
-                    <span title={`${node.kind} was created ${moment(node.createdAt).fromNow()}`}>
+                    <span title={`${node.kind} was created ${moment(node.createdAt || props.app.metadata.creationTimestamp).fromNow()}`}>
                         <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
                             {node.createdAt || props.app.metadata.creationTimestamp}
                         </Moment>
                     </span>
                 ) : null}
                 {(node.info || [])
-                    .filter(tag => !tag.name.includes('Node'))
-                    .slice(0, 4)
+                    .filter(tag => !tag.name.includes('Node') && tag.name !== 'managed-by-url')
+                    .slice(0, 2)
                     .map((tag, i) => {
                         return <NodeInfoDetails tag={tag} kind={node.kind} key={i} />;
                     })}
-                {(node.info || []).length > 4 && (
+                {(node.info || []).length > 3 && (
                     <Tooltip
                         content={
                             <>
-                                {(node.info || []).map(i => (
-                                    <div key={i.name}>
-                                        {i.name}: {i.value}
-                                    </div>
-                                ))}
+                                {(node.info || []).map(i => {
+                                    // Use common formatting function for CPU and Memory
+                                    if (i.name === 'cpu' || i.name === 'memory') {
+                                        const {tooltipValue} = formatResourceInfo(i.name, `${i.value}`);
+                                        return <div key={i.name}>{tooltipValue}</div>;
+                                    } else {
+                                        return (
+                                            <div key={i.name}>
+                                                {i.name}: {i.value}
+                                            </div>
+                                        );
+                                    }
+                                })}
                             </>
                         }
                         key={node.uid}>
@@ -926,7 +985,16 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         graphNodesFilter.nodes().forEach(nodeId => {
             const node: ResourceTreeNode = graphNodesFilter.node(nodeId) as any;
             const parentIds = graphNodesFilter.predecessors(nodeId);
-            if (node.root != null && !predicate(node) && appKey !== nodeId) {
+
+            const shouldKeepNode = () => {
+                //case for podgroup in group node view
+                if (node.podGroup) {
+                    return predicate(node) || node.podGroup.pods.some(pod => predicate({...node, kind: 'Pod', name: pod.name}));
+                }
+                return predicate(node);
+            };
+
+            if (node.root != null && !shouldKeepNode() && appKey !== nodeId) {
                 const childIds = graphNodesFilter.successors(nodeId);
                 graphNodesFilter.removeNode(nodeId);
                 filtered++;
@@ -939,8 +1007,14 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 if (node.root != null) filteredNodes.push(node);
             }
         });
+
         if (filtered) {
-            graphNodesFilter.setNode(FILTERED_INDICATOR_NODE, {height: NODE_HEIGHT, width: NODE_WIDTH, count: filtered, type: NODE_TYPES.filteredIndicator});
+            graphNodesFilter.setNode(FILTERED_INDICATOR_NODE, {
+                height: NODE_HEIGHT,
+                width: NODE_WIDTH,
+                count: filtered,
+                type: NODE_TYPES.filteredIndicator
+            });
             graphNodesFilter.setEdge(filteredIndicatorParent, FILTERED_INDICATOR_NODE);
         }
     }
@@ -1011,7 +1085,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     graph.setNode(treeNodeKey(root), {...root, width: NODE_WIDTH, height: NODE_HEIGHT, root});
                 }
                 (childrenByParentKey.get(treeNodeKey(root)) || []).forEach(child => {
-                    if (root.namespace === child.namespace) {
+                    // Draw edge if nodes are in same namespace OR if parent is cluster-scoped (no namespace)
+                    if (root.namespace === child.namespace || !root.namespace) {
                         graph.setEdge(treeNodeKey(root), treeNodeKey(child), {colors: [colorByService.get(treeNodeKey(child))]});
                     }
                 });
@@ -1117,7 +1192,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             if (treeNodeKey(child) === treeNodeKey(root)) {
                 return;
             }
-            if (node.namespace === child.namespace) {
+            // Draw edge if nodes are in same namespace OR if parent is cluster-scoped (empty/undefined namespace)
+            const isParentClusterScoped = !node.namespace || node.namespace === '';
+            if (node.namespace === child.namespace || isParentClusterScoped) {
                 graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
             }
             processNode(child, root, colors);
@@ -1191,6 +1268,58 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     });
     const graphNodes = graph.nodes();
     const size = getGraphSize(graphNodes.map(id => graph.node(id)));
+
+    const resourceTreeRef = React.useRef<HTMLDivElement>();
+
+    const graphMoving = React.useRef({
+        enable: false,
+        x: 0,
+        y: 0
+    });
+
+    const onGraphDragStart: React.PointerEventHandler<HTMLDivElement> = e => {
+        if (e.target !== resourceTreeRef.current) {
+            return;
+        }
+
+        if (!resourceTreeRef.current?.parentElement) {
+            return;
+        }
+
+        graphMoving.current.enable = true;
+        graphMoving.current.x = e.clientX;
+        graphMoving.current.y = e.clientY;
+    };
+
+    const onGraphDragMoving: React.PointerEventHandler<HTMLDivElement> = e => {
+        if (!graphMoving.current.enable) {
+            return;
+        }
+
+        if (!resourceTreeRef.current?.parentElement) {
+            return;
+        }
+
+        const graphContainer = resourceTreeRef.current?.parentElement;
+
+        const currentPositionX = graphContainer.scrollLeft;
+        const currentPositionY = graphContainer.scrollTop;
+
+        const scrollLeft = currentPositionX + graphMoving.current.x - e.clientX;
+        const scrollTop = currentPositionY + graphMoving.current.y - e.clientY;
+
+        graphContainer.scrollTo(scrollLeft, scrollTop);
+
+        graphMoving.current.x = e.clientX;
+        graphMoving.current.y = e.clientY;
+    };
+
+    const onGraphDragEnd: React.PointerEventHandler<HTMLDivElement> = e => {
+        if (graphMoving.current.enable) {
+            graphMoving.current.enable = false;
+            e.preventDefault();
+        }
+    };
     return (
         (graphNodes.length === 0 && (
             <EmptyState icon=' fa fa-network-wired'>
@@ -1199,8 +1328,13 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             </EmptyState>
         )) || (
             <div
+                ref={resourceTreeRef}
+                onPointerDown={onGraphDragStart}
+                onPointerMove={onGraphDragMoving}
+                onPointerUp={onGraphDragEnd}
+                onPointerLeave={onGraphDragEnd}
                 className={classNames('application-resource-tree', {'application-resource-tree--network': props.useNetworkingHierarchy})}
-                style={{width: size.width + 150, height: size.height + 250, transformOrigin: '0% 0%', transform: `scale(${props.zoom})`}}>
+                style={{width: size.width + 150, height: size.height + 250, transformOrigin: '0% 4%', transform: `scale(${props.zoom})`}}>
                 {graphNodes.map(key => {
                     const node = graph.node(key);
                     const nodeType = node.type;

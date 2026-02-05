@@ -1,8 +1,10 @@
 package controller
 
 import (
+	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -14,12 +16,22 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/lua"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/lua"
 )
 
-var app = &appv1.Application{}
+var (
+	app = &appv1.Application{
+		Status: appv1.ApplicationStatus{
+			Health: appv1.AppHealthStatus{
+				LastTransitionTime: &metav1.Time{Time: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC)},
+			},
+		},
+	}
+	testTimestamp = metav1.Time{Time: time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC)}
+)
 
 func initStatuses(resources []managedResource) []appv1.ResourceStatus {
 	statuses := make([]appv1.ResourceStatus, len(resources))
@@ -55,16 +67,26 @@ func TestSetApplicationHealth(t *testing.T) {
 
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
-	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
-
+	assert.Equal(t, health.HealthStatusDegraded, healthStatus)
 	assert.Equal(t, health.HealthStatusHealthy, resourceStatuses[0].Health.Status)
 	assert.Equal(t, health.HealthStatusDegraded, resourceStatuses[1].Health.Status)
+	app.Status.Health.Status = healthStatus
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	require.NoError(t, err)
-	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
+	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
+	app.Status.Health.Status = healthStatus
+
+	// now we set the `argocd.argoproj.io/ignore-healthcheck: "true"` annotation on the job's target.
+	// The app is considered healthy
+	failedJob.SetAnnotations(nil)
+	failedJobIgnoreHealthcheck := resourceFromFile("./testdata/job-failed-ignore-healthcheck.yaml")
+	resources[1].Live = &failedJobIgnoreHealthcheck
+	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
+	require.NoError(t, err)
+	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
 }
 
 func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
@@ -77,48 +99,146 @@ func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
 
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, false)
 	require.NoError(t, err)
-	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
+	assert.Equal(t, health.HealthStatusDegraded, healthStatus)
 
 	assert.Nil(t, resourceStatuses[0].Health)
 }
 
-func TestSetApplicationHealth_MissingResource(t *testing.T) {
-	pod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
-
-	resources := []managedResource{{
-		Group: "", Version: "v1", Kind: "Pod", Target: &pod,
-	}, {}}
+func TestSetApplicationHealth_NoResource(t *testing.T) {
+	resources := []managedResource{}
 	resourceStatuses := initStatuses(resources)
 
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
-	assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
+	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
 }
 
-func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
-	cm := resourceFromFile("./testdata/configmap.yaml")
+func TestSetApplicationHealth_OnlyHooks(t *testing.T) {
+	pod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: string(synccommon.HookTypeSync)})
 
 	resources := []managedResource{{
-		Group: "", Version: "v1", Kind: "ConfigMap", Target: &cm,
+		Group: "", Version: "v1", Kind: "Pod", Target: &pod, Live: &pod,
 	}}
 	resourceStatuses := initStatuses(resources)
 
-	t.Run("NoOverride", func(t *testing.T) {
-		healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
-		require.NoError(t, err)
-		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
-		assert.Equal(t, health.HealthStatusMissing, resourceStatuses[0].Health.Status)
-	})
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	require.NoError(t, err)
+	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
+}
 
-	t.Run("HasOverride", func(t *testing.T) {
-		healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{
-			lua.GetConfigMapKey(schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"}): appv1.ResourceOverride{
-				HealthLua: "some health check",
+func TestSetApplicationHealth_MissingResource(t *testing.T) {
+	pod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+	pod2 := pod.DeepCopy()
+	pod2.SetName("pod2")
+
+	resources := []managedResource{
+		{Group: "", Version: "v1", Kind: "Pod", Target: &pod},
+		{Group: "", Version: "v1", Kind: "Pod", Target: pod2, Live: pod2},
+	}
+	resourceStatuses := initStatuses(resources)
+
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	require.NoError(t, err)
+	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
+}
+
+func TestSetApplicationHealth_MissingResource_WithIgnoreHealthcheck(t *testing.T) {
+	pod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+	pod2 := pod.DeepCopy()
+	pod2.SetName("pod2")
+	pod2.SetAnnotations(map[string]string{common.AnnotationIgnoreHealthCheck: "true"})
+
+	resources := []managedResource{
+		{Group: "", Version: "v1", Kind: "Pod", Target: &pod},
+		{Group: "", Version: "v1", Kind: "Pod", Target: pod2, Live: pod2},
+	}
+	resourceStatuses := initStatuses(resources)
+
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	require.NoError(t, err)
+	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
+}
+
+func TestSetApplicationHealth_MissingResource_WithChildApp(t *testing.T) {
+	childApp := newAppLiveObj(health.HealthStatusUnknown)
+	pod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+	resources := []managedResource{
+		{Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Target: childApp, Live: childApp},
+		{Group: "", Version: "v1", Kind: "Pod", Target: &pod},
+	}
+	resourceStatuses := initStatuses(resources)
+
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	require.NoError(t, err)
+	assert.Equal(t, health.HealthStatusHealthy, healthStatus)
+}
+
+func TestSetApplicationHealth_AllMissingResources(t *testing.T) {
+	pod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+	pod2 := pod.DeepCopy()
+	pod2.SetName("pod2")
+
+	resources := []managedResource{
+		{Group: "", Version: "v1", Kind: "Pod", Target: &pod},
+		{Group: "", Version: "v1", Kind: "Pod", Target: pod2},
+	}
+	resourceStatuses := initStatuses(resources)
+
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	require.NoError(t, err)
+	assert.Equal(t, health.HealthStatusMissing, healthStatus)
+}
+
+func TestSetApplicationHealth_AllMissingResources_WithHooks(t *testing.T) {
+	pod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+	pod2 := pod.DeepCopy()
+	pod2.SetName("pod2")
+	pod2.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: string(synccommon.HookTypeSync)})
+
+	resources := []managedResource{{
+		Group: "", Version: "v1", Kind: "Pod", Target: &pod,
+	}, {
+		Group: "", Version: "v1", Kind: "Pod", Target: pod2, Live: pod2,
+	}}
+	resourceStatuses := initStatuses(resources)
+
+	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	require.NoError(t, err)
+	assert.Equal(t, health.HealthStatusMissing, healthStatus)
+}
+
+func TestSetApplicationHealth_HealthImproves(t *testing.T) {
+	testCases := []struct {
+		oldStatus health.HealthStatusCode
+		newStatus health.HealthStatusCode
+	}{
+		{health.HealthStatusUnknown, health.HealthStatusDegraded},
+		{health.HealthStatusDegraded, health.HealthStatusProgressing},
+		{health.HealthStatusMissing, health.HealthStatusProgressing},
+		{health.HealthStatusProgressing, health.HealthStatusSuspended},
+		{health.HealthStatusSuspended, health.HealthStatusHealthy},
+	}
+
+	for _, tc := range testCases {
+		overrides := lua.ResourceHealthOverrides{
+			lua.GetConfigMapKey(schema.FromAPIVersionAndKind("v1", "Pod")): appv1.ResourceOverride{
+				HealthLua: fmt.Sprintf("hs = {}\nhs.status = %q\nhs.message = \"\"return hs", tc.newStatus),
 			},
-		}, app, true)
-		require.NoError(t, err)
-		assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
-	})
+		}
+
+		runningPod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+		resources := []managedResource{{
+			Group: "", Version: "v1", Kind: "Pod", Live: &runningPod,
+		}}
+		resourceStatuses := initStatuses(resources)
+
+		t.Run(string(fmt.Sprintf("%s to %s", tc.oldStatus, tc.newStatus)), func(t *testing.T) {
+			healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
+			require.NoError(t, err)
+			assert.Equal(t, tc.newStatus, healthStatus)
+		})
+	}
 }
 
 func newAppLiveObj(status health.HealthStatusCode) *unstructured.Unstructured {
@@ -131,7 +251,7 @@ func newAppLiveObj(status health.HealthStatusCode) *unstructured.Unstructured {
 			Kind:       application.ApplicationKind,
 		},
 		Status: appv1.ApplicationStatus{
-			Health: appv1.HealthStatus{
+			Health: appv1.AppHealthStatus{
 				Status: status,
 			},
 		},
@@ -160,26 +280,38 @@ return hs`,
 	}
 
 	t.Run("ChildAppDegraded", func(t *testing.T) {
-		degradedApp := newAppLiveObj(health.HealthStatusDegraded)
+		childApp := newAppLiveObj(health.HealthStatusDegraded)
 		resources := []managedResource{{
-			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp,
+			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: childApp,
 		}, {}}
 		resourceStatuses := initStatuses(resources)
 
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 		require.NoError(t, err)
-		assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
+		assert.Equal(t, health.HealthStatusDegraded, healthStatus)
 	})
 
 	t.Run("ChildAppMissing", func(t *testing.T) {
-		degradedApp := newAppLiveObj(health.HealthStatusMissing)
+		childApp := newAppLiveObj(health.HealthStatusMissing)
 		resources := []managedResource{{
-			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp,
+			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: childApp,
 		}, {}}
 		resourceStatuses := initStatuses(resources)
 
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 		require.NoError(t, err)
-		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
+		assert.Equal(t, health.HealthStatusHealthy, healthStatus)
+	})
+
+	t.Run("ChildAppUnknown", func(t *testing.T) {
+		childApp := newAppLiveObj(health.HealthStatusUnknown)
+		resources := []managedResource{{
+			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: childApp,
+		}, {}}
+		resourceStatuses := initStatuses(resources)
+
+		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
+		require.NoError(t, err)
+		assert.Equal(t, health.HealthStatusHealthy, healthStatus)
 	})
 }

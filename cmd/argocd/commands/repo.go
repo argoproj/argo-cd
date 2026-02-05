@@ -1,6 +1,7 @@
 package commands
 
 import (
+	stderrors "errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -9,15 +10,16 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	repositorypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/git"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // NewRepoCommand returns a new instance of an `argocd repo` command
@@ -39,7 +41,7 @@ argocd repo get https://github.com/yourusername/your-repo.git
 # List Configured Repositories
 argocd repo list
 
-# Remove Repository Credentials
+# Remove Configured Repositories
 argocd repo rm https://github.com/yourusername/your-repo.git
 `,
 	}
@@ -82,11 +84,20 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
   # Add a private Helm OCI-based repository named 'stable' via HTTPS
   argocd repo add helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type helm --name stable --enable-oci --username test --password test
+  
+  # Add a private HTTPS OCI repository named 'stable'
+  argocd repo add oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test
+  
+  # Add a private OCI repository named 'stable' without verifying the server's TLS certificate
+  argocd repo add oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-skip-server-verification
+  
+  # Add a private HTTP OCI repository named 'stable'
+  argocd repo add oci://helm-oci-registry.cn-zhangjiakou.cr.aliyuncs.com --type oci --name stable --username test --password test --insecure-oci-force-http
 
-  # Add a private Git repository on GitHub.com via GitHub App
+  # Add a private Git repository on GitHub.com via GitHub App. github-app-installation-id is optional, if not provided, the installation id will be fetched from the GitHub API.
   argocd repo add https://git.example.com/repos/repo --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
 
-  # Add a private Git repository on GitHub Enterprise via GitHub App
+  # Add a private Git repository on GitHub Enterprise via GitHub App. github-app-installation-id is optional, if not provided, the installation id will be fetched from the GitHub API.
   argocd repo add https://ghe.example.com/repos/repo --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem --github-app-enterprise-base-url https://ghe.example.com/api/v3
 
   # Add a private Git repository on Google Cloud Sources via GCP service account credentials
@@ -95,7 +106,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 	command := &cobra.Command{
 		Use:     "add REPOURL",
-		Short:   "Add git repository connection parameters",
+		Short:   "Add git, oci or helm repository connection parameters",
 		Example: repoAddExamples,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -117,15 +128,14 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					}
 					repoOpts.Repo.SSHPrivateKey = string(keyData)
 				} else {
-					err := fmt.Errorf("--ssh-private-key-path is only supported for SSH repositories.")
-					errors.CheckError(err)
+					errors.Fatal(errors.ErrorGeneric, "--ssh-private-key-path is only supported for SSH repositories.")
 				}
 			}
 
 			// tls-client-cert-path and tls-client-cert-key-key-path must always be
 			// specified together
 			if (repoOpts.TlsClientCertPath != "" && repoOpts.TlsClientCertKeyPath == "") || (repoOpts.TlsClientCertPath == "" && repoOpts.TlsClientCertKeyPath != "") {
-				err := fmt.Errorf("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
+				err := stderrors.New("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
 				errors.CheckError(err)
 			}
 
@@ -139,7 +149,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					repoOpts.Repo.TLSClientCertData = string(tlsCertData)
 					repoOpts.Repo.TLSClientCertKey = string(tlsCertKey)
 				} else {
-					err := fmt.Errorf("--tls-client-cert-path is only supported for HTTPS repositories")
+					err := stderrors.New("--tls-client-cert-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -151,7 +161,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					errors.CheckError(err)
 					repoOpts.Repo.GithubAppPrivateKey = string(githubAppPrivateKey)
 				} else {
-					err := fmt.Errorf("--github-app-private-key-path is only supported for HTTPS repositories")
+					err := stderrors.New("--github-app-private-key-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -162,7 +172,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 					errors.CheckError(err)
 					repoOpts.Repo.GCPServiceAccountKey = string(gcpServiceAccountKey)
 				} else {
-					err := fmt.Errorf("--gcp-service-account-key-path is only supported for HTTPS repositories")
+					err := stderrors.New("--gcp-service-account-key-path is only supported for HTTPS repositories")
 					errors.CheckError(err)
 				}
 			}
@@ -180,13 +190,19 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoOpts.Repo.Proxy = repoOpts.Proxy
 			repoOpts.Repo.NoProxy = repoOpts.NoProxy
 			repoOpts.Repo.ForceHttpBasicAuth = repoOpts.ForceHttpBasicAuth
+			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
+			repoOpts.Repo.Depth = repoOpts.Depth
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
-				errors.CheckError(fmt.Errorf("Must specify --name for repos of type 'helm'"))
+				errors.Fatal(errors.ErrorGeneric, "Must specify --name for repos of type 'helm'")
+			}
+
+			if repoOpts.Repo.Type == "oci" && repoOpts.InsecureOCIForceHTTP {
+				repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHTTP
 			}
 
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			// If the user set a username, but didn't supply password via --password,
 			// then we prompt for it
@@ -194,8 +210,15 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				repoOpts.Repo.Password = cli.PromptPassword(repoOpts.Repo.Password)
 			}
 
+			err := cmdutil.ValidateBearerTokenAndPasswordCombo(repoOpts.Repo.BearerToken, repoOpts.Repo.Password)
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForGitOnly(repoOpts.Repo.BearerToken, repoOpts.Repo.Type)
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForHTTPSRepoOnly(repoOpts.Repo.BearerToken, git.IsHTTPSURL(repoOpts.Repo.Repo))
+			errors.CheckError(err)
+
 			// We let the server check access to the repository before adding it. If
-			// it is a private repo, but we cannot access with with the credentials
+			// it is a private repo, but we cannot access with the credentials
 			// that were supplied, we bail out.
 			//
 			// Skip validation if we are just adding credentials template, chances
@@ -207,6 +230,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Name:                       repoOpts.Repo.Name,
 				Username:                   repoOpts.Repo.Username,
 				Password:                   repoOpts.Repo.Password,
+				BearerToken:                repoOpts.Repo.BearerToken,
 				SshPrivateKey:              repoOpts.Repo.SSHPrivateKey,
 				TlsClientCertData:          repoOpts.Repo.TLSClientCertData,
 				TlsClientCertKey:           repoOpts.Repo.TLSClientCertKey,
@@ -220,8 +244,10 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				Project:                    repoOpts.Repo.Project,
 				GcpServiceAccountKey:       repoOpts.Repo.GCPServiceAccountKey,
 				ForceHttpBasicAuth:         repoOpts.Repo.ForceHttpBasicAuth,
+				UseAzureWorkloadIdentity:   repoOpts.Repo.UseAzureWorkloadIdentity,
+				InsecureOciForceHttp:       repoOpts.Repo.InsecureOCIForceHttp,
 			}
-			_, err := repoIf.ValidateAccess(ctx, &repoAccessReq)
+			_, err = repoIf.ValidateAccess(ctx, &repoAccessReq)
 			errors.CheckError(err)
 
 			repoCreateReq := repositorypkg.RepoCreateRequest{
@@ -239,12 +265,25 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	return command
 }
 
-// NewRepoRemoveCommand returns a new instance of an `argocd repo remove` command
+// NewRepoRemoveCommand returns a new instance of an `argocd repo rm` command
 func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var project string
 	command := &cobra.Command{
-		Use:   "rm REPO",
-		Short: "Remove repository credentials",
+		Use:   "rm REPO ...",
+		Short: "Remove configured repositories",
+		Example: `
+  # Remove a single repository
+  argocd repo rm https://github.com/yourusername/your-repo.git
+
+  # Remove multiple repositories
+  argocd repo rm https://github.com/yourusername/your-repo.git https://git.example.com/repo2.git
+
+  # Remove repositories for a specific project
+  argocd repo rm https://github.com/yourusername/your-repo.git --project myproject
+
+  # Remove repository using SSH URL
+  argocd repo rm git@github.com:yourusername/your-repo.git
+`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -253,11 +292,18 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
+
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 			for _, repoURL := range args {
-				_, err := repoIf.DeleteRepository(ctx, &repositorypkg.RepoQuery{Repo: repoURL, AppProject: project})
-				errors.CheckError(err)
-				fmt.Printf("Repository '%s' removed\n", repoURL)
+				canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete repository '%s'? [y/n]", repoURL))
+				if canDelete {
+					_, err := repoIf.DeleteRepository(ctx, &repositorypkg.RepoQuery{Repo: repoURL, AppProject: project})
+					errors.CheckError(err)
+					fmt.Printf("Repository '%s' removed\n", repoURL)
+				} else {
+					fmt.Printf("The command to delete '%s' was cancelled.\n", repoURL)
+				}
 			}
 		},
 	}
@@ -298,22 +344,44 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured repositories",
-		Run: func(c *cobra.Command, args []string) {
+		Example: `
+  # List all repositories
+  argocd repo list
+
+  # List repositories in wide format
+  argocd repo list -o wide
+
+  # List repositories in YAML format
+  argocd repo list -o yaml
+
+  # List repositories in JSON format
+  argocd repo list -o json
+
+  # List urls of repositories
+  argocd repo list -o url
+
+  # Force refresh of cached repository connection status
+  argocd repo list --refresh hard
+`,
+		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 			forceRefresh := false
+
 			switch refresh {
 			case "":
 			case "hard":
 				forceRefresh = true
 			default:
-				err := fmt.Errorf("--refresh must be one of: 'hard'")
+				err := fmt.Errorf("unknown refresh value: %s. Supported values: hard", refresh)
 				errors.CheckError(err)
 			}
+
 			repos, err := repoIf.ListRepositories(ctx, &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
 			errors.CheckError(err)
+
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(repos.Items, output, false)
@@ -324,12 +392,12 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "wide", "":
 				printRepoTable(repos.Items)
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.CheckError(fmt.Errorf("unknown output format: %s. Supported formats: yaml|json|url|wide", output))
 			}
 		},
 	}
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
-	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status , must be one of: 'hard'")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. Supported formats: yaml|json|url|wide")
+	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status. Supported values: hard")
 	return command
 }
 
@@ -340,9 +408,26 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		refresh string
 		project string
 	)
+
+	// For better readability and easier formatting
+	repoGetExamples := `
+  # Get Git or Helm repository details in wide format (default, '-o wide')
+  argocd repo get https://git.example.com/repos/repo
+
+  # Get repository details in YAML format
+  argocd repo get https://git.example.com/repos/repo -o yaml
+
+  # Get repository details in JSON format
+  argocd repo get https://git.example.com/repos/repo -o json
+
+  # Get repository URL
+  argocd repo get https://git.example.com/repos/repo -o url
+`
+
 	command := &cobra.Command{
-		Use:   "get",
-		Short: "Get a configured repository by URL",
+		Use:     "get REPO",
+		Short:   "Get a configured repository by URL",
+		Example: repoGetExamples,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -354,18 +439,19 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// Repository URL
 			repoURL := args[0]
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 			forceRefresh := false
 			switch refresh {
 			case "":
 			case "hard":
 				forceRefresh = true
 			default:
-				err := fmt.Errorf("--refresh must be one of: 'hard'")
+				err := fmt.Errorf("unknown refresh value: %s. Supported values: hard", refresh)
 				errors.CheckError(err)
 			}
 			repo, err := repoIf.Get(ctx, &repositorypkg.RepoQuery{Repo: repoURL, ForceRefresh: forceRefresh, AppProject: project})
 			errors.CheckError(err)
+
 			switch output {
 			case "yaml", "json":
 				err := PrintResource(repo, output)
@@ -376,13 +462,13 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			case "wide", "":
 				printRepoTable(appsv1.Repositories{repo})
 			default:
-				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+				errors.CheckError(fmt.Errorf("unknown output format: %s. Supported formats: yaml|json|url|wide", output))
 			}
 		},
 	}
 
 	command.Flags().StringVar(&project, "project", "", "project of the repository")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
-	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status , must be one of: 'hard'")
+	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status. Supported values: hard")
 	return command
 }

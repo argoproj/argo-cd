@@ -5,28 +5,30 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/proto"
-	"github.com/golang-jwt/jwt/v4"
-	grpc_logging "github.com/grpc-ecosystem/go-grpc-middleware/logging"
-	ctx_logrus "github.com/grpc-ecosystem/go-grpc-middleware/tags/logrus"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
+	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 )
 
-func logRequest(entry *logrus.Entry, info string, pbMsg interface{}, ctx context.Context, logClaims bool) {
+func logRequest(ctx context.Context, entry *logrus.Entry, info string, pbMsg any, logClaims bool) {
 	if logClaims {
 		claims := ctx.Value("claims")
 		mapClaims, ok := claims.(jwt.MapClaims)
 		if ok {
-			copy := make(map[string]interface{})
+			claimsCopy := make(map[string]any)
 			for k, v := range mapClaims {
 				if k != "groups" || entry.Logger.IsLevelEnabled(logrus.DebugLevel) {
-					copy[k] = v
+					claimsCopy[k] = v
 				}
 			}
-			if data, err := json.Marshal(copy); err == nil {
+			if data, err := json.Marshal(claimsCopy); err == nil {
 				entry = entry.WithField("grpc.request.claims", string(data))
 			}
 		}
@@ -51,44 +53,64 @@ func (j *jsonpbMarshalleble) MarshalJSON() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-type loggingServerStream struct {
-	grpc.ServerStream
+type reporter struct {
+	ctx       context.Context
 	entry     *logrus.Entry
 	logClaims bool
 	info      string
 }
 
-func (l *loggingServerStream) SendMsg(m interface{}) error {
-	return l.ServerStream.SendMsg(m)
-}
+func (r *reporter) PostCall(_ error, _ time.Duration) {}
 
-func (l *loggingServerStream) RecvMsg(m interface{}) error {
-	err := l.ServerStream.RecvMsg(m)
+func (r *reporter) PostMsgSend(_ any, _ error, _ time.Duration) {}
+
+func (r *reporter) PostMsgReceive(payload any, err error, _ time.Duration) {
 	if err == nil {
-		logRequest(l.entry, l.info, m, l.ServerStream.Context(), l.logClaims)
-	}
-	return err
-}
-
-func PayloadStreamServerInterceptor(entry *logrus.Entry, logClaims bool, decider grpc_logging.ServerPayloadLoggingDecider) grpc.StreamServerInterceptor {
-	return func(srv interface{}, stream grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-		if !decider(stream.Context(), info.FullMethod, srv) {
-			return handler(srv, stream)
-		}
-		logEntry := entry.WithFields(ctx_logrus.Extract(stream.Context()).Data)
-		newStream := &loggingServerStream{ServerStream: stream, entry: logEntry, logClaims: logClaims, info: fmt.Sprintf("received streaming call %s", info.FullMethod)}
-		return handler(srv, newStream)
+		logRequest(r.ctx, r.entry, r.info, payload, r.logClaims)
 	}
 }
 
-func PayloadUnaryServerInterceptor(entry *logrus.Entry, logClaims bool, decider grpc_logging.ServerPayloadLoggingDecider) grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-		if !decider(ctx, info.FullMethod, info.Server) {
-			return handler(ctx, req)
-		}
-		logEntry := entry.WithFields(ctx_logrus.Extract(ctx).Data)
-		logRequest(logEntry, fmt.Sprintf("received unary call %s", info.FullMethod), req, ctx, logClaims)
-		resp, err := handler(ctx, req)
-		return resp, err
+func PayloadStreamServerInterceptor(entry *logrus.Entry, logClaims bool, decider func(context.Context, interceptors.CallMeta) bool) grpc.StreamServerInterceptor {
+	return selector.StreamServerInterceptor(interceptors.StreamServerInterceptor(reportable(entry, "streaming", logClaims)), selector.MatchFunc(decider))
+}
+
+func PayloadUnaryServerInterceptor(entry *logrus.Entry, logClaims bool, decider func(context.Context, interceptors.CallMeta) bool) grpc.UnaryServerInterceptor {
+	return selector.UnaryServerInterceptor(interceptors.UnaryServerInterceptor(reportable(entry, "unary", logClaims)), selector.MatchFunc(decider))
+}
+
+func reportable(entry *logrus.Entry, callType string, logClaims bool) interceptors.CommonReportableFunc {
+	return func(ctx context.Context, c interceptors.CallMeta) (interceptors.Reporter, context.Context) {
+		return &reporter{
+			ctx:       ctx,
+			entry:     entry,
+			info:      fmt.Sprintf("received %s call %s", callType, c.FullMethod()),
+			logClaims: logClaims,
+		}, ctx
 	}
+}
+
+// InterceptorLogger adapts logrus logger to interceptor logger.
+func InterceptorLogger(l logrus.FieldLogger) logging.Logger {
+	return logging.LoggerFunc(func(_ context.Context, lvl logging.Level, msg string, fields ...any) {
+		f := make(map[string]any, len(fields)/2)
+		i := logging.Fields(fields).Iterator()
+		for i.Next() {
+			k, v := i.At()
+			f[k] = v
+		}
+		l := l.WithFields(f)
+
+		switch lvl {
+		case logging.LevelDebug:
+			l.Debug(msg)
+		case logging.LevelInfo:
+			l.Info(msg)
+		case logging.LevelWarn:
+			l.Warn(msg)
+		case logging.LevelError:
+			l.Error(msg)
+		default:
+			panic(fmt.Sprintf("unknown level %v", lvl))
+		}
+	})
 }

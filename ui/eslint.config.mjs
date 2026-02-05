@@ -24,7 +24,8 @@ export default [
         ...pluginReactConfig,
         rules: {
             'react/display-name': 'off',
-            'react/no-string-refs': 'off'
+            'react/no-string-refs': 'off',
+            'react/jsx-no-useless-fragment': ['error', {allowExpressions: true}]
         }
     },
     eslintPluginPrettierRecommended,

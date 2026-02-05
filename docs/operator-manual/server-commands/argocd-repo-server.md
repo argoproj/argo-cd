@@ -19,22 +19,27 @@ argocd-repo-server [flags]
       --allow-oob-symlinks                             Allow out-of-bounds symlinks in repositories (not recommended)
       --default-cache-expiration duration              Cache expiration default (default 24h0m0s)
       --disable-helm-manifest-max-extracted-size       Disable maximum size of helm manifest archives when extracted
+      --disable-oci-manifest-max-extracted-size        Disable maximum size of oci manifest archives when extracted
       --disable-tls                                    Disable TLS on the gRPC endpoint
+      --enable-builtin-git-config                      Enable builtin git configuration options that are required for correct argocd-repo-server operation. (default true)
       --helm-manifest-max-extracted-size string        Maximum size of helm manifest archives when extracted (default "1G")
       --helm-registry-max-index-size string            Maximum size of registry index file (default "1G")
   -h, --help                                           help for argocd-repo-server
       --include-hidden-directories                     Include hidden directories from Git
-      --logformat string                               Set the logging format. One of: text|json (default "text")
+      --logformat string                               Set the logging format. One of: json|text (default "json")
       --loglevel string                                Set the logging level. One of: debug|info|warn|error (default "info")
       --max-combined-directory-manifests-size string   Max combined size of manifest files in a directory-type Application (default "10M")
       --metrics-address string                         Listen on given address for metrics (default "0.0.0.0")
       --metrics-port int                               Start metrics server on given port (default 8084)
+      --oci-layer-media-types strings                  Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers. (default [application/vnd.oci.image.layer.v1.tar,application/vnd.oci.image.layer.v1.tar+gzip,application/vnd.cncf.helm.chart.content.v1.tar+gzip])
+      --oci-manifest-max-extracted-size string         Maximum size of oci manifest archives when extracted (default "1G")
       --otlp-address string                            OpenTelemetry collector address to send traces to
       --otlp-attrs strings                             List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
       --otlp-headers stringToString                    List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
       --otlp-insecure                                  OpenTelemetry collector insecure mode (default true)
       --parallelismlimit int                           Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
       --plugin-tar-exclude stringArray                 Globs to filter when sending tarballs to plugins.
+      --plugin-use-manifest-generate-paths             Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.
       --port int                                       Listen on given port for incoming connections (default 8081)
       --redis string                                   Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string                    Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.

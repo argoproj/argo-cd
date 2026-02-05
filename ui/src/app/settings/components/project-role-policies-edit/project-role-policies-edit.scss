@@ -1,0 +1,11 @@
+.project-role-policies-edit__wrapper-row {
+    .columns {
+        padding-right: 0.5rem;
+        padding-left: 0.5rem;
+    
+        @media screen and (max-width: 1024px) {
+            padding-right: 0.3rem;
+            padding-left: 0.3rem;
+        }
+    }
+}

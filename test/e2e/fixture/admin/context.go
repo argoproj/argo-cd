@@ -2,33 +2,28 @@ package admin
 
 import (
 	"testing"
+	"time"
 
-	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 )
 
-// this implements the "given" part of given/when/then
+// Context implements the "given" part of given/when/then.
+// It embeds fixture.TestState to provide test-specific state that enables parallel test execution.
 type Context struct {
-	t *testing.T
-	// seconds
-	timeout int
-	name    string
+	*fixture.TestState
 }
 
 func Given(t *testing.T) *Context {
-	fixture.EnsureCleanState(t)
-	return GivenWithSameState(t)
+	t.Helper()
+	state := fixture.EnsureCleanState(t)
+	return &Context{TestState: state}
 }
 
-func GivenWithSameState(t *testing.T) *Context {
-	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
-	// for any context.
-	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 20, 0, 180)
-	return &Context{
-		t:       t,
-		name:    fixture.Name(),
-		timeout: timeout,
-	}
+// GivenWithSameState creates a new Context that shares the same TestState as an existing context.
+// Use this when you need multiple fixture contexts within the same test.
+func GivenWithSameState(ctx fixture.TestContext) *Context {
+	ctx.T().Helper()
+	return &Context{TestState: fixture.NewTestStateFromContext(ctx)}
 }
 
 func (c *Context) And(block func()) *Context {
@@ -37,5 +32,6 @@ func (c *Context) And(block func()) *Context {
 }
 
 func (c *Context) When() *Actions {
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Actions{context: c}
 }

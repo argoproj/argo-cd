@@ -40,10 +40,12 @@ $deselected-text: #818d94;
         margin-left: -7px;
 
         &__character {
+            cursor: pointer;
             width: 42px;
         }
 
         &__text-logo {
+            cursor: pointer;
             height: 2em;
             filter: invert(100%);
         }

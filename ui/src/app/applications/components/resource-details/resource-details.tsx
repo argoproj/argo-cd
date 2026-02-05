@@ -284,22 +284,21 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
                         const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
-                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links, childResources};
+                        const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
+                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links, childResources, resourceActionsMenuItems};
                     }}>
                     {data => (
                         <React.Fragment>
                             <div className='resource-details__header'>
                                 <div style={{display: 'flex', flexDirection: 'column', marginRight: '15px', alignItems: 'center', fontSize: '12px'}}>
-                                    <ResourceIcon kind={selectedNode.kind} />
+                                    <ResourceIcon group={selectedNode.group} kind={selectedNode.kind} />
                                     {ResourceLabel({kind: selectedNode.kind})}
                                 </div>
                                 <h1>{selectedNode.name}</h1>
                                 {data.controlledState && (
-                                    <React.Fragment>
-                                        <span style={{marginRight: '5px'}}>
-                                            <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
-                                        </span>
-                                    </React.Fragment>
+                                    <span style={{marginRight: '5px'}}>
+                                        <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
+                                    </span>
                                 )}
                                 {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
                                 <button
@@ -314,15 +313,17 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
                                 </button>
-                                <DropDown
-                                    isMenu={true}
-                                    anchor={() => (
-                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                            <i className='fa fa-ellipsis-v' />
-                                        </button>
-                                    )}>
-                                    {() => AppUtils.renderResourceActionMenu(selectedNode, application, appContext)}
-                                </DropDown>
+                                {data.resourceActionsMenuItems?.length > 0 && (
+                                    <DropDown
+                                        isMenu={true}
+                                        anchor={() => (
+                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                <i className='fa fa-ellipsis-v' />
+                                            </button>
+                                        )}>
+                                        {() => AppUtils.renderResourceActionMenu(data.resourceActionsMenuItems)}
+                                    </DropDown>
+                                )}
                             </div>
                             <Tabs
                                 navTransparent={true}

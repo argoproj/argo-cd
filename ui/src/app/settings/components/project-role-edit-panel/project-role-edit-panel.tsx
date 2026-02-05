@@ -19,8 +19,8 @@ interface ProjectRoleDefaultParams {
 interface ProjectRoleEditPanelProps {
     nameReadonly?: boolean;
     submit: (params: ProjectRoleParams) => any;
-    createJWTToken: (params: CreateJWTTokenParams) => void;
-    deleteJWTToken: (params: DeleteJWTTokenParams) => void;
+    createJWTToken: (params: CreateJWTTokenParams) => Promise<void>;
+    deleteJWTToken: (params: DeleteJWTTokenParams) => Promise<void>;
     hideJWTToken: () => void;
     token: string;
     getApi?: (formApi: FormApi) => void;

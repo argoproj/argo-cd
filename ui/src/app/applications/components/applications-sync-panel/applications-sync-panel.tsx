@@ -126,30 +126,28 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                         }}
                         getApi={setForm}>
                         {formApi => (
-                            <React.Fragment>
-                                <div className='argo-form-row' style={{marginTop: 0}}>
-                                    <h4>Sync app(s)</h4>
-                                    {progress !== null && <ProgressPopup onClose={() => setProgress(null)} percentage={progress.percentage} title={progress.title} />}
-                                    <div style={{marginBottom: '1em'}}>
-                                        <FormField formApi={formApi} field='syncFlags' component={ApplicationManualSyncFlags} />
-                                    </div>
-                                    <div style={{marginBottom: '1em'}}>
-                                        <label>Sync Options</label>
-                                        <ApplicationSyncOptions
-                                            options={formApi.values.syncOptions}
-                                            onChanged={opts => {
-                                                formApi.setTouched('syncOptions', true);
-                                                formApi.setValue('syncOptions', opts);
-                                            }}
-                                            id='applications-sync-panel'
-                                        />
-                                    </div>
-
-                                    <ApplicationRetryOptions id='applications-sync-panel' formApi={formApi} />
-
-                                    <ApplicationSelector apps={apps} formApi={formApi} />
+                            <div className='argo-form-row' style={{marginTop: 0}}>
+                                <h4>Sync app(s)</h4>
+                                {progress !== null && <ProgressPopup onClose={() => setProgress(null)} percentage={progress.percentage} title={progress.title} />}
+                                <div style={{marginBottom: '1em'}}>
+                                    <FormField formApi={formApi} field='syncFlags' component={ApplicationManualSyncFlags} />
                                 </div>
-                            </React.Fragment>
+                                <div style={{marginBottom: '1em'}}>
+                                    <label>Sync Options</label>
+                                    <ApplicationSyncOptions
+                                        options={formApi.values.syncOptions}
+                                        onChanged={opts => {
+                                            formApi.setTouched('syncOptions', true);
+                                            formApi.setValue('syncOptions', opts);
+                                        }}
+                                        id='applications-sync-panel'
+                                    />
+                                </div>
+
+                                <ApplicationRetryOptions id='applications-sync-panel' formApi={formApi} />
+
+                                {show && <ApplicationSelector apps={apps} formApi={formApi} />}
+                            </div>
                         )}
                     </Form>
                 </SlidingPanel>

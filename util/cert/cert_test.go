@@ -1,7 +1,6 @@
 package cert
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -9,13 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 const (
-	Test_Cert1CN            = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
-	Test_Cert2CN            = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
-	Test_TLSValidSingleCert = `
+	TestCert1CN            = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
+	TestCert2CN            = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
+	TestTLSValidSingleCert = `
 -----BEGIN CERTIFICATE-----
 MIIFvTCCA6WgAwIBAgIUGrTmW3qc39zqnE08e3qNDhUkeWswDQYJKoZIhvcNAQEL
 BQAwbjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAklMMRAwDgYDVQQHDAdDaGljYWdv
@@ -52,7 +51,7 @@ xO7Tr5lAo74vNUkF2EHNaI28/RGnJPm2TIxZqy4rNH6L
 `
 )
 
-const Test_TLSInvalidPEMData = `
+const TestTLSInvalidPEMData = `
 MIIF1zCCA7+gAwIBAgIUQdTcSHY2Sxd3Tq/v1eIEZPCNbOowDQYJKoZIhvcNAQEL
 BQAwezELMAkGA1UEBhMCREUxFTATBgNVBAgMDExvd2VyIFNheG9ueTEQMA4GA1UE
 BwwHSGFub3ZlcjEVMBMGA1UECgwMVGVzdGluZyBDb3JwMRIwEAYDVQQLDAlUZXN0
@@ -69,7 +68,7 @@ YilqCPFX+az09EqqK/iHXnkdZ/Z2fCuU+9M/Zhrnlwlygl3RuVBI6xhm/ZsXtL2E
 Gxa61lNy6pyx5+hSxHEFEJshXLtioRd702VdLKxEOuYSXKeJDs1x9o6cJ75S6hko
 `
 
-const Test_TLSInvalidSingleCert = `
+const TestTLSInvalidSingleCert = `
 -----BEGIN CERTIFICATE-----
 MIIF1zCCA7+gAwIBAgIUQdTcSHY2Sxd3Tq/v1eIEZPCNbOowDQYJKoZIhvcNAQEL
 BQAwezELMAkGA1UEBhMCREUxFTATBgNVBAgMDExvd2VyIFNheG9ueTEQMA4GA1UE
@@ -106,7 +105,7 @@ XWyb96wrUlv+E8I=
 -----END CERTIFICATE-----
 `
 
-const Test_TLSValidMultiCert = `
+const TestTLSValidMultiCert = `
 -----BEGIN CERTIFICATE-----
 MIIFvTCCA6WgAwIBAgIUGrTmW3qc39zqnE08e3qNDhUkeWswDQYJKoZIhvcNAQEL
 BQAwbjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAklMMRAwDgYDVQQHDAdDaGljYWdv
@@ -177,7 +176,7 @@ XWyb96wrUlv+E8I=
 `
 
 // Taken from hack/ssh_known_hosts
-const Test_ValidSSHKnownHostsData = `
+const TestValidSSHKnownHostsData = `
 # BitBucket
 bitbucket.org ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDQeJzhupRu0u0cdegZIa8e86EG2qOCsIsD1Xw0xSeiPDlCr7kq97NLmMbpKTX6Esc30NuoqEEHCuc7yWtwp8dI76EEEB1VqY9QJq6vk+aySyboD5QF61I/1WeTwu+deCbgKMGbUijeXhtfbxSxm6JwGrXrhBdofTsbKRUsrN1WoNgUa8uqN1Vx6WAJw1JHPhglEGGHea6QICwJOAr/6mrui/oB7pkaWKHj3z7d1IC4KWLtY47elvjbaTlkN04Kc/5LFEirorGYVbt15kAUlqGM65pk6ZBxtaO3+30LVlORZkxOh+LKL/BvbZ/iRNhItLqNyieoQj/uh/7Iv4uyH/cV/0b4WDSd3DptigWq84lJubb9t/DnZlrJazxyDCulTmKdOR7vs9gMTo+uoIrPSb8ScTtvw65+odKAlBj59dhnVp9zd7QUojOpXlL62Aw56U4oO+FALuevvMjiWeavKhJqlR7i5n9srYcrNV7ttmDw7kf/97P5zauIhxcjX+xHv4M=
 # GitHub
@@ -191,7 +190,7 @@ ssh.dev.azure.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4Nak
 vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
 `
 
-const Test_InvalidSSHKnownHostsData = `
+const TestInvalidSSHKnownHostsData = `
 bitbucket.org AAAAB3NzaC1yc2EAAAADAQABAAABgQDQeJzhupRu0u0cdegZIa8e86EG2qOCsIsD1Xw0xSeiPDlCr7kq97NLmMbpKTX6Esc30NuoqEEHCuc7yWtwp8dI76EEEB1VqY9QJq6vk+aySyboD5QF61I/1WeTwu+deCbgKMGbUijeXhtfbxSxm6JwGrXrhBdofTsbKRUsrN1WoNgUa8uqN1Vx6WAJw1JHPhglEGGHea6QICwJOAr/6mrui/oB7pkaWKHj3z7d1IC4KWLtY47elvjbaTlkN04Kc/5LFEirorGYVbt15kAUlqGM65pk6ZBxtaO3+30LVlORZkxOh+LKL/BvbZ/iRNhItLqNyieoQj/uh/7Iv4uyH/cV/0b4WDSd3DptigWq84lJubb9t/DnZlrJazxyDCulTmKdOR7vs9gMTo+uoIrPSb8ScTtvw65+odKAlBj59dhnVp9zd7QUojOpXlL62Aw56U4oO+FALuevvMjiWeavKhJqlR7i5n9srYcrNV7ttmDw7kf/97P5zauIhxcjX+xHv4M=
 # GitHub
 github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
@@ -204,20 +203,20 @@ ssh.dev.azure.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4Nak
 vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOfGJ4NakVyIzf1rXYd4d7wo6jBlkLvCA4odBlL0mDUyZ0/QUfTTqeu+tm22gOsv+VrVTMk6vwRU75gY/y9ut5Mb3bR5BV58dKXyq9A9UeB5Cakehn5Zgm6x1mKoVyf+FFn26iYqXJRgzIZZcZ5V6hrE0Qg39kZm4az48o0AUbf6Sp4SLdvnuMa2sVNwHBboS7EJkm57XQPVU3/QpyNLHbWDdzwtrlS+ez30S3AdYhLKEOxAG8weOnyrtLJAUen9mTkol8oII1edf7mWWbWVf0nBmly21+nZcmCTISQBtdcyPaEno7fFQMDD26/s0lfKob4Kw8H
 `
 
-func Test_TLSCertificate_ValidPEM_ValidCert(t *testing.T) {
+func TestTLSCertificateValidPEMValidCert(t *testing.T) {
 	// Valid PEM data, single certificate, expect array of length 1
-	certificates, err := ParseTLSCertificatesFromData(Test_TLSValidSingleCert)
+	certificates, err := ParseTLSCertificatesFromData(TestTLSValidSingleCert)
 	require.NoError(t, err)
 	assert.Len(t, certificates, 1)
 	// Expect good decode
 	x509Cert, err := DecodePEMCertificateToX509(certificates[0])
 	require.NoError(t, err)
-	assert.Equal(t, Test_Cert1CN, x509Cert.Subject.String())
+	assert.Equal(t, TestCert1CN, x509Cert.Subject.String())
 }
 
-func Test_TLSCertificate_ValidPEM_InvalidCert(t *testing.T) {
+func TestTLSCertificateValidPEMInvalidCert(t *testing.T) {
 	// Valid PEM data, but invalid certificate
-	certificates, err := ParseTLSCertificatesFromData(Test_TLSInvalidSingleCert)
+	certificates, err := ParseTLSCertificatesFromData(TestTLSInvalidSingleCert)
 	require.NoError(t, err)
 	assert.Len(t, certificates, 1)
 	// Expect bad decode
@@ -225,28 +224,28 @@ func Test_TLSCertificate_ValidPEM_InvalidCert(t *testing.T) {
 	require.Error(t, err)
 }
 
-func Test_TLSCertificate_InvalidPEM(t *testing.T) {
+func TestTLSCertificateInvalidPEM(t *testing.T) {
 	// Invalid PEM data, expect array of length 0
-	certificates, err := ParseTLSCertificatesFromData(Test_TLSInvalidPEMData)
+	certificates, err := ParseTLSCertificatesFromData(TestTLSInvalidPEMData)
 	require.NoError(t, err)
 	assert.Empty(t, certificates)
 }
 
-func Test_TLSCertificate_ValidPEM_ValidCert_Multi(t *testing.T) {
+func TestTLSCertificateValidPEMValidCertMulti(t *testing.T) {
 	// Valid PEM data, two certificates, expect array of length 2
-	certificates, err := ParseTLSCertificatesFromData(Test_TLSValidMultiCert)
+	certificates, err := ParseTLSCertificatesFromData(TestTLSValidMultiCert)
 	require.NoError(t, err)
 	assert.Len(t, certificates, 2)
 	// Expect good decode
 	x509Cert, err := DecodePEMCertificateToX509(certificates[0])
 	require.NoError(t, err)
-	assert.Equal(t, Test_Cert1CN, x509Cert.Subject.String())
+	assert.Equal(t, TestCert1CN, x509Cert.Subject.String())
 	x509Cert, err = DecodePEMCertificateToX509(certificates[1])
 	require.NoError(t, err)
-	assert.Equal(t, Test_Cert2CN, x509Cert.Subject.String())
+	assert.Equal(t, TestCert2CN, x509Cert.Subject.String())
 }
 
-func Test_TLSCertificate_ValidPEM_ValidCert_FromFile(t *testing.T) {
+func TestTLSCertificateValidPEMValidCertFromFile(t *testing.T) {
 	// Valid PEM data, single certificate from file, expect array of length 1
 	certificates, err := ParseTLSCertificatesFromPath("../../test/certificates/cert1.pem")
 	require.NoError(t, err)
@@ -254,48 +253,48 @@ func Test_TLSCertificate_ValidPEM_ValidCert_FromFile(t *testing.T) {
 	// Expect good decode
 	x509Cert, err := DecodePEMCertificateToX509(certificates[0])
 	require.NoError(t, err)
-	assert.Equal(t, Test_Cert1CN, x509Cert.Subject.String())
+	assert.Equal(t, TestCert1CN, x509Cert.Subject.String())
 }
 
-func Test_TLSCertPool(t *testing.T) {
-	certificates, err := ParseTLSCertificatesFromData(Test_TLSValidMultiCert)
+func TestTLSCertPool(t *testing.T) {
+	certificates, err := ParseTLSCertificatesFromData(TestTLSValidMultiCert)
 	require.NoError(t, err)
 	assert.Len(t, certificates, 2)
 	certPool := GetCertPoolFromPEMData(certificates)
 	assert.NotNil(t, certPool)
 }
 
-func Test_TLSCertificate_CertFromNonExistingFile(t *testing.T) {
+func TestTLSCertificateCertFromNonExistingFile(t *testing.T) {
 	// Non-existing file, expect err
 	_, err := ParseTLSCertificatesFromPath("../../test/certificates/cert_nonexisting.pem")
 	require.Error(t, err)
 }
 
-func Test_SSHKnownHostsData_ParseData(t *testing.T) {
+func TestSSHKnownHostsDataParseData(t *testing.T) {
 	// Expect valid data with 7 known host entries
-	entries, err := ParseSSHKnownHostsFromData(Test_ValidSSHKnownHostsData)
+	entries, err := ParseSSHKnownHostsFromData(TestValidSSHKnownHostsData)
 	require.NoError(t, err)
 	assert.Len(t, entries, 7)
 }
 
-func Test_SSHKnownHostsData_ParseFile(t *testing.T) {
+func TestSSHKnownHostsDataParseFile(t *testing.T) {
 	// Expect valid data with 7 known host entries
 	entries, err := ParseSSHKnownHostsFromPath("../../test/certificates/ssh_known_hosts")
 	require.NoError(t, err)
 	assert.Len(t, entries, 7)
 }
 
-func Test_SSHKnownHostsData_ParseNonExistingFile(t *testing.T) {
+func TestSSHKnownHostsDataParseNonExistingFile(t *testing.T) {
 	// Expect valid data with 7 known host entries
 	entries, err := ParseSSHKnownHostsFromPath("../../test/certificates/ssh_known_hosts_invalid")
 	require.Error(t, err)
 	assert.Nil(t, entries)
 }
 
-func Test_SSHKnownHostsData_Tokenize(t *testing.T) {
+func TestSSHKnownHostsDataTokenize(t *testing.T) {
 	// All entries should parse to valid SSH public keys
 	// All entries should be tokenizable, and tokens should be feedable to decoder
-	entries, err := ParseSSHKnownHostsFromData(Test_ValidSSHKnownHostsData)
+	entries, err := ParseSSHKnownHostsFromData(TestValidSSHKnownHostsData)
 	require.NoError(t, err)
 	for _, entry := range entries {
 		hosts, _, err := KnownHostsLineToPublicKey(entry)
@@ -309,7 +308,7 @@ func Test_SSHKnownHostsData_Tokenize(t *testing.T) {
 	}
 }
 
-func Test_MatchHostName(t *testing.T) {
+func TestMatchHostName(t *testing.T) {
 	matchHostName := "foo.example.com"
 	assert.True(t, MatchHostName(matchHostName, "*"))
 	assert.True(t, MatchHostName(matchHostName, "*.example.com"))
@@ -322,7 +321,7 @@ func Test_MatchHostName(t *testing.T) {
 	assert.False(t, MatchHostName(matchHostName, "foo.otherexample.*"))
 }
 
-func Test_SSHFingerprintSHA256(t *testing.T) {
+func TestSSHFingerprintSHA256(t *testing.T) {
 	// actual SHA256 fingerprints for keys defined above
 	fingerprints := [...]string{
 		"46OSHA1Rmj8E8ERTC6xkNcmGOw9oFxYr0WF6zWW8l1E",
@@ -333,7 +332,7 @@ func Test_SSHFingerprintSHA256(t *testing.T) {
 		"ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og",
 		"ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og",
 	}
-	entries, err := ParseSSHKnownHostsFromData(Test_ValidSSHKnownHostsData)
+	entries, err := ParseSSHKnownHostsFromData(TestValidSSHKnownHostsData)
 	require.NoError(t, err)
 	assert.Len(t, entries, 7)
 	for idx, entry := range entries {
@@ -344,7 +343,7 @@ func Test_SSHFingerprintSHA256(t *testing.T) {
 	}
 }
 
-func Test_SSHFingerPrintSHA256FromString(t *testing.T) {
+func TestSSHFingerPrintSHA256FromString(t *testing.T) {
 	// actual SHA256 fingerprints for keys defined above
 	fingerprints := [...]string{
 		"46OSHA1Rmj8E8ERTC6xkNcmGOw9oFxYr0WF6zWW8l1E",
@@ -355,7 +354,7 @@ func Test_SSHFingerPrintSHA256FromString(t *testing.T) {
 		"ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og",
 		"ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og",
 	}
-	entries, err := ParseSSHKnownHostsFromData(Test_ValidSSHKnownHostsData)
+	entries, err := ParseSSHKnownHostsFromData(TestValidSSHKnownHostsData)
 	require.NoError(t, err)
 	assert.Len(t, entries, 7)
 	for idx, entry := range entries {
@@ -364,7 +363,7 @@ func Test_SSHFingerPrintSHA256FromString(t *testing.T) {
 	}
 }
 
-func Test_ServerNameWithoutPort(t *testing.T) {
+func TestServerNameWithoutPort(t *testing.T) {
 	hostNames := map[string]string{
 		"localhost":            "localhost",
 		"localhost:9443":       "localhost",
@@ -379,7 +378,7 @@ func Test_ServerNameWithoutPort(t *testing.T) {
 	}
 }
 
-func Test_ValidHostnames(t *testing.T) {
+func TestValidHostnames(t *testing.T) {
 	hostNames := map[string]bool{
 		"localhost":                          true,
 		"localhost.localdomain":              true,
@@ -399,13 +398,13 @@ func Test_ValidHostnames(t *testing.T) {
 	}
 
 	for hostName, valid := range hostNames {
-		t.Run(fmt.Sprintf("Test validity for hostname %s", hostName), func(t *testing.T) {
+		t.Run("Test validity for hostname "+hostName, func(t *testing.T) {
 			assert.Equal(t, valid, IsValidHostname(hostName, false))
 		})
 	}
 }
 
-func Test_ValidFQDNs(t *testing.T) {
+func TestValidFQDNs(t *testing.T) {
 	hostNames := map[string]bool{
 		"localhost":                          false,
 		"localhost.localdomain":              false,
@@ -427,7 +426,7 @@ func Test_ValidFQDNs(t *testing.T) {
 	}
 }
 
-func Test_EscapeBracketPattern(t *testing.T) {
+func TestEscapeBracketPattern(t *testing.T) {
 	// input: expected output
 	patternList := map[string]string{
 		"foo.bar":         "foo.bar",
@@ -505,7 +504,7 @@ func TestGetCertificateForConnect(t *testing.T) {
 		certs, err := GetCertificateForConnect("127.0.0.1")
 		require.Error(t, err)
 		assert.Empty(t, certs)
-		assert.Contains(t, err.Error(), "no certificates found")
+		assert.ErrorContains(t, err, "no certificates found")
 	})
 }
 
@@ -545,4 +544,27 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, certpath)
 	})
+}
+
+func TestTLSCertificateLimit(t *testing.T) {
+	var data string
+	// Append one more than the max allowed
+	for i := 0; i < CertificateMaxEntriesPerStream+1; i++ {
+		data += TestTLSValidSingleCert
+	}
+	_, err := ParseTLSCertificatesFromData(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "limit exceeded")
+}
+
+func TestSSHKnownHostsLimit(t *testing.T) {
+	var data string
+	entry := "github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=\n"
+	// Append one more than the max allowed
+	for i := 0; i < CertificateMaxEntriesPerStream+1; i++ {
+		data += entry
+	}
+	_, err := ParseSSHKnownHostsFromData(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "limit exceeded")
 }

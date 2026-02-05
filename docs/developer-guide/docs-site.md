@@ -17,9 +17,24 @@ Before submitting a PR build the website, to verify that there are no errors bui
 make build-docs
 ```
 
+If you want to build and test the site directly on your local machine without the use of docker container, follow the below steps:
+
+1. Install the dependencies from the root of this repository using the `pip` command
+    ```bash
+    pip install -r docs/requirements.txt
+    ```
+2. Build the docs site locally from the root
+   ```bash
+   make build-docs-local
+   ``` 
+3. Start the docs site locally
+   ```bash
+   make serve-docs-local
+   ```
+
 ## Analytics
 
-!!! tip
-    Don't forget to disable your ad-blocker when testing.
+> [!TIP]
+> Don't forget to disable your ad-blocker when testing.
 
 We collect [Google Analytics](https://analytics.google.com/analytics/web/#/report-home/a105170809w198079555p192782995).

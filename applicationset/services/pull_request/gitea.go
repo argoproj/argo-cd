@@ -14,11 +14,12 @@ type GiteaService struct {
 	client *gitea.Client
 	owner  string
 	repo   string
+	labels []string
 }
 
 var _ PullRequestService = (*GiteaService)(nil)
 
-func NewGiteaService(ctx context.Context, token, url, owner, repo string, insecure bool) (PullRequestService, error) {
+func NewGiteaService(token, url, owner, repo string, labels []string, insecure bool) (PullRequestService, error) {
 	if token == "" {
 		token = os.Getenv("GITEA_TOKEN")
 	}
@@ -42,6 +43,7 @@ func NewGiteaService(ctx context.Context, token, url, owner, repo string, insecu
 		client: client,
 		owner:  owner,
 		repo:   repo,
+		labels: labels,
 	}, nil
 }
 
@@ -49,14 +51,24 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 	opts := gitea.ListPullRequestsOptions{
 		State: gitea.StateOpen,
 	}
-	prs, _, err := g.client.ListRepoPullRequests(g.owner, g.repo, opts)
+	g.client.SetContext(ctx)
+	list := []*PullRequest{}
+	prs, resp, err := g.client.ListRepoPullRequests(g.owner, g.repo, opts)
 	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			// return a custom error indicating that the repository is not found,
+			// but also returning the empty result since the decision to continue or not in this case is made by the caller
+			return list, NewRepositoryNotFoundError(err)
+		}
 		return nil, err
 	}
-	list := []*PullRequest{}
+
 	for _, pr := range prs {
+		if !giteaContainLabels(g.labels, pr.Labels) {
+			continue
+		}
 		list = append(list, &PullRequest{
-			Number:       int(pr.Index),
+			Number:       int64(pr.Index),
 			Title:        pr.Title,
 			Branch:       pr.Head.Ref,
 			TargetBranch: pr.Base.Ref,
@@ -66,6 +78,21 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 		})
 	}
 	return list, nil
+}
+
+// containLabels returns true if gotLabels contains expectedLabels
+func giteaContainLabels(expectedLabels []string, gotLabels []*gitea.Label) bool {
+	gotLabelNamesMap := make(map[string]bool)
+	for i := 0; i < len(gotLabels); i++ {
+		gotLabelNamesMap[gotLabels[i].Name] = true
+	}
+	for _, expected := range expectedLabels {
+		v, ok := gotLabelNamesMap[expected]
+		if !v || !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // Get the Gitea pull request label names.

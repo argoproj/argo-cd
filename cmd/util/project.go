@@ -10,13 +10,13 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/config"
-	"github.com/argoproj/argo-cd/v2/util/gpg"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/config"
+	"github.com/argoproj/argo-cd/v3/util/gpg"
 )
 
 type ProjectOpts struct {
@@ -43,38 +43,54 @@ func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
 	command.Flags().StringSliceVar(&opts.SignatureKeys, "signature-keys", []string{}, "GnuPG public key IDs for commit signature verification")
 	command.Flags().BoolVar(&opts.orphanedResourcesEnabled, "orphaned-resources", false, "Enables orphaned resources monitoring")
 	command.Flags().BoolVar(&opts.orphanedResourcesWarn, "orphaned-resources-warn", false, "Specifies if applications should have a warning condition when orphaned resources detected")
-	command.Flags().StringArrayVar(&opts.allowedClusterResources, "allow-cluster-resource", []string{}, "List of allowed cluster level resources")
-	command.Flags().StringArrayVar(&opts.deniedClusterResources, "deny-cluster-resource", []string{}, "List of denied cluster level resources")
+	command.Flags().StringArrayVar(&opts.allowedClusterResources, "allow-cluster-resource", []string{}, "List of allowed cluster level resources, optionally with group and name (e.g. ClusterRole, apiextensions.k8s.io/CustomResourceDefinition, /Namespace/team1-*)")
+	command.Flags().StringArrayVar(&opts.deniedClusterResources, "deny-cluster-resource", []string{}, "List of denied cluster level resources, optionally with group and name (e.g. ClusterRole, apiextensions.k8s.io/CustomResourceDefinition, /Namespace/kube-*)")
 	command.Flags().StringArrayVar(&opts.allowedNamespacedResources, "allow-namespaced-resource", []string{}, "List of allowed namespaced resources")
 	command.Flags().StringArrayVar(&opts.deniedNamespacedResources, "deny-namespaced-resource", []string{}, "List of denied namespaced resources")
 	command.Flags().StringSliceVar(&opts.SourceNamespaces, "source-namespaces", []string{}, "List of source namespaces for applications")
+	command.Flags().StringArrayVar(&opts.destinationServiceAccounts, "dest-service-accounts", []string{},
+		"Destination server, namespace and target service account (e.g. https://192.168.99.100:8443,default,default-sa)")
 }
 
-func getGroupKindList(values []string) []v1.GroupKind {
-	var res []v1.GroupKind
+func getGroupKindList(values []string) []metav1.GroupKind {
+	var res []metav1.GroupKind
 	for _, val := range values {
 		if parts := strings.Split(val, "/"); len(parts) == 2 {
-			res = append(res, v1.GroupKind{Group: parts[0], Kind: parts[1]})
+			res = append(res, metav1.GroupKind{Group: parts[0], Kind: parts[1]})
 		} else if len(parts) == 1 {
-			res = append(res, v1.GroupKind{Kind: parts[0]})
+			res = append(res, metav1.GroupKind{Kind: parts[0]})
 		}
 	}
 	return res
 }
 
-func (opts *ProjectOpts) GetAllowedClusterResources() []v1.GroupKind {
-	return getGroupKindList(opts.allowedClusterResources)
+func getClusterResourceRestrictionItemList(values []string) []v1alpha1.ClusterResourceRestrictionItem {
+	var res []v1alpha1.ClusterResourceRestrictionItem
+	for _, val := range values {
+		if parts := strings.Split(val, "/"); len(parts) == 3 {
+			res = append(res, v1alpha1.ClusterResourceRestrictionItem{Group: parts[0], Kind: parts[1], Name: parts[2]})
+		} else if parts = strings.Split(val, "/"); len(parts) == 2 {
+			res = append(res, v1alpha1.ClusterResourceRestrictionItem{Group: parts[0], Kind: parts[1]})
+		} else if len(parts) == 1 {
+			res = append(res, v1alpha1.ClusterResourceRestrictionItem{Kind: parts[0]})
+		}
+	}
+	return res
 }
 
-func (opts *ProjectOpts) GetDeniedClusterResources() []v1.GroupKind {
-	return getGroupKindList(opts.deniedClusterResources)
+func (opts *ProjectOpts) GetAllowedClusterResources() []v1alpha1.ClusterResourceRestrictionItem {
+	return getClusterResourceRestrictionItemList(opts.allowedClusterResources)
 }
 
-func (opts *ProjectOpts) GetAllowedNamespacedResources() []v1.GroupKind {
+func (opts *ProjectOpts) GetDeniedClusterResources() []v1alpha1.ClusterResourceRestrictionItem {
+	return getClusterResourceRestrictionItemList(opts.deniedClusterResources)
+}
+
+func (opts *ProjectOpts) GetAllowedNamespacedResources() []metav1.GroupKind {
 	return getGroupKindList(opts.allowedNamespacedResources)
 }
 
-func (opts *ProjectOpts) GetDeniedNamespacedResources() []v1.GroupKind {
+func (opts *ProjectOpts) GetDeniedNamespacedResources() []metav1.GroupKind {
 	return getGroupKindList(opts.deniedNamespacedResources)
 }
 
@@ -84,12 +100,11 @@ func (opts *ProjectOpts) GetDestinations() []v1alpha1.ApplicationDestination {
 		parts := strings.Split(destStr, ",")
 		if len(parts) != 2 {
 			log.Fatalf("Expected destination of the form: server,namespace. Received: %s", destStr)
-		} else {
-			destinations = append(destinations, v1alpha1.ApplicationDestination{
-				Server:    parts[0],
-				Namespace: parts[1],
-			})
 		}
+		destinations = append(destinations, v1alpha1.ApplicationDestination{
+			Server:    parts[0],
+			Namespace: parts[1],
+		})
 	}
 	return destinations
 }
@@ -98,15 +113,14 @@ func (opts *ProjectOpts) GetDestinationServiceAccounts() []v1alpha1.ApplicationD
 	destinationServiceAccounts := make([]v1alpha1.ApplicationDestinationServiceAccount, 0)
 	for _, destStr := range opts.destinationServiceAccounts {
 		parts := strings.Split(destStr, ",")
-		if len(parts) != 2 {
-			log.Fatalf("Expected destination of the form: server,namespace. Received: %s", destStr)
-		} else {
-			destinationServiceAccounts = append(destinationServiceAccounts, v1alpha1.ApplicationDestinationServiceAccount{
-				Server:                parts[0],
-				Namespace:             parts[1],
-				DefaultServiceAccount: parts[2],
-			})
+		if len(parts) != 3 {
+			log.Fatalf("Expected destination service account of the form: server,namespace, defaultServiceAccount. Received: %s", destStr)
 		}
+		destinationServiceAccounts = append(destinationServiceAccounts, v1alpha1.ApplicationDestinationServiceAccount{
+			Server:                parts[0],
+			Namespace:             parts[1],
+			DefaultServiceAccount: parts[2],
+		})
 	}
 	return destinationServiceAccounts
 }
@@ -150,7 +164,7 @@ func readProjFromStdin(proj *v1alpha1.AppProject) error {
 
 func readProjFromURI(fileURL string, proj *v1alpha1.AppProject) error {
 	parsedURL, err := url.ParseRequestURI(fileURL)
-	if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
+	if err != nil || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
 		err = config.UnmarshalLocalFile(fileURL, &proj)
 	} else {
 		err = config.UnmarshalRemoteFile(fileURL, &proj)
@@ -197,18 +211,19 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 
 func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.Command) (*v1alpha1.AppProject, error) {
 	proj := v1alpha1.AppProject{
-		TypeMeta: v1.TypeMeta{
+		TypeMeta: metav1.TypeMeta{
 			Kind:       application.AppProjectKind,
 			APIVersion: application.Group + "/v1alpha1",
 		},
 	}
-	if fileURL == "-" {
+	switch {
+	case fileURL == "-":
 		// read stdin
 		err := readProjFromStdin(&proj)
 		if err != nil {
 			return nil, err
 		}
-	} else if fileURL != "" {
+	case fileURL != "":
 		// read uri
 		err := readProjFromURI(fileURL, &proj)
 		if err != nil {
@@ -218,7 +233,7 @@ func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.
 		if len(args) == 1 && args[0] != proj.Name {
 			return nil, fmt.Errorf("project name '%s' does not match project spec metadata.name '%s'", args[0], proj.Name)
 		}
-	} else {
+	default:
 		// read arguments
 		if len(args) == 0 {
 			c.HelpFunc()(c, args)

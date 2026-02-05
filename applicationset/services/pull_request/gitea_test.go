@@ -1,7 +1,6 @@
 package pull_request
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 )
 
 func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Println(r.RequestURI)
@@ -52,7 +52,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 				},
 				"title": "add an empty file",
 				"body": "",
-				"labels": [],
+				"labels": [{"id": 1, "name": "label1", "color": "00aabb", "description": "foo", "url": ""}],
 				"milestone": null,
 				"assignee": null,
 				"assignees": null,
@@ -246,16 +246,64 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 	}
 }
 
+func TestGiteaContainLabels(t *testing.T) {
+	cases := []struct {
+		Name       string
+		Labels     []string
+		PullLabels []*gitea.Label
+		Expect     bool
+	}{
+		{
+			Name:   "Match labels",
+			Labels: []string{"label1", "label2"},
+			PullLabels: []*gitea.Label{
+				{Name: "label1"},
+				{Name: "label2"},
+				{Name: "label3"},
+			},
+			Expect: true,
+		},
+		{
+			Name:   "Not match labels",
+			Labels: []string{"label1", "label4"},
+			PullLabels: []*gitea.Label{
+				{Name: "label1"},
+				{Name: "label2"},
+				{Name: "label3"},
+			},
+			Expect: false,
+		},
+		{
+			Name:   "No specify",
+			Labels: []string{},
+			PullLabels: []*gitea.Label{
+				{Name: "label1"},
+				{Name: "label2"},
+				{Name: "label3"},
+			},
+			Expect: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			if got := giteaContainLabels(c.Labels, c.PullLabels); got != c.Expect {
+				t.Errorf("expect: %v, got: %v", c.Expect, got)
+			}
+		})
+	}
+}
+
 func TestGiteaList(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	host, err := NewGiteaService(context.Background(), "", ts.URL, "test-argocd", "pr-test", false)
+	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", []string{"label1"}, false)
 	require.NoError(t, err)
-	prs, err := host.List(context.Background())
+	prs, err := host.List(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, prs, 1)
-	assert.Equal(t, 1, prs[0].Number)
+	assert.Equal(t, int64(1), prs[0].Number)
 	assert.Equal(t, "add an empty file", prs[0].Title)
 	assert.Equal(t, "test", prs[0].Branch)
 	assert.Equal(t, "main", prs[0].TargetBranch)
@@ -290,4 +338,36 @@ func TestGetGiteaPRLabelNames(t *testing.T) {
 			assert.Equal(t, test.ExpectedResult, labels)
 		})
 	}
+}
+
+func TestGiteaListReturnsRepositoryNotFoundError(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// Handle version endpoint that Gitea client calls first
+	mux.HandleFunc("/api/v1/version", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"version":"1.17.0+dev-452-g1f0541780"}`))
+	})
+
+	path := "/api/v1/repos/nonexistent/nonexistent/pulls?limit=0&page=1&state=open"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
+		// Return 404 status to simulate repository not found
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
+	})
+
+	svc, err := NewGiteaService("", server.URL, "nonexistent", "nonexistent", []string{}, false)
+	require.NoError(t, err)
+
+	prs, err := svc.List(t.Context())
+
+	// Should return empty pull requests list
+	assert.Empty(t, prs)
+
+	// Should return RepositoryNotFoundError
+	require.Error(t, err)
+	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }

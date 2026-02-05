@@ -1,5 +1,5 @@
 syntax = "proto2";
-option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/application";
+option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/application";
 
 // Application Service
 //
@@ -9,8 +9,8 @@ package application;
 import "google/api/annotations.proto";
 import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
-import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
-import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
+import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v3/reposerver/repository/repository.proto";
 
 
 // ApplicationQuery is a query for application resources. When getting multiple applications, the "projects" field acts
@@ -75,6 +75,7 @@ message ApplicationManifestQuery {
 	optional string project = 4;
 	repeated int64 sourcePositions = 5;
 	repeated string revisions = 6;
+	optional bool noCache = 7;
 }
 
 message FileChunk {
@@ -98,13 +99,13 @@ message ApplicationManifestQueryWithFilesWrapper {
 message ApplicationResponse {}
 
 message ApplicationCreateRequest {
-	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application application = 1;
+	required github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application application = 1;
 	optional bool upsert = 2;
 	optional bool validate = 3;
 }
 
 message ApplicationUpdateRequest {
-	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application application = 1;
+	required github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application application = 1;
 	optional bool validate = 2;
 	optional string project = 3;
 }
@@ -127,11 +128,11 @@ message ApplicationSyncRequest {
 	optional string revision = 2;
 	optional bool dryRun = 3;
 	optional bool prune = 4;
-	optional github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.SyncStrategy strategy = 5;
-	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.SyncOperationResource resources = 7;
+	optional github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SyncStrategy strategy = 5;
+	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SyncOperationResource resources = 7;
 	repeated string manifests = 8;
-	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Info infos = 9;
-	optional github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RetryStrategy retryStrategy = 10;
+	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Info infos = 9;
+	optional github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RetryStrategy retryStrategy = 10;
 	optional SyncOptions syncOptions = 11;
 	optional string appNamespace = 12;
 	optional string project = 13;
@@ -142,7 +143,7 @@ message ApplicationSyncRequest {
 // ApplicationUpdateSpecRequest is a request to update application spec
 message ApplicationUpdateSpecRequest {
 	required string name = 1;
-	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2;
+	required github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2;
 	optional bool validate = 3;
 	optional string appNamespace = 4;
 	optional string project = 5;
@@ -203,7 +204,15 @@ message ApplicationResourceDeleteRequest {
 	optional string project = 10;
 }
 
+message ResourceActionParameters {
+	required string name = 1;
+	required string value = 2;
+}
+
+// ResourceActionRunRequest is a request to run a resource action.
+// This message is deprecated and replaced by ResourceActionRunRequestV2.
 message ResourceActionRunRequest {
+	option deprecated = true;
 	required string name = 1;
 	optional string namespace = 2;
 	required string resourceName = 3;
@@ -215,8 +224,21 @@ message ResourceActionRunRequest {
 	optional string project = 9;
 }
 
+message ResourceActionRunRequestV2 {
+	required string name = 1;
+	optional string namespace = 2;
+	required string resourceName = 3;
+	required string version = 4;
+	optional string group = 5;
+	required string kind = 6;
+	required string action = 7;
+	optional string appNamespace = 8;
+	optional string project = 9;
+	repeated ResourceActionParameters resourceActionParameters = 10;
+}
+
 message ResourceActionsListResponse {
-	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ResourceAction actions = 1;
+	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceAction actions = 1;
 }
 
 message ApplicationResourceResponse {
@@ -240,6 +262,7 @@ message ApplicationPodLogsQuery {
 	optional bool previous = 14;
 	optional string appNamespace = 15;
 	optional string project = 16;
+	optional bool matchCase = 17;
 }
 
 message LogEntry {
@@ -293,7 +316,20 @@ message ResourcesQuery {
 }
 
 message ManagedResourcesResponse {
-	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
+	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
+}
+
+message ApplicationServerSideDiffQuery {
+	required string appName = 1;
+	optional string appNamespace = 2;
+	optional string project = 3;
+	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff liveResources = 4;
+	repeated string targetManifests = 5;
+}
+
+message ApplicationServerSideDiffResponse {
+	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
+	required bool modified = 2;
 }
 
 message LinkInfo {
@@ -318,7 +354,7 @@ message ListAppLinksRequest {
 service ApplicationService {
 
 	// List returns list of applications
-	rpc List(ApplicationQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationList) {
+	rpc List(ApplicationQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationList) {
 		option (google.api.http).get = "/api/v1/applications";
 	}
 
@@ -328,12 +364,12 @@ service ApplicationService {
 	}
 
 	// Watch returns stream of application change events
-	rpc Watch(ApplicationQuery) returns (stream github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationWatchEvent) {
+	rpc Watch(ApplicationQuery) returns (stream github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationWatchEvent) {
 		option (google.api.http).get = "/api/v1/stream/applications";
 	}
 
 	// Create creates an application
-	rpc Create (ApplicationCreateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application) {
+	rpc Create (ApplicationCreateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications"
 			body: "application"
@@ -341,7 +377,7 @@ service ApplicationService {
 	}
 
 	// Get returns an application by name
-	rpc Get (ApplicationQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application) {
+	rpc Get (ApplicationQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http).get = "/api/v1/applications/{name}";
 	}
 
@@ -351,13 +387,18 @@ service ApplicationService {
 	}
 
 	// Get the meta-data (author, date, tags, message) for a specific revision of the application
-	rpc RevisionMetadata (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RevisionMetadata) {
+	rpc RevisionMetadata (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RevisionMetadata) {
 		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/metadata";
 	}
 
 	// Get the chart metadata (description, maintainers, home) for a specific revision of the application
-	rpc RevisionChartDetails (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ChartDetails) {
+	rpc RevisionChartDetails (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ChartDetails) {
 		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/chartdetails";
+	}
+
+	// Get the chart metadata (description, maintainers, home) for a specific revision of the application
+	rpc GetOCIMetadata (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.OCIMetadata) {
+		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/ocimetadata";
 	}
 
 	// GetManifests returns application manifests
@@ -374,7 +415,7 @@ service ApplicationService {
 	}
 
 	// Update updates an application
-	rpc Update(ApplicationUpdateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application) {
+	rpc Update(ApplicationUpdateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			put: "/api/v1/applications/{application.metadata.name}"
 			body: "application"
@@ -382,7 +423,7 @@ service ApplicationService {
 	}
 
 	// UpdateSpec updates an application spec
-	rpc UpdateSpec(ApplicationUpdateSpecRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSpec) {
+	rpc UpdateSpec(ApplicationUpdateSpecRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSpec) {
 		option (google.api.http) = {
 			put: "/api/v1/applications/{name}/spec"
 			body: "spec"
@@ -390,7 +431,7 @@ service ApplicationService {
 	}
 
 	// Patch patch an application
-	rpc Patch(ApplicationPatchRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application) {
+	rpc Patch(ApplicationPatchRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			patch: "/api/v1/applications/{name}"
 			body: "*"
@@ -403,7 +444,7 @@ service ApplicationService {
 	}
 
 	// Sync syncs an application to its target state
-	rpc Sync(ApplicationSyncRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application) {
+	rpc Sync(ApplicationSyncRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/sync"
 			body: "*"
@@ -415,18 +456,23 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/managed-resources";
 	}
 
+	// ServerSideDiff performs server-side diff calculation using dry-run apply
+	rpc ServerSideDiff(ApplicationServerSideDiffQuery) returns (ApplicationServerSideDiffResponse) {
+		option (google.api.http).get = "/api/v1/applications/{appName}/server-side-diff";
+	}
+
 	// ResourceTree returns resource tree
-	rpc ResourceTree(ResourcesQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationTree) {
+	rpc ResourceTree(ResourcesQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationTree) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/resource-tree";
 	}
 
 	// Watch returns stream of application resource tree
-	rpc WatchResourceTree(ResourcesQuery) returns (stream github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationTree) {
+	rpc WatchResourceTree(ResourcesQuery) returns (stream github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationTree) {
 		option (google.api.http).get = "/api/v1/stream/applications/{applicationName}/resource-tree";
 	}
 
 	// Rollback syncs an application to its target state
-	rpc Rollback(ApplicationRollbackRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application) {
+	rpc Rollback(ApplicationRollbackRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/rollback"
 			body: "*"
@@ -458,11 +504,23 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}/resource/actions";
 	}
 
-	// RunResourceAction run resource action
+	// RunResourceAction runs a resource action
+	//
+	// Deprecated: use RunResourceActionV2 instead. This version does not support resource action parameters but is
+	// maintained for backward compatibility. It will be removed in a future release.
 	rpc RunResourceAction(ResourceActionRunRequest) returns (ApplicationResponse) {
+		option deprecated = true;
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/resource/actions"
 			body: "action"
+		};
+	}
+
+	// RunResourceActionV2 runs a resource action with parameters
+	rpc RunResourceActionV2(ResourceActionRunRequestV2) returns (ApplicationResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/{name}/resource/actions/v2"
+			body: "*"
 		};
 	}
 

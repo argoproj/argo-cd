@@ -173,7 +173,7 @@ Here is the corresponding folder structure for the git repository used by the gi
 In the above example, the `{{.path.basename}}` parameters produced by the git-files generator will resolve to `dev` and `prod`.
 In the 2nd child generator, the label selector with label `kubernetes.io/environment: {{.path.basename}}` will resolve with the values produced by the first child generator's parameters (`kubernetes.io/environment: prod` and `kubernetes.io/environment: dev`). 
 
-So in the above example, clusters with the label `kubernetes.io/environment: prod` will have only prod-specific configuration (ie. `prod/config.json`) applied to it, wheres clusters
+So in the above example, clusters with the label `kubernetes.io/environment: prod` will have only prod-specific configuration (ie. `prod/config.json`) applied to it, whereas clusters
 with the label `kubernetes.io/environment: dev` will have only dev-specific configuration (ie. `dev/config.json`)
 
 ## Overriding parameters from one child generator in another child generator
@@ -531,14 +531,3 @@ For example, the below example would be invalid (cluster-generator must come aft
                   revision: HEAD
                   files:
                     - path: "examples/git-generator-files-discovery/cluster-config/engineering/{{.name}}**/config.json" # {{.name}} is produced by cluster generator
-
-1. When using a Matrix generator nested inside another Matrix or Merge generator, [Post Selectors](Generators-Post-Selector.md) for this nested generator's generators will only be applied when enabled via `spec.applyNestedSelectors`. You may also need to enable this even if your Post Selectors are not within the nested matrix or Merge generator, but are instead a sibling of a nested Matrix or Merge generator.
-
-        - matrix:
-            generators:
-              - matrix:
-                  generators:
-                    - list
-                        elements:
-                          - # (...)
-                      selector: { } # Only applied when applyNestedSelectors is true

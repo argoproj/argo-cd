@@ -5,12 +5,12 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 const initialPasswordSecretName = "argocd-initial-admin-secret"
@@ -21,14 +21,14 @@ func NewInitialPasswordCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "initial-password",
 		Short: "Prints initial password to log in to Argo CD for the first time",
-		Run: func(c *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
-			secret, err := kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), initialPasswordSecretName, v1.GetOptions{})
+			secret, err := kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), initialPasswordSecretName, metav1.GetOptions{})
 			errors.CheckError(err)
 
 			if initialPass, ok := secret.Data["password"]; ok {

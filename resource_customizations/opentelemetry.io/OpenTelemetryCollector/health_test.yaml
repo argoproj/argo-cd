@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "All replicas are ready"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "No replicas are ready"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Replicas are starting up"
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Collector is running in sidecar mode"
+    inputPath: testdata/sidecar.yaml

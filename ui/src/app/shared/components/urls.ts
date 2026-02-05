@@ -1,5 +1,6 @@
 import {GitUrl} from 'git-url-parse';
 import {isSHA} from './revision';
+import {isValidURL} from '../../shared/utils';
 
 const GitUrlParse = require('git-url-parse');
 
@@ -19,7 +20,11 @@ export function repoUrl(url: string): string {
             return null;
         }
 
-        return `${protocol(parsed.protocol)}://${parsed.resource}/${parsed.owner}/${parsed.name}`;
+        const parsedUrl = `${protocol(parsed.protocol)}://${parsed.resource}/${parsed.owner}/${parsed.name}`;
+        if (!isValidURL(parsedUrl)) {
+            return null;
+        }
+        return parsedUrl;
     } catch {
         return null;
     }

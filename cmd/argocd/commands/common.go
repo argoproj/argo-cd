@@ -17,7 +17,7 @@ const (
 )
 
 // PrintResource prints a single resource in YAML or JSON format to stdout according to the output format
-func PrintResource(resource interface{}, output string) error {
+func PrintResource(resource any, output string) error {
 	switch output {
 	case "json":
 		jsonBytes, err := json.MarshalIndent(resource, "", "  ")
@@ -38,7 +38,7 @@ func PrintResource(resource interface{}, output string) error {
 }
 
 // PrintResourceList marshals & prints a list of resources to stdout according to the output format
-func PrintResourceList(resources interface{}, output string, single bool) error {
+func PrintResourceList(resources any, output string, single bool) error {
 	kt := reflect.ValueOf(resources)
 	// Sometimes, we want to marshal the first resource of a slice or array as single item
 	if kt.Kind() == reflect.Slice || kt.Kind() == reflect.Array {

@@ -2,23 +2,24 @@ package admin
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
-	appclient "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/typed/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/cli"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/argo-cd/v2/util/templates"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	appclient "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/templates"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -50,13 +51,13 @@ func NewGenProjectSpecCommand() *cobra.Command {
 		Short: "Generate declarative config for a project",
 		Example: templates.Examples(`  
   # Generate a YAML configuration for a project named "myproject"
-  argocd admin projects generate-spec myproject
+  argocd admin proj generate-spec myproject
 	  
   # Generate a JSON configuration for a project named "anotherproject" and specify an output file
-  argocd admin projects generate-spec anotherproject --output json --file config.json
+  argocd admin proj generate-spec anotherproject --output json --file config.json
 	  
   # Generate a YAML configuration for a project named "someproject" and write it back to the input file
-  argocd admin projects generate-spec someproject --inline  
+  argocd admin proj generate-spec someproject --inline  
   		`),
 
 		Run: func(c *cobra.Command, args []string) {
@@ -65,7 +66,7 @@ func NewGenProjectSpecCommand() *cobra.Command {
 
 			out, closer, err := getOutWriter(inline, fileURL)
 			errors.CheckError(err)
-			defer io.Close(closer)
+			defer utilio.Close(closer)
 
 			errors.CheckError(PrintResources(outputFormat, out, proj))
 		},
@@ -96,16 +97,16 @@ func getModification(modification string, resource string, scope string, permiss
 	switch modification {
 	case "set":
 		if scope == "" {
-			return nil, fmt.Errorf("Flag --group cannot be empty if permission should be set in role")
+			return nil, stderrors.New("flag --group cannot be empty if permission should be set in role")
 		}
 		if permission == "" {
-			return nil, fmt.Errorf("Flag --permission cannot be empty if permission should be set in role")
+			return nil, stderrors.New("flag --permission cannot be empty if permission should be set in role")
 		}
 		return func(proj string, action string) string {
 			return fmt.Sprintf("%s, %s, %s/%s, %s", resource, action, proj, scope, permission)
 		}, nil
 	case "remove":
-		return func(proj string, action string) string {
+		return func(_ string, _ string) string {
 			return ""
 		}, nil
 	}
@@ -122,7 +123,7 @@ func saveProject(ctx context.Context, updated v1alpha1.AppProject, orig v1alpha1
 	}
 	_ = cli.PrintDiff(updated.Name, target, live)
 	if !dryRun {
-		_, err = projectsIf.Update(ctx, &updated, v1.UpdateOptions{})
+		_, err = projectsIf.Update(ctx, &updated, metav1.UpdateOptions{})
 		if err != nil {
 			return fmt.Errorf("error while updating project:  %w", err)
 		}
@@ -155,10 +156,10 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 		Use:   "update-role-policy PROJECT_GLOB MODIFICATION ACTION",
 		Short: "Implement bulk project role update. Useful to back-fill existing project policies or remove obsolete actions.",
 		Example: `  # Add policy that allows executing any action (action/*) to roles which name matches to *deployer* in all projects  
-  argocd admin projects update-role-policy '*' set 'action/*' --role '*deployer*' --resource applications --scope '*' --permission allow
+  argocd admin proj update-role-policy '*' set 'action/*' --role '*deployer*' --resource applications --scope '*' --permission allow
 
   # Remove policy that which manages running (action/*) from all roles which name matches *deployer* in all projects
-  argocd admin projects update-role-policy '*' remove override --role '*deployer*'
+  argocd admin proj update-role-policy '*' remove override --role '*deployer*'
 `,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -198,7 +199,7 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 }
 
 func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, projectGlob string, rolePattern string, action string, modification func(string, string) string, dryRun bool) error {
-	projects, err := projIf.List(ctx, v1.ListOptions{})
+	projects, err := projIf.List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing the projects: %w", err)
 	}
@@ -222,13 +223,14 @@ func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, p
 				break
 			}
 			policyPermission := modification(proj.Name, action)
-			if actionPolicyIndex == -1 && policyPermission != "" {
+			switch {
+			case actionPolicyIndex == -1 && policyPermission != "":
 				updated = true
 				role.Policies = append(role.Policies, formatPolicy(proj.Name, role.Name, policyPermission))
-			} else if actionPolicyIndex > -1 && policyPermission == "" {
+			case actionPolicyIndex > -1 && policyPermission == "":
 				updated = true
 				role.Policies = append(role.Policies[:actionPolicyIndex], role.Policies[actionPolicyIndex+1:]...)
-			} else if actionPolicyIndex > -1 && policyPermission != "" {
+			case actionPolicyIndex > -1 && policyPermission != "":
 				updated = true
 				role.Policies[actionPolicyIndex] = formatPolicy(proj.Name, role.Name, policyPermission)
 			}

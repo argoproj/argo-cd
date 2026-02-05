@@ -3,6 +3,25 @@
 set -e
 set -o pipefail
 
+function get_latest_minor_version_tags() {
+    count=$1
+
+    git tag -l \
+        | sed -E 's/(v[0-9]\.[0-9]+).*/\1/' \
+        | sort --version-sort --reverse --unique \
+        | head -n "$count"
+}
+
+function get_latest_patch_versions() {
+    count=$1
+
+    echo "master"
+    while read -r minor; do
+        # For each minor release, find latest patch release tag
+        git tag -l | grep "^$minor" | sort --version-sort | tail -n 1
+    done < <(get_latest_minor_version_tags "$count")
+}
+
 npm install snyk snyk-to-html --location=global
 
 # Choose the branch where docs changes will actually be written.
@@ -39,24 +58,14 @@ git checkout master
 
 minor_version=$(git tag -l | sort -V | tail -n 1 | grep -Eo '[0-9]+\.[0-9]+')
 patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[a-z[:digit:]-]*$" | sort -V | tail -n 1)
-version="v$minor_version.$patch_num"
-versions="master "
 
 version_count=3
 # When the most recent version is still a release candidate, get reports for 4 versions (so the 3 most recent stable
 # releases are included).
 if [[ $patch_num == "0-rc"* ]]; then version_count=4; fi
+versions="$(get_latest_patch_versions "$version_count")"
 
-for i in $(seq "$version_count"); do
-  if [ "$version" == "" ]; then break; fi
-  # Nightmare code to get the most recent patches of the three most recent minor versions.
-  versions+="$version "
-  minor_num=$(printf '%s' "$minor_version" | sed -E 's/[0-9]+\.//')
-  minor_num=$((minor_num-1))
-  minor_version=$(printf '%s' "$minor_version" | sed -E "s/\.[0-9]+$/.$minor_num/g")
-  patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[a-z[:digit:]-]*$" | sort -V | tail -n 1)
-  version="v$minor_version.$patch_num"
-done
+echo "Analyzing versions: $versions"
 
 for version in $versions; do
   printf '\n%s\n\n' "### $version" >> "$argocd_dir/docs/snyk/index.md"
@@ -98,15 +107,15 @@ for version in $versions; do
   images=$(grep 'image: ' manifests/install.yaml manifests/namespace-install.yaml manifests/ha/install.yaml | sed 's/.*image: //' | sort | uniq)
 
   while IFS= read -r image; do
-    extra_args=""
+    extra_args=()
     if echo "$image" | grep "argocd"; then
       # Pass the file arg only for the Argo CD image. The file arg also gives us access to sarif output.
-      extra_args="--file=Dockerfile --sarif-file-output=/tmp/${image//[\/:]/_}.sarif "
+      extra_args+=("--file=Dockerfile" "--sarif-file-output=/tmp/${image//[\/:]/_}.sarif")
     fi
 
     set -x
     # || [ $? == 1 ] ignores errors due to vulnerabilities.
-    snyk container test "$image" --org=argoproj "--json-file-output=/tmp/${image//[\/:]/_}.json" $extra_args || [ $? == 1 ]
+    snyk container test "$image" --org=argoproj "--json-file-output=/tmp/${image//[\/:]/_}.json" "${extra_args[@]}" || [ $? == 1 ]
     set +x
 
     snyk-to-html -i "/tmp/${image//[\/:]/_}.json" -o "$argocd_dir/docs/snyk/$version/${image//[\/:]/_}.html"

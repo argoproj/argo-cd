@@ -1,7 +1,6 @@
 package scm_provider
 
 import (
-	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -13,12 +12,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		fmt.Println(r.RequestURI)
 		switch r.RequestURI {
 		case "/api/v4":
 			fmt.Println("here1")
@@ -1039,6 +1040,32 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
+			// Recent versions of the Gitlab API (v17.7+) listTree return 404 not only when a file doesn't exist, but also
+			// when a path is to a file instead of a directory. Code was refactored to explicitly search for file then
+			// search for directory, catching 404 errors as "file not found".
+		case "/api/v4/projects/27084533/repository/files/argocd?ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/files/argocd%2Finstall%2Eyaml?ref=master":
+			_, err := io.WriteString(w, `{"file_name":"install.yaml","file_path":"argocd/install.yaml","size":0,"encoding":"base64","content_sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","ref":"main","blob_id":"e69de29bb2d1d6434b8b29ae775ad8c2e48c5391","commit_id":"6d4c0f9d34534ccc73aa3f3180b25e2aebe630eb","last_commit_id":"b50eb63f9c0e09bfdb070db26fd32c7210291f52","execute_filemode":false,"content":""}`)
+			if err != nil {
+				t.Fail()
+			}
+		case "/api/v4/projects/27084533/repository/files/notathing?ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/tree?path=notathing&ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/files/argocd%2Fnotathing%2Eyaml?ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/tree?path=argocd%2Fnotathing.yaml&ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/files/notathing%2Fnotathing%2Eyaml?ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/tree?path=notathing%2Fnotathing.yaml&ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/files/notathing%2Fnotathing%2Fnotathing%2Eyaml?ref=master":
+			w.WriteHeader(http.StatusNotFound)
+		case "/api/v4/projects/27084533/repository/tree?path=notathing%2Fnotathing%2Fnotathing.yaml&ref=master":
+			w.WriteHeader(http.StatusNotFound)
 		case "/api/v4/projects/27084533/repository/branches/foo":
 			w.WriteHeader(http.StatusNotFound)
 		default:
@@ -1123,8 +1150,8 @@ func TestGitlabListRepos(t *testing.T) {
 	}))
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.insecure, "", c.topic, nil)
-			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
+			provider, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.insecure, "", c.topic, nil)
+			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
 			} else {
@@ -1162,7 +1189,7 @@ func TestGitlabHasPath(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gitlabMockHandler(t)(w, r)
 	}))
-	host, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, true, false, "", "", nil)
+	host, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, "", "", nil)
 	repo := &Repository{
 		Organization: "test-argocd-proton",
 		Repository:   "argocd",
@@ -1193,11 +1220,21 @@ func TestGitlabHasPath(t *testing.T) {
 			path:   "argocd/notathing.yaml",
 			exists: false,
 		},
+		{
+			name:   "noexistent file in noexistent directory",
+			path:   "notathing/notathing.yaml",
+			exists: false,
+		},
+		{
+			name:   "noexistent file in nested noexistent directory",
+			path:   "notathing/notathing/notathing.yaml",
+			exists: false,
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ok, err := host.RepoHasPath(context.Background(), repo, c.path)
+			ok, err := host.RepoHasPath(t.Context(), repo, c.path)
 			require.NoError(t, err)
 			assert.Equal(t, c.exists, ok)
 		})
@@ -1208,14 +1245,14 @@ func TestGitlabGetBranches(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gitlabMockHandler(t)(w, r)
 	}))
-	host, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, true, false, "", "", nil)
+	host, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, "", "", nil)
 
 	repo := &Repository{
 		RepositoryId: 27084533,
 		Branch:       "master",
 	}
 	t.Run("branch exists", func(t *testing.T) {
-		repos, err := host.GetBranches(context.Background(), repo)
+		repos, err := host.GetBranches(t.Context(), repo)
 		require.NoError(t, err)
 		assert.Equal(t, "master", repos[0].Branch)
 	})
@@ -1225,7 +1262,7 @@ func TestGitlabGetBranches(t *testing.T) {
 		Branch:       "foo",
 	}
 	t.Run("unknown branch", func(t *testing.T) {
-		_, err := host.GetBranches(context.Background(), repo2)
+		_, err := host.GetBranches(t.Context(), repo2)
 		require.NoError(t, err)
 	})
 }
@@ -1272,7 +1309,7 @@ func TestGetBranchesTLS(t *testing.T) {
 			defer ts.Close()
 
 			var certs []byte
-			if test.passCerts == true {
+			if test.passCerts {
 				for _, cert := range ts.TLS.Certificates {
 					for _, c := range cert.Certificate {
 						parsedCert, err := x509.ParseCertificate(c)
@@ -1285,13 +1322,13 @@ func TestGetBranchesTLS(t *testing.T) {
 				}
 			}
 
-			host, err := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, false, true, true, test.tlsInsecure, "", "", certs)
+			host, err := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, test.tlsInsecure, "", "", certs)
 			require.NoError(t, err)
 			repo := &Repository{
 				RepositoryId: 27084533,
 				Branch:       "master",
 			}
-			_, err = host.GetBranches(context.Background(), repo)
+			_, err = host.GetBranches(t.Context(), repo)
 			if test.requireErr {
 				require.Error(t, err)
 			} else {

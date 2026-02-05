@@ -16,8 +16,8 @@ argocd-application-controller [flags]
 
 ```
       --app-hard-resync int                                       Time period in seconds for application hard resync.
-      --app-resync int                                            Time period in seconds for application resync. (default 180)
-      --app-resync-jitter int                                     Maximum time period in seconds to add as a delay jitter for application resync.
+      --app-resync int                                            Time period in seconds for application resync. (default 120)
+      --app-resync-jitter int                                     Maximum time period in seconds to add as a delay jitter for application resync. (default 60)
       --app-state-cache-expiration duration                       Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings                            List of additional namespaces that applications are allowed to be reconciled from
       --as string                                                 Username to impersonate for the operation
@@ -27,21 +27,25 @@ argocd-application-controller [flags]
       --client-certificate string                                 Path to a client certificate file for TLS
       --client-key string                                         Path to a client key file for TLS
       --cluster string                                            The name of the kubeconfig cluster to use
+      --commit-server string                                      Commit server address. (default "argocd-commit-server:8086")
       --context string                                            The name of the kubeconfig context to use
       --default-cache-expiration duration                         Cache expiration default (default 24h0m0s)
       --disable-compression                                       If true, opt-out of response compression for all requests to the server
       --dynamic-cluster-distribution-enabled                      Enables dynamic cluster distribution.
+      --enable-k8s-event none                                     Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --gloglevel int                                             Set the glog logging level
   -h, --help                                                      help for argocd-application-controller
+      --hydrator-enabled                                          Feature flag to enable Hydrator. Default ("false")
       --ignore-normalizer-jq-execution-timeout-seconds duration   Set ignore normalizer JQ execution timeout
       --insecure-skip-tls-verify                                  If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                                         Path to a kube config. Only required if out-of-cluster
       --kubectl-parallelism-limit int                             Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit. (default 20)
-      --logformat string                                          Set the logging format. One of: text|json (default "text")
+      --logformat string                                          Set the logging format. One of: json|text (default "json")
       --loglevel string                                           Set the logging level. One of: debug|info|warn|error (default "info")
       --metrics-application-conditions strings                    List of Application conditions that will be added to the argocd_application_conditions metric
       --metrics-application-labels strings                        List of Application labels that will be added to the argocd_application_labels metric
       --metrics-cache-expiration duration                         Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
+      --metrics-cluster-labels strings                            List of Cluster labels that will be added to the argocd_cluster_labels metric
       --metrics-port int                                          Start metrics server on given port (default 8082)
   -n, --namespace string                                          If present, the namespace scope for this CLI request
       --operation-processors int                                  Number of application operation processors (default 10)
@@ -50,7 +54,7 @@ argocd-application-controller [flags]
       --otlp-headers stringToString                               List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
       --otlp-insecure                                             OpenTelemetry collector insecure mode (default true)
       --password string                                           Password for basic authentication to the API server
-      --persist-resource-health                                   Enables storing the managed resources health in the Application CRD (default true)
+      --persist-resource-health                                   Enables storing the managed resources health in the Application CRD
       --proxy-url string                                          If provided, this URL will be used to connect via proxy
       --redis string                                              Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string                               Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
@@ -66,13 +70,17 @@ argocd-application-controller [flags]
       --repo-server-strict-tls                                    Whether to use strict validation of the TLS cert presented by the repo server
       --repo-server-timeout-seconds int                           Repo server RPC call timeout seconds. (default 60)
       --request-timeout string                                    The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --self-heal-timeout-seconds int                             Specifies timeout between application self heal attempts (default 5)
+      --self-heal-backoff-cap-seconds int                         Specifies max timeout of exponential backoff between application self heal attempts (default 300)
+      --self-heal-backoff-factor int                              Specifies factor of exponential timeout between application self heal attempts (default 3)
+      --self-heal-backoff-timeout-seconds int                     Specifies initial timeout of exponential backoff between self heal attempts (default 2)
+      --self-heal-timeout-seconds int                             Specifies timeout between application self heal attempts
       --sentinel stringArray                                      Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                                     Redis sentinel master group name. (default "master")
       --server string                                             The address and port of the Kubernetes API server
       --server-side-diff-enabled                                  Feature flag to enable ServerSide diff. Default ("false")
       --sharding-method string                                    Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin, consistent-hashing]  (default "legacy")
       --status-processors int                                     Number of application status processors (default 20)
+      --sync-timeout int                                          Specifies the timeout after which a sync would be terminated. 0 means no timeout (default 0).
       --tls-server-name string                                    If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                                              Bearer token for authentication to the API server
       --user string                                               The name of the kubeconfig user to use

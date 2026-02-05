@@ -1,5 +1,10 @@
 # Proxy Extensions
-*Current Status: [Alpha][1] (Since v2.7.0)*
+
+> [!WARNING]
+> **Beta Feature (Since 2.7.0)**
+>
+> This feature is in the [Beta](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta) stage.
+> It is generally considered stable, but there may be unhandled edge cases.
 
 ## Overview
 
@@ -26,7 +31,7 @@ metadata:
   name: argocd-cmd-params-cm
   namespace: argocd
 data:
-  server.enable.proxy.extension: "true"
+  server.enable.proxy.extension: 'true'
 ```
 
 Once the proxy extension is enabled, it can be configured in the main
@@ -60,7 +65,38 @@ data:
             server: https://some-cluster
 ```
 
-Note: There is no need to restart Argo CD Server after modifiying the
+Proxy extensions can also be provided individually using dedicated
+Argo CD configmap keys for better GitOps operations. The example below
+demonstrates how to configure the same hypothetical httpbin config
+above using a dedicated key:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  extension.config.httpbin: |
+    connectionTimeout: 2s
+    keepAlive: 15s
+    idleConnectionTimeout: 60s
+    maxIdleConnections: 30
+    services:
+    - url: http://httpbin.org
+      headers:
+      - name: some-header
+        value: '$some.argocd.secret.key'
+      cluster:
+        name: some-cluster
+        server: https://some-cluster
+```
+
+Attention: Extension names must be unique in the Argo CD configmap. If
+duplicated keys are found, the Argo CD API server will log an error
+message and no proxy extension will be registered.
+
+Note: There is no need to restart Argo CD Server after modifying the
 `extension.config` entry in Argo CD configmap. Changes will be
 automatically applied. A new proxy registry will be built making
 all new incoming extensions requests (`<argocd-host>/extensions/*`) to
@@ -68,11 +104,12 @@ respect the new configuration.
 
 Every configuration entry is explained below:
 
-#### `extensions` (*list*)
+#### `extensions` (_list_)
 
 Defines configurations for all extensions enabled.
 
-#### `extensions.name` (*string*)
+#### `extensions.name` (_string_)
+
 (mandatory)
 
 Defines the endpoint that will be used to register the extension
@@ -82,54 +119,61 @@ following url:
 
     <argocd-host>/extensions/my-extension
 
-#### `extensions.backend.connectionTimeout` (*duration string*)
+#### `extensions.backend.connectionTimeout` (_duration string_)
+
 (optional. Default: 2s)
 
 Is the maximum amount of time a dial to the extension server will wait
-for a connect to complete. 
+for a connect to complete.
 
-#### `extensions.backend.keepAlive` (*duration string*)
+#### `extensions.backend.keepAlive` (_duration string_)
+
 (optional. Default: 15s)
 
 Specifies the interval between keep-alive probes for an active network
 connection between the API server and the extension server.
 
-#### `extensions.backend.idleConnectionTimeout` (*duration string*)
+#### `extensions.backend.idleConnectionTimeout` (_duration string_)
+
 (optional. Default: 60s)
 
 Is the maximum amount of time an idle (keep-alive) connection between
 the API server and the extension server will remain idle before
 closing itself.
 
-#### `extensions.backend.maxIdleConnections` (*int*)
+#### `extensions.backend.maxIdleConnections` (_int_)
+
 (optional. Default: 30)
 
 Controls the maximum number of idle (keep-alive) connections between
 the API server and the extension server.
 
-#### `extensions.backend.services` (*list*)
+#### `extensions.backend.services` (_list_)
 
 Defines a list with backend url by cluster.
 
-#### `extensions.backend.services.url` (*string*)
+#### `extensions.backend.services.url` (_string_)
+
 (mandatory)
 
 Is the address where the extension backend must be available.
 
-#### `extensions.backend.services.headers` (*list*)
+#### `extensions.backend.services.headers` (_list_)
 
 If provided, the headers list will be added on all outgoing requests
 for this service config. Existing headers in the incoming request with
 the same name will be overridden by the one in this list. Reserved header
 names will be ignored (see the [headers](#incoming-request-headers) below).
 
-#### `extensions.backend.services.headers.name` (*string*)
+#### `extensions.backend.services.headers.name` (_string_)
+
 (mandatory)
 
 Defines the name of the header. It is a mandatory field if a header is
 provided.
 
-#### `extensions.backend.services.headers.value` (*string*)
+#### `extensions.backend.services.headers.value` (_string_)
+
 (mandatory)
 
 Defines the value of the header. It is a mandatory field if a header is
@@ -144,30 +188,32 @@ Example:
 In the example above, the value will be replaced with the one from
 the argocd-secret with key 'some.argocd.secret.key'.
 
-#### `extensions.backend.services.cluster` (*object*)
+#### `extensions.backend.services.cluster` (_object_)
+
 (optional)
 
 If provided, and multiple services are configured, will have to match
 the application destination name or server to have requests properly
 forwarded to this service URL. If there are multiple backends for the
-same extension this field is required. In this case at least one of
-the two will be required: name or server. It is better to provide both
-values to avoid problems with applications unable to send requests to
-the proper backend service. If only one backend service is
-configured, this field is ignored, and all requests are forwarded to
-the configured one.
+same extension this field is required. In this case, it is necessary
+to provide both values to avoid problems with applications unable to
+send requests to the proper backend service. If only one backend
+service is configured, this field is ignored, and all requests are
+forwarded to the configured one.
 
-#### `extensions.backend.services.cluster.name` (*string*)
+#### `extensions.backend.services.cluster.name` (_string_)
+
 (optional)
 
 It will be matched with the value from
 `Application.Spec.Destination.Name`
 
-#### `extensions.backend.services.cluster.server` (*string*)
+#### `extensions.backend.services.cluster.server` (_string_)
+
 (optional)
 
 It will be matched with the value from
-`Application.Spec.Destination.Server`. 
+`Application.Spec.Destination.Server`.
 
 ## Usage
 
@@ -212,7 +258,7 @@ Argo CD UI keeps the authentication token stored in a cookie
 (`argocd.token`). This value needs to be sent in the `Cookie` header
 so the API server can validate its authenticity.
 
-Example: 
+Example:
 
     Cookie: argocd.token=eyJhbGciOiJIUzI1Ni...
 
@@ -266,11 +312,16 @@ section for more details.
 
 #### `Argocd-Username`
 
-Will be populated with the username logged in Argo CD.
+Will be populated with the username logged in Argo CD. This is primarily useful for display purposes. 
+To identify a user for programmatic needs, `Argocd-User-Id` is probably a better choice.
+
+#### `Argocd-User-Id`
+
+Will be populated with the internal user id, most often defined by the `sub` claim, logged in Argo CD.
 
 #### `Argocd-User-Groups`
 
-Will be populated with the 'groups' claim from the user logged in Argo CD.
+Will be populated with the configured RBAC scopes, most often the `groups` claim, from the user logged in Argo CD.
 
 ### Multi Backend Use-Case
 

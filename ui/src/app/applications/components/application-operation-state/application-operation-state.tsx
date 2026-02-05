@@ -1,4 +1,4 @@
-import {Checkbox, DropDown, Duration, NotificationType, Ticker, HelpIcon} from 'argo-ui';
+import {Checkbox, DropDown, Duration, NotificationType, Ticker, HelpIcon, Tooltip} from 'argo-ui';
 import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -15,7 +15,8 @@ interface Props {
     application: models.Application;
     operationState: models.OperationState;
 }
-const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) => `${res.group}-${res.kind}-${res.version}-${res.namespace}-${res.name}`;
+const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) => `${res.group || ''}-${res.kind || ''}-${res.version || ''}-${res.namespace || ''}-${res.name}`;
+const FilterableMessageStatuses = ['Changed', 'Unchanged'];
 
 const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; options: string[]; title: string; style?: React.CSSProperties}) => {
     const {filters, setFilters, options, title, style} = props;
@@ -52,16 +53,37 @@ const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; op
 };
 
 export const ApplicationOperationState: React.StatelessComponent<Props> = ({application, operationState}, ctx: AppContext) => {
+    const [messageFilters, setMessageFilters] = React.useState([]);
+
     const operationAttributes = [
         {title: 'OPERATION', value: utils.getOperationType(application)},
         {title: 'PHASE', value: operationState.phase},
-        ...(operationState.message ? [{title: 'MESSAGE', value: operationState.message}] : []),
+        ...(operationState.message
+            ? [
+                  {
+                      title: 'MESSAGE',
+                      value: (
+                          <pre
+                              style={{
+                                  whiteSpace: 'pre-wrap',
+                                  wordBreak: 'break-word',
+                                  margin: 0,
+                                  fontFamily: 'inherit'
+                              }}>
+                              {utils.formatOperationMessage(operationState.message)}
+                          </pre>
+                      )
+                  }
+              ]
+            : []),
         {title: 'STARTED AT', value: <Timestamp date={operationState.startedAt} />},
         {
             title: 'DURATION',
             value: (
                 <Ticker>
-                    {time => <Duration durationMs={((operationState.finishedAt && moment(operationState.finishedAt)) || time).diff(moment(operationState.startedAt)) / 1000} />}
+                    {time => (
+                        <Duration durationS={((operationState.finishedAt && moment(operationState.finishedAt)) || moment(time)).diff(moment(operationState.startedAt)) / 1000} />
+                    )}
                 </Ticker>
             )
         }
@@ -136,13 +158,20 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
     // const hookPhases = ['Running', 'Terminating', 'Failed', 'Error', 'Succeeded'];
     const resourceHealth = application.status.resources.reduce(
         (acc, res) => {
-            if (res.health) {
-                acc[buildResourceUniqueId(res)] = res.health;
-            }
+            acc[buildResourceUniqueId(res)] = {
+                health: res.health,
+                syncWave: res.syncWave
+            };
 
             return acc;
         },
-        {} as Record<string, models.HealthStatus>
+        {} as Record<
+            string,
+            {
+                health: models.HealthStatus;
+                syncWave: number;
+            }
+        >
     );
 
     const combinedHealthSyncResult: models.SyncResourceResult[] = syncResult?.resources?.map(syncResultItem => {
@@ -154,9 +183,11 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             ...syncResultItem
         };
 
-        if (healthStatus) {
-            syncResultWithHealth.health = healthStatus;
+        if (healthStatus?.health) {
+            syncResultWithHealth.health = healthStatus.health;
         }
+
+        syncResultWithHealth.syncWave = healthStatus?.syncWave;
 
         return syncResultWithHealth;
     });
@@ -164,7 +195,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
 
     if (combinedHealthSyncResult && combinedHealthSyncResult.length > 0) {
         filtered = combinedHealthSyncResult.filter(r => {
-            if (filters.length === 0 && healthFilters.length === 0) {
+            if (filters.length === 0 && healthFilters.length === 0 && messageFilters.length === 0) {
                 return true;
             }
 
@@ -175,6 +206,15 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
 
             if (pass && healthFilters.length !== 0 && !healthFilters.includes(r.health?.status)) {
                 pass = false;
+            }
+
+            if (pass && messageFilters.length !== 0) {
+                pass = messageFilters.some(filter => {
+                    if (filter === 'Changed') {
+                        return r.message?.toLowerCase().includes('configured');
+                    }
+                    return r.message?.toLowerCase().includes(filter.toLowerCase());
+                });
             }
 
             return pass;
@@ -200,32 +240,42 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                         <div style={{marginLeft: 'auto'}}>
                             <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
                             <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
-                            <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' />
+                            <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' style={{marginRight: '5px'}} />
+                            <Tooltip placement='top-start' content='Filter on resources that have changed or remained unchanged'>
+                                <div style={{display: 'inline-block'}}>
+                                    <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
+                                </div>
+                            </Tooltip>
                         </div>
                     </div>
                     <div className='argo-table-list'>
                         <div className='argo-table-list__head'>
                             <div className='row'>
+                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>SYNC WAVE</div>
                                 <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>KIND</div>
-                                <div className='columns large-2 show-for-large'>NAMESPACE</div>
+                                <div className='columns large-1 show-for-large'>NAMESPACE</div>
                                 <div className='columns large-2 small-2'>NAME</div>
                                 <div className='columns large-1 small-2'>STATUS</div>
                                 <div className='columns large-1 small-2'>HEALTH</div>
                                 <div className='columns large-1 show-for-large'>HOOK</div>
-                                <div className='columns large-4 small-8'>MESSAGE</div>
+                                <div className='columns large-3 small-4'>MESSAGE</div>
+                                <div className='columns large-1 small-2'>IMAGES</div>
                             </div>
                         </div>
                         {filtered.length > 0 ? (
                             filtered.map((resource, i) => (
                                 <div className='argo-table-list__row' key={i}>
                                     <div className='row'>
-                                        <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>
+                                        <div className='columns large-1 show-for-large application-operation-state__icons_container_padding' style={{textAlign: 'center'}}>
                                             <div className='application-operation-state__icons_container'>
                                                 {resource.hookType && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                                             </div>
+                                            {resource.syncWave || '0'}
+                                        </div>
+                                        <div className='columns large-1 show-for-large'>
                                             <span title={getKind(resource)}>{getKind(resource)}</span>
                                         </div>
-                                        <div className='columns large-2 show-for-large' title={resource.namespace}>
+                                        <div className='columns large-1 show-for-large' title={resource.namespace}>
                                             {resource.namespace}
                                         </div>
                                         <div className='columns large-2 small-2' title={resource.name}>
@@ -236,10 +286,10 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                         </div>
                                         <div className='columns large-1 small-2'>
                                             {resource.health ? (
-                                                <div>
+                                                <span>
                                                     <utils.HealthStatusIcon state={resource?.health} /> {resource.health?.status}
                                                     {resource.health.message && <HelpIcon title={resource.health.message} />}
-                                                </div>
+                                                </span>
                                             ) : (
                                                 <>{'-'}</>
                                             )}
@@ -247,8 +297,29 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                         <div className='columns large-1 show-for-large' title={resource.hookType}>
                                             {resource.hookType}
                                         </div>
-                                        <div className='columns large-4 small-8' title={resource.message}>
+                                        <div className='columns large-3 small-4' title={resource.message}>
                                             <div className='application-operation-state__message'>{resource.message}</div>
+                                        </div>
+                                        <div className='columns large-1  small-2'>
+                                            {resource.images && resource.images.length > 0 ? (
+                                                <Tooltip
+                                                    placement='top'
+                                                    content={
+                                                        <div>
+                                                            <ul className='application-operation-state__images-list' style={{margin: '10px'}}>
+                                                                {resource.images.map((image, idx) => (
+                                                                    <li key={idx}>{image}</li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    }>
+                                                    <span className='application-operation-state__images-count'>
+                                                        {resource.images.length} image{resource.images.length !== 1 ? 's' : ''}
+                                                    </span>
+                                                </Tooltip>
+                                            ) : (
+                                                '-'
+                                            )}
                                         </div>
                                     </div>
                                 </div>

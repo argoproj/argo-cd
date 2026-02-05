@@ -2,15 +2,15 @@ package scm_provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
-	pathpkg "path"
 
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/xanzy/go-gitlab"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 )
 
 type GitlabProvider struct {
@@ -24,7 +24,7 @@ type GitlabProvider struct {
 
 var _ SCMProviderService = &GitlabProvider{}
 
-func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, insecure bool, scmRootCAPath, topic string, caCerts []byte) (*GitlabProvider, error) {
+func NewGitlabProvider(organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, insecure bool, scmRootCAPath, topic string, caCerts []byte) (*GitlabProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITLAB_TOKEN")
@@ -75,9 +75,14 @@ func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 	return repos, nil
 }
 
-func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
+func (g *GitlabProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
+	snippetsListOptions := gitlab.ExploreSnippetsOptions{
+		ListOptions: gitlab.ListOptions{
+			PerPage: 100,
+		},
+	}
 	opt := &gitlab.ListGroupProjectsOptions{
-		ListOptions:      gitlab.ListOptions{PerPage: 100},
+		ListOptions:      snippetsListOptions.ListOptions,
 		IncludeSubGroups: &g.includeSubgroups,
 		WithShared:       &g.includeSharedProjects,
 		Topic:            &g.topic,
@@ -104,6 +109,7 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 			var repoLabels []string
 			if len(gitlabRepo.Topics) == 0 {
 				// fallback to for gitlab prior to 14.5
+				//nolint:staticcheck
 				repoLabels = gitlabRepo.TagList
 			} else {
 				repoLabels = gitlabRepo.Topics
@@ -129,40 +135,31 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 func (g *GitlabProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
 	p, _, err := g.client.Projects.GetProject(repo.Organization+"/"+repo.Repository, nil)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("error getting Project Info: %w", err)
 	}
-	directories := []string{
-		path,
-		pathpkg.Dir(path),
-	}
-	for _, directory := range directories {
-		options := gitlab.ListTreeOptions{
-			Path: &directory,
-			Ref:  &repo.Branch,
-		}
-		for {
-			treeNode, resp, err := g.client.Repositories.ListTree(p.ID, &options)
+
+	// search if the path is a file and exists in the repo
+	fileOptions := gitlab.GetFileOptions{Ref: &repo.Branch}
+	_, _, err = g.client.RepositoryFiles.GetFile(p.ID, path, &fileOptions)
+	if err != nil {
+		if errors.Is(err, gitlab.ErrNotFound) {
+			// no file found, check for a directory
+			options := gitlab.ListTreeOptions{
+				Path: &path,
+				Ref:  &repo.Branch,
+			}
+			_, _, err := g.client.Repositories.ListTree(p.ID, &options)
 			if err != nil {
+				if errors.Is(err, gitlab.ErrNotFound) {
+					return false, nil // no file or directory found
+				}
 				return false, err
 			}
-			if path == directory {
-				if resp.TotalItems > 0 {
-					return true, nil
-				}
-			}
-			for i := range treeNode {
-				if treeNode[i].Path == path {
-					return true, nil
-				}
-			}
-			if resp.NextPage == 0 {
-				// no future pages
-				break
-			}
-			options.Page = resp.NextPage
+			return true, nil // directory found
 		}
+		return false, err
 	}
-	return false, nil
+	return true, nil // file found
 }
 
 func (g *GitlabProvider) listBranches(_ context.Context, repo *Repository) ([]gitlab.Branch, error) {
@@ -181,8 +178,13 @@ func (g *GitlabProvider) listBranches(_ context.Context, repo *Repository) ([]gi
 		return branches, nil
 	}
 	// Otherwise, scrape the ListBranches API.
+	snippetsListOptions := gitlab.ExploreSnippetsOptions{
+		ListOptions: gitlab.ListOptions{
+			PerPage: 100,
+		},
+	}
 	opt := &gitlab.ListBranchesOptions{
-		ListOptions: gitlab.ListOptions{PerPage: 100},
+		ListOptions: snippetsListOptions.ListOptions,
 	}
 	for {
 		gitlabBranches, resp, err := g.client.Branches.ListBranches(repo.RepositoryId, opt)

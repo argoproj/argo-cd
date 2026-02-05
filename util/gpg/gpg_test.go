@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/test"
 )
 
 const (
@@ -28,6 +28,7 @@ var syncTestSources = map[string]string{
 
 // Helper function to create temporary GNUPGHOME
 func initTempDir(t *testing.T) string {
+	t.Helper()
 	// Intentionally avoid using t.TempDir. That function creates really long paths, which can exceed the socket file
 	// path length on some OSes. The GPG tests rely on sockets.
 	p, err := os.MkdirTemp(os.TempDir(), "")
@@ -77,8 +78,8 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 
 	// During unit-tests, we need to also kill gpg-agent so we can create a new key.
 	// In real world scenario -- i.e. container crash -- gpg-agent is not running yet.
-	cmd := exec.Command("gpgconf", "--kill", "gpg-agent")
-	cmd.Env = []string{fmt.Sprintf("GNUPGHOME=%s", p)}
+	cmd := exec.CommandContext(t.Context(), "gpgconf", "--kill", "gpg-agent")
+	cmd.Env = []string{"GNUPGHOME=" + p}
 	err = cmd.Run()
 	require.NoError(t, err)
 
@@ -91,20 +92,19 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	assert.Equal(t, "ultimate", keys[0].Trust)
 
 	t.Run("GNUPGHOME is a file", func(t *testing.T) {
-		f, err := os.CreateTemp("", "gpg-test")
+		f, err := os.CreateTemp(t.TempDir(), "gpg-test")
 		require.NoError(t, err)
 		defer os.Remove(f.Name())
 
 		// we need to error out
 		t.Setenv(common.EnvGnuPGHome, f.Name())
 		err = InitializeGnuPG()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "does not point to a directory")
+		assert.ErrorContains(t, err, "does not point to a directory")
 	})
 
 	t.Run("Unaccessible GNUPGHOME", func(t *testing.T) {
 		p := initTempDir(t)
-		fp := fmt.Sprintf("%s/gpg", p)
+		fp := p + "/gpg"
 		err = os.Mkdir(fp, 0o000)
 		if err != nil {
 			panic(err.Error())
@@ -550,9 +550,9 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 	tempDir := t.TempDir()
 
 	{
-		new, removed, err := SyncKeyRingFromDirectory(tempDir)
+		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
 		require.NoError(t, err)
-		assert.Empty(t, new)
+		assert.Empty(t, newKeys)
 		assert.Empty(t, removed)
 	}
 
@@ -575,15 +575,15 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 			dst.Close()
 		}
 
-		new, removed, err := SyncKeyRingFromDirectory(tempDir)
+		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
 		require.NoError(t, err)
-		assert.Len(t, new, 3)
+		assert.Len(t, newKeys, 3)
 		assert.Empty(t, removed)
 
-		installed, err := GetInstalledPGPKeys(new)
+		installed, err := GetInstalledPGPKeys(newKeys)
 		require.NoError(t, err)
 		for _, k := range installed {
-			assert.Contains(t, new, k.KeyID)
+			assert.Contains(t, newKeys, k.KeyID)
 		}
 	}
 
@@ -592,12 +592,12 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 		if err != nil {
 			panic(err.Error())
 		}
-		new, removed, err := SyncKeyRingFromDirectory(tempDir)
+		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
 		require.NoError(t, err)
-		assert.Empty(t, new)
+		assert.Empty(t, newKeys)
 		assert.Len(t, removed, 1)
 
-		installed, err := GetInstalledPGPKeys(new)
+		installed, err := GetInstalledPGPKeys(newKeys)
 		require.NoError(t, err)
 		for _, k := range installed {
 			assert.NotEqual(t, k.KeyID, removed[0])

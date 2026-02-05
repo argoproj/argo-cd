@@ -10,7 +10,7 @@ import (
 	bitbucketv1 "github.com/gfleury/go-bitbucket-v1"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
 )
 
 type BitbucketServerProvider struct {
@@ -49,22 +49,17 @@ func NewBitbucketServerProviderNoAuth(ctx context.Context, url, projectKey strin
 }
 
 func newBitbucketServerProvider(ctx context.Context, bitbucketConfig *bitbucketv1.Configuration, projectKey string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte) (*BitbucketServerProvider, error) {
-	bitbucketConfig.BasePath = utils.NormalizeBitbucketBasePath(bitbucketConfig.BasePath)
-	tlsConfig := utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
-	bitbucketConfig.HTTPClient = &http.Client{Transport: &http.Transport{
-		TLSClientConfig: tlsConfig,
-	}}
-	bitbucketClient := bitbucketv1.NewAPIClient(ctx, bitbucketConfig)
+	bbClient := services.SetupBitbucketClient(ctx, bitbucketConfig, scmRootCAPath, insecure, caCerts)
 
 	return &BitbucketServerProvider{
-		client:      bitbucketClient,
+		client:      bbClient,
 		projectKey:  projectKey,
 		allBranches: allBranches,
 	}, nil
 }
 
 func (b *BitbucketServerProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
-	paged := map[string]interface{}{
+	paged := map[string]any{
 		"limit": 100,
 	}
 	repos := []*Repository{}
@@ -122,14 +117,14 @@ func (b *BitbucketServerProvider) ListRepos(_ context.Context, cloneProtocol str
 }
 
 func (b *BitbucketServerProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
-	opts := map[string]interface{}{
+	opts := map[string]any{
 		"limit": 100,
 		"at":    repo.Branch,
 		"type_": true,
 	}
 	// No need to query for all pages here
 	response, err := b.client.DefaultApi.GetContent_0(repo.Organization, repo.Repository, path, opts)
-	if response != nil && response.StatusCode == 404 {
+	if response != nil && response.StatusCode == http.StatusNotFound {
 		// File/directory not found
 		return false, nil
 	}
@@ -174,7 +169,7 @@ func (b *BitbucketServerProvider) listBranches(repo *Repository) ([]bitbucketv1.
 	}
 	// Otherwise, scrape the GetBranches API.
 	branches := []bitbucketv1.Branch{}
-	paged := map[string]interface{}{
+	paged := map[string]any{
 		"limit": 100,
 	}
 	for {
@@ -203,7 +198,7 @@ func (b *BitbucketServerProvider) getDefaultBranch(org string, repo string) (*bi
 	response, err := b.client.DefaultApi.GetDefaultBranch(org, repo)
 	// The API will return 404 if a default branch is set but doesn't exist. In case the repo is empty and default branch is unset,
 	// we will get an EOF and a nil response.
-	if (response != nil && response.StatusCode == 404) || (response == nil && err != nil && errors.Is(err, io.EOF)) {
+	if (response != nil && response.StatusCode == http.StatusNotFound) || (response == nil && err != nil && errors.Is(err, io.EOF)) {
 		return nil, nil
 	}
 	if err != nil {

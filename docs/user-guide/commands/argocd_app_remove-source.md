@@ -2,7 +2,7 @@
 
 ## argocd app remove-source
 
-Remove a source from multiple sources application. Counting starts with 1. Default value is -1.
+Remove a source from multiple sources application.
 
 ```
 argocd app remove-source APPNAME [flags]
@@ -13,6 +13,9 @@ argocd app remove-source APPNAME [flags]
 ```
   # Remove the source at position 1 from application's sources. Counting starts at 1.
   argocd app remove-source myapplication --source-position 1
+
+  # Remove the source named "test" from application's sources.
+  argocd app remove-source myapplication --source-name test
 ```
 
 ### Options
@@ -20,6 +23,7 @@ argocd app remove-source APPNAME [flags]
 ```
   -N, --app-namespace string   Namespace of the target application where the source will be appended
   -h, --help                   help for remove-source
+      --source-name string     Name of the source from the list of sources of the app.
       --source-position int    Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
 ```
 
@@ -39,11 +43,13 @@ argocd app remove-source APPNAME [flags]
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
       --insecure                        Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
-      --logformat string                Set the logging format. One of: text|json (default "text")
+      --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
+      --redis-compress string           Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none) (default "gzip")
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")

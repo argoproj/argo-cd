@@ -3,7 +3,7 @@
 
 syntax = "proto2";
 
-package github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1;
+package github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1;
 
 import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1/generated.proto";
@@ -13,7 +13,7 @@ import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
 
 // Package-wide variables from generator "generated".
-option go_package = "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1";
+option go_package = "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1";
 
 // AWSAuthConfig is an AWS IAM authentication configuration
 message AWSAuthConfig {
@@ -25,6 +25,20 @@ message AWSAuthConfig {
 
   // Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
   optional string profile = 3;
+}
+
+// AppHealthStatus contains information about the currently observed health state of an application
+message AppHealthStatus {
+  // Status holds the status code of the application
+  optional string status = 1;
+
+  // Message is a human-readable informational message describing the health status
+  //
+  // Deprecated: this field is not used and will be removed in a future release.
+  optional string message = 2;
+
+  // LastTransitionTime is the time the HealthStatus was set or updated
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
 // AppProject provides a logical grouping of applications, providing controls for:
@@ -62,13 +76,14 @@ message AppProjectSpec {
   repeated ApplicationDestination destinations = 2;
 
   // Description contains optional project description
+  // +kubebuilder:validation:MaxLength=255
   optional string description = 3;
 
   // Roles are user defined RBAC roles associated with this project
   repeated ProjectRole roles = 4;
 
   // ClusterResourceWhitelist contains list of whitelisted cluster level resources
-  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceWhitelist = 5;
+  repeated ClusterResourceRestrictionItem clusterResourceWhitelist = 5;
 
   // NamespaceResourceBlacklist contains list of blacklisted namespace level resources
   repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceBlacklist = 6;
@@ -86,7 +101,7 @@ message AppProjectSpec {
   repeated SignatureKey signatureKeys = 10;
 
   // ClusterResourceBlacklist contains list of blacklisted cluster level resources
-  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
+  repeated ClusterResourceRestrictionItem clusterResourceBlacklist = 11;
 
   // SourceNamespaces defines the namespaces application resources are allowed to be created in
   repeated string sourceNamespaces = 12;
@@ -114,12 +129,16 @@ message AppProjectStatus {
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
 // +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
 message Application {
+  // Common: shared with ApplicationSet
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
+  // Common: shared with ApplicationSet
   optional ApplicationSpec spec = 2;
 
+  // Common: shared with ApplicationSet (different type)
   optional ApplicationStatus status = 3;
 
+  // Common: shared with ApplicationSet (different type)
   optional Operation operation = 4;
 }
 
@@ -156,7 +175,7 @@ message ApplicationDestinationServiceAccount {
   // Namespace specifies the target namespace for the application's resources.
   optional string namespace = 2;
 
-  // ServiceAccountName to be used for impersonation during the sync operation
+  // DefaultServiceAccount to be used for impersonation during the sync operation
   optional string defaultServiceAccount = 3;
 }
 
@@ -182,7 +201,7 @@ message ApplicationPreservedFields {
   repeated string labels = 2;
 }
 
-// ApplicationSet is a set of Application resources
+// ApplicationSet is a set of Application resources.
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -191,8 +210,10 @@ message ApplicationPreservedFields {
 message ApplicationSet {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
+  // Common: shared with Application
   optional ApplicationSetSpec spec = 2;
 
+  // Common: shared with Application (different type)
   optional ApplicationSetStatus status = 3;
 }
 
@@ -207,7 +228,7 @@ message ApplicationSetApplicationStatus {
   // Message contains human-readable message indicating details about the status
   optional string message = 3;
 
-  // Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
+  // Status contains the AppSet's perceived status of the managed Application resource
   optional string status = 4;
 
   // Step tracks which step this Application should be updated in
@@ -334,7 +355,10 @@ message ApplicationSetSpec {
 
   repeated string goTemplateOptions = 7;
 
-  // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+  // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators.
+  //
+  // Deprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future
+  // version of the ApplicationSet CRD.
   optional bool applyNestedSelectors = 8;
 
   repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 9;
@@ -352,6 +376,13 @@ message ApplicationSetStatus {
 
   // Resources is a list of Applications resources managed by this application set.
   repeated ResourceStatus resources = 3;
+
+  // ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when
+  // the number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).
+  optional int64 resourcesCount = 4;
+
+  // Health contains information about the applicationset's current health status based on the applicationset conditions
+  optional HealthStatus health = 5;
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
@@ -359,6 +390,10 @@ message ApplicationSetStrategy {
   optional string type = 1;
 
   optional ApplicationSetRolloutStrategy rollingSync = 2;
+
+  // DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.
+  // accepts values "AllAtOnce" and "Reverse"
+  optional string deletionOrder = 3;
 }
 
 // ApplicationSetSyncPolicy configures how generated Applications will relate to their
@@ -454,6 +489,9 @@ message ApplicationSource {
 
   // Ref is reference to another source within sources field. This field will not be used if used with a `source` tag.
   optional string ref = 13;
+
+  // Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.
+  optional string name = 14;
 }
 
 // ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet
@@ -515,6 +553,12 @@ message ApplicationSourceHelm {
   // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
   // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
   repeated string apiVersions = 13;
+
+  // SkipTests skips test manifest installation step (Helm's --skip-tests).
+  optional bool skipTests = 14;
+
+  // SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)
+  optional bool skipSchemaValidation = 15;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -570,6 +614,9 @@ message ApplicationSourceKustomize {
   // Components specifies a list of kustomize components to add to the kustomization before building
   repeated string components = 13;
 
+  // IgnoreMissingComponents prevents kustomize from failing when components do not exist locally by not appending them to kustomization file
+  optional bool ignoreMissingComponents = 17;
+
   // LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
   optional bool labelWithoutSelector = 14;
 
@@ -580,6 +627,9 @@ message ApplicationSourceKustomize {
   // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
   // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
   repeated string apiVersions = 16;
+
+  // LabelIncludeTemplates specifies whether to apply common labels to resource templates or not
+  optional bool labelIncludeTemplates = 18;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -635,6 +685,9 @@ message ApplicationSpec {
 
   // Sources is a reference to the location of the application's manifests or chart
   repeated ApplicationSource sources = 8;
+
+  // SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
+  optional SourceHydrator sourceHydrator = 9;
 }
 
 // ApplicationStatus contains status information for the application
@@ -646,7 +699,7 @@ message ApplicationStatus {
   optional SyncStatus sync = 2;
 
   // Health contains information about the application's current health status
-  optional HealthStatus health = 3;
+  optional AppHealthStatus health = 3;
 
   // History contains information about the application's sync history
   repeated RevisionHistory history = 4;
@@ -678,6 +731,9 @@ message ApplicationStatus {
 
   // ControllerNamespace indicates the namespace in which the application controller is located
   optional string controllerNamespace = 13;
+
+  // SourceHydrator stores information about the current state of source hydration
+  optional SourceHydratorStatus sourceHydrator = 14;
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
@@ -689,19 +745,22 @@ message ApplicationSummary {
   repeated string images = 2;
 }
 
-// ApplicationTree holds nodes which belongs to the application
-// TODO: describe purpose of this type
+// ApplicationTree represents the hierarchical structure of resources associated with an Argo CD application.
 message ApplicationTree {
-  // Nodes contains list of nodes which either directly managed by the application and children of directly managed nodes.
+  // Nodes contains a list of resources that are either directly managed by the application
+  // or are children of directly managed resources.
   repeated ResourceNode nodes = 1;
 
-  // OrphanedNodes contains if or orphaned nodes: nodes which are not managed by the app but in the same namespace. List is populated only if orphaned resources enabled in app project.
+  // OrphanedNodes contains resources that exist in the same namespace as the application
+  // but are not managed by it. This list is populated only if orphaned resource tracking
+  // is enabled in the application's project settings.
   repeated ResourceNode orphanedNodes = 2;
 
-  // Hosts holds list of Kubernetes nodes that run application related pods
+  // Hosts provides a list of Kubernetes nodes that are running pods related to the application.
   repeated HostInfo hosts = 3;
 
-  // ShardsCount contains total number of shards the application tree is split into
+  // ShardsCount represents the total number of shards the application tree is split into.
+  // This is used to distribute resource processing across multiple shards.
   optional int64 shardsCount = 4;
 }
 
@@ -838,6 +897,12 @@ message ClusterConfig {
 
   // ExecProviderConfig contains configuration for an exec provider
   optional ExecProviderConfig execProviderConfig = 6;
+
+  // DisableCompression bypasses automatic GZip compression requests to the server.
+  optional bool disableCompression = 7;
+
+  // ProxyURL is the URL to the proxy to be used for all requests send to the server
+  optional string proxyUrl = 8;
 }
 
 // ClusterGenerator defines a generator to match against clusters registered with ArgoCD.
@@ -851,6 +916,9 @@ message ClusterGenerator {
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 3;
+
+  // returns the clusters a single 'clusters' value in the template
+  optional bool flatList = 4;
 }
 
 // ClusterInfo contains information about the cluster
@@ -878,11 +946,53 @@ message ClusterList {
   repeated Cluster items = 2;
 }
 
+// ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist
+message ClusterResourceRestrictionItem {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  // Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.
+  // Unlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.
+  optional string name = 3;
+}
+
 // Command holds binary path and arguments list
 message Command {
   repeated string command = 1;
 
   repeated string args = 2;
+}
+
+// CommitMetadata contains metadata about a commit that is related in some way to another commit.
+message CommitMetadata {
+  // Author is the author of the commit, i.e. `git show -s --format=%an <%ae>`.
+  // Must be formatted according to RFC 5322 (mail.Address.String()).
+  // Comes from the Argocd-reference-commit-author trailer.
+  optional string author = 1;
+
+  // Date is the date of the commit, formatted as by `git show -s --format=%aI` (RFC 3339).
+  // It can also be an empty string if the date is unknown.
+  // Comes from the Argocd-reference-commit-date trailer.
+  optional string date = 2;
+
+  // Subject is the commit message subject line, i.e. `git show -s --format=%s`.
+  // Comes from the Argocd-reference-commit-subject trailer.
+  optional string subject = 3;
+
+  // Body is the commit message body minus the subject line, i.e. `git show -s --format=%b`.
+  // Comes from the Argocd-reference-commit-body trailer.
+  optional string body = 4;
+
+  // SHA is the commit hash.
+  // Comes from the Argocd-reference-commit-sha trailer.
+  optional string sha = 5;
+
+  // RepoURL is the URL of the repository where the commit is located.
+  // Comes from the Argocd-reference-commit-repourl trailer.
+  // This value is not validated and should not be used to construct UI links unless it is properly
+  // validated and/or sanitized first.
+  optional string repoUrl = 6;
 }
 
 // ComparedTo contains application source and target which was used for resources comparison
@@ -920,7 +1030,7 @@ message ConfigManagementPlugin {
   optional bool lockRepo = 4;
 }
 
-// Utility struct for a reference to a configmap key.
+// ConfigMapKeyRef struct for a reference to a configmap key.
 message ConfigMapKeyRef {
   optional string configMapName = 1;
 
@@ -937,6 +1047,30 @@ message ConnectionState {
 
   // ModifiedAt contains the timestamp when this connection status has been determined
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
+}
+
+// DrySource specifies a location for dry "don't repeat yourself" manifest source information.
+message DrySource {
+  // RepoURL is the URL to the git repository that contains the application manifests
+  optional string repoURL = 1;
+
+  // TargetRevision defines the revision of the source to hydrate
+  optional string targetRevision = 2;
+
+  // Path is a directory path within the Git repository where the manifests are located
+  optional string path = 3;
+
+  // Helm specifies helm specific options
+  optional ApplicationSourceHelm helm = 4;
+
+  // Kustomize specifies kustomize specific options
+  optional ApplicationSourceKustomize kustomize = 5;
+
+  // Directory specifies path/directory specific options
+  optional ApplicationSourceDirectory directory = 6;
+
+  // Plugin specifies config management plugin specific options
+  optional ApplicationSourcePlugin plugin = 7;
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.
@@ -968,9 +1102,6 @@ message EnvEntry {
   optional string value = 2;
 }
 
-message ErrApplicationNotAllowedToUseProject {
-}
-
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
 // See: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 message ExecProviderConfig {
@@ -998,6 +1129,8 @@ message GitDirectoryGeneratorItem {
 
 message GitFileGeneratorItem {
   optional string path = 1;
+
+  optional bool exclude = 2;
 }
 
 message GitGenerator {
@@ -1033,7 +1166,7 @@ message GnuPGPublicKey {
   // Trust holds the level of trust assigned to this key
   optional string trust = 4;
 
-  // SubType holds the key's sub type (e.g. rsa4096)
+  // SubType holds the key's subtype (e.g. rsa4096)
   optional string subType = 5;
 
   // KeyData holds the raw key data, in base64 encoded format
@@ -1047,13 +1180,18 @@ message GnuPGPublicKeyList {
   repeated GnuPGPublicKey items = 2;
 }
 
-// HealthStatus contains information about the currently observed health state of an application or resource
+// HealthStatus contains information about the currently observed health state of a resource
 message HealthStatus {
-  // Status holds the status code of the application or resource
+  // Status holds the status code of the resource
   optional string status = 1;
 
   // Message is a human-readable informational message describing the health status
   optional string message = 2;
+
+  // LastTransitionTime is the time the HealthStatus was set or updated
+  //
+  // Deprecated: this field is not used and will be removed in a future release.
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
 // HelmFileParameter is a file parameter that's passed to helm template during manifest generation
@@ -1082,26 +1220,65 @@ message HelmParameter {
   optional bool forceString = 3;
 }
 
-// HostInfo holds host name and resources metrics
-// TODO: describe purpose of this type
-// TODO: describe members of this type
+// HostInfo holds metadata and resource usage metrics for a specific host in the cluster.
 message HostInfo {
+  // Name is the hostname or node name in the Kubernetes cluster.
   optional string name = 1;
 
+  // ResourcesInfo provides a list of resource usage details for different resource types on this host.
   repeated HostResourceInfo resourcesInfo = 2;
 
+  // SystemInfo contains detailed system-level information about the host, such as OS, kernel version, and architecture.
   optional .k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
+
+  // Labels holds the labels attached to the host.
+  map<string, string> labels = 4;
 }
 
-// TODO: describe this type
+// HostResourceInfo represents resource usage details for a specific resource type on a host.
 message HostResourceInfo {
+  // ResourceName specifies the type of resource (e.g., CPU, memory, storage).
   optional string resourceName = 1;
 
+  // RequestedByApp indicates the total amount of this resource requested by the application running on the host.
   optional int64 requestedByApp = 2;
 
+  // RequestedByNeighbors indicates the total amount of this resource requested by other workloads on the same host.
   optional int64 requestedByNeighbors = 3;
 
+  // Capacity represents the total available capacity of this resource on the host.
   optional int64 capacity = 4;
+}
+
+// HydrateOperation contains information about the most recent hydrate operation
+message HydrateOperation {
+  // StartedAt indicates when the hydrate operation started
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 1;
+
+  // FinishedAt indicates when the hydrate operation finished
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 2;
+
+  // Phase indicates the status of the hydrate operation
+  optional string phase = 3;
+
+  // Message contains a message describing the current status of the hydrate operation
+  optional string message = 4;
+
+  // DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
+  optional string drySHA = 5;
+
+  // HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation
+  optional string hydratedSHA = 6;
+
+  // SourceHydrator holds the hydrator config used for the hydrate operation
+  optional SourceHydrator sourceHydrator = 7;
+}
+
+// HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
+// the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
+message HydrateTo {
+  // TargetBranch is the branch to which hydrated manifests should be committed
+  optional string targetBranch = 1;
 }
 
 message Info {
@@ -1142,12 +1319,16 @@ message JsonnetVar {
   optional bool code = 3;
 }
 
-// KnownTypeField contains mapping between CRD field and known Kubernetes type.
-// This is mainly used for unit conversion in unknown resources (e.g. 0.1 == 100mi)
-// TODO: Describe the members of this type
+// KnownTypeField contains a mapping between a Custom Resource Definition (CRD) field
+// and a well-known Kubernetes type. This mapping is primarily used for unit conversions
+// in resources where the type is not explicitly defined (e.g., converting "0.1" to "100m" for CPU requests).
 message KnownTypeField {
+  // Field represents the JSON path to the specific field in the CRD that requires type conversion.
+  // Example: "spec.resources.requests.cpu"
   optional string field = 1;
 
+  // Type specifies the expected Kubernetes type for the field, such as "cpu" or "memory".
+  // This helps in converting values between different formats (e.g., "0.1" to "100m" for CPU).
   optional string type = 2;
 }
 
@@ -1165,7 +1346,14 @@ message KustomizeOptions {
   optional string buildOptions = 1;
 
   // BinaryPath holds optional path to kustomize binary
+  //
+  // Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.
+  // If this field is set, it will be used as the Kustomize binary path.
+  // Otherwise, Versions is used.
   optional string binaryPath = 2;
+
+  // Versions is a list of Kustomize versions and their corresponding binary paths and build options.
+  repeated KustomizeVersion versions = 3;
 }
 
 message KustomizePatch {
@@ -1200,6 +1388,18 @@ message KustomizeSelector {
   optional string annotationSelector = 2;
 
   optional string labelSelector = 3;
+}
+
+// KustomizeVersion holds information about additional Kustomize versions
+message KustomizeVersion {
+  // Name holds Kustomize version name
+  optional string name = 1;
+
+  // Path holds the corresponding binary path
+  optional string path = 2;
+
+  // BuildOptions that are specific to a Kustomize version
+  optional string buildOptions = 3;
 }
 
 // ListGenerator include items info
@@ -1266,6 +1466,23 @@ message NestedMergeGenerator {
   repeated ApplicationSetTerminalGenerator generators = 1;
 
   repeated string mergeKeys = 2;
+}
+
+// OCIMetadata contains metadata for a specific revision in an OCI repository
+message OCIMetadata {
+  optional string createdAt = 1;
+
+  optional string authors = 2;
+
+  optional string imageUrl = 3;
+
+  optional string docsUrl = 4;
+
+  optional string sourceUrl = 5;
+
+  optional string version = 6;
+
+  optional string description = 7;
 }
 
 // Operation contains information about a requested or running operation
@@ -1428,6 +1645,12 @@ message PullRequestGenerator {
 
   // Additional provider to use and config for it.
   optional PullRequestGeneratorAzureDevOps azuredevops = 9;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 10;
+
+  // ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
+  optional bool continueOnRepoNotFoundError = 11;
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
@@ -1500,6 +1723,8 @@ message PullRequestGeneratorFilter {
   optional string branchMatch = 1;
 
   optional string targetBranchMatch = 2;
+
+  optional string titleMatch = 3;
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
@@ -1516,7 +1741,8 @@ message PullRequestGeneratorGitLab {
   // Labels is used to filter the MRs that you want to target
   repeated string labels = 4;
 
-  // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
+  // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states).
+  // Valid values: opened, closed, merged, locked".
   optional string pullRequestState = 5;
 
   // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
@@ -1542,9 +1768,12 @@ message PullRequestGeneratorGitea {
 
   // Allow insecure tls, for self-signed certificates; default: false.
   optional bool insecure = 5;
+
+  // Labels is used to filter the PRs that you want to target
+  repeated string labels = 6;
 }
 
-// PullRequestGenerator defines connection info specific to GitHub.
+// PullRequestGeneratorGithub defines connection info specific to GitHub.
 message PullRequestGeneratorGithub {
   // GitHub org or user to scan. Required.
   optional string owner = 1;
@@ -1608,7 +1837,7 @@ message RepoCreds {
   // EnableOCI specifies whether helm-oci support should be enabled for this repo
   optional bool enableOCI = 11;
 
-  // Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
+  // Type specifies the type of the repoCreds. Can be either "git", "helm" or "oci". "git" is assumed if empty or absent.
   optional string type = 12;
 
   // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
@@ -1622,6 +1851,15 @@ message RepoCreds {
 
   // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
   optional string noProxy = 23;
+
+  // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+  optional bool useAzureWorkloadIdentity = 24;
+
+  // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
+  optional string bearerToken = 25;
+
+  // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+  optional bool insecureOCIForceHttp = 26;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1702,6 +1940,18 @@ message Repository {
 
   // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
   optional string noProxy = 23;
+
+  // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+  optional bool useAzureWorkloadIdentity = 24;
+
+  // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
+  optional string bearerToken = 25;
+
+  // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+  optional bool insecureOCIForceHttp = 26;
+
+  // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
+  optional int64 depth = 27;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -1737,81 +1987,96 @@ message RepositoryList {
   repeated Repository items = 2;
 }
 
-// TODO: describe this type
-// TODO: describe members of this type
+// ResourceAction represents an individual action that can be performed on a resource.
+// It includes parameters, an optional disabled flag, an icon for display, and a name for the action.
 message ResourceAction {
+  // Name is the name or identifier for the action.
   optional string name = 1;
 
+  // Params contains the parameters required to execute the action.
   repeated ResourceActionParam params = 2;
 
+  // Disabled indicates whether the action is disabled.
   optional bool disabled = 3;
 
+  // IconClass specifies the CSS class for the action's icon.
   optional string iconClass = 4;
 
+  // DisplayName provides a user-friendly name for the action.
   optional string displayName = 5;
 }
 
-// TODO: describe this type
-// TODO: describe members of this type
+// ResourceActionDefinition defines an individual action that can be executed on a resource.
+// It includes a name for the action and a Lua script that defines the action's behavior.
 message ResourceActionDefinition {
+  // Name is the identifier for the action.
   optional string name = 1;
 
+  // ActionLua contains the Lua script that defines the behavior of the action.
   optional string actionLua = 2;
 }
 
-// TODO: describe this type
-// TODO: describe members of this type
+// ResourceActionParam represents a parameter for a resource action.
+// It includes a name, value, type, and an optional default value for the parameter.
 message ResourceActionParam {
+  // Name is the name of the parameter.
   optional string name = 1;
-
-  optional string value = 2;
-
-  optional string type = 3;
-
-  optional string default = 4;
 }
 
-// TODO: describe this type
-// TODO: describe members of this type
+// ResourceActions holds the set of actions that can be applied to a resource.
+// It defines custom Lua scripts for discovery and action execution, as well as options
+// for merging built-in actions with custom ones.
 message ResourceActions {
+  // ActionDiscoveryLua contains a Lua script for discovering actions.
   optional string actionDiscoveryLua = 1;
 
+  // Definitions holds the list of action definitions available for the resource.
   repeated ResourceActionDefinition definitions = 2;
 
+  // MergeBuiltinActions indicates whether built-in actions should be merged with custom actions.
   optional bool mergeBuiltinActions = 3;
 }
 
-// ResourceDiff holds the diff of a live and target resource object
-// TODO: describe members of this type
+// ResourceDiff holds the diff between a live and target resource object in Argo CD.
+// It is used to compare the desired state (from Git/Helm) with the actual state in the cluster.
 message ResourceDiff {
+  // Group represents the API group of the resource (e.g., "apps" for Deployments).
   optional string group = 1;
 
+  // Kind represents the Kubernetes resource kind (e.g., "Deployment", "Service").
   optional string kind = 2;
 
+  // Namespace specifies the namespace where the resource exists.
   optional string namespace = 3;
 
+  // Name is the name of the resource.
   optional string name = 4;
 
-  // TargetState contains the JSON serialized resource manifest defined in the Git/Helm
+  // TargetState contains the JSON-serialized resource manifest as defined in the Git/Helm repository.
   optional string targetState = 5;
 
-  // TargetState contains the JSON live resource manifest
+  // LiveState contains the JSON-serialized resource manifest of the resource currently running in the cluster.
   optional string liveState = 6;
 
-  // Diff contains the JSON patch between target and live resource
-  // Deprecated: use NormalizedLiveState and PredictedLiveState to render the difference
+  // Diff contains the JSON patch representing the difference between the live and target resource.
+  // Deprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.
   optional string diff = 7;
 
+  // Hook indicates whether this resource is a hook resource (e.g., pre-sync or post-sync hooks).
   optional bool hook = 8;
 
-  // NormalizedLiveState contains JSON serialized live resource state with applied normalizations
+  // NormalizedLiveState contains the JSON-serialized live resource state after applying normalizations.
+  // Normalizations may include ignoring irrelevant fields like timestamps or defaults applied by Kubernetes.
   optional string normalizedLiveState = 9;
 
-  // PredictedLiveState contains JSON serialized resource state that is calculated based on normalized and target resource state
+  // PredictedLiveState contains the JSON-serialized resource state that Argo CD predicts based on the
+  // combination of the normalized live state and the desired target state.
   optional string predictedLiveState = 10;
 
+  // ResourceVersion is the Kubernetes resource version, which helps in tracking changes.
   optional string resourceVersion = 11;
 
+  // Modified indicates whether the live resource has changes compared to the target resource.
   optional bool modified = 12;
 }
 
@@ -1834,54 +2099,73 @@ message ResourceIgnoreDifferences {
   repeated string managedFieldsManagers = 7;
 }
 
-// ResourceNetworkingInfo holds networking resource related information
-// TODO: describe members of this type
+// ResourceNetworkingInfo holds networking-related information for a resource.
 message ResourceNetworkingInfo {
+  // TargetLabels represents labels associated with the target resources that this resource communicates with.
   map<string, string> targetLabels = 1;
 
+  // TargetRefs contains references to other resources that this resource interacts with, such as Services or Pods.
   repeated ResourceRef targetRefs = 2;
 
+  // Labels holds the labels associated with this networking resource.
   map<string, string> labels = 3;
 
+  // Ingress provides information about external access points (e.g., load balancer ingress) for this resource.
   repeated .k8s.io.api.core.v1.LoadBalancerIngress ingress = 4;
 
-  // ExternalURLs holds list of URLs which should be available externally. List is populated for ingress resources using rules hostnames.
+  // ExternalURLs holds a list of URLs that should be accessible externally.
+  // This field is typically populated for Ingress resources based on their hostname rules.
   repeated string externalURLs = 5;
 }
 
-// ResourceNode contains information about live resource and its children
-// TODO: describe members of this type
+// ResourceNode contains information about a live Kubernetes resource and its relationships with other resources.
 message ResourceNode {
+  // ResourceRef uniquely identifies the resource using its group, kind, namespace, and name.
   optional ResourceRef resourceRef = 1;
 
+  // ParentRefs lists the parent resources that reference this resource.
+  // This helps in understanding ownership and hierarchical relationships.
   repeated ResourceRef parentRefs = 2;
 
+  // Info provides additional metadata or annotations about the resource.
   repeated InfoItem info = 3;
 
+  // NetworkingInfo contains details about the resource's networking attributes,
+  // such as ingress information and external URLs.
   optional ResourceNetworkingInfo networkingInfo = 4;
 
+  // ResourceVersion indicates the version of the resource, used to track changes.
   optional string resourceVersion = 5;
 
+  // Images lists container images associated with the resource.
+  // This is primarily useful for pods and other workload resources.
   repeated string images = 6;
 
+  // Health represents the health status of the resource (e.g., Healthy, Degraded, Progressing).
   optional HealthStatus health = 7;
 
+  // CreatedAt records the timestamp when the resource was created.
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time createdAt = 8;
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
-// TODO: describe the members of this type
 message ResourceOverride {
+  // HealthLua contains a Lua script that defines custom health checks for the resource.
   optional string healthLua = 1;
 
+  // UseOpenLibs indicates whether to use open-source libraries for the resource.
   optional bool useOpenLibs = 5;
 
+  // Actions defines the set of actions that can be performed on the resource, as a Lua script.
   optional string actions = 3;
 
+  // IgnoreDifferences contains configuration for which differences should be ignored during the resource diffing.
   optional OverrideIgnoreDiff ignoreDifferences = 2;
 
+  // IgnoreResourceUpdates holds configuration for ignoring updates to specific resource fields.
   optional OverrideIgnoreDiff ignoreResourceUpdates = 6;
 
+  // KnownTypeFields lists fields for which unit conversions should be applied.
   repeated KnownTypeField knownTypeFields = 4;
 }
 
@@ -1932,30 +2216,46 @@ message ResourceResult {
 
   // SyncPhase indicates the particular phase of the sync that this result was acquired in
   optional string syncPhase = 10;
+
+  // Images contains the images related to the ResourceResult
+  repeated string images = 11;
 }
 
-// ResourceStatus holds the current sync and health status of a resource
-// TODO: describe members of this type
+// ResourceStatus holds the current synchronization and health status of a Kubernetes resource.
 message ResourceStatus {
+  // Group represents the API group of the resource (e.g., "apps" for Deployments).
   optional string group = 1;
 
+  // Version indicates the API version of the resource (e.g., "v1", "v1beta1").
   optional string version = 2;
 
+  // Kind specifies the type of the resource (e.g., "Deployment", "Service").
   optional string kind = 3;
 
+  // Namespace defines the Kubernetes namespace where the resource is located.
   optional string namespace = 4;
 
+  // Name is the unique name of the resource within the namespace.
   optional string name = 5;
 
+  // Status represents the synchronization state of the resource (e.g., Synced, OutOfSync).
   optional string status = 6;
 
+  // Health indicates the health status of the resource (e.g., Healthy, Degraded, Progressing).
   optional HealthStatus health = 7;
 
+  // Hook is true if the resource is used as a lifecycle hook in an Argo CD application.
   optional bool hook = 8;
 
+  // RequiresPruning is true if the resource needs to be pruned (deleted) as part of synchronization.
   optional bool requiresPruning = 9;
 
+  // SyncWave determines the order in which resources are applied during a sync operation.
+  // Lower values are applied first.
   optional int64 syncWave = 10;
+
+  // RequiresDeletionConfirmation is true if the resource requires explicit user confirmation before deletion.
+  optional bool requiresDeletionConfirmation = 11;
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed
@@ -1965,6 +2265,9 @@ message RetryStrategy {
 
   // Backoff controls how to backoff on subsequent retries of failed syncs
   optional Backoff backoff = 2;
+
+  // Refresh indicates if the latest revision should be used on retry instead of the initial one (default: false)
+  optional bool refresh = 3;
 }
 
 // RevisionHistory contains history information about a previous sync
@@ -1994,7 +2297,8 @@ message RevisionHistory {
   optional OperationInitiator initiatedBy = 10;
 }
 
-// RevisionMetadata contains metadata for a specific revision in a Git repository
+// RevisionMetadata contains metadata for a specific revision in a Git repository. This field is used by the
+// Source Hydrator feature which may be removed in the future.
 message RevisionMetadata {
   // who authored this revision,
   // typically their name and email, e.g. "John Doe <john_doe@my-company.com>",
@@ -2013,6 +2317,16 @@ message RevisionMetadata {
 
   // SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
   optional string signatureInfo = 5;
+
+  // References contains references to information that's related to this commit in some way.
+  repeated RevisionReference references = 6;
+}
+
+// RevisionReference contains a reference to a some information that is related in some way to another commit. For now,
+// it supports only references to a commit. In the future, it may support other types of references.
+message RevisionReference {
+  // Commit contains metadata about the commit that is related in some way to another commit.
+  optional CommitMetadata commit = 1;
 }
 
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.
@@ -2208,7 +2522,7 @@ message SCMProviderGeneratorGitlab {
   optional ConfigMapKeyRef caRef = 9;
 }
 
-// Utility struct for a reference to a secret key.
+// SecretRef struct for a reference to a secret key.
 message SecretRef {
   optional string secretName = 1;
 
@@ -2219,6 +2533,41 @@ message SecretRef {
 message SignatureKey {
   // The ID of the key in hexadecimal notation
   optional string keyID = 1;
+}
+
+// SourceHydrator specifies a dry "don't repeat yourself" source for manifests, a sync source from which to sync
+// hydrated manifests, and an optional hydrateTo location to act as a "staging" aread for hydrated manifests.
+message SourceHydrator {
+  // DrySource specifies where the dry "don't repeat yourself" manifest source lives.
+  optional DrySource drySource = 1;
+
+  // SyncSource specifies where to sync hydrated manifests from.
+  optional SyncSource syncSource = 2;
+
+  // HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
+  // have to move manifests to the SyncSource, e.g. by pull request.
+  optional HydrateTo hydrateTo = 3;
+}
+
+// SourceHydratorStatus contains information about the current state of source hydration
+message SourceHydratorStatus {
+  // LastSuccessfulOperation holds info about the most recent successful hydration
+  optional SuccessfulHydrateOperation lastSuccessfulOperation = 1;
+
+  // CurrentOperation holds the status of the hydrate operation
+  optional HydrateOperation currentOperation = 2;
+}
+
+// SuccessfulHydrateOperation contains information about the most recent successful hydrate operation
+message SuccessfulHydrateOperation {
+  // DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
+  optional string drySHA = 5;
+
+  // HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation
+  optional string hydratedSHA = 6;
+
+  // SourceHydrator holds the hydrator config used for the hydrate operation
+  optional SourceHydrator sourceHydrator = 7;
 }
 
 // SyncOperation contains details about a sync operation.
@@ -2256,6 +2605,9 @@ message SyncOperation {
   // Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
   // If omitted, will use the revision specified in app spec.
   repeated string revisions = 11;
+
+  // SelfHealAttemptsCount contains the number of auto-heal attempts
+  optional int64 autoHealAttemptsCount = 12;
 }
 
 // SyncOperationResource contains resources to sync.
@@ -2315,6 +2667,26 @@ message SyncPolicyAutomated {
 
   // AllowEmpty allows apps have zero live resources (default: false)
   optional bool allowEmpty = 3;
+
+  // Enable allows apps to explicitly control automated sync
+  optional bool enabled = 4;
+}
+
+// SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
+// associated DrySource config in the SourceHydrator.
+message SyncSource {
+  // TargetBranch is the branch from which hydrated manifests will be synced.
+  // If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
+  optional string targetBranch = 1;
+
+  // Path is a directory path within the git repository where hydrated manifests should be committed to and synced
+  // from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
+  // hydrated manifests will be synced.
+  //
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  // +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
+  optional string path = 2;
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application
@@ -2382,6 +2754,12 @@ message SyncWindow {
 
   // TimeZone of the sync that will be applied to the schedule
   optional string timeZone = 8;
+
+  // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
+  optional bool andOperator = 9;
+
+  // Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
+  optional string description = 10;
 }
 
 // TLSClientConfig contains settings to enable transport layer security

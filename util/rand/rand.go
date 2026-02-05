@@ -2,6 +2,7 @@ package rand
 
 import (
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 )
@@ -27,4 +28,13 @@ func StringFromCharset(n int, charset string) (string, error) {
 		b[i] = charset[randIdxInt]
 	}
 	return string(b), nil
+}
+
+// RandHex returns a cryptographically-secure pseudo-random alpha-numeric string of a given length
+func RandHex(n int) (string, error) {
+	bytes := make([]byte, n/2+1) // we need one extra letter to discard
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes)[0:n], nil
 }

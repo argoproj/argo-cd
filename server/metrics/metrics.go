@@ -9,8 +9,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/profile"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/metrics/kubectl"
+	"github.com/argoproj/argo-cd/v3/util/profile"
 )
 
 type MetricsServer struct {
@@ -19,7 +20,8 @@ type MetricsServer struct {
 	redisRequestHistogram    *prometheus.HistogramVec
 	extensionRequestCounter  *prometheus.CounterVec
 	extensionRequestDuration *prometheus.HistogramVec
-	argoVersion              *prometheus.GaugeVec
+	loginRequestCounter      *prometheus.CounterVec
+	PrometheusRegistry       *prometheus.Registry
 }
 
 var (
@@ -53,6 +55,13 @@ var (
 		},
 		[]string{"extension"},
 	)
+	loginRequestCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_login_request_total",
+			Help: "Number of login requests to the Argo CD API server.",
+		},
+		[]string{"status"},
+	)
 	argoVersion = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "argocd_info",
@@ -78,7 +87,11 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 	registry.MustRegister(redisRequestHistogram)
 	registry.MustRegister(extensionRequestCounter)
 	registry.MustRegister(extensionRequestDuration)
+	registry.MustRegister(loginRequestCounter)
 	registry.MustRegister(argoVersion)
+
+	kubectl.RegisterWithClientGo()
+	kubectl.RegisterWithPrometheus(registry)
 
 	return &MetricsServer{
 		Server: &http.Server{
@@ -89,7 +102,8 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 		redisRequestHistogram:    redisRequestHistogram,
 		extensionRequestCounter:  extensionRequestCounter,
 		extensionRequestDuration: extensionRequestDuration,
-		argoVersion:              argoVersion,
+		loginRequestCounter:      loginRequestCounter,
+		PrometheusRegistry:       registry,
 	}
 }
 
@@ -108,4 +122,10 @@ func (m *MetricsServer) IncExtensionRequestCounter(extension string, status int)
 
 func (m *MetricsServer) ObserveExtensionRequestDuration(extension string, duration time.Duration) {
 	m.extensionRequestDuration.WithLabelValues(extension).Observe(duration.Seconds())
+}
+
+// IncLoginRequestCounter increments the login request counter with the given status
+// status can be "success" or "failure"
+func (m *MetricsServer) IncLoginRequestCounter(status string) {
+	m.loginRequestCounter.WithLabelValues(status).Inc()
 }

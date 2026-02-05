@@ -12,7 +12,7 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/util/text"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/yaml"
 )
 
@@ -51,7 +51,7 @@ type legacyServicesConfig struct {
 	Webhook  []legacyWebhookOptions    `json:"webhook"`
 }
 
-func mergePatch(orig interface{}, other interface{}) error {
+func mergePatch(orig any, other any) error {
 	origData, err := json.Marshal(orig)
 	if err != nil {
 		return fmt.Errorf("error marshaling json for original: %w", err)
@@ -88,13 +88,13 @@ func (legacy legacyConfig) merge(cfg *api.Config, context map[string]string) err
 			}
 		}
 		if template.Title != "" {
-			if template.Notification.Email == nil {
-				template.Notification.Email = &services.EmailNotification{}
+			if template.Email == nil {
+				template.Email = &services.EmailNotification{}
 			}
-			template.Notification.Email.Subject = template.Title
+			template.Email.Subject = template.Title
 		}
 		if template.Body != "" {
-			template.Notification.Message = template.Body
+			template.Message = template.Body
 		}
 		cfg.Templates[template.Name] = template.Notification
 	}
@@ -157,7 +157,7 @@ func (c *legacyServicesConfig) merge(cfg *api.Config) {
 }
 
 // ApplyLegacyConfig settings specified using deprecated config map and secret keys
-func ApplyLegacyConfig(cfg *api.Config, context map[string]string, cm *v1.ConfigMap, secret *v1.Secret) error {
+func ApplyLegacyConfig(cfg *api.Config, context map[string]string, cm *corev1.ConfigMap, secret *corev1.Secret) error {
 	if notifiersData, ok := secret.Data["notifiers.yaml"]; ok && len(notifiersData) > 0 {
 		log.Warn("Key 'notifiers.yaml' in Secret is deprecated, please migrate to new settings")
 		legacyServices := &legacyServicesConfig{}
@@ -203,20 +203,21 @@ func GetLegacyDestinations(annotations map[string]string, defaultTriggers []stri
 		}
 
 		for _, recipient := range text.SplitRemoveEmpty(v, ",") {
-			if recipient = strings.TrimSpace(recipient); recipient != "" {
-				parts := strings.Split(recipient, ":")
-				dest := services.Destination{Service: parts[0]}
-				if len(parts) > 1 {
-					dest.Recipient = parts[1]
-				}
+			if recipient = strings.TrimSpace(recipient); recipient == "" {
+				continue
+			}
+			parts := strings.Split(recipient, ":")
+			dest := services.Destination{Service: parts[0]}
+			if len(parts) > 1 {
+				dest.Recipient = parts[1]
+			}
 
-				t := triggerNames
-				if v, ok := serviceDefaultTriggers[dest.Service]; ok {
-					t = v
-				}
-				for _, name := range t {
-					dests[name] = append(dests[name], dest)
-				}
+			t := triggerNames
+			if v, ok := serviceDefaultTriggers[dest.Service]; ok {
+				t = v
+			}
+			for _, name := range t {
+				dests[name] = append(dests[name], dest)
 			}
 		}
 	}

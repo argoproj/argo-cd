@@ -40,12 +40,12 @@ spec:
         - cluster: engineering-prod
           url: https://kubernetes.default.svc
           env: prod
-      selector:
-        matchExpressions:
-          - key: env
-            operator: In
-            values:
-              - staging
+    selector:
+      matchExpressions:
+        - key: env
+          operator: In
+          values:
+            - staging
 ```
 
 Valid `operators` include `In`, `NotIn`, `Exists`, and `DoesNotExist`. The `values` set must be non-empty in the case of `In` and `NotIn`. 

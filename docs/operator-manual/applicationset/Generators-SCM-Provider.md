@@ -19,11 +19,11 @@ spec:
 
 * `cloneProtocol`: Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers necessarily support all protocols, see provider documentation below for available options.
 
-!!! note
-    Know the security implications of using SCM generators. [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets)
-    to avoid leaking Secrets, and [only admins may create repos/branches](./Security.md#templated-project-field) if the
-    `project` field of an ApplicationSet with an SCM generator is templated, to avoid granting management of
-    out-of-bounds resources.
+> [!NOTE]
+> Know the security implications of using SCM generators. [Only admins may create ApplicationSets](./Security.md#only-admins-may-createupdatedelete-applicationsets)
+> to avoid leaking Secrets, and [only admins may create repos/branches](./Security.md#templated-project-field) if the
+> `project` field of an ApplicationSet with an SCM generator is templated, to avoid granting management of
+> out-of-bounds resources.
 
 ## GitHub
 
@@ -221,7 +221,7 @@ If you want to access a private repository, you must also provide the credential
 In case of Bitbucket App Token, go with `bearerToken` section.
 * `tokenRef`: A `Secret` name and key containing the app token to use for requests.
 
-In case self-signed BitBucket Server certificates, the following options can be usefully:
+In case of self-signed BitBucket Server certificates, the following options can be useful:
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 * `caRef`: Optional `ConfigMap` name and key containing the BitBucket server certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
@@ -442,6 +442,7 @@ spec:
 
 * `organization`: The name of the organization the repository is in.
 * `repository`: The name of the repository.
+* `repository_id`: The id of the repository.
 * `url`: The clone URL for the repository.
 * `branch`: The default branch of the repository.
 * `sha`: The Git commit SHA for the branch.
@@ -491,7 +492,7 @@ spec:
         namespace: default
 ```
 
-!!! note
-    The `values.` prefix is always prepended to values provided via `generators.scmProvider.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+> [!NOTE]
+> The `values.` prefix is always prepended to values provided via `generators.scmProvider.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
 
 In `values` we can also interpolate all fields set by the SCM generator as mentioned above.

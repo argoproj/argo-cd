@@ -14,9 +14,9 @@ version: 0.0.0`
 
 	cd, err := getChartDetails(chart1)
 	require.NoError(t, err)
-	assert.Equal(t, "", cd.Description)
+	assert.Empty(t, cd.Description)
 	assert.Equal(t, cd.Maintainers, []string(nil))
-	assert.Equal(t, "", cd.Home)
+	assert.Empty(t, cd.Home)
 }
 
 func Test_getChartDetailsSet(t *testing.T) {

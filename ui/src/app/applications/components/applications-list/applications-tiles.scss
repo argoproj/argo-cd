@@ -13,6 +13,10 @@
     &__item {
         display: flex;
         flex-direction: column;
+        &__small {
+            font-size: 14px;
+            margin-bottom: 3px;
+        }
     }
 
     &__actions {
@@ -25,5 +29,50 @@
     }
     &__selected {
         box-shadow: 0 0 0 1px $argo-color-teal-5;
+    }
+
+    .applications-list__title {
+        white-space: normal !important;
+        word-break: break-word; 
+        overflow-wrap: break-word; 
+        hyphens: auto; 
+        line-height: 1.4; 
+        width: 100%; 
+    }
+}
+
+.columns:has(> .argo-icon-git), .columns:has(> .argo-icon-helm) {
+    display: flex;
+    align-items: center;
+}
+
+@media screen and (min-width: calc(map-get($breakpoints, xxlarge) - 1px)) {
+    .custom-tooltip {
+        display: none !important;
+    }
+}
+
+.applications-list__external-link {
+    align-items: center;
+    display: flex;
+    
+    button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        margin: 0;
+        color: inherit;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        
+        &:hover {
+            color: $argo-color-teal-5;
+        }
+        
+        i {
+            font-size: 14px;
+        }
     }
 }

@@ -1,0 +1,11 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: cmp-gitsshcreds
+spec:
+  version: v1.0
+  generate:
+    command: ["sh", "generate.sh"]
+  discover:
+    fileName: "subdir/s*.yaml"
+  provideGitCreds: true

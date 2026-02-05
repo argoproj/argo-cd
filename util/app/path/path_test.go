@@ -9,9 +9,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	fileutil "github.com/argoproj/argo-cd/v2/test/fixture/path"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	fileutil "github.com/argoproj/argo-cd/v3/test/fixture/path"
 )
 
 func TestPathRoot(t *testing.T) {
@@ -86,129 +87,118 @@ func TestBadSymlinks3(t *testing.T) {
 // No absolute symlinks allowed
 func TestAbsSymlink(t *testing.T) {
 	const testDir = "./testdata/abslink"
-	require.NoError(t, fileutil.CreateSymlink(t, testDir, "/somethingbad", "abslink"))
-	defer os.Remove(path.Join(testDir, "abslink"))
-	err := CheckOutOfBoundsSymlinks(testDir)
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		os.Remove(path.Join(testDir, "abslink"))
+	})
+	t.Chdir(testDir)
+	require.NoError(t, fileutil.CreateSymlink(t, "/somethingbad", "abslink"))
+	t.Chdir(wd)
+	err = CheckOutOfBoundsSymlinks(testDir)
 	var oobError *OutOfBoundsSymlinkError
 	require.ErrorAs(t, err, &oobError)
 	assert.Equal(t, "abslink", oobError.File)
 }
 
-func getApp(annotation string, sourcePath string) *v1alpha1.Application {
-	return &v1alpha1.Application{
+func getApp(annotation *string, sourcePath *string) *v1alpha1.Application {
+	app := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				v1alpha1.AnnotationKeyManifestGeneratePaths: annotation,
-			},
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Source: &v1alpha1.ApplicationSource{
-				Path: sourcePath,
-			},
+			Name: "test-app",
 		},
 	}
+	if annotation != nil {
+		app.Annotations = make(map[string]string)
+		app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths] = *annotation
+	}
+
+	if sourcePath != nil {
+		app.Spec.Source = &v1alpha1.ApplicationSource{
+			Path: *sourcePath,
+		}
+	}
+
+	return app
 }
 
-func getMultiSourceApp(annotation string, paths ...string) *v1alpha1.Application {
-	var sources v1alpha1.ApplicationSources
-	for _, path := range paths {
-		sources = append(sources, v1alpha1.ApplicationSource{Path: path})
-	}
-	return &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				v1alpha1.AnnotationKeyManifestGeneratePaths: annotation,
-			},
+func getSourceHydratorApp(annotation *string, drySourcePath string, syncSourcePath string) *v1alpha1.Application {
+	app := getApp(annotation, nil)
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			Path: drySourcePath,
 		},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: sources,
+		SyncSource: v1alpha1.SyncSource{
+			Path: syncSourcePath,
 		},
 	}
-}
 
-func Test_AppFilesHaveChanged(t *testing.T) {
-	tests := []struct {
-		name           string
-		app            *v1alpha1.Application
-		files          []string
-		changeExpected bool
-	}{
-		{"default no path", &v1alpha1.Application{}, []string{"README.md"}, true},
-		{"no files changed", getApp(".", "source/path"), []string{}, true},
-		{"relative path - matching", getApp(".", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"relative path, multi source - matching #1", getMultiSourceApp(".", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"relative path, multi source - matching #2", getMultiSourceApp(".", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"relative path - not matching", getApp(".", "source/path"), []string{"README.md"}, false},
-		{"relative path, multi source - not matching", getMultiSourceApp(".", "other/path", "unrelated/path"), []string{"README.md"}, false},
-		{"absolute path - matching", getApp("/source/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"absolute path, multi source - matching #1", getMultiSourceApp("/source/path", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"absolute path, multi source - matching #2", getMultiSourceApp("/source/path", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"absolute path - not matching", getApp("/source/path1", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
-		{"absolute path, multi source - not matching", getMultiSourceApp("/source/path1", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
-		{"glob path * - matching", getApp("/source/**/my-deployment.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"glob path * - not matching", getApp("/source/**/my-service.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
-		{"glob path ? - matching", getApp("/source/path/my-deployment-?.yaml", "source/path"), []string{"source/path/my-deployment-0.yaml"}, true},
-		{"glob path ? - not matching", getApp("/source/path/my-deployment-?.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
-		{"glob path char range - matching", getApp("/source/path[0-9]/my-deployment.yaml", "source/path"), []string{"source/path1/my-deployment.yaml"}, true},
-		{"glob path char range - not matching", getApp("/source/path[0-9]/my-deployment.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
-		{"mixed glob path - matching", getApp("/source/path[0-9]/my-*.yaml", "source/path"), []string{"source/path1/my-deployment.yaml"}, true},
-		{"mixed glob path - not matching", getApp("/source/path[0-9]/my-*.yaml", "source/path"), []string{"README.md"}, false},
-		{"two relative paths - matching", getApp(".;../shared", "my-app"), []string{"shared/my-deployment.yaml"}, true},
-		{"two relative paths, multi source - matching #1", getMultiSourceApp(".;../shared", "my-app", "other/path"), []string{"shared/my-deployment.yaml"}, true},
-		{"two relative paths, multi source - matching #2", getMultiSourceApp(".;../shared", "my-app", "other/path"), []string{"shared/my-deployment.yaml"}, true},
-		{"two relative paths - not matching", getApp(".;../shared", "my-app"), []string{"README.md"}, false},
-		{"two relative paths, multi source - not matching", getMultiSourceApp(".;../shared", "my-app", "other/path"), []string{"README.md"}, false},
-		{"file relative path - matching", getApp("./my-deployment.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file relative path, multi source - matching #1", getMultiSourceApp("./my-deployment.yaml", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file relative path, multi source - matching #2", getMultiSourceApp("./my-deployment.yaml", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file relative path - not matching", getApp("./my-deployment.yaml", "source/path"), []string{"README.md"}, false},
-		{"file relative path, multi source - not matching", getMultiSourceApp("./my-deployment.yaml", "source/path", "other/path"), []string{"README.md"}, false},
-		{"file absolute path - matching", getApp("/source/path/my-deployment.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file absolute path, multi source - matching #1", getMultiSourceApp("/source/path/my-deployment.yaml", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file absolute path, multi source - matching #2", getMultiSourceApp("/source/path/my-deployment.yaml", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
-		{"file absolute path - not matching", getApp("/source/path1/README.md", "source/path"), []string{"source/path/my-deployment.yaml"}, false},
-		{"file absolute path, multi source - not matching", getMultiSourceApp("/source/path1/README.md", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, false},
-		{"file two relative paths - matching", getApp("./README.md;../shared/my-deployment.yaml", "my-app"), []string{"shared/my-deployment.yaml"}, true},
-		{"file two relative paths, multi source - matching", getMultiSourceApp("./README.md;../shared/my-deployment.yaml", "my-app", "other-path"), []string{"shared/my-deployment.yaml"}, true},
-		{"file two relative paths - not matching", getApp(".README.md;../shared/my-deployment.yaml", "my-app"), []string{"kustomization.yaml"}, false},
-		{"file two relative paths, multi source - not matching", getMultiSourceApp(".README.md;../shared/my-deployment.yaml", "my-app", "other-path"), []string{"kustomization.yaml"}, false},
-		{"changed file absolute path - matching", getApp(".", "source/path"), []string{"/source/path/my-deployment.yaml"}, true},
-	}
-	for _, tt := range tests {
-		ttc := tt
-		t.Run(ttc.name, func(t *testing.T) {
-			t.Parallel()
-			refreshPaths := GetAppRefreshPaths(ttc.app)
-			if got := AppFilesHaveChanged(refreshPaths, ttc.files); got != ttc.changeExpected {
-				t.Errorf("AppFilesHaveChanged() = %v, want %v", got, ttc.changeExpected)
-			}
-		})
-	}
+	return app
 }
 
 func Test_GetAppRefreshPaths(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name          string
 		app           *v1alpha1.Application
+		source        v1alpha1.ApplicationSource
 		expectedPaths []string
 	}{
-		{"default no path", &v1alpha1.Application{}, []string{}},
-		{"relative path", getApp(".", "source/path"), []string{"source/path"}},
-		{"absolute path - multi source", getMultiSourceApp("/source/path", "source/path", "other/path"), []string{"source/path"}},
-		{"two relative paths ", getApp(".;../shared", "my-app"), []string{"my-app", "shared"}},
-		{"file relative path", getApp("./my-deployment.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}},
-		{"file absolute path", getApp("/source/path/my-deployment.yaml", "source/path"), []string{"source/path/my-deployment.yaml"}},
-		{"file two relative paths", getApp("./README.md;../shared/my-deployment.yaml", "my-app"), []string{"my-app/README.md", "shared/my-deployment.yaml"}},
-		{"glob path", getApp("/source/*/my-deployment.yaml", "source/path"), []string{"source/*/my-deployment.yaml"}},
-		{"empty path", getApp(".;", "source/path"), []string{"source/path"}},
+		{
+			name:          "single source without annotation",
+			app:           getApp(nil, ptr.To("source/path")),
+			source:        v1alpha1.ApplicationSource{Path: "source/path"},
+			expectedPaths: []string{},
+		},
+		{
+			name:          "single source with annotation",
+			app:           getApp(ptr.To(".;dev/deploy;other/path"), ptr.To("source/path")),
+			source:        v1alpha1.ApplicationSource{Path: "source/path"},
+			expectedPaths: []string{"source/path", "source/path/dev/deploy", "source/path/other/path"},
+		},
+		{
+			name:          "single source with empty annotation",
+			app:           getApp(ptr.To(".;;"), ptr.To("source/path")),
+			source:        v1alpha1.ApplicationSource{Path: "source/path"},
+			expectedPaths: []string{"source/path"},
+		},
+		{
+			name:          "single source with absolute path annotation",
+			app:           getApp(ptr.To("/fullpath/deploy;other/path"), ptr.To("source/path")),
+			source:        v1alpha1.ApplicationSource{Path: "source/path"},
+			expectedPaths: []string{"fullpath/deploy", "source/path/other/path"},
+		},
+		{
+			name:          "source hydrator sync source without annotation",
+			app:           getSourceHydratorApp(nil, "dry/path", "sync/path"),
+			source:        v1alpha1.ApplicationSource{Path: "sync/path"},
+			expectedPaths: []string{"sync/path"},
+		},
+		{
+			name:          "source hydrator dry source without annotation",
+			app:           getSourceHydratorApp(nil, "dry/path", "sync/path"),
+			source:        v1alpha1.ApplicationSource{Path: "dry/path"},
+			expectedPaths: []string{},
+		},
+		{
+			name:          "source hydrator sync source with annotation",
+			app:           getSourceHydratorApp(ptr.To("deploy"), "dry/path", "sync/path"),
+			source:        v1alpha1.ApplicationSource{Path: "sync/path"},
+			expectedPaths: []string{"sync/path"},
+		},
+		{
+			name:          "source hydrator dry source with annotation",
+			app:           getSourceHydratorApp(ptr.To("deploy"), "dry/path", "sync/path"),
+			source:        v1alpha1.ApplicationSource{Path: "dry/path"},
+			expectedPaths: []string{"dry/path/deploy"},
+		},
 	}
+
 	for _, tt := range tests {
 		ttc := tt
 		t.Run(ttc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := GetAppRefreshPaths(ttc.app); !assert.ElementsMatch(t, ttc.expectedPaths, got) {
-				t.Errorf("GetAppRefreshPath() = %v, want %v", got, ttc.expectedPaths)
-			}
+			assert.ElementsMatch(t, ttc.expectedPaths, GetSourceRefreshPaths(ttc.app, ttc.source), "GetAppRefreshPath()")
 		})
 	}
 }
