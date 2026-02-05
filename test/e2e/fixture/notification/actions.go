@@ -19,19 +19,19 @@ type Actions struct {
 }
 
 func (a *Actions) SetParamInNotificationConfigMap(key, value string) *Actions {
-	a.context.t.Helper()
-	require.NoError(a.context.t, fixture.SetParamInNotificationsConfigMap(key, value))
+	a.context.T().Helper()
+	require.NoError(a.context.T(), fixture.SetParamInNotificationsConfigMap(key, value))
 	return a
 }
 
 func (a *Actions) Then() *Consequences {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }
 
 func (a *Actions) Healthcheck() *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	_, err := fixture.DoHttpRequest("GET",
 		"/metrics",
 		fixture.GetNotificationServerAddress())

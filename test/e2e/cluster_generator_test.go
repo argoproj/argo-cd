@@ -50,9 +50,6 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
 		CreateNamespace(externalNamespace).
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -148,9 +145,6 @@ func TestSimpleClusterGenerator(t *testing.T) {
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -273,9 +267,6 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 				// Create a ClusterGenerator-based ApplicationSet
 				When().
 				Create(v1alpha1.ApplicationSet{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "in-cluster-generator",
-					},
 					Spec: v1alpha1.ApplicationSetSpec{
 						Template: v1alpha1.ApplicationSetTemplate{
 							ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -364,9 +355,6 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -447,9 +435,6 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc").
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -540,9 +525,6 @@ func TestClusterGeneratorWithFlatListMode(t *testing.T) {
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
