@@ -514,6 +514,12 @@ func TestSync_ApplyOutOfSyncOnly(t *testing.T) {
 			Target: []*unstructured.Unstructured{pod1, nil, pod3},
 		})
 
+		fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
+		fakeDynamicClient.PrependReactor("get", "pods", func(action testcore.Action) (bool, runtime.Object, error) {
+			return true, pod1, nil
+		})
+		syncCtx.dynamicIf = fakeDynamicClient
+
 		syncCtx.Sync()
 		phase, _, resources := syncCtx.GetState()
 		assert.Equal(t, synccommon.OperationRunning, phase)
@@ -1902,6 +1908,9 @@ func TestSync_SyncWaveHook(t *testing.T) {
 		Target: []*unstructured.Unstructured{pod1, pod2},
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{pod3}
+
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
+	syncCtx.dynamicIf = fakeDynamicClient
 
 	called := false
 	syncCtx.syncWaveHook = func(phase synccommon.SyncPhase, wave int, final bool) error {
