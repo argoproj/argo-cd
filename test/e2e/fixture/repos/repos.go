@@ -320,23 +320,16 @@ func PushImageToAuthenticatedOCIRegistry(t *testing.T, pathName, tag string) {
 	))
 }
 
-// AddHTTPSWriteCredentials adds write credentials for an HTTPS repository.
+// AddWriteCredentials adds write credentials for a repository.
 // Write credentials are used by the commit-server to push hydrated manifests back to the repository.
 // TODO: add CLI support for managing write credentials and use that here instead.
-func AddHTTPSWriteCredentials(t *testing.T, insecure bool, repoURLType fixture.RepoURLType) {
+func AddWriteCredentials(t *testing.T, name string, insecure bool, repoURLType fixture.RepoURLType) {
 	t.Helper()
 	repoURL := fixture.RepoURL(repoURLType)
 
 	// Create a Kubernetes secret with the repository-write label
 	// Replace invalid characters for secret name
-	secretName := "write-creds-" + fixture.Name()
-
-	// Delete existing secret if it exists (ignore error if not found)
-	_ = fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Delete(
-		context.Background(),
-		secretName,
-		metav1.DeleteOptions{},
-	)
+	secretName := "write-creds-" + name
 
 	_, err := fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Create(
 		context.Background(),

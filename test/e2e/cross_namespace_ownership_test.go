@@ -23,7 +23,8 @@ import (
 func TestCrossNamespaceOwnership(t *testing.T) {
 	var clusterRoleUID string
 
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("cross-namespace-ownership").
 		When().
 		CreateApp().
@@ -54,14 +55,14 @@ metadata:
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
-  verbs: ["get", "list"]`, DeploymentNamespace(), clusterRoleUID)
+  verbs: ["get", "list"]`, ctx.DeploymentNamespace(), clusterRoleUID)
 
 			_, err := Run("", "sh", "-c", fmt.Sprintf("echo '%s' | kubectl apply -f -", roleYaml))
 			require.NoError(t, err)
-			t.Logf("Created Role in app namespace: %s", DeploymentNamespace())
+			t.Logf("Created Role in app namespace: %s", ctx.DeploymentNamespace())
 
 			// Create another namespace for cross-namespace testing
-			otherNamespace := DeploymentNamespace() + "-other"
+			otherNamespace := ctx.DeploymentNamespace() + "-other"
 			_, err = Run("", "kubectl", "create", "namespace", otherNamespace)
 			if err != nil {
 				// Namespace might already exist, that's ok
@@ -185,7 +186,8 @@ rules:
 func TestCrossNamespaceOwnershipWithRefresh(t *testing.T) {
 	var clusterRoleUID string
 
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("cross-namespace-ownership").
 		When().
 		CreateApp().
@@ -215,7 +217,7 @@ metadata:
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
-  verbs: ["get", "list"]`, DeploymentNamespace(), clusterRoleUID)
+  verbs: ["get", "list"]`, ctx.DeploymentNamespace(), clusterRoleUID)
 
 			_, err := Run("", "sh", "-c", fmt.Sprintf("echo '%s' | kubectl apply -f -", roleYaml))
 			require.NoError(t, err)
