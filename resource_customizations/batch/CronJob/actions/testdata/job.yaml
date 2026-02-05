@@ -26,6 +26,17 @@
           annotations:
             pod: annotation
         spec:
+          affinity:
+            podAntiAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                  - key: key
+                    operator: In
+                    values:
+                    - value
+                namespaceSelector: {}
+                topologyKey: kubernetes.io/hostname
           containers:
             - name: hello
               image: busybox:1.28
