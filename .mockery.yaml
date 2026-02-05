@@ -1,6 +1,5 @@
 dir: '{{.InterfaceDir}}/mocks'
 filename: '{{.InterfaceName}}.go'
-include-auto-generated: true # Needed since mockery 3.6.1
 packages:
   github.com/argoproj/argo-cd/v3/applicationset/generators:
     interfaces:
