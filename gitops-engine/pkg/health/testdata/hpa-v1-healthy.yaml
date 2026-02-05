@@ -1,18 +1,19 @@
-apiVersion: autoscaling/v1
 kind: HorizontalPodAutoscaler
+apiVersion: autoscaling/v1
 metadata:
-  annotations:
-    autoscaling.alpha.kubernetes.io/conditions: '[{"type":"AbleToScale","status":"True","lastTransitionTime":"2020-11-23T19:38:38Z","reason":"ReadyForNewScale","message":"recommended size matches current size"},{"type":"ScalingActive","status":"True","lastTransitionTime":"2020-11-23T19:38:38Z","reason":"ValidMetricFound","message":"the HPA was able to successfully calculate a replica count from cpu resource utilization"}]'
   name: sample
   namespace: argocd
+  annotations:
+    autoscaling.alpha.kubernetes.io/conditions: '[{"type":"AbleToScale","status":"True","lastTransitionTime":"2026-02-05T14:13:42Z","reason":"ScaleDownStabilized","message":"recent recommendations were higher than current one, applying the highest recent recommendation"},{"type":"ScalingActive","status":"True","lastTransitionTime":"2026-02-05T14:13:42Z","reason":"ValidMetricFound","message":"the HPA was able to successfully calculate a replica count from cpu resource utilization (percentage of request)"},{"type":"ScalingLimited","status":"False","lastTransitionTime":"2026-02-05T14:13:42Z","reason":"DesiredWithinRange","message":"the desired count is within the acceptable range"}]'
 spec:
-  maxReplicas: 2
-  minReplicas: 1
   scaleTargetRef:
-    apiVersion: apps/v1
     kind: Deployment
     name: sample
+    apiVersion: apps/v1
+  minReplicas: 1
+  maxReplicas: 2
   targetCPUUtilizationPercentage: 80
 status:
-  currentReplicas: 2
-  desiredReplicas: 2
+  currentReplicas: 1
+  desiredReplicas: 1
+  currentCPUUtilizationPercentage: 0
