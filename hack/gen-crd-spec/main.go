@@ -75,7 +75,7 @@ func deleteFile(path string) {
 
 func removeValidation(un *unstructured.Unstructured, path string) {
 	schemaPath := []string{"spec", "versions[*]", "schema", "openAPIV3Schema"}
-	for _, part := range strings.Split(path, ".") {
+	for part := range strings.SplitSeq(path, ".") {
 		schemaPath = append(schemaPath, "properties", part)
 	}
 	unstructured.RemoveNestedField(un.Object, schemaPath...)
