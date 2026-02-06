@@ -521,14 +521,17 @@ func (sc *syncContext) Sync() {
 				liveObj, err := sc.getResource(task)
 				if err != nil && !apierrors.IsNotFound(err) {
 					sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("Failed to get live resource %v", err))
+					continue
 				}
 				if liveObj != nil {
 					task.liveObj = liveObj
 					continue
 				}
 
-				sc.setResourceResult(task, common.ResultCodeSyncFailed, common.OperationError, fmt.Sprintf("Resource %s/%s/%s is missing, it might have been deleted", task.group(), task.kind(), task.name()))
-				return
+				if result, ok := sc.syncRes[task.resultKey()]; ok && result.Status == common.ResultCodeSynced {
+					sc.setResourceResult(task, common.ResultCodeSyncFailed, common.OperationError, fmt.Sprintf("Resource %s/%s/%s is missing, it might have been deleted", task.group(), task.kind(), task.name()))
+					continue
+				}
 			}
 		}
 

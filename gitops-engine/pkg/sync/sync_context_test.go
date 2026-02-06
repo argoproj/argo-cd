@@ -348,6 +348,102 @@ func TestSyncSuccessfully_Multistep(t *testing.T) {
 	assert.Len(t, resources, 2)
 }
 
+func TestSync_MultistepResourceDeletionMidstep(t *testing.T) {
+	pod1 := testingutils.NewPod()
+	pod1.SetName("pod-1")
+	pod1.SetNamespace("fake-argocd-ns")
+	pod1.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "1"})
+	pod2 := testingutils.NewPod()
+	pod2.SetName("pod-2")
+	pod2.SetNamespace("fake-argocd-ns")
+	pod2.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "2"})
+
+	tests := []struct {
+		name              string
+		resourcesStart    map[kube.ResourceKey]reconciledResource
+		resourcesChange   map[kube.ResourceKey]reconciledResource
+		statusExpected    synccommon.ResultCode
+		hookPhaseExpected synccommon.OperationPhase
+		clientGet         bool
+	}{
+		{
+			name: "resource deleted during multistep",
+			resourcesStart: groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{pod1, pod2},
+				Target: []*unstructured.Unstructured{pod1, pod2},
+			}),
+			resourcesChange: groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{nil, pod2},
+				Target: []*unstructured.Unstructured{pod1, pod2},
+			}),
+			statusExpected:    synccommon.ResultCodeSyncFailed,
+			hookPhaseExpected: synccommon.OperationError,
+			clientGet:         false,
+		},
+		{
+			name: "no false positive on resource creation",
+			resourcesStart: groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{nil, pod2},
+				Target: []*unstructured.Unstructured{pod1, pod2},
+			}),
+			resourcesChange: groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{pod1, pod2},
+				Target: []*unstructured.Unstructured{pod1, pod2},
+			}),
+			statusExpected:    synccommon.ResultCodeSynced,
+			hookPhaseExpected: synccommon.OperationRunning,
+			clientGet:         false,
+		},
+		{
+			name: "resource created after task sync started",
+			resourcesStart: groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{nil, pod2},
+				Target: []*unstructured.Unstructured{pod1, pod2},
+			}),
+			resourcesChange: groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{nil, pod2},
+				Target: []*unstructured.Unstructured{pod1, pod2},
+			}),
+			statusExpected:    synccommon.ResultCodeSynced,
+			hookPhaseExpected: synccommon.OperationRunning,
+			clientGet:         true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			syncCtx := newTestSyncCtx(nil, WithResourceModificationChecker(true, diffResultList()))
+			syncCtx.resources = tt.resourcesStart
+
+			fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
+			if tt.clientGet {
+				fakeDynamicClient.PrependReactor("get", "pods", func(action testcore.Action) (bool, runtime.Object, error) {
+					return true, pod1, nil
+				})
+			}
+			syncCtx.dynamicIf = fakeDynamicClient
+
+			syncCtx.Sync()
+			phase, _, resources := syncCtx.GetState()
+			assert.Len(t, resources, 1)
+			assert.Equal(t, "pod-1", resources[0].ResourceKey.Name)
+			assert.Equal(t, synccommon.OperationRunning, phase)
+			assert.Equal(t, synccommon.ResultCodeSynced, resources[0].Status)
+			assert.Equal(t, synccommon.OperationRunning, resources[0].HookPhase)
+
+			syncCtx.resources = tt.resourcesChange
+
+			syncCtx.Sync()
+			phase, _, resources = syncCtx.GetState()
+			assert.Equal(t, synccommon.OperationRunning, phase)
+			assert.Len(t, resources, 1)
+			assert.Equal(t, "pod-1", resources[0].ResourceKey.Name)
+			assert.Equal(t, tt.statusExpected, resources[0].Status)
+			assert.Equal(t, tt.hookPhaseExpected, resources[0].HookPhase)
+		})
+	}
+}
+
 func TestSyncDeleteSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
 	svc := testingutils.NewService()
