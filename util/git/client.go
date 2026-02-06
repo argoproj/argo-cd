@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -613,8 +614,15 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
 		res, err = m.lsRemote(revision)
 		if err == nil {
+			log.Debugf("no error when doing ls remote")
 			return
-		} else if apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
+		}
+		log.Debugf("error when doing ls remote is context deadline?: %v", errors.Is(err, context.DeadlineExceeded))
+		log.Debugf("error when doing ls remote: %v", err)
+		log.Debugf("error string when doing ls remote: %s", err.Error())
+		log.Debugf("error type when doing ls remote: %T", err)
+		log.Debugf("is error context deadline exceeded type when doing ls remote: %s", strings.Contains(err.Error(), "context deadline exceeded"))
+		if strings.Contains(err.Error(), "context deadline exceeded") || apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
 			apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err) {
 			// Formula: timeToWait = duration * factor^retry_number
 			// Note that timeToWait should equal to duration for the first retry attempt.
