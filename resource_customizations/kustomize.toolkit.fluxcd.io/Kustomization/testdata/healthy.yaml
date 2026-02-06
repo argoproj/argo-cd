@@ -1,0 +1,30 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 10m
+  targetNamespace: default
+  sourceRef:
+    kind: GitRepository
+    name: podinfo
+  path: "./kustomize"
+  prune: true
+  timeout: 1m
+status:
+  conditions:
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: Helm install succeeded for release default/podinfo.v1 with
+      chart podinfo@6.5.4
+    observedGeneration: 2
+    reason: InstallSucceeded
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: Helm install succeeded for release default/podinfo.v1 with
+      chart podinfo@6.5.4
+    observedGeneration: 1
+    reason: InstallSucceeded
+    status: "True"
+    type: Released

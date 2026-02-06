@@ -1,0 +1,72 @@
+@import 'node_modules/argo-ui/src/styles/theme';
+
+.propagation-policy-list {
+    display: flex;
+    justify-content: left;
+}
+
+.propagation-policy-option {
+    display: flex;
+    align-items: center;
+    padding-right: 2em;
+
+    label {
+        font-size: 15px;
+        cursor: pointer;
+
+        @include themify($themes) {
+            color: themed('light-argo-gray-6');        
+        }
+    }
+
+    input {
+        cursor: pointer;
+    }
+}
+
+.radio-button {
+    margin-right: 0.1em;       
+}
+
+i.utils-health-status-icon {
+    min-width: 13px;
+    text-align: center;
+}
+
+.status-button {
+    display: inline;
+    border-radius: 5px;
+    vertical-align: middle;
+    padding: 2px;
+    border: 1px solid $argo-color-gray-5;
+    &:hover {
+        background-color: $argo-color-gray-4;
+    }
+}
+
+.icon.spin {
+    animation: spin 2s linear infinite; 
+    width: 0.5em;
+    height: 0.5em;
+    vertical-align: -0.05em;
+    overflow: visible;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.delete-dialog-icon {
+    &.warning {
+        color: #f4c030;
+    }
+    
+    &.info {
+        color: #0DADEA;
+    }
+}

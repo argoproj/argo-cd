@@ -1,0 +1,46 @@
+# This example demonstrates the git directory generator, which produces an items list 
+# based on discovery of directories in a git repo matching a specified pattern.
+# Git generators automatically provide {{path}} and {{path.basename}} as available
+# variables to the app template.
+#
+# Suppose the following git directory structure (note the use of different config tools):
+#
+# cluster-deployments
+# └── add-ons
+#     ├── argo-rollouts
+#     │   ├── all.yaml
+#     │   └── kustomization.yaml
+#     ├── argo-workflows
+#     │   └── install.yaml
+#     ├── grafana
+#     │   ├── Chart.yaml
+#     │   └── values.yaml
+#     └── prometheus-operator
+#         ├── Chart.yaml
+#         └── values.yaml
+#
+# The following ApplicationSet would produce four applications (in different namespaces),
+# using the directory basename as both the namespace and application name. 
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-addons
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - git:
+      repoURL: https://github.com/infra-team/cluster-deployments.git
+      directories:
+      - path: add-ons/*
+  template:
+    metadata:
+      name: '{{.path.basename}}'
+    spec:
+      source:
+        repoURL: https://github.com/infra-team/cluster-deployments.git
+        targetRevision: HEAD
+        path: '{{.path.path}}'
+      destination:
+        server: http://kubernetes.default.svc
+        namespace: '{{.path.basename}}'

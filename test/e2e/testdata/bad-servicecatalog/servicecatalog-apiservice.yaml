@@ -1,0 +1,13 @@
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1beta1.servicecatalog.k8s.io
+spec:
+  caBundle: null
+  group: servicecatalog.k8s.io
+  groupPriorityMinimum: 10000
+  service:
+    name: service-catalog-apiserver
+    namespace: default
+  version: v1beta1
+  versionPriority: 20

@@ -1,0 +1,3 @@
+resources:
+- servicecatalog-apiservice.yaml
+- servicecatalog-svc.yaml

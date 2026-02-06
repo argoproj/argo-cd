@@ -1,0 +1,19 @@
+ignore:
+- "**/*.pb.go"
+- "**/*.pb.gw.go"
+- "**/*generated.go"
+- "**/*generated.deepcopy.go"
+- "**/*_test.go"
+- "pkg/apis/client/.*"
+- "pkg/client/.*"
+- "vendor/.*"
+- "test/.*"
+- "**/mocks/*"
+coverage:
+  status:
+    # we've found this not to be useful
+    patch: off
+    project:
+      default:
+        # allow test coverage to drop by 2%, assume that it's typically due to CI problems
+        threshold: 2

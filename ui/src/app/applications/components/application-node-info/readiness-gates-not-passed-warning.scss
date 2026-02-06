@@ -1,0 +1,12 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.white-box {
+    &__readiness-gates-alert {
+        padding: 20px;
+        border-left: 6px solid $argo-status-warning-color !important;
+
+        ul {
+            margin-bottom: 0;
+        }
+    }
+}

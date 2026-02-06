@@ -1,0 +1,61 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  name: example-experiment
+  namespace: argo-rollouts
+spec:
+  duration: 60
+  templates:
+    - name: baseline
+      selector:
+        matchLabels:
+          app: rollouts-demo
+          color: blue
+      template:
+        metadata:
+          labels:
+            app: rollouts-demo
+            color: blue
+        spec:
+          containers:
+            - image: 'argoproj/rollouts-demo:blue'
+              name: guestbook
+    - name: canary
+      selector:
+        matchLabels:
+          app: rollouts-demo
+          color: yellow
+      template:
+        metadata:
+          labels:
+            app: rollouts-demo
+            color: yellow
+        spec:
+          containers:
+            - image: 'argoproj/rollouts-demo:yellow'
+              name: guestbook
+status:
+  availableAt: '2019-10-28T20:15:02Z'
+  conditions:
+    - lastTransitionTime: '2019-10-28T20:20:54Z'
+      lastUpdateTime: '2019-10-28T20:20:54Z'
+      message: Experiment "example-experiment" has successfully ran and completed.
+      reason: ExperimentCompleted
+      phase: 'False'
+      type: Progressing
+  phase: Successful
+  templateStatuses:
+    - availableReplicas: 1
+      lastTransitionTime: '2019-10-28T20:15:02Z'
+      name: baseline
+      readyReplicas: 1
+      replicas: 1
+      phase: Successful
+      updatedReplicas: 1
+    - availableReplicas: 1
+      lastTransitionTime: '2019-10-28T20:15:01Z'
+      name: canary
+      readyReplicas: 1
+      replicas: 1
+      phase: Successful
+      updatedReplicas: 1

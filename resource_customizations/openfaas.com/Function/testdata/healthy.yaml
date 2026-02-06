@@ -1,0 +1,36 @@
+apiVersion: openfaas.com/v1
+kind: Function
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"openfaas.com/v1","kind":"Function","metadata":{"annotations":{},"name":"env","namespace":"openfaas-fn"},"spec":{"annotations":{},"environment":{"fprocess":"env","test":"yes"},"image":"ghcr.io/openfaas/alpine:latest","labels":{},"name":"env"}}
+  creationTimestamp: "2024-04-29T13:38:50Z"
+  generation: 1
+  name: env
+  namespace: openfaas-fn
+  resourceVersion: "580323"
+  uid: 865f74b9-cbc5-455a-abd7-4a1cdeae22d1
+spec:
+  annotations: {}
+  environment:
+    fprocess: env
+    test: "yes"
+  image: ghcr.io/openfaas/alpine:latest
+  labels: {}
+  name: env
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2024-04-29T13:38:50Z"
+    message: Deployment and service reconciled
+    observedGeneration: 1
+    reason: Ready
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2024-04-29T13:38:53Z"
+    message: At least one replica available
+    observedGeneration: 1
+    reason: ReplicaAvailable
+    status: "True"
+    type: Healthy
+  replicas: 1

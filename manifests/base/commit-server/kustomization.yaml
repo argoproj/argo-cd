@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- argocd-commit-server-sa.yaml
+- argocd-commit-server-deployment.yaml
+- argocd-commit-server-service.yaml
+- argocd-commit-server-network-policy.yaml
+
+# Because commit-server is added as a resource outside the base, we have to explicitly set the image override here.
+# If/when commit-server is added to the base, this can be removed.
+images:
+- name: quay.io/argoproj/argocd
+  newName: quay.io/argoproj/argocd
+  newTag: latest

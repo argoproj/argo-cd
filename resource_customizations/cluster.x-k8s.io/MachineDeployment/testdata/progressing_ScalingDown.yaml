@@ -1,0 +1,48 @@
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: MachineDeployment
+metadata:
+  generation: 3
+  labels:
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: 0.3.11
+    argocd.argoproj.io/instance: test
+    cluster.x-k8s.io/cluster-name: test
+  name: test-md-0
+  namespace: test
+spec:
+  clusterName: test
+  minReadySeconds: 0
+  progressDeadlineSeconds: 600
+  replicas: 5
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+        cluster.x-k8s.io/cluster-name: test
+        cluster.x-k8s.io/deployment-name: teszst-md-0
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        cluster.x-k8s.io/cluster-name: test
+        cluster.x-k8s.io/deployment-name: teszst-md-0
+    spec:
+      bootstrap:
+        configRef:
+          apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+          kind: KubeadmConfigTemplate
+      clusterName: test
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+        kind: VSphereMachineTemplate
+      version: v1.18.10
+status:
+  availableReplicas: 6
+  observedGeneration: 3
+  phase: ScalingDown
+  readyReplicas: 6
+  replicas: 5
+  updatedReplicas: 5

@@ -1,0 +1,33 @@
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachineHealthCheck
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name: test
+  name: test-node-unhealthy-5m
+spec:
+  clusterName: test
+  maxUnhealthy: 100%
+  nodeStartupTimeout: 10m0s
+  selector:
+    matchLabels:
+      cluster.x-k8s.io/deployment-name: test-md-workers-0
+  unhealthyConditions:
+  - status: Unknown
+    timeout: 5m
+    type: Ready
+  - status: "False"
+    timeout: 5m
+    type: Ready
+status:
+  conditions:
+  - lastTransitionTime: "2022-10-07T10:33:46Z"
+    status: "True"
+    type: RemediationAllowed
+  currentHealthy: 3
+  expectedMachines: 3
+  observedGeneration: 3
+  remediationsAllowed: 1
+  targets:
+  - test-md-workers-0-76f7db5786-8nl6m
+  - test-md-workers-0-76f7db5786-jjzvf
+  - test-md-workers-0-76f7db5786-l4vfb

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Rules specific to the docs directory",
+  "packageRules": [
+    {
+      "description": "Group all dependencies from the docs directory",
+      "matchFileNames": ["docs/**"],
+      "matchCategories": [
+        "python"
+      ],
+      "excludePackageNames": [
+        "mkdocs-material"
+      ],
+      "groupName": "Docs dependencies",
+      "enabled": true
+    }
+  ]
+}
+
+
+

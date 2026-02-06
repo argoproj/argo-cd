@@ -1,0 +1,9 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Protection policy not yet executed"
+    inputPath: testdata/healthy_nostatus.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Protection policy lastScheduleTime: 2024-04-24T01:00:00Z"
+    inputPath: testdata/healthy_status.yaml

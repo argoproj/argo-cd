@@ -1,0 +1,13 @@
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: degraded-item
+  namespace: test-namespace
+spec:
+  itemPath: vaults/Test Vault/items/Test Item
+status:
+  conditions:
+    - lastTransitionTime: '2022-09-24T01:11:54Z'
+      message: Error
+      status: 'False'
+      type: Ready

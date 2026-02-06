@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "No status available"
+  inputPath: testdata/progressing_nostatus.yaml
+- healthStatus:
+    status: Progressing
+    message: "ImportInProgress"
+  inputPath: testdata/progressing_importing.yaml
+- healthStatus:
+    status: Healthy
+    message: "Succeeded"
+  inputPath: testdata/healthy_succeeded.yaml  
+- healthStatus:
+    status: Progressing
+    message: "ImportScheduled"
+  inputPath: testdata/progressing_containercreating.yaml
+- healthStatus:
+    status: Degraded
+    message: "Unable to connect to http data source: expected status code 200, got 404. Status: 404 Not Found"
+  inputPath: testdata/degraded_badurl.yaml

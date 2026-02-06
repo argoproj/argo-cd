@@ -1,0 +1,9 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for ZK Nodes to join the ensemble"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: "All ZK Nodes have joined the ensemble"
+  inputPath: testdata/healthy.yaml

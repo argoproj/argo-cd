@@ -1,0 +1,9 @@
+actionTests:
+  - action: push
+    inputPath: testdata/push-secret.yaml
+    expectedOutputPath: testdata/push-secret-updated.yaml
+
+discoveryTests:
+  - inputPath: testdata/push-secret.yaml
+    result:
+      - name: "push"

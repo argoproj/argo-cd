@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for ExternalSecret."
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "Secrets Manager can't find the specified secret."
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: "Fetched ExternalSecret."
+  inputPath: testdata/healthy.yaml

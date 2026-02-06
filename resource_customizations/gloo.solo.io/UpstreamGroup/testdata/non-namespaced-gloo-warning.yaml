@@ -1,0 +1,13 @@
+apiVersion: gloo.solo.io/v1
+kind: UpstreamGroup
+status:
+  reason: "message that will describe all the reasons for warning"
+  reportedBy: gateway
+  state: 3
+  subresourceStatuses:
+    '*v1.Proxy.gateway-proxy_gloo-system':
+      reportedBy: gloo
+      state: 1
+    '*v1.Proxy.internal-proxy_gloo-system':
+      reportedBy: gloo
+      state: 3

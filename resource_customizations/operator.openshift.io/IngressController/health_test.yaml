@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Status of IngressController is not known yet"
+  inputPath: testdata/progressing_initialization.yaml
+- healthStatus:
+    status: Progressing
+    message: "0/1 of replicas are available"
+  inputPath: testdata/progressing_pod_rollout.yaml
+- healthStatus:
+    status: Degraded
+    message: "One or more other status conditions indicate a degraded state."
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: "IngressController is available"
+  inputPath: testdata/healthy.yaml

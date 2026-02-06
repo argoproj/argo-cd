@@ -1,0 +1,50 @@
+apiVersion: rollouts.kruise.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollouts-demo
+  namespace: default
+  annotations:
+    rollouts.kruise.io/rolling-style: partition
+  generation: 5
+spec:
+  objectRef:
+    workloadRef:
+      apiVersion: apps/v1
+      kind: Deployment
+      name: workload-demo
+  strategy:
+    canary:
+      steps:
+      - replicas: 1
+        pause:
+          duration: 0
+      - replicas: 50%
+        pause:
+          duration: 0
+      - replicas: 100%
+
+status:
+  canaryStatus:
+    canaryReadyReplicas: 1
+    canaryReplicas: 1
+    canaryRevision: 76fd76f75b
+    currentStepIndex: 1
+    currentStepState: StepPaused
+    lastUpdateTime: '2023-09-23T11:44:39Z'
+    message: BatchRelease is at state Ready, rollout-id , step 1
+    observedWorkloadGeneration: 7
+    podTemplateHash: 76fd76f75b
+    rolloutHash: 77cxd69w47b7bwddwv2w7vxvb4xxdbwcx9x289vw69w788w4w6z4x8dd4vbz2zbw
+    stableRevision: 6bfdfb5bfb
+  conditions:
+    - lastTransitionTime: '2023-09-23T11:44:09Z'
+      lastUpdateTime: '2023-09-23T11:44:09Z'
+      message: Rollout is in Progressing
+      reason: InRolling
+      status: 'True'
+      type: Progressing
+  message: >-
+    Rollout is in step(1/3), and you need manually confirm to enter the next
+    step
+  observedGeneration: 5
+  phase: Progressing

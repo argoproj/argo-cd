@@ -1,0 +1,104 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+.editable-panel {
+    position: relative;
+
+    input {
+        z-index: 10;
+    }
+
+    &__buttons {
+        position: absolute;
+        top: 30px;
+        right: 3em;
+    }
+
+    &__divider {
+        position: relative;
+        border-top: 2px solid lightgray;
+        padding-top: 8px;
+    }
+
+    &__buttons-relative {
+        position: relative;
+        justify-content: right;        
+    }
+
+    &__buttons-relative-button {
+        margin-left: 8px;
+    }
+
+    &__collapsible-button {
+        position: absolute;
+        top: 30px;
+        right: 30px;
+        &__override {
+            @include themify($themes) {
+                color: themed('light-argo-teal-7');
+            }
+        }
+    }
+
+    &__sticky-title {
+        z-index: 10;
+        opacity: 75%;
+        position: sticky;
+        padding-left: 15px;
+        padding-right: 15px;
+        margin-bottom: 5px;
+        text-align: center;
+        top: 0px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;        
+    }
+
+    .form-field__select {
+        line-height: 15px;
+        padding: 0;
+    }
+
+    .white-box__details-row {
+        position: relative;
+    }
+
+    .argo-form-row__error-msg {
+        position: absolute;
+        top: 0;
+    }
+
+    &--disabled::after {
+        content: '';
+        border-radius: 4px;
+        position: absolute;
+        display: block;
+        background: rgba($argo-color-gray-6, 0.2);
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+    }
+
+    &__subsection {
+        margin-top: 1em;
+
+        &-title {
+            font-weight: 600;
+            margin-bottom: 0.5em;
+            font-size: 14px;
+            @include themify($themes) {
+                color: themed('light-argo-teal-7');
+            }
+        }
+
+        &-items {
+            border-left: 3px solid;
+            @include themify($themes) {
+                border-color: themed('light-argo-gray-4');
+            }
+            padding-left: 1.5em;
+            margin-left: 0.5em;
+        }
+    }
+}

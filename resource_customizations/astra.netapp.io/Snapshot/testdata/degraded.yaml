@@ -1,0 +1,80 @@
+apiVersion: astra.netapp.io/v1
+kind: Snapshot
+metadata:
+  annotations:
+    astra.netapp.io/correlationid: 6094b54d-b02b-475a-b5db-136729841240
+  creationTimestamp: "2024-04-24T19:54:18Z"
+  finalizers:
+    - astra.netapp.io/finalizer
+  generation: 1
+  name: backup-ad301b6a-6536-4313-89c1-d10ad0275430
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Backup
+      name: backup-20240424193746
+      uid: ad301b6a-6536-4313-89c1-d10ad0275430
+    - apiVersion: astra.netapp.io/v1
+      kind: Application
+      name: ghost
+      uid: 0af10ee8-772b-4367-8334-44f9e4ad2849
+  resourceVersion: "10641329"
+  uid: 7b0d4f5e-53d0-4742-adec-15ef5d527865
+spec:
+  appVaultRef: astra-gcp-backup-743cfd150129
+  applicationRef: ghost
+  completionTimeout: 0s
+  volumeSnapshotsCreatedTimeout: 0s
+  volumeSnapshotsReadyToUseTimeout: 0s
+status:
+  appArchivePath: ghost_0af10ee8-772b-4367-8334-44f9e4ad2849/snapshots/20240424195419_backup-ad301b6a-6536-4313-89c1-d10ad0275430_7b0d4f5e-53d0-4742-adec-15ef5d527865
+  conditions:
+    - lastTransitionTime: "2024-04-24T19:54:19Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: AppOwnerReferenceCreated
+    - lastTransitionTime: "2024-04-24T19:54:19Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: AppArchivePathNameGenerated
+    - lastTransitionTime: "2024-04-24T19:54:19Z"
+      message: reconcile timeout of 1h0m0s exceeded
+      reason: Timeout
+      status: "False"
+      type: ResourceBackupCompleted
+    - lastTransitionTime: "2024-04-24T19:54:19Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: PreSnapshotExecHooksRunCompleted
+    - lastTransitionTime: "2024-04-24T19:54:19Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: VolumeSnapshotsCreated
+    - lastTransitionTime: "2024-04-24T19:54:19Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: PostSnapshotExecHooksRunCompleted
+    - lastTransitionTime: "2024-04-24T19:54:19Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: VolumeSnapshotsReady
+    - lastTransitionTime: "2024-04-24T19:54:19Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: Completed
+    - lastTransitionTime: "2024-04-24T19:54:19Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: OnFailurePostSnapshotExecHooksRunCompleted
+  error: reconcile timeout of 1h0m0s exceeded
+  state: Failed

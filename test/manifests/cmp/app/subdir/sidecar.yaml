@@ -1,0 +1,4 @@
+# This yaml is used mainly to trigger the CMP plugin
+# for testing purposes. In real world, it should contain
+# proper kubernetes manifest files.
+name: sidecar-plugin

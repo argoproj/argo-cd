@@ -1,0 +1,43 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: RabbitmqCluster
+metadata:
+  labels:
+    app: example-rabbitmq
+  name: example-rabbitmq
+  namespace: example
+spec:
+  image: docker.io/bitnami/rabbitmq:3.10.7-debian-11-r8
+  persistence:
+    storage: 32Gi
+    storageClassName: default
+  rabbitmq:
+  replicas: 3
+  resources:
+    limits:
+      cpu: 250m
+      memory: 1792Mi
+    requests:
+      cpu: 250m
+      memory: 1792Mi
+  service:
+    type: ClusterIP
+status:
+  conditions:
+  - lastTransitionTime: "2023-08-30T07:44:34Z"
+    reason: NotAllPodsReady
+    message: 1/3 Pods ready
+    status: "False"
+    type: AllReplicasReady
+  - lastTransitionTime: "2023-08-30T07:37:06Z"
+    reason: AtLeastOneEndpointAvailable
+    status: "True"
+    type: ClusterAvailable
+  - lastTransitionTime: "2023-08-30T07:33:06Z"
+    reason: NoWarnings
+    status: "True"
+    type: NoWarnings
+  - lastTransitionTime: "2023-08-30T07:44:39Z"
+    message: Finish reconciling
+    reason: Success
+    status: "True"
+    type: ReconcileSuccess

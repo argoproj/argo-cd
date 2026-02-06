@@ -1,0 +1,7 @@
+helmGlobals:
+  chartHome: .
+
+helmCharts:
+- releaseName: test
+  name: helm-chart
+  version: v1.0.0

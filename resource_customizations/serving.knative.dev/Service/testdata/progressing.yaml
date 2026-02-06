@@ -1,0 +1,21 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: helloworld
+  namespace: default
+spec: {}
+status:
+  conditions:
+  - lastTransitionTime: "2022-06-20T04:14:22Z"
+    status: "True"
+    type: ConfigurationsReady
+  - lastTransitionTime: "2022-06-20T04:14:22Z"
+    message: A gradual rollout of the latest revision(s) is in progress.
+    reason: RolloutInProgress
+    status: Unknown
+    type: Ready
+  - lastTransitionTime: "2022-06-20T04:14:22Z"
+    message: A gradual rollout of the latest revision(s) is in progress.
+    reason: RolloutInProgress
+    status: Unknown
+    type: RoutesReady

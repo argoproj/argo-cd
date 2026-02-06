@@ -1,0 +1,41 @@
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  creationTimestamp: "2021-10-25T22:23:10Z"
+  generation: 14
+  name: example-badimport-dv
+  namespace: default
+  resourceVersion: "44636962"
+  uid: 8d55b149-d418-47d6-b60b-48d823142418
+spec:
+  pvc:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+  source:
+    http:
+      url: https://download.fedoraproject.org/pub/no-such-image.xz
+status:
+  conditions:
+  - lastHeartbeatTime: "2021-10-25T22:23:15Z"
+    lastTransitionTime: "2021-10-25T22:23:15Z"
+    message: PVC example-badimport-dv Bound
+    reason: Bound
+    status: "True"
+    type: Bound
+  - lastHeartbeatTime: "2021-10-25T22:23:47Z"
+    lastTransitionTime: "2021-10-25T22:23:10Z"
+    status: "False"
+    type: Ready
+  - lastHeartbeatTime: "2021-10-25T22:23:47Z"
+    lastTransitionTime: "2021-10-25T22:23:47Z"
+    message: 'Unable to connect to http data source: expected status code 200, got
+      404. Status: 404 Not Found'
+    reason: Error
+    status: "False"
+    type: Running
+  phase: ImportInProgress
+  progress: N/A
+  restartCount: 2

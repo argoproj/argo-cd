@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-catalog-apiserver
+  namespace: default
+spec:
+  ports:
+  - name: secure
+    port: 443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    app: service-catalog-apiserver

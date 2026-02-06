@@ -1,0 +1,17 @@
+{
+    "extends": [
+        "tslint:recommended", "tslint-plugin-prettier", "tslint-config-prettier"
+    ],
+    "jsRules": {},
+    "rules": {
+        "prettier": true,
+        "quotemark": [true, "single"],
+        "no-var-requires": false,
+        "interface-name": false,
+        "object-literal-sort-keys": false,
+        "max-line-length": [true, 200],
+        "array-type": false,
+        "max-classes-per-file": false
+    },
+    "rulesDirectory": []
+}

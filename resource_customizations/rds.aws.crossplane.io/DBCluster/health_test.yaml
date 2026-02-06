@@ -1,0 +1,18 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Waiting for DBCluster to be available
+  inputPath: testdata/creating.yaml
+- healthStatus:
+    status: Healthy
+    message: Available
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "create failed: cannot create DBCluster in AWS: InvalidParameterValue:
+      Invalid DB engine\n\tstatus code: 400, request id: "
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Suspended
+    message: ReconcilePaused
+  inputPath: testdata/suspended.yaml

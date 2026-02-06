@@ -1,0 +1,31 @@
+clusters:
+- cluster:
+    server: argocd1.example.com:443
+  name: argocd1.example.com:443
+- cluster:
+    server: argocd2.example.com:443
+  name: argocd2.example.com:443
+- cluster:
+    server: localhost:8080
+  name: localhost:8080
+contexts:
+- context:
+    server: argocd1.example.com:443
+    user: argocd1.example.com:443
+    cluster: argocd1.example.com:443
+  name: argocd1.example.com:443
+- context:
+    server: argocd2.example.com:443
+    user: argocd2.example.com:443
+    cluster: argocd2.example.com:443
+  name: argocd2.example.com:443
+- context:
+    server: localhost:8080
+    user: localhost:8080
+    cluster: localhost:8080
+  name: localhost:8080
+current-context: localhost:8080
+users:
+- name:  argocd1.example.com:443
+- name:  argocd2.example.com:443
+- name:  localhost:8080

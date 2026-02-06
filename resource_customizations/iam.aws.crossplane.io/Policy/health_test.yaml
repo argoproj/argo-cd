@@ -1,0 +1,10 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: 'observe failed: cannot check if policy is up to date: invalid character
+      '']'' looking for beginning of value'
+  inputPath: testdata/ReconcileError.yaml
+- healthStatus:
+    status: Healthy
+    message: Available
+  inputPath: testdata/healthy.yaml

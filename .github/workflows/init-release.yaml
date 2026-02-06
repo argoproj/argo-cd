@@ -1,0 +1,83 @@
+name: Init ArgoCD Release
+on:
+  workflow_dispatch:
+    inputs:
+      TARGET_BRANCH:
+        description: 'TARGET_BRANCH to checkout (e.g. release-2.5)'
+        required: true
+        type: string
+
+      TARGET_VERSION:
+        description: 'TARGET_VERSION to build manifests (e.g. 2.5.0-rc1) Note: the `v` prefix is not used'
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  prepare-release:
+    permissions:
+      contents: write  # for peter-evans/create-pull-request to create branch
+      pull-requests: write  # for peter-evans/create-pull-request to create a PR
+    name: Automatically generate version and manifests on ${{ inputs.TARGET_BRANCH }}
+    runs-on: ubuntu-24.04
+    env:
+      # Calculate image names with defaults, this will be used in the make manifests-local command
+      # to generate the correct image name in the manifests
+      IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'quay.io' }}
+      IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'argoproj' }}
+      IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || 'argocd' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ inputs.TARGET_BRANCH }}
+
+      - name: Check if TARGET_VERSION is well formed.
+        run: |
+          set -xue
+          # Target version must not contain 'v' prefix
+          if echo "${{ inputs.TARGET_VERSION }}" | grep -e '^v'; then
+            echo "::error::Target version '${{ inputs.TARGET_VERSION }}' should not begin with a 'v' prefix, refusing to continue." >&2
+            exit 1
+          fi
+
+      - name: Create VERSION information
+        run: |
+          set -ue
+          echo "Bumping version from $(cat VERSION) to ${{ inputs.TARGET_VERSION }}"
+          echo "${{ inputs.TARGET_VERSION }}" > VERSION
+
+        # We install kustomize in the dist directory
+      - name: Add dist to PATH
+        run: |
+          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
+
+      - name: Generate new set of manifests
+        run: |
+          set -ue
+          make install-codegen-tools-local
+          make manifests-local VERSION=${{ inputs.TARGET_VERSION }}
+          git diff
+
+      - name: Generate version compatibility table
+        run: |
+          git stash
+          bash hack/update-supported-versions.sh
+          git add -u .
+          git stash pop
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0  # v8.1.0
+        with:
+          commit-message: "Bump version to ${{ inputs.TARGET_VERSION }}"
+          title: "Bump version to ${{ inputs.TARGET_VERSION }} on ${{ inputs.TARGET_BRANCH }} branch"
+          body: Updating VERSION and manifests to ${{ inputs.TARGET_VERSION }}
+          branch: update-version
+          branch-suffix: random
+          signoff: true
+          labels: release
+
+

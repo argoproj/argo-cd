@@ -1,0 +1,46 @@
+apiVersion: work.karmada.io/v1alpha2
+kind: ClusterResourceBinding
+metadata:
+  finalizers:
+    - karmada.io/binding-controller
+  generation: 5
+  labels:
+    clusterpropagationpolicy.karmada.io/name: service-testk4j5t
+  name: test-service
+  namespace: default
+  ownerReferences:
+    - apiVersion: v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Service
+      name: test
+      uid: 039b0d1a-05cb-40b4-b43a-438b0de386af
+  resourceVersion: "4106772"
+  uid: 3932ee50-4c2b-4e77-9bfb-45eeb4ec220f
+spec:
+  clusters:
+    - name: member1
+  resource:
+    apiVersion: v1
+    kind: Service
+    name: service-test
+    namespace: default
+    resourceVersion: "3943220"
+    uid: 9c2b39b9-4607-4795-87db-1a54680939d0
+status:
+  aggregatedStatus:
+    - applied: false
+      clusterName: member1
+      health: Unknown
+  conditions:
+    - lastTransitionTime: "2022-11-03T10:56:30Z"
+      message: All works have been successfully applied
+      reason: FullyAppliedSuccess
+      status: "True"
+      type: FullyApplied
+    - lastTransitionTime: "2022-11-03T10:56:30Z"
+      message: Binding has been scheduled
+      reason: BindingScheduled
+      status: "True"
+      type: Scheduled
+  schedulerObservedGeneration: 2

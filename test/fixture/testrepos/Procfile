@@ -1,0 +1,6 @@
+# To prevent regression of https://github.com/argoproj/argo-cd/pull/6253, we
+# start sshd with -o KexAlgorithms=diffie-hellman-group-exchange-sha256
+# Copy fixed SSH host keys so ssh_known_hosts stays valid across container restarts
+sshd: mkdir -p /var/run/sshd && mkdir -p ~/.ssh && cat ./test/fixture/testrepos/id_rsa.pub > ~/.ssh/authorized_keys && cp ./test/fixture/testrepos/ssh_host_*_key /etc/ssh/ && cp ./test/fixture/testrepos/ssh_host_*_key.pub /etc/ssh/ && chmod 600 /etc/ssh/ssh_host_*_key && /usr/sbin/sshd -p 2222 -D -e -o KexAlgorithms=diffie-hellman-group-exchange-sha256
+fcgiwrap: fcgiwrap -s unix:/var/run/fcgiwrap.socket & sleep 1 && chmod 777 /var/run/fcgiwrap.socket && wait
+nginx: nginx -prefix=$(pwd) -g 'daemon off;' -c $(pwd)/test/fixture/testrepos/nginx.conf

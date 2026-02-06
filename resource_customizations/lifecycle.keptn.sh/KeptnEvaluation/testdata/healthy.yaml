@@ -1,0 +1,33 @@
+apiVersion: lifecycle.keptn.sh/v1alpha2
+kind: KeptnEvaluation
+metadata:
+  creationTimestamp: "2022-12-14T13:17:36Z"
+  generation: 1
+  name: pre-eval-app-pre-deploy-eval-2-48925
+  namespace: podtato-kubectl
+  ownerReferences:
+    - apiVersion: lifecycle.keptn.sh/v1alpha2
+      blockOwnerDeletion: true
+      controller: true
+      kind: KeptnAppVersion
+      name: podtato-head-0.1.1
+      uid: 9ae27184-c63d-4e50-bbc7-18e5e289e85c
+  resourceVersion: "225737"
+  uid: 84acabb8-9dca-46ab-b099-4799a732ba43
+spec:
+  appName: podtato-head
+  appVersion: 0.1.1
+  checkType: pre-eval
+  evaluationDefinition: app-pre-deploy-eval-2
+  retries: 10
+  retryInterval: 5s
+  workloadVersion: ""
+status:
+  endTime: "2022-12-14T13:17:36Z"
+  evaluationStatus:
+    available-cpus:
+      status: Succeeded
+      value: "1.3100000000000005"
+  overallStatus: Succeeded
+  retryCount: 1
+  startTime: "2022-12-14T13:17:36Z"

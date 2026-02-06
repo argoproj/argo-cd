@@ -1,0 +1,44 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.certs-list {
+    &__top-panel {
+        padding: 1em;
+
+        & > .columns:first-child {
+            font-size: 8em;
+            text-align: center;
+        }
+
+        & > .columns:last-child {
+            text-align: center;
+            border-left: 2px solid $argo-color-gray-4;
+
+            & > p {
+                margin-bottom: 0;
+                margin-top: 24px;
+                &:first-of-type {
+                    font-size: 1.25em;
+                }
+            }
+
+            & > button {
+                width: 15em;
+            }
+        }
+    }
+
+    .argo-table-list {
+        .argo-dropdown {
+            float: right;
+        }
+    }
+
+    textarea.argo-field {
+        height: 25em;
+        width: 1024em;
+        white-space: pre;
+        overflow-wrap: normal;
+        overflow-x: scroll;
+    }
+}
+

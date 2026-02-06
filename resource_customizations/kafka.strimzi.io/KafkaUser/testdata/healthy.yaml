@@ -1,0 +1,56 @@
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaUser
+metadata:
+  creationTimestamp: "2021-02-22T15:59:18Z"
+  generation: 1
+  labels:
+    strimzi.io/cluster: my-cluster
+  name: my-user
+  namespace: default
+  resourceVersion: "134744742"
+  selfLink: /apis/kafka.strimzi.io/v1beta1/namespaces/default/kafkausers/my-user
+  uid: 4610a4d8-bd73-4ab9-bed8-971ee5dabf7d
+spec:
+  authentication:
+    type: tls
+  authorization:
+    acls:
+    - host: '*'
+      operation: Read
+      resource:
+        name: my-topic
+        patternType: literal
+        type: topic
+    - host: '*'
+      operation: Describe
+      resource:
+        name: my-topic
+        patternType: literal
+        type: topic
+    - host: '*'
+      operation: Read
+      resource:
+        name: my-group
+        patternType: literal
+        type: group
+    - host: '*'
+      operation: Write
+      resource:
+        name: my-topic
+        patternType: literal
+        type: topic
+    - host: '*'
+      operation: Create
+      resource:
+        name: my-topic
+        patternType: literal
+        type: topic
+    type: simple
+status:
+  conditions:
+  - lastTransitionTime: "2021-02-22T16:05:09.386834Z"
+    status: "True"
+    type: Ready
+  observedGeneration: 1
+  secret: my-user
+  username: CN=my-user

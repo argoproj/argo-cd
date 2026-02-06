@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: 'Cluster is spawning machines'
+  inputPath: testdata/progressing_ScalingUp.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Cluster is stopping machines'
+  inputPath: testdata/progressing_ScalingDown.yaml
+- healthStatus:
+    status: Degraded
+    message: 'MachineDeployment is failed'
+  inputPath: testdata/degraded_failed.yaml
+- healthStatus:
+    status: Suspended
+    message: 'MachineDeployment is paused'
+  inputPath: testdata/suspended_paused.yaml
+- healthStatus:
+    status: Healthy
+    message: 'Machines are running under this deployment'
+  inputPath: testdata/healthy_provisioned.yaml

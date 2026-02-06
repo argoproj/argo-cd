@@ -1,0 +1,78 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: openshift-gitops-operator
+  namespace: openshift-operators
+  labels:
+    operators.coreos.com/openshift-gitops-operator.openshift-operators: ''
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: openshift-gitops-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: openshift-gitops-operator.v1.2.0
+status:
+  catalogHealth:
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: certified-operators
+        namespace: openshift-marketplace
+        resourceVersion: '720254'
+        uid: dba4fefa-78fa-45c2-9801-d551a086a229
+      healthy: true
+      lastUpdated: '2021-08-25T20:55:30Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: community-operators
+        namespace: openshift-marketplace
+        resourceVersion: '720253'
+        uid: 3e16e348-5b8c-4382-bd71-30fd97836a6c
+      healthy: true
+      lastUpdated: '2021-08-25T20:55:30Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: redhat-marketplace
+        namespace: openshift-marketplace
+        resourceVersion: '707692'
+        uid: 04003c1c-5414-43e7-ba5e-738addfa2443
+      healthy: true
+      lastUpdated: '2021-08-25T20:55:30Z'
+    - catalogSourceRef:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        name: redhat-operators
+        namespace: openshift-marketplace
+        resourceVersion: '716643'
+        uid: 4cff9c98-14aa-4ebf-a238-2fb8fc48edb6
+      healthy: true
+      lastUpdated: '2021-08-25T20:55:30Z'
+  conditions:
+    - lastTransitionTime: '2021-08-25T20:55:30Z'
+      message: all available catalogsources are healthy
+      reason: AllCatalogSourcesHealthy
+      status: 'False'
+      type: CatalogSourcesUnhealthy
+    - lastTransitionTime: '2021-08-25T20:55:36Z'
+      reason: Installing
+      status: 'True'
+      type: InstallPlanPending
+  currentCSV: openshift-gitops-operator.v1.2.0
+  installPlanGeneration: 2
+  installPlanRef:
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: InstallPlan
+    name: install-gldzx
+    namespace: openshift-operators
+    resourceVersion: '736450'
+    uid: cc3edd24-ae7c-4ddf-b924-aee1611ff4a1
+  installplan:
+    apiVersion: operators.coreos.com/v1alpha1
+    kind: InstallPlan
+    name: install-gldzx
+    uuid: cc3edd24-ae7c-4ddf-b924-aee1611ff4a1
+  lastUpdated: '2021-08-25T20:55:36Z'
+  state: UpgradePending

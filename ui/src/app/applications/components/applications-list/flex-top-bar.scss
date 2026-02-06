@@ -1,0 +1,39 @@
+@import 'node_modules/foundation-sites/scss/util/util';
+@import '../../../shared/config.scss';
+
+.flex-top-bar {
+    position: fixed;
+    right: 0;
+    z-index: 5;
+    padding: 0 15px;
+    left: $sidebar-width;
+    align-items: center;
+    flex-wrap: wrap;
+    &__actions {
+        display: flex;
+        align-items: center;
+        height: 50px;
+        @include breakpoint(medium down) {
+            flex-basis: 100%;
+            justify-content: center;
+        }
+        button {
+            display: block;
+        }
+    }
+    &__tools {
+        display: flex;
+        flex-grow: 1;
+        align-items: center;
+        @include breakpoint(medium down) {
+            flex-wrap: wrap;
+        }
+    }
+
+    &__padder {
+        height: 50px;
+        @include breakpoint(medium down) {
+            height: 150px;
+        }
+    }
+}

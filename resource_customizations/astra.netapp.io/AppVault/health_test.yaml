@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: "No status available"
+    inputPath: testdata/progressing_nostatus.yaml
+  - healthStatus:
+      status: Healthy
+      message: "AppVault Available"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "AppVault Failed"
+    inputPath: testdata/degraded.yaml

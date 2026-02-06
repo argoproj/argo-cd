@@ -1,0 +1,22 @@
+apiVersion: pxc.percona.com/v1
+kind: PerconaXtraDBCluster
+metadata:
+  name: quickstart
+spec: {}
+status:
+  backup: {}
+  haproxy: {}
+  host: pxc-mysql-pxc
+  logcollector: {}
+  observedGeneration: 1
+  pmm: {}
+  proxysql: {}
+  pxc:
+    image: ''
+    ready: 1
+    size: 1
+    status: ready
+    version: 8.0.21-12.1
+  ready: 1
+  size: 1
+  state: ready

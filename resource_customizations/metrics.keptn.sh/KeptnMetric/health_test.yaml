@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: "KeptnMetric is progressing"
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: "KeptnMetric is degraded"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: "KeptnMetric is healthy"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "KeptnMetric is healthy"
+    inputPath: testdata/healthy_empty_error.yaml

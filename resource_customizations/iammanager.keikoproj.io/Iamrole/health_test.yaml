@@ -1,0 +1,20 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: |-
+      Failed to reconcile the Iamrole (retry 1) for role 'k8s-test' with ARN 'arn:aws:iam::111111111111:role/k8s-test' and ID 'ABCDEFGHIJKLMNOPQRSTU'. Reconciliation error was: NoSuchEntity: The role with name k8s-test cannot be found.
+      	status code: 404, request id: f80c99fc-c78d-4b1c-806d-3a162fbbc900
+  inputPath: testdata/degraded_error.yaml
+- healthStatus:
+    status: Degraded
+    message: |-
+      Failed to reconcile the Iamrole for role 'k8s-test' with ARN '<none>' and ID '<none>'. Reconciliation error was: maximum number of allowed roles reached. You must delete any existing role before proceeding further
+  inputPath: testdata/degraded_rolesMaxLimitReached.yaml
+- healthStatus:
+    status: Healthy
+    message: Role 'k8s-test' exists with ARN 'arn:aws:iam::111111111111:role/k8s-test' and ID 'ABCDEFGHIJKLMNOPQRSTU'.
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Waiting for Iamrole to be reconciled'
+  inputPath: testdata/progressing_noStatus.yaml

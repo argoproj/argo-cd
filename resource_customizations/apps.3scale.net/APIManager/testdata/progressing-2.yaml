@@ -1,0 +1,11 @@
+apiVersion: apps.3scale.net/v1alpha1
+kind: APIManager
+status:
+  conditions:
+    - status: "False"
+      type: Available
+  deployments:
+    starting:
+      - a
+    stopped:
+      - b

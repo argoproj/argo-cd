@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "3scale Backend is synced"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "3scale Backend synchronization failed"
+    inputPath: testdata/degraded-failed.yaml
+  - healthStatus:
+      status: Degraded
+      message: "3scale Backend configuration is invalid"
+    inputPath: testdata/degraded-invalid.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for 3scale Backend status..."
+    inputPath: testdata/progressing.yaml

@@ -1,0 +1,71 @@
+apiVersion: astra.netapp.io/v1
+kind: ExecHooksRun
+metadata:
+  annotations:
+    astra.netapp.io/correlationid: 1c47a636-f819-43f3-baee-054793424bb5
+  creationTimestamp: "2024-04-25T17:00:50Z"
+  generation: 1
+  name: post-snapshot-073d13d7-4a0c-4c5e-914f-331ef6d00de2
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Snapshot
+      name: argo-presync-20240425163524
+      uid: 073d13d7-4a0c-4c5e-914f-331ef6d00de2
+  resourceVersion: "11335239"
+  uid: 9bfcda95-2731-47dc-8eb2-6e83ae19da00
+spec:
+  action: snapshot
+  appArchivePath: ghost_0af10ee8-772b-4367-8334-44f9e4ad2849/snapshots/20240425163526_argo-presync-20240425163524_073d13d7-4a0c-4c5e-914f-331ef6d00de2
+  appVaultRef: astra-gcp-backup-743cfd150129
+  applicationRef: ghost
+  completionTimeout: 0s
+  resourceFilter: {}
+  stage: post
+status:
+  completionTimestamp: "2024-04-25T17:00:56Z"
+  conditions:
+    - lastTransitionTime: "2024-04-25T17:00:50Z"
+      message: Found 1 matching container/exechook pairs
+      reason: Done
+      status: "True"
+      type: RetrievedMatchingContainers
+    - lastTransitionTime: "2024-04-25T17:00:50Z"
+      message: Wait only needed on a restore
+      reason: Done
+      status: "True"
+      type: WaitForReadiness
+    - lastTransitionTime: "2024-04-25T17:00:56Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: ProcessMatchingContainers
+    - lastTransitionTime: "2024-04-25T17:00:56Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: ArchiveExecHooksUsed
+    - lastTransitionTime: "2024-04-25T17:00:56Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: Completed
+    - lastTransitionTime: "2024-04-25T17:00:50Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: OnFailureArchiveExecHooksUsed
+  matchingContainers:
+    - completionTimestamp: "2024-04-25T17:00:56Z"
+      containerImage: docker.io/bitnami/mysql:8.0.32-debian-11-r8
+      containerName: mysql
+      execHookRef: post-snapshot
+      execHookUID: 2cafb1b4-2575-426c-8102-29437ebee48b
+      jobName: ehr-47223ea8dd0115ca18a986c77380aeb3
+      namespace: ghost
+      podName: ghost-mysql-5bfb6bc8f5-stw4w
+      podUID: 15ddfce0-1565-4574-89a6-80662450aedd
+      startTimestamp: "2024-04-25T17:00:50Z"
+  state: Completed

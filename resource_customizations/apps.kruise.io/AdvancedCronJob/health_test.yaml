@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: AdvancedCronJobs has run successfully
+    inputPath: testdata/lastScheduleTime.yaml
+  - healthStatus:
+      status: Degraded
+      message: AdvancedCronJobs has not run successfully
+    inputPath: testdata/notScheduled.yaml
+  - healthStatus:
+      status: Progressing
+      message: AdvancedCronJobs has active jobs
+    inputPath: testdata/activeJobs.yaml
+  - healthStatus:
+      status: Suspended
+      message: AdvancedCronJob is Paused
+    inputPath: testdata/suspended.yaml

@@ -1,0 +1,26 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.expandable {
+    position: relative;
+    overflow: hidden;
+    transition: max-height 0.5s ease-out;
+
+    &--collapsed::after {
+        content: '';
+        display: block;
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 20px;
+        background: linear-gradient(to bottom, rgba(255,255,255,0) 70%,rgba(255,255,255,1) 100%);
+    }
+
+    &__handle {
+        position: absolute;
+        top: 1em;
+        right: 1em;
+        z-index: 1;
+        cursor: pointer;
+    }
+}

@@ -1,0 +1,38 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+.application-resources-diff {
+    &__checkboxes {
+        text-align: right;
+        label {
+            padding-right: 2em;
+            color: $argo-color-gray-8;
+            @include themify($themes){
+                color: themed('text-2');
+            }
+        }
+    }
+    &__diff {
+        font-size: 10pt;
+        &__title {
+            font-weight: bold;
+            .diff__collapse {
+                position: absolute;
+                right: 0;
+                cursor: pointer;
+                margin-left: auto;
+                margin-right: 1.5rem;
+                color: #495763;
+                font-size: 20px;
+            }
+        }
+    }
+}
+
+.custom-diff-hunk {           
+    color: $argo-color-gray-6;
+    border-bottom: 1px dashed;
+    @include themify($themes){
+        border-bottom: 1px dashed themed('text-2');
+    }
+}

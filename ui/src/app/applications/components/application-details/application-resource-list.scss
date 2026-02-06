@@ -1,0 +1,13 @@
+.application-details__item {
+  display: flex;
+
+  .application-details__item_text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .application-details__external_link {
+    flex: 0;
+    min-width: 13px;
+  }
+}

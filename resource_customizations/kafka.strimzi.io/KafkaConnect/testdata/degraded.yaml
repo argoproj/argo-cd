@@ -1,0 +1,104 @@
+apiVersion: kafka.strimzi.io/v1beta1
+kind: KafkaConnect
+metadata:
+  creationTimestamp: "2020-02-13T14:03:15Z"
+  deletionGracePeriodSeconds: 0
+  deletionTimestamp: "2020-05-28T10:29:44Z"
+  finalizers:
+  - foregroundDeletion
+  generation: 25
+  labels:
+    app.kubernetes.io/instance: kafka-connect
+  name: kafka
+  namespace: strimzi
+  resourceVersion: "43088521"
+  selfLink: /apis/kafka.strimzi.io/v1beta1/namespaces/strimzi/kafkaconnects/kafka
+  uid: 941ae21d-4e69-11ea-a53d-06e66a171f98
+spec:
+  bootstrapServers: PLAINTEXT://b-1.kafka.eu-west-1.amazonaws.com:9092,
+    PLAINTEXT://b-2.kafka.eu-west-1.amazonaws.com:9092, PLAINTEXT://b-3.kafka.eu-west-1.amazonaws.com:9092
+  config:
+    config.providers: file
+    config.providers.file.class: org.apache.kafka.common.config.provider.FileConfigProvider
+    config.storage.topic: connect-configs
+    connector.client.config.override.policy: All
+    group.id: connect-cluster
+    internal.key.converter: org.apache.kafka.connect.json.JsonConverter
+    internal.key.converter.schemas.enable: "false"
+    internal.value.converter: org.apache.kafka.connect.json.JsonConverter
+    internal.value.converter.schemas.enable: "false"
+    key.converter: org.apache.kafka.connect.storage.StringConverter
+    key.converter.schemas.enable: "false"
+    offset.storage.topic: connect-offsets
+    schema.registry.url: http://kafka-schema-registry:8081
+    status.storage.topic: connect-statuses
+    task.shutdown.graceful.timeout.ms: 30000
+    value.converter: io.confluent.connect.avro.AvroConverter
+    value.converter.schema.registry.url: http://kafka-schema-registry:8081
+    value.converter.schemas.enable: "true"
+  externalConfiguration:
+    volumes:
+    - name: kafka-connect-credentials
+      secret:
+        secretName: kafka-connect-credentials
+  image: strimzi/kafka-connect:strimzi_0.17.0_kafka_2.3.1-2
+  jvmOptions:
+    -Xms: 8000m
+    -Xmx: 8000m
+    gcLoggingEnabled: false
+  logging:
+    type: inline
+  replicas: 5
+  resources:
+    limits:
+      cpu: "1"
+      memory: 7Gi
+    requests:
+      cpu: "1"
+      memory: 5Gi
+  template:
+    connectContainer:
+      env:
+      - name: JMX_PORT
+        value: "9999"
+    pod:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: strimzi.io/name
+                  operator: In
+                  values:
+                  - kafka-connect
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: strimzi.io/name
+                  operator: In
+                  values:
+                  - kafka-connect
+              topologyKey: topology.kubernetes.io/zone
+            weight: 100
+      metadata:
+        annotations:
+          prometheus.io/path: /
+          prometheus.io/port: "9404"
+          prometheus.io/scrape: true
+      priorityClassName: kafka-connect
+      tolerations:
+      - effect: NoSchedule
+        key: dynamic-node
+        operator: Equal
+        value: "true"
+status:
+  conditions:
+  - lastTransitionTime: "2020-05-28T13:43:05.813Z"
+    status: "True"
+    type: NotReady
+    message: "Error"
+  observedGeneration: 25
+  url: http://kafka-connect-api.strimzi.svc:8083

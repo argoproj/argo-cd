@@ -1,0 +1,9 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "CronJobSucess Success"
+  inputPath: testdata/ok.yaml
+- healthStatus:
+    status: Degraded
+    message: "CronJobScheduled Failed"
+  inputPath: testdata/failed.yaml

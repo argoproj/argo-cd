@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: Waiting for ExternalSecret
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'could not get secret data from provider: key "secret/sa/example" from ExternalSecret "test-degraded"'
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: 'Secret was synced'
+    inputPath: testdata/healthy.yaml

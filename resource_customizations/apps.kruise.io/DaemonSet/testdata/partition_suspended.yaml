@@ -1,0 +1,33 @@
+apiVersion: apps.kruise.io/v1alpha1
+kind: DaemonSet
+metadata:
+  name: daemonset-test
+  namespace: kruise
+  generation: 6
+  labels:
+    app: sample
+spec:
+  selector:
+    matchLabels:
+      app: sample
+  template:
+    metadata:
+      labels:
+        app: sample
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+  updateStrategy:
+    rollingUpdate:
+      partition: 4
+
+status:
+  currentNumberScheduled: 1
+  daemonSetHash: 5f8cdcdc65
+  desiredNumberScheduled: 10
+  numberAvailable: 10
+  numberMisscheduled: 0
+  numberReady: 10
+  observedGeneration: 6
+  updatedNumberScheduled: 7

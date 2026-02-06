@@ -1,0 +1,89 @@
+[
+  {
+    "id": 35385049,
+    "iid": 15442,
+    "project_id": 278964,
+    "title": "Draft: Use structured logging for DB load balancer",
+    "description": "",
+    "state": "opened",
+    "created_at": "2019-08-20T10:58:54.413Z",
+    "updated_at": "2019-08-20T12:01:49.849Z",
+    "merged_by": null,
+    "merged_at": null,
+    "closed_by": null,
+    "closed_at": null,
+    "target_branch": "master",
+    "source_branch": "use-structured-logging-for-db-load-balancer",
+    "user_notes_count": 1,
+    "upvotes": 0,
+    "downvotes": 0,
+    "assignee": {
+      "id": 4088036,
+      "name": "Hordur Freyr Yngvason",
+      "username": "hfyngvason",
+      "state": "active",
+      "avatar_url": "https://assets.gitlab-static.net/uploads/-/system/user/avatar/4088036/avatar.png",
+      "web_url": "https://gitlab.com/hfyngvason"
+    },
+    "author": {
+      "id": 4088036,
+      "name": "Hordur Freyr Yngvason",
+      "username": "hfyngvason",
+      "state": "active",
+      "avatar_url": "https://assets.gitlab-static.net/uploads/-/system/user/avatar/4088036/avatar.png",
+      "web_url": "https://gitlab.com/hfyngvason"
+    },
+    "assignees": [
+      {
+        "id": 4088036,
+        "name": "Hordur Freyr Yngvason",
+        "username": "hfyngvason",
+        "state": "active",
+        "avatar_url": "https://assets.gitlab-static.net/uploads/-/system/user/avatar/4088036/avatar.png",
+        "web_url": "https://gitlab.com/hfyngvason"
+      }
+    ],
+    "reviewers": [
+      {
+        "id": 2535118,
+        "name": "Thong Kuah",
+        "username": "tkuah",
+        "state": "active",
+        "avatar_url": "https://secure.gravatar.com/avatar/f7b51bdd49a4914d29504d7ff4c3f7b9?s=80&d=identicon",
+        "web_url": "https://gitlab.com/tkuah"
+      }
+    ],
+    "source_project_id": 278964,
+    "target_project_id": 278964,
+    "labels": [
+      "backend",
+      "backstage",
+      "database",
+      "database::review pending",
+      "group::autodevops and kubernetes"
+    ],
+    "work_in_progress": true,
+    "milestone": null,
+    "merge_when_pipeline_succeeds": false,
+    "merge_status": "can_be_merged",
+    "sha": "2fc4e8b972ff3208ec63b6143e34ad67ff343ad7",
+    "merge_commit_sha": null,
+    "discussion_locked": null,
+    "should_remove_source_branch": null,
+    "force_remove_source_branch": true,
+    "reference": "!15442",
+    "web_url": "https://gitlab.com/gitlab-org/gitlab-ee/merge_requests/15442",
+    "time_stats": {
+      "time_estimate": 0,
+      "total_time_spent": 0,
+      "human_time_estimate": null,
+      "human_total_time_spent": null
+    },
+    "squash": true,
+    "task_completion_status": {
+      "count": 12,
+      "completed_count": 0
+    },
+    "approvals_before_merge": 1
+  }
+]

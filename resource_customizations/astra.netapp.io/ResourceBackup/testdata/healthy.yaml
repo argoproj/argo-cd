@@ -1,0 +1,49 @@
+apiVersion: astra.netapp.io/v1
+kind: ResourceBackup
+metadata:
+  annotations:
+    astra.netapp.io/correlationid: 5b89a58c-9b7c-42e8-b426-c8f863e88f41
+  creationTimestamp: "2024-04-18T02:00:00Z"
+  finalizers:
+    - astra.netapp.io/finalizer
+  generation: 1
+  name: snapshot-0b1c9d28-33bd-45ce-b75b-2a45721e7218
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Snapshot
+      name: daily-02c95-20240418020000
+      uid: 0b1c9d28-33bd-45ce-b75b-2a45721e7218
+  resourceVersion: "5060306"
+  uid: 28c08689-2f8d-4b1e-bfa4-ac8c8795adff
+spec:
+  appArchivePath: wordpress_5ab7cd7d-7a9b-4508-9da2-c7dcb10a69b3/snapshots/20240418020000_daily-02c95-20240418020000_0b1c9d28-33bd-45ce-b75b-2a45721e7218
+  appVaultRef: astra-gcp-backup-743cfd150129
+  applicationRef: wordpress
+status:
+  appArchivePath: wordpress_5ab7cd7d-7a9b-4508-9da2-c7dcb10a69b3/snapshots/20240418020000_daily-02c95-20240418020000_0b1c9d28-33bd-45ce-b75b-2a45721e7218
+  completionTimestamp: "2024-04-18T02:00:09Z"
+  conditions:
+    - lastTransitionTime: "2024-04-18T02:00:00Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: AppOwnerReferenceCreated
+    - lastTransitionTime: "2024-04-18T02:00:00Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: JobCreated
+    - lastTransitionTime: "2024-04-18T02:00:09Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: JobCompleted
+    - lastTransitionTime: "2024-04-18T02:00:10Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: JobCleanedUp
+  state: Completed

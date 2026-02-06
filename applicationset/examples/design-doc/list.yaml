@@ -1,0 +1,35 @@
+# The list generator specifies a literal list of argument values to the app spec template.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - list:
+      elements:
+      - cluster: engineering-dev
+        url: https://1.2.3.4
+        values:
+          project: dev
+      - cluster: engineering-prod
+        url: https://2.4.6.8
+        values:
+          project: prod
+      - cluster: finance-preprod
+        url: https://9.8.7.6
+        values:
+          project: preprod
+  template:
+    metadata:
+      name: '{{.cluster}}-guestbook'
+    spec:
+      project: '{{.values.project}}'
+      source:
+        repoURL: https://github.com/infra-team/cluster-deployments.git
+        targetRevision: HEAD
+        path: guestbook/{{.cluster}}
+      destination:
+        server: '{{.url}}'
+        namespace: guestbook

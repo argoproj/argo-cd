@@ -1,0 +1,99 @@
+apiVersion: astra.netapp.io/v1
+kind: ResticVolumeBackup
+metadata:
+  annotations:
+    astra.netapp.io/correlationid: 26d34f64-38cc-4775-881d-a2fa12437f4b
+  creationTimestamp: "2024-04-17T13:50:44Z"
+  deletionGracePeriodSeconds: 0
+  deletionTimestamp: "2024-04-17T14:51:28Z"
+  finalizers:
+    - astra.netapp.io/finalizer
+  generation: 2
+  name: backup-8f2ae7bd-82fc-4b4f-a22d-d08edc2e4e27-vs-54c8ec7f-42e8-48aa-b347-d4acab7b877b
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Backup
+      name: hourly-acde9-20240417135000
+      uid: 8f2ae7bd-82fc-4b4f-a22d-d08edc2e4e27
+  resourceVersion: "4675672"
+  uid: ba90a4f7-a68f-4978-bc04-86902281adc2
+spec:
+  clonePVC:
+    metadata: {}
+    spec:
+      accessModes:
+        - ReadWriteMany
+      resources:
+        requests:
+          storage: 100Gi
+      storageClassName: netapp-cvs-perf-premium
+  dataSourceRef:
+    apiGroup: snapshot.storage.k8s.io
+    kind: VolumeSnapshot
+    name: backup-8f2ae7bd-82fc-4b4f-a22d-d08edc2e4e27-vs-54c8ec7f-42e8-48aa-b347-d4acab7b877b
+  resticEnv:
+    - name: GOOGLE_PROJECT_ID
+    - name: GOOGLE_APPLICATION_CREDENTIALS
+      value: /var/run/secrets/neptune/astra-gcp-backup-743cfd150129-5rdt4/credentials.json
+    - name: RESTIC_PASSWORD
+      value: password
+  resticRepository: gs:astra-gcp-backup-743cfd150129://ghost_0af10ee8-772b-4367-8334-44f9e4ad2849/restic/ghost/ghost_b9ff9e05-5049-4862-82c6-dea080c2fe0d
+  resticVolumeMounts:
+    - mount:
+        mountPath: /var/run/secrets/neptune/astra-gcp-backup-743cfd150129-5rdt4
+        name: secret-astra-gcp-backup-743cfd150129-5rdt4
+        readOnly: true
+      source:
+        items:
+          - key: credentials.json
+            path: credentials.json
+        secretName: astra-gcp-backup-743cfd150129-5rdt4
+status:
+  clonePVCName: restic-volume-backup-ba90a4f7-a68f-4978-bc04-86902281adc2
+  clonePVName: ""
+  conditions:
+    - lastTransitionTime: "2024-04-17T13:50:44Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: SourcePVCExists
+    - lastTransitionTime: "2024-04-17T13:50:44Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: ResticJobCreated
+    - lastTransitionTime: "2024-04-17T13:50:44Z"
+      message:
+        "restic job restic-volume-backup-ba90a4f7-a68f-4978-bc04-86902281adc2
+        failed: permanent error"
+      reason: Failed
+      status: "False"
+      type: ResticJobCompleted
+    - lastTransitionTime: "2024-04-17T13:50:44Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: ResticJobCleanedUp
+    - lastTransitionTime: "2024-04-17T13:50:44Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: TemporaryPVCCloneCleanedUp
+    - lastTransitionTime: "2024-04-17T13:50:44Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: TemporaryPVCloneCleanedUp
+    - lastTransitionTime: "2024-04-17T13:50:44Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: Completed
+  error:
+    "restic job restic-volume-backup-ba90a4f7-a68f-4978-bc04-86902281adc2 failed:
+    permanent error"
+  resticJobName: restic-volume-backup-ba90a4f7-a68f-4978-bc04-86902281adc2
+  state: Failed

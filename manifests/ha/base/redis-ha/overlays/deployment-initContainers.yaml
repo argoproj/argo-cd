@@ -1,0 +1,16 @@
+- op: add
+  path: /spec/template/spec/initContainers/0
+  value:
+    name: secret-init
+    command: [ 'argocd', 'admin', 'redis-initial-password' ]
+    image: quay.io/argoproj/argocd:latest
+    imagePullPolicy: IfNotPresent
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault

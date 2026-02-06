@@ -1,0 +1,29 @@
+# Prevent vendor directory from being copied to ensure we are not not pulling unexpected cruft from 
+# a user's workspace, and are only building off of what is locked by dep.
+.vscode/
+.idea/
+.DS_Store
+vendor/
+dist/
+*.iml
+# delve debug binaries
+cmd/**/debug
+debug.test
+coverage.out
+ui/node_modules/
+test-results/
+test/
+manifests/
+hack/
+docs/
+examples/
+.github/
+!test/container
+!test/e2e/testdata
+!test/fixture
+!test/remote
+!hack/installers
+!hack/gpg-wrapper.sh
+!hack/git-verify-wrapper.sh
+!hack/tool-versions.sh
+!hack/install.sh

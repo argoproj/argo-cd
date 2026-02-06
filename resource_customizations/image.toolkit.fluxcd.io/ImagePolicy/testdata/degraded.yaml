@@ -1,0 +1,26 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: podinfo
+  namespace: argocd
+spec:
+  imageRepositoryRef:
+    name: podinfo-faulty
+  policy:
+    semver:
+      range: x.x.x
+status:
+  conditions:
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: 'processing object: new generation 1 -> 2'
+    observedGeneration: 2
+    reason: ProgressingWithRetry
+    status: "True"
+    type: Reconciling
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: 'failed to get the referred ImageRepository: referenced ImageRepository
+      does not exist: ImageRepository.image.toolkit.fluxcd.io "podinfo-faulty" not found'
+    observedGeneration: 2
+    reason: DependencyNotReady
+    status: "False"
+    type: Ready

@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  creationTimestamp: "2019-09-13T08:52:54Z"
+  generation: 2
+  labels:
+    app.kubernetes.io/instance: extensions
+  name: statefulset
+  namespace: statefulset
+  resourceVersion: "7471813"
+  selfLink: /apis/apps/v1/namespaces/statefulset/statefulsets/statefulset
+  uid: dfe8fadf-d603-11e9-9e69-42010aa8005f
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 3
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: statefulset
+  serviceName: statefulset
+  template:
+    metadata:
+      labels:
+        app: statefulset
+    spec:
+      containers:
+      - image: registry.k8s.io/nginx-slim:0.8
+        imagePullPolicy: IfNotPresent
+        name: nginx
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+status:
+  collisionCount: 0
+  currentReplicas: 3
+  currentRevision: statefulset-85b7f767c6
+  observedGeneration: 2
+  readyReplicas: 3
+  replicas: 3
+  updateRevision: statefulset-85b7f767c6
+  updatedReplicas: 3

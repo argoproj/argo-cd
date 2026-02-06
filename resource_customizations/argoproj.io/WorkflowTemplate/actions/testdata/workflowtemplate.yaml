@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  labels:
+    app.kubernetes.io/instance: test
+  name: workflow-template-submittable
+  namespace: default
+spec:
+  arguments:
+    parameters:
+      - name: message
+        value: hello world
+  entrypoint: whalesay-template
+  templates:
+    - container:
+        args:
+          - '{{inputs.parameters.message}}'
+        command:
+          - cowsay
+        image: docker/whalesay
+      inputs:
+        parameters:
+          - name: message
+      name: whalesay-template

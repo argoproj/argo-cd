@@ -1,0 +1,10 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: 'create failed: failed to attach the policy to role: NoSuchEntity: The
+      role with name example cannot be found.'
+  inputPath: testdata/ReconcileError.yaml
+- healthStatus:
+    status: Healthy
+    message: Available
+  inputPath: testdata/healthy.yaml

@@ -1,0 +1,14 @@
+apiVersion: gateway.solo.io/v1
+kind: RouteTable
+status:
+  statuses:
+    gloo-system:
+      reportedBy: gateway
+      state: Accepted
+      subresourceStatuses:
+        '*v1.Proxy.gateway-proxy_gloo-system':
+          reportedBy: gloo
+          state: Accepted
+        '*v1.Proxy.internal-proxy_gloo-system':
+          reportedBy: gloo
+          state: Accepted

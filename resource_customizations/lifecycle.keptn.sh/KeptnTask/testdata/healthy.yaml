@@ -1,0 +1,37 @@
+apiVersion: lifecycle.keptn.sh/v1alpha2
+kind: KeptnTask
+metadata:
+  creationTimestamp: "2022-12-14T13:17:56Z"
+  generation: 1
+  name: pre-pre-deployment-check-entry-31363
+  namespace: podtato-kubectl
+  ownerReferences:
+    - apiVersion: lifecycle.keptn.sh/v1alpha2
+      blockOwnerDeletion: true
+      controller: true
+      kind: KeptnWorkloadInstance
+      name: podtato-head-podtato-head-left-leg-0.2.7
+      uid: 1376ab23-43d7-4304-89b3-1eea3a895a2d
+  resourceVersion: "226304"
+  uid: 2e89a2e6-44ba-47ed-8800-c0194e549ee0
+spec:
+  app: podtato-head
+  appVersion: ""
+  checkType: pre
+  context:
+    appName: ""
+    appVersion: ""
+    objectType: ""
+    taskType: ""
+    workloadName: ""
+    workloadVersion: ""
+  parameters: {}
+  secureParameters: {}
+  taskDefinition: pre-deployment-check-entry
+  workload: podtato-head-podtato-head-left-leg
+  workloadVersion: 0.2.7
+status:
+  endTime: "2022-12-14T13:18:46Z"
+  jobName: klc-pre-pre-deployment-check--44910
+  startTime: "2022-12-14T13:17:56Z"
+  status: Succeeded

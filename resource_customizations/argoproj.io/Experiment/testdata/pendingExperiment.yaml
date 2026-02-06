@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Experiment
+metadata:
+  name: experiment-with-analysis-5hm74
+  namespace: default
+spec:
+  analyses:
+  - name: job
+    templateName: job
+  duration: 3600
+  templates:
+  - name: baseline
+    selector:
+      matchLabels:
+        app: rollouts-demo
+    template:
+      metadata:
+        labels:
+          app: rollouts-demo
+      spec:
+        containers:
+        - image: argoproj/rollouts-demo:blue
+          name: rollouts-demo
+status:
+  analysisRuns:
+  - analysisRun: experiment-with-analysis-5hm74-job-h4bgb
+    name: job
+    phase: Running
+  availableAt: "2019-10-21T03:40:28Z"
+  conditions:
+  - lastTransitionTime: "2019-10-21T03:40:28Z"
+    lastUpdateTime: "2019-10-21T03:40:28Z"
+    message: Experiment "experiment-with-analysis-5hm74" has successfully ran and
+      completed.
+    reason: ExperimentCompleted
+    phase: "False"
+    type: Progressing
+  running: false
+  phase: Pending
+  templateStatuses:
+  - availableReplicas: 0
+    lastTransitionTime: "2019-10-28T20:22:01Z"
+    name: baseline
+    readyReplicas: 0
+    replicas: 0
+    phase: Progressing
+    updatedReplicas: 0

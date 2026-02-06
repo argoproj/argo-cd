@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: notifications-controller
+    app.kubernetes.io/name: argocd-notifications-controller-metrics
+    app.kubernetes.io/part-of: argocd
+  name: argocd-notifications-controller-metrics
+spec:
+  ports:
+  - name: metrics
+    protocol: TCP
+    port: 9001
+    targetPort: 9001
+  selector:
+    app.kubernetes.io/name: argocd-notifications-controller

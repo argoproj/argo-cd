@@ -1,0 +1,7 @@
+apiVersion: wrong.group/v1alpha1
+kind: Fake
+metadata:
+  name: fake-crd-instance-wronggroup
+spec:
+  cpu: 2000m
+  memory: 32Mi

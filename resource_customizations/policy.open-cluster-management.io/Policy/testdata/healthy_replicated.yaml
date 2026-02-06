@@ -1,0 +1,91 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: open-cluster-management-global-set.argo-example
+  generation: 4
+  namespace: local-cluster
+  labels:
+    policy.open-cluster-management.io/cluster-name: local-cluster
+    policy.open-cluster-management.io/cluster-namespace: local-cluster
+    policy.open-cluster-management.io/root-policy: open-cluster-management-global-set.argo-example
+spec:
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: example-namespace
+        spec:
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: example
+          remediationAction: inform
+          severity: low
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: example-pod
+        spec:
+          namespaceSelector:
+            exclude:
+              - kube-*
+            include:
+              - default
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Pod
+                metadata:
+                  name: foobar
+                spec:
+                  containers:
+                    - image: 'registry.redhat.io/rhel9/httpd-24:latest'
+                      name: httpd
+                      securityContext:
+                        allowPrivilegeEscalation: false
+                        capabilities:
+                          drop:
+                            - ALL
+                        privileged: false
+                        runAsNonRoot: true
+          remediationAction: inform
+          severity: low
+  remediationAction: inform
+status:
+  compliant: Compliant
+  details:
+    - compliant: Compliant
+      history:
+        - eventName: open-cluster-management-global-set.argo-example.17e703831ab809b3
+          lastTimestamp: '2024-07-30T14:20:44Z'
+          message: 'Compliant; notification - namespaces [example] found as specified'
+        - eventName: open-cluster-management-global-set.argo-example.17e703810146765a
+          lastTimestamp: '2024-07-30T14:20:35Z'
+          message: 'Compliant; notification - namespaces [example] was created successfully'
+        - eventName: open-cluster-management-global-set.argo-example.17e701cc5101e3a4
+          lastTimestamp: '2024-07-30T13:49:19Z'
+          message: 'NonCompliant; violation - namespaces [example] not found'
+      templateMeta:
+        creationTimestamp: null
+        name: example-namespace
+    - compliant: Compliant
+      history:
+        - eventName: open-cluster-management-global-set.argo-example.17e7034ea145078e
+          lastTimestamp: '2024-07-30T14:16:58Z'
+          message: 'Compliant; notification - pods [foobar] found as specified in namespace default'
+        - eventName: open-cluster-management-global-set.argo-example.17e7034c879045a3
+          lastTimestamp: '2024-07-30T14:16:49Z'
+          message: 'Compliant; notification - pods [foobar] was created successfully in namespace default'
+        - eventName: open-cluster-management-global-set.argo-example.17e7020b47782ddc
+          lastTimestamp: '2024-07-30T13:53:49Z'
+          message: 'NonCompliant; violation - pods [foobar] not found in namespace default'
+      templateMeta:
+        creationTimestamp: null
+        name: example-pod

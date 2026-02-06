@@ -1,0 +1,8 @@
+# This configmap fails when running `kubectl apply`, but succeeds when running `kubectl apply --validate=false`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: invalid-cm
+  annotations:
+    argocd.argoproj.io/sync-options: Validate=false
+invalidKey: this-fails

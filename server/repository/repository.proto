@@ -1,0 +1,252 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository";
+
+// Repository Service
+//
+// Repository Service API performs CRUD actions against repository resources
+package repository;
+
+import "google/api/annotations.proto";
+import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
+import "github.com/argoproj/argo-cd/v3/reposerver/repository/repository.proto";
+
+// RepoAppsQuery is a query for Repository apps
+message RepoAppsQuery {
+	string repo = 1;
+	string revision = 2;
+	string appName = 3;
+	string appProject = 4;
+}
+
+
+// AppInfo contains application type and app file path
+message AppInfo {
+	string type = 1;
+	string path = 2;
+}
+
+// RepoAppDetailsQuery contains query information for app details request
+message RepoAppDetailsQuery {
+	github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSource source = 1;
+	string appName = 2;
+	string appProject = 3;
+	// source index (for multi source apps)
+	int32 sourceIndex = 4;
+	// versionId from historical data (for multi source apps)
+	int32 versionId = 5;
+}
+
+// RepoAppsResponse contains applications of specified repository
+message RepoAppsResponse {
+	repeated AppInfo items = 1;
+}
+
+// RepoQuery is a query for Repository resources
+message RepoQuery {
+	// Repo URL for query
+	string repo = 1;
+	// Whether to force a cache refresh on repo's connection state
+	bool forceRefresh = 2;
+	// App project for query
+	string appProject = 3;
+}
+
+// RepoAccessQuery is a query for checking access to a repo
+message RepoAccessQuery {
+	// The URL to the repo
+	string repo = 1;
+	// Username for accessing repo
+	string username = 2;
+	// Password for accessing repo
+	string password = 3;
+	// Private key data for accessing SSH repository
+	string sshPrivateKey = 4;
+	// Whether to skip certificate or host key validation
+	bool   insecure = 5;
+	// TLS client cert data for accessing HTTPS repository
+	string tlsClientCertData = 6;
+	// TLS client cert key for accessing HTTPS repository
+	string tlsClientCertKey = 7;
+	// The type of the repo
+	string type = 9;
+	// The name of the repo
+	string name = 10;
+	// Whether helm-oci support should be enabled for this repo
+	bool enableOci = 11;
+	// Github App Private Key PEM data
+	string githubAppPrivateKey = 12;
+	// Github App ID of the app used to access the repo
+	int64 githubAppID = 13;
+	// Github App Installation ID of the installed GitHub App
+	int64 githubAppInstallationID = 14;
+	// Github App Enterprise base url if empty will default to https://api.github.com
+	string githubAppEnterpriseBaseUrl = 15;
+	// HTTP/HTTPS proxy to access the repository
+	string proxy = 16;
+	// Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
+	string project = 17;
+	// Google Cloud Platform service account key
+	string gcpServiceAccountKey = 18;
+	// Whether to force HTTP basic auth
+	bool forceHttpBasicAuth = 19;
+	// Whether to use azure workload identity for authentication
+	bool useAzureWorkloadIdentity = 20;
+	// BearerToken contains the bearer token used for Git auth at the repo server
+	string bearerToken = 21;
+	// Whether https should be disabled for an OCI repo
+	bool insecureOciForceHttp = 22;
+}
+
+message RepoResponse {}
+
+// RepoCreateRequest is a request for creating repository config
+message RepoCreateRequest {
+	// Repository definition
+	github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
+	// Whether to create in upsert mode
+	bool upsert = 2;
+	// Whether to operate on credential set instead of repository
+	bool credsOnly = 3;
+}
+
+message RepoUpdateRequest {
+	github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
+}
+
+// RepositoryService
+service RepositoryService {
+
+	// List returns list of repos or repository credentials
+	rpc List(RepoQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RepositoryList) {
+		option (google.api.http).get = "/api/v1/repositories";
+		option deprecated = true;
+	}
+
+	// Get returns a repository or its credentials
+	rpc Get(RepoQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
+		option (google.api.http).get = "/api/v1/repositories/{repo}";
+	}
+
+	// GetWrite returns a repository or its write credentials
+	rpc GetWrite(RepoQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
+		option (google.api.http).get = "/api/v1/write-repositories/{repo}";
+	}
+
+	// ListRepositories gets a list of all configured repositories
+	rpc ListRepositories(RepoQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RepositoryList) {
+		option (google.api.http).get = "/api/v1/repositories";
+	}
+
+	// ListWriteRepositories gets a list of all configured write repositories
+	rpc ListWriteRepositories(RepoQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RepositoryList) {
+		option (google.api.http).get = "/api/v1/write-repositories";
+	}
+
+	rpc ListRefs(RepoQuery) returns (Refs) {
+		option (google.api.http).get = "/api/v1/repositories/{repo}/refs";
+	}
+
+	rpc ListOCITags(RepoQuery) returns (Refs) {
+		option (google.api.http).get = "/api/v1/repositories/{repo}/oci-tags";
+	}
+
+	// ListApps returns list of apps in the repo
+	rpc ListApps(RepoAppsQuery) returns (RepoAppsResponse) {
+		option (google.api.http).get = "/api/v1/repositories/{repo}/apps";
+	}
+
+	// GetAppDetails returns application details by given path
+	rpc GetAppDetails(RepoAppDetailsQuery) returns (repository.RepoAppDetailsResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/repositories/{source.repoURL}/appdetails"
+			body: "*"
+		};
+	}
+
+	// GetHelmCharts returns list of helm charts in the specified repository
+	rpc GetHelmCharts(RepoQuery) returns (repository.HelmChartsResponse) {
+		option (google.api.http).get = "/api/v1/repositories/{repo}/helmcharts";
+	}
+
+	// Create creates a repo or a repo credential set
+	rpc Create(RepoCreateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
+		option (google.api.http) = {
+			post: "/api/v1/repositories"
+			body: "repo"
+		};
+		option deprecated = true;
+	}
+
+	// CreateRepository creates a new repository configuration
+	rpc CreateRepository(RepoCreateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
+		option (google.api.http) = {
+			post: "/api/v1/repositories"
+			body: "repo"
+		};
+	}
+
+	// CreateWriteRepository creates a new write repository configuration
+	rpc CreateWriteRepository(RepoCreateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
+		option (google.api.http) = {
+			post: "/api/v1/write-repositories"
+			body: "repo"
+		};
+	}
+
+	// Update updates a repo or repo credential set
+	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
+		option (google.api.http) = {
+			put: "/api/v1/repositories/{repo.repo}"
+			body: "repo"
+		};
+		option deprecated = true;
+	}
+
+	// UpdateRepository updates a repository configuration
+	rpc UpdateRepository(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
+		option (google.api.http) = {
+			put: "/api/v1/repositories/{repo.repo}"
+			body: "repo"
+		};
+	}
+
+	// UpdateWriteRepository updates a write repository configuration
+	rpc UpdateWriteRepository(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
+		option (google.api.http) = {
+			put: "/api/v1/write-repositories/{repo.repo}"
+			body: "repo"
+		};
+	}
+
+	// Delete deletes a repository from the configuration
+	rpc Delete(RepoQuery) returns (RepoResponse) {
+		option (google.api.http).delete = "/api/v1/repositories/{repo}";
+		option deprecated = true;
+	}
+
+	// DeleteRepository deletes a repository from the configuration
+	rpc DeleteRepository(RepoQuery) returns (RepoResponse) {
+		option (google.api.http).delete = "/api/v1/repositories/{repo}";
+	}
+
+	// DeleteWriteRepository deletes a write repository from the configuration
+	rpc DeleteWriteRepository(RepoQuery) returns (RepoResponse) {
+		option (google.api.http).delete = "/api/v1/write-repositories/{repo}";
+	}
+
+	// ValidateAccess validates access to a repository with given parameters
+	rpc ValidateAccess(RepoAccessQuery) returns (RepoResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/repositories/{repo}/validate"
+			body: "repo"
+		};
+	}
+
+	// ValidateWriteAccess validates write access to a repository with given parameters
+	rpc ValidateWriteAccess(RepoAccessQuery) returns (RepoResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/write-repositories/{repo}/validate"
+			body: "repo"
+		};
+	}
+}

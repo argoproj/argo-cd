@@ -1,0 +1,83 @@
+apiVersion: numaplane.numaproj.io/v1alpha1
+kind: PipelineRollout
+metadata:
+  creationTimestamp: "2024-10-02T23:01:46Z"
+  finalizers:
+  - numaplane.numaproj.io/numaplane-controller
+  generation: 2
+  name: test-pipeline-rollout
+  namespace: numaplane-system
+  resourceVersion: "1771"
+  uid: f89f2135-a6a6-443c-8584-cbf6d789f2db
+spec:
+  pipeline:
+    spec:
+      edges:
+      - conditions: null
+        from: in
+        to: cat
+      - conditions: null
+        from: cat
+        to: out
+      interStepBufferServiceName: test-isbservice-rollout
+      lifecycle: {}
+      vertices:
+      - name: in
+        scale:
+          max: 1
+          min: 1
+          zeroReplicaSleepSeconds: 15
+        source:
+          generator:
+            duration: 1s
+            rpu: 5
+        updateStrategy: {}
+      - name: cat
+        scale:
+          max: 1
+          min: 1
+          zeroReplicaSleepSeconds: 15
+        udf:
+          builtin:
+            name: cat
+          container: null
+          groupBy: null
+        updateStrategy: {}
+      - name: out
+        scale:
+          max: 1
+          min: 1
+          zeroReplicaSleepSeconds: 15
+        sink:
+          log: {}
+          retryStrategy: {}
+        updateStrategy: {}
+      watermark: {}
+status:
+  conditions:
+  - lastTransitionTime: "2024-10-02T23:01:46Z"
+    message: Successful
+    observedGeneration: 1
+    reason: Successful
+    status: "True"
+    type: ChildResourceDeployed
+  - lastTransitionTime: "2024-10-02T23:02:41Z"
+    message: Pipeline Progressing
+    observedGeneration: 2
+    reason: Progressing
+    status: "False"
+    type: ChildResourcesHealthy
+  - lastTransitionTime: "2024-10-02T23:02:41Z"
+    message: Pipeline pausing
+    observedGeneration: 2
+    reason: PipelinePausing
+    status: "True"
+    type: PipelinePausingOrPaused
+  message: Progressing
+  nameCount: 0
+  observedGeneration: 2
+  pauseStatus:
+    lastPauseBeginTime: "2024-10-02T23:02:41Z"
+    lastPauseEndTime: null
+  phase: Pending
+  upgradeInProgress: PipelinePauseAndDrain

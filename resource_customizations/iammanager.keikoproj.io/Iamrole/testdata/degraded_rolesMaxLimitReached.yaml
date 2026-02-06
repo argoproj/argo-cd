@@ -1,0 +1,26 @@
+apiVersion: iammanager.keikoproj.io/v1alpha1
+kind: Iamrole
+metadata:
+  finalizers:
+    - iamrole.finalizers.iammanager.keikoproj.io
+  name: iamrole
+  namespace: test
+spec:
+  PolicyDocument:
+    Statement:
+      - Action:
+          - ec2:*
+        Effect: Deny
+        Resource:
+          - '*'
+      - Action:
+          - iam:*
+        Effect: Deny
+        Resource:
+          - '*'
+status:
+  errorDescription: maximum number of allowed roles reached. You must delete any existing role before proceeding further
+  lastUpdatedTimestamp: "2023-10-10T19:25:26Z"
+  retryCount: 0
+  roleName: k8s-test
+  state: RolesMaxLimitReached

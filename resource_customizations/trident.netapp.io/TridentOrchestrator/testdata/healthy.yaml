@@ -1,0 +1,91 @@
+apiVersion: trident.netapp.io/v1
+kind: TridentOrchestrator
+metadata:
+  creationTimestamp: '2021-06-24T10:51:34Z'
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: trident-operator
+  managedFields:
+    - apiVersion: trident.netapp.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:metadata':
+          'f:annotations':
+            .: {}
+            'f:kubectl.kubernetes.io/last-applied-configuration': {}
+          'f:labels':
+            .: {}
+            'f:app.kubernetes.io/instance': {}
+        'f:spec':
+          .: {}
+          'f:autosupportImage': {}
+          'f:debug': {}
+          'f:logFormat': {}
+          'f:namespace': {}
+          'f:tridentImage': {}
+      manager: argocd-application-controller
+      operation: Update
+      time: '2021-06-24T10:51:34Z'
+    - apiVersion: trident.netapp.io/v1
+      fieldsType: FieldsV1
+      fieldsV1:
+        'f:status':
+          .: {}
+          'f:currentInstallationParams':
+            .: {}
+            'f:IPv6': {}
+            'f:autosupportHostname': {}
+            'f:autosupportImage': {}
+            'f:autosupportProxy': {}
+            'f:autosupportSerialNumber': {}
+            'f:debug': {}
+            'f:enableNodePrep': {}
+            'f:imagePullSecrets': {}
+            'f:imageRegistry': {}
+            'f:k8sTimeout': {}
+            'f:kubeletDir': {}
+            'f:logFormat': {}
+            'f:silenceAutosupport': {}
+            'f:tridentImage': {}
+          'f:message': {}
+          'f:namespace': {}
+          'f:status': {}
+          'f:version': {}
+      manager: trident-operator
+      operation: Update
+      time: '2021-06-24T10:51:35Z'
+  name: trident
+  resourceVersion: '3424514'
+  uid: eb768637-6b11-4e70-8646-43c2117bc202
+spec:
+  IPv6: false
+  autosupportImage: 'netapp/trident-autosupport:21.01'
+  autosupportProxy: null
+  debug: false
+  enableNodePrep: false
+  k8sTimeout: 0
+  kubeletDir: null
+  logFormat: text
+  namespace: trident
+  silenceAutosupport: false
+  tridentImage: 'netapp/trident:21.04.0'
+status:
+  currentInstallationParams:
+    IPv6: 'false'
+    autosupportHostname: ''
+    autosupportImage: 'netapp/trident-autosupport:21.01'
+    autosupportProxy: ''
+    autosupportSerialNumber: ''
+    debug: 'false'
+    enableNodePrep: 'false'
+    imagePullSecrets: []
+    imageRegistry: ''
+    k8sTimeout: '30'
+    kubeletDir: /var/lib/kubelet
+    logFormat: text
+    silenceAutosupport: 'false'
+    tridentImage: 'netapp/trident:21.04.0'
+  message: Trident installed
+  namespace: trident
+  status: Installed
+  version: v21.04.0

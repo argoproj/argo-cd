@@ -1,0 +1,7 @@
+apiVersion: capabilities.3scale.net/v1beta1
+kind: DeveloperUser
+status:
+  conditions:
+    - type: Invalid
+      status: "True"
+      message: Referenced developer account does not exist

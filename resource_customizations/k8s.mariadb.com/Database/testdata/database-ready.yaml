@@ -1,0 +1,19 @@
+apiVersion: k8s.mariadb.com/v1alpha1
+kind: Database
+metadata:
+  name: dbname
+spec:
+  characterSet: utf8
+  collate: utf8_general_ci
+  mariaDbRef:
+    name: mariadb
+    waitForIt: true
+  requeueInterval: 30s
+  retryInterval: 5s
+status:
+  conditions:
+  - lastTransitionTime: "2024-04-12T13:43:57Z"
+    message: Created
+    reason: Created
+    status: "True"
+    type: Ready

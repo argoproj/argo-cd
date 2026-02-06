@@ -1,0 +1,7 @@
+apiVersion: v1
+entries:
+  helm:
+    - created: 2019-07-08T23:26:50.723856689Z
+      urls:
+        - http://argocd-e2e-server:9080/helm-repo/helm-1.0.0.tgz
+      version: 1.0.0
