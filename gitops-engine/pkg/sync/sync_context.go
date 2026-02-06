@@ -1313,15 +1313,6 @@ func (sc *syncContext) performCSAUpgradeMigration(liveObj *unstructured.Unstruct
 		return fmt.Errorf("failed to apply csaupgrade migration patch: %w", err)
 	}
 
-	// Remove the last-applied-configuration annotation since it can't be maintained
-	// for resources this large, and CSA will never work for them anyway
-	removeAnnotationPatch := []byte(`[{"op":"remove","path":"/metadata/annotations/kubectl.kubernetes.io~1last-applied-configuration"}]`)
-	_, err = resIf.Patch(context.TODO(), liveObj.GetName(), types.JSONPatchType, removeAnnotationPatch, metav1.PatchOptions{})
-	if err != nil && !apierrors.IsNotFound(err) && !strings.Contains(err.Error(), "doesn't exist") {
-		// Log but don't fail - the annotation might not exist
-		sc.log.V(1).Info("Failed to remove last-applied-configuration annotation (may not exist)", "error", err)
-	}
-
 	sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).Info(
 		"Successfully migrated managed fields using csaupgrade")
 
