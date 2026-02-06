@@ -324,7 +324,6 @@ export class ApplicationsService {
                     const parsed = JSON.parse(data);
                     return parsed && parsed.result ? (parsed.result as models.LogEntry) : null;
                 } catch (e) {
-                    console.error('Failed to parse log entry:', e);
                     return null;
                 }
             }),
