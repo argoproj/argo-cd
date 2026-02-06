@@ -100,3 +100,56 @@ func TestGetGitCreds(t *testing.T) {
 		})
 	}
 }
+
+func TestCopyCredentialsFromRepo_AzureTenantId(t *testing.T) {
+	source := &Repository{
+		UseAzureWorkloadIdentity: true,
+		AzureTenantId:            "tenant-b-id",
+	}
+	dest := &Repository{}
+
+	dest.CopyCredentialsFromRepo(source)
+
+	assert.Equal(t, "tenant-b-id", dest.AzureTenantId)
+	assert.True(t, dest.UseAzureWorkloadIdentity)
+}
+
+func TestCopyCredentialsFromRepo_AzureTenantId_NoOverwrite(t *testing.T) {
+	source := &Repository{
+		AzureTenantId: "tenant-source",
+	}
+	dest := &Repository{
+		AzureTenantId: "tenant-dest",
+	}
+
+	dest.CopyCredentialsFromRepo(source)
+
+	assert.Equal(t, "tenant-dest", dest.AzureTenantId)
+}
+
+func TestCopyCredentialsFrom_AzureTenantId(t *testing.T) {
+	repoCreds := &RepoCreds{
+		URL:                      "https://contoso.azurecr.io",
+		UseAzureWorkloadIdentity: true,
+		AzureTenantId:            "tenant-b-id",
+	}
+	repo := &Repository{}
+
+	repo.CopyCredentialsFrom(repoCreds)
+
+	assert.Equal(t, "tenant-b-id", repo.AzureTenantId)
+	assert.True(t, repo.UseAzureWorkloadIdentity)
+}
+
+func TestCopyCredentialsFrom_AzureTenantId_NoOverwrite(t *testing.T) {
+	repoCreds := &RepoCreds{
+		AzureTenantId: "source-tenant",
+	}
+	repo := &Repository{
+		AzureTenantId: "dest-tenant",
+	}
+
+	repo.CopyCredentialsFrom(repoCreds)
+
+	assert.Equal(t, "dest-tenant", repo.AzureTenantId)
+}
