@@ -121,25 +121,30 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Initial commit", "-a")
 	require.NoError(t, err)
 
-	atag := client.IsAnnotatedTag("master")
+	err = runCmd(ctx, client.Root(), "git", "tag", "annot-tag", "-a", "-m", "Create annotated tag")
+	require.NoError(t, err)
+
+	err = runCmd(ctx, client.Root(), "git", "tag", "light-tag")
+	require.NoError(t, err)
+
+	atag := client.IsAnnotatedTag("HEAD")
 	assert.False(t, atag)
 
-	err = runCmd(ctx, client.Root(), "git", "tag", "some-tag", "-a", "-m", "Create annotated tag")
+	atag = client.IsAnnotatedTag("master")
+	assert.False(t, atag)
+
+	atag = client.IsAnnotatedTag("blorp")
+	assert.False(t, atag)
+
+	sha, err := client.CommitSHA()
 	require.NoError(t, err)
-	atag = client.IsAnnotatedTag("some-tag")
+	atag = client.IsAnnotatedTag(sha)
+	assert.False(t, atag)
+
+	atag = client.IsAnnotatedTag("annot-tag")
 	assert.True(t, atag)
 
-	// Tag effectually points to HEAD, so it's considered the same
-	atag = client.IsAnnotatedTag("HEAD")
-	assert.True(t, atag)
-
-	err = runCmd(ctx, client.Root(), "git", "rm", "README")
-	require.NoError(t, err)
-	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "remove README", "-a")
-	require.NoError(t, err)
-
-	// We moved on, so tag doesn't point to HEAD anymore
-	atag = client.IsAnnotatedTag("HEAD")
+	atag = client.IsAnnotatedTag("light-tag")
 	assert.False(t, atag)
 }
 
@@ -1457,4 +1462,41 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	changed, err = client.HasFileChanged(filePath)
 	require.NoError(t, err)
 	require.True(t, changed, "expected modified file to be reported as changed")
+}
+
+func Test_LsSignatures_Error(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	out, err := client.SetAuthor("test", "test@example.com")
+	require.NoError(t, err, "error output: %s", out)
+
+	err = runCmd(ctx, tempDir, "git", "log")
+	require.NoError(t, err)
+
+	tests := []struct {
+		revision    string
+		deep        bool
+		expectedMsg string
+	}{
+		{
+			revision:    "5555.*",
+			deep:        false,
+			expectedMsg: "version matching constraint not found",
+		},
+		{
+			revision:    "5555.*",
+			deep:        true,
+			expectedMsg: "version matching constraint not found",
+		},
+	}
+
+	for _, tt := range tests {
+		signatures, err := client.LsSignatures(tt.revision, tt.deep)
+		require.ErrorContains(t, err, tt.expectedMsg)
+		assert.Nil(t, signatures)
+	}
 }

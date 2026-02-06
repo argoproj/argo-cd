@@ -537,9 +537,11 @@ func SetPermissions(permissions []ACL, username string, roleName string) error {
 	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
 		var aclstr string
 
+		var aclstrSb535 strings.Builder
 		for _, permission := range permissions {
-			aclstr += fmt.Sprintf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
+			aclstrSb535.WriteString(fmt.Sprintf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope))
 		}
+		aclstr += aclstrSb535.String()
 
 		aclstr += fmt.Sprintf("g, %s, role:%s", username, roleName)
 		cm.Data["policy.csv"] = aclstr
