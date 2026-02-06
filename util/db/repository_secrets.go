@@ -345,6 +345,7 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 		NoProxy:                    string(secretCopy.Data["noProxy"]),
 		Project:                    string(secretCopy.Data["project"]),
 		GCPServiceAccountKey:       string(secretCopy.Data["gcpServiceAccountKey"]),
+		AzureCloud:                 string(secretCopy.Data["azureCloud"]),
 	}
 
 	insecureIgnoreHostKey, err := boolOrFalse(secretCopy, "insecureIgnoreHostKey")
@@ -444,6 +445,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretBool(secretCopy, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	updateSecretBool(secretCopy, "useAzureWorkloadIdentity", repository.UseAzureWorkloadIdentity)
 	updateSecretInt(secretCopy, "depth", repository.Depth)
+	updateSecretString(secretCopy, "azureCloud", repository.AzureCloud)
 	addSecretMetadata(secretCopy, s.getSecretType())
 
 	return secretCopy
@@ -466,6 +468,7 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 		GCPServiceAccountKey:       string(secretCopy.Data["gcpServiceAccountKey"]),
 		Proxy:                      string(secretCopy.Data["proxy"]),
 		NoProxy:                    string(secretCopy.Data["noProxy"]),
+		AzureCloud:                 string(secretCopy.Data["azureCloud"]),
 	}
 
 	enableOCI, err := boolOrFalse(secretCopy, "enableOCI")
@@ -533,6 +536,7 @@ func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds
 	updateSecretString(secretCopy, "noProxy", repoCreds.NoProxy)
 	updateSecretBool(secretCopy, "forceHttpBasicAuth", repoCreds.ForceHttpBasicAuth)
 	updateSecretBool(secretCopy, "useAzureWorkloadIdentity", repoCreds.UseAzureWorkloadIdentity)
+	updateSecretString(secretCopy, "azureCloud", repoCreds.AzureCloud)
 	addSecretMetadata(secretCopy, s.getRepoCredSecretType())
 
 	return secretCopy

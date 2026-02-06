@@ -19,6 +19,7 @@ export interface HTTPSQuery {
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
     insecureOCIForceHttp: boolean;
+    azureCloud: string;
 }
 
 export interface SSHQuery {
@@ -109,7 +110,8 @@ export class RepositoriesService {
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: q.insecureOCIForceHttp
+                insecureOCIForceHttp: q.insecureOCIForceHttp,
+                azureCloud: q.azureCloud
             })
             .then(res => res.body as models.Repository);
     }
