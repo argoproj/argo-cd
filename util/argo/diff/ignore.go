@@ -2,6 +2,7 @@ package diff
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/glob"
@@ -106,10 +107,5 @@ func mergeIgnoreDifferences(from *IgnoreDifference, target *IgnoreDifference) {
 }
 
 func contains(slice []string, e string) bool {
-	for _, s := range slice {
-		if s == e {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, e)
 }
