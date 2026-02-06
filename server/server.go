@@ -674,59 +674,47 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		var wg gosync.WaitGroup
 
 		// Shutdown http server
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			err := httpS.Shutdown(shutdownCtx)
 			if err != nil {
 				log.Errorf("Error shutting down http server: %s", err)
 			}
-		}()
+		})
 
 		if server.useTLS() {
 			// Shutdown https server
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				err := httpsS.Shutdown(shutdownCtx)
 				if err != nil {
 					log.Errorf("Error shutting down https server: %s", err)
 				}
-			}()
+			})
 		}
 
 		// Shutdown gRPC server
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			grpcS.GracefulStop()
-		}()
+		})
 
 		// Shutdown metrics server
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			err := metricsServ.Shutdown(shutdownCtx)
 			if err != nil {
 				log.Errorf("Error shutting down metrics server: %s", err)
 			}
-		}()
+		})
 
 		if server.useTLS() {
 			// Shutdown tls server
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				tlsm.Close()
-			}()
+			})
 		}
 
 		// Shutdown tcp server
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			tcpm.Close()
-		}()
+		})
 
 		c := make(chan struct{})
 		// This goroutine will wait for all servers to conclude the shutdown
@@ -1451,7 +1439,7 @@ func (server *ArgoCDServer) uiAssetExists(filename string) bool {
 func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		acceptHTML := false
-		for _, acceptType := range strings.Split(r.Header.Get("Accept"), ",") {
+		for acceptType := range strings.SplitSeq(r.Header.Get("Accept"), ",") {
 			if acceptType == "text/html" || acceptType == "html" {
 				acceptHTML = true
 				break
