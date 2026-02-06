@@ -185,6 +185,7 @@ spec:
   backoffLimit: 2
 ```
 
+### Initialize or migrate a database before main application tries to start
 The following example runs a db migration command before the main sync operation (also in wave -1):
 ```yaml
 apiVersion: batch/v1
