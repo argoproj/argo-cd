@@ -303,6 +303,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         ? [
               {
                   title: 'ENABLE HYDRATOR',
+                  hint: 'Enable Source Hydrator to render and push manifests to a Git branch.',
                   view: false, // Hide in view mode
                   edit: (formApi: FormApi) => (
                       <div className='checkbox-container'>
@@ -337,7 +338,6 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                               id='enable-hydrator'
                           />
                           <label htmlFor='enable-hydrator'>SOURCE HYDRATOR ENABLED</label>
-                          <HelpIcon title='Enable source hydrator to sync rendered manifests to a separate Git repository' />
                       </div>
                   )
               }
@@ -398,14 +398,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                       title: 'TARGET REVISION',
                       view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
                       edit: (formApi: FormApi) => (
-                          <RevisionFormField
-                              helpIconTop={'0'}
-                              hideLabel={true}
-                              formApi={formApi}
-                              fieldValue='spec.source.targetRevision'
-                              repoURL={source.repoURL}
-                              repoType={repoType}
-                          />
+                          <RevisionFormField hideLabel={true} formApi={formApi} fieldValue='spec.source.targetRevision' repoURL={source.repoURL} repoType={repoType} />
                       )
                   },
                   {
@@ -423,86 +416,44 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const drySourceItems: EditablePanelItem[] = [
         {
             title: 'REPO URL',
+            hint: 'Git repo containing the unrendered source (Helm/Kustomize/manifests).',
             view: <Repo url={app.spec.sourceHydrator?.drySource?.repoURL} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.drySource.repoURL' component={Text} />
         },
-        ...(isHelm
-            ? [
-                  {
-                      title: 'CHART',
-                      view: <span>{source && `${source.chart}:${source.targetRevision}`}</span>,
-                      edit: (formApi: FormApi) => (
-                          <DataLoader
-                              input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL}}
-                              load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
-                              {(charts: models.HelmChart[]) => (
-                                  <div className='row'>
-                                      <div className='columns small-8'>
-                                          <FormField
-                                              formApi={formApi}
-                                              field='spec.sourceHydrator.drySource.chart'
-                                              component={AutocompleteField}
-                                              componentProps={{items: charts.map(chart => chart.name), filterSuggestions: true}}
-                                          />
-                                      </div>
-                                      <DataLoader
-                                          input={{charts, chart: getAppSpecDefaultSource(formApi.getFormState().values.spec).chart}}
-                                          load={async data => {
-                                              const chartInfo = data.charts.find(chart => chart.name === data.chart);
-                                              return (chartInfo && chartInfo.versions) || new Array<string>();
-                                          }}>
-                                          {(versions: string[]) => (
-                                              <div className='columns small-4'>
-                                                  <FormField
-                                                      formApi={formApi}
-                                                      field='spec.sourceHydrator.drySource.targetRevision'
-                                                      component={AutocompleteField}
-                                                      componentProps={{items: versions}}
-                                                  />
-                                                  <RevisionHelpIcon type='helm' top='0' />
-                                              </div>
-                                          )}
-                                      </DataLoader>
-                                  </div>
-                              )}
-                          </DataLoader>
-                      )
-                  }
-              ]
-            : [
-                  {
-                      title: 'TARGET REVISION',
-                      view: <Revision repoUrl={app.spec.sourceHydrator?.drySource?.repoURL} revision={app.spec.sourceHydrator?.drySource?.targetRevision || 'HEAD'} />,
-                      edit: (formApi: FormApi) => (
-                          <RevisionFormField
-                              helpIconTop={'0'}
-                              hideLabel={true}
-                              formApi={formApi}
-                              fieldValue='spec.sourceHydrator.drySource.targetRevision'
-                              repoURL={app.spec.sourceHydrator?.drySource?.repoURL}
-                              repoType={repoType}
-                          />
-                      )
-                  },
-                  {
-                      title: 'PATH',
-                      view: (
-                          <Revision
-                              repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
-                              revision={app.spec.sourceHydrator?.drySource?.targetRevision || 'HEAD'}
-                              path={app.spec.sourceHydrator?.drySource?.path}
-                              isForPath={true}>
-                              {processPath(app.spec.sourceHydrator?.drySource?.path)}
-                          </Revision>
-                      ),
-                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.drySource.path' component={Text} />
-                  }
-              ])
+        {
+            title: 'TARGET REVISION',
+            hint: 'Git revision to read the dry source from (branch/tag/SHA).',
+            view: <Revision repoUrl={app.spec.sourceHydrator?.drySource?.repoURL} revision={app.spec.sourceHydrator?.drySource?.targetRevision || 'HEAD'} />,
+            edit: (formApi: FormApi) => (
+                <RevisionFormField
+                    hideLabel={true}
+                    formApi={formApi}
+                    fieldValue='spec.sourceHydrator.drySource.targetRevision'
+                    repoURL={app.spec.sourceHydrator?.drySource?.repoURL}
+                    repoType={repoType}
+                />
+            )
+        },
+        {
+            title: 'PATH',
+            hint: 'Directory in the dry repo with the unrendered source.',
+            view: (
+                <Revision
+                    repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
+                    revision={app.spec.sourceHydrator?.drySource?.targetRevision || 'HEAD'}
+                    path={app.spec.sourceHydrator?.drySource?.path}
+                    isForPath={true}>
+                    {processPath(app.spec.sourceHydrator?.drySource?.path)}
+                </Revision>
+            ),
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.drySource.path' component={Text} />
+        }
     ];
 
     const syncSourceItems: EditablePanelItem[] = [
         {
             title: 'TARGET BRANCH',
+            hint: 'Branch where hydrated manifests are written and synced from.',
             view: <Revision repoUrl={app.spec.sourceHydrator?.drySource?.repoURL} revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'} />,
             edit: (formApi: FormApi) => (
                 <RevisionFormField
@@ -518,6 +469,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         },
         {
             title: 'PATH',
+            hint: 'Output directory for hydrated manifests; must be a non-root path.',
             view: (
                 <Revision
                     repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
@@ -531,6 +483,33 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         }
     ];
 
+    const hydrateToItems: EditablePanelItem[] = [
+        {
+            title: 'TARGET BRANCH (OPTIONAL)',
+            hint: 'Optional staging branch to write hydrated output before syncing.',
+            view: (
+                <Revision
+                    repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
+                    revision={
+                        app.spec.sourceHydrator?.hydrateTo?.targetBranch ||
+                        (app.spec.sourceHydrator?.syncSource?.targetBranch ? `${app.spec.sourceHydrator.syncSource.targetBranch}-next` : 'HEAD')
+                    }
+                />
+            ),
+            edit: (formApi: FormApi) => (
+                <RevisionFormField
+                    helpIconTop={'0'}
+                    hideLabel={true}
+                    formApi={formApi}
+                    fieldValue='spec.sourceHydrator.hydrateTo.targetBranch'
+                    repoURL={source.repoURL}
+                    repoType='git'
+                    revisionType='Branches'
+                />
+            )
+        }
+    ];
+
     const sourceAttributes: (EditablePanelItem | EditablePanelContent)[] = isHydrator
         ? [
               ...standardSourceItems,
@@ -541,6 +520,10 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
               {
                   sectionName: 'Sync Source',
                   items: syncSourceItems
+              },
+              {
+                  sectionName: 'Hydrate To',
+                  items: hydrateToItems
               }
           ]
         : [...standardSourceItems, ...sourceItems];
@@ -658,7 +641,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             />
             {!hasMultipleSources && (
                 <EditablePanel
-                    save={updateApp}
+                    save={updateAppSource}
                     values={app}
                     title='SOURCE'
                     items={sourceAttributes}

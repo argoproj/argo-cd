@@ -25,7 +25,6 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
     };
 
     const selectedFilter = props.revisionType || filterType;
-    const extraPadding = props.hideLabel ? '0em' : '1.53em';
     const rowClass = props.hideLabel ? '' : ' argo-form-row';
     const rowPaddingRight = !props.revisionType ? '45px' : undefined;
     return (
@@ -65,7 +64,7 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
                     )}
                 </DataLoader>
             </div>
-            <div style={{paddingTop: extraPadding}} className='columns small-2'>
+            <div className='revision-form-field__dropdown'>
                 {props.repoType !== 'oci' && !props.revisionType && (
                     <DropDownMenu
                         anchor={() => (
