@@ -91,4 +91,4 @@ Argo CD is being actively developed by the community. [Releases](https://github.
 
 ## Adoption
 
-A growing list of hundreds of organizations(https://github.com/argoproj/argo-cd/blob/master/USERS.md) have officially adopted Argo CD.
+A growing list of organizations(https://github.com/argoproj/argo-cd/blob/master/USERS.md) have officially adopted Argo CD.
