@@ -835,7 +835,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			anonymousEnabled:      false,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
 			expectedErrorContains: common.TokenVerificationError,
-			expectedClaims:        jwt.MapClaims{"iss": "sso"},
+			expectedClaims:        nil,
 		},
 		{
 			test:                  "anonymous enabled, expired token, admin claim",
@@ -890,7 +890,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now())},
 			useDex:                true,
 			expectedErrorContains: common.TokenVerificationError,
-			expectedClaims:        jwt.MapClaims{"iss": "sso"},
+			expectedClaims:        nil,
 		},
 		{
 			test:                  "external OIDC: anonymous enabled, expired token, admin claim",
