@@ -1,0 +1,74 @@
+{
+  "pull_requests": [
+    {
+      "id": "019c2400-baf0-72a7-9592-c6a03b3f2da8",
+      "slug": "1",
+      "author": {
+        "id": "019711c3-fd2a-7729-8460-de195bc4ebf8",
+        "slug": "testuser"
+      },
+      "updated_by": {
+        "id": "019711c3-fd2a-7729-8460-de195bc4ebf8",
+        "slug": "testuser"
+      },
+      "title": "Add new feature",
+      "description": "This is a test PR",
+      "repository": {
+        "id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+        "slug": "test-repo"
+      },
+      "source_branch": "feature-branch",
+      "target_branch": "main",
+      "status": "open",
+      "created_at": "2026-02-03T14:55:53.584174086Z",
+      "updated_at": "2026-02-03T14:55:53.584174086Z"
+    },
+    {
+      "id": "019c2400-baf0-72a7-9592-c6a03b3f2da9",
+      "slug": "2",
+      "author": {
+        "id": "019711c3-fd2a-7729-8460-de195bc4ebf9",
+        "slug": "anotheruser"
+      },
+      "updated_by": {
+        "id": "019711c3-fd2a-7729-8460-de195bc4ebf9",
+        "slug": "anotheruser"
+      },
+      "title": "Fix bug in authentication",
+      "description": "Fixing a critical bug",
+      "repository": {
+        "id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+        "slug": "test-repo"
+      },
+      "source_branch": "bugfix-auth",
+      "target_branch": "main",
+      "status": "open",
+      "created_at": "2026-02-04T10:30:00.000000000Z",
+      "updated_at": "2026-02-04T10:30:00.000000000Z"
+    },
+    {
+      "id": "019c2400-baf0-72a7-9592-c6a03b3f2daa",
+      "slug": "3",
+      "author": {
+        "id": "019711c3-fd2a-7729-8460-de195bc4ebfa",
+        "slug": "thirduser"
+      },
+      "updated_by": {
+        "id": "019711c3-fd2a-7729-8460-de195bc4ebfa",
+        "slug": "thirduser"
+      },
+      "title": "Closed PR",
+      "description": "This PR is closed",
+      "repository": {
+        "id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+        "slug": "test-repo"
+      },
+      "source_branch": "old-feature",
+      "target_branch": "main",
+      "status": "closed",
+      "created_at": "2026-02-02T08:00:00.000000000Z",
+      "updated_at": "2026-02-03T09:00:00.000000000Z"
+    }
+  ],
+  "next_page_token": ""
+}

@@ -177,6 +177,15 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitea service: %w", err)
 		}
+	case providerConfig.SourceCraft != nil:
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.SourceCraft.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching SourceCraft token: %w", err)
+		}
+		provider, err = scm_provider.NewSourceCraftProvider(providerConfig.SourceCraft.Organization, token, providerConfig.SourceCraft.API, providerConfig.SourceCraft.AllBranches, providerConfig.SourceCraft.Insecure)
+		if err != nil {
+			return nil, fmt.Errorf("error initializing SourceCraft service: %w", err)
+		}
 	case providerConfig.BitbucketServer != nil:
 		providerConfig := providerConfig.BitbucketServer
 		var caCerts []byte
