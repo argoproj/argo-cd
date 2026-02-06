@@ -38,8 +38,8 @@ export interface GitHubAppQuery {
     name: string;
     url: string;
     githubAppPrivateKey: string;
-    githubAppId: bigint;
-    githubAppInstallationId: bigint;
+    githubAppID: bigint;
+    githubAppInstallationID: bigint;
     githubAppEnterpriseBaseURL: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
@@ -231,8 +231,8 @@ export class RepositoriesService {
                 name: q.name,
                 repo: q.url,
                 githubAppPrivateKey: q.githubAppPrivateKey,
-                githubAppId: q.githubAppId,
-                githubAppInstallationId: q.githubAppInstallationId,
+                githubAppID: q.githubAppID,
+                githubAppInstallationID: q.githubAppInstallationID,
                 githubAppEnterpriseBaseURL: q.githubAppEnterpriseBaseURL,
                 tlsClientCertData: q.tlsClientCertData,
                 tlsClientCertKey: q.tlsClientCertKey,
@@ -253,8 +253,8 @@ export class RepositoriesService {
                 name: q.name,
                 repo: q.url,
                 githubAppPrivateKey: q.githubAppPrivateKey,
-                githubAppId: q.githubAppId,
-                githubAppInstallationId: q.githubAppInstallationId,
+                githubAppID: q.githubAppID,
+                githubAppInstallationID: q.githubAppInstallationID,
                 githubAppEnterpriseBaseURL: q.githubAppEnterpriseBaseURL,
                 tlsClientCertData: q.tlsClientCertData,
                 tlsClientCertKey: q.tlsClientCertKey,
