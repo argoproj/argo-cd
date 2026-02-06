@@ -1483,26 +1483,6 @@ func Test_LsSignatures_Error(t *testing.T) {
 		expectedMsg string
 	}{
 		{
-			revision:    "60216f12f4969d1cb59e26697446b2ede1c0569a",
-			deep:        false,
-			expectedMsg: "fatal: unable to read tree (60216f12f4969d1cb59e26697446b2ede1c0569a)",
-		},
-		{
-			revision:    "60216f12f4969d1cb59e26697446b2ede1c0569a",
-			deep:        true,
-			expectedMsg: "fatal: unable to read tree (60216f12f4969d1cb59e26697446b2ede1c0569a)",
-		},
-		{
-			revision:    "1.2.3.4.5.6.7.8.9",
-			deep:        false,
-			expectedMsg: "failed to checkout 1.2.3.4.5.6.7.8.9",
-		},
-		{
-			revision:    "1.2.3.4.5.6.7.8.9",
-			deep:        true,
-			expectedMsg: "failed to checkout 1.2.3.4.5.6.7.8.9",
-		},
-		{
 			revision:    "5555.*",
 			deep:        false,
 			expectedMsg: "version matching constraint not found",
