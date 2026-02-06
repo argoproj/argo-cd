@@ -30,6 +30,7 @@ const MonacoEditorLazy = React.lazy(() =>
         const Component = (props: MonacoProps) => {
             const [height, setHeight] = React.useState(0);
             const [theme, setTheme] = React.useState('dark');
+            const editorApiRef = React.useRef<monacoEditor.editor.IEditor | null>(null);
 
             React.useEffect(() => {
                 const destroySystemThemeListener = useSystemTheme(systemTheme => {
@@ -52,6 +53,16 @@ const MonacoEditorLazy = React.lazy(() =>
 
                 return () => {
                     subscription.unsubscribe();
+                };
+            }, []);
+
+            React.useEffect(() => {
+                const onResize = () => {
+                    editorApiRef.current?.layout();
+                };
+                window.addEventListener('resize', onResize);
+                return () => {
+                    window.removeEventListener('resize', onResize);
                 };
             }, []);
 
@@ -79,6 +90,7 @@ const MonacoEditorLazy = React.lazy(() =>
                                     });
 
                                     container.editorApi = editor;
+                                    editorApiRef.current = editor;
                                 }
 
                                 const model = monaco.editor.createModel(props.editor.input.text, props.editor.input.language);
