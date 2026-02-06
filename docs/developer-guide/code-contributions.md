@@ -98,7 +98,7 @@ Design documents are usually submitted as PR and use [this template](https://git
 
 Our community regularly meets virtually to discuss issues, ideas and enhancements around Argo CD. We do invite you to join this virtual meetings if you want to bring up certain things (including your enhancement proposals), participate in our triage, or just want to get to know other contributors.
 
-The current cadence of our meetings is weekly, every Thursday at 8:15AM Pacific Time ([convert to to your current timezone][1]). We use Zoom to conduct these meetings.
+The current cadence of our meetings is weekly, every Thursday at 8:15AM Pacific Time ([convert to your current timezone][1]). We use Zoom to conduct these meetings.
 
 * [Agenda document (Google Docs, includes Zoom link)](https://docs.google.com/document/d/1xkoFkVviB70YBzSEa4bDnu-rUZ1sIFtwKKG1Uw8XsY8)
 
