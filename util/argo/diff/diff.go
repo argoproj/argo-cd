@@ -353,7 +353,7 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 		Diffs: make([]diff.DiffResult, numItems),
 	}
 
-	for i := 0; i < numItems; i++ {
+	for i := range numItems {
 		config := configArray[i]
 		live := liveArray[i]
 		resourceVersion := ""
