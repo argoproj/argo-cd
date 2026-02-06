@@ -159,7 +159,8 @@ func GetOidcTokenCacheFromJSON(jsonBytes []byte) (*OidcTokenCache, error) {
 // GetTokenSourceFromCache creates an oauth2 TokenSource from a cached oidc token.  The TokenSource will be configured
 // with an early expiration based on the refreshTokenThreshold.
 func (a *ClientApp) GetTokenSourceFromCache(ctx context.Context, oidcTokenCache *OidcTokenCache) (oauth2.TokenSource, error) {
-	spanCtx, span := tracer.Start(ctx, "oidc.ClientApp.GetTokenSourceFromCache")
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "oidc.ClientApp.GetTokenSourceFromCache")
 	defer span.End()
 	if oidcTokenCache == nil {
 		return nil, errors.New("oidcTokenCache is required")
@@ -168,7 +169,7 @@ func (a *ClientApp) GetTokenSourceFromCache(ctx context.Context, oidcTokenCache 
 	if err != nil {
 		return nil, err
 	}
-	baseTokenSource := config.TokenSource(spanCtx, oidcTokenCache.Token)
+	baseTokenSource := config.TokenSource(ctx, oidcTokenCache.Token)
 	tokenRefresher := oauth2.ReuseTokenSourceWithExpiry(oidcTokenCache.Token, baseTokenSource, a.refreshTokenThreshold)
 	return tokenRefresher, nil
 }
@@ -214,11 +215,11 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			_, span := tracer.Start(ctx, "oidc.ClientApp.client")
+			defer span.End()
 			span.SetAttributes(
 				attribute.String("network", network),
 				attribute.String("addr", addr),
 			)
-			defer span.End()
 			return (&net.Dialer{
 				Timeout:   30 * time.Second,
 				KeepAlive: 30 * time.Second,
@@ -705,12 +706,10 @@ func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject st
 	defer span.End()
 
 	ctx = gooidc.ClientContext(ctx, a.client)
-	if span.IsRecording() {
-		span.SetAttributes(
-			attribute.String("subject", subject),
-			attribute.String("sessionId", sessionId),
-		)
-	}
+	span.SetAttributes(
+		attribute.String("subject", subject),
+		attribute.String("sessionId", sessionId),
+	)
 
 	// Get oauth2 config
 	cacheKey := formatOidcTokenCacheKey(subject, sessionId)

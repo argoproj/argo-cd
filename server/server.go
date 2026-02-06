@@ -46,7 +46,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	otel_codes "go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
@@ -1590,7 +1589,6 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	// OIDC tokens will be verified but will not be refreshed here.
 	claims, newToken, err := server.sessionMgr.VerifyToken(ctx, tokenString)
 	if err != nil {
-		span.SetAttributes(attribute.String("token", tokenString))
 		span.SetStatus(otel_codes.Error, err.Error())
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
