@@ -368,6 +368,7 @@ func TestKustomizeNamespaceOverride(t *testing.T) {
 		When().
 		AppSet("--kustomize-namespace", "does-not-exist").
 		Then().
-		// The app should go out of sync, because the resource's target namespace changed.
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
+		// The app should stay in synced status as per https://github.com/kubernetes-sigs/kustomize/pull/5940
+		// the transformer will not update a helm generated namespace.
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
