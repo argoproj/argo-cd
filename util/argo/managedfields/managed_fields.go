@@ -3,6 +3,7 @@ package managedfields
 import (
 	"bytes"
 	"fmt"
+	"slices"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -118,10 +119,5 @@ func newTypedResults(live, config *unstructured.Unstructured, pt *typed.Parseabl
 // trustedManager will return true if trustedManagers contains curManager.
 // Returns false otherwise.
 func trustedManager(curManager string, trustedManagers []string) bool {
-	for _, m := range trustedManagers {
-		if m == curManager {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(trustedManagers, curManager)
 }
