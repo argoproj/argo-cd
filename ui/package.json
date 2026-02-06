@@ -62,7 +62,7 @@
     "@types/react-dom": "^16.8.2",
     "normalize-url": "4.5.1",
     "rxjs": "6.6.7",
-    "tar": "^7.5.3"
+    "tar": "^7.5.4"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",
