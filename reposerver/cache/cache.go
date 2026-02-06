@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"math"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -151,9 +151,7 @@ func clusterRuntimeInfoKey(info ClusterRuntimeInfo) uint32 {
 // check if info is nil, the caller must do that.
 func clusterRuntimeInfoKeyUnhashed(info ClusterRuntimeInfo) string {
 	apiVersions := info.GetApiVersions()
-	sort.Slice(apiVersions, func(i, j int) bool {
-		return apiVersions[i] < apiVersions[j]
-	})
+	slices.Sort(apiVersions)
 	return info.GetKubeVersion() + "|" + strings.Join(apiVersions, ",")
 }
 
