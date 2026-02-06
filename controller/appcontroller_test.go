@@ -2291,6 +2291,26 @@ func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 	assert.False(t, patched)
 }
 
+func TestFinalizeProjectDeletion_HasApplicationsInOthersNamespace(t *testing.T) {
+	app := newFakeApp()
+	app.Namespace = "other-namespace"
+	proj := &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
+	fakeData := &fakeData{apps: []runtime.Object{app, proj}, applicationNamespaces: []string{"other-namespace", "default"}}
+	ctrl := newFakeController(fakeData, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	patched := false
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	// should not delete project if there are applications in other namespaces.
+	err := ctrl.finalizeProjectDeletion(proj)
+	assert.NoError(t, err)
+	assert.False(t, patched)
+}
+
 func TestFinalizeProjectDeletion_DoesNotHaveApplications(t *testing.T) {
 	proj := &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{&defaultProj}}, nil)
