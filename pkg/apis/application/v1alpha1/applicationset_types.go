@@ -452,6 +452,9 @@ type SCMProviderGenerator struct {
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values        map[string]string                  `json:"values,omitempty" protobuf:"bytes,11,name=values"`
 	AWSCodeCommit *SCMProviderGeneratorAWSCodeCommit `json:"awsCodeCommit,omitempty" protobuf:"bytes,12,opt,name=awsCodeCommit"`
+
+	SourceCraft *SCMProviderGeneratorSourceCraft `json:"sourceCraft,omitempty" protobuf:"bytes,13,opt,name=sourceCraft"`
+
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
@@ -467,6 +470,8 @@ func (g *SCMProviderGenerator) CustomApiUrl() string { //nolint:revive //FIXME(v
 		return g.BitbucketServer.API
 	case g.AzureDevOps != nil:
 		return g.AzureDevOps.API
+	case g.SourceCraft != nil:
+		return g.SourceCraft.API
 	}
 	return ""
 }
@@ -476,6 +481,20 @@ type SCMProviderGeneratorGitea struct {
 	// Gitea organization or user to scan. Required.
 	Owner string `json:"owner" protobuf:"bytes,1,opt,name=owner"`
 	// The Gitea URL to talk to. For example https://gitea.mydomain.com/.
+	API string `json:"api" protobuf:"bytes,2,opt,name=api"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,3,opt,name=tokenRef"`
+	// Scan all branches instead of just the default branch.
+	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
+	// Allow self-signed TLS / Certificates; default: false
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+}
+
+// SCMProviderGeneratorSourceCraft defines a connection info specific to SourceCraft.
+type SCMProviderGeneratorSourceCraft struct {
+	// SourceCraft organization slug to scan. Required.
+	Organization string `json:"organization" protobuf:"bytes,1,opt,name=organization"`
+	// The SourceCraft URL to talk to. For example https://api.sourcecraft.tech.
 	API string `json:"api" protobuf:"bytes,2,opt,name=api"`
 	// Authentication token reference.
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,3,opt,name=tokenRef"`
@@ -623,6 +642,8 @@ type PullRequestGenerator struct {
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,10,name=values"`
 	// ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
 	ContinueOnRepoNotFoundError bool `json:"continueOnRepoNotFoundError,omitempty" protobuf:"varint,11,opt,name=continueOnRepoNotFoundError"`
+
+	SourceCraft *PullRequestGeneratorSourceCraft `json:"sourceCraft,omitempty" protobuf:"bytes,12,opt,name=sourceCraft"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
@@ -645,6 +666,9 @@ func (p *PullRequestGenerator) CustomApiUrl() string { //nolint:revive //FIXME(v
 	if p.AzureDevOps != nil {
 		return p.AzureDevOps.API
 	}
+	if p.SourceCraft != nil {
+		return p.SourceCraft.API
+	}
 	return ""
 }
 
@@ -662,6 +686,20 @@ type PullRequestGeneratorGitea struct {
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
+}
+
+// PullRequestGeneratorSourceCraft defines connection info specific to SourceCraft.
+type PullRequestGeneratorSourceCraft struct {
+	// SourceCraft organization slug to scan. Required.
+	Organization string `json:"organization" protobuf:"bytes,1,opt,name=organization"`
+	// SourceCraft repo slug to scan. Required.
+	Repo string `json:"repo" protobuf:"bytes,2,opt,name=repo"`
+	// The SourceCraft API URL to talk to. Required
+	API string `json:"api" protobuf:"bytes,3,opt,name=api"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`
+	// Allow insecure tls, for self-signed certificates; default: false.
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.

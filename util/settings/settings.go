@@ -97,6 +97,8 @@ type ArgoCDSettings struct {
 	WebhookAzureDevOpsUsername string `json:"webhookAzureDevOpsUsername,omitempty"`
 	// WebhookAzureDevOpsPassword holds the password for authenticating Azure DevOps webhook events
 	WebhookAzureDevOpsPassword string `json:"webhookAzureDevOpsPassword,omitempty"`
+	// WebhookSourceCraftSecret holds the shared secret for authenticating SourceCraft webhook events
+	WebhookSourceCraftSecret string `json:"webhookSourceCraftSecret,omitempty"`
 	// Secrets holds all secrets in argocd-secret as a map[string]string
 	Secrets map[string]string `json:"secrets,omitempty"`
 	// KustomizeBuildOptions is a string of kustomize build parameters
@@ -457,6 +459,8 @@ const (
 	settingsWebhookAzureDevOpsUsernameKey = "webhook.azuredevops.username"
 	// settingsWebhookAzureDevOpsPasswordKey is the key for Azure DevOps webhook password
 	settingsWebhookAzureDevOpsPasswordKey = "webhook.azuredevops.password"
+	// settingsWebhookSourceCraftSecret is the key for the SourceCraft shared webhook secret
+	settingsWebhookSourceCraftSecretKey = "webhook.sourcecraft.secret"
 	// settingsWebhookMaxPayloadSize is the key for the maximum payload size for webhooks in MB
 	settingsWebhookMaxPayloadSizeMB = "webhook.maxPayloadSizeMB"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
@@ -1614,6 +1618,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	settings.WebhookGogsSecret = string(argoCDSecret.Data[settingsWebhookGogsSecretKey])
 	settings.WebhookAzureDevOpsUsername = string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey])
 	settings.WebhookAzureDevOpsPassword = string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey])
+	settings.WebhookSourceCraftSecret = string(argoCDSecret.Data[settingsWebhookSourceCraftSecretKey])
 
 	if len(errs) > 0 {
 		return errors.Join(errs...)
@@ -1868,6 +1873,11 @@ func (a *ArgoCDSettings) GetWebhookAzureDevOpsUsername() string {
 // GetWebhookAzureDevOpsPassword returns the resolved Azure DevOps webhook password
 func (a *ArgoCDSettings) GetWebhookAzureDevOpsPassword() string {
 	return ReplaceStringSecret(a.WebhookAzureDevOpsPassword, a.Secrets)
+}
+
+// GetWebhookSourceCraftSecret returns the resolved SourceCraft webhook secret
+func (a *ArgoCDSettings) GetWebhookSourceCraftSecret() string {
+	return ReplaceStringSecret(a.WebhookSourceCraftSecret, a.Secrets)
 }
 
 func unmarshalOIDCConfig(configStr string) (oidcConfig, error) {

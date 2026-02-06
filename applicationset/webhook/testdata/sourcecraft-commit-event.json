@@ -1,0 +1,79 @@
+{
+  "header": {
+    "id": "869e9a17-44cb-4dc1-902b-fdc5f0541919",
+    "type": "repository.push",
+    "occurred_at": "2026-02-03T14:01:10.095665276Z",
+    "aggregate_id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+    "aggregate_type": "repository",
+    "organization_id": "019711c4-14ec-746f-abd4-5968016b9f8v",
+    "repository_id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+    "triggered_by": {
+      "id": "019711c3-fd2a-7729-8460-de195bc4ebf8",
+      "slug": "user"
+    }
+  },
+  "repository": {
+    "id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+    "name": "test_repo",
+    "default_branch": "master",
+    "organization": {
+      "id": "019711c4-14ec-746f-abd4-5968016b9f8v",
+      "slug": "test-org"
+    },
+    "slug": "test_repo",
+    "template_type": "not_a_template",
+    "visibility": "public",
+    "clone_url": {
+      "https": "https://git@git.sourcecraft.dev/org/r1.git",
+      "ssh": "ssh://ssh.sourcecraft.dev/org/r1.git"
+    },
+    "web_url": "https://sourcecraft.dev/org/r1",
+    "last_updated": "2026-02-03T14:01:10.105629Z"
+  },
+  "ref_update": {
+    "ref": "refs/heads/master",
+    "operation": "update",
+    "before_sha": "94976b54045c6b0c5efbd20330daf9a6910c38c1",
+    "after_sha": "18118a647b3c6e53a2275d17afcc161b8bf49af5",
+    "checkout_sha": "18118a647b3c6e53a2275d17afcc161b8bf49af5"
+  },
+  "pusher": {
+    "id": "019711c3-fd2a-7729-8460-de195bc4ebf8",
+    "slug": "user"
+  },
+  "pushed_at": "2026-02-03T14:01:10.095665276Z",
+  "commits": [
+    {
+      "hash": "18118a647b3c6e53a2275d17afcc161b8bf49af5",
+      "message": "Add staging-argocd-demo environment\n",
+      "author": {
+        "name": "user",
+        "email": "user@email.com",
+        "date": "2026-02-03T14:01:00Z"
+      },
+      "committer": {
+        "name": "user",
+        "email": "user@email.com",
+        "date": "2026-02-03T14:01:00Z"
+      },
+      "tree_hash": "0000000000000000000000000000000000000000",
+      "parent_hashes": [
+        "94976b54045c6b0c5efbd20330daf9a6910c38c1"
+      ],
+      "file_changes": {
+        "added": [
+          "ksapps/test-app/environments/staging-argocd-demo/main.jsonnet",
+          "ksapps/test-app/environments/staging-argocd-demo/params.libsonnet"
+        ],
+        "removed": [
+
+        ],
+        "modified": [
+          "ksapps/test-app/app.yaml"
+        ]
+      }
+    }
+  ],
+  "default_branch": "master",
+  "is_default_branch_updated": true
+}

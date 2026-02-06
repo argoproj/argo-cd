@@ -164,6 +164,15 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 
 		return pullrequest.NewGiteaService(token, providerConfig.API, providerConfig.Owner, providerConfig.Repo, providerConfig.Labels, providerConfig.Insecure)
 	}
+	if generatorConfig.SourceCraft != nil {
+		providerConfig := generatorConfig.SourceCraft
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching Secret token: %w", err)
+		}
+
+		return pullrequest.NewSourceCraftService(token, providerConfig.API, providerConfig.Organization, providerConfig.Repo, providerConfig.Insecure)
+	}
 	if generatorConfig.BitbucketServer != nil {
 		providerConfig := generatorConfig.BitbucketServer
 		var caCerts []byte

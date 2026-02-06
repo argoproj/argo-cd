@@ -9226,6 +9226,9 @@
           "type": "integer",
           "format": "int64"
         },
+        "sourceCraft": {
+          "$ref": "#/definitions/v1alpha1PullRequestGeneratorSourceCraft"
+        },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
         },
@@ -9432,6 +9435,31 @@
         },
         "repo": {
           "description": "GitHub repo name to scan. Required.",
+          "type": "string"
+        },
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
+    "v1alpha1PullRequestGeneratorSourceCraft": {
+      "description": "PullRequestGeneratorSourceCraft defines connection info specific to SourceCraft.",
+      "type": "object",
+      "properties": {
+        "api": {
+          "type": "string",
+          "title": "The SourceCraft API URL to talk to. Required"
+        },
+        "insecure": {
+          "description": "Allow insecure tls, for self-signed certificates; default: false.",
+          "type": "boolean"
+        },
+        "organization": {
+          "description": "SourceCraft organization slug to scan. Required.",
+          "type": "string"
+        },
+        "repo": {
+          "description": "SourceCraft repo slug to scan. Required.",
           "type": "string"
         },
         "tokenRef": {
@@ -10180,6 +10208,9 @@
           "type": "integer",
           "format": "int64"
         },
+        "sourceCraft": {
+          "$ref": "#/definitions/v1alpha1SCMProviderGeneratorSourceCraft"
+        },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
         },
@@ -10413,6 +10444,31 @@
         "topic": {
           "description": "Filter repos list based on Gitlab Topic.",
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1SCMProviderGeneratorSourceCraft": {
+      "description": "SCMProviderGeneratorSourceCraft defines a connection info specific to SourceCraft.",
+      "type": "object",
+      "properties": {
+        "allBranches": {
+          "description": "Scan all branches instead of just the default branch.",
+          "type": "boolean"
+        },
+        "api": {
+          "description": "The SourceCraft URL to talk to. For example https://api.sourcecraft.tech.",
+          "type": "string"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Allow self-signed TLS / Certificates; default: false"
+        },
+        "organization": {
+          "description": "SourceCraft organization slug to scan. Required.",
+          "type": "string"
+        },
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
         }
       }
     },

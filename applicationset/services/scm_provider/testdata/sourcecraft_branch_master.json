@@ -1,0 +1,11 @@
+{
+  "branches": [
+    {
+      "name": "master",
+      "commit": {
+        "hash": "abc123def456789012345678901234567890abcd"
+      }
+    }
+  ],
+  "next_page_token": ""
+}
