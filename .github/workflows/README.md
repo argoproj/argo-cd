@@ -11,7 +11,7 @@
 | release.yaml       | Build images, cli-binaries, provenances, and post actions      |
 | scorecard.yaml     | Generate scorecard for supply-chain security                   |
 | update-snyk.yaml   | Scheduled snyk reports                                         |
-| stale-issues.yaml  | Closes stale issues                                            |
+| stale-issues.yaml  | Closes stale issues and PRs                                    |
 
 # Reusable workflows
 
