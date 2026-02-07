@@ -18,8 +18,6 @@ In case it is impossible to fix the upstream issue, Argo CD allows you to option
 The diffing customization can be configured for single or multiple application resources or at a system level.
 
 This is commonly used for resources that are intentionally mutated after sync by controllers or admission webhooks and where such differences do not indicate configuration drift.
-
-
 ## Application Level Configuration
 
 Argo CD allows ignoring differences at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902) and [JQ path expressions](<https://stedolan.github.io/jq/manual/#path(path_expression)>). It is also possible to ignore differences from fields owned by specific managers defined in `metadata.managedFields` in live resources.
