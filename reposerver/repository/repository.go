@@ -1122,9 +1122,9 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 			repos = append(repos, &v1alpha1.Repository{
 				Name: r.Repository[1:],
 			})
-		} else if strings.HasPrefix(r.Repository, "alias:") {
+		} else if after, ok := strings.CutPrefix(r.Repository, "alias:"); ok {
 			repos = append(repos, &v1alpha1.Repository{
-				Name: strings.TrimPrefix(r.Repository, "alias:"),
+				Name: after,
 			})
 		} else if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
