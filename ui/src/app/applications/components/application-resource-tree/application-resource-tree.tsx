@@ -420,13 +420,7 @@ function getPodGroupNumberOfRows(pods: models.Pod[], showPodGroupByStatus: boole
     return Math.ceil(pods.length / POD_GROUP_PODS_PER_ROW);
 }
 
-function renderPodGroup(
-    props: ApplicationResourceTreeProps,
-    id: string,
-    node: ResourceTreeNode & dagre.Node,
-    childMap: Map<string, ResourceTreeNode[]>,
-    showPodGroupByStatus: boolean
-) {
+function renderPodGroup(props: ApplicationResourceTreeProps, node: ResourceTreeNode & dagre.Node, childMap: Map<string, ResourceTreeNode[]>, showPodGroupByStatus: boolean) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
     let healthState: models.HealthStatus = null;
@@ -768,7 +762,7 @@ function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: st
     }
 }
 
-function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node, nodesHavingChildren: Map<string, number>) {
+function renderResourceNode(props: ApplicationResourceTreeProps, node: ResourceTreeNode & dagre.Node, nodesHavingChildren: Map<string, number>) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
     let healthState: models.HealthStatus = null;
@@ -1380,11 +1374,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         case NODE_TYPES.groupedNodes:
                             return <React.Fragment key={key}>{renderGroupedNodes(props, node as any)}</React.Fragment>;
                         case NODE_TYPES.podGroup:
-                            return (
-                                <React.Fragment key={key}>{renderPodGroup(props, key, node as ResourceTreeNode & dagre.Node, childrenMap, showPodGroupByStatus)}</React.Fragment>
-                            );
+                            return <React.Fragment key={key}>{renderPodGroup(props, node as ResourceTreeNode & dagre.Node, childrenMap, showPodGroupByStatus)}</React.Fragment>;
                         default:
-                            return <React.Fragment key={key}>{renderResourceNode(props, key, node as ResourceTreeNode & dagre.Node, nodesHavingChildren)}</React.Fragment>;
+                            return <React.Fragment key={key}>{renderResourceNode(props, node as ResourceTreeNode & dagre.Node, nodesHavingChildren)}</React.Fragment>;
                     }
                 })}
                 {edges.map(edge => (
