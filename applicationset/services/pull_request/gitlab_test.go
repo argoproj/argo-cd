@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -84,6 +85,8 @@ func TestList(t *testing.T) {
 	assert.Equal(t, "master", prs[0].TargetBranch)
 	assert.Equal(t, "2fc4e8b972ff3208ec63b6143e34ad67ff343ad7", prs[0].HeadSHA)
 	assert.Equal(t, "hfyngvason", prs[0].Author)
+	assert.Equal(t, "2019-08-20T10:58:54.413Z", prs[0].CreatedAt.Format(time.RFC3339Nano))
+	assert.Equal(t, "2019-08-20T12:01:49.849Z", prs[0].UpdatedAt.Format(time.RFC3339Nano))
 }
 
 func TestListWithLabels(t *testing.T) {

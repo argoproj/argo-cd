@@ -3342,6 +3342,16 @@ func (in *PullRequestGeneratorFilter) DeepCopyInto(out *PullRequestGeneratorFilt
 		*out = new(string)
 		**out = **in
 	}
+	if in.CreatedWithin != nil {
+		in, out := &in.CreatedWithin, &out.CreatedWithin
+		*out = new(string)
+		**out = **in
+	}
+	if in.UpdatedWithin != nil {
+		in, out := &in.UpdatedWithin, &out.UpdatedWithin
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 

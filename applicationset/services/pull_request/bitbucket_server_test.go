@@ -7,12 +7,17 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
+
+func timeFromTimestamp(t int64) time.Time {
+	return time.Unix(t/1000, 0).UTC()
+}
 
 func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 	t.Helper()
@@ -43,7 +48,9 @@ func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 								"user": {
 									"name": "testName"
 								}
-							}
+							},
+							"updatedDate": 1764863349000,
+							"createdDate": 1764866949000
 						}
 					],
 					"start": 0
@@ -104,7 +111,9 @@ func TestListPullRequestPagination(t *testing.T) {
 								"user": {
 									"name": "testName"
 								}
-							}
+							},
+							"updatedDate": 1764863349000,
+							"createdDate": 1764866949000
 						},
 						{
 							"id": 102,
@@ -123,7 +132,9 @@ func TestListPullRequestPagination(t *testing.T) {
 								"user": {
 									"name": "testName"
 								}
-							}
+							},
+							"updatedDate": 1764863349000,
+							"createdDate": 1764866949000
 						}
 					],
 					"nextPageStart": 200
@@ -151,7 +162,9 @@ func TestListPullRequestPagination(t *testing.T) {
 							"user": {
 								"name": "testName"
 							}
-						}
+						},
+						"updatedDate": 1764863349000,
+						"createdDate": 1764866949000
 					}
 				],
 				"start": 200
@@ -177,6 +190,8 @@ func TestListPullRequestPagination(t *testing.T) {
 		HeadSHA:      "ab3cf2e4d1517c83e720d2585b9402dbef71f992",
 		Labels:       []string{},
 		Author:       "testName",
+		CreatedAt:    timeFromTimestamp(1764866949000),
+		UpdatedAt:    timeFromTimestamp(1764863349000),
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
 		Number:       102,
@@ -186,6 +201,8 @@ func TestListPullRequestPagination(t *testing.T) {
 		HeadSHA:      "bb3cf2e4d1517c83e720d2585b9402dbef71f992",
 		Labels:       []string{},
 		Author:       "testName",
+		CreatedAt:    timeFromTimestamp(1764866949000),
+		UpdatedAt:    timeFromTimestamp(1764863349000),
 	}, *pullRequests[1])
 	assert.Equal(t, PullRequest{
 		Number:       200,
@@ -195,6 +212,8 @@ func TestListPullRequestPagination(t *testing.T) {
 		HeadSHA:      "cb3cf2e4d1517c83e720d2585b9402dbef71f992",
 		Labels:       []string{},
 		Author:       "testName",
+		CreatedAt:    timeFromTimestamp(1764866949000),
+		UpdatedAt:    timeFromTimestamp(1764863349000),
 	}, *pullRequests[2])
 }
 
@@ -390,7 +409,9 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 								"user": {
 									"name": "testName"
 								}
-							}
+							},
+							"updatedDate": 1764863349000,
+							"createdDate": 1764866949000
 						},
 						{
 							"id": 102,
@@ -409,7 +430,9 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 								"user": {
 									"name": "testName"
 								}
-							}
+							},
+							"updatedDate": 1764863349000,
+							"createdDate": 1764866949000
 						}
 					],
 					"nextPageStart": 200
@@ -437,7 +460,9 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 							"user": {
 								"name": "testName"
 							}
-						}
+						},
+						"updatedDate": 1764863349000,
+						"createdDate": 1764866949000
 					}
 				],
 				"start": 200
@@ -468,6 +493,8 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 		HeadSHA:      "ab3cf2e4d1517c83e720d2585b9402dbef71f992",
 		Labels:       []string{},
 		Author:       "testName",
+		CreatedAt:    timeFromTimestamp(1764866949000),
+		UpdatedAt:    timeFromTimestamp(1764863349000),
 	}, *pullRequests[0])
 	assert.Equal(t, PullRequest{
 		Number:       102,
@@ -477,6 +504,8 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 		HeadSHA:      "bb3cf2e4d1517c83e720d2585b9402dbef71f992",
 		Labels:       []string{},
 		Author:       "testName",
+		CreatedAt:    timeFromTimestamp(1764866949000),
+		UpdatedAt:    timeFromTimestamp(1764863349000),
 	}, *pullRequests[1])
 
 	regexp = `.*2$`
@@ -497,6 +526,8 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 		HeadSHA:      "bb3cf2e4d1517c83e720d2585b9402dbef71f992",
 		Labels:       []string{},
 		Author:       "testName",
+		CreatedAt:    timeFromTimestamp(1764866949000),
+		UpdatedAt:    timeFromTimestamp(1764863349000),
 	}, *pullRequests[0])
 
 	regexp = `[\d{2}`

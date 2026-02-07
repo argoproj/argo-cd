@@ -3,7 +3,9 @@ package pull_request
 import (
 	"errors"
 	"testing"
+	"time"
 
+	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/webapi"
@@ -35,6 +37,13 @@ func createUniqueNamePtr(x string) *string {
 	return &x
 }
 
+func createDatePtr(x string) *azuredevops.Time {
+	t, _ := time.Parse(time.RFC3339, x)
+	return &azuredevops.Time{
+		Time: t.UTC(),
+	}
+}
+
 func TestListPullRequest(t *testing.T) {
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
@@ -43,6 +52,8 @@ func TestListPullRequest(t *testing.T) {
 	prHeadSha := "cd4973d9d14a08ffe6b641a89a68891d6aac8056"
 	ctx := t.Context()
 	uniqueName := "testName"
+	createdAt := "2025-12-04T19:01:12Z"
+	updatedAt := "2025-12-04T19:03:25Z"
 
 	pullRequestMock := []git.GitPullRequest{
 		{
@@ -52,6 +63,9 @@ func TestListPullRequest(t *testing.T) {
 			TargetRefName: createStringPtr("refs/heads/main"),
 			LastMergeSourceCommit: &git.GitCommitRef{
 				CommitId: createStringPtr(prHeadSha),
+				Push: &git.GitPushRef{
+					Date: createDatePtr(updatedAt),
+				},
 			},
 			Labels: &[]core.WebApiTagDefinition{},
 			Repository: &git.GitRepository{
@@ -60,6 +74,7 @@ func TestListPullRequest(t *testing.T) {
 			CreatedBy: &webapi.IdentityRef{
 				UniqueName: createUniqueNamePtr(uniqueName + "@example.com"),
 			},
+			CreationDate: createDatePtr(createdAt),
 		},
 	}
 
@@ -89,6 +104,8 @@ func TestListPullRequest(t *testing.T) {
 	assert.Equal(t, "feat(123)", list[0].Title)
 	assert.Equal(t, int64(prID), list[0].Number)
 	assert.Equal(t, uniqueName, list[0].Author)
+	assert.Equal(t, createdAt, list[0].CreatedAt.Format(time.RFC3339))
+	assert.Equal(t, updatedAt, list[0].UpdatedAt.Format(time.RFC3339))
 }
 
 func TestConvertLabes(t *testing.T) {
