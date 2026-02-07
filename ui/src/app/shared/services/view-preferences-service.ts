@@ -229,7 +229,6 @@ export class ViewPreferencesService {
         appList.projectsFilter = appList.projectsFilter || [];
         appList.namespacesFilter = appList.namespacesFilter || [];
         appList.clustersFilter = appList.clustersFilter || [];
-        appList.reposFilter = appList.reposFilter || [];
         appList.syncFilter = appList.syncFilter || [];
         appList.autoSyncFilter = appList.autoSyncFilter || [];
         appList.healthFilter = appList.healthFilter || [];
