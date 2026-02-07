@@ -91,6 +91,84 @@ As is the case with the development process, this document is under constant cha
 
 Need help? Start with the [Contributors FAQ](faq.md)
 
+## Contributing to Argo CD custom healthchecks 
+
+### Preface
+While Argo CD depends on the status health checks for the different CRDs in the K8s ecosystem, the resource status structure of those CRDs is decided upon and managed externally to Argo CD - by the authors and maintainers of each such CRD. Currently, the only way for Argo CD to reliably report the health status of each CRD is by having custom CRD healthchecks contributed to Argo CD.   
+
+Due to the lack of standard for the CRD status field structure in the K8s ecosystem, the best persona to contribute such a health check to Argo CD is the author/maintainer of the corresponding CRD, since this persona knows the implementation details of how the CRD status is popluated, it's structure and when it is considered healthy or not. 
+Also, the CRD maintainer has the full knowledge about whether the CRD follows the [kstatus](https://github.com/kubernetes-sigs/cli-utils/blob/master/pkg/kstatus/README.md) spec or not, whether the [observedGeneration](https://alenkacz.medium.com/kubernetes-operator-best-practices-implementing-observedgeneration-250728868792) field is used and populated correctly, etc.
+
+The best way to achieve such a comlpete healthcheck in Argo CD is to open an issue in the respective project GitHub repo, asking for it's maintainers to contribute an Argo CD healthcheck.
+
+If this is not possible, Argo CD users can contribute such healthchecks themselves, based on their observations of how the different statuses of the CRD behave. The below guidelines are relevant for both CRD maintainers and Argo CD users contributing to healthchecks.
+
+### Guidelines for writing health checks
+
+#### Using kstatus
+If the CRD status is in [kstatus](https://github.com/kubernetes-sigs/cli-utils/blob/master/pkg/kstatus/README.md) format, please state it as a comment in the health check (as Argo CD maintainers evaluate the usage of kstatus-based health calculation, having the knowledge about which CRDs follow this standard can help us with adoption).
+
+#### Using K8s observedGeneration field
+If the CRD uses the [observedGeneration](https://alenkacz.medium.com/kubernetes-operator-best-practices-implementing-observedgeneration-250728868792) field correctly, please base the health check on it. Using this field in calculating the CRD health is important for preventing situations in which the health status in Argo CD may flap if Argo CD is evaluating the health status before the CRD controller finished reconciling the changed CR.   
+This is an [example](https://github.com/argoproj/argo-cd/blob/stable/resource_customizations/argoproj.io/Rollout/health.lua) of using this field in a health check.  
+
+### Contributing the health checks
+
+Custom health check scripts are located in the `resource_customizations` directory of [https://github.com/argoproj/argo-cd](https://github.com/argoproj/argo-cd). This must have the following directory structure:
+
+```
+argo-cd
+|-- resource_customizations
+|    |-- your.crd.group.io               # CRD group
+|    |    |-- MyKind                     # Resource kind
+|    |    |    |-- health.lua            # Health check
+|    |    |    |-- health_test.yaml      # Test inputs and expected results
+|    |    |    +-- testdata              # Directory with test resource YAML definitions
+```
+
+Each health check must have tests defined in `health_test.yaml` file. The `health_test.yaml` is a YAML file with the following structure:
+
+```yaml
+tests:
+- healthStatus:
+    status: ExpectedStatus
+    message: Expected message
+  inputPath: testdata/test-resource-definition.yaml
+```
+
+To test the implemented custom health checks, run `go test -v ./util/lua/`.
+
+The [PR#1139](https://github.com/argoproj/argo-cd/pull/1139) is an example of Cert Manager CRDs custom health check.
+
+#### Wildcard Support for Built-in Health Checks
+
+You can use a single health check for multiple resources by using a wildcard in the group or kind directory names.
+
+The `_` character behaves like a `*` wildcard. For example, consider the following directory structure:
+
+```
+argo-cd
+|-- resource_customizations
+|    |-- _.group.io               # CRD group
+|    |    |-- _                   # Resource kind
+|    |    |    |-- health.lua     # Health check
+```
+
+Any resource with a group that ends with `.group.io` will use the health check in `health.lua`.
+
+Wildcard checks are only evaluated if there is no specific check for the resource.
+
+If multiple wildcard checks match, the first one in the directory structure is used.
+
+We use the [doublestar](https://github.com/bmatcuk/doublestar) glob library to match the wildcard checks. We currently
+only treat a path as a wildcard if it contains a `_` character, but this may change in the future.
+
+> [!IMPORTANT]
+> **Avoid Massive Scripts**
+>
+> Avoid writing massive scripts to handle multiple resources. They'll get hard to read and maintain. Instead, just
+> duplicate the relevant parts in resource-s
+
 ## Contributing to Argo CD dependencies
 - [Contributing to argo-ui](dependencies.md#argo-ui-components-githubcomargoprojargo-ui)
 - [Contributing to notifications-engine](dependencies.md#notifications-engine-githubcomargoprojnotifications-engine)
