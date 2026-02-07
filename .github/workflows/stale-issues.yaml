@@ -1,8 +1,8 @@
-name: Close stale issues
+name: Close stale issues/pr
 
 on:
   schedule:
-    - cron: "0 0 * * *" #Runs at 12AM UTC
+    - cron: "0 0 * * *"
 
 permissions:
   issues: write
@@ -27,13 +27,21 @@ jobs:
             for 90 days with no activity. This pull request will be automatically
             closed in 30 days if no further activity occurs.
 
-          # Labels that should NEVER be marked stale
+          # Labels that should NEVER be marked stale for issues
           exempt-issue-labels: >
             bug,
             security,
             breaking/high,
             breaking/low,
             breaking/medium
+
+          # Labels that should NEVER be marked for PR
+          exempt-pr-labels: >
+            bug,
+            security,
+            breaking-change,
+            keep open,
+            in progress
 
           days-before-stale: 90
           days-before-close: 30
