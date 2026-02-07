@@ -35,7 +35,7 @@ func main() {
 
 	attempts := 5
 	interval := time.Second
-	for i := 0; i < attempts; i++ {
+	for range attempts {
 		_, err = client.ServerVersion()
 		if err == nil {
 			break

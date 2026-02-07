@@ -13,9 +13,9 @@ type ExportedResources []unstructured.Unstructured
 
 func GetExportedResourcesFromOutput(output string) (ExportedResources, error) {
 	var resources []unstructured.Unstructured
-	docs := strings.Split(output, "\n---\n")
+	docs := strings.SplitSeq(output, "\n---\n")
 
-	for _, doc := range docs {
+	for doc := range docs {
 		doc = strings.TrimSpace(doc)
 		if doc == "" {
 			continue

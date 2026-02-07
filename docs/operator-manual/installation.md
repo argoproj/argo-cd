@@ -21,8 +21,9 @@ Not recommended for production use. This type of installation is typically used 
   in (i.e. kubernetes.svc.default). It will still be able to deploy to external clusters with inputted
   credentials.
 
-  > Note: The ClusterRoleBinding in the installation manifest is bound to a ServiceAccount in the argocd namespace. 
-  > Be cautious when modifying the namespace, as changing it may cause permission-related errors unless the ClusterRoleBinding is correctly adjusted to reflect the new namespace.
+> [!NOTE]
+> The ClusterRoleBinding in the installation manifest is bound to a ServiceAccount in the argocd namespace.
+> Be cautious when modifying the namespace, as changing it may cause permission-related errors unless the ClusterRoleBinding is correctly adjusted to reflect the new namespace.
 
 * [namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/stable/manifests/namespace-install.yaml) - Installation of Argo CD which requires only
   namespace level privileges (does not need cluster roles). Use this manifest set if you do not
@@ -36,12 +37,13 @@ Not recommended for production use. This type of installation is typically used 
   done to external clusters.
   You can modify that by defining new roles and binding them to the `argocd-application-controller` service account.
 
-  > Note: Argo CD CRDs are not included into [namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/stable/manifests/namespace-install.yaml).
-  > and have to be installed separately. The CRD manifests are located in the [manifests/crds](https://github.com/argoproj/argo-cd/blob/stable/manifests/crds) directory.
-  > Use the following command to install them:
-  > ```
-  > kubectl apply -k https://github.com/argoproj/argo-cd/manifests/crds\?ref\=stable
-  > ```
+> [!NOTE]
+> Argo CD CRDs are not included into [namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/stable/manifests/namespace-install.yaml).
+> and have to be installed separately. The CRD manifests are located in the [manifests/crds](https://github.com/argoproj/argo-cd/blob/stable/manifests/crds) directory.
+> Use the following command to install them:
+> ```
+> kubectl apply --server-side --force-conflicts -k https://github.com/argoproj/argo-cd/manifests/crds\?ref\=stable
+> ```
 
 ### High Availability:
 

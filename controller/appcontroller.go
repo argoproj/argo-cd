@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"maps"
 	"math"
 	"math/rand"
 	"net/http"
@@ -928,14 +929,14 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	go func() { errors.CheckError(ctrl.stateCache.Run(ctx)) }()
 	go func() { errors.CheckError(ctrl.metricsServer.ListenAndServe()) }()
 
-	for i := 0; i < statusProcessors; i++ {
+	for range statusProcessors {
 		go wait.Until(func() {
 			for ctrl.processAppRefreshQueueItem() {
 			}
 		}, time.Second, ctx.Done())
 	}
 
-	for i := 0; i < operationProcessors; i++ {
+	for range operationProcessors {
 		go wait.Until(func() {
 			for ctrl.processAppOperationQueueItem() {
 			}
@@ -2491,7 +2492,7 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 		backOff.Steps = selfHealAttemptsCount
 		var delay time.Duration
 		steps := backOff.Steps
-		for i := 0; i < steps; i++ {
+		for range steps {
 			delay = backOff.Step()
 		}
 		if timeSinceOperation == nil {
