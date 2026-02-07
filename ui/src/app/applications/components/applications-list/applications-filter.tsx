@@ -472,7 +472,6 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
         ...(props.pref.clustersFilter || []),
         ...(props.pref.namespacesFilter || []),
         ...(props.pref.autoSyncFilter || []),
-        ...(props.pref.reposFilter || []),
         ...(props.pref.showFavorites ? ['favorites'] : [])
     ];
 
