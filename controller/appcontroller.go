@@ -1167,11 +1167,72 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 	return err
 }
 
+// getAppTargets retrieves the target objects from the application's sources
+func (ctrl *ApplicationController) getAppTargets(app *appv1.Application) (targets []*unstructured.Unstructured) {
+	logCtx := log.WithFields(applog.GetAppLogFields(app))
+	// Safely handle potential panics to avoid breaking the deletion process
+	defer func() {
+		if r := recover(); r != nil {
+			logCtx.WithField("panic", r).Debug("Recovered from panic in getAppTargets, disabling PostDelete hook optimization")
+			targets = nil
+		}
+	}()
+	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		logCtx.WithError(err).Debug("Unable to get app instance label key, disabling PostDelete hook optimization")
+		return nil
+	}
+	var revisions []string
+	for _, src := range app.Spec.GetSources() {
+		revisions = append(revisions, src.TargetRevision)
+	}
+	proj, err := ctrl.getAppProj(app)
+	if err != nil {
+		logCtx.WithError(err).Debug("Unable to get app project, disabling PostDelete hook optimization")
+		return nil
+	}
+	targets, _, _, err = ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, true)
+	if err != nil {
+		logCtx.WithError(err).Debug("Unable to get repo objects, disabling PostDelete hook optimization")
+		return nil
+	}
+	return targets
+}
+
+// hasPostDeleteHooksForNamespace checks if there are PostDelete hooks that might manage the given namespace
+func (ctrl *ApplicationController) hasPostDeleteHooksForNamespace(namespaceName string, targets []*unstructured.Unstructured) bool {
+	for _, obj := range targets {
+		if isPostDeleteHook(obj) {
+			// Check if this PostDelete hook is running in the target namespace or has empty namespace(inherited from application)
+			if obj.GetNamespace() == namespaceName || obj.GetNamespace() == "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // shouldBeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
-func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
-	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj)) &&
-		!resourceutil.HasAnnotationOption(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDisableDeletion) &&
-		!resourceutil.HasAnnotationOption(obj, helm.ResourcePolicyAnnotation, helm.ResourcePolicyKeep)
+func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured, targets []*unstructured.Unstructured) bool {
+	if kube.IsCRD(obj) || isSelfReferencedApp(app, kube.GetObjectRef(obj)) ||
+		resourceutil.HasAnnotationOption(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDisableDeletion) ||
+		resourceutil.HasAnnotationOption(obj, helm.ResourcePolicyAnnotation, helm.ResourcePolicyKeep) {
+		return false
+	}
+
+	// If this is a namespace and there are PostDelete hooks that might manage it,
+	// defer the namespace deletion until after PostDelete hooks complete.
+	// If targets is nil, conservatively defer deletion since we cannot determine if hooks exist.
+	if obj.GetKind() == "Namespace" {
+		if targets == nil {
+			return false
+		}
+		if ctrl.hasPostDeleteHooksForNamespace(obj.GetName(), targets) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (ctrl *ApplicationController) getPermittedAppLiveObjects(destCluster *appv1.Cluster, app *appv1.Application, proj *appv1.AppProject, projectClusters func(project string) ([]*appv1.Cluster, error)) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
@@ -1265,6 +1326,9 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			return err
 		}
 
+		// Get targets once to avoid expensive GetRepoObjs calls for each namespace
+		targets := ctrl.getAppTargets(app)
+
 		for k := range objsMap {
 			// Wait for objects pending deletion to complete before proceeding with next sync wave
 			if objsMap[k].GetDeletionTimestamp() != nil {
@@ -1272,7 +1336,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 				return nil
 			}
 
-			if ctrl.shouldBeDeleted(app, objsMap[k]) {
+			if ctrl.shouldBeDeleted(app, objsMap[k], targets) {
 				objs = append(objs, objsMap[k])
 				if res, ok := app.Status.FindResource(k); ok && res.RequiresDeletionConfirmation && !deletionApproved {
 					logCtx.Infof("Resource %v requires manual confirmation to delete", k)
@@ -1283,10 +1347,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 		filteredObjs := FilterObjectsForDeletion(objs)
 
-		propagationPolicy := metav1.DeletePropagationForeground
-		if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
-			propagationPolicy = metav1.DeletePropagationBackground
-		}
+		propagationPolicy := ctrl.getPropagationPolicy(app)
 		logCtx.Infof("Deleting application's resources with %s propagation policy", propagationPolicy)
 
 		err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
@@ -1303,7 +1364,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		}
 
 		for k, obj := range objsMap {
-			if !ctrl.shouldBeDeleted(app, obj) {
+			if !ctrl.shouldBeDeleted(app, obj, targets) {
 				delete(objsMap, k)
 			}
 		}
@@ -1364,6 +1425,13 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			return nil
 		}
 		app.UnSetPostDeleteFinalizer("cleanup")
+
+		// After PostDelete hooks are cleaned up, delete any namespaces that were deferred
+		err = ctrl.deleteDeferredNamespacesAfterPostDelete(app, destCluster, config, proj, projectClusters)
+		if err != nil {
+			return err
+		}
+
 		return ctrl.updateFinalizers(app)
 	}
 
@@ -1379,6 +1447,44 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 
 	return nil
+}
+
+// deleteDeferredNamespacesAfterPostDelete deletes namespaces deferred by PostDelete hooks
+func (ctrl *ApplicationController) deleteDeferredNamespacesAfterPostDelete(app *appv1.Application, destCluster *appv1.Cluster, config *rest.Config, proj *appv1.AppProject, projectClusters func(project string) ([]*appv1.Cluster, error)) error {
+	objsMap, err := ctrl.getPermittedAppLiveObjects(destCluster, app, proj, projectClusters)
+	if err != nil {
+		return err
+	}
+
+	var namespacesToDelete []*unstructured.Unstructured
+	for _, obj := range objsMap {
+		// Only namespaces remain at this point that were deferred due to PostDelete hooks
+		if obj.GetKind() == "Namespace" {
+			namespacesToDelete = append(namespacesToDelete, obj)
+		}
+	}
+
+	if len(namespacesToDelete) == 0 {
+		return nil
+	}
+
+	propagationPolicy := ctrl.getPropagationPolicy(app)
+
+	for _, ns := range namespacesToDelete {
+		err = ctrl.kubectl.DeleteResource(context.Background(), config, ns.GroupVersionKind(), ns.GetName(), "", metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+		if err != nil && !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ctrl *ApplicationController) getPropagationPolicy(app *appv1.Application) metav1.DeletionPropagation {
+	if app.GetPropagationPolicy() == appv1.BackgroundPropagationPolicyFinalizer {
+		return metav1.DeletePropagationBackground
+	}
+	return metav1.DeletePropagationForeground
 }
 
 func (ctrl *ApplicationController) updateFinalizers(app *appv1.Application) error {
