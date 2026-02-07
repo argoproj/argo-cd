@@ -58,7 +58,7 @@ spec:
         - .spec.template.spec.initContainers[] | select(.name == "injected-init-container")
 ```
 
-This is commonly useful for ignoring fields owned by specific managers such as `kube-controller-manager`, which may introduce expected post-sync mutations.
+To ignore fields owned by specific managers defined in your live resources (commonly useful for managers like `kube-controller-manager` that may introduce expected post-sync mutations):
 
 ```yaml
 spec:
