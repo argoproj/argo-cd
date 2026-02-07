@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -137,8 +136,8 @@ func TestKustomizeVersionOverride(t *testing.T) {
 }
 
 func TestHydratorWithHelm(t *testing.T) {
-	Given(t).
-		Path("hydrator-helm").
+	ctx := Given(t)
+	ctx.Path("hydrator-helm").
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source = nil
@@ -169,17 +168,24 @@ func TestHydratorWithHelm(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
 			// Verify that the inline helm parameter was applied
-			output, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+			output, err := fixture.Run("", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", "configmap", "my-map",
 				"-ojsonpath={.data.message}")
 			require.NoError(t, err)
 			require.Equal(t, "helm-hydrated-with-inline-params", output)
+
+			// Verify that the namespace was passed to helm
+			output, err = fixture.Run("", "kubectl", "-n="+ctx.DeploymentNamespace(),
+				"get", "configmap", "my-map",
+				"-ojsonpath={.data.helmns}")
+			require.NoError(t, err)
+			require.Equal(t, ctx.DeploymentNamespace(), output)
 		})
 }
 
 func TestHydratorWithKustomize(t *testing.T) {
-	Given(t).
-		Path("hydrator-kustomize").
+	ctx := Given(t)
+	ctx.Path("hydrator-kustomize").
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source = nil
@@ -210,15 +216,15 @@ func TestHydratorWithKustomize(t *testing.T) {
 			// Verify that the inline kustomize nameSuffix was applied
 			// kustomization.yaml has namePrefix: kustomize-, and we added nameSuffix: -inline
 			// So the ConfigMap name should be kustomize-my-map-inline
-			_, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+			_, err := fixture.Run("", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", "configmap", "kustomize-my-map-inline")
 			require.NoError(t, err)
 		})
 }
 
 func TestHydratorWithDirectory(t *testing.T) {
-	Given(t).
-		Path("hydrator-directory").
+	ctx := Given(t)
+	ctx.Path("hydrator-directory").
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source = nil
@@ -247,20 +253,16 @@ func TestHydratorWithDirectory(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
 			// Verify that the recurse option was applied by checking the ConfigMap from subdir
-			_, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+			_, err := fixture.Run("", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", "configmap", "my-map-subdir")
 			require.NoError(t, err)
 		})
 }
 
 func TestHydratorWithPlugin(t *testing.T) {
-	Given(t).
-		Path("hydrator-plugin").
-		And(func() {
-			go startCMPServer(t, "./testdata/hydrator-plugin")
-			time.Sleep(100 * time.Millisecond)
-			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
-		}).
+	ctx := Given(t)
+	ctx.Path("hydrator-plugin").
+		RunningCMPServer("./testdata/hydrator-plugin").
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source = nil
@@ -291,7 +293,7 @@ func TestHydratorWithPlugin(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
 			// Verify that the inline plugin env was applied
-			output, err := fixture.Run("", "kubectl", "-n="+fixture.DeploymentNamespace(),
+			output, err := fixture.Run("", "kubectl", "-n="+ctx.DeploymentNamespace(),
 				"get", "configmap", "plugin-generated-map",
 				"-ojsonpath={.data.plugin-env}")
 			require.NoError(t, err)
@@ -346,4 +348,40 @@ func TestHydratorNoOp(t *testing.T) {
 			require.Equal(t, firstHydratedSHA, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
 				"Hydrated SHA should remain the same for no-op hydration")
 		})
+}
+
+func TestHydratorWithAuthenticatedRepo(t *testing.T) {
+	// Test that hydration works with an HTTPS repository requiring authentication,
+	// specifically that GetCommitNote and AddAndPushNote properly use credentials when
+	// fetching git notes. This test creates an initial hydration, then makes a change
+	// to trigger a second hydration. On the second hydration, the commit-server will
+	// need to fetch existing git notes from the authenticated repository, which requires
+	// credentials.
+	Given(t).
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		HTTPSInsecureRepoURLAdded(true).
+		// Add write credentials for commit-server to push hydrated manifests
+		WriteCredentials(true).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// Now make a change and re-hydrate. This will trigger git notes fetch
+		// operations that require credentials.
+		When().
+		PatchFile("guestbook/guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 10}]`).
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }

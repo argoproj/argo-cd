@@ -295,7 +295,8 @@ spec:
     spec:
       destination: {}
       project: ""
-status: {}
+status:
+  health: {}
 ---
 `,
 		},
@@ -325,7 +326,8 @@ spec:
     spec:
       destination: {}
       project: ""
-status: {}
+status:
+  health: {}
 ---
 `,
 		},

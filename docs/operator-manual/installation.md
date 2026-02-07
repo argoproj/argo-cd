@@ -16,15 +16,16 @@ Two types of installation manifests are provided:
 
 Not recommended for production use. This type of installation is typically used during evaluation period for demonstrations and testing.
 
-* [install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/install.yaml) - Standard Argo CD installation with cluster-admin access. Use this
+* [install.yaml](https://github.com/argoproj/argo-cd/blob/stable/manifests/install.yaml) - Standard Argo CD installation with cluster-admin access. Use this
   manifest set if you plan to use Argo CD to deploy applications in the same cluster that Argo CD runs
   in (i.e. kubernetes.svc.default). It will still be able to deploy to external clusters with inputted
   credentials.
 
-  > Note: The ClusterRoleBinding in the installation manifest is bound to a ServiceAccount in the argocd namespace. 
-  > Be cautious when modifying the namespace, as changing it may cause permission-related errors unless the ClusterRoleBinding is correctly adjusted to reflect the new namespace.
+> [!NOTE]
+> The ClusterRoleBinding in the installation manifest is bound to a ServiceAccount in the argocd namespace.
+> Be cautious when modifying the namespace, as changing it may cause permission-related errors unless the ClusterRoleBinding is correctly adjusted to reflect the new namespace.
 
-* [namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/namespace-install.yaml) - Installation of Argo CD which requires only
+* [namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/stable/manifests/namespace-install.yaml) - Installation of Argo CD which requires only
   namespace level privileges (does not need cluster roles). Use this manifest set if you do not
   need Argo CD to deploy applications in the same cluster that Argo CD runs in, and will rely solely
   on inputted cluster credentials. An example of using this set of manifests is if you run several
@@ -36,21 +37,22 @@ Not recommended for production use. This type of installation is typically used 
   done to external clusters.
   You can modify that by defining new roles and binding them to the `argocd-application-controller` service account.
 
-  > Note: Argo CD CRDs are not included into [namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/namespace-install.yaml).
-  > and have to be installed separately. The CRD manifests are located in the [manifests/crds](https://github.com/argoproj/argo-cd/blob/master/manifests/crds) directory.
-  > Use the following command to install them:
-  > ```
-  > kubectl apply -k https://github.com/argoproj/argo-cd/manifests/crds\?ref\=stable
-  > ```
+> [!NOTE]
+> Argo CD CRDs are not included into [namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/stable/manifests/namespace-install.yaml).
+> and have to be installed separately. The CRD manifests are located in the [manifests/crds](https://github.com/argoproj/argo-cd/blob/stable/manifests/crds) directory.
+> Use the following command to install them:
+> ```
+> kubectl apply --server-side --force-conflicts -k https://github.com/argoproj/argo-cd/manifests/crds\?ref\=stable
+> ```
 
 ### High Availability:
 
 High Availability installation is recommended for production use. This bundle includes the same components but tuned for high availability and resiliency.
 
-* [ha/install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/ha/install.yaml) - the same as install.yaml but with multiple replicas for
+* [ha/install.yaml](https://github.com/argoproj/argo-cd/blob/stable/manifests/ha/install.yaml) - the same as install.yaml but with multiple replicas for
   supported components.
 
-* [ha/namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/ha/namespace-install.yaml) - the same as namespace-install.yaml but
+* [ha/namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/stable/manifests/ha/namespace-install.yaml) - the same as namespace-install.yaml but
   with multiple replicas for supported components.
 
 ## Core
@@ -62,7 +64,7 @@ multi-tenancy features. This installation includes fewer components
 and is easier to setup. The bundle does not include the API server or
 UI, and installs the lightweight (non-HA) version of each component.
 
-Installation manifest is available at [core-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/core-install.yaml).
+Installation manifest is available at [core-install.yaml](https://github.com/argoproj/argo-cd/blob/stable/manifests/core-install.yaml).
 
 For more details about Argo CD Core please refer to the [official
 documentation](./core.md)

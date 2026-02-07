@@ -162,16 +162,16 @@ p, example-user, applications, update/*, default/prod-app, deny
 >
 > Prior to v3, `update` and `delete` actions (without a `/*`) were also evaluated
 > on sub-resources.
-> 
+>
 > To preserve this behavior, you can set the config value
 > `server.rbac.disableApplicationFineGrainedRBACInheritance` to `false` in
 > the Argo CD ConfigMap `argocd-cm`.
-> 
+>
 > When disabled, it is not possible to deny fine-grained permissions for a sub-resource
 > if the action was **explicitly allowed on the application**.
 > For instance, the following policies will **allow** a user to delete the Pod and any
 > other resources in the application:
-> 
+>
 > ```csv
 > p, example-user, applications, delete, default/prod-app, allow
 > p, example-user, applications, delete/*/Pod/*, default/prod-app, deny
@@ -206,17 +206,17 @@ p, example-user, applications, action/*, default/*, allow
 
 #### The `override` action
 
-The `override` action privilege can be used to allow passing arbitrary manifests or different revisions when syncing an `Application`. This can e.g. be used for development or testing purposes. 
+The `override` action privilege can be used to allow passing arbitrary manifests or different revisions when syncing an `Application`. This can e.g. be used for development or testing purposes.
 
-**Attention:** This allows users to completely change/delete the deployed resources of the application. 
+**Attention:** This allows users to completely change/delete the deployed resources of the application.
 
-While the `sync` action privilege gives the right to synchronize the objects in the cluster to the desired state as defined in the `Application` Object, the `override` action privilege will allow a user to synchronize arbitrary local manifests to the Application. These manifests will be used _instead of_ the configured source, until the next sync is performed. After performing such a override sync, the application will most probably be OutOfSync with the state defined via the `Application` object. 
+While the `sync` action privilege gives the right to synchronize the objects in the cluster to the desired state as defined in the `Application` Object, the `override` action privilege will allow a user to synchronize arbitrary local manifests to the Application. These manifests will be used _instead of_ the configured source, until the next sync is performed. After performing such a override sync, the application will most probably be OutOfSync with the state defined via the `Application` object.
 It is not possible to perform an `override` sync when auto-sync is enabled.
 
-New since v3.2: 
+New since v3.2:
 
-When `application.sync.requireOverridePrivilegeForRevisionSync: 'true'` is set in the `argcd-cm` configmap, 
-passing a revision when syncing an `Application` is also considered as an `override`, to prevent synchronizing to arbitrary revisions other than the revision(s) given in the `Application` object. Similar as synching to an arbitrary yaml manifest, syncing to a different revision/branch/commit will also bring the controlled objects to a state differing, and thus OufOfSync from the state as defined in the `Application`.
+When `application.sync.requireOverridePrivilegeForRevisionSync: 'true'` is set in the `argcd-cm` configmap,
+passing a revision when syncing an `Application` is also considered as an `override`, to prevent synchronizing to arbitrary revisions other than the revision(s) given in the `Application` object. Similar as syncing to an arbitrary yaml manifest, syncing to a different revision/branch/commit will also bring the controlled objects to a state differing, and thus OufOfSync from the state as defined in the `Application`.
 
 The default setting of this flag is 'false', to prevent breaking changes in existing installations. It is recommended to set this setting to 'true' and only grant the `override` privilege per AppProject to the users that actually need this behavior.
 
@@ -346,7 +346,7 @@ data:
 
 Here:
 1. `g, admin, role:admin` explicitly binds the built-in admin user to the admin role.
-2. `g, role:admin, role:readonly` shows role inheritance, so anyone granted `role:admin` also automatically has all the permissions of      
+2. `g, role:admin, role:readonly` shows role inheritance, so anyone granted `role:admin` also automatically has all the permissions of
    `role:readonly`.
 
 This approach can be combined with AppProjects to associate users' emails and groups directly at the project level:
@@ -390,15 +390,15 @@ g, my-local-user, role:admin
 > If you have [enabled SSO](user-management/index.md#sso), any SSO user with a scope that matches a local user will be
 > added to the same roles as the local user. For example, if local user `sally` is assigned to `role:admin`, and if an
 > SSO user has a scope which happens to be named `sally`, that SSO user will also be assigned to `role:admin`.
-> 
+>
 > An example of where this may be a problem is if your SSO provider is an SCM, and org members are automatically
 > granted scopes named after the orgs. If a user can create or add themselves to an org in the SCM, they can gain the
 > permissions of the local user with the same name.
-> 
+>
 > To avoid ambiguity, if you are using local users and SSO, it is recommended to assign policies directly to local
 > users, and not to assign roles to local users. In other words, instead of using `g, my-local-user, role:admin`, you
 > should explicitly assign policies to `my-local-user`:
-> 
+>
 > ```yaml
 > p, my-local-user, *, *, *, allow
 > ```

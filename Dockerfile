@@ -1,10 +1,10 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:25.04@sha256:27771fb7b40a58237c98e8d3e6b9ecdd9289cec69a857fccfb85ff36294dac20
+ARG BASE_IMAGE=docker.io/library/ubuntu:25.10@sha256:4a9232cc47bf99defcc8860ef6222c99773330367fcecbf21ba2edb0b810a31e
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.25.5@sha256:36b4f45d2874905b9e8573b783292629bcb346d0a70d8d7150b6df545234818f AS builder
+FROM docker.io/library/golang:1.25.6@sha256:06d1251c59a75761ce4ebc8b299030576233d7437c886a68b43464bad62d4bb1 AS builder
 
 WORKDIR /tmp
 
@@ -50,10 +50,10 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     chmod g=u /home/argocd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
-    apt-get install -y \
-    git git-lfs tini gpg tzdata connect-proxy && \
+    apt-get install --no-install-recommends -y \
+    git git-lfs tini ca-certificates gpg gpg-agent tzdata connect-proxy openssh-client && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
 COPY hack/gpg-wrapper.sh \
     hack/git-verify-wrapper.sh \
@@ -79,6 +79,12 @@ RUN mkdir -p tls && \
 
 ENV USER=argocd
 
+# Disable gRPC service config lookups via DNS TXT records to prevent excessive
+# DNS queries for _grpc_config.<hostname> which can cause timeouts in dual-stack
+# environments. This can be overridden via argocd-cmd-params-cm ConfigMap.
+# See https://github.com/argoproj/argo-cd/issues/24991
+ENV GRPC_ENABLE_TXT_SERVICE_CONFIG=false
+
 USER $ARGOCD_USER_ID
 WORKDIR /home/argocd
 
@@ -103,7 +109,7 @@ RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OP
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.25.5@sha256:36b4f45d2874905b9e8573b783292629bcb346d0a70d8d7150b6df545234818f AS argocd-build
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.25.6@sha256:06d1251c59a75761ce4ebc8b299030576233d7437c886a68b43464bad62d4bb1 AS argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 

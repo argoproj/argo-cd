@@ -1,4 +1,4 @@
-package project
+package account
 
 import (
 	"time"
@@ -19,59 +19,59 @@ type Actions struct {
 }
 
 func (a *Actions) prepareCanIGetLogsArgs() []string {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	return []string{
 		"account", "can-i", "get", "logs", a.context.project + "/*",
 	}
 }
 
 func (a *Actions) CanIGetLogs() *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	a.runCli(a.prepareCanIGetLogsArgs()...)
 	return a
 }
 
 func (a *Actions) prepareSetPasswordArgs(account string) []string {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	return []string{
 		"account", "update-password", "--account", account, "--current-password", fixture.AdminPassword, "--new-password", fixture.DefaultTestUserPassword,
 	}
 }
 
 func (a *Actions) Create() *Actions {
-	a.context.t.Helper()
-	require.NoError(a.context.t, fixture.SetAccounts(map[string][]string{
-		a.context.name: {"login"},
+	a.context.T().Helper()
+	require.NoError(a.context.T(), fixture.SetAccounts(map[string][]string{
+		a.context.GetName(): {"login"},
 	}))
-	_, _ = fixture.RunCli(a.prepareSetPasswordArgs(a.context.name)...)
+	_, _ = fixture.RunCli(a.prepareSetPasswordArgs(a.context.GetName())...)
 	return a
 }
 
 func (a *Actions) SetPermissions(permissions []fixture.ACL, roleName string) *Actions {
-	a.context.t.Helper()
-	require.NoError(a.context.t, fixture.SetPermissions(permissions, a.context.name, roleName))
+	a.context.T().Helper()
+	require.NoError(a.context.T(), fixture.SetPermissions(permissions, a.context.GetName(), roleName))
 	return a
 }
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
-	a.context.t.Helper()
-	require.NoError(a.context.t, fixture.SetParamInSettingConfigMap(key, value))
+	a.context.T().Helper()
+	require.NoError(a.context.T(), fixture.SetParamInSettingConfigMap(key, value))
 	return a
 }
 
 func (a *Actions) Login() *Actions {
-	a.context.t.Helper()
-	require.NoError(a.context.t, fixture.LoginAs(a.context.name))
+	a.context.T().Helper()
+	require.NoError(a.context.T(), fixture.LoginAs(a.context.GetName()))
 	return a
 }
 
 func (a *Actions) runCli(args ...string) {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
 }
 
 func (a *Actions) Then() *Consequences {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }

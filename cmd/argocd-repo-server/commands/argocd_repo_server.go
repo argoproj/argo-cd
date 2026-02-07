@@ -49,6 +49,7 @@ var (
 	pauseGenerationOnFailureForMinutes           = env.ParseNumFromEnv(common.EnvPauseGenerationMinutes, 60, 0, math.MaxInt32)
 	pauseGenerationOnFailureForRequests          = env.ParseNumFromEnv(common.EnvPauseGenerationRequests, 0, 0, math.MaxInt32)
 	gitSubmoduleEnabled                          = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
+	helmUserAgent                                = env.StringFromEnv(common.EnvHelmUserAgent, "")
 )
 
 func NewCommand() *cobra.Command {
@@ -157,6 +158,7 @@ func NewCommand() *cobra.Command {
 				CMPUseManifestGeneratePaths:                  cmpUseManifestGeneratePaths,
 				OCIMediaTypes:                                ociMediaTypes,
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
+				HelmUserAgent:                                helmUserAgent,
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -223,13 +225,11 @@ func NewCommand() *cobra.Command {
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 			wg := sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				s := <-sigCh
 				log.Printf("got signal %v, attempting graceful shutdown", s)
 				grpc.GracefulStop()
-				wg.Done()
-			}()
+			})
 
 			log.Println("starting grpc server")
 			err = grpc.Serve(listener)

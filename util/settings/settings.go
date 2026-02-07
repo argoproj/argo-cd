@@ -507,8 +507,12 @@ const (
 	settingUIBannerPositionKey = "ui.bannerposition"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
 	settingsBinaryUrlsKey = "help.download"
-	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
+	// settingsSourceHydratorCommitMessageTemplateKey is the key for the hydrator commit message template
 	settingsSourceHydratorCommitMessageTemplateKey = "sourceHydrator.commitMessageTemplate"
+	// settingsCommitAuthorNameKey is the key for the commit author name
+	settingsCommitAuthorNameKey = "commit.author.name"
+	// settingsCommitAuthorEmailKey is the key for the commit author email
+	settingsCommitAuthorEmailKey = "commit.author.email"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -1042,6 +1046,22 @@ func (mgr *SettingsManager) GetSourceHydratorCommitMessageTemplate() (string, er
 	return argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey], nil
 }
 
+func (mgr *SettingsManager) GetCommitAuthorName() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	return argoCDCM.Data[settingsCommitAuthorNameKey], nil
+}
+
+func (mgr *SettingsManager) GetCommitAuthorEmail() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	return argoCDCM.Data[settingsCommitAuthorEmailKey], nil
+}
+
 func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind string) {
 	if val, ok := resourceOverrides[groupKind]; ok {
 		val.IgnoreDifferences.JSONPointers = append(val.IgnoreDifferences.JSONPointers, "/status")
@@ -1315,13 +1335,13 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 
 	var settings ArgoCDSettings
 	var errs []error
-	updateSettingsFromConfigMap(&settings, argoCDCM)
 	if err := mgr.updateSettingsFromSecret(&settings, argoCDSecret, secrets); err != nil {
 		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
 		return &settings, errors.Join(errs...)
 	}
+	updateSettingsFromConfigMap(&settings, argoCDCM)
 
 	return &settings, nil
 }

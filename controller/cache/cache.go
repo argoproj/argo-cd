@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"net"
 	"net/url"
@@ -366,9 +367,7 @@ func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clusterc
 		gv := ownerRefGV(ownerRef)
 		if parent, ok := ns[kube.NewResourceKey(gv.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)]; ok {
 			visitedBranch := make(map[kube.ResourceKey]bool, len(visited))
-			for k, v := range visited {
-				visitedBranch[k] = v
-			}
+			maps.Copy(visitedBranch, visited)
 			app, ok := getAppRecursive(parent, ns, visitedBranch)
 			if app != "" || !ok {
 				return app, ok
