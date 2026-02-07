@@ -969,10 +969,9 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 			if resp != nil && resp.Status.Allowed {
 				return true, nil
 			}
-			// unsupported, remove from watch list
-			//nolint:staticcheck //FIXME
-			return false, nil
 		}
+		// unsupported, remove from watch list
+		return false, nil
 	}
 	// checkPermission follows the same logic of determining namespace/cluster resource as the processApi function
 	// so if neither of the cases match it means the controller will not watch for it so it is safe to return true.
