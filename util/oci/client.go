@@ -81,16 +81,6 @@ type Client interface {
 	GetTags(ctx context.Context, noCache bool) ([]string, error)
 }
 
-type Creds struct {
-	Username           string
-	Password           string
-	CAPath             string
-	CertData           []byte
-	KeyData            []byte
-	InsecureSkipVerify bool
-	InsecureHTTPOnly   bool
-}
-
 type ClientOpts func(c *nativeOCIClient)
 
 func WithIndexCache(indexCache tagsCache) ClientOpts {
@@ -125,10 +115,10 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 	ociRepo := strings.TrimPrefix(repoURL, "oci://")
 	repo, err := remote.NewRepository(ociRepo)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize repository: %w", err)
+		return nil, fmt.Errorf("failed to initialize oci repository: %w", err)
 	}
 
-	repo.PlainHTTP = creds.InsecureHTTPOnly
+	repo.PlainHTTP = creds.GetInsecureHTTPOnly()
 
 	var tlsConf *tls.Config
 	if !repo.PlainHTTP {
@@ -150,12 +140,18 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 			},
 		*/
 	}
+
+	username := creds.GetUsername()
+	password, err := creds.GetPassword()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get password: %w", err)
+	}
 	repo.Client = &auth.Client{
 		Client: client,
 		Cache:  nil,
 		Credential: auth.StaticCredential(repo.Reference.Registry, auth.Credential{
-			Username: creds.Username,
-			Password: creds.Password,
+			Username: username,
+			Password: password,
 		}),
 	}
 
@@ -473,10 +469,10 @@ func (c *nativeOCIClient) resolveDigest(ctx context.Context, revision string) (s
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
-	tlsConfig := &tls.Config{InsecureSkipVerify: creds.InsecureSkipVerify}
+	tlsConfig := &tls.Config{InsecureSkipVerify: creds.GetInsecureSkipVerify()}
 
-	if creds.CAPath != "" {
-		caData, err := os.ReadFile(creds.CAPath)
+	if creds.GetCAPath() != "" {
+		caData, err := os.ReadFile(creds.GetCAPath())
 		if err != nil {
 			return nil, err
 		}
@@ -486,8 +482,8 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 	}
 
 	// If a client cert & key is provided then configure TLS config accordingly.
-	if len(creds.CertData) > 0 && len(creds.KeyData) > 0 {
-		cert, err := tls.X509KeyPair(creds.CertData, creds.KeyData)
+	if len(creds.GetCertData()) > 0 && len(creds.GetKeyData()) > 0 {
+		cert, err := tls.X509KeyPair(creds.GetCertData(), creds.GetKeyData())
 		if err != nil {
 			return nil, err
 		}
