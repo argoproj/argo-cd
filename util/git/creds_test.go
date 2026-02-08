@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -72,13 +73,7 @@ func TestHTTPSCreds_Environ_insecure_true(t *testing.T) {
 		utilio.Close(closer)
 	})
 	require.NoError(t, err)
-	found := false
-	for _, envVar := range env {
-		if envVar == "GIT_SSL_NO_VERIFY=true" {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(env, "GIT_SSL_NO_VERIFY=true")
 	assert.True(t, found)
 }
 
@@ -89,13 +84,7 @@ func TestHTTPSCreds_Environ_insecure_false(t *testing.T) {
 		utilio.Close(closer)
 	})
 	require.NoError(t, err)
-	found := false
-	for _, envVar := range env {
-		if envVar == "GIT_SSL_NO_VERIFY=true" {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(env, "GIT_SSL_NO_VERIFY=true")
 	assert.False(t, found)
 }
 
