@@ -952,8 +952,8 @@ func TestValidatePermissions(t *testing.T) {
 
 func TestSetAppOperations(t *testing.T) {
 	t.Run("Application not existing", func(t *testing.T) {
-		appIf := appclientset.NewSimpleClientset().ArgoprojV1alpha1().Applications("default")
-		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
+		clientset := appclientset.NewSimpleClientset()
+		app, err := SetAppOperation(clientset, "someapp", "default", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
 		require.Error(t, err)
 		assert.Nil(t, app)
 	})
@@ -966,8 +966,8 @@ func TestSetAppOperations(t *testing.T) {
 			},
 			Operation: &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}},
 		}
-		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
-		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
+		clientset := appclientset.NewSimpleClientset(&a)
+		app, err := SetAppOperation(clientset, "someapp", "default", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
 		require.ErrorContains(t, err, "operation is already in progress")
 		assert.Nil(t, app)
 	})
@@ -979,8 +979,8 @@ func TestSetAppOperations(t *testing.T) {
 				Namespace: "default",
 			},
 		}
-		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
-		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: nil})
+		clientset := appclientset.NewSimpleClientset(&a)
+		app, err := SetAppOperation(clientset, "someapp", "default", &argoappv1.Operation{Sync: nil})
 		require.ErrorContains(t, err, "Operation unspecified")
 		assert.Nil(t, app)
 	})
@@ -992,8 +992,8 @@ func TestSetAppOperations(t *testing.T) {
 				Namespace: "default",
 			},
 		}
-		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
-		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
+		clientset := appclientset.NewSimpleClientset(&a)
+		app, err := SetAppOperation(clientset, "someapp", "default", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
 		require.NoError(t, err)
 		assert.NotNil(t, app)
 	})

@@ -3514,27 +3514,34 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 				errors.Fatal(errors.ErrorGeneric, "ApplicationSource needs atleast repoUrl, path or chart or ref field. No source to add.")
 			}
 
-			if len(app.Spec.Sources) > 0 {
-				appSource, _ := cmdutil.ConstructSource(&argoappv1.ApplicationSource{}, appOpts, c.Flags())
+			var sourcePosition int
+			appSource, _ := cmdutil.ConstructSource(&argoappv1.ApplicationSource{}, appOpts, c.Flags())
 
-				// sourcePosition is the index at which new source will be appended to spec.Sources
-				sourcePosition := len(app.Spec.GetSources())
+			switch {
+			case len(app.Spec.Sources) > 0:
 				app.Spec.Sources = append(app.Spec.Sources, *appSource)
-
-				setParameterOverrides(app, appOpts.Parameters, sourcePosition)
-
-				_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
-					Name:         &app.Name,
-					Spec:         &app.Spec,
-					Validate:     &appOpts.Validate,
-					AppNamespace: &appNs,
-				})
-				errors.CheckError(err)
-
-				fmt.Printf("Application '%s' updated successfully\n", app.Name)
-			} else {
+				// sourcePosition is the index at which new source will be appended to spec.Sources
+				sourcePosition = len(app.Spec.GetSources())
+			case app.Spec.Source != nil:
+				app.Spec.Sources = argoappv1.ApplicationSources{
+					*app.Spec.Source,
+					*appSource,
+				}
+				app.Spec.Source = nil
+				sourcePosition = 2
+			default:
 				errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("Cannot add source: application %s does not have spec.sources defined", appName))
 			}
+
+			setParameterOverrides(app, appOpts.Parameters, sourcePosition)
+			_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
+				Name:         &app.Name,
+				Spec:         &app.Spec,
+				Validate:     &appOpts.Validate,
+				AppNamespace: &appNs,
+			})
+			errors.CheckError(err)
+			fmt.Printf("Application '%s' updated successfully\n", app.Name)
 		},
 	}
 	cmdutil.AddAppFlags(command, &appOpts)

@@ -32,6 +32,7 @@ import (
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
@@ -1137,9 +1138,13 @@ func (m *appStateManager) persistRevisionHistory(
 	if err != nil {
 		return fmt.Errorf("error marshaling revision history patch: %w", err)
 	}
-	_, err = m.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	// Use v1beta1 client with status subresource for proper separation of spec/status updates
+	_, err = m.appclientset.ArgoprojV1beta1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{}, "status")
 	return err
 }
+
+// Ensure v1beta1 import is used
+var _ = v1beta1.SchemeGroupVersion
 
 // NewAppStateManager creates new instance of AppStateManager
 func NewAppStateManager(
