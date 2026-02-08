@@ -390,5 +390,5 @@ the [argocd-secret](../../operator-manual/argocd-secret-yaml.md) with
 key `some-extension.authorization.header`
 
 [1]: https://github.com/argoproj/argoproj/blob/master/community/feature-status.md
-[2]: https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm.yaml
+[2]: ../../operator-manual/argocd-cm-yaml.md
 [3]: ../../operator-manual/rbac.md#the-extensions-resource

@@ -111,11 +111,11 @@ The Argo CD UI, CLI should visualize the `requiresDeletionApproval` field so tha
 
 #### Approve deletion resource action
 
-The Argo CD UI, CLI should bundle the `Approve Deletion` [resource action](https://argo-cd.readthedocs.io/en/stable/operator-manual/resource_actions/)
+The Argo CD UI, CLI should bundle the `Approve Deletion` [resource action](../operator-manual/resource_actions.md)
 that would allow the user to approve the deletion. The action should patch the resource with the `argocd.argoproj.io/deletion-approved: true` annotation.
 Once annotation is applied the Argo CD should proceed with the deletion.
 
-The main reason to use the action is that we can reuse existing [RBAC](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/) to control who can approve the deletion.
+The main reason to use the action is that we can reuse existing [RBAC](../operator-manual/rbac.md) to control who can approve the deletion.
 
 #### UI/CLI Convenience to approve all resources
 

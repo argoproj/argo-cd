@@ -27,38 +27,6 @@ Config Management Plugin (CMP) parameterization defines a way for plugins to "an
 parameters for an Application. Announcing parameters allows CMPs to provide a UI experience similar to native config 
 management tools (Helm, Kustomize, etc.).
 
-- [Parameterized Config Management Plugins](#parameterized-config-management-plugins)
-    * [Open Questions](#open-questions)
-    * [Summary](#summary)
-    * [Motivation](#motivation)
-        + [1. CMPs are under-utilized](#1-cmps-are-under-utilized)
-        + [2. Decisions about config management tools are limited by the core code](#2-decisions-about-config-management-tools-are-limited-by-the-core-code)
-        + [3. Ksonnet is deprecated, and CMPs are a good place to maintain support](#3-ksonnet-is-deprecated-and-cmps-are-a-good-place-to-maintain-support)
-        + [Goals](#goals)
-        + [Non-Goals](#non-goals)
-    * [Proposal](#proposal)
-        + [Use cases](#use-cases)
-            - [Use case 1: building Argo CD without config management dependencies](#use-case-1-building-argo-cd-without-config-management-dependencies)
-            - [Use case 2: writing CMPs with rich UI experiences](#use-case-2-writing-cmps-with-rich-ui-experiences)
-        + [Implementation Details/Notes/Constraints](#implementation-detailsnotesconstraints)
-            - [Prerequisites](#prerequisites)
-            - [Terms](#terms)
-            - [How will the ConfigManagementPlugin spec change?](#how-will-the-configmanagementplugin-spec-change)
-            - [How will the CMP know what parameter values are set?](#how-will-the-cmp-know-what-parameter-values-are-set)
-            - [How will the UI know what parameters may be set?](#how-will-the-ui-know-what-parameters-may-be-set)
-            - [Implementation Q/A](#implementation-qa)
-        + [Detailed examples](#detailed-examples)
-            - [Example 1: trivial parameterized CMP](#example-1-trivial-parameterized-cmp)
-            - [Example 2: Helm parameters from Kustomize dependency](#example-2-helm-parameters-from-kustomize-dependency)
-            - [Example 3: simple Helm CMP](#example-3-simple-helm-cmp)
-            - [Example 4: simple Kustomize CMP](#example-4-simple-kustomize-cmp)
-        + [Security Considerations](#security-considerations)
-            - [Increased scripting](#increased-scripting)
-        + [Risks and Mitigations](#risks-and-mitigations)
-        + [Upgrade / Downgrade Strategy](#upgrade-downgrade-strategy)
-    * [Drawbacks](#drawbacks)
-    * [Alternatives](#alternatives)
-
 ## Open Questions
 
 * Should we write examples in documentation in Python instead of shell scripts?
@@ -68,7 +36,7 @@ management tools (Helm, Kustomize, etc.).
 
 ## Summary
 
-[Config Management Plugins](https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/) 
+[Config Management Plugins](../operator-manual/config-management-plugins.md) 
 allow Argo CD administrators to define custom manifest generation tooling.
 
 The only existing way for users to parameterize manifest generation is with environment variables.
@@ -828,7 +796,7 @@ well as image and source code scanning tools in CI/CD.
    Mitigation: rewrite the Helm config management tool as a CMP and test as many common use cases as possible. Write a
    document before starting on the Helm CMP documenting all major features which must be tested.
 
-### Upgrade / Downgrade Strategy
+### Upgrade and Downgrade Strategy
 
 Upgrading will only require using a new version of Argo CD and adding the `parameters` settings to the plugin config.
 
