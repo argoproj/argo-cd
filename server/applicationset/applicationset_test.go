@@ -214,6 +214,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		true,
 		testEnableEventList,
 		clusterInformer,
+		2, // maxMatrixChildren
 	)
 	return server.(*Server), kubeclientset
 }
@@ -889,5 +890,51 @@ func TestAppSet_Generate_Cluster(t *testing.T) {
 
 		_, err := appSetServer.Generate(t.Context(), &appsetQuery)
 		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+	})
+}
+
+func TestAppSet_Generate_MaxMatrixChildren(t *testing.T) {
+	t.Run("Respects maxChildren limit of 2 - rejects 3 generators", func(t *testing.T) {
+		appSet := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+			appset.Name = "test-matrix-too-many"
+			appset.Spec.Template.Name = "{{list.a}}"
+			appset.Spec.Generators = []appsv1.ApplicationSetGenerator{
+				{
+					Matrix: &appsv1.MatrixGenerator{
+						Generators: []appsv1.ApplicationSetNestedGenerator{
+							{
+								List: &appsv1.ListGenerator{
+									Elements: []apiextensionsv1.JSON{
+										{Raw: []byte(`{"a": "1"}`)},
+									},
+								},
+							},
+							{
+								List: &appsv1.ListGenerator{
+									Elements: []apiextensionsv1.JSON{
+										{Raw: []byte(`{"b": "1"}`)},
+									},
+								},
+							},
+							{
+								List: &appsv1.ListGenerator{
+									Elements: []apiextensionsv1.JSON{
+										{Raw: []byte(`{"c": "1"}`)},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+		})
+
+		// Server has default maxChildren=2, appset has 3 generators - should fail
+		appSetServer := newTestAppSetServer(t, appSet)
+		appsetQuery := applicationset.ApplicationSetGenerateRequest{ApplicationSet: appSet}
+
+		_, err := appSetServer.Generate(t.Context(), &appsetQuery)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "more than the max allowed")
 	})
 }
