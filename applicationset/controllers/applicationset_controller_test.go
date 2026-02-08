@@ -4652,7 +4652,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 
 	newDefaultAppSet := func(stepsCount int, status []v1alpha1.ApplicationSetApplicationStatus) v1alpha1.ApplicationSet {
 		steps := []v1alpha1.ApplicationSetRolloutStep{}
-		for i := 0; i < stepsCount; i++ {
+		for range stepsCount {
 			steps = append(steps, v1alpha1.ApplicationSetRolloutStep{MatchExpressions: []v1alpha1.ApplicationMatchExpression{}})
 		}
 		return v1alpha1.ApplicationSet{
@@ -6365,7 +6365,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 
 func generateNAppResourceStatuses(n int) []v1alpha1.ResourceStatus {
 	var r []v1alpha1.ResourceStatus
-	for i := 0; i < n; i++ {
+	for i := range n {
 		r = append(r, v1alpha1.ResourceStatus{
 			Name:   "app" + strconv.Itoa(i),
 			Status: v1alpha1.SyncStatusCodeSynced,
@@ -6380,7 +6380,7 @@ func generateNAppResourceStatuses(n int) []v1alpha1.ResourceStatus {
 
 func generateNHealthyApps(n int) []v1alpha1.Application {
 	var r []v1alpha1.Application
-	for i := 0; i < n; i++ {
+	for i := range n {
 		r = append(r, v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "app" + strconv.Itoa(i),

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1046,12 +1047,10 @@ func labelMatchedExpression(logCtx *log.Entry, val string, matchExpression argov
 	// if operator == NotIn, default to true
 	valueMatched := matchExpression.Operator == "NotIn"
 
-	for _, value := range matchExpression.Values {
-		if val == value {
-			// first "In" match returns true
-			// first "NotIn" match returns false
-			return matchExpression.Operator == "In"
-		}
+	if slices.Contains(matchExpression.Values, val) {
+		// first "In" match returns true
+		// first "NotIn" match returns false
+		return matchExpression.Operator == "In"
 	}
 	return valueMatched
 }
