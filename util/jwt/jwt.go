@@ -3,6 +3,7 @@ package jwt
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -123,10 +124,8 @@ func IsMember(claims jwtgo.Claims, groups []string, scopes []string) bool {
 	}
 	// O(n^2) loop
 	for _, userGroup := range GetGroups(mapClaims, scopes) {
-		for _, group := range groups {
-			if userGroup == group {
-				return true
-			}
+		if slices.Contains(groups, userGroup) {
+			return true
 		}
 	}
 	return false
