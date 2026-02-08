@@ -218,7 +218,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 			}
 
 			// Make sure that we received a valid public host key by parsing it
-			_, hostnames, rawKeyData, _, _, err := ssh.ParseKnownHosts([]byte(fmt.Sprintf("%s %s %s", certificate.ServerName, certificate.CertSubType, certificate.CertData)))
+			_, hostnames, rawKeyData, _, _, err := ssh.ParseKnownHosts(fmt.Appendf(nil, "%s %s %s", certificate.ServerName, certificate.CertSubType, certificate.CertData))
 			if err != nil {
 				return nil, err
 			}

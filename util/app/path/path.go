@@ -79,8 +79,8 @@ func CheckOutOfBoundsSymlinks(basePath string) error {
 			currentDir := filepath.Dir(path)
 
 			// walk each part of the symlink target to make sure it never leaves basePath
-			parts := strings.Split(linkTarget, string(os.PathSeparator))
-			for _, part := range parts {
+			parts := strings.SplitSeq(linkTarget, string(os.PathSeparator))
+			for part := range parts {
 				newDir := filepath.Join(currentDir, part)
 				rel, err := filepath.Rel(absBasePath, newDir)
 				if err != nil {
@@ -116,7 +116,7 @@ func GetSourceRefreshPaths(app *v1alpha1.Application, source v1alpha1.Applicatio
 
 	var paths []string
 	if hasAnnotation && annotationPaths != "" {
-		for _, item := range strings.Split(annotationPaths, ";") {
+		for item := range strings.SplitSeq(annotationPaths, ";") {
 			// skip empty paths
 			if item == "" {
 				continue
