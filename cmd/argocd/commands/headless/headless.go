@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/initialize"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -172,6 +174,88 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 	return nil
 }
 
+type coreConfigOpts struct {
+	EnableGZip            bool
+	ApplicationNamespaces []string
+}
+
+// loadCoreConfigOpts resolves using:
+// 1. Core-config file (highest priority)
+// 2. Environment variables
+// 3. argocd-cmd-params-cm ConfigMap
+// 4. Server defaults
+func loadCoreConfigOpts(ctx context.Context, coreConfigPath string, kubeClientset kubernetes.Interface, namespace string) (*coreConfigOpts, error) {
+	opts := coreConfigOpts{
+		EnableGZip:            true,
+		ApplicationNamespaces: []string{},
+	}
+
+	// Layer 3: ConfigMap values
+	cm, err := kubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDCmdParamsConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("could not read ConfigMap %s: %w", common.ArgoCDCmdParamsConfigMapName, err)
+	} else if cm.Data != nil {
+		if val, ok := cm.Data["server.enable.gzip"]; ok {
+			if strings.EqualFold(val, "true") {
+				opts.EnableGZip = true
+			} else if strings.EqualFold(val, "false") {
+				opts.EnableGZip = false
+			}
+		}
+		if val, ok := cm.Data["application.namespaces"]; ok && val != "" {
+			ns := strings.Split(val, ",")
+			for i, n := range ns {
+				ns[i] = strings.TrimSpace(n)
+			}
+			opts.ApplicationNamespaces = ns
+		}
+	}
+
+	// Layer 2: Environment variables
+	if val := os.Getenv("ARGOCD_SERVER_ENABLE_GZIP"); val != "" {
+		if strings.EqualFold(val, "true") {
+			opts.EnableGZip = true
+		} else if strings.EqualFold(val, "false") {
+			opts.EnableGZip = false
+		}
+	}
+	if val := os.Getenv("ARGOCD_APPLICATION_NAMESPACES"); val != "" {
+		ns := strings.Split(val, ",")
+		for i, n := range ns {
+			ns[i] = strings.TrimSpace(n)
+		}
+		opts.ApplicationNamespaces = ns
+	}
+
+	// Layer 1: Core-config file (highest priority)
+	if coreConfigPath != "" {
+		data, err := os.ReadFile(coreConfigPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read core config file %s: %w", coreConfigPath, err)
+		}
+		var fileConfig map[string]string
+		if err := yaml.Unmarshal(data, &fileConfig); err != nil {
+			return nil, fmt.Errorf("failed to parse core config file %s: %w", coreConfigPath, err)
+		}
+		if val, ok := fileConfig["server.enable.gzip"]; ok {
+			if strings.EqualFold(val, "true") {
+				opts.EnableGZip = true
+			} else if strings.EqualFold(val, "false") {
+				opts.EnableGZip = false
+			}
+		}
+		if val, ok := fileConfig["application.namespaces"]; ok && val != "" {
+			ns := strings.Split(val, ",")
+			for i, n := range ns {
+				ns[i] = strings.TrimSpace(n)
+			}
+			opts.ApplicationNamespaces = ns
+		}
+	}
+
+	return &opts, nil
+}
+
 // MaybeStartLocalServer allows executing command in a headless mode. If we're in core mode, starts the Argo CD API
 // server on the fly and changes provided client options to use started API server port.
 //
@@ -262,6 +346,11 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		return nil, fmt.Errorf("error getting namespace: %w", err)
 	}
 
+	coreOpts, err := loadCoreConfigOpts(ctx, clientOpts.CoreConfigPath, kubeClientset, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("error loading core config options: %w", err)
+	}
+
 	mr, err := miniredis.Run()
 	if err != nil {
 		return nil, fmt.Errorf("error running miniredis: %w", err)
@@ -273,7 +362,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 
 	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: cache.RedisCompressionType(clientOpts.RedisCompression), redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName, redisPassword: redisOptions.Password}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
-		EnableGZip:              false,
+		EnableGZip:              coreOpts.EnableGZip,
 		Namespace:               namespace,
 		ListenPort:              *port,
 		AppClientset:            appClientset,
@@ -287,6 +376,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		ListenHost:              *address,
 		RepoClientset:           &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset},
 		EnableProxyExtension:    false,
+		ApplicationNamespaces:   coreOpts.ApplicationNamespaces,
 	}, server.ApplicationSetOpts{})
 	srv.Init(ctx)
 
