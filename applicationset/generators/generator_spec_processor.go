@@ -142,8 +142,13 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 	// the provided parameter (which will touch the original resource object returned by client-go)
 	dest := g.GetTemplate(requestedGenerator).DeepCopy()
 
-	err := mergo.Merge(dest, applicationSetTemplate)
+	// If the generator template is empty, return the ApplicationSet template as is
+	if dest.IsEmpty() {
+		return applicationSetTemplate, nil
+	}
 
+	// Merge the ApplicationSet template into the generator template
+	err := mergo.Merge(dest, applicationSetTemplate)
 	return *dest, err
 }
 

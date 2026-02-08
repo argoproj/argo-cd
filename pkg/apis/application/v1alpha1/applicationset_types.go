@@ -182,6 +182,11 @@ type ApplicationSetTemplate struct {
 	Spec                       ApplicationSpec `json:"spec" protobuf:"bytes,2,name=spec"`
 }
 
+// IsEmpty returns true if the ApplicationSetTemplate is considered empty
+func (t *ApplicationSetTemplate) IsEmpty() bool {
+	return t.ApplicationSetTemplateMeta.IsEmpty() && t.Spec.IsEmpty()
+}
+
 // ApplicationSetTemplateMeta represents the Argo CD application fields that may
 // be used for Applications generated from the ApplicationSet (based on metav1.ObjectMeta)
 type ApplicationSetTemplateMeta struct {
@@ -190,6 +195,15 @@ type ApplicationSetTemplateMeta struct {
 	Labels      map[string]string `json:"labels,omitempty" protobuf:"bytes,3,name=labels"`
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,4,name=annotations"`
 	Finalizers  []string          `json:"finalizers,omitempty" protobuf:"bytes,5,name=finalizers"`
+}
+
+// IsEmpty returns true if the ApplicationSetTemplateMeta is considered empty
+func (a *ApplicationSetTemplateMeta) IsEmpty() bool {
+	return a.Name == "" &&
+		a.Namespace == "" &&
+		len(a.Labels) == 0 &&
+		len(a.Annotations) == 0 &&
+		len(a.Finalizers) == 0
 }
 
 // ApplicationSetGenerator represents a generator at the top level of an ApplicationSet.
