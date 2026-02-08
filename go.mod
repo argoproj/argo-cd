@@ -13,7 +13,7 @@ require (
 	github.com/TomOnTime/utfutil v1.0.0
 	github.com/alicebob/miniredis/v2 v2.36.1
 	github.com/argoproj/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
-	github.com/argoproj/notifications-engine v0.5.1-0.20260119155007-a23b5827d630
+	github.com/argoproj/notifications-engine v0.5.1-0.20260125154609-ec01d49dcdd7
 	github.com/argoproj/pkg v0.13.6
 	github.com/argoproj/pkg/v2 v2.0.1
 	github.com/aws/aws-sdk-go v1.55.7
@@ -244,6 +244,9 @@ require (
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
+	github.com/nats-io/nats.go v1.43.0 // indirect
+	github.com/nats-io/nkeys v0.4.11 // indirect
+	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/olekukonko/cat v0.0.0-20250911104152-50322a0618f6 // indirect
 	github.com/olekukonko/errors v1.1.0 // indirect
