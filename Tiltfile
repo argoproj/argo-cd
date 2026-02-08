@@ -60,7 +60,7 @@ k8s_yaml(kustomize('manifests/dev-tilt'))
 
 # build dev image
 docker_build_with_restart(
-    'argocd', 
+    'quay.io/argoproj/argocd:latest', 
     context='.',
     dockerfile='Dockerfile.tilt',
     entrypoint=[

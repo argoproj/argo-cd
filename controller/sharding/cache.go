@@ -1,6 +1,7 @@
 package sharding
 
 import (
+	"maps"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -134,9 +135,7 @@ func (sharding *ClusterSharding) GetDistribution() map[string]int {
 	shards := sharding.Shards
 
 	distribution := make(map[string]int, len(shards))
-	for k, v := range shards {
-		distribution[k] = v
-	}
+	maps.Copy(distribution, shards)
 	return distribution
 }
 

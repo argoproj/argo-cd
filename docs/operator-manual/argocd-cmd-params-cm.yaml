@@ -102,6 +102,27 @@ data:
   # will increase the speed at which Argo CD becomes aware of external cluster state. A higher value will reduce cluster
   # cache lock contention and better handle high-churn clusters.
   controller.cluster.cache.events.processing.interval: "100ms"
+  # QPS (Queries Per Second) limit for K8s API client requests (default "50")
+  # Can also be set via ARGOCD_K8S_CLIENT_QPS environment variable
+  controller.k8s.client.qps: "50"
+  # Burst value for K8s API client requests (default "100", which is 2x QPS)
+  # Can also be set via ARGOCD_K8S_CLIENT_BURST environment variable
+  controller.k8s.client.burst: "100"
+  # Maximum number of idle connections in the K8s REST client HTTP transport (default "500")
+  # Can also be set via ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS environment variable
+  controller.k8s.client.max.idle.connections: "500"
+  # TCP timeout duration when communicating with K8s API servers (default "30s")
+  # Can also be set via ARGOCD_K8S_TCP_TIMEOUT environment variable
+  controller.k8s.tcp.timeout: "30s"
+  # TCP keep-alive probe interval when communicating with K8s API servers (default "30s")
+  # Can also be set via ARGOCD_K8S_TCP_KEEPALIVE environment variable
+  controller.k8s.tcp.keepalive: "30s"
+  # TLS handshake timeout when establishing connections to K8s API servers (default "10s")
+  # Can also be set via ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT environment variable
+  controller.k8s.tls.handshake.timeout: "10s"
+  # Idle TCP connection timeout to K8s API servers (default "5m")
+  # Can also be set via ARGOCD_K8S_TCP_IDLE_TIMEOUT environment variable
+  controller.k8s.tcp.idle.timeout: "5m"
   # Enable gRPC service config lookups via DNS TXT records (default "false"). By default, gRPC DNS TXT lookups for
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
   # See https://github.com/argoproj/argo-cd/issues/24991
@@ -172,6 +193,27 @@ data:
   server.enable.proxy.extension: "false"
   # Enables profile endpoint on the internal metrics port
   server.profile.enabled: "false"
+  # QPS (Queries Per Second) limit for K8s API client requests (default "50")
+  # Can also be set via ARGOCD_K8S_CLIENT_QPS environment variable
+  server.k8s.client.qps: "50"
+  # Burst value for K8s API client requests (default "100", which is 2x QPS)
+  # Can also be set via ARGOCD_K8S_CLIENT_BURST environment variable
+  server.k8s.client.burst: "100"
+  # Maximum number of idle connections in the K8s REST client HTTP transport (default "500")
+  # Can also be set via ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS environment variable
+  server.k8s.client.max.idle.connections: "500"
+  # TCP timeout duration when communicating with K8s API servers (default "30s")
+  # Can also be set via ARGOCD_K8S_TCP_TIMEOUT environment variable
+  server.k8s.tcp.timeout: "30s"
+  # TCP keep-alive probe interval when communicating with K8s API servers (default "30s")
+  # Can also be set via ARGOCD_K8S_TCP_KEEPALIVE environment variable
+  server.k8s.tcp.keepalive: "30s"
+  # TLS handshake timeout when establishing connections to K8s API servers (default "10s")
+  # Can also be set via ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT environment variable
+  server.k8s.tls.handshake.timeout: "10s"
+  # Idle TCP connection timeout to K8s API servers (default "5m")
+  # Can also be set via ARGOCD_K8S_TCP_IDLE_TIMEOUT environment variable
+  server.k8s.tcp.idle.timeout: "5m"
   # Enable gRPC service config lookups via DNS TXT records (default "false"). By default, gRPC DNS TXT lookups for
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
   # See https://github.com/argoproj/argo-cd/issues/24991
@@ -299,7 +341,7 @@ data:
   # The url used in the scm generator must exactly match one in the list
   applicationsetcontroller.allowed.scm.providers: "https://git.example.com/,https://gitlab.example.com/"
   # To disable SCM providers entirely (i.e. disable the SCM and PR generators), set this to "false". Default is "true".
-  applicationsetcontroller.enable.scm.providers: "false"
+  applicationsetcontroller.enable.scm.providers: "true"
   # Number of webhook requests processed concurrently (default 50)
   applicationsetcontroller.webhook.parallelism.limit: "50"
   # Override the default requeue time for the controller. (default 3m)
@@ -316,6 +358,27 @@ data:
   applicationsetcontroller.status.max.resources.count: "5000"
   # Enables profile endpoint on the internal metrics port
   applicationsetcontroller.profile.enabled: "false"
+  # QPS (Queries Per Second) limit for K8s API client requests (default "50")
+  # Can also be set via ARGOCD_K8S_CLIENT_QPS environment variable
+  applicationsetcontroller.k8s.client.qps: "50"
+  # Burst value for K8s API client requests (default "100", which is 2x QPS)
+  # Can also be set via ARGOCD_K8S_CLIENT_BURST environment variable
+  applicationsetcontroller.k8s.client.burst: "100"
+  # Maximum number of idle connections in the K8s REST client HTTP transport (default "500")
+  # Can also be set via ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS environment variable
+  applicationsetcontroller.k8s.client.max.idle.connections: "500"
+  # TCP timeout duration when communicating with K8s API servers (default "30s")
+  # Can also be set via ARGOCD_K8S_TCP_TIMEOUT environment variable
+  applicationsetcontroller.k8s.tcp.timeout: "30s"
+  # TCP keep-alive probe interval when communicating with K8s API servers (default "30s")
+  # Can also be set via ARGOCD_K8S_TCP_KEEPALIVE environment variable
+  applicationsetcontroller.k8s.tcp.keepalive: "30s"
+  # TLS handshake timeout when establishing connections to K8s API servers (default "10s")
+  # Can also be set via ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT environment variable
+  applicationsetcontroller.k8s.tls.handshake.timeout: "10s"
+  # Idle TCP connection timeout to K8s API servers (default "5m")
+  # Can also be set via ARGOCD_K8S_TCP_IDLE_TIMEOUT environment variable
+  applicationsetcontroller.k8s.tcp.idle.timeout: "5m"
   # Enable gRPC service config lookups via DNS TXT records (default "false"). By default, gRPC DNS TXT lookups for
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
   # See https://github.com/argoproj/argo-cd/issues/24991

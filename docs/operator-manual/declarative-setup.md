@@ -725,7 +725,7 @@ The 3 service accounts need to be modified to include an annotation with the Arg
 Here's an example service account configurations for `argocd-application-controller`, `argocd-applicationset-controller`, and `argocd-server`.
 
 > [!WARNING]
-Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
+> Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
 
 **for IRSA:**   
 ```yaml

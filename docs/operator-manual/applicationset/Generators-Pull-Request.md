@@ -282,7 +282,8 @@ You can use branch `filters` like
 - `branchMatch`: Optional regexp filter which should match the source branch name.
 - `targetBranchMatch`: Optional regexp filter which should match destination branch name.
 
-> Note: Labels are not supported by Bitbucket.
+> [!NOTE]
+> Labels are not supported by Bitbucket.
 
 If you want to access a private repository, Argo CD will need credentials to access repository in Bitbucket Cloud. You can use Bitbucket App Password (generated per user, with access to whole workspace), or Bitbucket App Token (generated per repository, with access limited to repository scope only). If both App Password and App Token are defined, App Token will be used.
 

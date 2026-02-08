@@ -38,7 +38,7 @@ func TestAPIServerGracefulRestart(t *testing.T) {
 	require.NoError(t, fixture.SetParamInSettingConfigMap("url", "http://test-api-server-graceful-restart"))
 
 	// Wait for ~5 seconds
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		checkHealth(t, false)
 		time.Sleep(100 * time.Millisecond)
 	}

@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="24 known vulnerabilities found in 76 vulnerable dependency paths.">
+  <meta name="description" content="32 known vulnerabilities found in 164 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">January 25th 2026, 12:36:55 am (UTC+00:00)</p>
+                <p class="timestamp">February 1st 2026, 12:43:25 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -506,8 +506,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>24</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>76 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>32</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>164 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2361</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -864,6 +864,233 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-PAM-11936905">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2025-15467</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libssl3t64
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.0.23 and openssl/libssl3t64@3.0.13-0ubuntu3.6
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        coreutils@9.4-3ubuntu6.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-modules@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libfido2/libfido2-1@1.14.0-1build3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:9.6p1-3ubuntu13.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libssh/libssh-4@0.10.6-2ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openldap/libldap2@2.6.7+dfsg-1~exp1ubuntu8.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-2@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: Parsing CMS AuthEnvelopedData message with maliciously
+        crafted AEAD parameters can trigger a stack buffer overflow.</p>
+        <p>Impact summary: A stack buffer overflow may lead to a crash, causing Denial
+        of Service, or potentially remote code execution.</p>
+        <p>When parsing CMS AuthEnvelopedData structures that use AEAD ciphers such as
+        AES-GCM, the IV (Initialization Vector) encoded in the ASN.1 parameters is
+        copied into a fixed-size stack buffer without verifying that its length fits
+        the destination. An attacker can supply a crafted CMS message with an
+        oversized IV, causing a stack-based out-of-bounds write before any
+        authentication or tag verification occurs.</p>
+        <p>Applications and services that parse untrusted CMS or PKCS#7 content using
+        AEAD ciphers (e.g., S/MIME AuthEnvelopedData with AES-GCM) are vulnerable.
+        Because the overflow occurs prior to authentication, no valid key material
+        is required to trigger it. While exploitability to remote code execution
+        depends on platform and toolchain mitigations, the stack-based write
+        primitive represents a severe risk.</p>
+        <p>The FIPS modules in 3.6, 3.5, 3.4, 3.3 and 3.0 are not affected by this
+        issue, as the CMS implementation is outside the OpenSSL FIPS module
+        boundary.</p>
+        <p>OpenSSL 3.6, 3.5, 3.4, 3.3 and 3.0 are vulnerable to this issue.</p>
+        <p>OpenSSL 1.1.1 and 1.0.2 are not affected by this issue.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>openssl</code> to version 3.0.13-0ubuntu3.7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-15467">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-15467</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/2c8f0e5fa9b6ee5508a0349e4572ddb74db5a703">https://github.com/openssl/openssl/commit/2c8f0e5fa9b6ee5508a0349e4572ddb74db5a703</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/5f26d4202f5b89664c5c3f3c62086276026ba9a9">https://github.com/openssl/openssl/commit/5f26d4202f5b89664c5c3f3c62086276026ba9a9</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/6ced0fe6b10faa560e410e3ee8d6c82f06c65ea3">https://github.com/openssl/openssl/commit/6ced0fe6b10faa560e410e3ee8d6c82f06c65ea3</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/ce39170276daec87f55c39dad1f629b56344429e">https://github.com/openssl/openssl/commit/ce39170276daec87f55c39dad1f629b56344429e</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/d0071a0799f20cc8101730145349ed4487c268dc">https://github.com/openssl/openssl/commit/d0071a0799f20cc8101730145349ed4487c268dc</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260127.txt">https://openssl-library.org/news/secadv/20260127.txt</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/01/27/10">http://www.openwall.com/lists/oss-security/2026/01/27/10</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-OPENSSL-15121120">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1392,7 +1619,7 @@
         <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
         <p>Git LFS is a Git extension for versioning large files. In Git LFS versions 0.5.2 through 3.7.0, when populating a Git repository&#39;s working tree with the contents of Git LFS objects, certain Git LFS commands may write to files visible outside the current Git working tree if symbolic or hard links exist which collide with the paths of files tracked by Git LFS. The git lfs checkout and git lfs pull commands do not check for symbolic links before writing to files in the working tree, allowing an attacker to craft a repository containing symbolic or hard links that cause Git LFS to write to arbitrary file system locations accessible to the user running these commands. As well, when the git lfs checkout and git lfs pull commands are run in a bare repository, they could write to files visible outside the repository. The vulnerability is fixed in version 3.7.1. As a workaround, support for symlinks in Git may be disabled by setting the core.symlinks configuration option to false, after which further clones and fetches will not create symbolic links. However, any symbolic or hard links in existing repositories will still provide the opportunity for Git LFS to write to their targets.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>git-lfs</code>.</p>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>git-lfs</code> to version 3.4.1-1ubuntu0.3+esm2 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-26625">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-26625</a></li>
@@ -1471,7 +1698,7 @@
         <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
         <p>Git LFS is a Git extension for versioning large files. When Git LFS requests credentials from Git for a remote host, it passes portions of the host&#39;s URL to the <code>git-credential(1)</code> command without checking for embedded line-ending control characters, and then sends any credentials it receives back from the Git credential helper to the remote host. By inserting URL-encoded control characters such as line feed (LF) or carriage return (CR) characters into the URL, an attacker may be able to retrieve a user&#39;s Git credentials. This problem exists in all previous versions and is patched in v3.6.1. All users should upgrade to v3.6.1. There are no workarounds known at this time.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>git-lfs</code>.</p>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>git-lfs</code> to version 3.4.1-1ubuntu0.3+esm2 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-53263">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-53263</a></li>
@@ -1828,6 +2055,1564 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-PATCH-6720551">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2025-69421</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libssl3t64
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.0.23 and openssl/libssl3t64@3.0.13-0ubuntu3.6
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        coreutils@9.4-3ubuntu6.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-modules@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libfido2/libfido2-1@1.14.0-1build3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:9.6p1-3ubuntu13.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libssh/libssh-4@0.10.6-2ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openldap/libldap2@2.6.7+dfsg-1~exp1ubuntu8.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-2@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: Processing a malformed PKCS#12 file can trigger a NULL pointer
+        dereference in the PKCS12_item_decrypt_d2i_ex() function.</p>
+        <p>Impact summary: A NULL pointer dereference can trigger a crash which leads to
+        Denial of Service for an application processing PKCS#12 files.</p>
+        <p>The PKCS12_item_decrypt_d2i_ex() function does not check whether the oct
+        parameter is NULL before dereferencing it. When called from
+        PKCS12_unpack_p7encdata() with a malformed PKCS#12 file, this parameter can
+        be NULL, causing a crash. The vulnerability is limited to Denial of Service
+        and cannot be escalated to achieve code execution or memory disclosure.</p>
+        <p>Exploiting this issue requires an attacker to provide a malformed PKCS#12 file
+        to an application that processes it. For that reason the issue was assessed as
+        Low severity according to our Security Policy.</p>
+        <p>The FIPS modules in 3.6, 3.5, 3.4, 3.3 and 3.0 are not affected by this issue,
+        as the PKCS#12 implementation is outside the OpenSSL FIPS module boundary.</p>
+        <p>OpenSSL 3.6, 3.5, 3.4, 3.3, 3.0, 1.1.1 and 1.0.2 are vulnerable to this issue.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>openssl</code> to version 3.0.13-0ubuntu3.7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-69421">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-69421</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/3524a29271f8191b8fd8a5257eb05173982a097b">https://github.com/openssl/openssl/commit/3524a29271f8191b8fd8a5257eb05173982a097b</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/36ecb4960872a4ce04bf6f1e1f4e78d75ec0c0c7">https://github.com/openssl/openssl/commit/36ecb4960872a4ce04bf6f1e1f4e78d75ec0c0c7</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/4bbc8d41a72c842ce4077a8a3eccd1109aaf74bd">https://github.com/openssl/openssl/commit/4bbc8d41a72c842ce4077a8a3eccd1109aaf74bd</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/643986985cd1c21221f941129d76fe0c2785aeb3">https://github.com/openssl/openssl/commit/643986985cd1c21221f941129d76fe0c2785aeb3</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/a2dbc539f0f9cc63832709fa5aa33ad9495eb19c">https://github.com/openssl/openssl/commit/a2dbc539f0f9cc63832709fa5aa33ad9495eb19c</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260127.txt">https://openssl-library.org/news/secadv/20260127.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-OPENSSL-15120902">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2025-69419</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libssl3t64
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.0.23 and openssl/libssl3t64@3.0.13-0ubuntu3.6
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        coreutils@9.4-3ubuntu6.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-modules@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libfido2/libfido2-1@1.14.0-1build3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:9.6p1-3ubuntu13.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libssh/libssh-4@0.10.6-2ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openldap/libldap2@2.6.7+dfsg-1~exp1ubuntu8.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-2@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: Calling PKCS12_get_friendlyname() function on a maliciously
+        crafted PKCS#12 file with a BMPString (UTF-16BE) friendly name containing
+        non-ASCII BMP code point can trigger a one byte write before the allocated
+        buffer.</p>
+        <p>Impact summary: The out-of-bounds write can cause a memory corruption
+        which can have various consequences including a Denial of Service.</p>
+        <p>The OPENSSL_uni2utf8() function performs a two-pass conversion of a PKCS#12
+        BMPString (UTF-16BE) to UTF-8. In the second pass, when emitting UTF-8 bytes,
+        the helper function bmp_to_utf8() incorrectly forwards the remaining UTF-16
+        source byte count as the destination buffer capacity to UTF8_putc(). For BMP
+        code points above U+07FF, UTF-8 requires three bytes, but the forwarded
+        capacity can be just two bytes. UTF8_putc() then returns -1, and this negative
+        value is added to the output length without validation, causing the
+        length to become negative. The subsequent trailing NUL byte is then written
+        at a negative offset, causing write outside of heap allocated buffer.</p>
+        <p>The vulnerability is reachable via the public PKCS12_get_friendlyname() API
+        when parsing attacker-controlled PKCS#12 files. While PKCS12_parse() uses a
+        different code path that avoids this issue, PKCS12_get_friendlyname() directly
+        invokes the vulnerable function. Exploitation requires an attacker to provide
+        a malicious PKCS#12 file to be parsed by the application and the attacker
+        can just trigger a one zero byte write before the allocated buffer.
+        For that reason the issue was assessed as Low severity according to our
+        Security Policy.</p>
+        <p>The FIPS modules in 3.6, 3.5, 3.4, 3.3 and 3.0 are not affected by this issue,
+        as the PKCS#12 implementation is outside the OpenSSL FIPS module boundary.</p>
+        <p>OpenSSL 3.6, 3.5, 3.4, 3.3, 3.0 and 1.1.1 are vulnerable to this issue.</p>
+        <p>OpenSSL 1.0.2 is not affected by this issue.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>openssl</code> to version 3.0.13-0ubuntu3.7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-69419">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-69419</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/41be0f216404f14457bbf3b9cc488dba60b49296">https://github.com/openssl/openssl/commit/41be0f216404f14457bbf3b9cc488dba60b49296</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/7e9cac9832e4705b91987c2474ed06a37a93cecb">https://github.com/openssl/openssl/commit/7e9cac9832e4705b91987c2474ed06a37a93cecb</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/a26a90d38edec3748566129d824e664b54bee2e2">https://github.com/openssl/openssl/commit/a26a90d38edec3748566129d824e664b54bee2e2</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/cda12de3bc0e333ea8d2c6fd15001dbdaf280015">https://github.com/openssl/openssl/commit/cda12de3bc0e333ea8d2c6fd15001dbdaf280015</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/ff628933755075446bca8307e8417c14d164b535">https://github.com/openssl/openssl/commit/ff628933755075446bca8307e8417c14d164b535</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260127.txt">https://openssl-library.org/news/secadv/20260127.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-OPENSSL-15120929">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-22796</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libssl3t64
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.0.23 and openssl/libssl3t64@3.0.13-0ubuntu3.6
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        coreutils@9.4-3ubuntu6.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-modules@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libfido2/libfido2-1@1.14.0-1build3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:9.6p1-3ubuntu13.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libssh/libssh-4@0.10.6-2ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openldap/libldap2@2.6.7+dfsg-1~exp1ubuntu8.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-2@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: A type confusion vulnerability exists in the signature
+        verification of signed PKCS#7 data where an ASN1_TYPE union member is
+        accessed without first validating the type, causing an invalid or NULL
+        pointer dereference when processing malformed PKCS#7 data.</p>
+        <p>Impact summary: An application performing signature verification of PKCS#7
+        data or calling directly the PKCS7_digest_from_attributes() function can be
+        caused to dereference an invalid or NULL pointer when reading, resulting in
+        a Denial of Service.</p>
+        <p>The function PKCS7_digest_from_attributes() accesses the message digest attribute
+        value without validating its type. When the type is not V_ASN1_OCTET_STRING,
+        this results in accessing invalid memory through the ASN1_TYPE union, causing
+        a crash.</p>
+        <p>Exploiting this vulnerability requires an attacker to provide a malformed
+        signed PKCS#7 to an application that verifies it. The impact of the
+        exploit is just a Denial of Service, the PKCS7 API is legacy and applications
+        should be using the CMS API instead. For these reasons the issue was
+        assessed as Low severity.</p>
+        <p>The FIPS modules in 3.5, 3.4, 3.3 and 3.0 are not affected by this issue,
+        as the PKCS#7 parsing implementation is outside the OpenSSL FIPS module
+        boundary.</p>
+        <p>OpenSSL 3.6, 3.5, 3.4, 3.3, 3.0, 1.1.1 and 1.0.2 are vulnerable to this issue.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>openssl</code> to version 3.0.13-0ubuntu3.7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-22796">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-22796</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/2502e7b7d4c0cf4f972a881641fe09edc67aeec4">https://github.com/openssl/openssl/commit/2502e7b7d4c0cf4f972a881641fe09edc67aeec4</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/572844beca95068394c916626a6d3a490f831a49">https://github.com/openssl/openssl/commit/572844beca95068394c916626a6d3a490f831a49</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/7bbca05be55b129651d9df4bdb92becc45002c12">https://github.com/openssl/openssl/commit/7bbca05be55b129651d9df4bdb92becc45002c12</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/eeee3cbd4d682095ed431052f00403004596373e">https://github.com/openssl/openssl/commit/eeee3cbd4d682095ed431052f00403004596373e</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/ef2fb66ec571564d64d1c74a12e388a2a54d05d2">https://github.com/openssl/openssl/commit/ef2fb66ec571564d64d1c74a12e388a2a54d05d2</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260127.txt">https://openssl-library.org/news/secadv/20260127.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-OPENSSL-15120958">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-22795</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libssl3t64
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.0.23 and openssl/libssl3t64@3.0.13-0ubuntu3.6
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        coreutils@9.4-3ubuntu6.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-modules@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libfido2/libfido2-1@1.14.0-1build3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:9.6p1-3ubuntu13.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libssh/libssh-4@0.10.6-2ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openldap/libldap2@2.6.7+dfsg-1~exp1ubuntu8.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-2@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: An invalid or NULL pointer dereference can happen in
+        an application processing a malformed PKCS#12 file.</p>
+        <p>Impact summary: An application processing a malformed PKCS#12 file can be
+        caused to dereference an invalid or NULL pointer on memory read, resulting
+        in a Denial of Service.</p>
+        <p>A type confusion vulnerability exists in PKCS#12 parsing code where
+        an ASN1_TYPE union member is accessed without first validating the type,
+        causing an invalid pointer read.</p>
+        <p>The location is constrained to a 1-byte address space, meaning any
+        attempted pointer manipulation can only target addresses between 0x00 and 0xFF.
+        This range corresponds to the zero page, which is unmapped on most modern
+        operating systems and will reliably result in a crash, leading only to a
+        Denial of Service. Exploiting this issue also requires a user or application
+        to process a maliciously crafted PKCS#12 file. It is uncommon to accept
+        untrusted PKCS#12 files in applications as they are usually used to store
+        private keys which are trusted by definition. For these reasons, the issue
+        was assessed as Low severity.</p>
+        <p>The FIPS modules in 3.5, 3.4, 3.3 and 3.0 are not affected by this issue,
+        as the PKCS12 implementation is outside the OpenSSL FIPS module boundary.</p>
+        <p>OpenSSL 3.6, 3.5, 3.4, 3.3, 3.0 and 1.1.1 are vulnerable to this issue.</p>
+        <p>OpenSSL 1.0.2 is not affected by this issue.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>openssl</code> to version 3.0.13-0ubuntu3.7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-22795">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-22795</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/2502e7b7d4c0cf4f972a881641fe09edc67aeec4">https://github.com/openssl/openssl/commit/2502e7b7d4c0cf4f972a881641fe09edc67aeec4</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/572844beca95068394c916626a6d3a490f831a49">https://github.com/openssl/openssl/commit/572844beca95068394c916626a6d3a490f831a49</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/7bbca05be55b129651d9df4bdb92becc45002c12">https://github.com/openssl/openssl/commit/7bbca05be55b129651d9df4bdb92becc45002c12</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/eeee3cbd4d682095ed431052f00403004596373e">https://github.com/openssl/openssl/commit/eeee3cbd4d682095ed431052f00403004596373e</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/ef2fb66ec571564d64d1c74a12e388a2a54d05d2">https://github.com/openssl/openssl/commit/ef2fb66ec571564d64d1c74a12e388a2a54d05d2</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260127.txt">https://openssl-library.org/news/secadv/20260127.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-OPENSSL-15120984">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2025-69418</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libssl3t64
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.0.23 and openssl/libssl3t64@3.0.13-0ubuntu3.6
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        coreutils@9.4-3ubuntu6.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-modules@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libfido2/libfido2-1@1.14.0-1build3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:9.6p1-3ubuntu13.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libssh/libssh-4@0.10.6-2ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openldap/libldap2@2.6.7+dfsg-1~exp1ubuntu8.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-2@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: When using the low-level OCB API directly with AES-NI or&lt;br&gt;other hardware-accelerated code paths, inputs whose length is not a multiple&lt;br&gt;of 16 bytes can leave the final partial block unencrypted and unauthenticated.&lt;br&gt;&lt;br&gt;Impact summary: The trailing 1-15 bytes of a message may be exposed in&lt;br&gt;cleartext on encryption and are not covered by the authentication tag,&lt;br&gt;allowing an attacker to read or tamper with those bytes without detection.&lt;br&gt;&lt;br&gt;The low-level OCB encrypt and decrypt routines in the hardware-accelerated&lt;br&gt;stream path process full 16-byte blocks but do not advance the input/output&lt;br&gt;pointers. The subsequent tail-handling code then operates on the original&lt;br&gt;base pointers, effectively reprocessing the beginning of the buffer while&lt;br&gt;leaving the actual trailing bytes unprocessed. The authentication checksum&lt;br&gt;also excludes the true tail bytes.&lt;br&gt;&lt;br&gt;However, typical OpenSSL consumers using EVP are not affected because the&lt;br&gt;higher-level EVP and provider OCB implementations split inputs so that full&lt;br&gt;blocks and trailing partial blocks are processed in separate calls, avoiding&lt;br&gt;the problematic code path. Additionally, TLS does not use OCB ciphersuites.&lt;br&gt;The vulnerability only affects applications that call the low-level&lt;br&gt;CRYPTO_ocb128_encrypt() or CRYPTO_ocb128_decrypt() functions directly with&lt;br&gt;non-block-aligned lengths in a single call on hardware-accelerated builds.&lt;br&gt;For these reasons the issue was assessed as Low severity.&lt;br&gt;&lt;br&gt;The FIPS modules in 3.6, 3.5, 3.4, 3.3, 3.2, 3.1 and 3.0 are not affected&lt;br&gt;by this issue, as OCB mode is not a FIPS-approved algorithm.&lt;br&gt;&lt;br&gt;OpenSSL 3.6, 3.5, 3.4, 3.3, 3.0 and 1.1.1 are vulnerable to this issue.&lt;br&gt;&lt;br&gt;OpenSSL 1.0.2 is not affected by this issue.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>openssl</code> to version 3.0.13-0ubuntu3.7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-69418">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-69418</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/372fc5c77529695b05b4f5b5187691a57ef5dffc">https://github.com/openssl/openssl/commit/372fc5c77529695b05b4f5b5187691a57ef5dffc</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/4016975d4469cd6b94927c607f7c511385f928d8">https://github.com/openssl/openssl/commit/4016975d4469cd6b94927c607f7c511385f928d8</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/52d23c86a54adab5ee9f80e48b242b52c4cc2347">https://github.com/openssl/openssl/commit/52d23c86a54adab5ee9f80e48b242b52c4cc2347</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/a7589230356d908c0eca4b969ec4f62106f4f5ae">https://github.com/openssl/openssl/commit/a7589230356d908c0eca4b969ec4f62106f4f5ae</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/ed40856d7d4ba6cb42779b6770666a65f19cb977">https://github.com/openssl/openssl/commit/ed40856d7d4ba6cb42779b6770666a65f19cb977</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260127.txt">https://openssl-library.org/news/secadv/20260127.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-OPENSSL-15121014">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2025-69420</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libssl3t64
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.0.23 and openssl/libssl3t64@3.0.13-0ubuntu3.6
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        coreutils@9.4-3ubuntu6.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-modules@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libfido2/libfido2-1@1.14.0-1build3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:9.6p1-3ubuntu13.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libssh/libssh-4@0.10.6-2ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openldap/libldap2@2.6.7+dfsg-1~exp1ubuntu8.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-2@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: A type confusion vulnerability exists in the TimeStamp Response
+        verification code where an ASN1_TYPE union member is accessed without first
+        validating the type, causing an invalid or NULL pointer dereference when
+        processing a malformed TimeStamp Response file.</p>
+        <p>Impact summary: An application calling TS_RESP_verify_response() with a
+        malformed TimeStamp Response can be caused to dereference an invalid or
+        NULL pointer when reading, resulting in a Denial of Service.</p>
+        <p>The functions ossl_ess_get_signing_cert() and ossl_ess_get_signing_cert_v2()
+        access the signing cert attribute value without validating its type.
+        When the type is not V_ASN1_SEQUENCE, this results in accessing invalid memory
+        through the ASN1_TYPE union, causing a crash.</p>
+        <p>Exploiting this vulnerability requires an attacker to provide a malformed
+        TimeStamp Response to an application that verifies timestamp responses. The
+        TimeStamp protocol (RFC 3161) is not widely used and the impact of the
+        exploit is just a Denial of Service. For these reasons the issue was
+        assessed as Low severity.</p>
+        <p>The FIPS modules in 3.5, 3.4, 3.3 and 3.0 are not affected by this issue,
+        as the TimeStamp Response implementation is outside the OpenSSL FIPS module
+        boundary.</p>
+        <p>OpenSSL 3.6, 3.5, 3.4, 3.3, 3.0 and 1.1.1 are vulnerable to this issue.</p>
+        <p>OpenSSL 1.0.2 is not affected by this issue.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>openssl</code> to version 3.0.13-0ubuntu3.7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-69420">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-69420</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/27c7012c91cc986a598d7540f3079dfde2416eb9">https://github.com/openssl/openssl/commit/27c7012c91cc986a598d7540f3079dfde2416eb9</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/4e254b48ad93cc092be3dd62d97015f33f73133a">https://github.com/openssl/openssl/commit/4e254b48ad93cc092be3dd62d97015f33f73133a</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/564fd9c73787f25693bf9e75faf7bf6bb1305d4e">https://github.com/openssl/openssl/commit/564fd9c73787f25693bf9e75faf7bf6bb1305d4e</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/5eb0770ffcf11b785cf374ff3c19196245e54f1b">https://github.com/openssl/openssl/commit/5eb0770ffcf11b785cf374ff3c19196245e54f1b</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/a99349ebfc519999edc50620abe24d599b9eb085">https://github.com/openssl/openssl/commit/a99349ebfc519999edc50620abe24d599b9eb085</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260127.txt">https://openssl-library.org/news/secadv/20260127.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-OPENSSL-15121059">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2025-68160</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libssl3t64
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.0.23 and openssl/libssl3t64@3.0.13-0ubuntu3.6
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        coreutils@9.4-3ubuntu6.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-modules@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libfido2/libfido2-1@1.14.0-1build3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:9.6p1-3ubuntu13.14
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libssh/libssh-4@0.10.6-2ubuntu0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openldap/libldap2@2.6.7+dfsg-1~exp1ubuntu8.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        cyrus-sasl2/libsasl2-2@2.1.28+dfsg1-5ubuntu3.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3t64@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates@20240203
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl@3.0.13-0ubuntu3.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: Writing large, newline-free data into a BIO chain using the
+        line-buffering filter where the next BIO performs short writes can trigger
+        a heap-based out-of-bounds write.</p>
+        <p>Impact summary: This out-of-bounds write can cause memory corruption which
+        typically results in a crash, leading to Denial of Service for an application.</p>
+        <p>The line-buffering BIO filter (BIO_f_linebuffer) is not used by default in
+        TLS/SSL data paths. In OpenSSL command-line applications, it is typically
+        only pushed onto stdout/stderr on VMS systems. Third-party applications that
+        explicitly use this filter with a BIO chain that can short-write and that
+        write large, newline-free data influenced by an attacker would be affected.
+        However, the circumstances where this could happen are unlikely to be under
+        attacker control, and BIO_f_linebuffer is unlikely to be handling non-curated
+        data controlled by an attacker. For that reason the issue was assessed as
+        Low severity.</p>
+        <p>The FIPS modules in 3.6, 3.5, 3.4, 3.3 and 3.0 are not affected by this issue,
+        as the BIO implementation is outside the OpenSSL FIPS module boundary.</p>
+        <p>OpenSSL 3.6, 3.5, 3.4, 3.3, 3.0, 1.1.1 and 1.0.2 are vulnerable to this issue.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>openssl</code> to version 3.0.13-0ubuntu3.7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-68160">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-68160</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/384011202af92605d926fafe4a0bcd6b65d162ad">https://github.com/openssl/openssl/commit/384011202af92605d926fafe4a0bcd6b65d162ad</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/475c466ef2fbd8fc1df6fae1c3eed9c813fc8ff6">https://github.com/openssl/openssl/commit/475c466ef2fbd8fc1df6fae1c3eed9c813fc8ff6</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/4c96fbba618e1940f038012506ee9e21d32ee12c">https://github.com/openssl/openssl/commit/4c96fbba618e1940f038012506ee9e21d32ee12c</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/6845c3b6460a98b1ec4e463baa2ea1a63a32d7c0">https://github.com/openssl/openssl/commit/6845c3b6460a98b1ec4e463baa2ea1a63a32d7c0</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/68a7cd2e2816c3a02f4d45a2ce43fc04fac97096">https://github.com/openssl/openssl/commit/68a7cd2e2816c3a02f4d45a2ce43fc04fac97096</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20260127.txt">https://openssl-library.org/news/secadv/20260127.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-OPENSSL-15121150">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

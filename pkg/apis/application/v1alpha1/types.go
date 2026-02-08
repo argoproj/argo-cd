@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1437,10 +1438,8 @@ type SyncOptions []string
 // AddOption adds a sync option to the list of sync options and returns the modified list.
 // If option was already set, returns the unmodified list of sync options.
 func (o SyncOptions) AddOption(option string) SyncOptions {
-	for _, j := range o {
-		if j == option {
-			return o
-		}
+	if slices.Contains(o, option) {
+		return o
 	}
 	return append(o, option)
 }
@@ -1458,12 +1457,7 @@ func (o SyncOptions) RemoveOption(option string) SyncOptions {
 
 // HasOption returns true if the list of sync options contains given option
 func (o SyncOptions) HasOption(option string) bool {
-	for _, i := range o {
-		if option == i {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(o, option)
 }
 
 type ManagedNamespaceMetadata struct {
@@ -3321,12 +3315,7 @@ type ApplicationDestinationServiceAccount struct {
 
 // CascadedDeletion indicates if the deletion finalizer is set and controller should delete the application and it's cascaded resources
 func (app *Application) CascadedDeletion() bool {
-	for _, finalizer := range app.Finalizers {
-		if isPropagationPolicyFinalizer(finalizer) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(app.Finalizers, isPropagationPolicyFinalizer)
 }
 
 // IsRefreshRequested returns whether a refresh has been requested for an application, and if yes, the type of refresh that should be executed.

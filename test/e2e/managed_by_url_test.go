@@ -31,7 +31,7 @@ func TestManagedByURLWithAnnotation(t *testing.T) {
 		CreateApp().
 		And(func() {
 			// Add managed-by-url annotation to the application with retry logic
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				appObj, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(t.Context(), ctx.GetName(), metav1.GetOptions{})
 				require.NoError(t, err)
 
