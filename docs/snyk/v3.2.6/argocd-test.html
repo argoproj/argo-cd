@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="10 known vulnerabilities found in 20 vulnerable dependency paths.">
+  <meta name="description" content="11 known vulnerabilities found in 24 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">February 1st 2026, 12:37:30 am (UTC+00:00)</p>
+                <p class="timestamp">February 8th 2026, 12:40:39 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -504,8 +504,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>10</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>20 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>11</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>24 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2115</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -606,6 +606,124 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-QS-14724253">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Untrusted Search Path</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            go.opentelemetry.io/otel/sdk/resource
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@0.0.0 and go.opentelemetry.io/otel/sdk/resource@1.38.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/sdk/resource@1.38.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/sdk/trace@1.38.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/sdk/resource@1.38.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@1.38.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal/otlpconfig@1.38.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace@1.38.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/tracetransform@1.38.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/sdk/resource@1.38.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@1.38.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal/otlpconfig@1.38.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace@1.38.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/sdk/trace@1.38.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/sdk/resource@1.38.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Untrusted Search Path in resource detection code which executes <code>ioreg</code>, when the <code>PATH</code> environment variable is modified to include a malicious executable. An attacker can execute arbitrary code within the context of the application by placing a malicious binary earlier in the search path.</p>
+        <p><strong>Note:</strong> This vulnerability is only exploitable on MacOS/Darwin systems.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>go.opentelemetry.io/otel/sdk/resource</code> to version 1.40.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/open-telemetry/opentelemetry-go/commit/d45961bcda453fcbdb6469c22d6e88a1f9970a53">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOPENTELEMETRYIOOTELSDKRESOURCE-15182758">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1688,7 +1806,7 @@
         </tbody></table>
         <p>By the time the string includes 14 C&#39;s, the engine has to take over 65,000 steps just to see if the string is valid. These extreme situations can cause them to work very slowly (exponentially related to input size, as shown above), allowing an attacker to exploit this and can cause the service to excessively consume CPU, resulting in a Denial of Service.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>diff</code> to version 4.0.4, 5.2.2, 8.0.3 or higher.</p>
+        <p>Upgrade <code>diff</code> to version 3.5.1, 4.0.4, 5.2.2, 8.0.3 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://github.com/kpdecker/jsdiff/commit/15a1585230748c8ae6f8274c202e0c87309142f5">GitHub Commit</a></li>
