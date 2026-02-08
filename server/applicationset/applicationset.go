@@ -15,6 +15,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,6 +44,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+
+	serverevents "github.com/argoproj/argo-cd/v3/server/events"
 )
 
 type Server struct {
@@ -526,7 +529,7 @@ func (s *Server) getAppSetEnforceRBAC(ctx context.Context, action, namespace, na
 }
 
 // ListResourceEvents returns a list of event resources for an applicationset
-func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*corev1.EventList, error) {
+func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*structpb.Struct, error) {
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
 
 	appset, err := s.getAppSetEnforceRBAC(ctx, rbac.ActionGet, namespace, q.Name)
@@ -546,5 +549,5 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.Appli
 	if err != nil {
 		return nil, fmt.Errorf("error listing resource events: %w", err)
 	}
-	return list.DeepCopy(), nil
+	return serverevents.EventListToStruct(list.DeepCopy())
 }
