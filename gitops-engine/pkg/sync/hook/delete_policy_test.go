@@ -10,8 +10,9 @@ import (
 )
 
 func TestDeletePolicies(t *testing.T) {
-	assert.Equal(t, []common.HookDeletePolicy{common.HookDeletePolicyBeforeHookCreation}, DeletePolicies(testingutils.NewPod()))
-	assert.Equal(t, []common.HookDeletePolicy{common.HookDeletePolicyBeforeHookCreation}, DeletePolicies(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook-delete-policy", "garbage")))
+	// No default deletion policy - hooks are only deleted when explicitly configured
+	assert.Empty(t, DeletePolicies(testingutils.NewPod()))
+	assert.Empty(t, DeletePolicies(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook-delete-policy", "garbage")))
 	assert.Equal(t, []common.HookDeletePolicy{common.HookDeletePolicyBeforeHookCreation}, DeletePolicies(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook-delete-policy", "BeforeHookCreation")))
 	assert.Equal(t, []common.HookDeletePolicy{common.HookDeletePolicyHookSucceeded}, DeletePolicies(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook-delete-policy", "HookSucceeded")))
 	assert.Equal(t, []common.HookDeletePolicy{common.HookDeletePolicyHookFailed}, DeletePolicies(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook-delete-policy", "HookFailed")))
