@@ -731,8 +731,8 @@ func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 	// We distinguish this from the valid ssh://git@host:22/org/repo (with port number).
 	if strings.HasPrefix(repoURL, "ssh://git@") {
 		remainder := strings.TrimPrefix(repoURL, "ssh://")
-		if colonIdx := strings.Index(remainder, ":"); colonIdx != -1 {
-			afterColon := remainder[colonIdx+1:]
+		if _, after, ok := strings.Cut(remainder, ":"); ok {
+			afterColon := after
 			slashIdx := strings.Index(afterColon, "/")
 
 			// Check if what follows the colon is a port number
