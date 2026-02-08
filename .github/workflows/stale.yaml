@@ -1,11 +1,16 @@
-name: "Label stale issues"
+name: "Label stale issues and PRs"
 on:
   schedule:
     - cron: "0 0 * * *" #Runs midnight 12AM UTC
 
+#Added Recommended permissions
+permissions:
+  issues: write
+  pull-requests: write
+
 jobs:
   stale:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/stale@997185467fa4f803885201cee163a9f38240193d # v10.1.1
         with:
