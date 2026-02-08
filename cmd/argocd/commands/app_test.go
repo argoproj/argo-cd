@@ -21,7 +21,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
-	corev1 "k8s.io/api/core/v1"
+	"google.golang.org/protobuf/types/known/structpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -2140,7 +2140,7 @@ func (c *fakeAppServiceClient) List(_ context.Context, _ *applicationpkg.Applica
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) ListResourceEvents(_ context.Context, _ *applicationpkg.ApplicationResourceEventsQuery, _ ...grpc.CallOption) (*corev1.EventList, error) {
+func (c *fakeAppServiceClient) ListResourceEvents(_ context.Context, _ *applicationpkg.ApplicationResourceEventsQuery, _ ...grpc.CallOption) (*structpb.Struct, error) {
 	return nil, nil
 }
 
