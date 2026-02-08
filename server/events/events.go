@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	corev1 "k8s.io/api/core/v1"
 	"google.golang.org/protobuf/types/known/structpb"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // EventListToStruct converts a Kubernetes EventList to a protobuf Struct.
