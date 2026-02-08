@@ -676,6 +676,8 @@ export interface Repository {
     insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
+    enablePartialClone?: boolean;
+    sparsePaths?: string[];
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
