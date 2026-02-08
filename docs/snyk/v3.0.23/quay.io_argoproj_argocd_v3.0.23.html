@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="32 known vulnerabilities found in 164 vulnerable dependency paths.">
+  <meta name="description" content="39 known vulnerabilities found in 173 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">February 1st 2026, 12:43:25 am (UTC+00:00)</p>
+                <p class="timestamp">February 8th 2026, 12:46:31 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -506,8 +506,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>32</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>164 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>39</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>173 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2361</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -516,6 +516,231 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Inefficient Algorithmic Complexity</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/helm/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/helm
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                helm.sh/helm/v3@* and golang.org/x/net/html@v0.33.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.33.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Inefficient Algorithmic Complexity via the <code>html.Parse</code> function due to quadratic parsing complexity when processing certain inputs, which can lead to denial of service (DoS) if an attacker provides specially crafted HTML content.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.45.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/vulndb/issues/4440">GitHub Issue</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-4440">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/709876">Go Commit</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/jnQcOYpiR2c">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-15237516">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Infinite loop</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/helm/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/helm
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                helm.sh/helm/v3@* and golang.org/x/net/html@v0.33.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.33.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Infinite loop via the <code>html.Parse</code> function. An attacker can cause resource exhaustion and disrupt service availability by submitting specially crafted HTML input that triggers an infinite parsing loop.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.45.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/vulndb/issues/4441">GitHub Issue</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-4441">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/709875">Go Commit</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/jnQcOYpiR2c">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-15237740">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Untrusted Search Path</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            go.opentelemetry.io/otel/sdk/resource
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and go.opentelemetry.io/otel/sdk/resource@v1.34.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/sdk/resource@v1.34.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Untrusted Search Path in resource detection code which executes <code>ioreg</code>, when the <code>PATH</code> environment variable is modified to include a malicious executable. An attacker can execute arbitrary code within the context of the application by placing a malicious binary earlier in the search path.</p>
+        <p><strong>Note:</strong> This vulnerability is only exploitable on MacOS/Darwin systems.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>go.opentelemetry.io/otel/sdk/resource</code> to version 1.40.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/open-telemetry/opentelemetry-go/commit/d45961bcda453fcbdb6469c22d6e88a1f9970a53">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOPENTELEMETRYIOOTELSDKRESOURCE-15182758">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Directory Traversal</h2>
             <div class="card__section">
@@ -876,7 +1101,7 @@
                         <span class="label__text">medium severity</span>
                     </div>
                     <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
+                        <span class="label__text">Exploit: Proof of Concept</span>
                     </div>
                 </div>
         
@@ -1085,6 +1310,7 @@
         <li><a href="https://github.com/openssl/openssl/commit/d0071a0799f20cc8101730145349ed4487c268dc">https://github.com/openssl/openssl/commit/d0071a0799f20cc8101730145349ed4487c268dc</a></li>
         <li><a href="https://openssl-library.org/news/secadv/20260127.txt">https://openssl-library.org/news/secadv/20260127.txt</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2026/01/27/10">http://www.openwall.com/lists/oss-security/2026/01/27/10</a></li>
+        <li><a href="https://github.com/guiimoraes/CVE-2025-15467">https://github.com/guiimoraes/CVE-2025-15467</a></li>
         </ul>
         
               <hr/>
@@ -1444,7 +1670,7 @@
         <p>Note that the attacker must have control over both, the size as well as the alignment arguments of the memalign function to be able to exploit this.  The size parameter must be close enough to PTRDIFF_MAX so as to overflow size_t along with the large alignment argument.  This limits the malicious inputs for the alignment for memalign to the range [1&lt;&lt;62+ 1, 1&lt;&lt;63] and exactly 1&lt;&lt;63 for posix_memalign and aligned_alloc.</p>
         <p>Typically the alignment argument passed to such functions is a known constrained quantity (e.g. page size, block size, struct sizes) and is not attacker controlled, because of which this may not be easily exploitable in practice.  An application bug could potentially result in the input alignment being too large, e.g. due to a different buffer overflow or integer overflow in the application or its dependent libraries, but that is again an uncommon usage pattern given typical sources of alignments.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>glibc</code>.</p>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>glibc</code> to version 2.39-0ubuntu8.7 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-0861">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-0861</a></li>
@@ -1457,6 +1683,176 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-GLIBC-15011152">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2026-0915</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            glibc/libc-bin
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.0.23 and glibc/libc-bin@2.39-0ubuntu8.6
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc-bin@2.39-0ubuntu8.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc6@2.39-0ubuntu8.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>glibc</code> package and not the <code>glibc</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>Calling getnetbyaddr or getnetbyaddr_r with a configured nsswitch.conf that specifies the library&#39;s DNS backend for networks and queries for a zero-valued network in the GNU C Library version 2.0 to version 2.42 can leak stack contents to the configured DNS resolver.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>glibc</code> to version 2.39-0ubuntu8.7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-0915">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-0915</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/01/16/6">http://www.openwall.com/lists/oss-security/2026/01/16/6</a></li>
+        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=33802">https://sourceware.org/bugzilla/show_bug.cgi?id=33802</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-GLIBC-15028413">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2025-15281</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            glibc/libc-bin
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.0.23 and glibc/libc-bin@2.39-0ubuntu8.6
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc-bin@2.39-0ubuntu8.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        glibc/libc6@2.39-0ubuntu8.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>glibc</code> package and not the <code>glibc</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>Calling wordexp with WRDE_REUSE in conjunction with WRDE_APPEND in the GNU C Library version 2.0 to version 2.42 may cause the interface to return uninitialized memory in the we_wordv member, which on subsequent calls to wordfree may abort the process.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>glibc</code> to version 2.39-0ubuntu8.7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-15281">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-15281</a></li>
+        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=33814">https://sourceware.org/bugzilla/show_bug.cgi?id=33814</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/01/20/3">http://www.openwall.com/lists/oss-security/2026/01/20/3</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-GLIBC-15051735">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -3816,6 +4212,165 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-OPENSSL-7838291">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">Failure to Sanitize Special Element</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssh/openssh-client
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.0.23 and openssh/openssh-client@1:9.6p1-3ubuntu13.14
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:9.6p1-3ubuntu13.14
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssh</code> package and not the <code>openssh</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>ssh in OpenSSH before 10.1 allows control characters in usernames that originate from certain possibly untrusted sources, potentially leading to code execution when a ProxyCommand is used. The untrusted sources are the command line and %-sequence expansion of a configuration file. (A configuration file that provides a complete literal username is not categorized as an untrusted source.)</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>openssh</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-61984">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-61984</a></li>
+        <li><a href="https://marc.info/?l=openssh-unix-dev&m=175974522032149&w=2">https://marc.info/?l=openssh-unix-dev&amp;m=175974522032149&amp;w=2</a></li>
+        <li><a href="https://www.openssh.com/releasenotes.html#10.1p1">https://www.openssh.com/releasenotes.html#10.1p1</a></li>
+        <li><a href="https://www.openwall.com/lists/oss-security/2025/10/06/1">https://www.openwall.com/lists/oss-security/2025/10/06/1</a></li>
+        <li><a href="https://dgl.cx/2025/10/bash-a-newline-ssh-proxycommand-cve-2025-61984">https://dgl.cx/2025/10/bash-a-newline-ssh-proxycommand-cve-2025-61984</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2025/10/07/1">http://www.openwall.com/lists/oss-security/2025/10/07/1</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2025/10/12/1">http://www.openwall.com/lists/oss-security/2025/10/12/1</a></li>
+        <li><a href="https://www.vicarius.io/vsociety/posts/cve-2025-61984-detection-script-remote-code-execution-vulnerability-affecting-openssh">https://www.vicarius.io/vsociety/posts/cve-2025-61984-detection-script-remote-code-execution-vulnerability-affecting-openssh</a></li>
+        <li><a href="https://www.vicarius.io/vsociety/posts/cve-2025-61984-mitigation-script-remote-code-execution-vulnerability-affecting-openssh">https://www.vicarius.io/vsociety/posts/cve-2025-61984-mitigation-script-remote-code-execution-vulnerability-affecting-openssh</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-OPENSSH-13426717">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">Improper Neutralization of Null Byte or NUL Character</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.0.23/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssh/openssh-client
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.0.23 and openssh/openssh-client@1:9.6p1-3ubuntu13.14
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.0.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:9.6p1-3ubuntu13.14
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssh</code> package and not the <code>openssh</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>ssh in OpenSSH before 10.1 allows the &#39;\0&#39; character in an ssh:// URI, potentially leading to code execution when a ProxyCommand is used.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>openssh</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-61985">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-61985</a></li>
+        <li><a href="https://marc.info/?l=openssh-unix-dev&m=175974522032149&w=2">https://marc.info/?l=openssh-unix-dev&amp;m=175974522032149&amp;w=2</a></li>
+        <li><a href="https://www.openssh.com/releasenotes.html#10.1p1">https://www.openssh.com/releasenotes.html#10.1p1</a></li>
+        <li><a href="https://www.openwall.com/lists/oss-security/2025/10/06/1">https://www.openwall.com/lists/oss-security/2025/10/06/1</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-OPENSSH-13426748">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
