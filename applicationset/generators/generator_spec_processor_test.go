@@ -683,9 +683,9 @@ func TestMergeGeneratorTemplate(t *testing.T) {
 			result, err := mergeGeneratorTemplate(gen, requestedGenerator, tt.applicationSetTemplate)
 
 			require.NoError(t, err)
-			assert.Equal(t, tt.expected.ApplicationSetTemplateMeta.Name, result.ApplicationSetTemplateMeta.Name)
-			assert.Equal(t, tt.expected.ApplicationSetTemplateMeta.Namespace, result.ApplicationSetTemplateMeta.Namespace)
-			assert.Equal(t, tt.expected.ApplicationSetTemplateMeta.Labels, result.ApplicationSetTemplateMeta.Labels)
+			assert.Equal(t, tt.expected.Name, result.Name)
+			assert.Equal(t, tt.expected.Namespace, result.Namespace)
+			assert.Equal(t, tt.expected.Labels, result.Labels)
 			assert.Equal(t, tt.expected.Spec.Project, result.Spec.Project)
 			assert.Equal(t, tt.expected.Spec.Destination, result.Spec.Destination)
 		})
