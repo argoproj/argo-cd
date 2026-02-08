@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/profile"
 	"github.com/argoproj/argo-cd/v3/util/tls"
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 )
@@ -177,7 +178,8 @@ func NewCommand() *cobra.Command {
 			listener, err := lc.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", listenHost, listenPort))
 			errors.CheckError(err)
 
-			healthz.ServeHealthCheck(http.DefaultServeMux, func(r *http.Request) error {
+			mux := http.NewServeMux()
+			healthz.ServeHealthCheck(mux, func(r *http.Request) error {
 				if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
 					// connect to itself to make sure repo server is able to serve connection
 					// used by liveness probe to auto restart repo server
@@ -199,8 +201,9 @@ func NewCommand() *cobra.Command {
 				}
 				return nil
 			})
-			http.Handle("/metrics", metricsServer.GetHandler())
-			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf("%s:%d", metricsHost, metricsPort), nil)) }()
+			mux.Handle("/metrics", metricsServer.GetHandler())
+			profile.RegisterProfiler(mux)
+			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf("%s:%d", metricsHost, metricsPort), mux)) }()
 			go func() { errors.CheckError(askPassServer.Run()) }()
 
 			if gpg.IsGPGEnabled() {

@@ -2893,6 +2893,13 @@ spec:
         name: var-files
       - emptyDir: {}
         name: plugins
+      - configMap:
+          items:
+          - key: reposerver.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: Deployment
