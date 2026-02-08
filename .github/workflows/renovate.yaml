@@ -27,7 +27,7 @@ jobs:
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
           # renovate: datasource=golang-version packageName=golang
-          go-version: 1.25.6
+          go-version: 1.25.7
 
       - name: Self-hosted Renovate
         uses: renovatebot/github-action@3c68caaa9db5ff24332596591dc7c4fed8de16ce #46.0.1
