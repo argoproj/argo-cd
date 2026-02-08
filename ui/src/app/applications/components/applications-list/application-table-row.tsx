@@ -148,11 +148,14 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                             {
                                 title: 'Diff',
                                 iconClassName: 'fa fa-fw fa-file-medical',
-                                disabled: app.status.sync.status === models.SyncStatuses.Synced,
-                                action: () => ctx.navigation.goto(
-                                    `/${AppUtils.getAppUrl(app)}`,
-                                    {node: AppUtils.nodeKey({group: 'argoproj.io', kind: 'Application', name: app.metadata.name, namespace: app.metadata.namespace}) + '/0', tab: 'diff'}
-                                )
+                                action: () => {
+                                    if (app.status.sync.status !== models.SyncStatuses.Synced) {
+                                        ctx.navigation.goto(
+                                            `/${AppUtils.getAppUrl(app)}`,
+                                            {node: AppUtils.nodeKey({group: 'argoproj.io', kind: 'Application', name: app.metadata.name, namespace: app.metadata.namespace}) + '/0', tab: 'diff'}
+                                        );
+                                    }
+                                }
                             },
                             {
                                 title: 'Refresh',
