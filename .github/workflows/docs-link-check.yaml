@@ -1,0 +1,24 @@
+#Broken Link checker
+name: Docs Link Checker
+
+on:
+  pull_request:
+    paths:
+    - docs/**
+  workflow_dispatch:
+
+
+permissions:
+  contents: read
+
+jobs:
+  linkChecker:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+
+    - name: Docs Link Checker
+      uses: lycheeverse/lychee-action@885c65f3dc543b57c898c8099f4e08c8afd178a2 #2.6.1
+      with:
+        args: >
+          --accept '100..=103,200..=299,403,429,302' --exclude-all-private --exclude-loopback --exclude-file .lycheeignore --timeout 60 docs/
