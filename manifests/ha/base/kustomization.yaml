@@ -11,8 +11,8 @@ patches:
 
 images:
 - name: quay.io/argoproj/argocd
-  newName: quay.io/argoproj/argocd
-  newTag: latest
+  newName: reginavoloshin/argocd
+  newTag: peter-ssa
 resources:
 - ../../base/application-controller
 - ../../base/applicationset-controller
