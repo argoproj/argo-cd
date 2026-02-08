@@ -240,10 +240,16 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                     onClick={e => {
                                         e.stopPropagation();
                                         if (app.status.sync.status !== models.SyncStatuses.Synced) {
-                                            ctx.navigation.goto(
-                                                `/${AppUtils.getAppUrl(app)}`,
-                                                {node: AppUtils.nodeKey({group: 'argoproj.io', kind: 'Application', name: app.metadata.name, namespace: app.metadata.namespace}) + '/0', tab: 'diff'}
-                                            );
+                                            ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {
+                                                node:
+                                                    AppUtils.nodeKey({
+                                                        group: 'argoproj.io',
+                                                        kind: 'Application',
+                                                        name: app.metadata.name,
+                                                        namespace: app.metadata.namespace
+                                                    }) + '/0',
+                                                tab: 'diff'
+                                            });
                                         }
                                     }}>
                                     <i className='fa fa-file-medical' /> <span className='show-for-xxlarge'>Diff</span>
