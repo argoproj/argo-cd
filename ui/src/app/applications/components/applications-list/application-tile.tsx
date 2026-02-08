@@ -233,6 +233,23 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                 <i className='fa fa-sync' /> Sync
                             </a>
                             &nbsp;
+                            <Tooltip className='custom-tooltip' content={'Diff'}>
+                                <a
+                                    className={`argo-button argo-button--base${app.status.sync.status === models.SyncStatuses.Synced ? ' argo-button--disabled' : ''}`}
+                                    qe-id='applications-tiles-button-diff'
+                                    onClick={e => {
+                                        e.stopPropagation();
+                                        if (app.status.sync.status !== models.SyncStatuses.Synced) {
+                                            ctx.navigation.goto(
+                                                `/${AppUtils.getAppUrl(app)}`,
+                                                {node: AppUtils.nodeKey({group: 'argoproj.io', kind: 'Application', name: app.metadata.name, namespace: app.metadata.namespace}) + '/0', tab: 'diff'}
+                                            );
+                                        }
+                                    }}>
+                                    <i className='fa fa-file-medical' /> <span className='show-for-xxlarge'>Diff</span>
+                                </a>
+                            </Tooltip>
+                            &nbsp;
                             <Tooltip className='custom-tooltip' content={'Refresh'}>
                                 <a
                                     className='argo-button argo-button--base'

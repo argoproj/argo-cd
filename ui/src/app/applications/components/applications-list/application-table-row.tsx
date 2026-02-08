@@ -146,6 +146,15 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                 action: () => syncApplication(app.metadata.name, app.metadata.namespace)
                             },
                             {
+                                title: 'Diff',
+                                iconClassName: 'fa fa-fw fa-file-medical',
+                                disabled: app.status.sync.status === models.SyncStatuses.Synced,
+                                action: () => ctx.navigation.goto(
+                                    `/${AppUtils.getAppUrl(app)}`,
+                                    {node: AppUtils.nodeKey({group: 'argoproj.io', kind: 'Application', name: app.metadata.name, namespace: app.metadata.namespace}) + '/0', tab: 'diff'}
+                                )
+                            },
+                            {
                                 title: 'Refresh',
                                 iconClassName: 'fa fa-fw fa-redo',
                                 action: () => refreshApplication(app.metadata.name, app.metadata.namespace)
