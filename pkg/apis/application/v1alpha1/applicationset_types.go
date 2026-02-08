@@ -207,6 +207,8 @@ type ApplicationSetGenerator struct {
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
 
 	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
+
+	Oci *OciGenerator `json:"oci,omitempty" protobuf:"bytes,11,name=oci"`
 }
 
 // ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or
@@ -229,6 +231,8 @@ type ApplicationSetNestedGenerator struct {
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
 
 	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
+
+	Oci *OciGenerator `json:"oci,omitempty" protobuf:"bytes,11,name=oci"`
 }
 
 type ApplicationSetNestedGenerators []ApplicationSetNestedGenerator
@@ -248,6 +252,8 @@ type ApplicationSetTerminalGenerator struct {
 
 	// Selector allows to post-filter all generator.
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,8,name=selector"`
+
+	Oci *OciGenerator `json:"oci,omitempty" protobuf:"bytes,9,name=oci"`
 }
 
 type ApplicationSetTerminalGenerators []ApplicationSetTerminalGenerator
@@ -427,6 +433,29 @@ type GitDirectoryGeneratorItem struct {
 }
 
 type GitFileGeneratorItem struct {
+	Path    string `json:"path" protobuf:"bytes,1,name=path"`
+	Exclude bool   `json:"exclude,omitempty" protobuf:"bytes,2,name=exclude"`
+}
+
+type OciGenerator struct {
+	RepoURL             string                      `json:"repoURL" protobuf:"bytes,1,name=repoURL"`
+	Directories         []OciDirectoryGeneratorItem `json:"directories,omitempty" protobuf:"bytes,2,name=directories"`
+	Files               []OciFileGeneratorItem      `json:"files,omitempty" protobuf:"bytes,3,name=files"`
+	Revision            string                      `json:"revision" protobuf:"bytes,4,name=revision"`
+	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
+	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
+	PathParamPrefix     string                      `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
+
+	// Values contains key/value pairs which are passed directly as parameters to the template
+	Values map[string]string `json:"values,omitempty" protobuf:"bytes,8,name=values"`
+}
+
+type OciDirectoryGeneratorItem struct {
+	Path    string `json:"path" protobuf:"bytes,1,name=path"`
+	Exclude bool   `json:"exclude,omitempty" protobuf:"bytes,2,name=exclude"`
+}
+
+type OciFileGeneratorItem struct {
 	Path    string `json:"path" protobuf:"bytes,1,name=path"`
 	Exclude bool   `json:"exclude,omitempty" protobuf:"bytes,2,name=exclude"`
 }

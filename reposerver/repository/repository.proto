@@ -267,6 +267,29 @@ message GitDirectoriesResponse {
     repeated string paths = 1;
 }
 
+message OciFilesRequest {
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
+    string revision = 2;
+    string path = 3;
+    bool noRevisionCache = 4;
+}
+
+message OciFilesResponse {
+    // Map consisting of path to its contents in bytes
+    map<string, bytes> map = 1;
+}
+
+message OciDirectoriesRequest {
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
+    string revision = 2;
+    bool noRevisionCache = 3;
+}
+
+message OciDirectoriesResponse {
+    // A set of directory paths
+    repeated string paths = 1;
+}
+
 message UpdateRevisionForPathsRequest {
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
 
@@ -359,6 +382,14 @@ service RepoServerService {
 
     // GetGitDirectories returns a set of directory paths for the given repo
     rpc GetGitDirectories(GitDirectoriesRequest) returns (GitDirectoriesResponse) {
+    }
+
+    // GetOciFiles returns a set of file paths and their contents for the given OCI artifact
+    rpc GetOciFiles(OciFilesRequest) returns (OciFilesResponse) {
+    }
+
+    // GetOciDirectories returns a set of directory paths for the given OCI artifact
+    rpc GetOciDirectories(OciDirectoriesRequest) returns (OciDirectoriesResponse) {
     }
 
     // UpdateRevisionForPaths will compare two revisions and update the cache with the new revision if no changes are detected in the provided paths

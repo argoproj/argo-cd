@@ -4808,3 +4808,252 @@ func TestGenerateManifest_OCISourceSkipsGitClient(t *testing.T) {
 	// verify that newGitClient was never invoked
 	assert.False(t, gitCalled, "GenerateManifest should not invoke Git for OCI sources")
 }
+
+func TestErrorGetOciDirectories(t *testing.T) {
+	type fields struct {
+		service *Service
+	}
+	type args struct {
+		ctx     context.Context
+		request *apiclient.OciDirectoriesRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *apiclient.OciDirectoriesResponse
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:   "InvalidRepo",
+			fields: fields{service: newService(t, ".")},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciDirectoriesRequest{
+					Repo:     nil,
+					Revision: "v1.0.0",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+		{
+			name: "ErrorResolveRevision",
+			fields: fields{service: func() *Service {
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+					ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("unable to resolve revision"))
+					paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+					paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				}, ".")
+				return s
+			}()},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciDirectoriesRequest{
+					Repo:     &v1alpha1.Repository{Repo: "ghcr.io/example/invalid"},
+					Revision: "invalid-tag",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+		{
+			name: "ErrorExtractingArtifact",
+			fields: fields{service: func() *Service {
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+					ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+					ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return("", nil, errors.New("extraction failed"))
+					paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+					paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				}, ".")
+				return s
+			}()},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciDirectoriesRequest{
+					Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+					Revision: "v1.0.0",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := tt.fields.service
+			got, err := s.GetOciDirectories(tt.args.ctx, tt.args.request)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetOciDirectories(%v, %v)", tt.args.ctx, tt.args.request)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetOciDirectories(%v, %v)", tt.args.ctx, tt.args.request)
+		})
+	}
+}
+
+func TestGetOciDirectories(t *testing.T) {
+	tmpDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "apps", "prod"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "apps", "staging"), 0o755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "config"), 0o755))
+
+	s, _, cacheMocks := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+		ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+		ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return(tmpDir, utilio.NopCloser, nil)
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+	}, ".")
+
+	dirRequest := &apiclient.OciDirectoriesRequest{
+		Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+		Revision: "v1.0.0",
+	}
+
+	dirResponse, err := s.GetOciDirectories(t.Context(), dirRequest)
+	require.NoError(t, err)
+	assert.NotNil(t, dirResponse)
+
+	paths := dirResponse.GetPaths()
+	assert.Contains(t, paths, "apps")
+	assert.Contains(t, paths, "apps/prod")
+	assert.Contains(t, paths, "apps/staging")
+	assert.Contains(t, paths, "config")
+
+	dirResponse2, err := s.GetOciDirectories(t.Context(), dirRequest)
+	require.NoError(t, err)
+	assert.Equal(t, paths, dirResponse2.GetPaths())
+
+	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+		ExternalSets: 1,
+		ExternalGets: 2,
+	})
+}
+
+func TestErrorGetOciFiles(t *testing.T) {
+	type fields struct {
+		service *Service
+	}
+	type args struct {
+		ctx     context.Context
+		request *apiclient.OciFilesRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *apiclient.OciFilesResponse
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:   "InvalidRepo",
+			fields: fields{service: newService(t, ".")},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciFilesRequest{
+					Repo:     nil,
+					Revision: "v1.0.0",
+					Path:     "*.json",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+		{
+			name: "ErrorResolveRevision",
+			fields: fields{service: func() *Service {
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+					ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", errors.New("unable to resolve revision"))
+					paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+					paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				}, ".")
+				return s
+			}()},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciFilesRequest{
+					Repo:     &v1alpha1.Repository{Repo: "ghcr.io/example/invalid"},
+					Revision: "invalid-tag",
+					Path:     "*.json",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+		{
+			name: "ErrorExtractingArtifact",
+			fields: fields{service: func() *Service {
+				s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+					ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+					ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return("", nil, errors.New("extraction failed"))
+					paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+					paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				}, ".")
+				return s
+			}()},
+			args: args{
+				ctx: t.Context(),
+				request: &apiclient.OciFilesRequest{
+					Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+					Revision: "v1.0.0",
+					Path:     "*.json",
+				},
+			},
+			want:    nil,
+			wantErr: assert.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := tt.fields.service
+			got, err := s.GetOciFiles(tt.args.ctx, tt.args.request)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetOciFiles(%v, %v)", tt.args.ctx, tt.args.request)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetOciFiles(%v, %v)", tt.args.ctx, tt.args.request)
+		})
+	}
+}
+
+func TestGetOciFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Create test files
+	prodConfig := []byte(`{"cluster": "production", "replicas": 3}`)
+	stagingConfig := []byte(`{"cluster": "staging", "replicas": 1}`)
+
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "config"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "config", "prod.json"), prodConfig, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "config", "staging.json"), stagingConfig, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "config", "values.yaml"), []byte("foo: bar"), 0o644))
+
+	s, _, cacheMocks := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+		ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("sha256:abc123", nil)
+		ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return(tmpDir, utilio.NopCloser, nil)
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+	}, ".")
+
+	filesRequest := &apiclient.OciFilesRequest{
+		Repo:     &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"},
+		Revision: "v1.0.0",
+		Path:     "config/*.json",
+	}
+
+	fileResponse, err := s.GetOciFiles(t.Context(), filesRequest)
+	require.NoError(t, err)
+	assert.NotNil(t, fileResponse)
+
+	files := fileResponse.GetMap()
+	assert.Len(t, files, 2)
+	assert.Equal(t, prodConfig, files["config/prod.json"])
+	assert.Equal(t, stagingConfig, files["config/staging.json"])
+	assert.NotContains(t, files, "config/values.yaml")
+
+	fileResponse2, err := s.GetOciFiles(t.Context(), filesRequest)
+	require.NoError(t, err)
+	assert.Equal(t, files, fileResponse2.GetMap())
+
+	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+		ExternalSets: 1,
+		ExternalGets: 2,
+	})
+}
