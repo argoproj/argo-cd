@@ -902,8 +902,8 @@ func (_c *ProjectServiceClient_ListEvents_Call) Run(run func(ctx context.Context
 	return _c
 }
 
-func (_c *ProjectServiceClient_ListEvents_Call) Return(eventList *structpb.Struct, err error) *ProjectServiceClient_ListEvents_Call {
-	_c.Call.Return(eventList, err)
+func (_c *ProjectServiceClient_ListEvents_Call) Return(structParam *structpb.Struct, err error) *ProjectServiceClient_ListEvents_Call {
+	_c.Call.Return(structParam, err)
 	return _c
 }
 
