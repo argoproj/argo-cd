@@ -416,7 +416,7 @@ spec:
 
 ## Dashboards
 
-You can find an example Grafana dashboard [here](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json) or check demo instance
+You can find an [example Grafana dashboard](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json) or check the demo instance
 [dashboard](https://grafana.apps.argoproj.io).
 
 ![dashboard](../assets/dashboard.jpg)
