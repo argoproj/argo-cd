@@ -547,7 +547,7 @@ func (s *Server) NormalizeProjs() error {
 		return status.Errorf(codes.Internal, "Error retrieving project list: %s", err.Error())
 	}
 	for _, proj := range projList.Items {
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			if !proj.NormalizeJWTTokens() {
 				break
 			}
