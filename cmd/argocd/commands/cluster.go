@@ -247,6 +247,7 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
   argocd cluster set CLUSTER_NAME --name new-cluster-name --namespace namespace-one --namespace namespace-two`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
+			var mergedLabels, mergedAnnotations map[string]string
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -263,18 +264,30 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				namespaces[0] = ""
 			}
 			// parse the labels you're receiving from the label flag
-			labelsMap, err := label.Parse(labels)
+			labelsMap, err := label.ParseMap(labels)
 			errors.CheckError(err)
 			// parse the annotations you're receiving from the annotation flag
-			annotationsMap, err := label.Parse(annotations)
+			annotationsMap, err := label.ParseMap(annotations)
 			errors.CheckError(err)
+
+			// fetch existing cluster to merge labels/annotations
+			if len(labelsMap) > 0 || len(annotationsMap) > 0 {
+				existing, err := clusterIf.Get(ctx, getQueryBySelector(clusterName))
+				errors.CheckError(err)
+				if labelsMap != nil {
+					mergedLabels = labelsMap.Merge(existing.Labels)
+				}
+				if annotationsMap != nil {
+					mergedAnnotations = annotationsMap.Merge(existing.Annotations)
+				}
+			}
 			if updatedFields != nil {
 				clusterUpdateRequest := clusterpkg.ClusterUpdateRequest{
 					Cluster: &argoappv1.Cluster{
 						Name:        clusterOptions.Name,
 						Namespaces:  namespaces,
-						Labels:      labelsMap,
-						Annotations: annotationsMap,
+						Labels:      mergedLabels,
+						Annotations: mergedAnnotations,
 					},
 					UpdatedFields: updatedFields,
 					Id: &clusterpkg.ClusterID{
@@ -297,8 +310,8 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	}
 	command.Flags().StringVar(&clusterOptions.Name, "name", "", "Overwrite the cluster name")
 	command.Flags().StringArrayVar(&clusterOptions.Namespaces, "namespace", nil, "List of namespaces which are allowed to manage. Specify '*' to manage all namespaces")
-	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
-	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
+	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value) or unset them (e.g. --label key-)")
+	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value) or unset them (e.g. --annotation key-)")
 	return command
 }
 
