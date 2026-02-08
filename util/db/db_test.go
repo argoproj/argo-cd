@@ -453,15 +453,17 @@ func TestGetWriteRepository(t *testing.T) {
 
 func TestCreateClusterSuccessful(t *testing.T) {
 	server := "https://mycluster"
+	name := "testcluster"
 	clientset := getClientset()
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 
 	_, err := db.CreateCluster(t.Context(), &v1alpha1.Cluster{
 		Server: server,
+		Name:   name,
 	})
 	require.NoError(t, err)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), "cluster-mycluster-3274446258", metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), "cluster-testcluster-mycluster-3274446258", metav1.GetOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, server, string(secret.Data["server"]))
@@ -469,8 +471,9 @@ func TestCreateClusterSuccessful(t *testing.T) {
 }
 
 func TestDeleteClusterWithManagedSecret(t *testing.T) {
-	clusterURL := "https://mycluster"
-	clusterName := "cluster-mycluster-3274446258"
+	server := "https://mycluster"
+	name := "testcluster"
+	clusterName := "cluster-testcluster-mycluster-3274446258"
 
 	clientset := getClientset(&corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -484,13 +487,14 @@ func TestDeleteClusterWithManagedSecret(t *testing.T) {
 			},
 		},
 		Data: map[string][]byte{
-			"server": []byte(clusterURL),
+			"server": []byte(server),
+			"name":   []byte(name),
 			"config": []byte("{}"),
 		},
 	})
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
-	err := db.DeleteCluster(t.Context(), clusterURL)
+	err := db.DeleteCluster(t.Context(), server, name)
 	require.NoError(t, err)
 
 	_, err = clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), clusterName, metav1.GetOptions{})
@@ -500,7 +504,8 @@ func TestDeleteClusterWithManagedSecret(t *testing.T) {
 }
 
 func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
-	clusterURL := "https://mycluster"
+	server := "https://mycluster"
+	name := "testcluster"
 	clusterName := "mycluster-443"
 
 	clientset := getClientset(&corev1.Secret{
@@ -512,13 +517,14 @@ func TestDeleteClusterWithUnmanagedSecret(t *testing.T) {
 			},
 		},
 		Data: map[string][]byte{
-			"server": []byte(clusterURL),
+			"server": []byte(server),
+			"name":   []byte(name),
 			"config": []byte("{}"),
 		},
 	})
 
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
-	err := db.DeleteCluster(t.Context(), clusterURL)
+	err := db.DeleteCluster(t.Context(), server, name)
 	require.NoError(t, err)
 
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), clusterName, metav1.GetOptions{})
