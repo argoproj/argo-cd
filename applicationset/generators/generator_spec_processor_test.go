@@ -557,69 +557,6 @@ func TestInterpolateGeneratorError(t *testing.T) {
 	}
 }
 
-func TestIsEmptyTemplate(t *testing.T) {
-	tests := []struct {
-		name     string
-		template argov1alpha1.ApplicationSetTemplate
-		expected bool
-	}{
-		{
-			name: "empty template",
-			template: argov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{},
-				Spec:                       argov1alpha1.ApplicationSpec{},
-			},
-			expected: true,
-		},
-		{
-			name: "template with metadata",
-			template: argov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
-					Name:   "my-app",
-					Labels: map[string]string{"app": "test"},
-				},
-				Spec: argov1alpha1.ApplicationSpec{},
-			},
-			expected: false,
-		},
-		{
-			name: "template with spec",
-			template: argov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{},
-				Spec: argov1alpha1.ApplicationSpec{
-					Project: "default",
-					Source: &argov1alpha1.ApplicationSource{
-						RepoURL: "https://github.com/example/repo",
-					},
-					Destination: argov1alpha1.ApplicationDestination{
-						Server: "https://kubernetes.default.svc",
-					},
-				},
-			},
-			expected: false,
-		},
-		{
-			name: "template with both metadata and spec",
-			template: argov1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
-					Name: "my-app",
-				},
-				Spec: argov1alpha1.ApplicationSpec{
-					Project: "default",
-				},
-			},
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := isEmptyTemplate(tt.template)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
 func TestMergeGeneratorTemplate(t *testing.T) {
 	tests := []struct {
 		name                   string

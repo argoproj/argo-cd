@@ -1611,6 +1611,57 @@ func TestApplicationSource_IsZero(t *testing.T) {
 	}
 }
 
+func TestApplicationSpec_IsEmpty(t *testing.T) {
+	tests := []struct {
+		name string
+		spec *ApplicationSpec
+		want bool
+	}{
+		{
+			name: "nil spec returns true",
+			spec: nil,
+			want: true,
+		},
+		{
+			name: "empty spec returns true",
+			spec: &ApplicationSpec{},
+			want: true,
+		},
+		{
+			name: "spec with Source returns false",
+			spec: &ApplicationSpec{
+				Source: &ApplicationSource{
+					RepoURL: "https://github.com/argoproj/argocd-example-apps",
+				},
+			},
+			want: false,
+		},
+		{
+			name: "spec with Destination returns false",
+			spec: &ApplicationSpec{
+				Destination: ApplicationDestination{
+					Server: "https://kubernetes.default.svc",
+				},
+			},
+			want: false,
+		},
+		{
+			name: "spec with Project returns false",
+			spec: &ApplicationSpec{
+				Project: "default",
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.spec.IsEmpty()
+			assert.Equal(t, tt.want, result)
+		})
+	}
+}
+
 func TestApplicationSourceHelm_AddParameter(t *testing.T) {
 	src := ApplicationSourceHelm{}
 	t.Run("Add", func(t *testing.T) {
