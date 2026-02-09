@@ -225,13 +225,11 @@ func NewCommand() *cobra.Command {
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 			wg := sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				s := <-sigCh
 				log.Printf("got signal %v, attempting graceful shutdown", s)
 				grpc.GracefulStop()
-				wg.Done()
-			}()
+			})
 
 			log.Println("starting grpc server")
 			err = grpc.Serve(listener)

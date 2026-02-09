@@ -136,11 +136,9 @@ kubectl delete clusterrole argocd-manager-role
 kubectl delete clusterrolebinding argocd-manager-role-binding
 argocd cluster rm https://your-kubernetes-cluster-addr
 ```
-<!-- markdownlint-disable MD027 -->
-> NOTE: for AWS EKS clusters, the [get-token](https://docs.aws.amazon.com/cli/latest/reference/eks/get-token.html) command
-  is used to authenticate to the external cluster, which uses IAM roles in lieu of locally stored
-  tokens, so token rotation is not needed, and revocation is handled through IAM.
-<!-- markdownlint-enable MD027 -->
+
+> [!NOTE]
+> For AWS EKS clusters, the [get-token](https://docs.aws.amazon.com/cli/latest/reference/eks/get-token.html) command is used to authenticate to the external cluster, which uses IAM roles in lieu of locally stored tokens, so token rotation is not needed, and revocation is handled through IAM.
 
 ## Cluster RBAC
 

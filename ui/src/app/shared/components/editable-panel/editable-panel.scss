@@ -79,4 +79,26 @@
         top: 0;
         bottom: 0;
     }
+
+    &__subsection {
+        margin-top: 1em;
+
+        &-title {
+            font-weight: 600;
+            margin-bottom: 0.5em;
+            font-size: 14px;
+            @include themify($themes) {
+                color: themed('light-argo-teal-7');
+            }
+        }
+
+        &-items {
+            border-left: 3px solid;
+            @include themify($themes) {
+                border-color: themed('light-argo-gray-4');
+            }
+            padding-left: 1.5em;
+            margin-left: 0.5em;
+        }
+    }
 }
