@@ -713,6 +713,68 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         : []
                                 }));
                             };
+
+                            // Helper to get ApplicationResourceTree props based on resource type
+                            const getResourceTreeProps = () => {
+                                const commonProps = {
+                                    nodeFilter: (node: ResourceTreeNode) => filterTreeNode(node, treeFilter),
+                                    selectedNodeFullName: selectedNodeKey,
+                                    showCompactNodes: pref.groupNodes,
+                                    userMsgs: pref.userHelpTipMsgs,
+                                    tree,
+                                    onClearFilter: clearFilter,
+                                    onGroupdNodeClick: (nodeIds: string[]) => openGroupNodeDetails(nodeIds),
+                                    zoom: pref.zoom,
+                                    appContext: {...appContext, apis: appContext} as unknown as AppContext,
+                                    nameDirection: state.truncateNameOnRight,
+                                    nameWrap: state.showFullNodeName,
+                                    filters: pref.resourceFilter,
+                                    setTreeFilterGraph: setFilterGraph,
+                                    updateUsrHelpTipMsgs: updateHelpTipState,
+                                    setShowCompactNodes,
+                                    setNodeExpansion: (node: string, isExpanded: boolean) => setNodeExpansion(node, isExpanded),
+                                    getNodeExpansion: (node: string) => getNodeExpansion(node)
+                                };
+
+                                if (isApplication) {
+                                    return {
+                                        ...commonProps,
+                                        onNodeClick: (fullName: string) => selectNode(fullName),
+                                        nodeMenu: (node: ResourceTreeNode) =>
+                                            AppUtils.renderResourceMenu(
+                                                node,
+                                                application as appModels.Application,
+                                                tree,
+                                                appContext,
+                                                appChanged.current,
+                                                () => getApplicationActionMenu(application as appModels.Application, false)
+                                            ),
+                                        app: application as appModels.Application,
+                                        showOrphanedResources: pref.orphanedResources,
+                                        useNetworkingHierarchy: pref.view === 'network',
+                                        podGroupCount: pref.podGroupCount
+                                    };
+                                } else {
+                                    return {
+                                        ...commonProps,
+                                        onNodeClick: (fullName: string) => {
+                                            // For ApplicationSets, navigate to Application details if clicking an Application node
+                                            const parts = fullName.split('/');
+                                            const [group, kind, namespace, name] = parts;
+                                            if (group === 'argoproj.io' && kind === 'Application' && namespace && name) {
+                                                appContext.navigation.goto(`/applications/${namespace}/${name}`);
+                                            } else {
+                                                selectNode(fullName);
+                                            }
+                                        },
+                                        app: application,
+                                        showOrphanedResources: false,
+                                        useNetworkingHierarchy: false,
+                                        podGroupCount: 0
+                                    };
+                                }
+                            };
+
                             const {Tree, Pods, Network, List} = AppsDetailsViewKey;
                             const zoomNum = (pref.zoom * 100).toFixed(0);
                             const setZoom = (s: number) => {
@@ -981,78 +1043,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                 <div className={`zoom-value`}>{zoomNum}%</div>
                                                             </span>
                                                         </div>
-                                                        {isApplication && (
-                                                            <ApplicationResourceTree
-                                                                nodeFilter={node => filterTreeNode(node, treeFilter)}
-                                                                selectedNodeFullName={selectedNodeKey}
-                                                                onNodeClick={fullName => selectNode(fullName)}
-                                                                nodeMenu={node =>
-                                                                    AppUtils.renderResourceMenu(
-                                                                        node,
-                                                                        application as appModels.Application,
-                                                                        tree,
-                                                                        appContext,
-                                                                        appChanged.current,
-                                                                        () => getApplicationActionMenu(application as appModels.Application, false)
-                                                                    )
-                                                                }
-                                                                showCompactNodes={pref.groupNodes}
-                                                                userMsgs={pref.userHelpTipMsgs}
-                                                                tree={tree}
-                                                                app={application as appModels.Application}
-                                                                showOrphanedResources={pref.orphanedResources}
-                                                                useNetworkingHierarchy={pref.view === 'network'}
-                                                                onClearFilter={clearFilter}
-                                                                onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
-                                                                zoom={pref.zoom}
-                                                                podGroupCount={pref.podGroupCount}
-                                                                appContext={{...appContext, apis: appContext} as unknown as AppContext}
-                                                                nameDirection={state.truncateNameOnRight}
-                                                                nameWrap={state.showFullNodeName}
-                                                                filters={pref.resourceFilter}
-                                                                setTreeFilterGraph={setFilterGraph}
-                                                                updateUsrHelpTipMsgs={updateHelpTipState}
-                                                                setShowCompactNodes={setShowCompactNodes}
-                                                                setNodeExpansion={(node, isExpanded) => setNodeExpansion(node, isExpanded)}
-                                                                getNodeExpansion={node => getNodeExpansion(node)}
-                                                            />
-                                                        )}
-                                                        {!isApplication && (
-                                                            <ApplicationResourceTree
-                                                                nodeFilter={node => filterTreeNode(node, treeFilter)}
-                                                                selectedNodeFullName={selectedNodeKey}
-                                                                onNodeClick={fullName => {
-                                                                    // Parse the nodeKey to check if it's an Application
-                                                                    const parts = fullName.split('/');
-                                                                    const [group, kind, namespace, name] = parts;
-                                                                    if (group === 'argoproj.io' && kind === 'Application' && namespace && name) {
-                                                                        // Navigate to the Application's details page
-                                                                        appContext.navigation.goto(`/applications/${namespace}/${name}`);
-                                                                    } else {
-                                                                        selectNode(fullName);
-                                                                    }
-                                                                }}
-                                                                showCompactNodes={pref.groupNodes}
-                                                                userMsgs={pref.userHelpTipMsgs}
-                                                                tree={tree}
-                                                                app={application}
-                                                                showOrphanedResources={false}
-                                                                useNetworkingHierarchy={false}
-                                                                onClearFilter={clearFilter}
-                                                                onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
-                                                                zoom={pref.zoom}
-                                                                podGroupCount={0}
-                                                                appContext={{...appContext, apis: appContext} as unknown as AppContext}
-                                                                nameDirection={state.truncateNameOnRight}
-                                                                nameWrap={state.showFullNodeName}
-                                                                filters={pref.resourceFilter}
-                                                                setTreeFilterGraph={setFilterGraph}
-                                                                updateUsrHelpTipMsgs={updateHelpTipState}
-                                                                setShowCompactNodes={setShowCompactNodes}
-                                                                setNodeExpansion={(node, isExpanded) => setNodeExpansion(node, isExpanded)}
-                                                                getNodeExpansion={node => getNodeExpansion(node)}
-                                                            />
-                                                        )}
+                                                        <ApplicationResourceTree {...getResourceTreeProps()} />
                                                     </>
                                                 )) ||
                                                     (isApplication && pref.view === 'pods' && (
