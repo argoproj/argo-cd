@@ -1327,14 +1327,14 @@ func TestCoupleAppsListApps(t *testing.T) {
 	ctx := t.Context()
 
 	var groups []string
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		groups = append(groups, fmt.Sprintf("group-%d", i))
 	}
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.MapClaims{"groups": groups})
-	for projectId := 0; projectId < 100; projectId++ {
+	for projectId := range 100 {
 		projectName := fmt.Sprintf("proj-%d", projectId)
-		for appId := 0; appId < 100; appId++ {
+		for appId := range 100 {
 			objects = append(objects, newTestApp(func(app *v1alpha1.Application) {
 				app.Name = fmt.Sprintf("app-%d-%d", projectId, appId)
 				app.Spec.Project = projectName
@@ -1367,7 +1367,7 @@ g, group-49, role:test3
 
 func generateTestApp(num int) []*v1alpha1.Application {
 	apps := []*v1alpha1.Application{}
-	for i := 0; i < num; i++ {
+	for i := range num {
 		apps = append(apps, newTestApp(func(app *v1alpha1.Application) {
 			app.Name = fmt.Sprintf("test-app%.6d", i)
 		}))
@@ -1385,8 +1385,7 @@ func BenchmarkListMuchApps(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, err := appServer.List(b.Context(), &application.ApplicationQuery{})
 		if err != nil {
 			break
@@ -1403,8 +1402,7 @@ func BenchmarkListSomeApps(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, err := appServer.List(b.Context(), &application.ApplicationQuery{})
 		if err != nil {
 			break
@@ -1421,8 +1419,7 @@ func BenchmarkListFewApps(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, err := appServer.List(b.Context(), &application.ApplicationQuery{})
 		if err != nil {
 			break
@@ -1443,8 +1440,7 @@ func BenchmarkListMuchAppsWithName(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		app := &application.ApplicationQuery{Name: strToPtr("test-app000099")}
 		_, err := appServer.List(b.Context(), app)
 		if err != nil {
@@ -1464,8 +1460,7 @@ func BenchmarkListMuchAppsWithProjects(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		app := &application.ApplicationQuery{Project: []string{"test-project1", "test-project2"}}
 		_, err := appServer.List(b.Context(), app)
 		if err != nil {
@@ -1484,8 +1479,7 @@ func BenchmarkListMuchAppsWithRepo(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		app := &application.ApplicationQuery{Repo: strToPtr("https://some-fake-source")}
 		_, err := appServer.List(b.Context(), app)
 		if err != nil {
@@ -3133,7 +3127,7 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 	runtimeObjects := make([]runtime.Object, podNumber+1)
 	resources := make([]v1alpha1.ResourceStatus, podNumber)
 
-	for i := 0; i < podNumber; i++ {
+	for i := range podNumber {
 		pod := corev1.Pod{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
