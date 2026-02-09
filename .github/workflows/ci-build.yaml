@@ -396,7 +396,7 @@ jobs:
           fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-          if: env.codecov_secret != ''
+        if: env.codecov_secret != ''
       - name: Upload test results to Codecov
         # Codecov uploads test results to Codecov.io on upstream master branch and on fork master branch if the token is configured.
         if: env.codecov_secret != '' && github.ref == 'refs/heads/master' && github.event_name == 'push'
