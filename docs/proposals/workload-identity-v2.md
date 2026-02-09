@@ -374,7 +374,7 @@ stringData:
 3. **Cloud IAM integration**: Access control is enforced at the cloud IAM level, providing fine-grained permissions.
 4. **Per-project isolation**: Each project can have its own identity with its own IAM permissions, preventing cross-project access.
 5. **SPIFFE per-project authorization (special case) **: Authorization with SPIFFE is enforced through project-specific SPIFFE IDs.
-  Each ArgoCD project maps to a unique SPIFFE ID (e.g., `spiffe://trust-domain/argocd/project/production`), and registries
+  Each Argo CD project maps to a unique SPIFFE ID (e.g., `spiffe://trust-domain/argocd/project/production`), and registries
   are configured to trust and authorize specific SPIFFE IDs. This provides cryptographically-enforced per-project isolation
   without requiring elevated SPIRE privileges.
 6. **TokenRequest API (everyone else) **: The implementation uses the Kubernetes TokenRequest API which provides bound
