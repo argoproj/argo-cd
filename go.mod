@@ -66,7 +66,7 @@ require (
 	github.com/jarcoal/httpmock v1.4.1
 	github.com/jeremywohl/flatten v1.0.2-0.20211013061545-07e4a09fb8e4
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/ktrysmt/go-bitbucket v0.9.88
+	github.com/ktrysmt/go-bitbucket v0.9.89
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mattn/go-zglob v0.0.6
 	github.com/microsoft/azure-devops-go-api/azuredevops/v7 v7.1.1-0.20241014080628-3045bdf43455
@@ -88,7 +88,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/yuin/gopher-lua v1.1.1
-	gitlab.com/gitlab-org/api/client-go v1.28.0
+	gitlab.com/gitlab-org/api/client-go v1.28.1
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.64.0
 	go.opentelemetry.io/otel v1.39.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.39.0

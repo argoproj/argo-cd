@@ -278,7 +278,7 @@ func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationS
 		}
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		appset.Spec = newAppset.Spec
 		if merge {
 			appset.Labels = collections.Merge(appset.Labels, newAppset.Labels)
