@@ -144,7 +144,7 @@ The implementation follows a two-phase provider-based architecture:
 
 #### Service Account Naming Convention
 
-Each ArgoCD project maps to a Kubernetes service account:
+Each Argo CD project maps to a Kubernetes service account:
 
 ```
 Project Name                   → Service Account Name
