@@ -22,7 +22,7 @@ of static credentials.
 ## Summary
 
 This proposal introduces workload identity support for ArgoCD repository authentication. Instead of storing long-lived
-credentials (passwords, tokens, service account keys) in Kubernetes secrets, ArgoCD can authenticate to registries using
+credentials (passwords, tokens, service account keys) in Kubernetes secrets, Argo CD can authenticate to registries using
 short-lived tokens obtained through cloud provider workload identity mechanisms (AWS IRSA, GCP Workload Identity,
 Azure Workload Identity) or OIDC federation (SPIFFE/SPIRE, direct K8s OIDC).
 
