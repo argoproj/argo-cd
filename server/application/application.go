@@ -2926,9 +2926,38 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("error getting destination cluster: %w", err)
 	}
 
-	clusterConfig, err := cluster.RawRestConfig()
-	if err != nil {
-		return nil, fmt.Errorf("error getting cluster raw REST config: %w", err)
+	// FIX: For server-side diff operations, we need to use RESTConfig() instead of RawRestConfig()
+	// when dealing with in-cluster to ensure we get the stored bearer token from the cluster secret.
+	//
+	// The difference:
+	// - RawRestConfig() for in-cluster without stored credentials falls back to rest.InClusterConfig()
+	//   which uses the CURRENT pod's SA token (argocd-server's token - insufficient permissions)
+	// - RESTConfig() always uses the stored credentials from the cluster secret
+	//
+	// For in-cluster, the cluster secret SHOULD contain the application-controller's bearer token
+	// which has the necessary RBAC permissions for server-side apply dry-run.
+	var clusterConfig *rest.Config
+	if cluster.Server == v1alpha1.KubernetesInternalAPIServerAddr {
+		// Use RESTConfig which will use stored bearer token if available
+		clusterConfig, err = cluster.RESTConfig()
+		if err != nil {
+			return nil, fmt.Errorf("error getting cluster REST config: %w", err)
+		}
+
+		// Validate that we have credentials - if not, provide helpful error message
+		if clusterConfig.BearerToken == "" && clusterConfig.BearerTokenFile == "" &&
+			clusterConfig.Username == "" && clusterConfig.CertData == nil {
+			return nil, errors.New("in-cluster configuration missing credentials for server-side diff. " +
+				"Please ensure the in-cluster secret contains a bearer token with sufficient permissions. " +
+				"Run: kubectl patch secret -n <argocd-namespace> <cluster-secret-name> --type=merge -p '{\"stringData\":{\"config\":\"{\\\"bearerToken\\\":\\\"<application-controller-token>\\\"}\"}}' " +
+				"See: https://argo-cd.readthedocs.io/en/stable/operator-manual/server-side-diff/")
+		}
+	} else {
+		// For external clusters, use RawRestConfig as before
+		clusterConfig, err = cluster.RawRestConfig()
+		if err != nil {
+			return nil, fmt.Errorf("error getting cluster raw REST config: %w", err)
+		}
 	}
 
 	// Create server-side diff dry run applier
