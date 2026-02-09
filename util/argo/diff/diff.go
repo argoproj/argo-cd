@@ -3,7 +3,6 @@ package diff
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/go-logr/logr"
 	log "github.com/sirupsen/logrus"
