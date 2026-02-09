@@ -96,7 +96,7 @@ As an operator using SPIRE for workload identity, I want ArgoCD to authenticate 
 per-project SPIFFE identities.
 
 #### Use case 5: Multi-tenant isolation
-As a platform team, I want different ArgoCD projects to use different cloud IAM roles, so project A can only access 
+As a platform team, I want different Argo CD projects to use different cloud IAM roles, so project A can only access 
 production ECR repositories while project B can only access staging repositories.
 
 ### Implementation Details
