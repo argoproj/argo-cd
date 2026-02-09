@@ -89,7 +89,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 		// Get manifests of resources
 		// If resource name is "" find all resources of that kind
 		var resources []unstructured.Unstructured
-		var fetchedStr string
+		var resourceNames []string
 		for _, r := range tree.Nodes {
 			if (resourceName != "" && r.Name != resourceName) || (group != "" && r.Group != group) || r.Kind != kind {
 				continue
@@ -119,14 +119,11 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 				obj = filterFieldsFromObject(obj, filteredFields)
 			}
 
-			fetchedStr += obj.GetName() + ", "
+			resourceNames = append(resourceNames, obj.GetName())
 			resources = append(resources, *obj)
 		}
+		fetchedStr := strings.Join(resourceNames, ", ")
 		printManifests(&resources, len(filteredFields) > 0, resourceName == "", output)
-
-		if fetchedStr != "" {
-			fetchedStr = strings.TrimSuffix(fetchedStr, ", ")
-		}
 		log.Infof("Resources '%s' fetched", fetchedStr)
 	}
 
