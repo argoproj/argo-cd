@@ -397,7 +397,7 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 		return false, nil
 	}
 	cachedDiff := make([]*v1alpha1.ResourceDiff, 0)
-    err := c.stateCache.GetAppManagedResources(appName, &cachedDiff)
+	err := c.stateCache.GetAppManagedResources(appName, &cachedDiff)
 	if err != nil {
 		if errors.Is(err, appstatecache.ErrCacheMiss) {
 			log.Warnf("DiffFromCache warning: error getting managed resources for app %s: %s", appName, err)
@@ -408,6 +408,7 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 	}
 	return true, cachedDiff
 }
+
 // preDiffNormalize applies the normalization of live and target resources before invoking
 // the diff. None of the attributes in the lives and targets params will be modified.
 func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig DiffConfig) (*NormalizationResult, error) {
