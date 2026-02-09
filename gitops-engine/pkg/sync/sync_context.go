@@ -1237,48 +1237,11 @@ func (sc *syncContext) needsClientSideApplyMigration(liveObj *unstructured.Unstr
 	return false
 }
 
-// performClientSideApplyMigration performs a client-side-apply using the specified field manager.
-// This moves the 'last-applied-configuration' field to be managed by the specified manager.
-// The next time server-side apply is performed, kubernetes automatically migrates all fields from the manager
-// that owns 'last-applied-configuration' to the manager that uses server-side apply. This will remove the
-// specified manager from the resources managed fields. 'kubectl-client-side-apply' is used as the default manager.
-func (sc *syncContext) performClientSideApplyMigration(targetObj *unstructured.Unstructured, fieldManager string) error {
-	sc.log.WithValues("resource", kubeutil.GetResourceKey(targetObj)).V(1).Info("Performing client-side apply migration step")
-
-	// Apply with the specified manager to set up the migration
-	_, err := sc.resourceOps.ApplyResource(
-		context.TODO(),
-		targetObj,
-		cmdutil.DryRunNone,
-		false,
-		false,
-		false,
-		fieldManager,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to perform client-side apply migration on manager %s: %w", fieldManager, err)
-	}
-
-	return nil
-}
-
-// isAnnotationTooLargeError checks if the error is due to the last-applied-configuration
-// annotation exceeding the maximum allowed size of 262144 bytes.
-func isAnnotationTooLargeError(err error) bool {
-	if err == nil {
-		return false
-	}
-	errStr := err.Error()
-	return strings.Contains(errStr, "Too long: must have at most 262144 bytes") ||
-		strings.Contains(errStr, "Too long: may not be more than 262144 bytes")
-}
-
 // performCSAUpgradeMigration uses the csaupgrade package to migrate managed fields
-// from a client-side apply manager to the server-side apply manager.
-// This is used as a fallback when normal CSA migration fails due to the
-// last-applied-configuration annotation being too large (> 262144 bytes).
-// Unlike CSA migration, this approach directly patches the managedFields without
-// needing to write the annotation, thus avoiding the size limit.
+// from a client-side apply manager (operation: Update) to the server-side apply manager.
+// This directly patches the managedFields to transfer field ownership, avoiding the need
+// to write the last-applied-configuration annotation (which has a 262KB size limit).
+// This is the primary method for CSA to SSA migration in ArgoCD.
 func (sc *syncContext) performCSAUpgradeMigration(liveObj *unstructured.Unstructured, csaFieldManager string) error {
 	sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).V(1).Info(
 		"Performing csaupgrade-based migration (annotation too large for CSA)")
@@ -1337,21 +1300,14 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 	serverSideApply := sc.shouldUseServerSideApply(t.targetObj, dryRun)
 
 	// Check if we need to perform client-side apply migration for server-side apply
+	// Perform client-side apply migration for server-side apply
+	// This uses csaupgrade to directly patch managedFields, transferring ownership
+	// from CSA managers (operation: Update) to the SSA manager (argocd-controller)
 	if serverSideApply && !dryRun && sc.enableClientSideApplyMigration {
 		if sc.needsClientSideApplyMigration(t.liveObj, sc.clientSideApplyMigrationManager) {
-			err = sc.performClientSideApplyMigration(t.targetObj, sc.clientSideApplyMigrationManager)
+			err = sc.performCSAUpgradeMigration(t.liveObj, sc.clientSideApplyMigrationManager)
 			if err != nil {
-				// If CSA migration failed due to annotation being too large (> 262144 bytes),
-				// fallback to using csaupgrade which directly patches managedFields
-				// without needing to write the annotation
-				if isAnnotationTooLargeError(err) {
-					sc.log.WithValues("resource", kubeutil.GetResourceKey(t.targetObj)).Info(
-						"CSA migration failed due to annotation size limit, falling back to csaupgrade")
-					err = sc.performCSAUpgradeMigration(t.liveObj, sc.clientSideApplyMigrationManager)
-				}
-				if err != nil {
-					return common.ResultCodeSyncFailed, fmt.Sprintf("Failed to perform client-side apply migration: %v", err)
-				}
+				return common.ResultCodeSyncFailed, fmt.Sprintf("Failed to perform client-side apply migration: %v", err)
 			}
 		}
 	}

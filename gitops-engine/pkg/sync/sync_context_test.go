@@ -2584,6 +2584,25 @@ func TestNeedsClientSideApplyMigration(t *testing.T) {
 	}
 }
 
+func TestPerformCSAUpgradeMigration_NoMigrationNeeded(t *testing.T) {
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.serverSideApplyManager = "argocd-controller"
+
+	// Object with only SSA manager (operation: Apply), no CSA manager (operation: Update)
+	obj := testingutils.NewPod()
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+		{
+			Manager:   "argocd-controller",
+			Operation: metav1.ManagedFieldsOperationApply,
+			FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:spec":{"f:containers":{}}}`)},
+		},
+	})
+
+	// Should return nil (no error) because there's no CSA manager to migrate
+	err := syncCtx.performCSAUpgradeMigration(obj, "kubectl-client-side-apply")
+	assert.NoError(t, err)
+}
+
 func diffResultListClusterResource() *diff.DiffResultList {
 	ns1 := testingutils.NewNamespace()
 	ns1.SetName("ns-1")
