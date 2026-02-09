@@ -210,7 +210,6 @@ func TestRegisterExtensions(t *testing.T) {
 
 		// when
 		for _, tc := range cases {
-			tc := tc
 			t.Run(tc.name, func(t *testing.T) {
 				// given
 				t.Parallel()
