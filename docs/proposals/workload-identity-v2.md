@@ -414,7 +414,7 @@ stringData:
 Use External Secrets Operator to sync credentials from cloud secret managers (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault).
 
 **Pros:**
-- Works with existing ArgoCD without code changes
+- Works with existing Argo CD without code changes
 - Credentials can be rotated in secret manager
 
 **Cons:**
