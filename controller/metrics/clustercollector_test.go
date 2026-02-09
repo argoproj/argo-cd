@@ -115,7 +115,6 @@ argocd_cluster_labels{label_env="production",label_team="team3",name="cluster3",
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run(c.description, func(t *testing.T) {
 			if !c.skip {
 				cfg := TestMetricServerConfig{

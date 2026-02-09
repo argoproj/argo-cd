@@ -416,6 +416,92 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 	assert.Empty(t, app.Status.Conditions)
 }
 
+// TestCompareAppStateSyncHookSyncWave tests that Sync hooks display correct SyncWave
+// This is the specific case from issue #26208
+func TestCompareAppStateSyncHookSyncWave(t *testing.T) {
+	tests := []struct {
+		name             string
+		hookType         string
+		syncWave         string
+		expectedSyncWave int64
+	}{
+		{
+			name:             "Sync hook with wave 2",
+			hookType:         "Sync",
+			syncWave:         "2",
+			expectedSyncWave: 2,
+		},
+		{
+			name:             "PreSync hook with wave 1",
+			hookType:         "PreSync",
+			syncWave:         "1",
+			expectedSyncWave: 1,
+		},
+		{
+			name:             "PostSync hook with negative wave",
+			hookType:         "PostSync",
+			syncWave:         "-1",
+			expectedSyncWave: -1,
+		},
+		{
+			name:             "Sync hook without explicit wave",
+			hookType:         "Sync",
+			syncWave:         "",
+			expectedSyncWave: 0, // default
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+
+			// Create hook pod with annotations
+			hookPod := NewPod()
+			hookPod.SetNamespace(test.FakeDestNamespace)
+			annot := map[string]string{
+				synccommon.AnnotationKeyHook: tt.hookType,
+			}
+			if tt.syncWave != "" {
+				annot[synccommon.AnnotationSyncWave] = tt.syncWave
+			}
+			hookPod.SetAnnotations(annot)
+
+			// The hook exists in live state (already created by previous sync)
+			livePod := hookPod.DeepCopy()
+
+			data := fakeData{
+				apps: []runtime.Object{app},
+				manifestResponse: &apiclient.ManifestResponse{
+					Manifests: []string{toJSON(t, hookPod)},
+					Namespace: test.FakeDestNamespace,
+					Server:    test.FakeClusterURL,
+					Revision:  "abc123",
+				},
+				managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+					kube.GetResourceKey(livePod): livePod,
+				},
+			}
+
+			ctrl := newFakeController(t.Context(), &data, nil)
+			sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			revisions := []string{""}
+
+			compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+			require.NoError(t, err)
+			require.NotNil(t, compRes)
+
+			// For hooks, they go into reconciliationResult.Hooks, not resources
+			// But we should also check resources if the hook appears there
+			for _, res := range compRes.resources {
+				if res.Hook {
+					assert.Equal(t, tt.expectedSyncWave, res.SyncWave,
+						"Hook SyncWave should be %d but got %d", tt.expectedSyncWave, res.SyncWave)
+				}
+			}
+		})
+	}
+}
+
 func TestCompareAppStateRequireDeletion(t *testing.T) {
 	obj1 := NewPod()
 	obj1.SetName("my-pod-1")

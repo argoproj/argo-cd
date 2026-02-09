@@ -1091,7 +1091,7 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 	var wg sync.WaitGroup
 	callLsFiles := func(client Client, expectedFile string) {
 		defer wg.Done()
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			files, err := client.LsFiles("*", true)
 			require.NoError(t, err)
 			require.Contains(t, files, expectedFile)
@@ -1270,8 +1270,8 @@ func Test_GitNoDetachedMaintenance(t *testing.T) {
 	output, err := native.runCmdOutput(cmd, runOpts{CaptureStderr: true})
 	require.NoError(t, err)
 
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(output, "\n")
+	for line := range lines {
 		if strings.Contains(line, "git maintenance run") {
 			assert.NotContains(t, output, "--detach", "Unexpected --detach when running git maintenance")
 			return

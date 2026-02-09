@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -750,12 +751,7 @@ func OfflineAccess(scopes []string) bool {
 		return true
 	}
 	// See if scopes_supported has the "offline_access" scope.
-	for _, scope := range scopes {
-		if scope == gooidc.ScopeOfflineAccess {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(scopes, gooidc.ScopeOfflineAccess)
 }
 
 // InferGrantType infers the proper grant flow depending on the OAuth2 client config and OIDC configuration.
@@ -764,10 +760,8 @@ func InferGrantType(oidcConf *OIDCConfiguration) string {
 	// Check the supported response types. If the list contains the response type 'code',
 	// then grant type is 'authorization_code'. This is preferred over the implicit
 	// grant type since refresh tokens cannot be issued that way.
-	for _, supportedType := range oidcConf.ResponseTypesSupported {
-		if supportedType == ResponseTypeCode {
-			return GrantTypeAuthorizationCode
-		}
+	if slices.Contains(oidcConf.ResponseTypesSupported, ResponseTypeCode) {
+		return GrantTypeAuthorizationCode
 	}
 
 	// Assume implicit otherwise

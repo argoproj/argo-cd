@@ -36,7 +36,7 @@ func getApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath stri
 		}(len(commonParts), len(parts))
 
 		// check if diverge /disjoint in some point
-		for i := 0; i < minLen; i++ {
+		for i := range minLen {
 			if commonParts[i] != parts[i] {
 				commonParts = commonParts[:i]
 				disjoint = true
@@ -55,7 +55,7 @@ func getApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath stri
 // getPaths retrieves all absolute paths associated with the generation of application manifests.
 func getPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
 	var paths []string
-	for _, annotationPath := range strings.Split(q.AnnotationManifestGeneratePaths, ";") {
+	for annotationPath := range strings.SplitSeq(q.AnnotationManifestGeneratePaths, ";") {
 		if annotationPath == "" {
 			continue
 		}

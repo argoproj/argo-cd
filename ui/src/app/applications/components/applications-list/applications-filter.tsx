@@ -17,12 +17,11 @@ import {
 import {AppsListPreferences, AppSetsListPreferences, services} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import {createMetadataSelector} from '../selectors';
-import {ComparisonStatusIcon, getAppDefaultSource, getAppSetHealthStatus, HealthStatusIcon, getOperationStateTitle} from '../utils';
+import {ComparisonStatusIcon, getAppSetHealthStatus, HealthStatusIcon, getOperationStateTitle} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
 import {COLORS} from '../../../shared/components/colors';
 
 export interface FilterResult {
-    repos: boolean;
     sync: boolean;
     autosync: boolean;
     health: boolean;
@@ -63,7 +62,6 @@ export function getAppFilterResults(applications: Application[], pref: AppsListP
     return applications.map(app => ({
         ...app,
         filterResult: {
-            repos: pref.reposFilter.length === 0 || pref.reposFilter.includes(getAppDefaultSource(app).repoURL),
             sync: pref.syncFilter.length === 0 || pref.syncFilter.includes(app.status.sync.status),
             autosync: pref.autoSyncFilter.length === 0 || pref.autoSyncFilter.includes(getAutoSyncStatus(app.spec.syncPolicy)),
             health: pref.healthFilter.length === 0 || pref.healthFilter.includes(app.status.health.status),
@@ -474,7 +472,6 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
         ...(props.pref.clustersFilter || []),
         ...(props.pref.namespacesFilter || []),
         ...(props.pref.autoSyncFilter || []),
-        ...(props.pref.reposFilter || []),
         ...(props.pref.showFavorites ? ['favorites'] : [])
     ];
 

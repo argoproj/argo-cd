@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"maps"
+
 	gitopscommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -47,9 +49,7 @@ func syncNamespace(syncPolicy *v1alpha1.SyncPolicy) func(m *unstructured.Unstruc
 // with server-side apply
 func appendSSAAnnotation(in map[string]string) map[string]string {
 	r := map[string]string{}
-	for k, v := range in {
-		r[k] = v
-	}
+	maps.Copy(r, in)
 	r[gitopscommon.AnnotationSyncOptions] = gitopscommon.SyncOptionServerSideApply
 	return r
 }

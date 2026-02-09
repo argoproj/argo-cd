@@ -42,7 +42,7 @@ Not recommended for production use. This type of installation is typically used 
 > and have to be installed separately. The CRD manifests are located in the [manifests/crds](https://github.com/argoproj/argo-cd/blob/stable/manifests/crds) directory.
 > Use the following command to install them:
 > ```
-> kubectl apply -k https://github.com/argoproj/argo-cd/manifests/crds\?ref\=stable
+> kubectl apply --server-side --force-conflicts -k https://github.com/argoproj/argo-cd/manifests/crds\?ref\=stable
 > ```
 
 ### High Availability:
