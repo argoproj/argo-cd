@@ -1244,7 +1244,7 @@ func (sc *syncContext) needsClientSideApplyMigration(liveObj *unstructured.Unstr
 // This is the primary method for CSA to SSA migration in ArgoCD.
 func (sc *syncContext) performCSAUpgradeMigration(liveObj *unstructured.Unstructured, csaFieldManager string) error {
 	sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).V(1).Info(
-		"Performing csaupgrade-based migration (annotation too large for CSA)")
+		"Performing csaupgrade-based migration")
 
 	// Generate the migration patch using the csaupgrade package
 	// This unions the CSA manager's fields into the SSA manager and removes the CSA manager entry

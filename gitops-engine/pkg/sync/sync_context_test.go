@@ -2603,6 +2603,50 @@ func TestPerformCSAUpgradeMigration_NoMigrationNeeded(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestPerformCSAUpgradeMigration_WithCSAManager(t *testing.T) {
+	// Create a fake dynamic client with a Pod scheme
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	// Create the live object with a CSA manager (operation: Update)
+	obj := testingutils.NewPod()
+	obj.SetNamespace(testingutils.FakeArgoCDNamespace)
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+		{
+			Manager:   "kubectl-client-side-apply",
+			Operation: metav1.ManagedFieldsOperationUpdate,
+			FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:metadata":{"f:labels":{"f:app":{}}}}`)},
+		},
+	})
+
+	// Create fake dynamic client with the object
+	dynamicClient := fake.NewSimpleDynamicClient(scheme, obj)
+
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.serverSideApplyManager = "argocd-controller"
+	syncCtx.dynamicIf = dynamicClient
+	syncCtx.disco = &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources},
+	}
+
+	// Perform the migration
+	err := syncCtx.performCSAUpgradeMigration(obj, "kubectl-client-side-apply")
+	assert.NoError(t, err)
+
+	// Get the updated object from the fake client
+	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
+	updatedObj, err := dynamicClient.Resource(gvr).Namespace(obj.GetNamespace()).Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+	require.NoError(t, err)
+
+	// Verify the CSA manager (operation: Update) no longer exists
+	managedFields := updatedObj.GetManagedFields()
+	for _, mf := range managedFields {
+		if mf.Manager == "kubectl-client-side-apply" && mf.Operation == metav1.ManagedFieldsOperationUpdate {
+			t.Errorf("CSA manager 'kubectl-client-side-apply' with operation Update should have been removed, but still exists")
+		}
+	}
+}
+
 func diffResultListClusterResource() *diff.DiffResultList {
 	ns1 := testingutils.NewNamespace()
 	ns1.SetName("ns-1")
