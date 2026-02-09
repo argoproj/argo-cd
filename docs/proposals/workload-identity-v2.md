@@ -16,7 +16,7 @@ last-updated: 2025-01-29
 
 # Workload Identity for Repository Authentication
 
-Enable ArgoCD to authenticate to OCI registries and Git repositories using cloud-native workload identity instead
+Enable Argo CD to authenticate to OCI registries and Git repositories using cloud-native workload identity instead
 of static credentials.
 
 ## Summary
