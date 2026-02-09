@@ -714,6 +714,7 @@ message ApplicationStatus {
   optional OperationState operationState = 7;
 
   // ObservedAt indicates when the application state was updated without querying latest git state
+  //
   // Deprecated: controller no longer updates ObservedAt field
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
@@ -2059,6 +2060,7 @@ message ResourceDiff {
   optional string liveState = 6;
 
   // Diff contains the JSON patch representing the difference between the live and target resource.
+  //
   // Deprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.
   optional string diff = 7;
 
