@@ -37,7 +37,7 @@ shift provides significant security benefits. While there is some ad-hoc support
 implementations of it have a few issues.
 
 **Current State:**
-- ArgoCD stores registry credentials (username/password, tokens) in Kubernetes secrets
+- Argo CD stores registry credentials (username/password, tokens) in Kubernetes secrets
 - These credentials are long-lived and must be manually rotated
 - Credential leakage poses significant security risks
 - The existing implementation of Workload Identity is in practice scoped on the whole repo-server, meaning that there
