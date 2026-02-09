@@ -1860,6 +1860,18 @@ message RepoCreds {
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
+
+  // AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalClientId = 28;
+
+  // AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalClientSecret = 29;
+
+  // AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalTenantId = 30;
+
+  // AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
+  optional string azureActiveDirectoryEndpoint = 31;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1952,6 +1964,18 @@ message Repository {
 
   // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
   optional int64 depth = 27;
+
+  // AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalClientId = 28;
+
+  // AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalClientSecret = 29;
+
+  // AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalTenantId = 30;
+
+  // AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
+  optional string azureActiveDirectoryEndpoint = 31;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
