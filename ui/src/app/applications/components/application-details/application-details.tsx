@@ -741,13 +741,8 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         ...commonProps,
                                         onNodeClick: (fullName: string) => selectNode(fullName),
                                         nodeMenu: (node: ResourceTreeNode) =>
-                                            AppUtils.renderResourceMenu(
-                                                node,
-                                                application as appModels.Application,
-                                                tree,
-                                                appContext,
-                                                appChanged.current,
-                                                () => getApplicationActionMenu(application as appModels.Application, false)
+                                            AppUtils.renderResourceMenu(node, application as appModels.Application, tree, appContext, appChanged.current, () =>
+                                                getApplicationActionMenu(application as appModels.Application, false)
                                             ),
                                         app: application as appModels.Application,
                                         showOrphanedResources: pref.orphanedResources,
