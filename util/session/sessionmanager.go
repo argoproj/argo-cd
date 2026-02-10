@@ -43,11 +43,15 @@ type SessionManager struct {
 	settingsMgr                   *settings.SettingsManager
 	projectsLister                v1alpha1.AppProjectNamespaceLister
 	client                        *http.Client
+	transport                     *http.Transport
+	dexTLSConfig                  *dex.DexTLSConfig
+	dexServerAddr                 string
 	prov                          oidcutil.Provider
 	storage                       UserStateStorage
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
 	failedLock                    sync.RWMutex
+	transportOnce                 sync.Once
 	metricsRegistry               MetricsRegistry
 }
 
@@ -129,18 +133,6 @@ func getLoginFailureWindow() time.Duration {
 
 // NewSessionManager creates a new session manager from Argo CD settings
 func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, dexTLSConfig *dex.DexTLSConfig, storage UserStateStorage) *SessionManager {
-	s := SessionManager{
-		settingsMgr:                   settingsMgr,
-		storage:                       storage,
-		sleep:                         time.Sleep,
-		projectsLister:                projectsLister,
-		verificationDelayNoiseEnabled: true,
-	}
-	settings, err := settingsMgr.GetSettings()
-	if err != nil {
-		panic(err)
-	}
-
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		Dial: (&net.Dialer{
@@ -151,22 +143,37 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 
-	s.client = &http.Client{
-		Transport: transport,
+	s := SessionManager{
+		settingsMgr:                   settingsMgr,
+		storage:                       storage,
+		sleep:                         time.Sleep,
+		projectsLister:                projectsLister,
+		verificationDelayNoiseEnabled: true,
+		client:                        &http.Client{Transport: transport},
+		transport:                     transport,
+		dexTLSConfig:                  dexTLSConfig,
+		dexServerAddr:                 dexServerAddr,
 	}
-
-	if settings.DexConfig != "" {
-		transport.TLSClientConfig = dex.TLSConfig(dexTLSConfig)
-		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTLSConfig)
-		s.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, s.client.Transport)
-	} else {
-		transport.TLSClientConfig = settings.OIDCTLSConfig()
-	}
-	if os.Getenv(common.EnvVarSSODebug) == "1" {
-		s.client.Transport = httputil.DebugTransport{T: s.client.Transport}
-	}
+	// Transport TLS is configured lazily in configureTransport() to avoid a
+	// race where DexConfig is not yet present in argocd-cm at startup but
+	// arrives later via a settings update / graceful restart.
 
 	return &s
+}
+
+// configureTransport sets up the HTTP transport TLS and URL-rewriting based on
+// the given settings.  Called once via sync.Once from provider().
+func (mgr *SessionManager) configureTransport(settings *settings.ArgoCDSettings) {
+	if settings.DexConfig != "" {
+		mgr.transport.TLSClientConfig = dex.TLSConfig(mgr.dexTLSConfig)
+		addrWithProto := dex.DexServerAddressWithProtocol(mgr.dexServerAddr, mgr.dexTLSConfig)
+		mgr.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, mgr.transport)
+	} else {
+		mgr.transport.TLSClientConfig = settings.OIDCTLSConfig()
+	}
+	if os.Getenv(common.EnvVarSSODebug) == "1" {
+		mgr.client.Transport = httputil.DebugTransport{T: mgr.client.Transport}
+	}
 }
 
 // Create creates a new token for a given subject (user) and returns it as a string.
@@ -616,6 +623,7 @@ func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
 	if !settings.IsSSOConfigured() {
 		return nil, errors.New("SSO is not configured")
 	}
+	mgr.transportOnce.Do(func() { mgr.configureTransport(settings) })
 	mgr.prov = oidcutil.NewOIDCProvider(settings.IssuerURL(), mgr.client)
 	return mgr.prov, nil
 }
