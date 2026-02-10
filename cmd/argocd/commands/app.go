@@ -1988,8 +1988,8 @@ func parseSelectedResources(resources []string) ([]*argoappv1.SyncOperationResou
 	for _, resource := range resources {
 		isExcluded := false
 		// check if the resource flag starts with a '!'
-		if strings.HasPrefix(resource, resourceExcludeIndicator) {
-			resource = strings.TrimPrefix(resource, resourceExcludeIndicator)
+		if after, ok := strings.CutPrefix(resource, resourceExcludeIndicator); ok {
+			resource = after
 			isExcluded = true
 		}
 		fields := strings.Split(resource, resourceFieldDelimiter)

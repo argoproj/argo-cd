@@ -226,7 +226,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 	}
 
 	for _, data := range testData {
-		data := data
 		t.Run(data.name, func(t *testing.T) {
 			t.Parallel()
 

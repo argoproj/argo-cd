@@ -3,6 +3,7 @@ package pull_request
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
@@ -136,13 +137,7 @@ func convertLabels(tags *[]core.WebApiTagDefinition) []string {
 // containAzureDevOpsLabels returns true if gotLabels contains expectedLabels
 func containAzureDevOpsLabels(expectedLabels []string, gotLabels []string) bool {
 	for _, expected := range expectedLabels {
-		found := false
-		for _, got := range gotLabels {
-			if expected == got {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(gotLabels, expected)
 		if !found {
 			return false
 		}

@@ -410,7 +410,6 @@ argocd_app_labels{label_non_existing="",name="my-app-3",namespace="argocd",proje
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run(c.description, func(t *testing.T) {
 			testMetricServer(t, c.applications, c.responseContains, c.metricLabels, []string{})
 		})
@@ -464,7 +463,6 @@ argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespa
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run(c.description, func(t *testing.T) {
 			testMetricServer(t, c.applications, c.responseContains, []string{}, c.metricConditions)
 		})
@@ -506,7 +504,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=
 // assertMetricsPrinted asserts every line in the expected lines appears in the body
 func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
 	t.Helper()
-	for _, line := range strings.Split(expectedLines, "\n") {
+	for line := range strings.SplitSeq(expectedLines, "\n") {
 		if line == "" {
 			continue
 		}
@@ -517,7 +515,7 @@ func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
 // assertMetricsNotPrinted
 func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 	t.Helper()
-	for _, line := range strings.Split(expectedLines, "\n") {
+	for line := range strings.SplitSeq(expectedLines, "\n") {
 		if line == "" {
 			continue
 		}

@@ -86,39 +86,18 @@ export class AbstractAppsListPreferences {
 }
 
 export class AppsListPreferences extends AbstractAppsListPreferences {
-    public static countEnabledFilters(pref: AppsListPreferences) {
-        return [
-            pref.clustersFilter,
-            pref.healthFilter,
-            pref.labelsFilter,
-            pref.annotationsFilter,
-            pref.namespacesFilter,
-            pref.projectsFilter,
-            pref.reposFilter,
-            pref.syncFilter,
-            pref.operationFilter
-        ].reduce((count, filter) => {
-            if (filter && filter.length > 0) {
-                return count + 1;
-            }
-            return count;
-        }, 0);
-    }
-
     public static clearFilters(pref: AppsListPreferences) {
         super.clearFilters(pref);
 
         pref.clustersFilter = [];
         pref.namespacesFilter = [];
         pref.projectsFilter = [];
-        pref.reposFilter = [];
         pref.syncFilter = [];
         pref.autoSyncFilter = [];
         pref.operationFilter = [];
     }
 
     public projectsFilter: string[];
-    public reposFilter: string[];
     public syncFilter: string[];
     public autoSyncFilter: string[];
     public namespacesFilter: string[];
@@ -127,15 +106,6 @@ export class AppsListPreferences extends AbstractAppsListPreferences {
 }
 
 export class AppSetsListPreferences extends AbstractAppsListPreferences {
-    public static countEnabledFilters(pref: AppSetsListPreferences) {
-        return [pref.healthFilter, pref.labelsFilter].reduce((count, filter) => {
-            if (filter && filter.length > 0) {
-                return count + 1;
-            }
-            return count;
-        }, 0);
-    }
-
     public static clearFilters(pref: AppSetsListPreferences) {
         super.clearFilters(pref);
     }
@@ -187,7 +157,6 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
         clustersFilter: new Array<string>(),
-        reposFilter: new Array<string>(),
         syncFilter: new Array<string>(),
         autoSyncFilter: new Array<string>(),
         healthFilter: new Array<string>(),
@@ -260,7 +229,6 @@ export class ViewPreferencesService {
         appList.projectsFilter = appList.projectsFilter || [];
         appList.namespacesFilter = appList.namespacesFilter || [];
         appList.clustersFilter = appList.clustersFilter || [];
-        appList.reposFilter = appList.reposFilter || [];
         appList.syncFilter = appList.syncFilter || [];
         appList.autoSyncFilter = appList.autoSyncFilter || [];
         appList.healthFilter = appList.healthFilter || [];
