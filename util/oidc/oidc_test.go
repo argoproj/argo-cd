@@ -24,6 +24,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -153,7 +156,7 @@ clientID: xxx
 clientSecret: yyy
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err := NewClientApp(nil, cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
@@ -166,7 +169,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
 
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err = NewClientApp(nil, cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
@@ -190,7 +193,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err := NewClientApp(nil, cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
@@ -203,7 +206,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			t.Fatal("did not receive expected certificate verification failure error")
 		}
 
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err = NewClientApp(nil, cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
@@ -229,7 +232,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 		cdSettings.OIDCConfigRAW = string(oidcConfigRaw)
 
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err := NewClientApp(nil, cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
@@ -262,7 +265,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 		cdSettings.OIDCConfigRAW = string(oidcConfigRaw)
 
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err := NewClientApp(nil, cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
@@ -299,7 +302,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.NoError(t, err)
 		cdSettings.DexConfig = string(dexConfigRaw)
 
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err := NewClientApp(nil, cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
@@ -337,7 +340,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err := NewClientApp(nil, cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		t.Run("should accept login redirecting on the main domain", func(t *testing.T) {
@@ -433,7 +436,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 	}
 	// The base href (the last argument for NewClientApp) is what HandleLogin will fall back to when no explicit
 	// redirect URL is given.
-	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	app, err := NewClientApp(nil, cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -481,7 +484,7 @@ requestedScopes: ["oidc"]
 enablePKCEAuthentication: true`, oidcTestServer.URL),
 		OIDCTLSInsecureSkipVerify: true,
 	}
-	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	app, err := NewClientApp(nil, cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
@@ -530,7 +533,7 @@ clientID: xxx
 clientSecret: yyy
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err := NewClientApp(nil, cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/callback", http.NoBody)
@@ -545,7 +548,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
 
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err = NewClientApp(nil, cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
@@ -569,7 +572,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err := NewClientApp(nil, cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/callback", http.NoBody)
@@ -582,7 +585,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			t.Fatal("did not receive expected certificate verification failure error")
 		}
 
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err = NewClientApp(nil, cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
@@ -697,7 +700,7 @@ skipAudienceCheckWhenTokenHasNoAudience: true
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err := NewClientApp(nil, cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/callback", http.NoBody)
@@ -715,7 +718,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		cdSettings.OIDCTLSInsecureSkipVerify = true
 
-		app, err = NewClientApp(cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err = NewClientApp(nil, cdSettings, dexTestServer.URL, nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		w = httptest.NewRecorder()
@@ -819,7 +822,7 @@ func TestGenerateAppState(t *testing.T) {
 	signature, err := util.MakeSignature(32)
 	require.NoError(t, err)
 	expectedReturnURL := "http://argocd.example.com/"
-	app, err := NewClientApp(&settings.ArgoCDSettings{ServerSignature: signature, URL: expectedReturnURL}, "", nil, "", cache.NewInMemoryCache(24*time.Hour))
+	app, err := NewClientApp(nil, &settings.ArgoCDSettings{ServerSignature: signature, URL: expectedReturnURL}, "", nil, "", cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 	generateResponse := httptest.NewRecorder()
 	expectedPKCEVerifier := oauth2.GenerateVerifier()
@@ -853,6 +856,7 @@ func TestGenerateAppState_XSS(t *testing.T) {
 	signature, err := util.MakeSignature(32)
 	require.NoError(t, err)
 	app, err := NewClientApp(
+		nil,
 		&settings.ArgoCDSettings{
 			// Only return URLs starting with this base should be allowed.
 			URL:             "https://argocd.example.com",
@@ -909,7 +913,7 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	encrypted, err := crypto.Encrypt([]byte("123"), key)
 	require.NoError(t, err)
-	app, err := NewClientApp(cdSettings, "", nil, "/argo-cd", cache.NewInMemoryCache(24*time.Hour))
+	app, err := NewClientApp(nil, cdSettings, "", nil, "/argo-cd", cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 
 	req.AddCookie(&http.Cookie{Name: common.StateCookieName, Value: hex.EncodeToString(encrypted)})
@@ -1141,7 +1145,7 @@ func TestGetUserInfo(t *testing.T) {
 			cdSettings := &settings.ArgoCDSettings{ServerSignature: signature}
 			encryptionKey, err := cdSettings.GetServerEncryptionKey()
 			require.NoError(t, err)
-			a, _ := NewClientApp(cdSettings, "", nil, "/argo-cd", tt.cache)
+			a, _ := NewClientApp(nil, cdSettings, "", nil, "/argo-cd", tt.cache)
 
 			for _, item := range tt.cacheItems {
 				var newValue []byte
@@ -1234,7 +1238,7 @@ issuer: http://localhost:63231
 enableUserInfoGroups: true
 userInfoPath: /`,
 			}
-			a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", userInfoCache)
+			a, err := NewClientApp(nil, cdSettings, "", nil, "/argo-cd", userInfoCache)
 			require.NoError(t, err, "failed creating clientapp")
 
 			// prepoluate cache to predict what the GetUserInfo function will return to the SetGroupsFromUserInfo function (without having to mock the userinfo response)
@@ -1413,7 +1417,7 @@ clientSecret: test-client-secret
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 				OIDCTLSInsecureSkipVerify: true,
 			}
-			app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+			app, err := NewClientApp(nil, cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
 			require.NoError(t, err)
 			if tt.insertIntoCache {
 				oidcTokenCacheJSON, err := json.Marshal(tt.oidcTokenCache)
@@ -1499,7 +1503,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL, tt.refreshTokenThreshold),
 			}
 			// The base href (the last argument for NewClientApp) is what HandleLogin will fall back to when no explicit
 			// redirect URL is given.
-			app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+			app, err := NewClientApp(nil, cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
 			require.NoError(t, err)
 			oidcTokenCacheJSON, err := json.Marshal(&OidcTokenCache{Token: &oauth2.Token{
 				RefreshToken: "not empty",
@@ -1569,4 +1573,201 @@ func TestClientApp_getRedirectURIForRequest(t *testing.T) {
 			assert.Equal(t, expectedRedirectURI, redirectURI, "expected URI")
 		})
 	}
+}
+
+// TestClientApp_LazyTransportConfig verifies that the ClientApp correctly
+// configures its HTTP transport even when DexConfig is not present at
+// construction time but arrives later via a settings update.
+func TestClientApp_LazyTransportConfig(t *testing.T) {
+	dexTestServer := test.GetDexTestServer(t)
+	t.Cleanup(dexTestServer.Close)
+
+	dexTLSConfig := &dex.DexTLSConfig{
+		DisableTLS:       false,
+		StrictValidation: false,
+	}
+
+	t.Run("transport configured for dex when DexConfig arrives after construction", func(t *testing.T) {
+		// Phase 1: Create ClientApp with NO DexConfig (simulates first
+		// startup where argocd-cm hasn't been populated yet).
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-cm",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"url": dexTestServer.URL,
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "argocd",
+				},
+				Data: map[string][]byte{
+					"server.secretkey": []byte("Hello, world!"),
+				},
+			},
+		)
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, "argocd")
+		cdSettings, err := settingsMgr.GetSettings()
+		require.NoError(t, err)
+
+		a, err := NewClientApp(settingsMgr, cdSettings, dexTestServer.URL, dexTLSConfig, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		// At this point the transport should NOT be configured for dex.
+		assert.Nil(t, a.transport.TLSClientConfig,
+			"transport TLS should not be configured at construction when DexConfig is empty")
+
+		// Phase 2: Update the configmap to include DexConfig.
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd-cm",
+				Namespace: "argocd",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{
+				"url": dexTestServer.URL,
+				"dex.config": `connectors:
+- type: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: aabbccddeeff00112233`,
+			},
+		}
+		_, err = kubeClient.CoreV1().ConfigMaps("argocd").Update(t.Context(), cm, metav1.UpdateOptions{})
+		require.NoError(t, err)
+
+		// Invalidate settings cache so the manager re-reads the configmap.
+		err = settingsMgr.ResyncInformers()
+		require.NoError(t, err)
+
+		// Phase 3: Trigger configureTransport via sync.Once.
+		a.transportOnce.Do(a.configureTransport)
+
+		// Verify the transport was configured for dex:
+		// 1. TLS should have InsecureSkipVerify (non-strict dex mode)
+		require.NotNil(t, a.transport.TLSClientConfig,
+			"transport TLS should be configured after configureTransport runs")
+		assert.True(t, a.transport.TLSClientConfig.InsecureSkipVerify,
+			"transport should have InsecureSkipVerify=true for non-strict dex")
+
+		// 2. The client transport should be a DexRewriteURLRoundTripper
+		_, isDexRewriter := a.client.Transport.(dex.DexRewriteURLRoundTripper)
+		assert.True(t, isDexRewriter,
+			"client transport should be DexRewriteURLRoundTripper when DexConfig is set")
+	})
+
+	t.Run("transport configured for external OIDC when no DexConfig", func(t *testing.T) {
+		oidcTestServer := test.GetOIDCTestServer(t, nil)
+		t.Cleanup(oidcTestServer.Close)
+
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-cm",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"url": "https://argocd.example.com",
+					"oidc.config": fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: xxx
+clientSecret: yyy`, oidcTestServer.URL),
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "argocd",
+				},
+				Data: map[string][]byte{
+					"server.secretkey": []byte("Hello, world!"),
+				},
+			},
+		)
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, "argocd")
+		cdSettings, err := settingsMgr.GetSettings()
+		require.NoError(t, err)
+
+		a, err := NewClientApp(settingsMgr, cdSettings, dexTestServer.URL, dexTLSConfig, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		// Trigger configureTransport.
+		a.transportOnce.Do(a.configureTransport)
+
+		// Should NOT have InsecureSkipVerify (external OIDC mode)
+		require.NotNil(t, a.transport.TLSClientConfig)
+		assert.False(t, a.transport.TLSClientConfig.InsecureSkipVerify,
+			"transport should verify certs for external OIDC")
+
+		// Should NOT be a DexRewriteURLRoundTripper
+		_, isDexRewriter := a.client.Transport.(dex.DexRewriteURLRoundTripper)
+		assert.False(t, isDexRewriter,
+			"client transport should not be DexRewriteURLRoundTripper for external OIDC")
+	})
+
+	t.Run("transport configured for dex when DexConfig present at construction", func(t *testing.T) {
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-cm",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"url": dexTestServer.URL,
+					"dex.config": `connectors:
+- type: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: aabbccddeeff00112233`,
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "argocd",
+				},
+				Data: map[string][]byte{
+					"server.secretkey": []byte("Hello, world!"),
+				},
+			},
+		)
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, "argocd")
+		cdSettings, err := settingsMgr.GetSettings()
+		require.NoError(t, err)
+
+		a, err := NewClientApp(settingsMgr, cdSettings, dexTestServer.URL, dexTLSConfig, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		// Transport not configured yet - lazy.
+		assert.Nil(t, a.transport.TLSClientConfig)
+
+		// Trigger configureTransport.
+		a.transportOnce.Do(a.configureTransport)
+
+		// Should be configured for dex.
+		require.NotNil(t, a.transport.TLSClientConfig)
+		assert.True(t, a.transport.TLSClientConfig.InsecureSkipVerify,
+			"transport should have InsecureSkipVerify=true for dex")
+		_, isDexRewriter := a.client.Transport.(dex.DexRewriteURLRoundTripper)
+		assert.True(t, isDexRewriter,
+			"client transport should be DexRewriteURLRoundTripper")
+	})
 }

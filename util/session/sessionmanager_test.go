@@ -380,7 +380,7 @@ issuer: http://localhost:63231
 enableUserInfoGroups: true
 userInfoPath: /`,
 				}
-				clientApp, err = oidc.NewClientApp(cdSettings, "", nil, "/argo-cd", userInfoCache)
+				clientApp, err = oidc.NewClientApp(nil, cdSettings, "", nil, "/argo-cd", userInfoCache)
 				require.NoError(t, err, "failed creating clientapp")
 
 				// prepopulate the cache with claims to return for a userinfo call
