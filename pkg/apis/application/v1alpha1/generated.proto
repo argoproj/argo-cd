@@ -2221,6 +2221,9 @@ message ResourceResult {
 
   // Images contains the images related to the ResourceResult
   repeated string images = 11;
+
+  // SyncWave indicates the wave in which this resource was applied
+  optional int64 syncWave = 12;
 }
 
 // ResourceStatus holds the current synchronization and health status of a Kubernetes resource.

@@ -31,6 +31,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/sync/hook"
 	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
+	"github.com/argoproj/gitops-engine/pkg/sync/syncwaves"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
 
@@ -1633,6 +1634,7 @@ func (sc *syncContext) setResourceResult(task *syncTask, syncStatus common.Resul
 		HookType:    task.hookType(),
 		HookPhase:   task.operationState,
 		SyncPhase:   task.phase,
+		SyncWave:    syncwaves.Wave(task.obj()),
 	}
 
 	logCtx := sc.log.WithValues("namespace", task.namespace(), "kind", task.kind(), "name", task.name(), "phase", task.phase)

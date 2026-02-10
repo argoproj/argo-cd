@@ -153,11 +153,11 @@ export interface ResourceResult {
     hookType: HookType;
     hookPhase: OperationPhase;
     images?: string[];
+    syncWave: number;
 }
 
 export type SyncResourceResult = ResourceResult & {
     health?: HealthStatus;
-    syncWave?: number;
 };
 
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';

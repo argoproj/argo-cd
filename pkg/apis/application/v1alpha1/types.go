@@ -1719,6 +1719,8 @@ type ResourceResult struct {
 	SyncPhase synccommon.SyncPhase `json:"syncPhase,omitempty" protobuf:"bytes,10,opt,name=syncPhase"`
 	// Images contains the images related to the ResourceResult
 	Images []string `json:"images,omitempty" protobuf:"bytes,11,opt,name=images"`
+	// SyncWave indicates the wave in which this resource was applied
+	SyncWave int64 `json:"syncWave,omitempty" protobuf:"bytes,12,opt,name=syncWave"`
 }
 
 // GroupVersionKind returns the GVK schema information for a given resource within a sync result

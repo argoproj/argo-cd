@@ -417,6 +417,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 			Status:    res.Status,
 			Message:   res.Message,
 			Images:    res.Images,
+			SyncWave:  int64(res.SyncWave),
 		})
 	}
 

@@ -4258,6 +4258,11 @@ spec:
                               description: SyncPhase indicates the particular phase
                                 of the sync that this result was acquired in
                               type: string
+                            syncWave:
+                              description: SyncWave indicates the wave in which this
+                                resource was applied
+                              format: int64
+                              type: integer
                             version:
                               description: Version specifies the API version of the
                                 resource

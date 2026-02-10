@@ -166,4 +166,6 @@ type ResourceSyncResult struct {
 	HookPhase OperationPhase
 	// indicates the particular phase of the sync that this is for
 	SyncPhase SyncPhase
+	// SyncWave holds the wave number for ordering resource application
+	SyncWave int
 }

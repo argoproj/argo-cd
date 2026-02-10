@@ -159,8 +159,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
     const resourceHealth = application.status.resources.reduce(
         (acc, res) => {
             acc[buildResourceUniqueId(res)] = {
-                health: res.health,
-                syncWave: res.syncWave
+                health: res.health
             };
 
             return acc;
@@ -169,7 +168,6 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             string,
             {
                 health: models.HealthStatus;
-                syncWave: number;
             }
         >
     );
@@ -186,8 +184,6 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
         if (healthStatus?.health) {
             syncResultWithHealth.health = healthStatus.health;
         }
-
-        syncResultWithHealth.syncWave = healthStatus?.syncWave;
 
         return syncResultWithHealth;
     });
