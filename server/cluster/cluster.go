@@ -117,7 +117,7 @@ func filterClustersByName(clusters []appv1.Cluster, name string) []appv1.Cluster
 		return clusters
 	}
 	items := make([]appv1.Cluster, 0)
-	for i := 0; i < len(clusters); i++ {
+	for i := range clusters {
 		if clusters[i].Name == name {
 			items = append(items, clusters[i])
 			return items
@@ -131,7 +131,7 @@ func filterClustersByServer(clusters []appv1.Cluster, server string) []appv1.Clu
 		return clusters
 	}
 	items := make([]appv1.Cluster, 0)
-	for i := 0; i < len(clusters); i++ {
+	for i := range clusters {
 		if clusters[i].Server == server {
 			items = append(items, clusters[i])
 			return items

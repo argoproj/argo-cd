@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1192,6 +1193,7 @@ type ApplicationStatus struct {
 	// OperationState contains information about any ongoing operations, such as a sync
 	OperationState *OperationState `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
 	// ObservedAt indicates when the application state was updated without querying latest git state
+	//
 	// Deprecated: controller no longer updates ObservedAt field
 	ObservedAt *metav1.Time `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
 	// SourceType specifies the type of this application
@@ -1437,10 +1439,8 @@ type SyncOptions []string
 // AddOption adds a sync option to the list of sync options and returns the modified list.
 // If option was already set, returns the unmodified list of sync options.
 func (o SyncOptions) AddOption(option string) SyncOptions {
-	for _, j := range o {
-		if j == option {
-			return o
-		}
+	if slices.Contains(o, option) {
+		return o
 	}
 	return append(o, option)
 }
@@ -1458,12 +1458,7 @@ func (o SyncOptions) RemoveOption(option string) SyncOptions {
 
 // HasOption returns true if the list of sync options contains given option
 func (o SyncOptions) HasOption(option string) bool {
-	for _, i := range o {
-		if option == i {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(o, option)
 }
 
 type ManagedNamespaceMetadata struct {
@@ -2197,6 +2192,7 @@ type ResourceDiff struct {
 	// LiveState contains the JSON-serialized resource manifest of the resource currently running in the cluster.
 	LiveState string `json:"liveState,omitempty" protobuf:"bytes,6,opt,name=liveState"`
 	// Diff contains the JSON patch representing the difference between the live and target resource.
+	//
 	// Deprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.
 	Diff string `json:"diff,omitempty" protobuf:"bytes,7,opt,name=diff"`
 	// Hook indicates whether this resource is a hook resource (e.g., pre-sync or post-sync hooks).
@@ -3321,12 +3317,7 @@ type ApplicationDestinationServiceAccount struct {
 
 // CascadedDeletion indicates if the deletion finalizer is set and controller should delete the application and it's cascaded resources
 func (app *Application) CascadedDeletion() bool {
-	for _, finalizer := range app.Finalizers {
-		if isPropagationPolicyFinalizer(finalizer) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(app.Finalizers, isPropagationPolicyFinalizer)
 }
 
 // IsRefreshRequested returns whether a refresh has been requested for an application, and if yes, the type of refresh that should be executed.
