@@ -1246,21 +1246,6 @@ func (sc *syncContext) performCSAUpgradeMigration(liveObj *unstructured.Unstruct
 	sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).V(1).Info(
 		"Performing csaupgrade-based migration")
 
-	// Generate the migration patch using the csaupgrade package
-	// This unions the CSA manager's fields into the SSA manager and removes the CSA manager entry
-	patchData, err := csaupgrade.UpgradeManagedFieldsPatch(
-		liveObj,
-		sets.New(csaFieldManager),
-		sc.serverSideApplyManager,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to generate csaupgrade migration patch: %w", err)
-	}
-	if patchData == nil {
-		// No migration needed
-		return nil
-	}
-
 	// Get the dynamic resource interface for the live object
 	gvk := liveObj.GroupVersionKind()
 	apiResource, err := kubeutil.ServerResourceForGroupVersionKind(sc.disco, gvk, "patch")
@@ -1270,16 +1255,51 @@ func (sc *syncContext) performCSAUpgradeMigration(liveObj *unstructured.Unstruct
 	res := kubeutil.ToGroupVersionResource(gvk.GroupVersion().String(), apiResource)
 	resIf := kubeutil.ToResourceInterface(sc.dynamicIf, apiResource, res, liveObj.GetNamespace())
 
-	// Apply the migration patch to transfer field ownership
-	_, err = resIf.Patch(context.TODO(), liveObj.GetName(), types.JSONPatchType, patchData, metav1.PatchOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to apply csaupgrade migration patch: %w", err)
-	}
+	// Use retry to handle conflicts if managed fields changed between reconciliation and now
+	//nolint:wrapcheck // error is wrapped inside the retry function
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Fetch fresh object to get current managed fields state
+		freshObj, getErr := resIf.Get(context.TODO(), liveObj.GetName(), metav1.GetOptions{})
+		if getErr != nil {
+			return fmt.Errorf("failed to get fresh object for CSA migration: %w", getErr)
+		}
 
-	sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).Info(
-		"Successfully migrated managed fields using csaupgrade")
+		// Check if migration is still needed with fresh state
+		if !sc.needsClientSideApplyMigration(freshObj, csaFieldManager) {
+			sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).V(1).Info(
+				"CSA migration no longer needed")
+			return nil
+		}
 
-	return nil
+		// Generate the migration patch using the csaupgrade package
+		// This unions the CSA manager's fields into the SSA manager and removes the CSA manager entry
+		patchData, patchErr := csaupgrade.UpgradeManagedFieldsPatch(
+			freshObj,
+			sets.New(csaFieldManager),
+			sc.serverSideApplyManager,
+		)
+		if patchErr != nil {
+			return fmt.Errorf("failed to generate csaupgrade migration patch: %w", patchErr)
+		}
+		if patchData == nil {
+			// No migration needed
+			return nil
+		}
+
+		// Apply the migration patch to transfer field ownership
+		_, patchErr = resIf.Patch(context.TODO(), liveObj.GetName(), types.JSONPatchType, patchData, metav1.PatchOptions{})
+		if patchErr != nil {
+			if apierrors.IsConflict(patchErr) {
+				sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).V(1).Info(
+					"Retrying CSA migration due to conflict")
+			}
+			return fmt.Errorf("failed to apply csaupgrade migration patch: %w", patchErr)
+		}
+
+		sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).Info(
+			"Successfully migrated managed fields using csaupgrade")
+		return nil
+	})
 }
 
 func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.ResultCode, string) {
