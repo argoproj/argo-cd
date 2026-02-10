@@ -131,8 +131,6 @@ func (p *providerImpl) Verify(ctx context.Context, tokenString string, argoSetti
 				break
 			}
 			// We store the error for each audience so that we can return a more detailed error message to the user.
-			// If this gets merged, we'll be able to detect failures unrelated to audiences and short-circuit this loop
-			// to avoid logging irrelevant warnings: https://github.com/coreos/go-oidc/pull/406
 			tokenVerificationErrors[aud] = err
 		}
 		// If the most recent attempt encountered an error, and if we have collected multiple errors, switch to the

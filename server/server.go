@@ -1181,7 +1181,8 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	// we use our own Marshaler
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler))
 	gwCookieOpts := runtime.WithForwardResponseOption(server.translateGrpcCookieHeader)
-	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts)
+	gwClientAddrOpts := grpc_util.WithClientAddrMetadata()
+	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts, gwClientAddrOpts)
 
 	var handler http.Handler = gwmux
 	if server.EnableGZip {
