@@ -1217,7 +1217,9 @@ func (sc *syncContext) shouldUseServerSideApply(targetObj *unstructured.Unstruct
 }
 
 // needsClientSideApplyMigration checks if a resource has fields managed by the specified manager
-// that need to be migrated to the server-side apply manager
+// with operation "Update" (client-side apply) that need to be migrated to server-side apply.
+// Client-side apply uses operation "Update", while server-side apply uses operation "Apply".
+// We only migrate managers with "Update" operation to avoid re-migrating already-migrated managers.
 func (sc *syncContext) needsClientSideApplyMigration(liveObj *unstructured.Unstructured, fieldManager string) bool {
 	if liveObj == nil || fieldManager == "" {
 		return false
@@ -1229,7 +1231,9 @@ func (sc *syncContext) needsClientSideApplyMigration(liveObj *unstructured.Unstr
 	}
 
 	for _, field := range managedFields {
-		if field.Manager == fieldManager {
+		// Only consider managers with operation "Update" (client-side apply).
+		// Managers with operation "Apply" are already using server-side apply.
+		if field.Manager == fieldManager && field.Operation == metav1.ManagedFieldsOperationUpdate {
 			return true
 		}
 	}

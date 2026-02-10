@@ -2574,6 +2574,21 @@ func TestNeedsClientSideApplyMigration(t *testing.T) {
 			}(),
 			expected: true,
 		},
+		{
+			name: "CSA manager with Apply operation should not need migration",
+			liveObj: func() *unstructured.Unstructured {
+				obj := testingutils.NewPod()
+				obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+					{
+						Manager:   "kubectl-client-side-apply",
+						Operation: metav1.ManagedFieldsOperationApply,
+						FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:metadata":{"f:labels":{}}}`)},
+					},
+				})
+				return obj
+			}(),
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2585,11 +2600,13 @@ func TestNeedsClientSideApplyMigration(t *testing.T) {
 }
 
 func TestPerformCSAUpgradeMigration_NoMigrationNeeded(t *testing.T) {
-	syncCtx := newTestSyncCtx(nil)
-	syncCtx.serverSideApplyManager = "argocd-controller"
+	// Create a fake dynamic client with a Pod scheme
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
 
 	// Object with only SSA manager (operation: Apply), no CSA manager (operation: Update)
 	obj := testingutils.NewPod()
+	obj.SetNamespace(testingutils.FakeArgoCDNamespace)
 	obj.SetManagedFields([]metav1.ManagedFieldsEntry{
 		{
 			Manager:   "argocd-controller",
@@ -2597,6 +2614,16 @@ func TestPerformCSAUpgradeMigration_NoMigrationNeeded(t *testing.T) {
 			FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:spec":{"f:containers":{}}}`)},
 		},
 	})
+
+	// Create fake dynamic client with the object
+	dynamicClient := fake.NewSimpleDynamicClient(scheme, obj)
+
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.serverSideApplyManager = "argocd-controller"
+	syncCtx.dynamicIf = dynamicClient
+	syncCtx.disco = &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources},
+	}
 
 	// Should return nil (no error) because there's no CSA manager to migrate
 	err := syncCtx.performCSAUpgradeMigration(obj, "kubectl-client-side-apply")
