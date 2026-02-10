@@ -255,6 +255,31 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			},
 		},
 		{
+			name: "extraction with docker rootfs tar.gzip layer",
+			fields: fields{
+				allowedMediaTypes: []string{"application/vnd.docker.image.rootfs.diff.tar.gzip"},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					layerBlob := createGzippedTarWithContent(t, "foo.yaml", "some content")
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes("application/vnd.docker.image.rootfs.diff.tar.gzip", layerBlob), layerBlob})
+				},
+				postValidationFunc: func(_, path string, _ Client, _ fields, _ args) {
+					manifestDir, err := os.ReadDir(path)
+					require.NoError(t, err)
+					require.Len(t, manifestDir, 1)
+					require.Equal(t, "foo.yaml", manifestDir[0].Name())
+					f, err := os.Open(filepath.Join(path, manifestDir[0].Name()))
+					require.NoError(t, err)
+					contents, err := io.ReadAll(f)
+					require.NoError(t, err)
+					require.Equal(t, "some content", string(contents))
+				},
+				manifestMaxExtractedSize:        1000,
+				disableManifestMaxExtractedSize: false,
+			},
+		},
+		{
 			name: "extraction with standard gzip layer using cache",
 			fields: fields{
 				allowedMediaTypes: []string{imagev1.MediaTypeImageLayerGzip},
