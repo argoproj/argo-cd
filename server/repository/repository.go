@@ -127,6 +127,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string, project str
 }
 
 // List returns list of repositories
+//
 // Deprecated: Use ListRepositories instead
 func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*v1alpha1.RepositoryList, error) {
 	return s.ListRepositories(ctx, q)
@@ -425,6 +426,7 @@ func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) 
 }
 
 // Create creates a repository or repository credential set
+//
 // Deprecated: Use CreateRepository() instead
 func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*v1alpha1.Repository, error) {
 	return s.CreateRepository(ctx, q)
@@ -535,6 +537,7 @@ func (s *Server) CreateWriteRepository(ctx context.Context, q *repositorypkg.Rep
 }
 
 // Update updates a repository or credential set
+//
 // Deprecated: Use UpdateRepository() instead
 func (s *Server) Update(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*v1alpha1.Repository, error) {
 	return s.UpdateRepository(ctx, q)
@@ -591,6 +594,7 @@ func (s *Server) UpdateWriteRepository(ctx context.Context, q *repositorypkg.Rep
 }
 
 // Delete removes a repository from the configuration
+//
 // Deprecated: Use DeleteRepository() instead
 func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
 	return s.DeleteRepository(ctx, q)

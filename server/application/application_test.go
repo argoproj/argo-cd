@@ -1004,7 +1004,7 @@ func TestNoAppEnumeration(t *testing.T) {
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
 
-	//nolint:staticcheck,SA1019 // RunResourceAction is deprecated, but we still need to support it for backward compatibility.
+	//nolint:staticcheck // SA1019: RunResourceAction is deprecated, but we still need to support it for backward compatibility.
 	t.Run("RunResourceAction", func(t *testing.T) {
 		_, err := appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Action: ptr.To("restart")})
 		require.NoError(t, err)
