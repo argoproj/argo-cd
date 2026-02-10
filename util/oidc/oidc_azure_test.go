@@ -279,7 +279,7 @@ func TestGetUserGroupsFromAzureOverageClaim(t *testing.T) {
 			require.NoError(t, err)
 
 			testCache := cache.NewInMemoryCache(24 * time.Hour)
-			a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", testCache)
+			a, err := NewClientApp(nil, cdSettings, "", nil, "/argo-cd", testCache)
 			require.NoError(t, err)
 
 			for key, value := range tt.cacheItems {
@@ -331,7 +331,7 @@ func TestCacheAzureGroupsOverageResponse(t *testing.T) {
 		require.NoError(t, err)
 
 		testCache := cache.NewInMemoryCache(24 * time.Hour)
-		a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", testCache)
+		a, err := NewClientApp(nil, cdSettings, "", nil, "/argo-cd", testCache)
 		require.NoError(t, err)
 
 		groups := []string{"group-1", "group-2"}
@@ -360,7 +360,7 @@ func TestCacheAzureGroupsOverageResponse(t *testing.T) {
 		}
 
 		testCache := cache.NewInMemoryCache(24 * time.Hour)
-		a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", testCache)
+		a, err := NewClientApp(nil, cdSettings, "", nil, "/argo-cd", testCache)
 		require.NoError(t, err)
 
 		groups := []string{"group-a"}
@@ -384,7 +384,7 @@ func TestCacheAzureGroupsOverageResponse(t *testing.T) {
 		}
 
 		testCache := cache.NewInMemoryCache(24 * time.Hour)
-		a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", testCache)
+		a, err := NewClientApp(nil, cdSettings, "", nil, "/argo-cd", testCache)
 		require.NoError(t, err)
 
 		groups := []string{"group-b"}
@@ -433,7 +433,7 @@ func TestGetUserGroupsFromAzureOverageClaim_CacheHitAfterFetch(t *testing.T) {
 	require.NoError(t, err)
 
 	testCache := cache.NewInMemoryCache(24 * time.Hour)
-	a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", testCache)
+	a, err := NewClientApp(nil, cdSettings, "", nil, "/argo-cd", testCache)
 	require.NoError(t, err)
 
 	accessToken := createTestJWT(t, jwt.MapClaims{"scp": "User.Read profile email"})
@@ -490,7 +490,7 @@ func TestGetUserGroupsFromAzureOverageClaim_CorruptCacheCallsAPI(t *testing.T) {
 	require.NoError(t, err)
 
 	testCache := cache.NewInMemoryCache(24 * time.Hour)
-	a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", testCache)
+	a, err := NewClientApp(nil, cdSettings, "", nil, "/argo-cd", testCache)
 	require.NoError(t, err)
 
 	// Populate cache with corrupt (non-JSON) data that is still validly encrypted.
