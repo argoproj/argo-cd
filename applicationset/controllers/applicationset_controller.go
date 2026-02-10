@@ -1452,6 +1452,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 	statusMap := status.GetResourceStatusMap(appset)
 	statusMap = status.BuildResourceStatus(statusMap, apps)
 
+	// add a comment for test coverage
 	statuses := []argov1alpha1.ResourceStatus{}
 	for _, status := range statusMap {
 		statuses = append(statuses, status)
