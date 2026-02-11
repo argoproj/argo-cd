@@ -1213,7 +1213,9 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 }
 
 // processCrossNamespaceChildren processes namespaced children of cluster-scoped resources
-// This enables traversing from cluster-scoped parents to their namespaced children across namespace boundaries
+// This enables traversing from cluster-scoped parents to their namespaced children across namespace boundaries.
+// It also handles multi-level hierarchies where cluster-scoped resources own other cluster-scoped resources
+// that in turn own namespaced resources (e.g., Provider -> ProviderRevision -> Deployment in Crossplane).
 func (c *clusterCache) processCrossNamespaceChildren(
 	clusterScopedKeys []kube.ResourceKey,
 	visited map[kube.ResourceKey]int,
@@ -1230,7 +1232,22 @@ func (c *clusterCache) processCrossNamespaceChildren(
 		childKeys := c.parentUIDToChildren[clusterResource.Ref.UID]
 		for _, childKey := range childKeys {
 			child := c.resources[childKey]
-			if child == nil || visited[childKey] != 0 {
+			if child == nil {
+				continue
+			}
+
+			// Check if already visited
+			alreadyVisited := visited[childKey] != 0
+
+			// If child is cluster-scoped and was already visited by processNamespaceHierarchy,
+			// we still need to recursively check for its cross-namespace children.
+			// This handles multi-level hierarchies like: ClusterScoped -> ClusterScoped -> Namespaced
+			// (e.g., Crossplane's Provider -> ProviderRevision -> Deployment)
+			if alreadyVisited {
+				if childKey.Namespace == "" {
+					// Recursively process cross-namespace children of this cluster-scoped child
+					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, visited, action)
+				}
 				continue
 			}
 
@@ -1245,6 +1262,12 @@ func (c *clusterCache) processCrossNamespaceChildren(
 				visited[childKey] = 1
 				// Recursively process descendants using index-based traversal
 				c.iterateChildrenUsingIndex(child, nsNodes, visited, action)
+
+				// If this child is also cluster-scoped, recursively process its cross-namespace children
+				if childKey.Namespace == "" {
+					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, visited, action)
+				}
+
 				visited[childKey] = 2
 			}
 		}
