@@ -39,7 +39,7 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	initLocalCluster.Do(func() {
 		info, err := db.kubeclientset.Discovery().ServerVersion()
 		if err == nil {
-			localCluster.Info.ServerVersion = fmt.Sprintf("%s.%s", info.Major, info.Minor)
+			localCluster.Info.ServerVersion = info.GitVersion
 			localCluster.Info.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 		} else {
 			localCluster.Info.ConnectionState = appv1.ConnectionState{

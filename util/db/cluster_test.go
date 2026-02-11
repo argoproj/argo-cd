@@ -724,3 +724,60 @@ func TestClusterRaceConditionClusterSecrets(t *testing.T) {
 		time.Sleep(time.Millisecond * 500)
 	}
 }
+
+func TestGetLocalCluster_ServerVersion(t *testing.T) {
+	t.Run("ServerVersion should include full semantic version", func(t *testing.T) {
+		kubeclientset := fake.NewClientset()
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset).(*db)
+
+		cluster := db.getLocalCluster()
+
+		require.NotEmpty(t, cluster.Info.ServerVersion)
+
+		// The version should start with 'v' and contain at least major.minor.patch
+		assert.Regexp(t, `^v\d+\.\d+\.\d+`, cluster.Info.ServerVersion,
+			"ServerVersion should be in full semantic version format (e.g., v1.34.0)")
+	})
+
+	t.Run("ServerVersion consistency between calls", func(t *testing.T) {
+		kubeclientset := fake.NewClientset()
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset).(*db)
+
+		cluster1 := db.getLocalCluster()
+		cluster2 := db.getLocalCluster()
+
+		// Both calls should return the same version (testing sync.Once behavior)
+		assert.Equal(t, cluster1.Info.ServerVersion, cluster2.Info.ServerVersion,
+			"ServerVersion should be consistent across multiple calls")
+	})
+
+	t.Run("ServerVersion should be in GitVersion format for Helm compatibility", func(t *testing.T) {
+		kubeclientset := fake.NewClientset()
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset).(*db)
+
+		cluster := db.getLocalCluster()
+
+		// The version should NOT be in the old format of just "major.minor"
+		// It should include the patch version to match Helm's .Capabilities.KubeVersion.Version
+		assert.NotRegexp(t, `^v?\d+\.\d+$`, cluster.Info.ServerVersion,
+			"ServerVersion should not be in the old major.minor format")
+
+		// Should be full semver with at least major.minor.patch
+		assert.Regexp(t, `^v\d+\.\d+\.\d+`, cluster.Info.ServerVersion,
+			"ServerVersion should include patch version for Helm compatibility")
+	})
+
+	t.Run("Connection state should be successful when version is retrieved", func(t *testing.T) {
+		kubeclientset := fake.NewClientset()
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset).(*db)
+
+		cluster := db.getLocalCluster()
+
+		assert.Equal(t, v1alpha1.ConnectionStatusSuccessful, cluster.Info.ConnectionState.Status)
+		assert.NotEmpty(t, cluster.Info.ServerVersion)
+	})
+}
