@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -77,12 +78,7 @@ var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Ku
 
 // IsKustomization checks if the given file name matches any known kustomization file names.
 func IsKustomization(path string) bool {
-	for _, kustomization := range KustomizationNames {
-		if path == kustomization {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(KustomizationNames, path)
 }
 
 // findKustomizeFile looks for any known kustomization file in the path

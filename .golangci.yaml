@@ -22,6 +22,7 @@ linters:
     - govet
     - importas
     - misspell
+    - modernize
     - noctx
     - perfsprint
     - revive
@@ -120,6 +121,11 @@ linters:
 
         - pkg: github.com/argoproj/argo-cd/v3/util/io
           alias: utilio
+
+    modernize:
+      disable:
+        # Suggest replacing omitempty with omitzero for struct fields.
+        - omitzero
 
     nolintlint:
       require-specific: true

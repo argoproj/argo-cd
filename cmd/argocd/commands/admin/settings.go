@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -271,9 +272,7 @@ func NewValidateSettingsCommand(cmdCtx commandContext) *cobra.Command {
 	for k := range validatorsByGroup {
 		allGroups = append(allGroups, k)
 	}
-	sort.Slice(allGroups, func(i, j int) bool {
-		return allGroups[i] < allGroups[j]
-	})
+	slices.Sort(allGroups)
 
 	command := &cobra.Command{
 		Use:   "validate",

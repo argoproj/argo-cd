@@ -16,16 +16,18 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/yaml"
@@ -39,7 +41,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/rand"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -69,8 +70,6 @@ const (
 	// cmp plugin sock file path
 	PluginSockFilePath = "/app/config/plugin"
 
-	E2ETestPrefix = "e2e-test-"
-
 	// finalizer to add to resources during tests. Make sure that the resource Kind of your object
 	// is included in the test EnsureCleanState code
 	TestFinalizer = TestingLabel + "/finalizer"
@@ -90,15 +89,12 @@ const (
 )
 
 var (
-	id                      string
-	shortId                 string
-	deploymentNamespace     string
-	name                    string
 	KubeClientset           kubernetes.Interface
 	KubeConfig              *rest.Config
 	DynamicClientset        dynamic.Interface
 	AppClientset            appclientset.Interface
 	ArgoCDClientset         apiclient.Client
+	Mapper                  meta.RESTMapper
 	adminUsername           string
 	AdminPassword           string
 	apiServerAddress        string
@@ -203,6 +199,7 @@ func init() {
 	AppClientset = appclientset.NewForConfigOrDie(config)
 	KubeClientset = kubernetes.NewForConfigOrDie(config)
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
+	Mapper = restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(KubeClientset.Discovery()))
 	KubeConfig = config
 
 	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultAPIServer)
@@ -305,14 +302,6 @@ func LoginAs(username string) error {
 	return loginAs(username, password)
 }
 
-func Name() string {
-	return name
-}
-
-func ShortId() string {
-	return shortId
-}
-
 func repoDirectory() string {
 	return path.Join(TmpDir(), repoDir)
 }
@@ -382,10 +371,6 @@ func RepoURL(urlType RepoURLType) string {
 
 func RepoBaseURL(urlType RepoURLType) string {
 	return path.Base(RepoURL(urlType))
-}
-
-func DeploymentNamespace() string {
-	return deploymentNamespace
 }
 
 // Convenience wrapper for updating argocd-cm
@@ -499,50 +484,6 @@ func SetImpersonationEnabled(impersonationEnabledFlag string) error {
 	})
 }
 
-func CreateRBACResourcesForImpersonation(serviceAccountName string, policyRules []rbacv1.PolicyRule) error {
-	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: serviceAccountName,
-		},
-	}
-	_, err := KubeClientset.CoreV1().ServiceAccounts(DeploymentNamespace()).Create(context.Background(), sa, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	role := &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccountName, "role"),
-		},
-		Rules: policyRules,
-	}
-	_, err = KubeClientset.RbacV1().Roles(DeploymentNamespace()).Create(context.Background(), role, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	rolebinding := &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccountName, "rolebinding"),
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     fmt.Sprintf("%s-%s", serviceAccountName, "role"),
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      serviceAccountName,
-				Namespace: DeploymentNamespace(),
-			},
-		},
-	}
-	_, err = KubeClientset.RbacV1().RoleBindings(DeploymentNamespace()).Create(context.Background(), rolebinding, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
@@ -594,14 +535,14 @@ func SetAccounts(accounts map[string][]string) error {
 
 func SetPermissions(permissions []ACL, username string, roleName string) error {
 	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
-		var aclstr string
+		var aclstr strings.Builder
 
 		for _, permission := range permissions {
-			aclstr += fmt.Sprintf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
+			aclstr.WriteString(fmt.Sprintf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope))
 		}
 
-		aclstr += fmt.Sprintf("g, %s, role:%s", username, roleName)
-		cm.Data["policy.csv"] = aclstr
+		aclstr.WriteString(fmt.Sprintf("g, %s, role:%s", username, roleName))
+		cm.Data["policy.csv"] = aclstr.String()
 
 		return nil
 	})
@@ -669,7 +610,7 @@ func WithTestData(testdata string) TestOption {
 	}
 }
 
-func EnsureCleanState(t *testing.T, opts ...TestOption) {
+func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 	t.Helper()
 	opt := newTestOption(opts...)
 	// In large scenarios, we can skip tests that already run
@@ -678,6 +619,9 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	t.Cleanup(func() {
 		RecordTestRun(t)
 	})
+
+	// Create TestState to hold test-specific variables
+	state := NewTestState(t)
 
 	start := time.Now()
 	policy := metav1.DeletePropagationBackground
@@ -758,6 +702,20 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds})
 		},
 		func() error {
+			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repository-write
+			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				t.Context(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepositoryWrite})
+		},
+		func() error {
+			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-write-creds
+			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				t.Context(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCredsWrite})
+		},
+		func() error {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=cluster
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				t.Context(),
@@ -771,8 +729,21 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				metav1.DeleteOptions{PropagationPolicy: &policy},
 				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
 		},
+		func() error {
+			// kubectl delete clusterroles -l e2e.argoproj.io=true
+			return KubeClientset.RbacV1().ClusterRoles().DeleteCollection(
+				t.Context(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
+		},
+		func() error {
+			// kubectl delete clusterrolebindings -l e2e.argoproj.io=true
+			return KubeClientset.RbacV1().ClusterRoleBindings().DeleteCollection(
+				t.Context(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
+		},
 	})
-
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
 		func() error {
 			// delete old namespaces which were created by tests
@@ -811,93 +782,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 					return err
 				}
 			}
-
-			namespaces, err = KubeClientset.CoreV1().Namespaces().List(t.Context(), metav1.ListOptions{})
-			if err != nil {
-				return err
-			}
-			testNamespaceNames := []corev1.Namespace{}
-			for _, namespace := range namespaces.Items {
-				if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
-					testNamespaceNames = append(testNamespaceNames, namespace)
-				}
-			}
-			if len(testNamespaceNames) > 0 {
-				err = deleteNamespaces(testNamespaceNames, true)
-				if err != nil {
-					return err
-				}
-			}
 			return nil
 		},
 		func() error {
 			// delete old CRDs which were created by tests, doesn't seem to have kube api to get items
 			_, err := Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false")
 			return err
-		},
-		func() error {
-			// delete old ClusterRoles which were created by tests
-			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(
-				t.Context(),
-				metav1.ListOptions{
-					LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
-				},
-			)
-			if err != nil {
-				return err
-			}
-			if len(clusterRoles.Items) > 0 {
-				args := []string{"delete", "clusterrole", "--wait=false"}
-				for _, clusterRole := range clusterRoles.Items {
-					args = append(args, clusterRole.Name)
-				}
-				_, err := Run("", "kubectl", args...)
-				if err != nil {
-					return err
-				}
-			}
-
-			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(t.Context(), metav1.ListOptions{})
-			if err != nil {
-				return err
-			}
-			testClusterRoleNames := []string{}
-			for _, clusterRole := range clusterRoles.Items {
-				if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
-					testClusterRoleNames = append(testClusterRoleNames, clusterRole.Name)
-				}
-			}
-			if len(testClusterRoleNames) > 0 {
-				args := []string{"delete", "clusterrole"}
-				args = append(args, testClusterRoleNames...)
-				_, err := Run("", "kubectl", args...)
-				if err != nil {
-					return err
-				}
-			}
-			return nil
-		},
-		func() error {
-			// delete old ClusterRoleBindings which were created by tests
-			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(t.Context(), metav1.ListOptions{})
-			if err != nil {
-				return err
-			}
-			testClusterRoleBindingNames := []string{}
-			for _, clusterRoleBinding := range clusterRoleBindings.Items {
-				if strings.HasPrefix(clusterRoleBinding.Name, E2ETestPrefix) {
-					testClusterRoleBindingNames = append(testClusterRoleBindingNames, clusterRoleBinding.Name)
-				}
-			}
-			if len(testClusterRoleBindingNames) > 0 {
-				args := []string{"delete", "clusterrolebinding"}
-				args = append(args, testClusterRoleBindingNames...)
-				_, err := Run("", "kubectl", args...)
-				if err != nil {
-					return err
-				}
-			}
-			return nil
 		},
 		func() error {
 			err := updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
@@ -1072,22 +962,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			return nil
 		},
 		func() error {
-			// random id - unique across test runs
-			randString, err := rand.String(5)
+			// create namespace for this test
+			_, err := Run("", "kubectl", "create", "ns", state.deploymentNamespace)
 			if err != nil {
 				return err
 			}
-			shortId = strings.ToLower(randString)
-			id = fmt.Sprintf("%s-%s", t.Name(), shortId)
-			name = DnsFriendly(t.Name(), "-"+shortId)
-			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), "-"+shortId)
-
-			// create namespace
-			_, err = Run("", "kubectl", "create", "ns", DeploymentNamespace())
-			if err != nil {
-				return err
-			}
-			_, err = Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true")
+			_, err = Run("", "kubectl", "label", "ns", state.deploymentNamespace, TestingLabel+"=true")
 			return err
 		},
 	})
@@ -1095,17 +975,19 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	log.WithFields(log.Fields{
 		"duration": time.Since(start),
 		"name":     t.Name(),
-		"id":       id,
+		"id":       state.id,
 		"username": "admin",
 		"password": "password",
 	}).Info("clean state")
+
+	return state
 }
 
 // RunCliWithRetry executes an Argo CD CLI command with retry logic.
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 	var out string
 	var err error
-	for i := 0; i < maxRetries; i++ {
+	for range maxRetries {
 		out, err = RunCli(args...)
 		if err == nil {
 			break
