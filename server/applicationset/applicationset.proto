@@ -33,6 +33,8 @@ message ApplicationSetWatchQuery {
 	repeated string projects = 2;
 	string selector = 3;
 	string appSetNamespace = 4;
+	// when specified with a watch call, shows changes that occur after that particular version of a resource.
+	string resourceVersion = 5;
 }
 
 

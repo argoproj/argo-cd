@@ -158,10 +158,11 @@ func (m *ApplicationSetListQuery) GetAppsetNamespace() string {
 }
 
 type ApplicationSetWatchQuery struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Projects             []string `protobuf:"bytes,2,rep,name=projects,proto3" json:"projects,omitempty"`
-	Selector             string   `protobuf:"bytes,3,opt,name=selector,proto3" json:"selector,omitempty"`
-	AppSetNamespace      string   `protobuf:"bytes,4,opt,name=appSetNamespace,proto3" json:"appSetNamespace,omitempty"`
+	Name            string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Projects        []string `protobuf:"bytes,2,rep,name=projects,proto3" json:"projects,omitempty"`
+	Selector        string   `protobuf:"bytes,3,opt,name=selector,proto3" json:"selector,omitempty"`
+	AppSetNamespace string   `protobuf:"bytes,4,opt,name=appSetNamespace,proto3" json:"appSetNamespace,omitempty"`
+	// when specified with a watch call, shows changes that occur after that particular version of a resource.
 	ResourceVersion      string   `protobuf:"bytes,5,opt,name=resourceVersion,proto3" json:"resourceVersion,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

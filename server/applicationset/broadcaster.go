@@ -1,11 +1,13 @@
 package applicationset
 
 import (
-	appsetv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	applog "github.com/argoproj/argo-cd/v3/util/app/log"
+	"sync"
+
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/watch"
-	"sync"
+
+	appsetv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 )
 
 type subscriber struct {

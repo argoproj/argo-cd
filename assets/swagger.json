@@ -4418,6 +4418,7 @@
           },
           {
             "type": "string",
+            "description": "when specified with a watch call, shows changes that occur after that particular version of a resource.",
             "name": "resourceVersion",
             "in": "query"
           }
