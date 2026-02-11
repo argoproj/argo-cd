@@ -49,3 +49,12 @@ rules:
   - workflows
   verbs:
   - create   # supports triggering workflows from UI
+# Allow argocd-server to impersonate application-controller for server-side diff.
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  resourceNames:
+  - argocd-application-controller
+  verbs:
+  - impersonate
