@@ -670,6 +670,88 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	})
 }
 
+func TestNormalizeTargetResourcesWithApplication(t *testing.T) {
+	setup := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *comparisonResult {
+		t.Helper()
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LiveApplicationMultiSourceYaml)
+		target := test.YamlToUnstructured(testdata.TargetApplicationMultiSourceYaml)
+		return &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live},
+				Target: []*unstructured.Unstructured{target},
+			},
+			diffConfig: dc,
+		}
+	}
+
+	t.Run("will preserve targetRevision from target when ignoring empty path in sources", func(t *testing.T) {
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "argoproj.io",
+				Kind:              "Application",
+				JQPathExpressions: []string{`.spec.sources[] | select(.path == "") | .path`},
+			},
+		}
+		cr := setup(t, ignores)
+
+		liveSources, _, _ := unstructured.NestedSlice(cr.reconciliationResult.Live[0].Object, "spec", "sources")
+		liveSource0 := liveSources[0].(map[string]any)
+		liveSource1 := liveSources[1].(map[string]any)
+		assert.Equal(t, "v1.0.0", liveSource0["targetRevision"])
+		assert.Equal(t, "1.0.0", liveSource1["targetRevision"])
+
+		targetSources, _, _ := unstructured.NestedSlice(cr.reconciliationResult.Target[0].Object, "spec", "sources")
+		targetSource0 := targetSources[0].(map[string]any)
+		targetSource1 := targetSources[1].(map[string]any)
+		assert.Equal(t, "main", targetSource0["targetRevision"])
+		assert.Equal(t, "2.0.0", targetSource1["targetRevision"])
+
+		targets, err := normalizeTargetResources(cr)
+
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		resultSources, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "sources")
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.Len(t, resultSources, 2)
+
+		resultSource0 := resultSources[0].(map[string]any)
+		resultSource1 := resultSources[1].(map[string]any)
+
+		assert.Equal(t, "main", resultSource0["targetRevision"], "targetRevision in sources[0] should be preserved from target")
+		assert.Equal(t, "2.0.0", resultSource1["targetRevision"], "targetRevision in sources[1] should be preserved from target")
+
+		path, exists, _ := unstructured.NestedString(resultSource1, "path")
+		assert.True(t, !exists || path == "", "empty path should be normalized")
+	})
+
+	t.Run("will not modify Application sources when no ignoreDifferences configured", func(t *testing.T) {
+		cr := setup(t, []v1alpha1.ResourceIgnoreDifferences{})
+
+		targets, err := normalizeTargetResources(cr)
+
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		resultSources, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "sources")
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.Len(t, resultSources, 2)
+
+		resultSource0 := resultSources[0].(map[string]any)
+		resultSource1 := resultSources[1].(map[string]any)
+
+		assert.Equal(t, "main", resultSource0["targetRevision"])
+		assert.Equal(t, "2.0.0", resultSource1["targetRevision"])
+	})
+}
+
 func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 	t.Parallel()
 
