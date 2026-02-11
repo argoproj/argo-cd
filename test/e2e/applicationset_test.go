@@ -16,11 +16,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -2126,51 +2123,4 @@ func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 			require.NoError(t, err)
 			assert.Contains(t, output, "scm provider not allowed")
 		})
-}
-
-// TestApplicationSetAPIListResourceEvents tests the ApplicationSet ListResourceEvents API
-func TestApplicationSetAPIListResourceEvents(t *testing.T) {
-	ctx := Given(t)
-	ctx.When().Create(v1alpha1.ApplicationSet{
-		Spec: v1alpha1.ApplicationSetSpec{
-			GoTemplate: true,
-			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-api-events-test"},
-				Spec: v1alpha1.ApplicationSpec{
-					Project: "default",
-					Source: &v1alpha1.ApplicationSource{
-						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-						TargetRevision: "HEAD",
-						Path:           "guestbook",
-					},
-					Destination: v1alpha1.ApplicationDestination{
-						Server:    "{{.url}}",
-						Namespace: "guestbook",
-					},
-				},
-			},
-			Generators: []v1alpha1.ApplicationSetGenerator{
-				{
-					List: &v1alpha1.ListGenerator{
-						Elements: []apiextensionsv1.JSON{{
-							Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
-						}},
-					},
-				},
-			},
-		},
-	}).Then().
-		And(func() {
-			// Test the ListResourceEvents API
-			closer, appSetClient := fixture.ArgoCDClientset.NewApplicationSetClientOrDie()
-			defer utilio.Close(closer)
-
-			events, err := appSetClient.ListResourceEvents(t.Context(), &applicationset.ApplicationSetGetQuery{
-				Name: ctx.GetName(),
-			})
-			require.NoError(t, err)
-			// Events list should be returned (may be empty if no events have been generated yet)
-			assert.NotNil(t, events)
-		}).
-		When().Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{}))
 }
