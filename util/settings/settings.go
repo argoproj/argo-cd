@@ -1196,7 +1196,7 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 	}
 	helmOptions := &v1alpha1.HelmOptions{}
 	if value, ok := argoCDCM.Data[helmValuesFileSchemesKey]; ok {
-		for _, item := range strings.Split(value, ",") {
+		for item := range strings.SplitSeq(value, ",") {
 			if item := strings.TrimSpace(item); item != "" {
 				helmOptions.ValuesFileSchemes = append(helmOptions.ValuesFileSchemes, item)
 			}
@@ -1550,8 +1550,8 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 func getExtensionConfigs(cmData map[string]string) map[string]string {
 	result := make(map[string]string)
 	for k, v := range cmData {
-		if strings.HasPrefix(k, extensionConfig) {
-			extName := strings.TrimPrefix(strings.TrimPrefix(k, extensionConfig), ".")
+		if extName, found := strings.CutPrefix(k, extensionConfig); found {
+			extName = strings.TrimPrefix(extName, ".")
 			result[extName] = v
 		}
 	}
@@ -2156,7 +2156,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
 				randBytes := make([]byte, initialPasswordLength)
-				for i := 0; i < initialPasswordLength; i++ {
+				for i := range initialPasswordLength {
 					num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
 					if err != nil {
 						return err
@@ -2370,8 +2370,7 @@ func (mgr *SettingsManager) GetSensitiveAnnotations() map[string]bool {
 	}
 
 	value = strings.ReplaceAll(value, " ", "")
-	keys := strings.Split(value, ",")
-	for _, k := range keys {
+	for k := range strings.SplitSeq(value, ",") {
 		annotationKeys[k] = true
 	}
 	return annotationKeys

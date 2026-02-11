@@ -388,11 +388,14 @@ type GitHubAppCreds struct {
 	proxy          string
 	noProxy        string
 	store          CredsStore
+	// repoURL is the full repository URL, used for extracting org for auto-discovery
+	repoURL string
 }
 
 // NewGitHubAppCreds provide github app credentials
-func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore) GenericHTTPSCreds {
-	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store}
+// repoURL is required for automatic installation ID discovery when appInstallId is 0
+func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore, repoURL string) GenericHTTPSCreds {
+	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store, repoURL: repoURL}
 }
 
 func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
@@ -531,9 +534,32 @@ func (g GitHubAppCreds) getAppTransport() (*ghinstallation.AppsTransport, error)
 
 // getInstallationTransport creates a new GitHub transport for the app installation
 func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, error) {
+	installationID := g.appInstallId
+
+	// Auto-discover installation ID if not provided
+	if installationID == 0 {
+		org, err := ExtractOrgFromRepoURL(g.repoURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract organization from repository URL %s for GitHub App installation discovery: %w", g.repoURL, err)
+		}
+		if org == "" {
+			return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", g.repoURL)
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
+		discoveredID, err := DiscoverGitHubAppInstallationID(ctx, g.appID, g.privateKey, g.baseURL, org)
+		if err != nil {
+			return nil, fmt.Errorf("failed to discover GitHub App installation ID for organization %s: ensure the GitHub App (ID: %d) is installed for this organization: %w", org, g.appID, err)
+		}
+		log.Infof("Auto-discovered GitHub App installation ID %d for org %s", discoveredID, org)
+		installationID = discoveredID
+	}
+
 	// Compute hash of creds for lookup in cache
 	h := sha256.New()
-	_, err := fmt.Fprintf(h, "%s %d %d %s", g.privateKey, g.appID, g.appInstallId, g.baseURL)
+	_, err := fmt.Fprintf(h, "%s %d %d %s", g.privateKey, g.appID, installationID, g.baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get SHA256 hash for GitHub app credentials: %w", err)
 	}
@@ -557,7 +583,7 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 	c := GetRepoHTTPClient(baseURL, g.insecure, g, g.proxy, g.noProxy)
 	itr, err := ghinstallation.New(c.Transport,
 		g.appID,
-		g.appInstallId,
+		installationID,
 		[]byte(g.privateKey),
 	)
 	if err != nil {
@@ -731,8 +757,8 @@ func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 	// We distinguish this from the valid ssh://git@host:22/org/repo (with port number).
 	if strings.HasPrefix(repoURL, "ssh://git@") {
 		remainder := strings.TrimPrefix(repoURL, "ssh://")
-		if colonIdx := strings.Index(remainder, ":"); colonIdx != -1 {
-			afterColon := remainder[colonIdx+1:]
+		if _, after, ok := strings.Cut(remainder, ":"); ok {
+			afterColon := after
 			slashIdx := strings.Index(afterColon, "/")
 
 			// Check if what follows the colon is a port number
@@ -786,7 +812,7 @@ type GoogleCloudCreds struct {
 }
 
 func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
-	creds, err := google.CredentialsFromJSON(context.Background(), []byte(jsonData), "https://www.googleapis.com/auth/cloud-platform")
+	creds, err := google.CredentialsFromJSONWithType(context.Background(), []byte(jsonData), google.ServiceAccount, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		// Invalid JSON
 		log.Errorf("Failed reading credentials from JSON: %+v", err)

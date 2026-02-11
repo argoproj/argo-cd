@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -240,7 +241,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// load balancers which may close an idle connection after some period of time
 	go session.StartKeepalives(time.Second * 5)
 
-	if isValidShell(s.allowedShells, shell) {
+	if slices.Contains(s.allowedShells, shell) {
 		cmd := []string{shell}
 		err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session)
 	} else {
@@ -336,14 +337,4 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, p
 		TerminalSizeQueue: ptyHandler,
 		Tty:               true,
 	})
-}
-
-// isValidShell checks if the shell is an allowed one
-func isValidShell(validShells []string, shell string) bool {
-	for _, validShell := range validShells {
-		if validShell == shell {
-			return true
-		}
-	}
-	return false
 }
