@@ -92,7 +92,7 @@ func TestGetServerVersion(t *testing.T) {
 		assert.NotEqual(t, "1.34", serverVersion, "Should not be old Major.Minor format")
 	})
 
-	t.Run("preserves build metadata from IBM Cloud", func(t *testing.T) {
+	t.Run("do not preserver build metadata", func(t *testing.T) {
 		fakeServer := fakeHTTPServer(version.Info{
 			Major:      "1",
 			Minor:      "30",
@@ -105,72 +105,9 @@ func TestGetServerVersion(t *testing.T) {
 
 		serverVersion, err := kubectlCmd().GetServerVersion(config)
 		require.NoError(t, err)
-		assert.Equal(t, "v1.30.11+IKS", serverVersion, "Should preserve IBM Cloud build metadata")
-		assert.Contains(t, serverVersion, "+IKS", "Should contain provider-specific metadata")
+		assert.Equal(t, "v1.30.11", serverVersion, "Should not preserve build metadata")
+		assert.NotContains(t, serverVersion, "+IKS", "Should not contain provider-specific metadata")
 		assert.NotEqual(t, "1.30", serverVersion, "Should not strip to Major.Minor")
-	})
-
-	t.Run("handles various managed Kubernetes versions", func(t *testing.T) {
-		testCases := []struct {
-			name            string
-			major           string
-			minor           string
-			gitVersion      string
-			expectedVersion string
-		}{
-			{
-				name:            "GKE version",
-				major:           "1",
-				minor:           "29",
-				gitVersion:      "v1.29.3-gke.1234567",
-				expectedVersion: "v1.29.3-gke.1234567",
-			},
-			{
-				name:            "EKS version",
-				major:           "1",
-				minor:           "28",
-				gitVersion:      "v1.28.5-eks-a123456",
-				expectedVersion: "v1.28.5-eks-a123456",
-			},
-			{
-				name:            "AKS version",
-				major:           "1",
-				minor:           "27",
-				gitVersion:      "v1.27.9-hotfix.20240101",
-				expectedVersion: "v1.27.9-hotfix.20240101",
-			},
-			{
-				name:            "Standard Kubernetes",
-				major:           "1",
-				minor:           "26",
-				gitVersion:      "v1.26.15",
-				expectedVersion: "v1.26.15",
-			},
-			{
-				name:            "Alpha version",
-				major:           "1",
-				minor:           "31",
-				gitVersion:      "v1.31.0-alpha.1",
-				expectedVersion: "v1.31.0-alpha.1",
-			},
-		}
-
-		for _, tc := range testCases {
-			t.Run(tc.name, func(t *testing.T) {
-				fakeServer := fakeHTTPServer(version.Info{
-					Major:      tc.major,
-					Minor:      tc.minor,
-					GitVersion: tc.gitVersion,
-				}, nil)
-				defer fakeServer.Close()
-				config := mockConfig(fakeServer.URL)
-
-				serverVersion, err := kubectlCmd().GetServerVersion(config)
-				require.NoError(t, err)
-				assert.Equal(t, tc.expectedVersion, serverVersion, "Should return full GitVersion for %s", tc.name)
-				assert.Regexp(t, `^v\d+\.\d+\.\d+`, serverVersion, "Should match semver pattern")
-			})
-		}
 	})
 
 	t.Run("handles error from discovery client", func(t *testing.T) {

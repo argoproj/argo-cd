@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/utils/ptr"
 
@@ -39,7 +40,7 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	initLocalCluster.Do(func() {
 		info, err := db.kubeclientset.Discovery().ServerVersion()
 		if err == nil {
-			localCluster.Info.ServerVersion = info.GitVersion
+			localCluster.Info.ServerVersion = "v" + version.MustParseGeneric(info.GitVersion).String()
 			localCluster.Info.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 		} else {
 			localCluster.Info.ConnectionState = appv1.ConnectionState{

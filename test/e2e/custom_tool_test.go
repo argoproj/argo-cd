@@ -163,7 +163,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 			assert.Equal(t, "bar", output)
 		}).
 		And(func(_ *Application) {
-			expectedKubeVersion := fixture.GetVersions(t).ServerVersion.Format("%s.%s")
+			expectedKubeVersion := fixture.GetVersions(t).ServerVersion.String()
 			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
 			require.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)
@@ -273,7 +273,7 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 			assert.Equal(t, "baz", output)
 		}).
 		And(func(_ *Application) {
-			expectedKubeVersion := fixture.GetVersions(t).ServerVersion.Format("%s.%s")
+			expectedKubeVersion := fixture.GetVersions(t).ServerVersion.String()
 			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
 			require.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)

@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/managedfields"
+	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
@@ -349,7 +350,12 @@ func (k *KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get server version: %w", err)
 	}
-	return v.GitVersion, nil
+
+	ver, err := version.ParseGeneric(v.GitVersion)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse server version: %w", err)
+	}
+	return "v" + ver.String(), nil
 }
 
 func (k *KubectlCmd) NewDynamicClient(config *rest.Config) (dynamic.Interface, error) {
