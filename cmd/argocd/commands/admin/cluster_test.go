@@ -72,7 +72,7 @@ func Test_loadClusters(t *testing.T) {
 				ConnectionState: v1alpha1.ConnectionState{
 					Status: "Successful",
 				},
-				ServerVersion: ".",
+				ServerVersion: "v0.0.0",
 			},
 			Shard: ptr.To(int64(0)),
 		},
