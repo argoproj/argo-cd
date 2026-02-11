@@ -31018,6 +31018,14 @@ rules:
   - workflows
   verbs:
   - create
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-application-controller
+  resources:
+  - serviceaccounts
+  verbs:
+  - impersonate
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
