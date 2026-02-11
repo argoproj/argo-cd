@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	healthutil "github.com/argoproj/gitops-engine/pkg/health"
+	healthutil "github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

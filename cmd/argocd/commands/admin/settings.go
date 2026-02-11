@@ -13,7 +13,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	healthutil "github.com/argoproj/gitops-engine/pkg/health"
+	healthutil "github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
