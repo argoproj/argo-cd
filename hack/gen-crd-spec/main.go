@@ -131,8 +131,45 @@ func main() {
 		if crd == nil {
 			panic(fmt.Sprintf("CRD of kind %s was not generated", kind))
 		}
+
+		// Add conversion webhook configuration for Application CRD
+		if kind == application.ApplicationFullName {
+			addConversionWebhook(crd)
+		}
+
 		writeCRDintoFile(crd, path)
 	}
+}
+
+// addConversionWebhook configures the CRD to use a conversion webhook
+// for converting between v1alpha1 and v1beta1 API versions.
+func addConversionWebhook(crd *apiextensionsv1.CustomResourceDefinition) {
+	if crd.Annotations == nil {
+		crd.Annotations = make(map[string]string)
+	}
+
+	crd.Spec.Conversion = &apiextensionsv1.CustomResourceConversion{
+		Strategy: apiextensionsv1.WebhookConverter,
+		Webhook: &apiextensionsv1.WebhookConversion{
+			ClientConfig: &apiextensionsv1.WebhookClientConfig{
+				Service: &apiextensionsv1.ServiceReference{
+					Name:      "argocd-conversion-webhook",
+					Namespace: "argocd",
+					Path:      strPtr("/convert"),
+					Port:      int32Ptr(443),
+				},
+			},
+			ConversionReviewVersions: []string{"v1"},
+		},
+	}
+}
+
+func strPtr(s string) *string {
+	return &s
+}
+
+func int32Ptr(i int32) *int32 {
+	return &i
 }
 
 func writeCRDintoFile(crd *apiextensionsv1.CustomResourceDefinition, path string) {

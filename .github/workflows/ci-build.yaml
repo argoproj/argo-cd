@@ -508,6 +508,12 @@ jobs:
         run: |
           mkdir -p dist
           chown $(whoami) dist
+      - name: Build and load ArgoCD image for conversion webhook
+        run: |
+          # Build the ArgoCD image for the conversion webhook
+          DOCKER_BUILDKIT=1 docker build -t argocd-e2e:latest .
+          # Import into K3S containerd
+          docker save argocd-e2e:latest | sudo k3s ctr images import -
       - name: Run E2E server and wait for it being available
         timeout-minutes: 30
         run: |
