@@ -1,0 +1,33 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Backup started"
+  inputPath: testdata/backup_started.yaml
+- healthStatus:
+    status: Progressing
+    message: "Backup running"
+  inputPath: testdata/backup_running.yaml
+- healthStatus:
+    status: Progressing
+    message: "Backup finalizing"
+  inputPath: testdata/backup_finalizing.yaml
+- healthStatus:
+    status: Healthy
+    message: "Backup completed"
+  inputPath: testdata/backup_completed.yaml
+- healthStatus:
+    status: Degraded
+    message: "Backup failed"
+  inputPath: testdata/backup_failed.yaml
+- healthStatus:
+    status: Degraded
+    message: "Backup walArchivingFailing"
+  inputPath: testdata/backup_wal_archiving_failing.yaml
+- healthStatus:
+    status: Unknown
+    message: "Backup unknownPhase"
+  inputPath: testdata/backup_unknown_phase.yaml
+- healthStatus:
+    status: Unknown
+    message: "Backup status unknown"
+  inputPath: testdata/backup_no_status.yaml

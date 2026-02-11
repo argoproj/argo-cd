@@ -1,6 +1,6 @@
 local hs = {}
 
-if obj.status ~= nil and ob.status.applied ~= nil then
+if obj.status ~= nil and obj.status.applied ~= nil then
   if obj.status.applied then
     hs.status = "Healthy"
     if obj.status.message ~= nil then
