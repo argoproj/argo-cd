@@ -4,6 +4,10 @@ tests:
       message: "All replicas are ready"
     inputPath: testdata/healthy.yaml
   - healthStatus:
+      status: Healthy
+      message: "DaemonSet has no schedulable nodes (0/0)"
+    inputPath: testdata/daemonset-no-schedulable-node.yaml
+  - healthStatus:
       status: Degraded
       message: "No replicas are ready"
     inputPath: testdata/degraded.yaml

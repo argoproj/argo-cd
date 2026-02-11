@@ -14,8 +14,13 @@ if obj.status ~= nil then
             total = tonumber(total)
 
             if ready == 0 then
-                hs.status = "Degraded"
-                hs.message = "No replicas are ready"
+                if obj.spec ~= nil and obj.spec.mode == "daemonset" and ready == 0 and total == 0 then
+                    hs.status = "Healthy"
+                    hs.message = "DaemonSet has no schedulable nodes (0/0)"
+                else
+                    hs.status = "Degraded"
+                    hs.message = "No replicas are ready"
+                end
             elseif ready == total then
                 hs.status = "Healthy"
                 hs.message = "All replicas are ready"
