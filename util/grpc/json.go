@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
-	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	gwruntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 )
 
 // JSONMarshaler is a type which satisfies the grpc-gateway Marshaler interface

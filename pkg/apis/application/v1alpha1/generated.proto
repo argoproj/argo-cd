@@ -5,6 +5,7 @@ syntax = "proto2";
 
 package github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1;
 
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
@@ -13,32 +14,41 @@ import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
 import "k8s.io/apimachinery/pkg/util/intstr/generated.proto";
 
 // Package-wide variables from generator "generated".
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.stable_marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.goproto_stringer_all) = false;
+option (gogoproto.stringer_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.goproto_unrecognized_all) = false;
+option (gogoproto.goproto_enum_prefix_all) = false;
+option (gogoproto.goproto_getters_all) = false;
 option go_package = "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1";
 
 // AWSAuthConfig is an AWS IAM authentication configuration
 message AWSAuthConfig {
   // ClusterName contains AWS cluster name
-  optional string clusterName = 1;
+  optional string clusterName = 1 [(gogoproto.customname) = "ClusterName", (gogoproto.nullable) = false];
 
   // RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
-  optional string roleARN = 2;
+  optional string roleARN = 2 [(gogoproto.customname) = "RoleARN", (gogoproto.nullable) = false];
 
   // Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
-  optional string profile = 3;
+  optional string profile = 3 [(gogoproto.customname) = "Profile", (gogoproto.nullable) = false];
 }
 
 // AppHealthStatus contains information about the currently observed health state of an application
 message AppHealthStatus {
   // Status holds the status code of the application
-  optional string status = 1;
+  optional string status = 1 [(gogoproto.casttype) = "github.com/argoproj/gitops-engine/pkg/health.HealthStatusCode", (gogoproto.customname) = "Status", (gogoproto.nullable) = false];
 
   // Message is a human-readable informational message describing the health status
   //
   // Deprecated: this field is not used and will be removed in a future release.
-  optional string message = 2;
+  optional string message = 2 [(gogoproto.customname) = "Message", (gogoproto.nullable) = false];
 
   // LastTransitionTime is the time the HealthStatus was set or updated
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3 [(gogoproto.customname) = "LastTransitionTime"];
 }
 
 // AppProject provides a logical grouping of applications, providing controls for:
@@ -52,71 +62,71 @@ message AppHealthStatus {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=appprojects,shortName=appproj;appprojs
 message AppProject {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
 
-  optional AppProjectSpec spec = 2;
+  optional AppProjectSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
 
-  optional AppProjectStatus status = 3;
+  optional AppProjectStatus status = 3 [(gogoproto.customname) = "Status", (gogoproto.nullable) = false];
 }
 
 // AppProjectList is list of AppProject resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message AppProjectList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
 
-  repeated AppProject items = 2;
+  repeated AppProject items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
 }
 
 // AppProjectSpec is the specification of an AppProject
 message AppProjectSpec {
   // SourceRepos contains list of repository URLs which can be used for deployment
-  repeated string sourceRepos = 1;
+  repeated string sourceRepos = 1 [(gogoproto.customname) = "SourceRepos"];
 
   // Destinations contains list of destinations available for deployment
-  repeated ApplicationDestination destinations = 2;
+  repeated ApplicationDestination destinations = 2 [(gogoproto.customname) = "Destinations", (gogoproto.nullable) = false];
 
   // Description contains optional project description
   // +kubebuilder:validation:MaxLength=255
-  optional string description = 3;
+  optional string description = 3 [(gogoproto.customname) = "Description", (gogoproto.nullable) = false];
 
   // Roles are user defined RBAC roles associated with this project
-  repeated ProjectRole roles = 4;
+  repeated ProjectRole roles = 4 [(gogoproto.customname) = "Roles", (gogoproto.nullable) = false];
 
   // ClusterResourceWhitelist contains list of whitelisted cluster level resources
-  repeated ClusterResourceRestrictionItem clusterResourceWhitelist = 5;
+  repeated ClusterResourceRestrictionItem clusterResourceWhitelist = 5 [(gogoproto.customname) = "ClusterResourceWhitelist", (gogoproto.nullable) = false];
 
   // NamespaceResourceBlacklist contains list of blacklisted namespace level resources
-  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceBlacklist = 6;
+  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceBlacklist = 6 [(gogoproto.customname) = "NamespaceResourceBlacklist", (gogoproto.nullable) = false];
 
   // OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
-  optional OrphanedResourcesMonitorSettings orphanedResources = 7;
+  optional OrphanedResourcesMonitorSettings orphanedResources = 7 [(gogoproto.customname) = "OrphanedResources"];
 
   // SyncWindows controls when syncs can be run for apps in this project
-  repeated SyncWindow syncWindows = 8;
+  repeated SyncWindow syncWindows = 8 [(gogoproto.customname) = "SyncWindows"];
 
   // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
-  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
+  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9 [(gogoproto.customname) = "NamespaceResourceWhitelist", (gogoproto.nullable) = false];
 
   // SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
-  repeated SignatureKey signatureKeys = 10;
+  repeated SignatureKey signatureKeys = 10 [(gogoproto.customname) = "SignatureKeys", (gogoproto.nullable) = false];
 
   // ClusterResourceBlacklist contains list of blacklisted cluster level resources
-  repeated ClusterResourceRestrictionItem clusterResourceBlacklist = 11;
+  repeated ClusterResourceRestrictionItem clusterResourceBlacklist = 11 [(gogoproto.customname) = "ClusterResourceBlacklist", (gogoproto.nullable) = false];
 
   // SourceNamespaces defines the namespaces application resources are allowed to be created in
-  repeated string sourceNamespaces = 12;
+  repeated string sourceNamespaces = 12 [(gogoproto.customname) = "SourceNamespaces"];
 
   // PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped
-  optional bool permitOnlyProjectScopedClusters = 13;
+  optional bool permitOnlyProjectScopedClusters = 13 [(gogoproto.customname) = "PermitOnlyProjectScopedClusters", (gogoproto.nullable) = false];
 
   // DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
-  repeated ApplicationDestinationServiceAccount destinationServiceAccounts = 14;
+  repeated ApplicationDestinationServiceAccount destinationServiceAccounts = 14 [(gogoproto.customname) = "DestinationServiceAccounts", (gogoproto.nullable) = false];
 }
 
 // AppProjectStatus contains status information for AppProject CRs
 message AppProjectStatus {
   // JWTTokensByRole contains a list of JWT tokens issued for a given role
-  map<string, JWTTokens> jwtTokensByRole = 1;
+  map<string, JWTTokens> jwtTokensByRole = 1 [(gogoproto.customname) = "JWTTokensByRole", (gogoproto.nullable) = false];
 }
 
 // Application is a definition of Application resource.
@@ -130,75 +140,75 @@ message AppProjectStatus {
 // +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
 message Application {
   // Common: shared with ApplicationSet
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
 
   // Common: shared with ApplicationSet
-  optional ApplicationSpec spec = 2;
+  optional ApplicationSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
 
   // Common: shared with ApplicationSet (different type)
-  optional ApplicationStatus status = 3;
+  optional ApplicationStatus status = 3 [(gogoproto.customname) = "Status", (gogoproto.nullable) = false];
 
   // Common: shared with ApplicationSet (different type)
-  optional Operation operation = 4;
+  optional Operation operation = 4 [(gogoproto.customname) = "Operation"];
 }
 
 // ApplicationCondition contains details about an application condition, which is usually an error or warning
 message ApplicationCondition {
   // Type is an application condition type
-  optional string type = 1;
+  optional string type = 1 [(gogoproto.customname) = "Type", (gogoproto.nullable) = false];
 
   // Message contains human-readable message indicating details about condition
-  optional string message = 2;
+  optional string message = 2 [(gogoproto.customname) = "Message", (gogoproto.nullable) = false];
 
   // LastTransitionTime is the time the condition was last observed
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3 [(gogoproto.customname) = "LastTransitionTime"];
 }
 
 // ApplicationDestination holds information about the application's destination
 message ApplicationDestination {
   // Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.
-  optional string server = 1;
+  optional string server = 1 [(gogoproto.customname) = "Server", (gogoproto.nullable) = false];
 
   // Namespace specifies the target namespace for the application's resources.
   // The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
-  optional string namespace = 2;
+  optional string namespace = 2 [(gogoproto.customname) = "Namespace", (gogoproto.nullable) = false];
 
   // Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.
-  optional string name = 3;
+  optional string name = 3 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 }
 
 // ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.
 message ApplicationDestinationServiceAccount {
   // Server specifies the URL of the target cluster's Kubernetes control plane API.
-  optional string server = 1;
+  optional string server = 1 [(gogoproto.customname) = "Server", (gogoproto.nullable) = false];
 
   // Namespace specifies the target namespace for the application's resources.
-  optional string namespace = 2;
+  optional string namespace = 2 [(gogoproto.customname) = "Namespace", (gogoproto.nullable) = false];
 
   // DefaultServiceAccount to be used for impersonation during the sync operation
-  optional string defaultServiceAccount = 3;
+  optional string defaultServiceAccount = 3 [(gogoproto.customname) = "DefaultServiceAccount", (gogoproto.nullable) = false];
 }
 
 // ApplicationList is list of Application resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message ApplicationList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
 
-  repeated Application items = 2;
+  repeated Application items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
 }
 
 message ApplicationMatchExpression {
-  optional string key = 1;
+  optional string key = 1 [(gogoproto.customname) = "Key", (gogoproto.nullable) = false];
 
-  optional string operator = 2;
+  optional string operator = 2 [(gogoproto.customname) = "Operator", (gogoproto.nullable) = false];
 
-  repeated string values = 3;
+  repeated string values = 3 [(gogoproto.customname) = "Values"];
 }
 
 message ApplicationPreservedFields {
-  repeated string annotations = 1;
+  repeated string annotations = 1 [(gogoproto.customname) = "Annotations"];
 
-  repeated string labels = 2;
+  repeated string labels = 2 [(gogoproto.customname) = "Labels"];
 }
 
 // ApplicationSet is a set of Application resources.
@@ -208,225 +218,225 @@ message ApplicationPreservedFields {
 // +kubebuilder:resource:path=applicationsets,shortName=appset;appsets
 // +kubebuilder:subresource:status
 message ApplicationSet {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1 [(gogoproto.customname) = "ObjectMeta", (gogoproto.nullable) = false];
 
   // Common: shared with Application
-  optional ApplicationSetSpec spec = 2;
+  optional ApplicationSetSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
 
   // Common: shared with Application (different type)
-  optional ApplicationSetStatus status = 3;
+  optional ApplicationSetStatus status = 3 [(gogoproto.customname) = "Status", (gogoproto.nullable) = false];
 }
 
 // ApplicationSetApplicationStatus contains details about each Application managed by the ApplicationSet
 message ApplicationSetApplicationStatus {
   // Application contains the name of the Application resource
-  optional string application = 1;
+  optional string application = 1 [(gogoproto.customname) = "Application", (gogoproto.nullable) = false];
 
   // LastTransitionTime is the time the status was last updated
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 2;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 2 [(gogoproto.customname) = "LastTransitionTime"];
 
   // Message contains human-readable message indicating details about the status
-  optional string message = 3;
+  optional string message = 3 [(gogoproto.customname) = "Message", (gogoproto.nullable) = false];
 
   // Status contains the AppSet's perceived status of the managed Application resource
-  optional string status = 4;
+  optional string status = 4 [(gogoproto.casttype) = "ProgressiveSyncStatusCode", (gogoproto.customname) = "Status", (gogoproto.nullable) = false];
 
   // Step tracks which step this Application should be updated in
-  optional string step = 5;
+  optional string step = 5 [(gogoproto.customname) = "Step", (gogoproto.nullable) = false];
 
   // TargetRevision tracks the desired revisions the Application should be synced to.
-  repeated string targetrevisions = 6;
+  repeated string targetrevisions = 6 [(gogoproto.customname) = "TargetRevisions"];
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
 message ApplicationSetCondition {
   // Type is an applicationset condition type
-  optional string type = 1;
+  optional string type = 1 [(gogoproto.casttype) = "ApplicationSetConditionType", (gogoproto.customname) = "Type", (gogoproto.nullable) = false];
 
   // Message contains human-readable message indicating details about condition
-  optional string message = 2;
+  optional string message = 2 [(gogoproto.customname) = "Message", (gogoproto.nullable) = false];
 
   // LastTransitionTime is the time the condition was last observed
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3 [(gogoproto.customname) = "LastTransitionTime"];
 
   // True/False/Unknown
-  optional string status = 4;
+  optional string status = 4 [(gogoproto.casttype) = "ApplicationSetConditionStatus", (gogoproto.customname) = "Status", (gogoproto.nullable) = false];
 
   // Single word camelcase representing the reason for the status eg ErrorOccurred
-  optional string reason = 5;
+  optional string reason = 5 [(gogoproto.customname) = "Reason", (gogoproto.nullable) = false];
 }
 
 // ApplicationSetGenerator represents a generator at the top level of an ApplicationSet.
 message ApplicationSetGenerator {
-  optional ListGenerator list = 1;
+  optional ListGenerator list = 1 [(gogoproto.customname) = "List"];
 
-  optional ClusterGenerator clusters = 2;
+  optional ClusterGenerator clusters = 2 [(gogoproto.customname) = "Clusters"];
 
-  optional GitGenerator git = 3;
+  optional GitGenerator git = 3 [(gogoproto.customname) = "Git"];
 
-  optional SCMProviderGenerator scmProvider = 4;
+  optional SCMProviderGenerator scmProvider = 4 [(gogoproto.customname) = "SCMProvider"];
 
-  optional DuckTypeGenerator clusterDecisionResource = 5;
+  optional DuckTypeGenerator clusterDecisionResource = 5 [(gogoproto.customname) = "ClusterDecisionResource"];
 
-  optional PullRequestGenerator pullRequest = 6;
+  optional PullRequestGenerator pullRequest = 6 [(gogoproto.customname) = "PullRequest"];
 
-  optional MatrixGenerator matrix = 7;
+  optional MatrixGenerator matrix = 7 [(gogoproto.customname) = "Matrix"];
 
-  optional MergeGenerator merge = 8;
+  optional MergeGenerator merge = 8 [(gogoproto.customname) = "Merge"];
 
   // Selector allows to post-filter all generator.
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9 [(gogoproto.customname) = "Selector"];
 
-  optional PluginGenerator plugin = 10;
+  optional PluginGenerator plugin = 10 [(gogoproto.customname) = "Plugin"];
 }
 
 // ApplicationSetList contains a list of ApplicationSet
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 message ApplicationSetList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
 
-  repeated ApplicationSet items = 2;
+  repeated ApplicationSet items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
 }
 
 // ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or
 // MergeGenerator).
 message ApplicationSetNestedGenerator {
-  optional ListGenerator list = 1;
+  optional ListGenerator list = 1 [(gogoproto.customname) = "List"];
 
-  optional ClusterGenerator clusters = 2;
+  optional ClusterGenerator clusters = 2 [(gogoproto.customname) = "Clusters"];
 
-  optional GitGenerator git = 3;
+  optional GitGenerator git = 3 [(gogoproto.customname) = "Git"];
 
-  optional SCMProviderGenerator scmProvider = 4;
+  optional SCMProviderGenerator scmProvider = 4 [(gogoproto.customname) = "SCMProvider"];
 
-  optional DuckTypeGenerator clusterDecisionResource = 5;
+  optional DuckTypeGenerator clusterDecisionResource = 5 [(gogoproto.customname) = "ClusterDecisionResource"];
 
-  optional PullRequestGenerator pullRequest = 6;
+  optional PullRequestGenerator pullRequest = 6 [(gogoproto.customname) = "PullRequest"];
 
   // Matrix should have the form of NestedMatrixGenerator
-  optional .k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON matrix = 7;
+  optional .k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON matrix = 7 [(gogoproto.customname) = "Matrix"];
 
   // Merge should have the form of NestedMergeGenerator
-  optional .k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON merge = 8;
+  optional .k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON merge = 8 [(gogoproto.customname) = "Merge"];
 
   // Selector allows to post-filter all generator.
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9 [(gogoproto.customname) = "Selector"];
 
-  optional PluginGenerator plugin = 10;
+  optional PluginGenerator plugin = 10 [(gogoproto.customname) = "Plugin"];
 }
 
 // ApplicationSetResourceIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live
 // applications when applying changes from generated applications.
 message ApplicationSetResourceIgnoreDifferences {
   // Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // JSONPointers is a list of JSON pointers to fields to ignore differences for.
-  repeated string jsonPointers = 2;
+  repeated string jsonPointers = 2 [(gogoproto.customname) = "JSONPointers"];
 
   // JQPathExpressions is a list of JQ path expressions to fields to ignore differences for.
-  repeated string jqPathExpressions = 3;
+  repeated string jqPathExpressions = 3 [(gogoproto.customname) = "JQPathExpressions"];
 }
 
 message ApplicationSetRolloutStep {
-  repeated ApplicationMatchExpression matchExpressions = 1;
+  repeated ApplicationMatchExpression matchExpressions = 1 [(gogoproto.customname) = "MatchExpressions", (gogoproto.nullable) = false];
 
-  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString maxUpdate = 2;
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString maxUpdate = 2 [(gogoproto.customname) = "MaxUpdate"];
 }
 
 message ApplicationSetRolloutStrategy {
-  repeated ApplicationSetRolloutStep steps = 1;
+  repeated ApplicationSetRolloutStep steps = 1 [(gogoproto.customname) = "Steps", (gogoproto.nullable) = false];
 }
 
 // ApplicationSetSpec represents a class of application set state.
 message ApplicationSetSpec {
-  optional bool goTemplate = 1;
+  optional bool goTemplate = 1 [(gogoproto.customname) = "GoTemplate", (gogoproto.nullable) = false];
 
-  repeated ApplicationSetGenerator generators = 2;
+  repeated ApplicationSetGenerator generators = 2 [(gogoproto.customname) = "Generators", (gogoproto.nullable) = false];
 
-  optional ApplicationSetTemplate template = 3;
+  optional ApplicationSetTemplate template = 3 [(gogoproto.customname) = "Template", (gogoproto.nullable) = false];
 
-  optional ApplicationSetSyncPolicy syncPolicy = 4;
+  optional ApplicationSetSyncPolicy syncPolicy = 4 [(gogoproto.customname) = "SyncPolicy"];
 
-  optional ApplicationSetStrategy strategy = 5;
+  optional ApplicationSetStrategy strategy = 5 [(gogoproto.customname) = "Strategy"];
 
-  optional ApplicationPreservedFields preservedFields = 6;
+  optional ApplicationPreservedFields preservedFields = 6 [(gogoproto.customname) = "PreservedFields"];
 
-  repeated string goTemplateOptions = 7;
+  repeated string goTemplateOptions = 7 [(gogoproto.customname) = "GoTemplateOptions"];
 
   // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators.
   //
   // Deprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future
   // version of the ApplicationSet CRD.
-  optional bool applyNestedSelectors = 8;
+  optional bool applyNestedSelectors = 8 [(gogoproto.customname) = "ApplyNestedSelectors", (gogoproto.nullable) = false];
 
-  repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 9;
+  repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 9 [(gogoproto.customname) = "IgnoreApplicationDifferences", (gogoproto.nullable) = false];
 
-  optional string templatePatch = 10;
+  optional string templatePatch = 10 [(gogoproto.customname) = "TemplatePatch"];
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
 message ApplicationSetStatus {
   // INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
   // Important: Run "make" to regenerate code after modifying this file
-  repeated ApplicationSetCondition conditions = 1;
+  repeated ApplicationSetCondition conditions = 1 [(gogoproto.customname) = "Conditions", (gogoproto.nullable) = false];
 
-  repeated ApplicationSetApplicationStatus applicationStatus = 2;
+  repeated ApplicationSetApplicationStatus applicationStatus = 2 [(gogoproto.customname) = "ApplicationStatus", (gogoproto.nullable) = false];
 
   // Resources is a list of Applications resources managed by this application set.
-  repeated ResourceStatus resources = 3;
+  repeated ResourceStatus resources = 3 [(gogoproto.customname) = "Resources", (gogoproto.nullable) = false];
 
   // ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when
   // the number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).
-  optional int64 resourcesCount = 4;
+  optional int64 resourcesCount = 4 [(gogoproto.customname) = "ResourcesCount", (gogoproto.nullable) = false];
 
   // Health contains information about the applicationset's current health status based on the applicationset conditions
-  optional HealthStatus health = 5;
+  optional HealthStatus health = 5 [(gogoproto.customname) = "Health", (gogoproto.nullable) = false];
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
 message ApplicationSetStrategy {
-  optional string type = 1;
+  optional string type = 1 [(gogoproto.customname) = "Type", (gogoproto.nullable) = false];
 
-  optional ApplicationSetRolloutStrategy rollingSync = 2;
+  optional ApplicationSetRolloutStrategy rollingSync = 2 [(gogoproto.customname) = "RollingSync"];
 
   // DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.
   // accepts values "AllAtOnce" and "Reverse"
-  optional string deletionOrder = 3;
+  optional string deletionOrder = 3 [(gogoproto.customname) = "DeletionOrder", (gogoproto.nullable) = false];
 }
 
 // ApplicationSetSyncPolicy configures how generated Applications will relate to their
 // ApplicationSet.
 message ApplicationSetSyncPolicy {
   // PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.
-  optional bool preserveResourcesOnDeletion = 1;
+  optional bool preserveResourcesOnDeletion = 1 [(gogoproto.customname) = "PreserveResourcesOnDeletion", (gogoproto.nullable) = false];
 
   // ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, create-delete, sync
   // +kubebuilder:validation:Optional
   // +kubebuilder:validation:Enum=create-only;create-update;create-delete;sync
-  optional string applicationsSync = 2;
+  optional string applicationsSync = 2 [(gogoproto.casttype) = "ApplicationsSyncPolicy", (gogoproto.customname) = "ApplicationsSync"];
 }
 
 // ApplicationSetTemplate represents argocd ApplicationSpec
 message ApplicationSetTemplate {
-  optional ApplicationSetTemplateMeta metadata = 1;
+  optional ApplicationSetTemplateMeta metadata = 1 [(gogoproto.customname) = "ApplicationSetTemplateMeta", (gogoproto.nullable) = false];
 
-  optional ApplicationSpec spec = 2;
+  optional ApplicationSpec spec = 2 [(gogoproto.customname) = "Spec", (gogoproto.nullable) = false];
 }
 
 // ApplicationSetTemplateMeta represents the Argo CD application fields that may
 // be used for Applications generated from the ApplicationSet (based on metav1.ObjectMeta)
 message ApplicationSetTemplateMeta {
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
-  optional string namespace = 2;
+  optional string namespace = 2 [(gogoproto.customname) = "Namespace", (gogoproto.nullable) = false];
 
-  map<string, string> labels = 3;
+  map<string, string> labels = 3 [(gogoproto.customname) = "Labels", (gogoproto.nullable) = false];
 
-  map<string, string> annotations = 4;
+  map<string, string> annotations = 4 [(gogoproto.customname) = "Annotations", (gogoproto.nullable) = false];
 
-  repeated string finalizers = 5;
+  repeated string finalizers = 5 [(gogoproto.customname) = "Finalizers"];
 }
 
 // ApplicationSetTerminalGenerator represents a generator nested within a nested generator (for example, a list within
@@ -434,476 +444,476 @@ message ApplicationSetTemplateMeta {
 // MergeGenerator). ApplicationSet enforces this nesting depth limit because CRDs do not support recursive types.
 // https://github.com/kubernetes-sigs/controller-tools/issues/477
 message ApplicationSetTerminalGenerator {
-  optional ListGenerator list = 1;
+  optional ListGenerator list = 1 [(gogoproto.customname) = "List"];
 
-  optional ClusterGenerator clusters = 2;
+  optional ClusterGenerator clusters = 2 [(gogoproto.customname) = "Clusters"];
 
-  optional GitGenerator git = 3;
+  optional GitGenerator git = 3 [(gogoproto.customname) = "Git"];
 
-  optional SCMProviderGenerator scmProvider = 4;
+  optional SCMProviderGenerator scmProvider = 4 [(gogoproto.customname) = "SCMProvider"];
 
-  optional DuckTypeGenerator clusterDecisionResource = 5;
+  optional DuckTypeGenerator clusterDecisionResource = 5 [(gogoproto.customname) = "ClusterDecisionResource"];
 
-  optional PullRequestGenerator pullRequest = 6;
+  optional PullRequestGenerator pullRequest = 6 [(gogoproto.customname) = "PullRequest"];
 
-  optional PluginGenerator plugin = 7;
+  optional PluginGenerator plugin = 7 [(gogoproto.customname) = "Plugin"];
 
   // Selector allows to post-filter all generator.
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8 [(gogoproto.customname) = "Selector"];
 }
 
 // ApplicationSetTree holds nodes which belongs to the application
 // Used to build a tree of an ApplicationSet and its children
 message ApplicationSetTree {
   // Nodes contains list of nodes which are directly managed by the applicationset
-  repeated ResourceNode nodes = 1;
+  repeated ResourceNode nodes = 1 [(gogoproto.customname) = "Nodes", (gogoproto.nullable) = false];
 }
 
 // ApplicationSource contains all required information about the source of an application
 message ApplicationSource {
   // RepoURL is the URL to the repository (Git or Helm) that contains the application manifests
-  optional string repoURL = 1;
+  optional string repoURL = 1 [(gogoproto.customname) = "RepoURL", (gogoproto.nullable) = false];
 
   // Path is a directory path within the Git repository, and is only valid for applications sourced from Git.
-  optional string path = 2;
+  optional string path = 2 [(gogoproto.customname) = "Path", (gogoproto.nullable) = false];
 
   // TargetRevision defines the revision of the source to sync the application to.
   // In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
   // In case of Helm, this is a semver tag for the Chart's version.
-  optional string targetRevision = 4;
+  optional string targetRevision = 4 [(gogoproto.customname) = "TargetRevision", (gogoproto.nullable) = false];
 
   // Helm holds helm specific options
-  optional ApplicationSourceHelm helm = 7;
+  optional ApplicationSourceHelm helm = 7 [(gogoproto.customname) = "Helm"];
 
   // Kustomize holds kustomize specific options
-  optional ApplicationSourceKustomize kustomize = 8;
+  optional ApplicationSourceKustomize kustomize = 8 [(gogoproto.customname) = "Kustomize"];
 
   // Directory holds path/directory specific options
-  optional ApplicationSourceDirectory directory = 10;
+  optional ApplicationSourceDirectory directory = 10 [(gogoproto.customname) = "Directory"];
 
   // Plugin holds config management plugin specific options
-  optional ApplicationSourcePlugin plugin = 11;
+  optional ApplicationSourcePlugin plugin = 11 [(gogoproto.customname) = "Plugin"];
 
   // Chart is a Helm chart name, and must be specified for applications sourced from a Helm repo.
-  optional string chart = 12;
+  optional string chart = 12 [(gogoproto.customname) = "Chart", (gogoproto.nullable) = false];
 
   // Ref is reference to another source within sources field. This field will not be used if used with a `source` tag.
-  optional string ref = 13;
+  optional string ref = 13 [(gogoproto.customname) = "Ref", (gogoproto.nullable) = false];
 
   // Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.
-  optional string name = 14;
+  optional string name = 14 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 }
 
 // ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet
 message ApplicationSourceDirectory {
   // Recurse specifies whether to scan a directory recursively for manifests
-  optional bool recurse = 1;
+  optional bool recurse = 1 [(gogoproto.customname) = "Recurse", (gogoproto.nullable) = false];
 
   // Jsonnet holds options specific to Jsonnet
-  optional ApplicationSourceJsonnet jsonnet = 2;
+  optional ApplicationSourceJsonnet jsonnet = 2 [(gogoproto.customname) = "Jsonnet", (gogoproto.nullable) = false];
 
   // Exclude contains a glob pattern to match paths against that should be explicitly excluded from being used during manifest generation
-  optional string exclude = 3;
+  optional string exclude = 3 [(gogoproto.customname) = "Exclude", (gogoproto.nullable) = false];
 
   // Include contains a glob pattern to match paths against that should be explicitly included during manifest generation
-  optional string include = 4;
+  optional string include = 4 [(gogoproto.customname) = "Include", (gogoproto.nullable) = false];
 }
 
 // ApplicationSourceHelm holds helm specific options
 message ApplicationSourceHelm {
   // ValuesFiles is a list of Helm value files to use when generating a template
-  repeated string valueFiles = 1;
+  repeated string valueFiles = 1 [(gogoproto.customname) = "ValueFiles"];
 
   // Parameters is a list of Helm parameters which are passed to the helm template command upon manifest generation
-  repeated HelmParameter parameters = 2;
+  repeated HelmParameter parameters = 2 [(gogoproto.customname) = "Parameters", (gogoproto.nullable) = false];
 
   // ReleaseName is the Helm release name to use. If omitted it will use the application name
-  optional string releaseName = 3;
+  optional string releaseName = 3 [(gogoproto.customname) = "ReleaseName", (gogoproto.nullable) = false];
 
   // Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.
   // +patchStrategy=replace
-  optional string values = 4;
+  optional string values = 4 [(gogoproto.customname) = "Values", (gogoproto.nullable) = false];
 
   // FileParameters are file parameters to the helm template
-  repeated HelmFileParameter fileParameters = 5;
+  repeated HelmFileParameter fileParameters = 5 [(gogoproto.customname) = "FileParameters", (gogoproto.nullable) = false];
 
   // Version is the Helm version to use for templating ("3")
-  optional string version = 6;
+  optional string version = 6 [(gogoproto.customname) = "Version", (gogoproto.nullable) = false];
 
   // PassCredentials pass credentials to all domains (Helm's --pass-credentials)
-  optional bool passCredentials = 7;
+  optional bool passCredentials = 7 [(gogoproto.customname) = "PassCredentials", (gogoproto.nullable) = false];
 
   // IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values
-  optional bool ignoreMissingValueFiles = 8;
+  optional bool ignoreMissingValueFiles = 8 [(gogoproto.customname) = "IgnoreMissingValueFiles", (gogoproto.nullable) = false];
 
   // SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
-  optional bool skipCrds = 9;
+  optional bool skipCrds = 9 [(gogoproto.customname) = "SkipCrds", (gogoproto.nullable) = false];
 
   // ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
   // +kubebuilder:pruning:PreserveUnknownFields
-  optional .k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10;
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10 [(gogoproto.customname) = "ValuesObject"];
 
   // Namespace is an optional namespace to template with. If left empty, defaults to the app's destination namespace.
-  optional string namespace = 11;
+  optional string namespace = 11 [(gogoproto.customname) = "Namespace", (gogoproto.nullable) = false];
 
   // KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
   // uses the Kubernetes version of the target cluster.
-  optional string kubeVersion = 12;
+  optional string kubeVersion = 12 [(gogoproto.customname) = "KubeVersion", (gogoproto.nullable) = false];
 
   // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
   // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-  repeated string apiVersions = 13;
+  repeated string apiVersions = 13 [(gogoproto.customname) = "APIVersions"];
 
   // SkipTests skips test manifest installation step (Helm's --skip-tests).
-  optional bool skipTests = 14;
+  optional bool skipTests = 14 [(gogoproto.customname) = "SkipTests", (gogoproto.nullable) = false];
 
   // SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)
-  optional bool skipSchemaValidation = 15;
+  optional bool skipSchemaValidation = 15 [(gogoproto.customname) = "SkipSchemaValidation", (gogoproto.nullable) = false];
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
 message ApplicationSourceJsonnet {
   // ExtVars is a list of Jsonnet External Variables
-  repeated JsonnetVar extVars = 1;
+  repeated JsonnetVar extVars = 1 [(gogoproto.customname) = "ExtVars", (gogoproto.nullable) = false];
 
   // TLAS is a list of Jsonnet Top-level Arguments
-  repeated JsonnetVar tlas = 2;
+  repeated JsonnetVar tlas = 2 [(gogoproto.customname) = "TLAs", (gogoproto.nullable) = false];
 
   // Additional library search dirs
-  repeated string libs = 3;
+  repeated string libs = 3 [(gogoproto.customname) = "Libs"];
 }
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 message ApplicationSourceKustomize {
   // NamePrefix is a prefix appended to resources for Kustomize apps
-  optional string namePrefix = 1;
+  optional string namePrefix = 1 [(gogoproto.customname) = "NamePrefix", (gogoproto.nullable) = false];
 
   // NameSuffix is a suffix appended to resources for Kustomize apps
-  optional string nameSuffix = 2;
+  optional string nameSuffix = 2 [(gogoproto.customname) = "NameSuffix", (gogoproto.nullable) = false];
 
   // Images is a list of Kustomize image override specifications
-  repeated string images = 3;
+  repeated string images = 3 [(gogoproto.casttype) = "KustomizeImage", (gogoproto.customname) = "Images"];
 
   // CommonLabels is a list of additional labels to add to rendered manifests
-  map<string, string> commonLabels = 4;
+  map<string, string> commonLabels = 4 [(gogoproto.customname) = "CommonLabels", (gogoproto.nullable) = false];
 
   // Version controls which version of Kustomize to use for rendering manifests
-  optional string version = 5;
+  optional string version = 5 [(gogoproto.customname) = "Version", (gogoproto.nullable) = false];
 
   // CommonAnnotations is a list of additional annotations to add to rendered manifests
-  map<string, string> commonAnnotations = 6;
+  map<string, string> commonAnnotations = 6 [(gogoproto.customname) = "CommonAnnotations", (gogoproto.nullable) = false];
 
   // ForceCommonLabels specifies whether to force applying common labels to resources for Kustomize apps
-  optional bool forceCommonLabels = 7;
+  optional bool forceCommonLabels = 7 [(gogoproto.customname) = "ForceCommonLabels", (gogoproto.nullable) = false];
 
   // ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
-  optional bool forceCommonAnnotations = 8;
+  optional bool forceCommonAnnotations = 8 [(gogoproto.customname) = "ForceCommonAnnotations", (gogoproto.nullable) = false];
 
   // Namespace sets the namespace that Kustomize adds to all resources
-  optional string namespace = 9;
+  optional string namespace = 9 [(gogoproto.customname) = "Namespace", (gogoproto.nullable) = false];
 
   // CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
-  optional bool commonAnnotationsEnvsubst = 10;
+  optional bool commonAnnotationsEnvsubst = 10 [(gogoproto.customname) = "CommonAnnotationsEnvsubst", (gogoproto.nullable) = false];
 
   // Replicas is a list of Kustomize Replicas override specifications
-  repeated KustomizeReplica replicas = 11;
+  repeated KustomizeReplica replicas = 11 [(gogoproto.customname) = "Replicas", (gogoproto.nullable) = false];
 
   // Patches is a list of Kustomize patches
-  repeated KustomizePatch patches = 12;
+  repeated KustomizePatch patches = 12 [(gogoproto.customname) = "Patches", (gogoproto.nullable) = false];
 
   // Components specifies a list of kustomize components to add to the kustomization before building
-  repeated string components = 13;
+  repeated string components = 13 [(gogoproto.customname) = "Components"];
 
   // IgnoreMissingComponents prevents kustomize from failing when components do not exist locally by not appending them to kustomization file
-  optional bool ignoreMissingComponents = 17;
+  optional bool ignoreMissingComponents = 17 [(gogoproto.customname) = "IgnoreMissingComponents", (gogoproto.nullable) = false];
 
   // LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
-  optional bool labelWithoutSelector = 14;
+  optional bool labelWithoutSelector = 14 [(gogoproto.customname) = "LabelWithoutSelector", (gogoproto.nullable) = false];
 
   // KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
   // uses the Kubernetes version of the target cluster.
-  optional string kubeVersion = 15;
+  optional string kubeVersion = 15 [(gogoproto.customname) = "KubeVersion", (gogoproto.nullable) = false];
 
   // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
   // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-  repeated string apiVersions = 16;
+  repeated string apiVersions = 16 [(gogoproto.customname) = "APIVersions"];
 
   // LabelIncludeTemplates specifies whether to apply common labels to resource templates or not
-  optional bool labelIncludeTemplates = 18;
+  optional bool labelIncludeTemplates = 18 [(gogoproto.customname) = "LabelIncludeTemplates", (gogoproto.nullable) = false];
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
 message ApplicationSourcePlugin {
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
-  repeated EnvEntry env = 2;
+  repeated EnvEntry env = 2 [(gogoproto.customname) = "Env"];
 
-  repeated ApplicationSourcePluginParameter parameters = 3;
+  repeated ApplicationSourcePluginParameter parameters = 3 [(gogoproto.customname) = "Parameters", (gogoproto.nullable) = false];
 }
 
 message ApplicationSourcePluginParameter {
   // Name is the name identifying a parameter.
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // String_ is the value of a string type parameter.
-  optional string string = 5;
+  optional string string = 5 [(gogoproto.customname) = "String_"];
 
   // Map is the value of a map type parameter.
-  optional OptionalMap map = 3;
+  optional OptionalMap map = 3 [(gogoproto.customname) = "OptionalMap"];
 
   // Array is the value of an array type parameter.
-  optional OptionalArray array = 4;
+  optional OptionalArray array = 4 [(gogoproto.customname) = "OptionalArray"];
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
 message ApplicationSpec {
   // Source is a reference to the location of the application's manifests or chart
-  optional ApplicationSource source = 1;
+  optional ApplicationSource source = 1 [(gogoproto.customname) = "Source"];
 
   // Destination is a reference to the target Kubernetes server and namespace
-  optional ApplicationDestination destination = 2;
+  optional ApplicationDestination destination = 2 [(gogoproto.customname) = "Destination", (gogoproto.nullable) = false];
 
   // Project is a reference to the project this application belongs to.
   // The empty string means that application belongs to the 'default' project.
-  optional string project = 3;
+  optional string project = 3 [(gogoproto.customname) = "Project", (gogoproto.nullable) = false];
 
   // SyncPolicy controls when and how a sync will be performed
-  optional SyncPolicy syncPolicy = 4;
+  optional SyncPolicy syncPolicy = 4 [(gogoproto.customname) = "SyncPolicy"];
 
   // IgnoreDifferences is a list of resources and their fields which should be ignored during comparison
-  repeated ResourceIgnoreDifferences ignoreDifferences = 5;
+  repeated ResourceIgnoreDifferences ignoreDifferences = 5 [(gogoproto.customname) = "IgnoreDifferences", (gogoproto.nullable) = false];
 
   // Info contains a list of information (URLs, email addresses, and plain text) that relates to the application
-  repeated Info info = 6;
+  repeated Info info = 6 [(gogoproto.customname) = "Info", (gogoproto.nullable) = false];
 
   // RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.
   // This should only be changed in exceptional circumstances.
   // Setting to zero will store no history. This will reduce storage used.
   // Increasing will increase the space used to store the history, so we do not recommend increasing it.
   // Default is 10.
-  optional int64 revisionHistoryLimit = 7;
+  optional int64 revisionHistoryLimit = 7 [(gogoproto.customname) = "RevisionHistoryLimit"];
 
   // Sources is a reference to the location of the application's manifests or chart
-  repeated ApplicationSource sources = 8;
+  repeated ApplicationSource sources = 8 [(gogoproto.customname) = "Sources", (gogoproto.nullable) = false];
 
   // SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
-  optional SourceHydrator sourceHydrator = 9;
+  optional SourceHydrator sourceHydrator = 9 [(gogoproto.customname) = "SourceHydrator"];
 }
 
 // ApplicationStatus contains status information for the application
 message ApplicationStatus {
   // Resources is a list of Kubernetes resources managed by this application
-  repeated ResourceStatus resources = 1;
+  repeated ResourceStatus resources = 1 [(gogoproto.customname) = "Resources", (gogoproto.nullable) = false];
 
   // Sync contains information about the application's current sync status
-  optional SyncStatus sync = 2;
+  optional SyncStatus sync = 2 [(gogoproto.customname) = "Sync", (gogoproto.nullable) = false];
 
   // Health contains information about the application's current health status
-  optional AppHealthStatus health = 3;
+  optional AppHealthStatus health = 3 [(gogoproto.customname) = "Health", (gogoproto.nullable) = false];
 
   // History contains information about the application's sync history
-  repeated RevisionHistory history = 4;
+  repeated RevisionHistory history = 4 [(gogoproto.customname) = "History", (gogoproto.nullable) = false];
 
   // Conditions is a list of currently observed application conditions
-  repeated ApplicationCondition conditions = 5;
+  repeated ApplicationCondition conditions = 5 [(gogoproto.customname) = "Conditions", (gogoproto.nullable) = false];
 
   // ReconciledAt indicates when the application state was reconciled using the latest git version
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time reconciledAt = 6;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time reconciledAt = 6 [(gogoproto.customname) = "ReconciledAt"];
 
   // OperationState contains information about any ongoing operations, such as a sync
-  optional OperationState operationState = 7;
+  optional OperationState operationState = 7 [(gogoproto.customname) = "OperationState"];
 
   // ObservedAt indicates when the application state was updated without querying latest git state
   //
   // Deprecated: controller no longer updates ObservedAt field
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8 [(gogoproto.customname) = "ObservedAt"];
 
   // SourceType specifies the type of this application
-  optional string sourceType = 9;
+  optional string sourceType = 9 [(gogoproto.casttype) = "ApplicationSourceType", (gogoproto.customname) = "SourceType", (gogoproto.nullable) = false];
 
   // Summary contains a list of URLs and container images used by this application
-  optional ApplicationSummary summary = 10;
+  optional ApplicationSummary summary = 10 [(gogoproto.customname) = "Summary", (gogoproto.nullable) = false];
 
   // ResourceHealthSource indicates where the resource health status is stored: inline if not set or appTree
-  optional string resourceHealthSource = 11;
+  optional string resourceHealthSource = 11 [(gogoproto.casttype) = "ResourceHealthLocation", (gogoproto.customname) = "ResourceHealthSource", (gogoproto.nullable) = false];
 
   // SourceTypes specifies the type of the sources included in the application
-  repeated string sourceTypes = 12;
+  repeated string sourceTypes = 12 [(gogoproto.casttype) = "ApplicationSourceType", (gogoproto.customname) = "SourceTypes"];
 
   // ControllerNamespace indicates the namespace in which the application controller is located
-  optional string controllerNamespace = 13;
+  optional string controllerNamespace = 13 [(gogoproto.customname) = "ControllerNamespace", (gogoproto.nullable) = false];
 
   // SourceHydrator stores information about the current state of source hydration
-  optional SourceHydratorStatus sourceHydrator = 14;
+  optional SourceHydratorStatus sourceHydrator = 14 [(gogoproto.customname) = "SourceHydrator", (gogoproto.nullable) = false];
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
 message ApplicationSummary {
   // ExternalURLs holds all external URLs of application child resources.
-  repeated string externalURLs = 1;
+  repeated string externalURLs = 1 [(gogoproto.customname) = "ExternalURLs"];
 
   // Images holds all images of application child resources.
-  repeated string images = 2;
+  repeated string images = 2 [(gogoproto.customname) = "Images"];
 }
 
 // ApplicationTree represents the hierarchical structure of resources associated with an Argo CD application.
 message ApplicationTree {
   // Nodes contains a list of resources that are either directly managed by the application
   // or are children of directly managed resources.
-  repeated ResourceNode nodes = 1;
+  repeated ResourceNode nodes = 1 [(gogoproto.customname) = "Nodes", (gogoproto.nullable) = false];
 
   // OrphanedNodes contains resources that exist in the same namespace as the application
   // but are not managed by it. This list is populated only if orphaned resource tracking
   // is enabled in the application's project settings.
-  repeated ResourceNode orphanedNodes = 2;
+  repeated ResourceNode orphanedNodes = 2 [(gogoproto.customname) = "OrphanedNodes", (gogoproto.nullable) = false];
 
   // Hosts provides a list of Kubernetes nodes that are running pods related to the application.
-  repeated HostInfo hosts = 3;
+  repeated HostInfo hosts = 3 [(gogoproto.customname) = "Hosts", (gogoproto.nullable) = false];
 
   // ShardsCount represents the total number of shards the application tree is split into.
   // This is used to distribute resource processing across multiple shards.
-  optional int64 shardsCount = 4;
+  optional int64 shardsCount = 4 [(gogoproto.customname) = "ShardsCount", (gogoproto.nullable) = false];
 }
 
 // ApplicationWatchEvent contains information about application change.
 message ApplicationWatchEvent {
-  optional string type = 1;
+  optional string type = 1 [(gogoproto.casttype) = "k8s.io/apimachinery/pkg/watch.EventType", (gogoproto.customname) = "Type", (gogoproto.nullable) = false];
 
   // Application is:
   //  * If Type is Added or Modified: the new state of the object.
   //  * If Type is Deleted: the state of the object immediately before deletion.
   //  * If Type is Error: *api.Status is recommended; other types may make sense
   //    depending on context.
-  optional Application application = 2;
+  optional Application application = 2 [(gogoproto.customname) = "Application", (gogoproto.nullable) = false];
 }
 
 // Backoff is the backoff strategy to use on subsequent retries for failing syncs
 message Backoff {
   // Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. "2m", "1h")
-  optional string duration = 1;
+  optional string duration = 1 [(gogoproto.customname) = "Duration", (gogoproto.nullable) = false];
 
   // Factor is a factor to multiply the base duration after each failed retry
-  optional int64 factor = 2;
+  optional int64 factor = 2 [(gogoproto.customname) = "Factor"];
 
   // MaxDuration is the maximum amount of time allowed for the backoff strategy
-  optional string maxDuration = 3;
+  optional string maxDuration = 3 [(gogoproto.customname) = "MaxDuration", (gogoproto.nullable) = false];
 }
 
 // BasicAuthBitbucketServer defines the username/(password or personal access token) for Basic auth.
 message BasicAuthBitbucketServer {
   // Username for Basic auth
-  optional string username = 1;
+  optional string username = 1 [(gogoproto.customname) = "Username", (gogoproto.nullable) = false];
 
   // Password (or personal access token) reference.
-  optional SecretRef passwordRef = 2;
+  optional SecretRef passwordRef = 2 [(gogoproto.customname) = "PasswordRef"];
 }
 
 // BearerTokenBitbucket defines the Bearer token for BitBucket AppToken auth.
 message BearerTokenBitbucket {
   // Password (or personal access token) reference.
-  optional SecretRef tokenRef = 1;
+  optional SecretRef tokenRef = 1 [(gogoproto.customname) = "TokenRef"];
 }
 
 // BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.
 message BearerTokenBitbucketCloud {
   // Password (or personal access token) reference.
-  optional SecretRef tokenRef = 1;
+  optional SecretRef tokenRef = 1 [(gogoproto.customname) = "TokenRef"];
 }
 
 // ChartDetails contains helm chart metadata for a specific version
 message ChartDetails {
-  optional string description = 1;
+  optional string description = 1 [(gogoproto.customname) = "Description", (gogoproto.nullable) = false];
 
   // The URL of this projects home page, e.g. "http://example.com"
-  optional string home = 2;
+  optional string home = 2 [(gogoproto.customname) = "Home", (gogoproto.nullable) = false];
 
   // List of maintainer details, name and email, e.g. ["John Doe <john_doe@my-company.com>"]
-  repeated string maintainers = 3;
+  repeated string maintainers = 3 [(gogoproto.customname) = "Maintainers"];
 }
 
 // Cluster is the definition of a cluster resource
 message Cluster {
   // Server is the API server URL of the Kubernetes cluster
-  optional string server = 1;
+  optional string server = 1 [(gogoproto.customname) = "Server", (gogoproto.nullable) = false];
 
   // Name of the cluster. If omitted, will use the server address
-  optional string name = 2;
+  optional string name = 2 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // Config holds cluster information for connecting to a cluster
-  optional ClusterConfig config = 3;
+  optional ClusterConfig config = 3 [(gogoproto.customname) = "Config", (gogoproto.nullable) = false];
 
   // Deprecated: use Info.ConnectionState field instead.
   // ConnectionState contains information about cluster connection state
-  optional ConnectionState connectionState = 4;
+  optional ConnectionState connectionState = 4 [(gogoproto.customname) = "ConnectionState", (gogoproto.nullable) = false];
 
   // Deprecated: use Info.ServerVersion field instead.
   // The server version
-  optional string serverVersion = 5;
+  optional string serverVersion = 5 [(gogoproto.customname) = "ServerVersion", (gogoproto.nullable) = false];
 
   // Holds list of namespaces which are accessible in that cluster. Cluster level resources will be ignored if namespace list is not empty.
-  repeated string namespaces = 6;
+  repeated string namespaces = 6 [(gogoproto.customname) = "Namespaces"];
 
   // RefreshRequestedAt holds time when cluster cache refresh has been requested
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time refreshRequestedAt = 7;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time refreshRequestedAt = 7 [(gogoproto.customname) = "RefreshRequestedAt"];
 
   // Info holds information about cluster cache and state
-  optional ClusterInfo info = 8;
+  optional ClusterInfo info = 8 [(gogoproto.customname) = "Info", (gogoproto.nullable) = false];
 
   // Shard contains optional shard number. Calculated on the fly by the application controller if not specified.
-  optional int64 shard = 9;
+  optional int64 shard = 9 [(gogoproto.customname) = "Shard"];
 
   // Indicates if cluster level resources should be managed. This setting is used only if cluster is connected in a namespaced mode.
-  optional bool clusterResources = 10;
+  optional bool clusterResources = 10 [(gogoproto.customname) = "ClusterResources", (gogoproto.nullable) = false];
 
   // Reference between project and cluster that allow you automatically to be added as item inside Destinations project entity
-  optional string project = 11;
+  optional string project = 11 [(gogoproto.customname) = "Project", (gogoproto.nullable) = false];
 
   // Labels for cluster secret metadata
-  map<string, string> labels = 12;
+  map<string, string> labels = 12 [(gogoproto.customname) = "Labels", (gogoproto.nullable) = false];
 
   // Annotations for cluster secret metadata
-  map<string, string> annotations = 13;
+  map<string, string> annotations = 13 [(gogoproto.customname) = "Annotations", (gogoproto.nullable) = false];
 }
 
 // ClusterCacheInfo contains information about the cluster cache
 message ClusterCacheInfo {
   // ResourcesCount holds number of observed Kubernetes resources
-  optional int64 resourcesCount = 1;
+  optional int64 resourcesCount = 1 [(gogoproto.customname) = "ResourcesCount", (gogoproto.nullable) = false];
 
   // APIsCount holds number of observed Kubernetes API count
-  optional int64 apisCount = 2;
+  optional int64 apisCount = 2 [(gogoproto.customname) = "APIsCount", (gogoproto.nullable) = false];
 
   // LastCacheSyncTime holds time of most recent cache synchronization
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastCacheSyncTime = 3;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastCacheSyncTime = 3 [(gogoproto.customname) = "LastCacheSyncTime"];
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
 // rest.Config with annotations added for marshalling.
 message ClusterConfig {
   // Server requires Basic authentication
-  optional string username = 1;
+  optional string username = 1 [(gogoproto.customname) = "Username", (gogoproto.nullable) = false];
 
-  optional string password = 2;
+  optional string password = 2 [(gogoproto.customname) = "Password", (gogoproto.nullable) = false];
 
   // Server requires Bearer authentication. This client will not attempt to use
   // refresh tokens for an OAuth2 flow.
   // TODO: demonstrate an OAuth2 compatible client.
-  optional string bearerToken = 3;
+  optional string bearerToken = 3 [(gogoproto.customname) = "BearerToken", (gogoproto.nullable) = false];
 
   // TLSClientConfig contains settings to enable transport layer security
-  optional TLSClientConfig tlsClientConfig = 4;
+  optional TLSClientConfig tlsClientConfig = 4 [(gogoproto.customname) = "TLSClientConfig", (gogoproto.nullable) = false];
 
   // AWSAuthConfig contains IAM authentication configuration
-  optional AWSAuthConfig awsAuthConfig = 5;
+  optional AWSAuthConfig awsAuthConfig = 5 [(gogoproto.customname) = "AWSAuthConfig"];
 
   // ExecProviderConfig contains configuration for an exec provider
-  optional ExecProviderConfig execProviderConfig = 6;
+  optional ExecProviderConfig execProviderConfig = 6 [(gogoproto.customname) = "ExecProviderConfig"];
 
   // DisableCompression bypasses automatic GZip compression requests to the server.
-  optional bool disableCompression = 7;
+  optional bool disableCompression = 7 [(gogoproto.customname) = "DisableCompression", (gogoproto.nullable) = false];
 
   // ProxyURL is the URL to the proxy to be used for all requests send to the server
-  optional string proxyUrl = 8;
+  optional string proxyUrl = 8 [(gogoproto.customname) = "ProxyUrl", (gogoproto.nullable) = false];
 }
 
 // ClusterGenerator defines a generator to match against clusters registered with ArgoCD.
@@ -911,58 +921,58 @@ message ClusterGenerator {
   // Selector defines a label selector to match against all clusters registered with ArgoCD.
   // Clusters today are stored as Kubernetes Secrets, thus the Secret labels will be used
   // for matching the selector.
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 1 [(gogoproto.customname) = "Selector", (gogoproto.nullable) = false];
 
-  optional ApplicationSetTemplate template = 2;
+  optional ApplicationSetTemplate template = 2 [(gogoproto.customname) = "Template", (gogoproto.nullable) = false];
 
   // Values contains key/value pairs which are passed directly as parameters to the template
-  map<string, string> values = 3;
+  map<string, string> values = 3 [(gogoproto.customname) = "Values", (gogoproto.nullable) = false];
 
   // returns the clusters a single 'clusters' value in the template
-  optional bool flatList = 4;
+  optional bool flatList = 4 [(gogoproto.customname) = "FlatList", (gogoproto.nullable) = false];
 }
 
 // ClusterInfo contains information about the cluster
 message ClusterInfo {
   // ConnectionState contains information about the connection to the cluster
-  optional ConnectionState connectionState = 1;
+  optional ConnectionState connectionState = 1 [(gogoproto.customname) = "ConnectionState", (gogoproto.nullable) = false];
 
   // ServerVersion contains information about the Kubernetes version of the cluster
-  optional string serverVersion = 2;
+  optional string serverVersion = 2 [(gogoproto.customname) = "ServerVersion", (gogoproto.nullable) = false];
 
   // CacheInfo contains information about the cluster cache
-  optional ClusterCacheInfo cacheInfo = 3;
+  optional ClusterCacheInfo cacheInfo = 3 [(gogoproto.customname) = "CacheInfo", (gogoproto.nullable) = false];
 
   // ApplicationsCount is the number of applications managed by Argo CD on the cluster
-  optional int64 applicationsCount = 4;
+  optional int64 applicationsCount = 4 [(gogoproto.customname) = "ApplicationsCount", (gogoproto.nullable) = false];
 
   // APIVersions contains list of API versions supported by the cluster
-  repeated string apiVersions = 5;
+  repeated string apiVersions = 5 [(gogoproto.customname) = "APIVersions"];
 }
 
 // ClusterList is a collection of Clusters.
 message ClusterList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
 
-  repeated Cluster items = 2;
+  repeated Cluster items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
 }
 
 // ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist
 message ClusterResourceRestrictionItem {
-  optional string group = 1;
+  optional string group = 1 [(gogoproto.customname) = "Group", (gogoproto.nullable) = false];
 
-  optional string kind = 2;
+  optional string kind = 2 [(gogoproto.customname) = "Kind", (gogoproto.nullable) = false];
 
   // Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.
   // Unlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.
-  optional string name = 3;
+  optional string name = 3 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 }
 
 // Command holds binary path and arguments list
 message Command {
-  repeated string command = 1;
+  repeated string command = 1 [(gogoproto.customname) = "Command"];
 
-  repeated string args = 2;
+  repeated string args = 2 [(gogoproto.customname) = "Args"];
 }
 
 // CommitMetadata contains metadata about a commit that is related in some way to another commit.
@@ -970,108 +980,108 @@ message CommitMetadata {
   // Author is the author of the commit, i.e. `git show -s --format=%an <%ae>`.
   // Must be formatted according to RFC 5322 (mail.Address.String()).
   // Comes from the Argocd-reference-commit-author trailer.
-  optional string author = 1;
+  optional string author = 1 [(gogoproto.customname) = "Author", (gogoproto.nullable) = false];
 
   // Date is the date of the commit, formatted as by `git show -s --format=%aI` (RFC 3339).
   // It can also be an empty string if the date is unknown.
   // Comes from the Argocd-reference-commit-date trailer.
-  optional string date = 2;
+  optional string date = 2 [(gogoproto.customname) = "Date", (gogoproto.nullable) = false];
 
   // Subject is the commit message subject line, i.e. `git show -s --format=%s`.
   // Comes from the Argocd-reference-commit-subject trailer.
-  optional string subject = 3;
+  optional string subject = 3 [(gogoproto.customname) = "Subject", (gogoproto.nullable) = false];
 
   // Body is the commit message body minus the subject line, i.e. `git show -s --format=%b`.
   // Comes from the Argocd-reference-commit-body trailer.
-  optional string body = 4;
+  optional string body = 4 [(gogoproto.customname) = "Body", (gogoproto.nullable) = false];
 
   // SHA is the commit hash.
   // Comes from the Argocd-reference-commit-sha trailer.
-  optional string sha = 5;
+  optional string sha = 5 [(gogoproto.customname) = "SHA", (gogoproto.nullable) = false];
 
   // RepoURL is the URL of the repository where the commit is located.
   // Comes from the Argocd-reference-commit-repourl trailer.
   // This value is not validated and should not be used to construct UI links unless it is properly
   // validated and/or sanitized first.
-  optional string repoUrl = 6;
+  optional string repoUrl = 6 [(gogoproto.customname) = "RepoURL", (gogoproto.nullable) = false];
 }
 
 // ComparedTo contains application source and target which was used for resources comparison
 message ComparedTo {
   // Source is a reference to the application's source used for comparison
-  optional ApplicationSource source = 1;
+  optional ApplicationSource source = 1 [(gogoproto.customname) = "Source", (gogoproto.nullable) = false];
 
   // Destination is a reference to the application's destination used for comparison
-  optional ApplicationDestination destination = 2;
+  optional ApplicationDestination destination = 2 [(gogoproto.customname) = "Destination", (gogoproto.nullable) = false];
 
   // Sources is a reference to the application's multiple sources used for comparison
-  repeated ApplicationSource sources = 3;
+  repeated ApplicationSource sources = 3 [(gogoproto.customname) = "Sources", (gogoproto.nullable) = false];
 
   // IgnoreDifferences is a reference to the application's ignored differences used for comparison
-  repeated ResourceIgnoreDifferences ignoreDifferences = 4;
+  repeated ResourceIgnoreDifferences ignoreDifferences = 4 [(gogoproto.customname) = "IgnoreDifferences", (gogoproto.nullable) = false];
 }
 
 // ComponentParameter contains information about component parameter value
 message ComponentParameter {
-  optional string component = 1;
+  optional string component = 1 [(gogoproto.customname) = "Component", (gogoproto.nullable) = false];
 
-  optional string name = 2;
+  optional string name = 2 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
-  optional string value = 3;
+  optional string value = 3 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
 }
 
 // ConfigManagementPlugin contains config management plugin configuration
 message ConfigManagementPlugin {
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
-  optional Command init = 2;
+  optional Command init = 2 [(gogoproto.customname) = "Init"];
 
-  optional Command generate = 3;
+  optional Command generate = 3 [(gogoproto.customname) = "Generate", (gogoproto.nullable) = false];
 
-  optional bool lockRepo = 4;
+  optional bool lockRepo = 4 [(gogoproto.customname) = "LockRepo", (gogoproto.nullable) = false];
 }
 
 // ConfigMapKeyRef struct for a reference to a configmap key.
 message ConfigMapKeyRef {
-  optional string configMapName = 1;
+  optional string configMapName = 1 [(gogoproto.customname) = "ConfigMapName", (gogoproto.nullable) = false];
 
-  optional string key = 2;
+  optional string key = 2 [(gogoproto.customname) = "Key", (gogoproto.nullable) = false];
 }
 
 // ConnectionState contains information about remote resource connection state, currently used for clusters and repositories
 message ConnectionState {
   // Status contains the current status indicator for the connection
-  optional string status = 1;
+  optional string status = 1 [(gogoproto.customname) = "Status", (gogoproto.nullable) = false];
 
   // Message contains human readable information about the connection status
-  optional string message = 2;
+  optional string message = 2 [(gogoproto.customname) = "Message", (gogoproto.nullable) = false];
 
   // ModifiedAt contains the timestamp when this connection status has been determined
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3 [(gogoproto.customname) = "ModifiedAt"];
 }
 
 // DrySource specifies a location for dry "don't repeat yourself" manifest source information.
 message DrySource {
   // RepoURL is the URL to the git repository that contains the application manifests
-  optional string repoURL = 1;
+  optional string repoURL = 1 [(gogoproto.customname) = "RepoURL", (gogoproto.nullable) = false];
 
   // TargetRevision defines the revision of the source to hydrate
-  optional string targetRevision = 2;
+  optional string targetRevision = 2 [(gogoproto.customname) = "TargetRevision", (gogoproto.nullable) = false];
 
   // Path is a directory path within the Git repository where the manifests are located
-  optional string path = 3;
+  optional string path = 3 [(gogoproto.customname) = "Path", (gogoproto.nullable) = false];
 
   // Helm specifies helm specific options
-  optional ApplicationSourceHelm helm = 4;
+  optional ApplicationSourceHelm helm = 4 [(gogoproto.customname) = "Helm"];
 
   // Kustomize specifies kustomize specific options
-  optional ApplicationSourceKustomize kustomize = 5;
+  optional ApplicationSourceKustomize kustomize = 5 [(gogoproto.customname) = "Kustomize"];
 
   // Directory specifies path/directory specific options
-  optional ApplicationSourceDirectory directory = 6;
+  optional ApplicationSourceDirectory directory = 6 [(gogoproto.customname) = "Directory"];
 
   // Plugin specifies config management plugin specific options
-  optional ApplicationSourcePlugin plugin = 7;
+  optional ApplicationSourcePlugin plugin = 7 [(gogoproto.customname) = "Plugin"];
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.
@@ -1080,244 +1090,244 @@ message DuckTypeGenerator {
   //              this includes apiVersion(group/version), kind, matchKey and validation settings
   // Name is the resource name of the kind, group and version, defined in the ConfigMapRef
   // RequeueAfterSeconds is how long before the duckType will be rechecked for a change
-  optional string configMapRef = 1;
+  optional string configMapRef = 1 [(gogoproto.customname) = "ConfigMapRef", (gogoproto.nullable) = false];
 
-  optional string name = 2;
+  optional string name = 2 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
-  optional int64 requeueAfterSeconds = 3;
+  optional int64 requeueAfterSeconds = 3 [(gogoproto.customname) = "RequeueAfterSeconds"];
 
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector labelSelector = 4;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector labelSelector = 4 [(gogoproto.customname) = "LabelSelector", (gogoproto.nullable) = false];
 
-  optional ApplicationSetTemplate template = 5;
+  optional ApplicationSetTemplate template = 5 [(gogoproto.customname) = "Template", (gogoproto.nullable) = false];
 
   // Values contains key/value pairs which are passed directly as parameters to the template
-  map<string, string> values = 6;
+  map<string, string> values = 6 [(gogoproto.customname) = "Values", (gogoproto.nullable) = false];
 }
 
 // EnvEntry represents an entry in the application's environment
 message EnvEntry {
   // Name is the name of the variable, usually expressed in uppercase
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // Value is the value of the variable
-  optional string value = 2;
+  optional string value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
 }
 
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
 // See: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 message ExecProviderConfig {
   // Command to execute
-  optional string command = 1;
+  optional string command = 1 [(gogoproto.customname) = "Command", (gogoproto.nullable) = false];
 
   // Arguments to pass to the command when executing it
-  repeated string args = 2;
+  repeated string args = 2 [(gogoproto.customname) = "Args"];
 
   // Env defines additional environment variables to expose to the process
-  map<string, string> env = 3;
+  map<string, string> env = 3 [(gogoproto.customname) = "Env", (gogoproto.nullable) = false];
 
   // Preferred input version of the ExecInfo
-  optional string apiVersion = 4;
+  optional string apiVersion = 4 [(gogoproto.customname) = "APIVersion", (gogoproto.nullable) = false];
 
   // This text is shown to the user when the executable doesn't seem to be present
-  optional string installHint = 5;
+  optional string installHint = 5 [(gogoproto.customname) = "InstallHint", (gogoproto.nullable) = false];
 }
 
 message GitDirectoryGeneratorItem {
-  optional string path = 1;
+  optional string path = 1 [(gogoproto.customname) = "Path", (gogoproto.nullable) = false];
 
-  optional bool exclude = 2;
+  optional bool exclude = 2 [(gogoproto.customname) = "Exclude", (gogoproto.nullable) = false];
 }
 
 message GitFileGeneratorItem {
-  optional string path = 1;
+  optional string path = 1 [(gogoproto.customname) = "Path", (gogoproto.nullable) = false];
 
-  optional bool exclude = 2;
+  optional bool exclude = 2 [(gogoproto.customname) = "Exclude", (gogoproto.nullable) = false];
 }
 
 message GitGenerator {
-  optional string repoURL = 1;
+  optional string repoURL = 1 [(gogoproto.customname) = "RepoURL", (gogoproto.nullable) = false];
 
-  repeated GitDirectoryGeneratorItem directories = 2;
+  repeated GitDirectoryGeneratorItem directories = 2 [(gogoproto.customname) = "Directories", (gogoproto.nullable) = false];
 
-  repeated GitFileGeneratorItem files = 3;
+  repeated GitFileGeneratorItem files = 3 [(gogoproto.customname) = "Files", (gogoproto.nullable) = false];
 
-  optional string revision = 4;
+  optional string revision = 4 [(gogoproto.customname) = "Revision", (gogoproto.nullable) = false];
 
-  optional int64 requeueAfterSeconds = 5;
+  optional int64 requeueAfterSeconds = 5 [(gogoproto.customname) = "RequeueAfterSeconds"];
 
-  optional ApplicationSetTemplate template = 6;
+  optional ApplicationSetTemplate template = 6 [(gogoproto.customname) = "Template", (gogoproto.nullable) = false];
 
-  optional string pathParamPrefix = 7;
+  optional string pathParamPrefix = 7 [(gogoproto.customname) = "PathParamPrefix", (gogoproto.nullable) = false];
 
   // Values contains key/value pairs which are passed directly as parameters to the template
-  map<string, string> values = 8;
+  map<string, string> values = 8 [(gogoproto.customname) = "Values", (gogoproto.nullable) = false];
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key
 message GnuPGPublicKey {
   // KeyID specifies the key ID, in hexadecimal string format
-  optional string keyID = 1;
+  optional string keyID = 1 [(gogoproto.customname) = "KeyID", (gogoproto.nullable) = false];
 
   // Fingerprint is the fingerprint of the key
-  optional string fingerprint = 2;
+  optional string fingerprint = 2 [(gogoproto.customname) = "Fingerprint", (gogoproto.nullable) = false];
 
   // Owner holds the owner identification, e.g. a name and e-mail address
-  optional string owner = 3;
+  optional string owner = 3 [(gogoproto.customname) = "Owner", (gogoproto.nullable) = false];
 
   // Trust holds the level of trust assigned to this key
-  optional string trust = 4;
+  optional string trust = 4 [(gogoproto.customname) = "Trust", (gogoproto.nullable) = false];
 
   // SubType holds the key's subtype (e.g. rsa4096)
-  optional string subType = 5;
+  optional string subType = 5 [(gogoproto.customname) = "SubType", (gogoproto.nullable) = false];
 
   // KeyData holds the raw key data, in base64 encoded format
-  optional string keyData = 6;
+  optional string keyData = 6 [(gogoproto.customname) = "KeyData", (gogoproto.nullable) = false];
 }
 
 // GnuPGPublicKeyList is a collection of GnuPGPublicKey objects
 message GnuPGPublicKeyList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
 
-  repeated GnuPGPublicKey items = 2;
+  repeated GnuPGPublicKey items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
 }
 
 // HealthStatus contains information about the currently observed health state of a resource
 message HealthStatus {
   // Status holds the status code of the resource
-  optional string status = 1;
+  optional string status = 1 [(gogoproto.casttype) = "github.com/argoproj/gitops-engine/pkg/health.HealthStatusCode", (gogoproto.customname) = "Status", (gogoproto.nullable) = false];
 
   // Message is a human-readable informational message describing the health status
-  optional string message = 2;
+  optional string message = 2 [(gogoproto.customname) = "Message", (gogoproto.nullable) = false];
 
   // LastTransitionTime is the time the HealthStatus was set or updated
   //
   // Deprecated: this field is not used and will be removed in a future release.
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3 [(gogoproto.customname) = "LastTransitionTime"];
 }
 
 // HelmFileParameter is a file parameter that's passed to helm template during manifest generation
 message HelmFileParameter {
   // Name is the name of the Helm parameter
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // Path is the path to the file containing the values for the Helm parameter
-  optional string path = 2;
+  optional string path = 2 [(gogoproto.customname) = "Path", (gogoproto.nullable) = false];
 }
 
 // HelmOptions holds helm options
 message HelmOptions {
-  repeated string valuesFileSchemes = 1;
+  repeated string valuesFileSchemes = 1 [(gogoproto.customname) = "ValuesFileSchemes"];
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
 message HelmParameter {
   // Name is the name of the Helm parameter
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // Value is the value for the Helm parameter
-  optional string value = 2;
+  optional string value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
 
   // ForceString determines whether to tell Helm to interpret booleans and numbers as strings
-  optional bool forceString = 3;
+  optional bool forceString = 3 [(gogoproto.customname) = "ForceString", (gogoproto.nullable) = false];
 }
 
 // HostInfo holds metadata and resource usage metrics for a specific host in the cluster.
 message HostInfo {
   // Name is the hostname or node name in the Kubernetes cluster.
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // ResourcesInfo provides a list of resource usage details for different resource types on this host.
-  repeated HostResourceInfo resourcesInfo = 2;
+  repeated HostResourceInfo resourcesInfo = 2 [(gogoproto.customname) = "ResourcesInfo", (gogoproto.nullable) = false];
 
   // SystemInfo contains detailed system-level information about the host, such as OS, kernel version, and architecture.
-  optional .k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
+  optional .k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3 [(gogoproto.customname) = "SystemInfo", (gogoproto.nullable) = false];
 
   // Labels holds the labels attached to the host.
-  map<string, string> labels = 4;
+  map<string, string> labels = 4 [(gogoproto.customname) = "Labels", (gogoproto.nullable) = false];
 }
 
 // HostResourceInfo represents resource usage details for a specific resource type on a host.
 message HostResourceInfo {
   // ResourceName specifies the type of resource (e.g., CPU, memory, storage).
-  optional string resourceName = 1;
+  optional string resourceName = 1 [(gogoproto.casttype) = "k8s.io/api/core/v1.ResourceName", (gogoproto.customname) = "ResourceName", (gogoproto.nullable) = false];
 
   // RequestedByApp indicates the total amount of this resource requested by the application running on the host.
-  optional int64 requestedByApp = 2;
+  optional int64 requestedByApp = 2 [(gogoproto.customname) = "RequestedByApp", (gogoproto.nullable) = false];
 
   // RequestedByNeighbors indicates the total amount of this resource requested by other workloads on the same host.
-  optional int64 requestedByNeighbors = 3;
+  optional int64 requestedByNeighbors = 3 [(gogoproto.customname) = "RequestedByNeighbors", (gogoproto.nullable) = false];
 
   // Capacity represents the total available capacity of this resource on the host.
-  optional int64 capacity = 4;
+  optional int64 capacity = 4 [(gogoproto.customname) = "Capacity", (gogoproto.nullable) = false];
 }
 
 // HydrateOperation contains information about the most recent hydrate operation
 message HydrateOperation {
   // StartedAt indicates when the hydrate operation started
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 1 [(gogoproto.customname) = "StartedAt", (gogoproto.nullable) = false];
 
   // FinishedAt indicates when the hydrate operation finished
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 2;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 2 [(gogoproto.customname) = "FinishedAt"];
 
   // Phase indicates the status of the hydrate operation
-  optional string phase = 3;
+  optional string phase = 3 [(gogoproto.casttype) = "HydrateOperationPhase", (gogoproto.customname) = "Phase", (gogoproto.nullable) = false];
 
   // Message contains a message describing the current status of the hydrate operation
-  optional string message = 4;
+  optional string message = 4 [(gogoproto.customname) = "Message", (gogoproto.nullable) = false];
 
   // DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
-  optional string drySHA = 5;
+  optional string drySHA = 5 [(gogoproto.customname) = "DrySHA", (gogoproto.nullable) = false];
 
   // HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation
-  optional string hydratedSHA = 6;
+  optional string hydratedSHA = 6 [(gogoproto.customname) = "HydratedSHA", (gogoproto.nullable) = false];
 
   // SourceHydrator holds the hydrator config used for the hydrate operation
-  optional SourceHydrator sourceHydrator = 7;
+  optional SourceHydrator sourceHydrator = 7 [(gogoproto.customname) = "SourceHydrator", (gogoproto.nullable) = false];
 }
 
 // HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
 // the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
 message HydrateTo {
   // TargetBranch is the branch to which hydrated manifests should be committed
-  optional string targetBranch = 1;
+  optional string targetBranch = 1 [(gogoproto.customname) = "TargetBranch", (gogoproto.nullable) = false];
 }
 
 message Info {
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
-  optional string value = 2;
+  optional string value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
 }
 
 // InfoItem contains arbitrary, human readable information about an application
 message InfoItem {
   // Name is a human readable title for this piece of information.
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // Value is human readable content.
-  optional string value = 2;
+  optional string value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
 }
 
 // JWTToken holds the issuedAt and expiresAt values of a token
 message JWTToken {
-  optional int64 iat = 1;
+  optional int64 iat = 1 [(gogoproto.customname) = "IssuedAt", (gogoproto.nullable) = false];
 
-  optional int64 exp = 2;
+  optional int64 exp = 2 [(gogoproto.customname) = "ExpiresAt", (gogoproto.nullable) = false];
 
-  optional string id = 3;
+  optional string id = 3 [(gogoproto.customname) = "ID", (gogoproto.nullable) = false];
 }
 
 // JWTTokens represents a list of JWT tokens
 message JWTTokens {
-  repeated JWTToken items = 1;
+  repeated JWTToken items = 1 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
 }
 
 // JsonnetVar represents a variable to be passed to jsonnet during manifest generation
 message JsonnetVar {
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
-  optional string value = 2;
+  optional string value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
 
-  optional bool code = 3;
+  optional bool code = 3 [(gogoproto.customname) = "Code", (gogoproto.nullable) = false];
 }
 
 // KnownTypeField contains a mapping between a Custom Resource Definition (CRD) field
@@ -1326,105 +1336,105 @@ message JsonnetVar {
 message KnownTypeField {
   // Field represents the JSON path to the specific field in the CRD that requires type conversion.
   // Example: "spec.resources.requests.cpu"
-  optional string field = 1;
+  optional string field = 1 [(gogoproto.customname) = "Field", (gogoproto.nullable) = false];
 
   // Type specifies the expected Kubernetes type for the field, such as "cpu" or "memory".
   // This helps in converting values between different formats (e.g., "0.1" to "100m" for CPU).
-  optional string type = 2;
+  optional string type = 2 [(gogoproto.customname) = "Type", (gogoproto.nullable) = false];
 }
 
 message KustomizeGvk {
-  optional string group = 1;
+  optional string group = 1 [(gogoproto.customname) = "Group", (gogoproto.nullable) = false];
 
-  optional string version = 2;
+  optional string version = 2 [(gogoproto.customname) = "Version", (gogoproto.nullable) = false];
 
-  optional string kind = 3;
+  optional string kind = 3 [(gogoproto.customname) = "Kind", (gogoproto.nullable) = false];
 }
 
 // KustomizeOptions are options for kustomize to use when building manifests
 message KustomizeOptions {
   // BuildOptions is a string of build parameters to use when calling `kustomize build`
-  optional string buildOptions = 1;
+  optional string buildOptions = 1 [(gogoproto.customname) = "BuildOptions", (gogoproto.nullable) = false];
 
   // BinaryPath holds optional path to kustomize binary
   //
   // Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.
   // If this field is set, it will be used as the Kustomize binary path.
   // Otherwise, Versions is used.
-  optional string binaryPath = 2;
+  optional string binaryPath = 2 [(gogoproto.customname) = "BinaryPath", (gogoproto.nullable) = false];
 
   // Versions is a list of Kustomize versions and their corresponding binary paths and build options.
-  repeated KustomizeVersion versions = 3;
+  repeated KustomizeVersion versions = 3 [(gogoproto.customname) = "Versions", (gogoproto.nullable) = false];
 }
 
 message KustomizePatch {
-  optional string path = 1;
+  optional string path = 1 [(gogoproto.customname) = "Path", (gogoproto.nullable) = false];
 
-  optional string patch = 2;
+  optional string patch = 2 [(gogoproto.customname) = "Patch", (gogoproto.nullable) = false];
 
-  optional KustomizeSelector target = 3;
+  optional KustomizeSelector target = 3 [(gogoproto.customname) = "Target"];
 
-  map<string, bool> options = 4;
+  map<string, bool> options = 4 [(gogoproto.customname) = "Options", (gogoproto.nullable) = false];
 }
 
 message KustomizeReplica {
   // Name of Deployment or StatefulSet
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // Number of replicas
-  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString count = 2;
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString count = 2 [(gogoproto.customname) = "Count", (gogoproto.nullable) = false];
 }
 
 message KustomizeResId {
-  optional KustomizeGvk gvk = 1;
+  optional KustomizeGvk gvk = 1 [(gogoproto.customname) = "KustomizeGvk", (gogoproto.nullable) = false];
 
-  optional string name = 2;
+  optional string name = 2 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
-  optional string namespace = 3;
+  optional string namespace = 3 [(gogoproto.customname) = "Namespace", (gogoproto.nullable) = false];
 }
 
 message KustomizeSelector {
-  optional KustomizeResId resId = 1;
+  optional KustomizeResId resId = 1 [(gogoproto.customname) = "KustomizeResId", (gogoproto.nullable) = false];
 
-  optional string annotationSelector = 2;
+  optional string annotationSelector = 2 [(gogoproto.customname) = "AnnotationSelector", (gogoproto.nullable) = false];
 
-  optional string labelSelector = 3;
+  optional string labelSelector = 3 [(gogoproto.customname) = "LabelSelector", (gogoproto.nullable) = false];
 }
 
 // KustomizeVersion holds information about additional Kustomize versions
 message KustomizeVersion {
   // Name holds Kustomize version name
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // Path holds the corresponding binary path
-  optional string path = 2;
+  optional string path = 2 [(gogoproto.customname) = "Path", (gogoproto.nullable) = false];
 
   // BuildOptions that are specific to a Kustomize version
-  optional string buildOptions = 3;
+  optional string buildOptions = 3 [(gogoproto.customname) = "BuildOptions", (gogoproto.nullable) = false];
 }
 
 // ListGenerator include items info
 message ListGenerator {
   // +kubebuilder:validation:Optional
-  repeated .k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
+  repeated .k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1 [(gogoproto.customname) = "Elements", (gogoproto.nullable) = false];
 
-  optional ApplicationSetTemplate template = 2;
+  optional ApplicationSetTemplate template = 2 [(gogoproto.customname) = "Template", (gogoproto.nullable) = false];
 
-  optional string elementsYaml = 3;
+  optional string elementsYaml = 3 [(gogoproto.customname) = "ElementsYaml", (gogoproto.nullable) = false];
 }
 
 message ManagedNamespaceMetadata {
-  map<string, string> labels = 1;
+  map<string, string> labels = 1 [(gogoproto.customname) = "Labels", (gogoproto.nullable) = false];
 
-  map<string, string> annotations = 2;
+  map<string, string> annotations = 2 [(gogoproto.customname) = "Annotations", (gogoproto.nullable) = false];
 }
 
 // MatrixGenerator generates the cartesian product of two sets of parameters. The parameters are defined by two nested
 // generators.
 message MatrixGenerator {
-  repeated ApplicationSetNestedGenerator generators = 1;
+  repeated ApplicationSetNestedGenerator generators = 1 [(gogoproto.customname) = "Generators", (gogoproto.nullable) = false];
 
-  optional ApplicationSetTemplate template = 2;
+  optional ApplicationSetTemplate template = 2 [(gogoproto.customname) = "Template", (gogoproto.nullable) = false];
 }
 
 // MergeGenerator merges the output of two or more generators. Where the values for all specified merge keys are equal
@@ -1438,11 +1448,11 @@ message MatrixGenerator {
 // MergeGenerator supports template overriding. If a MergeGenerator is one of multiple top-level generators, its
 // template will be merged with the top-level generator before the parameters are applied.
 message MergeGenerator {
-  repeated ApplicationSetNestedGenerator generators = 1;
+  repeated ApplicationSetNestedGenerator generators = 1 [(gogoproto.customname) = "Generators", (gogoproto.nullable) = false];
 
-  repeated string mergeKeys = 2;
+  repeated string mergeKeys = 2 [(gogoproto.customname) = "MergeKeys"];
 
-  optional ApplicationSetTemplate template = 3;
+  optional ApplicationSetTemplate template = 3 [(gogoproto.customname) = "Template", (gogoproto.nullable) = false];
 }
 
 // NestedMatrixGenerator is a MatrixGenerator nested under another combination-type generator (MatrixGenerator or
@@ -1453,7 +1463,7 @@ message MergeGenerator {
 // as a generic 'apiextensionsv1.JSON' object, and then marshalled into a NestedMatrixGenerator
 // when processed.
 message NestedMatrixGenerator {
-  repeated ApplicationSetTerminalGenerator generators = 1;
+  repeated ApplicationSetTerminalGenerator generators = 1 [(gogoproto.customname) = "Generators", (gogoproto.nullable) = false];
 }
 
 // NestedMergeGenerator is a MergeGenerator nested under another combination-type generator (MatrixGenerator or
@@ -1464,564 +1474,564 @@ message NestedMatrixGenerator {
 // as a generic 'apiextensionsv1.JSON' object, and then marshalled into a NestedMergeGenerator
 // when processed.
 message NestedMergeGenerator {
-  repeated ApplicationSetTerminalGenerator generators = 1;
+  repeated ApplicationSetTerminalGenerator generators = 1 [(gogoproto.customname) = "Generators", (gogoproto.nullable) = false];
 
-  repeated string mergeKeys = 2;
+  repeated string mergeKeys = 2 [(gogoproto.customname) = "MergeKeys"];
 }
 
 // OCIMetadata contains metadata for a specific revision in an OCI repository
 message OCIMetadata {
-  optional string createdAt = 1;
+  optional string createdAt = 1 [(gogoproto.customname) = "CreatedAt", (gogoproto.nullable) = false];
 
-  optional string authors = 2;
+  optional string authors = 2 [(gogoproto.customname) = "Authors", (gogoproto.nullable) = false];
 
-  optional string imageUrl = 3;
+  optional string imageUrl = 3 [(gogoproto.customname) = "ImageURL", (gogoproto.nullable) = false];
 
-  optional string docsUrl = 4;
+  optional string docsUrl = 4 [(gogoproto.customname) = "DocsURL", (gogoproto.nullable) = false];
 
-  optional string sourceUrl = 5;
+  optional string sourceUrl = 5 [(gogoproto.customname) = "SourceURL", (gogoproto.nullable) = false];
 
-  optional string version = 6;
+  optional string version = 6 [(gogoproto.customname) = "Version", (gogoproto.nullable) = false];
 
-  optional string description = 7;
+  optional string description = 7 [(gogoproto.customname) = "Description", (gogoproto.nullable) = false];
 }
 
 // Operation contains information about a requested or running operation
 message Operation {
   // Sync contains parameters for the operation
-  optional SyncOperation sync = 1;
+  optional SyncOperation sync = 1 [(gogoproto.customname) = "Sync"];
 
   // InitiatedBy contains information about who initiated the operations
-  optional OperationInitiator initiatedBy = 2;
+  optional OperationInitiator initiatedBy = 2 [(gogoproto.customname) = "InitiatedBy", (gogoproto.nullable) = false];
 
   // Info is a list of informational items for this operation
-  repeated Info info = 3;
+  repeated Info info = 3 [(gogoproto.customname) = "Info"];
 
   // Retry controls the strategy to apply if a sync fails
-  optional RetryStrategy retry = 4;
+  optional RetryStrategy retry = 4 [(gogoproto.customname) = "Retry", (gogoproto.nullable) = false];
 }
 
 // OperationInitiator contains information about the initiator of an operation
 message OperationInitiator {
   // Username contains the name of a user who started operation
-  optional string username = 1;
+  optional string username = 1 [(gogoproto.customname) = "Username", (gogoproto.nullable) = false];
 
   // Automated is set to true if operation was initiated automatically by the application controller.
-  optional bool automated = 2;
+  optional bool automated = 2 [(gogoproto.customname) = "Automated", (gogoproto.nullable) = false];
 }
 
 // OperationState contains information about state of a running operation
 message OperationState {
   // Operation is the original requested operation
-  optional Operation operation = 1;
+  optional Operation operation = 1 [(gogoproto.customname) = "Operation", (gogoproto.nullable) = false];
 
   // Phase is the current phase of the operation
-  optional string phase = 2;
+  optional string phase = 2 [(gogoproto.casttype) = "github.com/argoproj/gitops-engine/pkg/sync/common.OperationPhase", (gogoproto.customname) = "Phase", (gogoproto.nullable) = false];
 
   // Message holds any pertinent messages when attempting to perform operation (typically errors).
-  optional string message = 3;
+  optional string message = 3 [(gogoproto.customname) = "Message", (gogoproto.nullable) = false];
 
   // SyncResult is the result of a Sync operation
-  optional SyncOperationResult syncResult = 4;
+  optional SyncOperationResult syncResult = 4 [(gogoproto.customname) = "SyncResult"];
 
   // StartedAt contains time of operation start
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 6;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 6 [(gogoproto.customname) = "StartedAt", (gogoproto.nullable) = false];
 
   // FinishedAt contains time of operation completion
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7 [(gogoproto.customname) = "FinishedAt"];
 
   // RetryCount contains time of operation retries
-  optional int64 retryCount = 8;
+  optional int64 retryCount = 8 [(gogoproto.customname) = "RetryCount", (gogoproto.nullable) = false];
 }
 
 message OptionalArray {
   // Array is the value of an array type parameter.
   // +optional
-  repeated string array = 1;
+  repeated string array = 1 [(gogoproto.customname) = "Array"];
 }
 
 message OptionalMap {
   // Map is the value of a map type parameter.
   // +optional
-  map<string, string> map = 1;
+  map<string, string> map = 1 [(gogoproto.customname) = "Map", (gogoproto.nullable) = false];
 }
 
 // OrphanedResourceKey is a reference to a resource to be ignored from
 message OrphanedResourceKey {
-  optional string group = 1;
+  optional string group = 1 [(gogoproto.customname) = "Group", (gogoproto.nullable) = false];
 
-  optional string kind = 2;
+  optional string kind = 2 [(gogoproto.customname) = "Kind", (gogoproto.nullable) = false];
 
-  optional string name = 3;
+  optional string name = 3 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 }
 
 // OrphanedResourcesMonitorSettings holds settings of orphaned resources monitoring
 message OrphanedResourcesMonitorSettings {
   // Warn indicates if warning condition should be created for apps which have orphaned resources
-  optional bool warn = 1;
+  optional bool warn = 1 [(gogoproto.customname) = "Warn"];
 
   // Ignore contains a list of resources that are to be excluded from orphaned resources monitoring
-  repeated OrphanedResourceKey ignore = 2;
+  repeated OrphanedResourceKey ignore = 2 [(gogoproto.customname) = "Ignore", (gogoproto.nullable) = false];
 }
 
 // OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between
 // the desired state and live state
 message OverrideIgnoreDiff {
   // JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)
-  repeated string jSONPointers = 1;
+  repeated string jSONPointers = 1 [(gogoproto.customname) = "JSONPointers"];
 
   // JQPathExpressions is a JQ path list that will be evaludated during the diff process
-  repeated string jqPathExpressions = 2;
+  repeated string jqPathExpressions = 2 [(gogoproto.customname) = "JQPathExpressions"];
 
   // ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
   // desired state defined in the SCM and won't be displayed in diffs
-  repeated string managedFieldsManagers = 3;
+  repeated string managedFieldsManagers = 3 [(gogoproto.customname) = "ManagedFieldsManagers"];
 }
 
 message PluginConfigMapRef {
   // Name of the ConfigMap
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 }
 
 // PluginGenerator defines connection info specific to Plugin.
 message PluginGenerator {
-  optional PluginConfigMapRef configMapRef = 1;
+  optional PluginConfigMapRef configMapRef = 1 [(gogoproto.customname) = "ConfigMapRef", (gogoproto.nullable) = false];
 
-  optional PluginInput input = 2;
+  optional PluginInput input = 2 [(gogoproto.customname) = "Input", (gogoproto.nullable) = false];
 
   // RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.
-  optional int64 requeueAfterSeconds = 3;
+  optional int64 requeueAfterSeconds = 3 [(gogoproto.customname) = "RequeueAfterSeconds"];
 
-  optional ApplicationSetTemplate template = 4;
+  optional ApplicationSetTemplate template = 4 [(gogoproto.customname) = "Template", (gogoproto.nullable) = false];
 
   // Values contains key/value pairs which are passed directly as parameters to the template. These values will not be
   // sent as parameters to the plugin.
-  map<string, string> values = 5;
+  map<string, string> values = 5 [(gogoproto.customname) = "Values", (gogoproto.nullable) = false];
 }
 
 message PluginInput {
   // Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the
   // values can be any type.
-  map<string, .k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON> parameters = 1;
+  map<string, .k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON> parameters = 1 [(gogoproto.casttype) = "PluginParameters", (gogoproto.customname) = "Parameters", (gogoproto.nullable) = false];
 }
 
 // ProjectRole represents a role that has access to a project
 message ProjectRole {
   // Name is a name for this role
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // Description is a description of the role
-  optional string description = 2;
+  optional string description = 2 [(gogoproto.customname) = "Description", (gogoproto.nullable) = false];
 
   // Policies Stores a list of casbin formatted strings that define access policies for the role in the project
-  repeated string policies = 3;
+  repeated string policies = 3 [(gogoproto.customname) = "Policies"];
 
   // JWTTokens are a list of generated JWT tokens bound to this role
-  repeated JWTToken jwtTokens = 4;
+  repeated JWTToken jwtTokens = 4 [(gogoproto.customname) = "JWTTokens", (gogoproto.nullable) = false];
 
   // Groups are a list of OIDC group claims bound to this role
-  repeated string groups = 5;
+  repeated string groups = 5 [(gogoproto.customname) = "Groups"];
 }
 
 // PullRequestGenerator defines a generator that scrapes a PullRequest API to find candidate pull requests.
 message PullRequestGenerator {
   // Which provider to use and config for it.
-  optional PullRequestGeneratorGithub github = 1;
+  optional PullRequestGeneratorGithub github = 1 [(gogoproto.customname) = "Github"];
 
-  optional PullRequestGeneratorGitLab gitlab = 2;
+  optional PullRequestGeneratorGitLab gitlab = 2 [(gogoproto.customname) = "GitLab"];
 
-  optional PullRequestGeneratorGitea gitea = 3;
+  optional PullRequestGeneratorGitea gitea = 3 [(gogoproto.customname) = "Gitea"];
 
-  optional PullRequestGeneratorBitbucketServer bitbucketServer = 4;
+  optional PullRequestGeneratorBitbucketServer bitbucketServer = 4 [(gogoproto.customname) = "BitbucketServer"];
 
   // Filters for which pull requests should be considered.
-  repeated PullRequestGeneratorFilter filters = 5;
+  repeated PullRequestGeneratorFilter filters = 5 [(gogoproto.customname) = "Filters", (gogoproto.nullable) = false];
 
   // Standard parameters.
-  optional int64 requeueAfterSeconds = 6;
+  optional int64 requeueAfterSeconds = 6 [(gogoproto.customname) = "RequeueAfterSeconds"];
 
-  optional ApplicationSetTemplate template = 7;
+  optional ApplicationSetTemplate template = 7 [(gogoproto.customname) = "Template", (gogoproto.nullable) = false];
 
-  optional PullRequestGeneratorBitbucket bitbucket = 8;
+  optional PullRequestGeneratorBitbucket bitbucket = 8 [(gogoproto.customname) = "Bitbucket"];
 
   // Additional provider to use and config for it.
-  optional PullRequestGeneratorAzureDevOps azuredevops = 9;
+  optional PullRequestGeneratorAzureDevOps azuredevops = 9 [(gogoproto.customname) = "AzureDevOps"];
 
   // Values contains key/value pairs which are passed directly as parameters to the template
-  map<string, string> values = 10;
+  map<string, string> values = 10 [(gogoproto.customname) = "Values", (gogoproto.nullable) = false];
 
   // ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
-  optional bool continueOnRepoNotFoundError = 11;
+  optional bool continueOnRepoNotFoundError = 11 [(gogoproto.customname) = "ContinueOnRepoNotFoundError", (gogoproto.nullable) = false];
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
 message PullRequestGeneratorAzureDevOps {
   // Azure DevOps org to scan. Required.
-  optional string organization = 1;
+  optional string organization = 1 [(gogoproto.customname) = "Organization", (gogoproto.nullable) = false];
 
   // Azure DevOps project name to scan. Required.
-  optional string project = 2;
+  optional string project = 2 [(gogoproto.customname) = "Project", (gogoproto.nullable) = false];
 
   // Azure DevOps repo name to scan. Required.
-  optional string repo = 3;
+  optional string repo = 3 [(gogoproto.customname) = "Repo", (gogoproto.nullable) = false];
 
   // The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.
-  optional string api = 4;
+  optional string api = 4 [(gogoproto.customname) = "API", (gogoproto.nullable) = false];
 
   // Authentication token reference.
-  optional SecretRef tokenRef = 5;
+  optional SecretRef tokenRef = 5 [(gogoproto.customname) = "TokenRef"];
 
   // Labels is used to filter the PRs that you want to target
-  repeated string labels = 6;
+  repeated string labels = 6 [(gogoproto.customname) = "Labels"];
 }
 
 // PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
 message PullRequestGeneratorBitbucket {
   // Workspace to scan. Required.
-  optional string owner = 1;
+  optional string owner = 1 [(gogoproto.customname) = "Owner", (gogoproto.nullable) = false];
 
   // Repo name to scan. Required.
-  optional string repo = 2;
+  optional string repo = 2 [(gogoproto.customname) = "Repo", (gogoproto.nullable) = false];
 
   // The Bitbucket REST API URL to talk to. If blank, uses https://api.bitbucket.org/2.0.
-  optional string api = 3;
+  optional string api = 3 [(gogoproto.customname) = "API", (gogoproto.nullable) = false];
 
   // Credentials for Basic auth
-  optional BasicAuthBitbucketServer basicAuth = 4;
+  optional BasicAuthBitbucketServer basicAuth = 4 [(gogoproto.customname) = "BasicAuth"];
 
   // Credentials for AppToken (Bearer auth)
-  optional BearerTokenBitbucketCloud bearerToken = 5;
+  optional BearerTokenBitbucketCloud bearerToken = 5 [(gogoproto.customname) = "BearerToken"];
 }
 
 // PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
 message PullRequestGeneratorBitbucketServer {
   // Project to scan. Required.
-  optional string project = 1;
+  optional string project = 1 [(gogoproto.customname) = "Project", (gogoproto.nullable) = false];
 
   // Repo name to scan. Required.
-  optional string repo = 2;
+  optional string repo = 2 [(gogoproto.customname) = "Repo", (gogoproto.nullable) = false];
 
   // The Bitbucket REST API URL to talk to e.g. https://bitbucket.org/rest Required.
-  optional string api = 3;
+  optional string api = 3 [(gogoproto.customname) = "API", (gogoproto.nullable) = false];
 
   // Credentials for Basic auth
-  optional BasicAuthBitbucketServer basicAuth = 4;
+  optional BasicAuthBitbucketServer basicAuth = 4 [(gogoproto.customname) = "BasicAuth"];
 
   // Credentials for AccessToken (Bearer auth)
-  optional BearerTokenBitbucket bearerToken = 5;
+  optional BearerTokenBitbucket bearerToken = 5 [(gogoproto.customname) = "BearerToken"];
 
   // Allow self-signed TLS / Certificates; default: false
-  optional bool insecure = 6;
+  optional bool insecure = 6 [(gogoproto.customname) = "Insecure", (gogoproto.nullable) = false];
 
   // ConfigMap key holding the trusted certificates
-  optional ConfigMapKeyRef caRef = 7;
+  optional ConfigMapKeyRef caRef = 7 [(gogoproto.customname) = "CARef"];
 }
 
 // PullRequestGeneratorFilter is a single pull request filter.
 // If multiple filter types are set on a single struct, they will be AND'd together. All filters must
 // pass for a pull request to be included.
 message PullRequestGeneratorFilter {
-  optional string branchMatch = 1;
+  optional string branchMatch = 1 [(gogoproto.customname) = "BranchMatch"];
 
-  optional string targetBranchMatch = 2;
+  optional string targetBranchMatch = 2 [(gogoproto.customname) = "TargetBranchMatch"];
 
-  optional string titleMatch = 3;
+  optional string titleMatch = 3 [(gogoproto.customname) = "TitleMatch"];
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
 message PullRequestGeneratorGitLab {
   // GitLab project to scan. Required.
-  optional string project = 1;
+  optional string project = 1 [(gogoproto.customname) = "Project", (gogoproto.nullable) = false];
 
   // The GitLab API URL to talk to. If blank, uses https://gitlab.com/.
-  optional string api = 2;
+  optional string api = 2 [(gogoproto.customname) = "API", (gogoproto.nullable) = false];
 
   // Authentication token reference.
-  optional SecretRef tokenRef = 3;
+  optional SecretRef tokenRef = 3 [(gogoproto.customname) = "TokenRef"];
 
   // Labels is used to filter the MRs that you want to target
-  repeated string labels = 4;
+  repeated string labels = 4 [(gogoproto.customname) = "Labels"];
 
   // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states).
   // Valid values: opened, closed, merged, locked".
-  optional string pullRequestState = 5;
+  optional string pullRequestState = 5 [(gogoproto.customname) = "PullRequestState", (gogoproto.nullable) = false];
 
   // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
-  optional bool insecure = 6;
+  optional bool insecure = 6 [(gogoproto.customname) = "Insecure", (gogoproto.nullable) = false];
 
   // ConfigMap key holding the trusted certificates
-  optional ConfigMapKeyRef caRef = 7;
+  optional ConfigMapKeyRef caRef = 7 [(gogoproto.customname) = "CARef"];
 }
 
 // PullRequestGeneratorGitea defines connection info specific to Gitea.
 message PullRequestGeneratorGitea {
   // Gitea org or user to scan. Required.
-  optional string owner = 1;
+  optional string owner = 1 [(gogoproto.customname) = "Owner", (gogoproto.nullable) = false];
 
   // Gitea repo name to scan. Required.
-  optional string repo = 2;
+  optional string repo = 2 [(gogoproto.customname) = "Repo", (gogoproto.nullable) = false];
 
   // The Gitea API URL to talk to. Required
-  optional string api = 3;
+  optional string api = 3 [(gogoproto.customname) = "API", (gogoproto.nullable) = false];
 
   // Authentication token reference.
-  optional SecretRef tokenRef = 4;
+  optional SecretRef tokenRef = 4 [(gogoproto.customname) = "TokenRef"];
 
   // Allow insecure tls, for self-signed certificates; default: false.
-  optional bool insecure = 5;
+  optional bool insecure = 5 [(gogoproto.customname) = "Insecure", (gogoproto.nullable) = false];
 
   // Labels is used to filter the PRs that you want to target
-  repeated string labels = 6;
+  repeated string labels = 6 [(gogoproto.customname) = "Labels"];
 }
 
 // PullRequestGeneratorGithub defines connection info specific to GitHub.
 message PullRequestGeneratorGithub {
   // GitHub org or user to scan. Required.
-  optional string owner = 1;
+  optional string owner = 1 [(gogoproto.customname) = "Owner", (gogoproto.nullable) = false];
 
   // GitHub repo name to scan. Required.
-  optional string repo = 2;
+  optional string repo = 2 [(gogoproto.customname) = "Repo", (gogoproto.nullable) = false];
 
   // The GitHub API URL to talk to. If blank, use https://api.github.com/.
-  optional string api = 3;
+  optional string api = 3 [(gogoproto.customname) = "API", (gogoproto.nullable) = false];
 
   // Authentication token reference.
-  optional SecretRef tokenRef = 4;
+  optional SecretRef tokenRef = 4 [(gogoproto.customname) = "TokenRef"];
 
   // AppSecretName is a reference to a GitHub App repo-creds secret with permission to access pull requests.
-  optional string appSecretName = 5;
+  optional string appSecretName = 5 [(gogoproto.customname) = "AppSecretName", (gogoproto.nullable) = false];
 
   // Labels is used to filter the PRs that you want to target
-  repeated string labels = 6;
+  repeated string labels = 6 [(gogoproto.customname) = "Labels"];
 }
 
 message RefTarget {
-  optional Repository repo = 1;
+  optional Repository repo = 1 [(gogoproto.customname) = "Repo", (gogoproto.nullable) = false];
 
-  optional string targetRevision = 2;
+  optional string targetRevision = 2 [(gogoproto.customname) = "TargetRevision", (gogoproto.nullable) = false];
 
-  optional string chart = 3;
+  optional string chart = 3 [(gogoproto.customname) = "Chart", (gogoproto.nullable) = false];
 }
 
 // RepoCreds holds the definition for repository credentials
 message RepoCreds {
   // URL is the URL to which these credentials match
-  optional string url = 1;
+  optional string url = 1 [(gogoproto.customname) = "URL", (gogoproto.nullable) = false];
 
   // Username for authenticating at the repo server
-  optional string username = 2;
+  optional string username = 2 [(gogoproto.customname) = "Username", (gogoproto.nullable) = false];
 
   // Password for authenticating at the repo server
-  optional string password = 3;
+  optional string password = 3 [(gogoproto.customname) = "Password", (gogoproto.nullable) = false];
 
   // SSHPrivateKey contains the private key data for authenticating at the repo server using SSH (only Git repos)
-  optional string sshPrivateKey = 4;
+  optional string sshPrivateKey = 4 [(gogoproto.customname) = "SSHPrivateKey", (gogoproto.nullable) = false];
 
   // TLSClientCertData specifies the TLS client cert data for authenticating at the repo server
-  optional string tlsClientCertData = 5;
+  optional string tlsClientCertData = 5 [(gogoproto.customname) = "TLSClientCertData", (gogoproto.nullable) = false];
 
   // TLSClientCertKey specifies the TLS client cert key for authenticating at the repo server
-  optional string tlsClientCertKey = 6;
+  optional string tlsClientCertKey = 6 [(gogoproto.customname) = "TLSClientCertKey", (gogoproto.nullable) = false];
 
   // GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app
-  optional string githubAppPrivateKey = 7;
+  optional string githubAppPrivateKey = 7 [(gogoproto.customname) = "GithubAppPrivateKey", (gogoproto.nullable) = false];
 
   // GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication
-  optional int64 githubAppID = 8;
+  optional int64 githubAppID = 8 [(gogoproto.customname) = "GithubAppId", (gogoproto.nullable) = false];
 
   // GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication
-  optional int64 githubAppInstallationID = 9;
+  optional int64 githubAppInstallationID = 9 [(gogoproto.customname) = "GithubAppInstallationId", (gogoproto.nullable) = false];
 
   // GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com
-  optional string githubAppEnterpriseBaseUrl = 10;
+  optional string githubAppEnterpriseBaseUrl = 10 [(gogoproto.customname) = "GitHubAppEnterpriseBaseURL", (gogoproto.nullable) = false];
 
   // EnableOCI specifies whether helm-oci support should be enabled for this repo
-  optional bool enableOCI = 11;
+  optional bool enableOCI = 11 [(gogoproto.customname) = "EnableOCI", (gogoproto.nullable) = false];
 
   // Type specifies the type of the repoCreds. Can be either "git", "helm" or "oci". "git" is assumed if empty or absent.
-  optional string type = 12;
+  optional string type = 12 [(gogoproto.customname) = "Type", (gogoproto.nullable) = false];
 
   // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
-  optional string gcpServiceAccountKey = 13;
+  optional string gcpServiceAccountKey = 13 [(gogoproto.customname) = "GCPServiceAccountKey", (gogoproto.nullable) = false];
 
   // Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server
-  optional string proxy = 19;
+  optional string proxy = 19 [(gogoproto.customname) = "Proxy", (gogoproto.nullable) = false];
 
   // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
-  optional bool forceHttpBasicAuth = 20;
+  optional bool forceHttpBasicAuth = 20 [(gogoproto.customname) = "ForceHttpBasicAuth", (gogoproto.nullable) = false];
 
   // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
-  optional string noProxy = 23;
+  optional string noProxy = 23 [(gogoproto.customname) = "NoProxy", (gogoproto.nullable) = false];
 
   // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
-  optional bool useAzureWorkloadIdentity = 24;
+  optional bool useAzureWorkloadIdentity = 24 [(gogoproto.customname) = "UseAzureWorkloadIdentity", (gogoproto.nullable) = false];
 
   // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
-  optional string bearerToken = 25;
+  optional string bearerToken = 25 [(gogoproto.customname) = "BearerToken", (gogoproto.nullable) = false];
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
-  optional bool insecureOCIForceHttp = 26;
+  optional bool insecureOCIForceHttp = 26 [(gogoproto.customname) = "InsecureOCIForceHttp", (gogoproto.nullable) = false];
 }
 
 // RepositoryList is a collection of Repositories.
 message RepoCredsList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
 
-  repeated RepoCreds items = 2;
+  repeated RepoCreds items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
 }
 
 // Repository is a repository holding application configurations
 message Repository {
   // Repo contains the URL to the remote repository
-  optional string repo = 1;
+  optional string repo = 1 [(gogoproto.customname) = "Repo", (gogoproto.nullable) = false];
 
   // Username contains the user name used for authenticating at the remote repository
-  optional string username = 2;
+  optional string username = 2 [(gogoproto.customname) = "Username", (gogoproto.nullable) = false];
 
   // Password contains the password or PAT used for authenticating at the remote repository
-  optional string password = 3;
+  optional string password = 3 [(gogoproto.customname) = "Password", (gogoproto.nullable) = false];
 
   // SSHPrivateKey contains the PEM data for authenticating at the repo server. Only used with Git repos.
-  optional string sshPrivateKey = 4;
+  optional string sshPrivateKey = 4 [(gogoproto.customname) = "SSHPrivateKey", (gogoproto.nullable) = false];
 
   // ConnectionState contains information about the current state of connection to the repository server
-  optional ConnectionState connectionState = 5;
+  optional ConnectionState connectionState = 5 [(gogoproto.customname) = "ConnectionState", (gogoproto.nullable) = false];
 
   // InsecureIgnoreHostKey should not be used anymore, Insecure is favoured
   // Used only for Git repos
-  optional bool insecureIgnoreHostKey = 6;
+  optional bool insecureIgnoreHostKey = 6 [(gogoproto.customname) = "InsecureIgnoreHostKey", (gogoproto.nullable) = false];
 
   // Insecure specifies whether the connection to the repository ignores any errors when verifying TLS certificates or SSH host keys
-  optional bool insecure = 7;
+  optional bool insecure = 7 [(gogoproto.customname) = "Insecure", (gogoproto.nullable) = false];
 
   // EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.
-  optional bool enableLfs = 8;
+  optional bool enableLfs = 8 [(gogoproto.customname) = "EnableLFS", (gogoproto.nullable) = false];
 
   // TLSClientCertData contains a certificate in PEM format for authenticating at the repo server
-  optional string tlsClientCertData = 9;
+  optional string tlsClientCertData = 9 [(gogoproto.customname) = "TLSClientCertData", (gogoproto.nullable) = false];
 
   // TLSClientCertKey contains a private key in PEM format for authenticating at the repo server
-  optional string tlsClientCertKey = 10;
+  optional string tlsClientCertKey = 10 [(gogoproto.customname) = "TLSClientCertKey", (gogoproto.nullable) = false];
 
   // Type specifies the type of the repo. Can be either "git" or "helm. "git" is assumed if empty or absent.
-  optional string type = 11;
+  optional string type = 11 [(gogoproto.customname) = "Type", (gogoproto.nullable) = false];
 
   // Name specifies a name to be used for this repo. Only used with Helm repos
-  optional string name = 12;
+  optional string name = 12 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // Whether credentials were inherited from a credential set
-  optional bool inheritedCreds = 13;
+  optional bool inheritedCreds = 13 [(gogoproto.customname) = "InheritedCreds", (gogoproto.nullable) = false];
 
   // EnableOCI specifies whether helm-oci support should be enabled for this repo
-  optional bool enableOCI = 14;
+  optional bool enableOCI = 14 [(gogoproto.customname) = "EnableOCI", (gogoproto.nullable) = false];
 
   // Github App Private Key PEM data
-  optional string githubAppPrivateKey = 15;
+  optional string githubAppPrivateKey = 15 [(gogoproto.customname) = "GithubAppPrivateKey", (gogoproto.nullable) = false];
 
   // GithubAppId specifies the ID of the GitHub app used to access the repo
-  optional int64 githubAppID = 16;
+  optional int64 githubAppID = 16 [(gogoproto.customname) = "GithubAppId", (gogoproto.nullable) = false];
 
   // GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo
-  optional int64 githubAppInstallationID = 17;
+  optional int64 githubAppInstallationID = 17 [(gogoproto.customname) = "GithubAppInstallationId", (gogoproto.nullable) = false];
 
   // GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com
-  optional string githubAppEnterpriseBaseUrl = 18;
+  optional string githubAppEnterpriseBaseUrl = 18 [(gogoproto.customname) = "GitHubAppEnterpriseBaseURL", (gogoproto.nullable) = false];
 
   // Proxy specifies the HTTP/HTTPS proxy used to access the repo
-  optional string proxy = 19;
+  optional string proxy = 19 [(gogoproto.customname) = "Proxy", (gogoproto.nullable) = false];
 
   // Reference between project and repository that allows it to be automatically added as an item inside SourceRepos project entity
-  optional string project = 20;
+  optional string project = 20 [(gogoproto.customname) = "Project", (gogoproto.nullable) = false];
 
   // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
-  optional string gcpServiceAccountKey = 21;
+  optional string gcpServiceAccountKey = 21 [(gogoproto.customname) = "GCPServiceAccountKey", (gogoproto.nullable) = false];
 
   // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
-  optional bool forceHttpBasicAuth = 22;
+  optional bool forceHttpBasicAuth = 22 [(gogoproto.customname) = "ForceHttpBasicAuth", (gogoproto.nullable) = false];
 
   // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
-  optional string noProxy = 23;
+  optional string noProxy = 23 [(gogoproto.customname) = "NoProxy", (gogoproto.nullable) = false];
 
   // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
-  optional bool useAzureWorkloadIdentity = 24;
+  optional bool useAzureWorkloadIdentity = 24 [(gogoproto.customname) = "UseAzureWorkloadIdentity", (gogoproto.nullable) = false];
 
   // BearerToken contains the bearer token used for Git BitBucket Data Center auth at the repo server
-  optional string bearerToken = 25;
+  optional string bearerToken = 25 [(gogoproto.customname) = "BearerToken", (gogoproto.nullable) = false];
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
-  optional bool insecureOCIForceHttp = 26;
+  optional bool insecureOCIForceHttp = 26 [(gogoproto.customname) = "InsecureOCIForceHttp", (gogoproto.nullable) = false];
 
   // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
-  optional int64 depth = 27;
+  optional int64 depth = 27 [(gogoproto.customname) = "Depth", (gogoproto.nullable) = false];
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
 message RepositoryCertificate {
   // ServerName specifies the DNS name of the server this certificate is intended for
-  optional string serverName = 1;
+  optional string serverName = 1 [(gogoproto.customname) = "ServerName", (gogoproto.nullable) = false];
 
   // CertType specifies the type of the certificate - currently one of "https" or "ssh"
-  optional string certType = 2;
+  optional string certType = 2 [(gogoproto.customname) = "CertType", (gogoproto.nullable) = false];
 
   // CertSubType specifies the sub type of the cert, i.e. "ssh-rsa"
-  optional string certSubType = 3;
+  optional string certSubType = 3 [(gogoproto.customname) = "CertSubType", (gogoproto.nullable) = false];
 
   // CertData contains the actual certificate data, dependent on the certificate type
-  optional bytes certData = 4;
+  optional bytes certData = 4 [(gogoproto.customname) = "CertData"];
 
   // CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)
-  optional string certInfo = 5;
+  optional string certInfo = 5 [(gogoproto.customname) = "CertInfo", (gogoproto.nullable) = false];
 }
 
 // RepositoryCertificateList is a collection of RepositoryCertificates
 message RepositoryCertificateList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
 
   // List of certificates to be processed
-  repeated RepositoryCertificate items = 2;
+  repeated RepositoryCertificate items = 2 [(gogoproto.customname) = "Items", (gogoproto.nullable) = false];
 }
 
 // RepositoryList is a collection of Repositories.
 message RepositoryList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1 [(gogoproto.customname) = "ListMeta", (gogoproto.nullable) = false];
 
-  repeated Repository items = 2;
+  repeated Repository items = 2 [(gogoproto.customname) = "Items"];
 }
 
 // ResourceAction represents an individual action that can be performed on a resource.
 // It includes parameters, an optional disabled flag, an icon for display, and a name for the action.
 message ResourceAction {
   // Name is the name or identifier for the action.
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // Params contains the parameters required to execute the action.
-  repeated ResourceActionParam params = 2;
+  repeated ResourceActionParam params = 2 [(gogoproto.customname) = "Params", (gogoproto.nullable) = false];
 
   // Disabled indicates whether the action is disabled.
-  optional bool disabled = 3;
+  optional bool disabled = 3 [(gogoproto.customname) = "Disabled", (gogoproto.nullable) = false];
 
   // IconClass specifies the CSS class for the action's icon.
-  optional string iconClass = 4;
+  optional string iconClass = 4 [(gogoproto.customname) = "IconClass", (gogoproto.nullable) = false];
 
   // DisplayName provides a user-friendly name for the action.
-  optional string displayName = 5;
+  optional string displayName = 5 [(gogoproto.customname) = "DisplayName", (gogoproto.nullable) = false];
 }
 
 // ResourceActionDefinition defines an individual action that can be executed on a resource.
 // It includes a name for the action and a Lua script that defines the action's behavior.
 message ResourceActionDefinition {
   // Name is the identifier for the action.
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // ActionLua contains the Lua script that defines the behavior of the action.
-  optional string actionLua = 2;
+  optional string actionLua = 2 [(gogoproto.customname) = "ActionLua", (gogoproto.nullable) = false];
 }
 
 // ResourceActionParam represents a parameter for a resource action.
 // It includes a name, value, type, and an optional default value for the parameter.
 message ResourceActionParam {
   // Name is the name of the parameter.
-  optional string name = 1;
+  optional string name = 1 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 }
 
 // ResourceActions holds the set of actions that can be applied to a resource.
@@ -2029,274 +2039,274 @@ message ResourceActionParam {
 // for merging built-in actions with custom ones.
 message ResourceActions {
   // ActionDiscoveryLua contains a Lua script for discovering actions.
-  optional string actionDiscoveryLua = 1;
+  optional string actionDiscoveryLua = 1 [(gogoproto.customname) = "ActionDiscoveryLua", (gogoproto.nullable) = false];
 
   // Definitions holds the list of action definitions available for the resource.
-  repeated ResourceActionDefinition definitions = 2;
+  repeated ResourceActionDefinition definitions = 2 [(gogoproto.customname) = "Definitions", (gogoproto.nullable) = false];
 
   // MergeBuiltinActions indicates whether built-in actions should be merged with custom actions.
-  optional bool mergeBuiltinActions = 3;
+  optional bool mergeBuiltinActions = 3 [(gogoproto.customname) = "MergeBuiltinActions", (gogoproto.nullable) = false];
 }
 
 // ResourceDiff holds the diff between a live and target resource object in Argo CD.
 // It is used to compare the desired state (from Git/Helm) with the actual state in the cluster.
 message ResourceDiff {
   // Group represents the API group of the resource (e.g., "apps" for Deployments).
-  optional string group = 1;
+  optional string group = 1 [(gogoproto.customname) = "Group", (gogoproto.nullable) = false];
 
   // Kind represents the Kubernetes resource kind (e.g., "Deployment", "Service").
-  optional string kind = 2;
+  optional string kind = 2 [(gogoproto.customname) = "Kind", (gogoproto.nullable) = false];
 
   // Namespace specifies the namespace where the resource exists.
-  optional string namespace = 3;
+  optional string namespace = 3 [(gogoproto.customname) = "Namespace", (gogoproto.nullable) = false];
 
   // Name is the name of the resource.
-  optional string name = 4;
+  optional string name = 4 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // TargetState contains the JSON-serialized resource manifest as defined in the Git/Helm repository.
-  optional string targetState = 5;
+  optional string targetState = 5 [(gogoproto.customname) = "TargetState", (gogoproto.nullable) = false];
 
   // LiveState contains the JSON-serialized resource manifest of the resource currently running in the cluster.
-  optional string liveState = 6;
+  optional string liveState = 6 [(gogoproto.customname) = "LiveState", (gogoproto.nullable) = false];
 
   // Diff contains the JSON patch representing the difference between the live and target resource.
   //
   // Deprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.
-  optional string diff = 7;
+  optional string diff = 7 [(gogoproto.customname) = "Diff", (gogoproto.nullable) = false];
 
   // Hook indicates whether this resource is a hook resource (e.g., pre-sync or post-sync hooks).
-  optional bool hook = 8;
+  optional bool hook = 8 [(gogoproto.customname) = "Hook", (gogoproto.nullable) = false];
 
   // NormalizedLiveState contains the JSON-serialized live resource state after applying normalizations.
   // Normalizations may include ignoring irrelevant fields like timestamps or defaults applied by Kubernetes.
-  optional string normalizedLiveState = 9;
+  optional string normalizedLiveState = 9 [(gogoproto.customname) = "NormalizedLiveState", (gogoproto.nullable) = false];
 
   // PredictedLiveState contains the JSON-serialized resource state that Argo CD predicts based on the
   // combination of the normalized live state and the desired target state.
-  optional string predictedLiveState = 10;
+  optional string predictedLiveState = 10 [(gogoproto.customname) = "PredictedLiveState", (gogoproto.nullable) = false];
 
   // ResourceVersion is the Kubernetes resource version, which helps in tracking changes.
-  optional string resourceVersion = 11;
+  optional string resourceVersion = 11 [(gogoproto.customname) = "ResourceVersion", (gogoproto.nullable) = false];
 
   // Modified indicates whether the live resource has changes compared to the target resource.
-  optional bool modified = 12;
+  optional bool modified = 12 [(gogoproto.customname) = "Modified", (gogoproto.nullable) = false];
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 message ResourceIgnoreDifferences {
-  optional string group = 1;
+  optional string group = 1 [(gogoproto.customname) = "Group", (gogoproto.nullable) = false];
 
-  optional string kind = 2;
+  optional string kind = 2 [(gogoproto.customname) = "Kind", (gogoproto.nullable) = false];
 
-  optional string name = 3;
+  optional string name = 3 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
-  optional string namespace = 4;
+  optional string namespace = 4 [(gogoproto.customname) = "Namespace", (gogoproto.nullable) = false];
 
-  repeated string jsonPointers = 5;
+  repeated string jsonPointers = 5 [(gogoproto.customname) = "JSONPointers"];
 
-  repeated string jqPathExpressions = 6;
+  repeated string jqPathExpressions = 6 [(gogoproto.customname) = "JQPathExpressions"];
 
   // ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
   // desired state defined in the SCM and won't be displayed in diffs
-  repeated string managedFieldsManagers = 7;
+  repeated string managedFieldsManagers = 7 [(gogoproto.customname) = "ManagedFieldsManagers"];
 }
 
 // ResourceNetworkingInfo holds networking-related information for a resource.
 message ResourceNetworkingInfo {
   // TargetLabels represents labels associated with the target resources that this resource communicates with.
-  map<string, string> targetLabels = 1;
+  map<string, string> targetLabels = 1 [(gogoproto.customname) = "TargetLabels", (gogoproto.nullable) = false];
 
   // TargetRefs contains references to other resources that this resource interacts with, such as Services or Pods.
-  repeated ResourceRef targetRefs = 2;
+  repeated ResourceRef targetRefs = 2 [(gogoproto.customname) = "TargetRefs", (gogoproto.nullable) = false];
 
   // Labels holds the labels associated with this networking resource.
-  map<string, string> labels = 3;
+  map<string, string> labels = 3 [(gogoproto.customname) = "Labels", (gogoproto.nullable) = false];
 
   // Ingress provides information about external access points (e.g., load balancer ingress) for this resource.
-  repeated .k8s.io.api.core.v1.LoadBalancerIngress ingress = 4;
+  repeated .k8s.io.api.core.v1.LoadBalancerIngress ingress = 4 [(gogoproto.customname) = "Ingress", (gogoproto.nullable) = false];
 
   // ExternalURLs holds a list of URLs that should be accessible externally.
   // This field is typically populated for Ingress resources based on their hostname rules.
-  repeated string externalURLs = 5;
+  repeated string externalURLs = 5 [(gogoproto.customname) = "ExternalURLs"];
 }
 
 // ResourceNode contains information about a live Kubernetes resource and its relationships with other resources.
 message ResourceNode {
   // ResourceRef uniquely identifies the resource using its group, kind, namespace, and name.
-  optional ResourceRef resourceRef = 1;
+  optional ResourceRef resourceRef = 1 [(gogoproto.customname) = "ResourceRef", (gogoproto.nullable) = false];
 
   // ParentRefs lists the parent resources that reference this resource.
   // This helps in understanding ownership and hierarchical relationships.
-  repeated ResourceRef parentRefs = 2;
+  repeated ResourceRef parentRefs = 2 [(gogoproto.customname) = "ParentRefs", (gogoproto.nullable) = false];
 
   // Info provides additional metadata or annotations about the resource.
-  repeated InfoItem info = 3;
+  repeated InfoItem info = 3 [(gogoproto.customname) = "Info", (gogoproto.nullable) = false];
 
   // NetworkingInfo contains details about the resource's networking attributes,
   // such as ingress information and external URLs.
-  optional ResourceNetworkingInfo networkingInfo = 4;
+  optional ResourceNetworkingInfo networkingInfo = 4 [(gogoproto.customname) = "NetworkingInfo"];
 
   // ResourceVersion indicates the version of the resource, used to track changes.
-  optional string resourceVersion = 5;
+  optional string resourceVersion = 5 [(gogoproto.customname) = "ResourceVersion", (gogoproto.nullable) = false];
 
   // Images lists container images associated with the resource.
   // This is primarily useful for pods and other workload resources.
-  repeated string images = 6;
+  repeated string images = 6 [(gogoproto.customname) = "Images"];
 
   // Health represents the health status of the resource (e.g., Healthy, Degraded, Progressing).
-  optional HealthStatus health = 7;
+  optional HealthStatus health = 7 [(gogoproto.customname) = "Health"];
 
   // CreatedAt records the timestamp when the resource was created.
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time createdAt = 8;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time createdAt = 8 [(gogoproto.customname) = "CreatedAt"];
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 message ResourceOverride {
   // HealthLua contains a Lua script that defines custom health checks for the resource.
-  optional string healthLua = 1;
+  optional string healthLua = 1 [(gogoproto.customname) = "HealthLua", (gogoproto.nullable) = false];
 
   // UseOpenLibs indicates whether to use open-source libraries for the resource.
-  optional bool useOpenLibs = 5;
+  optional bool useOpenLibs = 5 [(gogoproto.customname) = "UseOpenLibs", (gogoproto.nullable) = false];
 
   // Actions defines the set of actions that can be performed on the resource, as a Lua script.
-  optional string actions = 3;
+  optional string actions = 3 [(gogoproto.customname) = "Actions", (gogoproto.nullable) = false];
 
   // IgnoreDifferences contains configuration for which differences should be ignored during the resource diffing.
-  optional OverrideIgnoreDiff ignoreDifferences = 2;
+  optional OverrideIgnoreDiff ignoreDifferences = 2 [(gogoproto.customname) = "IgnoreDifferences", (gogoproto.nullable) = false];
 
   // IgnoreResourceUpdates holds configuration for ignoring updates to specific resource fields.
-  optional OverrideIgnoreDiff ignoreResourceUpdates = 6;
+  optional OverrideIgnoreDiff ignoreResourceUpdates = 6 [(gogoproto.customname) = "IgnoreResourceUpdates", (gogoproto.nullable) = false];
 
   // KnownTypeFields lists fields for which unit conversions should be applied.
-  repeated KnownTypeField knownTypeFields = 4;
+  repeated KnownTypeField knownTypeFields = 4 [(gogoproto.customname) = "KnownTypeFields", (gogoproto.nullable) = false];
 }
 
 // ResourceRef includes fields which uniquely identify a resource
 message ResourceRef {
-  optional string group = 1;
+  optional string group = 1 [(gogoproto.customname) = "Group", (gogoproto.nullable) = false];
 
-  optional string version = 2;
+  optional string version = 2 [(gogoproto.customname) = "Version", (gogoproto.nullable) = false];
 
-  optional string kind = 3;
+  optional string kind = 3 [(gogoproto.customname) = "Kind", (gogoproto.nullable) = false];
 
-  optional string namespace = 4;
+  optional string namespace = 4 [(gogoproto.customname) = "Namespace", (gogoproto.nullable) = false];
 
-  optional string name = 5;
+  optional string name = 5 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
-  optional string uid = 6;
+  optional string uid = 6 [(gogoproto.customname) = "UID", (gogoproto.nullable) = false];
 }
 
 // ResourceResult holds the operation result details of a specific resource
 message ResourceResult {
   // Group specifies the API group of the resource
-  optional string group = 1;
+  optional string group = 1 [(gogoproto.customname) = "Group", (gogoproto.nullable) = false];
 
   // Version specifies the API version of the resource
-  optional string version = 2;
+  optional string version = 2 [(gogoproto.customname) = "Version", (gogoproto.nullable) = false];
 
   // Kind specifies the API kind of the resource
-  optional string kind = 3;
+  optional string kind = 3 [(gogoproto.customname) = "Kind", (gogoproto.nullable) = false];
 
   // Namespace specifies the target namespace of the resource
-  optional string namespace = 4;
+  optional string namespace = 4 [(gogoproto.customname) = "Namespace", (gogoproto.nullable) = false];
 
   // Name specifies the name of the resource
-  optional string name = 5;
+  optional string name = 5 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // Status holds the final result of the sync. Will be empty if the resources is yet to be applied/pruned and is always zero-value for hooks
-  optional string status = 6;
+  optional string status = 6 [(gogoproto.casttype) = "github.com/argoproj/gitops-engine/pkg/sync/common.ResultCode", (gogoproto.customname) = "Status", (gogoproto.nullable) = false];
 
   // Message contains an informational or error message for the last sync OR operation
-  optional string message = 7;
+  optional string message = 7 [(gogoproto.customname) = "Message", (gogoproto.nullable) = false];
 
   // HookType specifies the type of the hook. Empty for non-hook resources
-  optional string hookType = 8;
+  optional string hookType = 8 [(gogoproto.casttype) = "github.com/argoproj/gitops-engine/pkg/sync/common.HookType", (gogoproto.customname) = "HookType", (gogoproto.nullable) = false];
 
   // HookPhase contains the state of any operation associated with this resource OR hook
   // This can also contain values for non-hook resources.
-  optional string hookPhase = 9;
+  optional string hookPhase = 9 [(gogoproto.casttype) = "github.com/argoproj/gitops-engine/pkg/sync/common.OperationPhase", (gogoproto.customname) = "HookPhase", (gogoproto.nullable) = false];
 
   // SyncPhase indicates the particular phase of the sync that this result was acquired in
-  optional string syncPhase = 10;
+  optional string syncPhase = 10 [(gogoproto.casttype) = "github.com/argoproj/gitops-engine/pkg/sync/common.SyncPhase", (gogoproto.customname) = "SyncPhase", (gogoproto.nullable) = false];
 
   // Images contains the images related to the ResourceResult
-  repeated string images = 11;
+  repeated string images = 11 [(gogoproto.customname) = "Images"];
 }
 
 // ResourceStatus holds the current synchronization and health status of a Kubernetes resource.
 message ResourceStatus {
   // Group represents the API group of the resource (e.g., "apps" for Deployments).
-  optional string group = 1;
+  optional string group = 1 [(gogoproto.customname) = "Group", (gogoproto.nullable) = false];
 
   // Version indicates the API version of the resource (e.g., "v1", "v1beta1").
-  optional string version = 2;
+  optional string version = 2 [(gogoproto.customname) = "Version", (gogoproto.nullable) = false];
 
   // Kind specifies the type of the resource (e.g., "Deployment", "Service").
-  optional string kind = 3;
+  optional string kind = 3 [(gogoproto.customname) = "Kind", (gogoproto.nullable) = false];
 
   // Namespace defines the Kubernetes namespace where the resource is located.
-  optional string namespace = 4;
+  optional string namespace = 4 [(gogoproto.customname) = "Namespace", (gogoproto.nullable) = false];
 
   // Name is the unique name of the resource within the namespace.
-  optional string name = 5;
+  optional string name = 5 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
   // Status represents the synchronization state of the resource (e.g., Synced, OutOfSync).
-  optional string status = 6;
+  optional string status = 6 [(gogoproto.casttype) = "SyncStatusCode", (gogoproto.customname) = "Status", (gogoproto.nullable) = false];
 
   // Health indicates the health status of the resource (e.g., Healthy, Degraded, Progressing).
-  optional HealthStatus health = 7;
+  optional HealthStatus health = 7 [(gogoproto.customname) = "Health"];
 
   // Hook is true if the resource is used as a lifecycle hook in an Argo CD application.
-  optional bool hook = 8;
+  optional bool hook = 8 [(gogoproto.customname) = "Hook", (gogoproto.nullable) = false];
 
   // RequiresPruning is true if the resource needs to be pruned (deleted) as part of synchronization.
-  optional bool requiresPruning = 9;
+  optional bool requiresPruning = 9 [(gogoproto.customname) = "RequiresPruning", (gogoproto.nullable) = false];
 
   // SyncWave determines the order in which resources are applied during a sync operation.
   // Lower values are applied first.
-  optional int64 syncWave = 10;
+  optional int64 syncWave = 10 [(gogoproto.customname) = "SyncWave", (gogoproto.nullable) = false];
 
   // RequiresDeletionConfirmation is true if the resource requires explicit user confirmation before deletion.
-  optional bool requiresDeletionConfirmation = 11;
+  optional bool requiresDeletionConfirmation = 11 [(gogoproto.customname) = "RequiresDeletionConfirmation", (gogoproto.nullable) = false];
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed
 message RetryStrategy {
   // Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed.
-  optional int64 limit = 1;
+  optional int64 limit = 1 [(gogoproto.customname) = "Limit", (gogoproto.nullable) = false];
 
   // Backoff controls how to backoff on subsequent retries of failed syncs
-  optional Backoff backoff = 2;
+  optional Backoff backoff = 2 [(gogoproto.casttype) = "Backoff", (gogoproto.customname) = "Backoff"];
 
   // Refresh indicates if the latest revision should be used on retry instead of the initial one (default: false)
-  optional bool refresh = 3;
+  optional bool refresh = 3 [(gogoproto.customname) = "Refresh", (gogoproto.nullable) = false];
 }
 
 // RevisionHistory contains history information about a previous sync
 message RevisionHistory {
   // Revision holds the revision the sync was performed against
-  optional string revision = 2;
+  optional string revision = 2 [(gogoproto.customname) = "Revision", (gogoproto.nullable) = false];
 
   // DeployedAt holds the time the sync operation completed
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time deployedAt = 4;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time deployedAt = 4 [(gogoproto.customname) = "DeployedAt", (gogoproto.nullable) = false];
 
   // ID is an auto incrementing identifier of the RevisionHistory
-  optional int64 id = 5;
+  optional int64 id = 5 [(gogoproto.customname) = "ID", (gogoproto.nullable) = false];
 
   // Source is a reference to the application source used for the sync operation
-  optional ApplicationSource source = 6;
+  optional ApplicationSource source = 6 [(gogoproto.customname) = "Source", (gogoproto.nullable) = false];
 
   // DeployStartedAt holds the time the sync operation started
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time deployStartedAt = 7;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time deployStartedAt = 7 [(gogoproto.customname) = "DeployStartedAt"];
 
   // Sources is a reference to the application sources used for the sync operation
-  repeated ApplicationSource sources = 8;
+  repeated ApplicationSource sources = 8 [(gogoproto.customname) = "Sources", (gogoproto.nullable) = false];
 
   // Revisions holds the revision of each source in sources field the sync was performed against
-  repeated string revisions = 9;
+  repeated string revisions = 9 [(gogoproto.customname) = "Revisions"];
 
   // InitiatedBy contains information about who initiated the operations
-  optional OperationInitiator initiatedBy = 10;
+  optional OperationInitiator initiatedBy = 10 [(gogoproto.customname) = "InitiatedBy", (gogoproto.nullable) = false];
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository. This field is used by the
@@ -2305,137 +2315,137 @@ message RevisionMetadata {
   // who authored this revision,
   // typically their name and email, e.g. "John Doe <john_doe@my-company.com>",
   // but might not match this example
-  optional string author = 1;
+  optional string author = 1 [(gogoproto.customname) = "Author", (gogoproto.nullable) = false];
 
   // Date specifies when the revision was authored
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time date = 2;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time date = 2 [(gogoproto.customname) = "Date"];
 
   // Tags specifies any tags currently attached to the revision
   // Floating tags can move from one revision to another
-  repeated string tags = 3;
+  repeated string tags = 3 [(gogoproto.customname) = "Tags"];
 
   // Message contains the message associated with the revision, most likely the commit message.
-  optional string message = 4;
+  optional string message = 4 [(gogoproto.customname) = "Message", (gogoproto.nullable) = false];
 
   // SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
-  optional string signatureInfo = 5;
+  optional string signatureInfo = 5 [(gogoproto.customname) = "SignatureInfo", (gogoproto.nullable) = false];
 
   // References contains references to information that's related to this commit in some way.
-  repeated RevisionReference references = 6;
+  repeated RevisionReference references = 6 [(gogoproto.customname) = "References", (gogoproto.nullable) = false];
 }
 
 // RevisionReference contains a reference to a some information that is related in some way to another commit. For now,
 // it supports only references to a commit. In the future, it may support other types of references.
 message RevisionReference {
   // Commit contains metadata about the commit that is related in some way to another commit.
-  optional CommitMetadata commit = 1;
+  optional CommitMetadata commit = 1 [(gogoproto.customname) = "Commit"];
 }
 
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.
 message SCMProviderGenerator {
   // Which provider to use and config for it.
-  optional SCMProviderGeneratorGithub github = 1;
+  optional SCMProviderGeneratorGithub github = 1 [(gogoproto.customname) = "Github"];
 
-  optional SCMProviderGeneratorGitlab gitlab = 2;
+  optional SCMProviderGeneratorGitlab gitlab = 2 [(gogoproto.customname) = "Gitlab"];
 
-  optional SCMProviderGeneratorBitbucket bitbucket = 3;
+  optional SCMProviderGeneratorBitbucket bitbucket = 3 [(gogoproto.customname) = "Bitbucket"];
 
-  optional SCMProviderGeneratorBitbucketServer bitbucketServer = 4;
+  optional SCMProviderGeneratorBitbucketServer bitbucketServer = 4 [(gogoproto.customname) = "BitbucketServer"];
 
-  optional SCMProviderGeneratorGitea gitea = 5;
+  optional SCMProviderGeneratorGitea gitea = 5 [(gogoproto.customname) = "Gitea"];
 
-  optional SCMProviderGeneratorAzureDevOps azureDevOps = 6;
+  optional SCMProviderGeneratorAzureDevOps azureDevOps = 6 [(gogoproto.customname) = "AzureDevOps"];
 
   // Filters for which repos should be considered.
-  repeated SCMProviderGeneratorFilter filters = 7;
+  repeated SCMProviderGeneratorFilter filters = 7 [(gogoproto.customname) = "Filters", (gogoproto.nullable) = false];
 
   // Which protocol to use for the SCM URL. Default is provider-specific but ssh if possible. Not all providers
   // necessarily support all protocols.
-  optional string cloneProtocol = 8;
+  optional string cloneProtocol = 8 [(gogoproto.customname) = "CloneProtocol", (gogoproto.nullable) = false];
 
   // Standard parameters.
-  optional int64 requeueAfterSeconds = 9;
+  optional int64 requeueAfterSeconds = 9 [(gogoproto.customname) = "RequeueAfterSeconds"];
 
-  optional ApplicationSetTemplate template = 10;
+  optional ApplicationSetTemplate template = 10 [(gogoproto.customname) = "Template", (gogoproto.nullable) = false];
 
   // Values contains key/value pairs which are passed directly as parameters to the template
-  map<string, string> values = 11;
+  map<string, string> values = 11 [(gogoproto.customname) = "Values", (gogoproto.nullable) = false];
 
-  optional SCMProviderGeneratorAWSCodeCommit awsCodeCommit = 12;
+  optional SCMProviderGeneratorAWSCodeCommit awsCodeCommit = 12 [(gogoproto.customname) = "AWSCodeCommit"];
 }
 
 // SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.
 message SCMProviderGeneratorAWSCodeCommit {
   // TagFilters provides the tag filter(s) for repo discovery
-  repeated TagFilter tagFilters = 1;
+  repeated TagFilter tagFilters = 1 [(gogoproto.customname) = "TagFilters"];
 
   // Role provides the AWS IAM role to assume, for cross-account repo discovery
   // if not provided, AppSet controller will use its pod/node identity to discover.
-  optional string role = 2;
+  optional string role = 2 [(gogoproto.customname) = "Role", (gogoproto.nullable) = false];
 
   // Region provides the AWS region to discover repos.
   // if not provided, AppSet controller will infer the current region from environment.
-  optional string region = 3;
+  optional string region = 3 [(gogoproto.customname) = "Region", (gogoproto.nullable) = false];
 
   // Scan all branches instead of just the default branch.
-  optional bool allBranches = 4;
+  optional bool allBranches = 4 [(gogoproto.customname) = "AllBranches", (gogoproto.nullable) = false];
 }
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
 message SCMProviderGeneratorAzureDevOps {
   // Azure Devops organization. Required. E.g. "my-organization".
-  optional string organization = 5;
+  optional string organization = 5 [(gogoproto.customname) = "Organization", (gogoproto.nullable) = false];
 
   // The URL to Azure DevOps. If blank, use https://dev.azure.com.
-  optional string api = 6;
+  optional string api = 6 [(gogoproto.customname) = "API", (gogoproto.nullable) = false];
 
   // Azure Devops team project. Required. E.g. "my-team".
-  optional string teamProject = 7;
+  optional string teamProject = 7 [(gogoproto.customname) = "TeamProject", (gogoproto.nullable) = false];
 
   // The Personal Access Token (PAT) to use when connecting. Required.
-  optional SecretRef accessTokenRef = 8;
+  optional SecretRef accessTokenRef = 8 [(gogoproto.customname) = "AccessTokenRef"];
 
   // Scan all branches instead of just the default branch.
-  optional bool allBranches = 9;
+  optional bool allBranches = 9 [(gogoproto.customname) = "AllBranches", (gogoproto.nullable) = false];
 }
 
 // SCMProviderGeneratorBitbucket defines connection info specific to Bitbucket Cloud (API version 2).
 message SCMProviderGeneratorBitbucket {
   // Bitbucket workspace to scan. Required.
-  optional string owner = 1;
+  optional string owner = 1 [(gogoproto.customname) = "Owner", (gogoproto.nullable) = false];
 
   // Bitbucket user to use when authenticating.  Should have a "member" role to be able to read all repositories and branches.  Required
-  optional string user = 2;
+  optional string user = 2 [(gogoproto.customname) = "User", (gogoproto.nullable) = false];
 
   // The app password to use for the user.  Required. See: https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/
-  optional SecretRef appPasswordRef = 3;
+  optional SecretRef appPasswordRef = 3 [(gogoproto.customname) = "AppPasswordRef"];
 
   // Scan all branches instead of just the main branch.
-  optional bool allBranches = 4;
+  optional bool allBranches = 4 [(gogoproto.customname) = "AllBranches", (gogoproto.nullable) = false];
 }
 
 // SCMProviderGeneratorBitbucketServer defines connection info specific to Bitbucket Server.
 message SCMProviderGeneratorBitbucketServer {
   // Project to scan. Required.
-  optional string project = 1;
+  optional string project = 1 [(gogoproto.customname) = "Project", (gogoproto.nullable) = false];
 
   // The Bitbucket Server REST API URL to talk to. Required.
-  optional string api = 2;
+  optional string api = 2 [(gogoproto.customname) = "API", (gogoproto.nullable) = false];
 
   // Credentials for Basic auth
-  optional BasicAuthBitbucketServer basicAuth = 3;
+  optional BasicAuthBitbucketServer basicAuth = 3 [(gogoproto.customname) = "BasicAuth"];
 
   // Scan all branches instead of just the default branch.
-  optional bool allBranches = 4;
+  optional bool allBranches = 4 [(gogoproto.customname) = "AllBranches", (gogoproto.nullable) = false];
 
   // Credentials for AccessToken (Bearer auth)
-  optional BearerTokenBitbucket bearerToken = 5;
+  optional BearerTokenBitbucket bearerToken = 5 [(gogoproto.customname) = "BearerToken"];
 
   // Allow self-signed TLS / Certificates; default: false
-  optional bool insecure = 6;
+  optional bool insecure = 6 [(gogoproto.customname) = "Insecure", (gogoproto.nullable) = false];
 
   // ConfigMap key holding the trusted certificates
-  optional ConfigMapKeyRef caRef = 7;
+  optional ConfigMapKeyRef caRef = 7 [(gogoproto.customname) = "CARef"];
 }
 
 // SCMProviderGeneratorFilter is a single repository filter.
@@ -2443,235 +2453,235 @@ message SCMProviderGeneratorBitbucketServer {
 // pass for a repo to be included.
 message SCMProviderGeneratorFilter {
   // A regex for repo names.
-  optional string repositoryMatch = 1;
+  optional string repositoryMatch = 1 [(gogoproto.customname) = "RepositoryMatch"];
 
   // An array of paths, all of which must exist.
-  repeated string pathsExist = 2;
+  repeated string pathsExist = 2 [(gogoproto.customname) = "PathsExist"];
 
   // An array of paths, all of which must not exist.
-  repeated string pathsDoNotExist = 3;
+  repeated string pathsDoNotExist = 3 [(gogoproto.customname) = "PathsDoNotExist"];
 
   // A regex which must match at least one label.
-  optional string labelMatch = 4;
+  optional string labelMatch = 4 [(gogoproto.customname) = "LabelMatch"];
 
   // A regex which must match the branch name.
-  optional string branchMatch = 5;
+  optional string branchMatch = 5 [(gogoproto.customname) = "BranchMatch"];
 }
 
 // SCMProviderGeneratorGitea defines a connection info specific to Gitea.
 message SCMProviderGeneratorGitea {
   // Gitea organization or user to scan. Required.
-  optional string owner = 1;
+  optional string owner = 1 [(gogoproto.customname) = "Owner", (gogoproto.nullable) = false];
 
   // The Gitea URL to talk to. For example https://gitea.mydomain.com/.
-  optional string api = 2;
+  optional string api = 2 [(gogoproto.customname) = "API", (gogoproto.nullable) = false];
 
   // Authentication token reference.
-  optional SecretRef tokenRef = 3;
+  optional SecretRef tokenRef = 3 [(gogoproto.customname) = "TokenRef"];
 
   // Scan all branches instead of just the default branch.
-  optional bool allBranches = 4;
+  optional bool allBranches = 4 [(gogoproto.customname) = "AllBranches", (gogoproto.nullable) = false];
 
   // Allow self-signed TLS / Certificates; default: false
-  optional bool insecure = 5;
+  optional bool insecure = 5 [(gogoproto.customname) = "Insecure", (gogoproto.nullable) = false];
 }
 
 // SCMProviderGeneratorGithub defines connection info specific to GitHub.
 message SCMProviderGeneratorGithub {
   // GitHub org to scan. Required.
-  optional string organization = 1;
+  optional string organization = 1 [(gogoproto.customname) = "Organization", (gogoproto.nullable) = false];
 
   // The GitHub API URL to talk to. If blank, use https://api.github.com/.
-  optional string api = 2;
+  optional string api = 2 [(gogoproto.customname) = "API", (gogoproto.nullable) = false];
 
   // Authentication token reference.
-  optional SecretRef tokenRef = 3;
+  optional SecretRef tokenRef = 3 [(gogoproto.customname) = "TokenRef"];
 
   // AppSecretName is a reference to a GitHub App repo-creds secret.
-  optional string appSecretName = 4;
+  optional string appSecretName = 4 [(gogoproto.customname) = "AppSecretName", (gogoproto.nullable) = false];
 
   // Scan all branches instead of just the default branch.
-  optional bool allBranches = 5;
+  optional bool allBranches = 5 [(gogoproto.customname) = "AllBranches", (gogoproto.nullable) = false];
 }
 
 // SCMProviderGeneratorGitlab defines connection info specific to Gitlab.
 message SCMProviderGeneratorGitlab {
   // Gitlab group to scan. Required.  You can use either the project id (recommended) or the full namespaced path.
-  optional string group = 1;
+  optional string group = 1 [(gogoproto.customname) = "Group", (gogoproto.nullable) = false];
 
   // Recurse through subgroups (true) or scan only the base group (false).  Defaults to "false"
-  optional bool includeSubgroups = 2;
+  optional bool includeSubgroups = 2 [(gogoproto.customname) = "IncludeSubgroups", (gogoproto.nullable) = false];
 
   // The Gitlab API URL to talk to.
-  optional string api = 3;
+  optional string api = 3 [(gogoproto.customname) = "API", (gogoproto.nullable) = false];
 
   // Authentication token reference.
-  optional SecretRef tokenRef = 4;
+  optional SecretRef tokenRef = 4 [(gogoproto.customname) = "TokenRef"];
 
   // Scan all branches instead of just the default branch.
-  optional bool allBranches = 5;
+  optional bool allBranches = 5 [(gogoproto.customname) = "AllBranches", (gogoproto.nullable) = false];
 
   // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
-  optional bool insecure = 6;
+  optional bool insecure = 6 [(gogoproto.customname) = "Insecure", (gogoproto.nullable) = false];
 
   // When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to "true"
-  optional bool includeSharedProjects = 7;
+  optional bool includeSharedProjects = 7 [(gogoproto.customname) = "IncludeSharedProjects"];
 
   // Filter repos list based on Gitlab Topic.
-  optional string topic = 8;
+  optional string topic = 8 [(gogoproto.customname) = "Topic", (gogoproto.nullable) = false];
 
   // ConfigMap key holding the trusted certificates
-  optional ConfigMapKeyRef caRef = 9;
+  optional ConfigMapKeyRef caRef = 9 [(gogoproto.customname) = "CARef"];
 }
 
 // SecretRef struct for a reference to a secret key.
 message SecretRef {
-  optional string secretName = 1;
+  optional string secretName = 1 [(gogoproto.customname) = "SecretName", (gogoproto.nullable) = false];
 
-  optional string key = 2;
+  optional string key = 2 [(gogoproto.customname) = "Key", (gogoproto.nullable) = false];
 }
 
 // SignatureKey is the specification of a key required to verify commit signatures with
 message SignatureKey {
   // The ID of the key in hexadecimal notation
-  optional string keyID = 1;
+  optional string keyID = 1 [(gogoproto.customname) = "KeyID", (gogoproto.nullable) = false];
 }
 
 // SourceHydrator specifies a dry "don't repeat yourself" source for manifests, a sync source from which to sync
 // hydrated manifests, and an optional hydrateTo location to act as a "staging" aread for hydrated manifests.
 message SourceHydrator {
   // DrySource specifies where the dry "don't repeat yourself" manifest source lives.
-  optional DrySource drySource = 1;
+  optional DrySource drySource = 1 [(gogoproto.customname) = "DrySource", (gogoproto.nullable) = false];
 
   // SyncSource specifies where to sync hydrated manifests from.
-  optional SyncSource syncSource = 2;
+  optional SyncSource syncSource = 2 [(gogoproto.customname) = "SyncSource", (gogoproto.nullable) = false];
 
   // HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
   // have to move manifests to the SyncSource, e.g. by pull request.
-  optional HydrateTo hydrateTo = 3;
+  optional HydrateTo hydrateTo = 3 [(gogoproto.customname) = "HydrateTo"];
 }
 
 // SourceHydratorStatus contains information about the current state of source hydration
 message SourceHydratorStatus {
   // LastSuccessfulOperation holds info about the most recent successful hydration
-  optional SuccessfulHydrateOperation lastSuccessfulOperation = 1;
+  optional SuccessfulHydrateOperation lastSuccessfulOperation = 1 [(gogoproto.customname) = "LastSuccessfulOperation"];
 
   // CurrentOperation holds the status of the hydrate operation
-  optional HydrateOperation currentOperation = 2;
+  optional HydrateOperation currentOperation = 2 [(gogoproto.customname) = "CurrentOperation"];
 }
 
 // SuccessfulHydrateOperation contains information about the most recent successful hydrate operation
 message SuccessfulHydrateOperation {
   // DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
-  optional string drySHA = 5;
+  optional string drySHA = 5 [(gogoproto.customname) = "DrySHA", (gogoproto.nullable) = false];
 
   // HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation
-  optional string hydratedSHA = 6;
+  optional string hydratedSHA = 6 [(gogoproto.customname) = "HydratedSHA", (gogoproto.nullable) = false];
 
   // SourceHydrator holds the hydrator config used for the hydrate operation
-  optional SourceHydrator sourceHydrator = 7;
+  optional SourceHydrator sourceHydrator = 7 [(gogoproto.customname) = "SourceHydrator", (gogoproto.nullable) = false];
 }
 
 // SyncOperation contains details about a sync operation.
 message SyncOperation {
   // Revision is the revision (Git) or chart version (Helm) which to sync the application to
   // If omitted, will use the revision specified in app spec.
-  optional string revision = 1;
+  optional string revision = 1 [(gogoproto.customname) = "Revision", (gogoproto.nullable) = false];
 
   // Prune specifies to delete resources from the cluster that are no longer tracked in git
-  optional bool prune = 2;
+  optional bool prune = 2 [(gogoproto.customname) = "Prune", (gogoproto.nullable) = false];
 
   // DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync
-  optional bool dryRun = 3;
+  optional bool dryRun = 3 [(gogoproto.customname) = "DryRun", (gogoproto.nullable) = false];
 
   // SyncStrategy describes how to perform the sync
-  optional SyncStrategy syncStrategy = 4;
+  optional SyncStrategy syncStrategy = 4 [(gogoproto.customname) = "SyncStrategy"];
 
   // Resources describes which resources shall be part of the sync
-  repeated SyncOperationResource resources = 6;
+  repeated SyncOperationResource resources = 6 [(gogoproto.customname) = "Resources", (gogoproto.nullable) = false];
 
   // Source overrides the source definition set in the application.
   // This is typically set in a Rollback operation and is nil during a Sync operation
-  optional ApplicationSource source = 7;
+  optional ApplicationSource source = 7 [(gogoproto.customname) = "Source"];
 
   // Manifests is an optional field that overrides sync source with a local directory for development
-  repeated string manifests = 8;
+  repeated string manifests = 8 [(gogoproto.customname) = "Manifests"];
 
   // SyncOptions provide per-sync sync-options, e.g. Validate=false
-  repeated string syncOptions = 9;
+  repeated string syncOptions = 9 [(gogoproto.customname) = "SyncOptions"];
 
   // Sources overrides the source definition set in the application.
   // This is typically set in a Rollback operation and is nil during a Sync operation
-  repeated ApplicationSource sources = 10;
+  repeated ApplicationSource sources = 10 [(gogoproto.customname) = "Sources", (gogoproto.nullable) = false];
 
   // Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
   // If omitted, will use the revision specified in app spec.
-  repeated string revisions = 11;
+  repeated string revisions = 11 [(gogoproto.customname) = "Revisions"];
 
   // SelfHealAttemptsCount contains the number of auto-heal attempts
-  optional int64 autoHealAttemptsCount = 12;
+  optional int64 autoHealAttemptsCount = 12 [(gogoproto.customname) = "SelfHealAttemptsCount", (gogoproto.nullable) = false];
 }
 
 // SyncOperationResource contains resources to sync.
 message SyncOperationResource {
-  optional string group = 1;
+  optional string group = 1 [(gogoproto.customname) = "Group", (gogoproto.nullable) = false];
 
-  optional string kind = 2;
+  optional string kind = 2 [(gogoproto.customname) = "Kind", (gogoproto.nullable) = false];
 
-  optional string name = 3;
+  optional string name = 3 [(gogoproto.customname) = "Name", (gogoproto.nullable) = false];
 
-  optional string namespace = 4;
+  optional string namespace = 4 [(gogoproto.customname) = "Namespace", (gogoproto.nullable) = false];
 }
 
 // SyncOperationResult represent result of sync operation
 message SyncOperationResult {
   // Resources contains a list of sync result items for each individual resource in a sync operation
-  repeated ResourceResult resources = 1;
+  repeated ResourceResult resources = 1 [(gogoproto.customname) = "Resources"];
 
   // Revision holds the revision this sync operation was performed to
-  optional string revision = 2;
+  optional string revision = 2 [(gogoproto.customname) = "Revision", (gogoproto.nullable) = false];
 
   // Source records the application source information of the sync, used for comparing auto-sync
-  optional ApplicationSource source = 3;
+  optional ApplicationSource source = 3 [(gogoproto.customname) = "Source", (gogoproto.nullable) = false];
 
   // Source records the application source information of the sync, used for comparing auto-sync
-  repeated ApplicationSource sources = 4;
+  repeated ApplicationSource sources = 4 [(gogoproto.customname) = "Sources", (gogoproto.nullable) = false];
 
   // Revisions holds the revision this sync operation was performed for respective indexed source in sources field
-  repeated string revisions = 5;
+  repeated string revisions = 5 [(gogoproto.customname) = "Revisions"];
 
   // ManagedNamespaceMetadata contains the current sync state of managed namespace metadata
-  optional ManagedNamespaceMetadata managedNamespaceMetadata = 6;
+  optional ManagedNamespaceMetadata managedNamespaceMetadata = 6 [(gogoproto.customname) = "ManagedNamespaceMetadata"];
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git
 message SyncPolicy {
   // Automated will keep an application synced to the target revision
-  optional SyncPolicyAutomated automated = 1;
+  optional SyncPolicyAutomated automated = 1 [(gogoproto.customname) = "Automated"];
 
   // Options allow you to specify whole app sync-options
-  repeated string syncOptions = 2;
+  repeated string syncOptions = 2 [(gogoproto.customname) = "SyncOptions"];
 
   // Retry controls failed sync retry behavior
-  optional RetryStrategy retry = 3;
+  optional RetryStrategy retry = 3 [(gogoproto.customname) = "Retry"];
 
   // ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
-  optional ManagedNamespaceMetadata managedNamespaceMetadata = 4;
+  optional ManagedNamespaceMetadata managedNamespaceMetadata = 4 [(gogoproto.customname) = "ManagedNamespaceMetadata"];
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync
 message SyncPolicyAutomated {
   // Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
-  optional bool prune = 1;
+  optional bool prune = 1 [(gogoproto.customname) = "Prune", (gogoproto.nullable) = false];
 
   // SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)
-  optional bool selfHeal = 2;
+  optional bool selfHeal = 2 [(gogoproto.customname) = "SelfHeal", (gogoproto.nullable) = false];
 
   // AllowEmpty allows apps have zero live resources (default: false)
-  optional bool allowEmpty = 3;
+  optional bool allowEmpty = 3 [(gogoproto.customname) = "AllowEmpty", (gogoproto.nullable) = false];
 
   // Enable allows apps to explicitly control automated sync
-  optional bool enabled = 4;
+  optional bool enabled = 4 [(gogoproto.customname) = "Enabled"];
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
@@ -2679,7 +2689,7 @@ message SyncPolicyAutomated {
 message SyncSource {
   // TargetBranch is the branch from which hydrated manifests will be synced.
   // If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
-  optional string targetBranch = 1;
+  optional string targetBranch = 1 [(gogoproto.customname) = "TargetBranch", (gogoproto.nullable) = false];
 
   // Path is a directory path within the git repository where hydrated manifests should be committed to and synced
   // from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
@@ -2688,31 +2698,31 @@ message SyncSource {
   // +kubebuilder:validation:Required
   // +kubebuilder:validation:MinLength=1
   // +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
-  optional string path = 2;
+  optional string path = 2 [(gogoproto.customname) = "Path", (gogoproto.nullable) = false];
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application
 message SyncStatus {
   // Status is the sync state of the comparison
-  optional string status = 1;
+  optional string status = 1 [(gogoproto.casttype) = "SyncStatusCode", (gogoproto.customname) = "Status", (gogoproto.nullable) = false];
 
   // ComparedTo contains information about what has been compared
-  optional ComparedTo comparedTo = 2;
+  optional ComparedTo comparedTo = 2 [(gogoproto.customname) = "ComparedTo", (gogoproto.nullable) = false];
 
   // Revision contains information about the revision the comparison has been performed to
-  optional string revision = 3;
+  optional string revision = 3 [(gogoproto.customname) = "Revision", (gogoproto.nullable) = false];
 
   // Revisions contains information about the revisions of multiple sources the comparison has been performed to
-  repeated string revisions = 4;
+  repeated string revisions = 4 [(gogoproto.customname) = "Revisions"];
 }
 
 // SyncStrategy controls the manner in which a sync is performed
 message SyncStrategy {
   // Apply will perform a `kubectl apply` to perform the sync.
-  optional SyncStrategyApply apply = 1;
+  optional SyncStrategyApply apply = 1 [(gogoproto.customname) = "Apply"];
 
   // Hook will submit any referenced resources to perform the sync. This is the default strategy
-  optional SyncStrategyHook hook = 2;
+  optional SyncStrategyHook hook = 2 [(gogoproto.customname) = "Hook"];
 }
 
 // SyncStrategyApply uses `kubectl apply` to perform the apply
@@ -2720,7 +2730,7 @@ message SyncStrategyApply {
   // Force indicates whether or not to supply the --force flag to `kubectl apply`.
   // The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
   // retried for 5 times.
-  optional bool force = 1;
+  optional bool force = 1 [(gogoproto.customname) = "Force", (gogoproto.nullable) = false];
 }
 
 // SyncStrategyHook will perform a sync using hooks annotations.
@@ -2728,68 +2738,68 @@ message SyncStrategyApply {
 message SyncStrategyHook {
   // Embed SyncStrategyApply type to inherit any `apply` options
   // +optional
-  optional SyncStrategyApply syncStrategyApply = 1;
+  optional SyncStrategyApply syncStrategyApply = 1 [(gogoproto.customname) = "SyncStrategyApply", (gogoproto.nullable) = false];
 }
 
 // SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
 message SyncWindow {
   // Kind defines if the window allows or blocks syncs
-  optional string kind = 1;
+  optional string kind = 1 [(gogoproto.customname) = "Kind", (gogoproto.nullable) = false];
 
   // Schedule is the time the window will begin, specified in cron format
-  optional string schedule = 2;
+  optional string schedule = 2 [(gogoproto.customname) = "Schedule", (gogoproto.nullable) = false];
 
   // Duration is the amount of time the sync window will be open
-  optional string duration = 3;
+  optional string duration = 3 [(gogoproto.customname) = "Duration", (gogoproto.nullable) = false];
 
   // Applications contains a list of applications that the window will apply to
-  repeated string applications = 4;
+  repeated string applications = 4 [(gogoproto.customname) = "Applications"];
 
   // Namespaces contains a list of namespaces that the window will apply to
-  repeated string namespaces = 5;
+  repeated string namespaces = 5 [(gogoproto.customname) = "Namespaces"];
 
   // Clusters contains a list of clusters that the window will apply to
-  repeated string clusters = 6;
+  repeated string clusters = 6 [(gogoproto.customname) = "Clusters"];
 
   // ManualSync enables manual syncs when they would otherwise be blocked
-  optional bool manualSync = 7;
+  optional bool manualSync = 7 [(gogoproto.customname) = "ManualSync", (gogoproto.nullable) = false];
 
   // TimeZone of the sync that will be applied to the schedule
-  optional string timeZone = 8;
+  optional string timeZone = 8 [(gogoproto.customname) = "TimeZone", (gogoproto.nullable) = false];
 
   // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
-  optional bool andOperator = 9;
+  optional bool andOperator = 9 [(gogoproto.customname) = "UseAndOperator", (gogoproto.nullable) = false];
 
   // Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
-  optional string description = 10;
+  optional string description = 10 [(gogoproto.customname) = "Description", (gogoproto.nullable) = false];
 }
 
 // TLSClientConfig contains settings to enable transport layer security
 message TLSClientConfig {
   // Insecure specifies that the server should be accessed without verifying the TLS certificate. For testing only.
-  optional bool insecure = 1;
+  optional bool insecure = 1 [(gogoproto.customname) = "Insecure", (gogoproto.nullable) = false];
 
   // ServerName is passed to the server for SNI and is used in the client to check server
   // certificates against. If ServerName is empty, the hostname used to contact the
   // server is used.
-  optional string serverName = 2;
+  optional string serverName = 2 [(gogoproto.customname) = "ServerName", (gogoproto.nullable) = false];
 
   // CertData holds PEM-encoded bytes (typically read from a client certificate file).
   // CertData takes precedence over CertFile
-  optional bytes certData = 3;
+  optional bytes certData = 3 [(gogoproto.customname) = "CertData"];
 
   // KeyData holds PEM-encoded bytes (typically read from a client certificate key file).
   // KeyData takes precedence over KeyFile
-  optional bytes keyData = 4;
+  optional bytes keyData = 4 [(gogoproto.customname) = "KeyData"];
 
   // CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
   // CAData takes precedence over CAFile
-  optional bytes caData = 5;
+  optional bytes caData = 5 [(gogoproto.customname) = "CAData"];
 }
 
 message TagFilter {
-  optional string key = 1;
+  optional string key = 1 [(gogoproto.customname) = "Key", (gogoproto.nullable) = false];
 
-  optional string value = 2;
+  optional string value = 2 [(gogoproto.customname) = "Value", (gogoproto.nullable) = false];
 }
 

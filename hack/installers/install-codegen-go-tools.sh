@@ -22,19 +22,17 @@ export GOBIN="${SRCROOT}/dist"
 mkdir -p "$GOBIN"
 
 # protoc-gen-go* is used to generate <service>.pb.go from .proto files
-# go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.0
-#go_mod_install github.com/gogo/protobuf/protoc-gen-gogo
-go_mod_install github.com/gogo/protobuf/protoc-gen-gogofast
+go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.1
+go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
 
 # protoc-gen-grpc-gateway is used to build <service>.pb.gw.go files from .proto files
-go_mod_install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
+go_mod_install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
 
-# # protoc-gen-swagger is used to build swagger.json
-go_mod_install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger
+# protoc-gen-openapiv2 is used to build openapi v2 swagger.json
+go_mod_install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2
 
 # k8s tools to codegen .proto files, client libraries, and helpers from types.go
 go_mod_install k8s.io/code-generator/cmd/go-to-protobuf
-go_mod_install k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo
 go_mod_install k8s.io/code-generator/cmd/client-gen
 go_mod_install k8s.io/code-generator/cmd/deepcopy-gen
 go_mod_install k8s.io/code-generator/cmd/defaulter-gen

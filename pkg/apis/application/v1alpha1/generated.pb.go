@@ -10,16 +10,14 @@ import (
 	github_com_argoproj_argo_cd_gitops_engine_pkg_sync_common "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 
 	io "io"
+	"sort"
 
-	proto "github.com/gogo/protobuf/proto"
-	github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
 	k8s_io_api_core_v1 "k8s.io/api/core/v1"
 	v12 "k8s.io/api/core/v1"
 	v11 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 
-	math "math"
 	math_bits "math/bits"
 	reflect "reflect"
 	strings "strings"
@@ -28,552 +26,48 @@ import (
 	k8s_io_apimachinery_pkg_watch "k8s.io/apimachinery/pkg/watch"
 )
 
-// Reference imports to suppress errors if they are not otherwise used.
-var _ = proto.Marshal
-var _ = fmt.Errorf
-var _ = math.Inf
+func (m *AWSAuthConfig) Reset() { *m = AWSAuthConfig{} }
 
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the proto package it is being compiled against.
-// A compilation error at this line likely means your copy of the
-// proto package needs to be updated.
-const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
+func (m *AppHealthStatus) Reset() { *m = AppHealthStatus{} }
 
-func (m *AWSAuthConfig) Reset()      { *m = AWSAuthConfig{} }
-func (*AWSAuthConfig) ProtoMessage() {}
-func (*AWSAuthConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{0}
-}
-func (m *AWSAuthConfig) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *AWSAuthConfig) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *AWSAuthConfig) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AWSAuthConfig.Merge(m, src)
-}
-func (m *AWSAuthConfig) XXX_Size() int {
-	return m.Size()
-}
-func (m *AWSAuthConfig) XXX_DiscardUnknown() {
-	xxx_messageInfo_AWSAuthConfig.DiscardUnknown(m)
-}
+func (m *AppProject) Reset() { *m = AppProject{} }
 
-var xxx_messageInfo_AWSAuthConfig proto.InternalMessageInfo
+func (m *AppProjectList) Reset() { *m = AppProjectList{} }
 
-func (m *AppHealthStatus) Reset()      { *m = AppHealthStatus{} }
-func (*AppHealthStatus) ProtoMessage() {}
-func (*AppHealthStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{1}
-}
-func (m *AppHealthStatus) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *AppHealthStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *AppHealthStatus) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AppHealthStatus.Merge(m, src)
-}
-func (m *AppHealthStatus) XXX_Size() int {
-	return m.Size()
-}
-func (m *AppHealthStatus) XXX_DiscardUnknown() {
-	xxx_messageInfo_AppHealthStatus.DiscardUnknown(m)
-}
+func (m *AppProjectSpec) Reset() { *m = AppProjectSpec{} }
 
-var xxx_messageInfo_AppHealthStatus proto.InternalMessageInfo
+func (m *AppProjectStatus) Reset() { *m = AppProjectStatus{} }
 
-func (m *AppProject) Reset()      { *m = AppProject{} }
-func (*AppProject) ProtoMessage() {}
-func (*AppProject) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{2}
-}
-func (m *AppProject) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *AppProject) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *AppProject) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AppProject.Merge(m, src)
-}
-func (m *AppProject) XXX_Size() int {
-	return m.Size()
-}
-func (m *AppProject) XXX_DiscardUnknown() {
-	xxx_messageInfo_AppProject.DiscardUnknown(m)
-}
+func (m *Application) Reset() { *m = Application{} }
 
-var xxx_messageInfo_AppProject proto.InternalMessageInfo
+func (m *ApplicationCondition) Reset() { *m = ApplicationCondition{} }
 
-func (m *AppProjectList) Reset()      { *m = AppProjectList{} }
-func (*AppProjectList) ProtoMessage() {}
-func (*AppProjectList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{3}
-}
-func (m *AppProjectList) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *AppProjectList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *AppProjectList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AppProjectList.Merge(m, src)
-}
-func (m *AppProjectList) XXX_Size() int {
-	return m.Size()
-}
-func (m *AppProjectList) XXX_DiscardUnknown() {
-	xxx_messageInfo_AppProjectList.DiscardUnknown(m)
-}
+func (m *ApplicationDestination) Reset() { *m = ApplicationDestination{} }
 
-var xxx_messageInfo_AppProjectList proto.InternalMessageInfo
+func (m *ApplicationDestinationServiceAccount) Reset() { *m = ApplicationDestinationServiceAccount{} }
 
-func (m *AppProjectSpec) Reset()      { *m = AppProjectSpec{} }
-func (*AppProjectSpec) ProtoMessage() {}
-func (*AppProjectSpec) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{4}
-}
-func (m *AppProjectSpec) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *AppProjectSpec) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *AppProjectSpec) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AppProjectSpec.Merge(m, src)
-}
-func (m *AppProjectSpec) XXX_Size() int {
-	return m.Size()
-}
-func (m *AppProjectSpec) XXX_DiscardUnknown() {
-	xxx_messageInfo_AppProjectSpec.DiscardUnknown(m)
-}
+func (m *ApplicationList) Reset() { *m = ApplicationList{} }
 
-var xxx_messageInfo_AppProjectSpec proto.InternalMessageInfo
+func (m *ApplicationMatchExpression) Reset() { *m = ApplicationMatchExpression{} }
 
-func (m *AppProjectStatus) Reset()      { *m = AppProjectStatus{} }
-func (*AppProjectStatus) ProtoMessage() {}
-func (*AppProjectStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{5}
-}
-func (m *AppProjectStatus) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *AppProjectStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *AppProjectStatus) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_AppProjectStatus.Merge(m, src)
-}
-func (m *AppProjectStatus) XXX_Size() int {
-	return m.Size()
-}
-func (m *AppProjectStatus) XXX_DiscardUnknown() {
-	xxx_messageInfo_AppProjectStatus.DiscardUnknown(m)
-}
+func (m *ApplicationPreservedFields) Reset() { *m = ApplicationPreservedFields{} }
 
-var xxx_messageInfo_AppProjectStatus proto.InternalMessageInfo
+func (m *ApplicationSet) Reset() { *m = ApplicationSet{} }
 
-func (m *Application) Reset()      { *m = Application{} }
-func (*Application) ProtoMessage() {}
-func (*Application) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{6}
-}
-func (m *Application) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *Application) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *Application) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Application.Merge(m, src)
-}
-func (m *Application) XXX_Size() int {
-	return m.Size()
-}
-func (m *Application) XXX_DiscardUnknown() {
-	xxx_messageInfo_Application.DiscardUnknown(m)
-}
+func (m *ApplicationSetApplicationStatus) Reset() { *m = ApplicationSetApplicationStatus{} }
 
-var xxx_messageInfo_Application proto.InternalMessageInfo
+func (m *ApplicationSetCondition) Reset() { *m = ApplicationSetCondition{} }
 
-func (m *ApplicationCondition) Reset()      { *m = ApplicationCondition{} }
-func (*ApplicationCondition) ProtoMessage() {}
-func (*ApplicationCondition) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{7}
-}
-func (m *ApplicationCondition) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ApplicationCondition) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ApplicationCondition) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ApplicationCondition.Merge(m, src)
-}
-func (m *ApplicationCondition) XXX_Size() int {
-	return m.Size()
-}
-func (m *ApplicationCondition) XXX_DiscardUnknown() {
-	xxx_messageInfo_ApplicationCondition.DiscardUnknown(m)
-}
+func (m *ApplicationSetGenerator) Reset() { *m = ApplicationSetGenerator{} }
 
-var xxx_messageInfo_ApplicationCondition proto.InternalMessageInfo
+func (m *ApplicationSetList) Reset() { *m = ApplicationSetList{} }
 
-func (m *ApplicationDestination) Reset()      { *m = ApplicationDestination{} }
-func (*ApplicationDestination) ProtoMessage() {}
-func (*ApplicationDestination) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{8}
-}
-func (m *ApplicationDestination) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ApplicationDestination) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ApplicationDestination) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ApplicationDestination.Merge(m, src)
-}
-func (m *ApplicationDestination) XXX_Size() int {
-	return m.Size()
-}
-func (m *ApplicationDestination) XXX_DiscardUnknown() {
-	xxx_messageInfo_ApplicationDestination.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ApplicationDestination proto.InternalMessageInfo
-
-func (m *ApplicationDestinationServiceAccount) Reset()      { *m = ApplicationDestinationServiceAccount{} }
-func (*ApplicationDestinationServiceAccount) ProtoMessage() {}
-func (*ApplicationDestinationServiceAccount) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{9}
-}
-func (m *ApplicationDestinationServiceAccount) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ApplicationDestinationServiceAccount) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ApplicationDestinationServiceAccount) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ApplicationDestinationServiceAccount.Merge(m, src)
-}
-func (m *ApplicationDestinationServiceAccount) XXX_Size() int {
-	return m.Size()
-}
-func (m *ApplicationDestinationServiceAccount) XXX_DiscardUnknown() {
-	xxx_messageInfo_ApplicationDestinationServiceAccount.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ApplicationDestinationServiceAccount proto.InternalMessageInfo
-
-func (m *ApplicationList) Reset()      { *m = ApplicationList{} }
-func (*ApplicationList) ProtoMessage() {}
-func (*ApplicationList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{10}
-}
-func (m *ApplicationList) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ApplicationList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ApplicationList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ApplicationList.Merge(m, src)
-}
-func (m *ApplicationList) XXX_Size() int {
-	return m.Size()
-}
-func (m *ApplicationList) XXX_DiscardUnknown() {
-	xxx_messageInfo_ApplicationList.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ApplicationList proto.InternalMessageInfo
-
-func (m *ApplicationMatchExpression) Reset()      { *m = ApplicationMatchExpression{} }
-func (*ApplicationMatchExpression) ProtoMessage() {}
-func (*ApplicationMatchExpression) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{11}
-}
-func (m *ApplicationMatchExpression) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ApplicationMatchExpression) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ApplicationMatchExpression) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ApplicationMatchExpression.Merge(m, src)
-}
-func (m *ApplicationMatchExpression) XXX_Size() int {
-	return m.Size()
-}
-func (m *ApplicationMatchExpression) XXX_DiscardUnknown() {
-	xxx_messageInfo_ApplicationMatchExpression.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ApplicationMatchExpression proto.InternalMessageInfo
-
-func (m *ApplicationPreservedFields) Reset()      { *m = ApplicationPreservedFields{} }
-func (*ApplicationPreservedFields) ProtoMessage() {}
-func (*ApplicationPreservedFields) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{12}
-}
-func (m *ApplicationPreservedFields) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ApplicationPreservedFields) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ApplicationPreservedFields) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ApplicationPreservedFields.Merge(m, src)
-}
-func (m *ApplicationPreservedFields) XXX_Size() int {
-	return m.Size()
-}
-func (m *ApplicationPreservedFields) XXX_DiscardUnknown() {
-	xxx_messageInfo_ApplicationPreservedFields.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ApplicationPreservedFields proto.InternalMessageInfo
-
-func (m *ApplicationSet) Reset()      { *m = ApplicationSet{} }
-func (*ApplicationSet) ProtoMessage() {}
-func (*ApplicationSet) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{13}
-}
-func (m *ApplicationSet) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ApplicationSet) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ApplicationSet) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ApplicationSet.Merge(m, src)
-}
-func (m *ApplicationSet) XXX_Size() int {
-	return m.Size()
-}
-func (m *ApplicationSet) XXX_DiscardUnknown() {
-	xxx_messageInfo_ApplicationSet.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ApplicationSet proto.InternalMessageInfo
-
-func (m *ApplicationSetApplicationStatus) Reset()      { *m = ApplicationSetApplicationStatus{} }
-func (*ApplicationSetApplicationStatus) ProtoMessage() {}
-func (*ApplicationSetApplicationStatus) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{14}
-}
-func (m *ApplicationSetApplicationStatus) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ApplicationSetApplicationStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ApplicationSetApplicationStatus) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ApplicationSetApplicationStatus.Merge(m, src)
-}
-func (m *ApplicationSetApplicationStatus) XXX_Size() int {
-	return m.Size()
-}
-func (m *ApplicationSetApplicationStatus) XXX_DiscardUnknown() {
-	xxx_messageInfo_ApplicationSetApplicationStatus.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ApplicationSetApplicationStatus proto.InternalMessageInfo
-
-func (m *ApplicationSetCondition) Reset()      { *m = ApplicationSetCondition{} }
-func (*ApplicationSetCondition) ProtoMessage() {}
-func (*ApplicationSetCondition) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{15}
-}
-func (m *ApplicationSetCondition) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ApplicationSetCondition) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ApplicationSetCondition) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ApplicationSetCondition.Merge(m, src)
-}
-func (m *ApplicationSetCondition) XXX_Size() int {
-	return m.Size()
-}
-func (m *ApplicationSetCondition) XXX_DiscardUnknown() {
-	xxx_messageInfo_ApplicationSetCondition.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ApplicationSetCondition proto.InternalMessageInfo
-
-func (m *ApplicationSetGenerator) Reset()      { *m = ApplicationSetGenerator{} }
-func (*ApplicationSetGenerator) ProtoMessage() {}
-func (*ApplicationSetGenerator) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{16}
-}
-func (m *ApplicationSetGenerator) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ApplicationSetGenerator) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ApplicationSetGenerator) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ApplicationSetGenerator.Merge(m, src)
-}
-func (m *ApplicationSetGenerator) XXX_Size() int {
-	return m.Size()
-}
-func (m *ApplicationSetGenerator) XXX_DiscardUnknown() {
-	xxx_messageInfo_ApplicationSetGenerator.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ApplicationSetGenerator proto.InternalMessageInfo
-
-func (m *ApplicationSetList) Reset()      { *m = ApplicationSetList{} }
-func (*ApplicationSetList) ProtoMessage() {}
-func (*ApplicationSetList) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{17}
-}
-func (m *ApplicationSetList) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ApplicationSetList) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ApplicationSetList) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ApplicationSetList.Merge(m, src)
-}
-func (m *ApplicationSetList) XXX_Size() int {
-	return m.Size()
-}
-func (m *ApplicationSetList) XXX_DiscardUnknown() {
-	xxx_messageInfo_ApplicationSetList.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ApplicationSetList proto.InternalMessageInfo
-
-func (m *ApplicationSetNestedGenerator) Reset()      { *m = ApplicationSetNestedGenerator{} }
-func (*ApplicationSetNestedGenerator) ProtoMessage() {}
-func (*ApplicationSetNestedGenerator) Descriptor() ([]byte, []int) {
-	return fileDescriptor_c078c3c476799f44, []int{18}
-}
-func (m *ApplicationSetNestedGenerator) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ApplicationSetNestedGenerator) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	b = b[:cap(b)]
-	n, err := m.MarshalToSizedBuffer(b)
-	if err != nil {
-		return nil, err
-	}
-	return b[:n], nil
-}
-func (m *ApplicationSetNestedGenerator) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ApplicationSetNestedGenerator.Merge(m, src)
-}
-func (m *ApplicationSetNestedGenerator) XXX_Size() int {
-	return m.Size()
-}
-func (m *ApplicationSetNestedGenerator) XXX_DiscardUnknown() {
-	xxx_messageInfo_ApplicationSetNestedGenerator.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ApplicationSetNestedGenerator proto.InternalMessageInfo
+func (m *ApplicationSetNestedGenerator) Reset() { *m = ApplicationSetNestedGenerator{} }
 
 func (m *ApplicationSetResourceIgnoreDifferences) Reset() {
 	*m = ApplicationSetResourceIgnoreDifferences{}
 }
+<<<<<<< HEAD
 func (*ApplicationSetResourceIgnoreDifferences) ProtoMessage() {}
 func (*ApplicationSetResourceIgnoreDifferences) Descriptor() ([]byte, []int) {
 	return fileDescriptor_c078c3c476799f44, []int{19}
@@ -5726,6 +5220,304 @@ var fileDescriptor_c078c3c476799f44 = []byte{
 	0x7c, 0x41, 0xae, 0xe7, 0xff, 0x1f, 0x00, 0x00, 0xff, 0xff, 0x0a, 0x65, 0x59, 0x12, 0xc0, 0x04,
 	0x01, 0x00,
 }
+=======
+
+func (m *ApplicationSetRolloutStep) Reset() { *m = ApplicationSetRolloutStep{} }
+
+func (m *ApplicationSetRolloutStrategy) Reset() { *m = ApplicationSetRolloutStrategy{} }
+
+func (m *ApplicationSetSpec) Reset() { *m = ApplicationSetSpec{} }
+
+func (m *ApplicationSetStatus) Reset() { *m = ApplicationSetStatus{} }
+
+func (m *ApplicationSetStrategy) Reset() { *m = ApplicationSetStrategy{} }
+
+func (m *ApplicationSetSyncPolicy) Reset() { *m = ApplicationSetSyncPolicy{} }
+
+func (m *ApplicationSetTemplate) Reset() { *m = ApplicationSetTemplate{} }
+
+func (m *ApplicationSetTemplateMeta) Reset() { *m = ApplicationSetTemplateMeta{} }
+
+func (m *ApplicationSetTerminalGenerator) Reset() { *m = ApplicationSetTerminalGenerator{} }
+
+func (m *ApplicationSetTree) Reset() { *m = ApplicationSetTree{} }
+
+func (m *ApplicationSource) Reset() { *m = ApplicationSource{} }
+
+func (m *ApplicationSourceDirectory) Reset() { *m = ApplicationSourceDirectory{} }
+
+func (m *ApplicationSourceHelm) Reset() { *m = ApplicationSourceHelm{} }
+
+func (m *ApplicationSourceJsonnet) Reset() { *m = ApplicationSourceJsonnet{} }
+
+func (m *ApplicationSourceKustomize) Reset() { *m = ApplicationSourceKustomize{} }
+
+func (m *ApplicationSourcePlugin) Reset() { *m = ApplicationSourcePlugin{} }
+
+func (m *ApplicationSourcePluginParameter) Reset() { *m = ApplicationSourcePluginParameter{} }
+
+func (m *ApplicationSpec) Reset() { *m = ApplicationSpec{} }
+
+func (m *ApplicationStatus) Reset() { *m = ApplicationStatus{} }
+
+func (m *ApplicationSummary) Reset() { *m = ApplicationSummary{} }
+
+func (m *ApplicationTree) Reset() { *m = ApplicationTree{} }
+
+func (m *ApplicationWatchEvent) Reset() { *m = ApplicationWatchEvent{} }
+
+func (m *Backoff) Reset() { *m = Backoff{} }
+
+func (m *BasicAuthBitbucketServer) Reset() { *m = BasicAuthBitbucketServer{} }
+
+func (m *BearerTokenBitbucket) Reset() { *m = BearerTokenBitbucket{} }
+
+func (m *BearerTokenBitbucketCloud) Reset() { *m = BearerTokenBitbucketCloud{} }
+
+func (m *ChartDetails) Reset() { *m = ChartDetails{} }
+
+func (m *Cluster) Reset() { *m = Cluster{} }
+
+func (m *ClusterCacheInfo) Reset() { *m = ClusterCacheInfo{} }
+
+func (m *ClusterConfig) Reset() { *m = ClusterConfig{} }
+
+func (m *ClusterGenerator) Reset() { *m = ClusterGenerator{} }
+
+func (m *ClusterInfo) Reset() { *m = ClusterInfo{} }
+
+func (m *ClusterList) Reset() { *m = ClusterList{} }
+
+func (m *ClusterResourceRestrictionItem) Reset() { *m = ClusterResourceRestrictionItem{} }
+
+func (m *Command) Reset() { *m = Command{} }
+
+func (m *CommitMetadata) Reset() { *m = CommitMetadata{} }
+
+func (m *ComparedTo) Reset() { *m = ComparedTo{} }
+
+func (m *ComponentParameter) Reset() { *m = ComponentParameter{} }
+
+func (m *ConfigManagementPlugin) Reset() { *m = ConfigManagementPlugin{} }
+
+func (m *ConfigMapKeyRef) Reset() { *m = ConfigMapKeyRef{} }
+
+func (m *ConnectionState) Reset() { *m = ConnectionState{} }
+
+func (m *DrySource) Reset() { *m = DrySource{} }
+
+func (m *DuckTypeGenerator) Reset() { *m = DuckTypeGenerator{} }
+
+func (m *EnvEntry) Reset() { *m = EnvEntry{} }
+
+func (m *ExecProviderConfig) Reset() { *m = ExecProviderConfig{} }
+
+func (m *GitDirectoryGeneratorItem) Reset() { *m = GitDirectoryGeneratorItem{} }
+
+func (m *GitFileGeneratorItem) Reset() { *m = GitFileGeneratorItem{} }
+
+func (m *GitGenerator) Reset() { *m = GitGenerator{} }
+
+func (m *GnuPGPublicKey) Reset() { *m = GnuPGPublicKey{} }
+
+func (m *GnuPGPublicKeyList) Reset() { *m = GnuPGPublicKeyList{} }
+
+func (m *HealthStatus) Reset() { *m = HealthStatus{} }
+
+func (m *HelmFileParameter) Reset() { *m = HelmFileParameter{} }
+
+func (m *HelmOptions) Reset() { *m = HelmOptions{} }
+
+func (m *HelmParameter) Reset() { *m = HelmParameter{} }
+
+func (m *HostInfo) Reset() { *m = HostInfo{} }
+
+func (m *HostResourceInfo) Reset() { *m = HostResourceInfo{} }
+
+func (m *HydrateOperation) Reset() { *m = HydrateOperation{} }
+
+func (m *HydrateTo) Reset() { *m = HydrateTo{} }
+
+func (m *Info) Reset() { *m = Info{} }
+
+func (m *InfoItem) Reset() { *m = InfoItem{} }
+
+func (m *JWTToken) Reset() { *m = JWTToken{} }
+
+func (m *JWTTokens) Reset() { *m = JWTTokens{} }
+
+func (m *JsonnetVar) Reset() { *m = JsonnetVar{} }
+
+func (m *KnownTypeField) Reset() { *m = KnownTypeField{} }
+
+func (m *KustomizeGvk) Reset() { *m = KustomizeGvk{} }
+
+func (m *KustomizeOptions) Reset() { *m = KustomizeOptions{} }
+
+func (m *KustomizePatch) Reset() { *m = KustomizePatch{} }
+
+func (m *KustomizeReplica) Reset() { *m = KustomizeReplica{} }
+
+func (m *KustomizeResId) Reset() { *m = KustomizeResId{} }
+
+func (m *KustomizeSelector) Reset() { *m = KustomizeSelector{} }
+
+func (m *KustomizeVersion) Reset() { *m = KustomizeVersion{} }
+
+func (m *ListGenerator) Reset() { *m = ListGenerator{} }
+
+func (m *ManagedNamespaceMetadata) Reset() { *m = ManagedNamespaceMetadata{} }
+
+func (m *MatrixGenerator) Reset() { *m = MatrixGenerator{} }
+
+func (m *MergeGenerator) Reset() { *m = MergeGenerator{} }
+
+func (m *NestedMatrixGenerator) Reset() { *m = NestedMatrixGenerator{} }
+
+func (m *NestedMergeGenerator) Reset() { *m = NestedMergeGenerator{} }
+
+func (m *OCIMetadata) Reset() { *m = OCIMetadata{} }
+
+func (m *Operation) Reset() { *m = Operation{} }
+
+func (m *OperationInitiator) Reset() { *m = OperationInitiator{} }
+
+func (m *OperationState) Reset() { *m = OperationState{} }
+
+func (m *OptionalArray) Reset() { *m = OptionalArray{} }
+
+func (m *OptionalMap) Reset() { *m = OptionalMap{} }
+
+func (m *OrphanedResourceKey) Reset() { *m = OrphanedResourceKey{} }
+
+func (m *OrphanedResourcesMonitorSettings) Reset() { *m = OrphanedResourcesMonitorSettings{} }
+
+func (m *OverrideIgnoreDiff) Reset() { *m = OverrideIgnoreDiff{} }
+
+func (m *PluginConfigMapRef) Reset() { *m = PluginConfigMapRef{} }
+
+func (m *PluginGenerator) Reset() { *m = PluginGenerator{} }
+
+func (m *PluginInput) Reset() { *m = PluginInput{} }
+
+func (m *ProjectRole) Reset() { *m = ProjectRole{} }
+
+func (m *PullRequestGenerator) Reset() { *m = PullRequestGenerator{} }
+
+func (m *PullRequestGeneratorAzureDevOps) Reset() { *m = PullRequestGeneratorAzureDevOps{} }
+
+func (m *PullRequestGeneratorBitbucket) Reset() { *m = PullRequestGeneratorBitbucket{} }
+
+func (m *PullRequestGeneratorBitbucketServer) Reset() { *m = PullRequestGeneratorBitbucketServer{} }
+
+func (m *PullRequestGeneratorFilter) Reset() { *m = PullRequestGeneratorFilter{} }
+
+func (m *PullRequestGeneratorGitLab) Reset() { *m = PullRequestGeneratorGitLab{} }
+
+func (m *PullRequestGeneratorGitea) Reset() { *m = PullRequestGeneratorGitea{} }
+
+func (m *PullRequestGeneratorGithub) Reset() { *m = PullRequestGeneratorGithub{} }
+
+func (m *RefTarget) Reset() { *m = RefTarget{} }
+
+func (m *RepoCreds) Reset() { *m = RepoCreds{} }
+
+func (m *RepoCredsList) Reset() { *m = RepoCredsList{} }
+
+func (m *Repository) Reset() { *m = Repository{} }
+
+func (m *RepositoryCertificate) Reset() { *m = RepositoryCertificate{} }
+
+func (m *RepositoryCertificateList) Reset() { *m = RepositoryCertificateList{} }
+
+func (m *RepositoryList) Reset() { *m = RepositoryList{} }
+
+func (m *ResourceAction) Reset() { *m = ResourceAction{} }
+
+func (m *ResourceActionDefinition) Reset() { *m = ResourceActionDefinition{} }
+
+func (m *ResourceActionParam) Reset() { *m = ResourceActionParam{} }
+
+func (m *ResourceActions) Reset() { *m = ResourceActions{} }
+
+func (m *ResourceDiff) Reset() { *m = ResourceDiff{} }
+
+func (m *ResourceIgnoreDifferences) Reset() { *m = ResourceIgnoreDifferences{} }
+
+func (m *ResourceNetworkingInfo) Reset() { *m = ResourceNetworkingInfo{} }
+
+func (m *ResourceNode) Reset() { *m = ResourceNode{} }
+
+func (m *ResourceOverride) Reset() { *m = ResourceOverride{} }
+
+func (m *ResourceRef) Reset() { *m = ResourceRef{} }
+
+func (m *ResourceResult) Reset() { *m = ResourceResult{} }
+
+func (m *ResourceStatus) Reset() { *m = ResourceStatus{} }
+
+func (m *RetryStrategy) Reset() { *m = RetryStrategy{} }
+
+func (m *RevisionHistory) Reset() { *m = RevisionHistory{} }
+
+func (m *RevisionMetadata) Reset() { *m = RevisionMetadata{} }
+
+func (m *RevisionReference) Reset() { *m = RevisionReference{} }
+
+func (m *SCMProviderGenerator) Reset() { *m = SCMProviderGenerator{} }
+
+func (m *SCMProviderGeneratorAWSCodeCommit) Reset() { *m = SCMProviderGeneratorAWSCodeCommit{} }
+
+func (m *SCMProviderGeneratorAzureDevOps) Reset() { *m = SCMProviderGeneratorAzureDevOps{} }
+
+func (m *SCMProviderGeneratorBitbucket) Reset() { *m = SCMProviderGeneratorBitbucket{} }
+
+func (m *SCMProviderGeneratorBitbucketServer) Reset() { *m = SCMProviderGeneratorBitbucketServer{} }
+
+func (m *SCMProviderGeneratorFilter) Reset() { *m = SCMProviderGeneratorFilter{} }
+
+func (m *SCMProviderGeneratorGitea) Reset() { *m = SCMProviderGeneratorGitea{} }
+
+func (m *SCMProviderGeneratorGithub) Reset() { *m = SCMProviderGeneratorGithub{} }
+
+func (m *SCMProviderGeneratorGitlab) Reset() { *m = SCMProviderGeneratorGitlab{} }
+
+func (m *SecretRef) Reset() { *m = SecretRef{} }
+
+func (m *SignatureKey) Reset() { *m = SignatureKey{} }
+
+func (m *SourceHydrator) Reset() { *m = SourceHydrator{} }
+
+func (m *SourceHydratorStatus) Reset() { *m = SourceHydratorStatus{} }
+
+func (m *SuccessfulHydrateOperation) Reset() { *m = SuccessfulHydrateOperation{} }
+
+func (m *SyncOperation) Reset() { *m = SyncOperation{} }
+
+func (m *SyncOperationResource) Reset() { *m = SyncOperationResource{} }
+
+func (m *SyncOperationResult) Reset() { *m = SyncOperationResult{} }
+
+func (m *SyncPolicy) Reset() { *m = SyncPolicy{} }
+
+func (m *SyncPolicyAutomated) Reset() { *m = SyncPolicyAutomated{} }
+
+func (m *SyncSource) Reset() { *m = SyncSource{} }
+
+func (m *SyncStatus) Reset() { *m = SyncStatus{} }
+
+func (m *SyncStrategy) Reset() { *m = SyncStrategy{} }
+
+func (m *SyncStrategyApply) Reset() { *m = SyncStrategyApply{} }
+
+func (m *SyncStrategyHook) Reset() { *m = SyncStrategyHook{} }
+
+func (m *SyncWindow) Reset() { *m = SyncWindow{} }
+
+func (m *TLSClientConfig) Reset() { *m = TLSClientConfig{} }
+
+func (m *TagFilter) Reset() { *m = TagFilter{} }
+>>>>>>> ca3646eb0 (Migrate to grpc-gateway/v2 and eliminate gogo/protobuf)
 
 func (m *AWSAuthConfig) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
@@ -6127,7 +5919,7 @@ func (m *AppProjectStatus) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.JWTTokensByRole {
 			keysForJWTTokensByRole = append(keysForJWTTokensByRole, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForJWTTokensByRole)
+		sort.Strings(keysForJWTTokensByRole)
 		for iNdEx := len(keysForJWTTokensByRole) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.JWTTokensByRole[string(keysForJWTTokensByRole[iNdEx])]
 			baseI := i
@@ -7474,7 +7266,7 @@ func (m *ApplicationSetTemplateMeta) MarshalToSizedBuffer(dAtA []byte) (int, err
 		for k := range m.Annotations {
 			keysForAnnotations = append(keysForAnnotations, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
+		sort.Strings(keysForAnnotations)
 		for iNdEx := len(keysForAnnotations) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Annotations[string(keysForAnnotations[iNdEx])]
 			baseI := i
@@ -7498,7 +7290,7 @@ func (m *ApplicationSetTemplateMeta) MarshalToSizedBuffer(dAtA []byte) (int, err
 		for k := range m.Labels {
 			keysForLabels = append(keysForLabels, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+		sort.Strings(keysForLabels)
 		for iNdEx := len(keysForLabels) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Labels[string(keysForLabels[iNdEx])]
 			baseI := i
@@ -8179,7 +7971,7 @@ func (m *ApplicationSourceKustomize) MarshalToSizedBuffer(dAtA []byte) (int, err
 		for k := range m.CommonAnnotations {
 			keysForCommonAnnotations = append(keysForCommonAnnotations, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForCommonAnnotations)
+		sort.Strings(keysForCommonAnnotations)
 		for iNdEx := len(keysForCommonAnnotations) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.CommonAnnotations[string(keysForCommonAnnotations[iNdEx])]
 			baseI := i
@@ -8208,7 +8000,7 @@ func (m *ApplicationSourceKustomize) MarshalToSizedBuffer(dAtA []byte) (int, err
 		for k := range m.CommonLabels {
 			keysForCommonLabels = append(keysForCommonLabels, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForCommonLabels)
+		sort.Strings(keysForCommonLabels)
 		for iNdEx := len(keysForCommonLabels) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.CommonLabels[string(keysForCommonLabels[iNdEx])]
 			baseI := i
@@ -9012,7 +8804,7 @@ func (m *Cluster) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.Annotations {
 			keysForAnnotations = append(keysForAnnotations, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
+		sort.Strings(keysForAnnotations)
 		for iNdEx := len(keysForAnnotations) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Annotations[string(keysForAnnotations[iNdEx])]
 			baseI := i
@@ -9036,7 +8828,7 @@ func (m *Cluster) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.Labels {
 			keysForLabels = append(keysForLabels, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+		sort.Strings(keysForLabels)
 		for iNdEx := len(keysForLabels) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Labels[string(keysForLabels[iNdEx])]
 			baseI := i
@@ -9301,7 +9093,7 @@ func (m *ClusterGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.Values {
 			keysForValues = append(keysForValues, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+		sort.Strings(keysForValues)
 		for iNdEx := len(keysForValues) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Values[string(keysForValues[iNdEx])]
 			baseI := i
@@ -9938,7 +9730,7 @@ func (m *DuckTypeGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.Values {
 			keysForValues = append(keysForValues, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+		sort.Strings(keysForValues)
 		for iNdEx := len(keysForValues) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Values[string(keysForValues[iNdEx])]
 			baseI := i
@@ -10063,7 +9855,7 @@ func (m *ExecProviderConfig) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.Env {
 			keysForEnv = append(keysForEnv, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForEnv)
+		sort.Strings(keysForEnv)
 		for iNdEx := len(keysForEnv) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Env[string(keysForEnv[iNdEx])]
 			baseI := i
@@ -10196,7 +9988,7 @@ func (m *GitGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.Values {
 			keysForValues = append(keysForValues, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+		sort.Strings(keysForValues)
 		for iNdEx := len(keysForValues) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Values[string(keysForValues[iNdEx])]
 			baseI := i
@@ -10552,7 +10344,7 @@ func (m *HostInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.Labels {
 			keysForLabels = append(keysForLabels, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+		sort.Strings(keysForLabels)
 		for iNdEx := len(keysForLabels) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Labels[string(keysForLabels[iNdEx])]
 			baseI := i
@@ -11064,7 +10856,7 @@ func (m *KustomizePatch) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.Options {
 			keysForOptions = append(keysForOptions, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForOptions)
+		sort.Strings(keysForOptions)
 		for iNdEx := len(keysForOptions) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Options[string(keysForOptions[iNdEx])]
 			baseI := i
@@ -11350,7 +11142,7 @@ func (m *ManagedNamespaceMetadata) MarshalToSizedBuffer(dAtA []byte) (int, error
 		for k := range m.Annotations {
 			keysForAnnotations = append(keysForAnnotations, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
+		sort.Strings(keysForAnnotations)
 		for iNdEx := len(keysForAnnotations) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Annotations[string(keysForAnnotations[iNdEx])]
 			baseI := i
@@ -11374,7 +11166,7 @@ func (m *ManagedNamespaceMetadata) MarshalToSizedBuffer(dAtA []byte) (int, error
 		for k := range m.Labels {
 			keysForLabels = append(keysForLabels, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+		sort.Strings(keysForLabels)
 		for iNdEx := len(keysForLabels) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Labels[string(keysForLabels[iNdEx])]
 			baseI := i
@@ -11882,7 +11674,7 @@ func (m *OptionalMap) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.Map {
 			keysForMap = append(keysForMap, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForMap)
+		sort.Strings(keysForMap)
 		for iNdEx := len(keysForMap) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Map[string(keysForMap[iNdEx])]
 			baseI := i
@@ -12092,7 +11884,7 @@ func (m *PluginGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.Values {
 			keysForValues = append(keysForValues, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+		sort.Strings(keysForValues)
 		for iNdEx := len(keysForValues) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Values[string(keysForValues[iNdEx])]
 			baseI := i
@@ -12174,7 +11966,7 @@ func (m *PluginInput) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.Parameters {
 			keysForParameters = append(keysForParameters, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForParameters)
+		sort.Strings(keysForParameters)
 		for iNdEx := len(keysForParameters) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Parameters[string(keysForParameters[iNdEx])]
 			baseI := i
@@ -12299,7 +12091,7 @@ func (m *PullRequestGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.Values {
 			keysForValues = append(keysForValues, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+		sort.Strings(keysForValues)
 		for iNdEx := len(keysForValues) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Values[string(keysForValues[iNdEx])]
 			baseI := i
@@ -13839,7 +13631,7 @@ func (m *ResourceNetworkingInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 		for k := range m.Labels {
 			keysForLabels = append(keysForLabels, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+		sort.Strings(keysForLabels)
 		for iNdEx := len(keysForLabels) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Labels[string(keysForLabels[iNdEx])]
 			baseI := i
@@ -13877,7 +13669,7 @@ func (m *ResourceNetworkingInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 		for k := range m.TargetLabels {
 			keysForTargetLabels = append(keysForTargetLabels, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForTargetLabels)
+		sort.Strings(keysForTargetLabels)
 		for iNdEx := len(keysForTargetLabels) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.TargetLabels[string(keysForTargetLabels[iNdEx])]
 			baseI := i
@@ -14599,7 +14391,7 @@ func (m *SCMProviderGenerator) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		for k := range m.Values {
 			keysForValues = append(keysForValues, string(k))
 		}
-		github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+		sort.Strings(keysForValues)
 		for iNdEx := len(keysForValues) - 1; iNdEx >= 0; iNdEx-- {
 			v := m.Values[string(keysForValues[iNdEx])]
 			baseI := i
@@ -20255,7 +20047,7 @@ func (this *AppProjectStatus) String() string {
 	for k := range this.JWTTokensByRole {
 		keysForJWTTokensByRole = append(keysForJWTTokensByRole, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForJWTTokensByRole)
+	sort.Strings(keysForJWTTokensByRole)
 	mapStringForJWTTokensByRole := "map[string]JWTTokens{"
 	for _, k := range keysForJWTTokensByRole {
 		mapStringForJWTTokensByRole += fmt.Sprintf("%v: %v,", k, this.JWTTokensByRole[k])
@@ -20593,7 +20385,7 @@ func (this *ApplicationSetTemplateMeta) String() string {
 	for k := range this.Labels {
 		keysForLabels = append(keysForLabels, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+	sort.Strings(keysForLabels)
 	mapStringForLabels := "map[string]string{"
 	for _, k := range keysForLabels {
 		mapStringForLabels += fmt.Sprintf("%v: %v,", k, this.Labels[k])
@@ -20603,7 +20395,7 @@ func (this *ApplicationSetTemplateMeta) String() string {
 	for k := range this.Annotations {
 		keysForAnnotations = append(keysForAnnotations, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
+	sort.Strings(keysForAnnotations)
 	mapStringForAnnotations := "map[string]string{"
 	for _, k := range keysForAnnotations {
 		mapStringForAnnotations += fmt.Sprintf("%v: %v,", k, this.Annotations[k])
@@ -20757,7 +20549,7 @@ func (this *ApplicationSourceKustomize) String() string {
 	for k := range this.CommonLabels {
 		keysForCommonLabels = append(keysForCommonLabels, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForCommonLabels)
+	sort.Strings(keysForCommonLabels)
 	mapStringForCommonLabels := "map[string]string{"
 	for _, k := range keysForCommonLabels {
 		mapStringForCommonLabels += fmt.Sprintf("%v: %v,", k, this.CommonLabels[k])
@@ -20767,7 +20559,7 @@ func (this *ApplicationSourceKustomize) String() string {
 	for k := range this.CommonAnnotations {
 		keysForCommonAnnotations = append(keysForCommonAnnotations, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForCommonAnnotations)
+	sort.Strings(keysForCommonAnnotations)
 	mapStringForCommonAnnotations := "map[string]string{"
 	for _, k := range keysForCommonAnnotations {
 		mapStringForCommonAnnotations += fmt.Sprintf("%v: %v,", k, this.CommonAnnotations[k])
@@ -21015,7 +20807,7 @@ func (this *Cluster) String() string {
 	for k := range this.Labels {
 		keysForLabels = append(keysForLabels, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+	sort.Strings(keysForLabels)
 	mapStringForLabels := "map[string]string{"
 	for _, k := range keysForLabels {
 		mapStringForLabels += fmt.Sprintf("%v: %v,", k, this.Labels[k])
@@ -21025,7 +20817,7 @@ func (this *Cluster) String() string {
 	for k := range this.Annotations {
 		keysForAnnotations = append(keysForAnnotations, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
+	sort.Strings(keysForAnnotations)
 	mapStringForAnnotations := "map[string]string{"
 	for _, k := range keysForAnnotations {
 		mapStringForAnnotations += fmt.Sprintf("%v: %v,", k, this.Annotations[k])
@@ -21086,7 +20878,7 @@ func (this *ClusterGenerator) String() string {
 	for k := range this.Values {
 		keysForValues = append(keysForValues, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+	sort.Strings(keysForValues)
 	mapStringForValues := "map[string]string{"
 	for _, k := range keysForValues {
 		mapStringForValues += fmt.Sprintf("%v: %v,", k, this.Values[k])
@@ -21264,7 +21056,7 @@ func (this *DuckTypeGenerator) String() string {
 	for k := range this.Values {
 		keysForValues = append(keysForValues, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+	sort.Strings(keysForValues)
 	mapStringForValues := "map[string]string{"
 	for _, k := range keysForValues {
 		mapStringForValues += fmt.Sprintf("%v: %v,", k, this.Values[k])
@@ -21300,7 +21092,7 @@ func (this *ExecProviderConfig) String() string {
 	for k := range this.Env {
 		keysForEnv = append(keysForEnv, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForEnv)
+	sort.Strings(keysForEnv)
 	mapStringForEnv := "map[string]string{"
 	for _, k := range keysForEnv {
 		mapStringForEnv += fmt.Sprintf("%v: %v,", k, this.Env[k])
@@ -21356,7 +21148,7 @@ func (this *GitGenerator) String() string {
 	for k := range this.Values {
 		keysForValues = append(keysForValues, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+	sort.Strings(keysForValues)
 	mapStringForValues := "map[string]string{"
 	for _, k := range keysForValues {
 		mapStringForValues += fmt.Sprintf("%v: %v,", k, this.Values[k])
@@ -21464,7 +21256,7 @@ func (this *HostInfo) String() string {
 	for k := range this.Labels {
 		keysForLabels = append(keysForLabels, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+	sort.Strings(keysForLabels)
 	mapStringForLabels := "map[string]string{"
 	for _, k := range keysForLabels {
 		mapStringForLabels += fmt.Sprintf("%v: %v,", k, this.Labels[k])
@@ -21627,7 +21419,7 @@ func (this *KustomizePatch) String() string {
 	for k := range this.Options {
 		keysForOptions = append(keysForOptions, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForOptions)
+	sort.Strings(keysForOptions)
 	mapStringForOptions := "map[string]bool{"
 	for _, k := range keysForOptions {
 		mapStringForOptions += fmt.Sprintf("%v: %v,", k, this.Options[k])
@@ -21714,7 +21506,7 @@ func (this *ManagedNamespaceMetadata) String() string {
 	for k := range this.Labels {
 		keysForLabels = append(keysForLabels, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+	sort.Strings(keysForLabels)
 	mapStringForLabels := "map[string]string{"
 	for _, k := range keysForLabels {
 		mapStringForLabels += fmt.Sprintf("%v: %v,", k, this.Labels[k])
@@ -21724,7 +21516,7 @@ func (this *ManagedNamespaceMetadata) String() string {
 	for k := range this.Annotations {
 		keysForAnnotations = append(keysForAnnotations, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForAnnotations)
+	sort.Strings(keysForAnnotations)
 	mapStringForAnnotations := "map[string]string{"
 	for _, k := range keysForAnnotations {
 		mapStringForAnnotations += fmt.Sprintf("%v: %v,", k, this.Annotations[k])
@@ -21880,7 +21672,7 @@ func (this *OptionalMap) String() string {
 	for k := range this.Map {
 		keysForMap = append(keysForMap, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForMap)
+	sort.Strings(keysForMap)
 	mapStringForMap := "map[string]string{"
 	for _, k := range keysForMap {
 		mapStringForMap += fmt.Sprintf("%v: %v,", k, this.Map[k])
@@ -21950,7 +21742,7 @@ func (this *PluginGenerator) String() string {
 	for k := range this.Values {
 		keysForValues = append(keysForValues, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+	sort.Strings(keysForValues)
 	mapStringForValues := "map[string]string{"
 	for _, k := range keysForValues {
 		mapStringForValues += fmt.Sprintf("%v: %v,", k, this.Values[k])
@@ -21974,7 +21766,7 @@ func (this *PluginInput) String() string {
 	for k := range this.Parameters {
 		keysForParameters = append(keysForParameters, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForParameters)
+	sort.Strings(keysForParameters)
 	mapStringForParameters := "PluginParameters{"
 	for _, k := range keysForParameters {
 		mapStringForParameters += fmt.Sprintf("%v: %v,", k, this.Parameters[k])
@@ -22018,7 +21810,7 @@ func (this *PullRequestGenerator) String() string {
 	for k := range this.Values {
 		keysForValues = append(keysForValues, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+	sort.Strings(keysForValues)
 	mapStringForValues := "map[string]string{"
 	for _, k := range keysForValues {
 		mapStringForValues += fmt.Sprintf("%v: %v,", k, this.Values[k])
@@ -22393,7 +22185,7 @@ func (this *ResourceNetworkingInfo) String() string {
 	for k := range this.TargetLabels {
 		keysForTargetLabels = append(keysForTargetLabels, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForTargetLabels)
+	sort.Strings(keysForTargetLabels)
 	mapStringForTargetLabels := "map[string]string{"
 	for _, k := range keysForTargetLabels {
 		mapStringForTargetLabels += fmt.Sprintf("%v: %v,", k, this.TargetLabels[k])
@@ -22403,7 +22195,7 @@ func (this *ResourceNetworkingInfo) String() string {
 	for k := range this.Labels {
 		keysForLabels = append(keysForLabels, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+	sort.Strings(keysForLabels)
 	mapStringForLabels := "map[string]string{"
 	for _, k := range keysForLabels {
 		mapStringForLabels += fmt.Sprintf("%v: %v,", k, this.Labels[k])
@@ -22598,7 +22390,7 @@ func (this *SCMProviderGenerator) String() string {
 	for k := range this.Values {
 		keysForValues = append(keysForValues, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForValues)
+	sort.Strings(keysForValues)
 	mapStringForValues := "map[string]string{"
 	for _, k := range keysForValues {
 		mapStringForValues += fmt.Sprintf("%v: %v,", k, this.Values[k])

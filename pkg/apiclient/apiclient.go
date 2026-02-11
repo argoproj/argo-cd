@@ -322,18 +322,18 @@ func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oa
 	var issuerURL string
 	var scopes []string
 	switch {
-	case set.OIDCConfig != nil && set.OIDCConfig.Issuer != "":
-		if set.OIDCConfig.CLIClientID != "" {
-			clientID = set.OIDCConfig.CLIClientID
+	case set.OidcConfig != nil && set.OidcConfig.Issuer != "":
+		if set.OidcConfig.CliClientID != "" {
+			clientID = set.OidcConfig.CliClientID
 		} else {
-			clientID = set.OIDCConfig.ClientID
+			clientID = set.OidcConfig.ClientID
 		}
-		issuerURL = set.OIDCConfig.Issuer
-		scopes = oidcutil.GetScopesOrDefault(set.OIDCConfig.Scopes)
+		issuerURL = set.OidcConfig.Issuer
+		scopes = oidcutil.GetScopesOrDefault(set.OidcConfig.Scopes)
 	case set.DexConfig != nil && len(set.DexConfig.Connectors) > 0:
 		clientID = common.ArgoCDCLIClientAppID
 		scopes = append(oidcutil.GetScopesOrDefault(nil), common.DexFederatedScope)
-		issuerURL = fmt.Sprintf("%s%s", set.URL, common.DexAPIEndpoint)
+		issuerURL = fmt.Sprintf("%s%s", set.Url, common.DexAPIEndpoint)
 	default:
 		return nil, nil, fmt.Errorf("%s is not configured with SSO", c.ServerAddr)
 	}
