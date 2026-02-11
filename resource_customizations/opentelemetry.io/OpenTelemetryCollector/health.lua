@@ -19,7 +19,7 @@ if obj.status ~= nil then
                 -- https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/#how-daemon-pods-are-scheduled
                 if obj.spec ~= nil and obj.spec.mode == "daemonset" and total == 0 then
                     hs.status = "Healthy"
-                    hs.message = "DaemonSet has no schedulable nodes (0/0)"
+                    hs.message = "DaemonSet has no eligible nodes (0/0)"
                 else
                     hs.status = "Degraded"
                     hs.message = "No replicas are ready"
