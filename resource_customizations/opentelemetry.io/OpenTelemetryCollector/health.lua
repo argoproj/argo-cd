@@ -14,7 +14,10 @@ if obj.status ~= nil then
             total = tonumber(total)
 
             if ready == 0 then
-                if obj.spec ~= nil and obj.spec.mode == "daemonset" and ready == 0 and total == 0 then
+                -- DaemonSet desiredNumberScheduled is based on eligible nodes.
+                -- 0/0 is valid when no nodes match; treat as Healthy.
+                -- https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/#how-daemon-pods-are-scheduled
+                if obj.spec ~= nil and obj.spec.mode == "daemonset" and total == 0 then
                     hs.status = "Healthy"
                     hs.message = "DaemonSet has no schedulable nodes (0/0)"
                 else

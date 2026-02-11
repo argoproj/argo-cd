@@ -1,7 +1,7 @@
 apiVersion: opentelemetry.io/v1beta1
 kind: OpenTelemetryCollector
 metadata:
-  name: test-collector-daemonset-zero
+  name: test-collector-daemonset-no-schedulable-node
   namespace: default
 spec:
   mode: daemonset
