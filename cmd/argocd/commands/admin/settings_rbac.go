@@ -322,6 +322,7 @@ func getPolicy(ctx context.Context, policyFile string, kubeClient kubernetes.Int
 }
 
 // getPolicyFromFile loads a RBAC policy from given path
+// nolint:unparam // complains about the error being always nil which is false-positive
 func getPolicyFromFile(policyFile string) (string, string, string, error) {
 	var (
 		userPolicy  string
