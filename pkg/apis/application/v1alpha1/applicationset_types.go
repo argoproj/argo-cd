@@ -678,6 +678,8 @@ type PullRequestGeneratorAzureDevOps struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,5,opt,name=tokenRef"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
+	// Enable use of Workload Identity for authentication
+	UseWorkloadIdentity bool `json:"useWorkloadIdentity,omitempty" protobuf:"varint,7,opt,name=useWorkloadIdentity"`
 }
 
 // PullRequestGeneratorGithub defines connection info specific to GitHub.

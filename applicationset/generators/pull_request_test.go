@@ -7,7 +7,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -440,4 +442,370 @@ func TestSCMProviderDisabled_PRGenerator(t *testing.T) {
 
 	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 	assert.ErrorIs(t, err, ErrSCMProvidersDisabled)
+}
+
+func TestAzureDevOpsServiceSelection(t *testing.T) {
+	t.Parallel()
+
+	t.Run("AzureDevOps with WorkloadIdentity", func(t *testing.T) {
+		t.Parallel()
+		client := fake.NewClientBuilder().Build()
+		generator := NewPullRequestGenerator(client, NewSCMConfig("", []string{}, true, true, nil, true))
+
+		applicationSetInfo := &argoprojiov1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-appset",
+				Namespace: "test-namespace",
+			},
+		}
+
+		generatorConfig := &argoprojiov1alpha1.PullRequestGenerator{
+			AzureDevOps: &argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+				API:                 "https://dev.azure.com",
+				Organization:        "test-org",
+				Project:             "test-project",
+				Repo:                "test-repo",
+				UseWorkloadIdentity: true,
+				Labels:              []string{"test-label"},
+			},
+		}
+
+		ctx := context.Background()
+		service, err := generator.(*PullRequestGenerator).selectServiceProvider(ctx, generatorConfig, applicationSetInfo)
+
+		require.NoError(t, err)
+		assert.NotNil(t, service)
+
+		// Verify it's an AzureDevOpsService
+		azureService, ok := service.(*pullrequest.AzureDevOpsService)
+		assert.True(t, ok, "Expected AzureDevOpsService")
+		assert.NotNil(t, azureService)
+	})
+
+	t.Run("AzureDevOps with Token", func(t *testing.T) {
+		t.Parallel()
+		// Create a secret for the token
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "azure-token",
+				Namespace: "test-namespace",
+				Labels: map[string]string{
+					"argocd.argoproj.io/secret-type": "scm-creds",
+				},
+			},
+			Data: map[string][]byte{
+				"token": []byte("test-azure-devops-token"),
+			},
+		}
+
+		client := fake.NewClientBuilder().WithObjects(secret).Build()
+		generator := NewPullRequestGenerator(client, NewSCMConfig("", []string{}, true, true, nil, true))
+
+		applicationSetInfo := &argoprojiov1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-appset",
+				Namespace: "test-namespace",
+			},
+		}
+
+		generatorConfig := &argoprojiov1alpha1.PullRequestGenerator{
+			AzureDevOps: &argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+				API:                 "https://dev.azure.com",
+				Organization:        "test-org",
+				Project:             "test-project",
+				Repo:                "test-repo",
+				UseWorkloadIdentity: false,
+				TokenRef: &argoprojiov1alpha1.SecretRef{
+					SecretName: "azure-token",
+					Key:        "token",
+				},
+				Labels: []string{"test-label"},
+			},
+		}
+
+		ctx := context.Background()
+		service, err := generator.(*PullRequestGenerator).selectServiceProvider(ctx, generatorConfig, applicationSetInfo)
+
+		require.NoError(t, err)
+		assert.NotNil(t, service)
+
+		// Verify it's an AzureDevOpsService
+		azureService, ok := service.(*pullrequest.AzureDevOpsService)
+		assert.True(t, ok, "Expected AzureDevOpsService")
+		assert.NotNil(t, azureService)
+	})
+
+	t.Run("AzureDevOps with custom API URL", func(t *testing.T) {
+		t.Parallel()
+		// Create a secret for the token
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "azure-token",
+				Namespace: "test-namespace",
+				Labels: map[string]string{
+					"argocd.argoproj.io/secret-type": "scm-creds",
+				},
+			},
+			Data: map[string][]byte{
+				"token": []byte("test-azure-devops-token"),
+			},
+		}
+
+		client := fake.NewClientBuilder().WithObjects(secret).Build()
+		generator := NewPullRequestGenerator(client, NewSCMConfig("", []string{}, true, true, nil, true))
+
+		applicationSetInfo := &argoprojiov1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-appset",
+				Namespace: "test-namespace",
+			},
+		}
+
+		generatorConfig := &argoprojiov1alpha1.PullRequestGenerator{
+			AzureDevOps: &argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+				API:                 "https://custom.azure.com",
+				Organization:        "custom-org",
+				Project:             "custom-project",
+				Repo:                "custom-repo",
+				UseWorkloadIdentity: false,
+				TokenRef: &argoprojiov1alpha1.SecretRef{
+					SecretName: "azure-token",
+					Key:        "token",
+				},
+			},
+		}
+
+		ctx := context.Background()
+		service, err := generator.(*PullRequestGenerator).selectServiceProvider(ctx, generatorConfig, applicationSetInfo)
+
+		require.NoError(t, err)
+		assert.NotNil(t, service)
+
+		// Verify it's an AzureDevOpsService
+		azureService, ok := service.(*pullrequest.AzureDevOpsService)
+		assert.True(t, ok, "Expected AzureDevOpsService")
+		assert.NotNil(t, azureService)
+	})
+
+	t.Run("AzureDevOps token secret not found", func(t *testing.T) {
+		t.Parallel()
+		client := fake.NewClientBuilder().Build()
+		generator := NewPullRequestGenerator(client, NewSCMConfig("", []string{}, true, true, nil, true))
+
+		applicationSetInfo := &argoprojiov1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-appset",
+				Namespace: "test-namespace",
+			},
+		}
+
+		generatorConfig := &argoprojiov1alpha1.PullRequestGenerator{
+			AzureDevOps: &argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+				API:                 "https://dev.azure.com",
+				Organization:        "test-org",
+				Project:             "test-project",
+				Repo:                "test-repo",
+				UseWorkloadIdentity: false,
+				TokenRef: &argoprojiov1alpha1.SecretRef{
+					SecretName: "missing-secret",
+					Key:        "token",
+				},
+			},
+		}
+
+		ctx := context.Background()
+		service, err := generator.(*PullRequestGenerator).selectServiceProvider(ctx, generatorConfig, applicationSetInfo)
+
+		require.Error(t, err)
+		assert.Nil(t, service)
+		assert.Contains(t, err.Error(), "error fetching Secret token")
+	})
+
+	t.Run("AzureDevOps empty token uses anonymous", func(t *testing.T) {
+		t.Parallel()
+		// Create a secret with an empty token
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "azure-token-empty",
+				Namespace: "test-namespace",
+				Labels: map[string]string{
+					"argocd.argoproj.io/secret-type": "scm-creds",
+				},
+			},
+			Data: map[string][]byte{
+				"token": []byte(""),
+			},
+		}
+
+		client := fake.NewClientBuilder().WithObjects(secret).Build()
+		generator := NewPullRequestGenerator(client, NewSCMConfig("", []string{}, true, true, nil, true))
+
+		applicationSetInfo := &argoprojiov1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-appset",
+				Namespace: "test-namespace",
+			},
+		}
+
+		generatorConfig := &argoprojiov1alpha1.PullRequestGenerator{
+			AzureDevOps: &argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+				API:                 "https://dev.azure.com",
+				Organization:        "test-org",
+				Project:             "test-project",
+				Repo:                "test-repo",
+				UseWorkloadIdentity: false,
+				TokenRef: &argoprojiov1alpha1.SecretRef{
+					SecretName: "azure-token-empty",
+					Key:        "token",
+				},
+			},
+		}
+
+		ctx := context.Background()
+		service, err := generator.(*PullRequestGenerator).selectServiceProvider(ctx, generatorConfig, applicationSetInfo)
+
+		require.NoError(t, err)
+		assert.NotNil(t, service)
+
+		// Verify it's an AzureDevOpsService
+		azureService, ok := service.(*pullrequest.AzureDevOpsService)
+		assert.True(t, ok, "Expected AzureDevOpsService")
+		assert.NotNil(t, azureService)
+	})
+
+	t.Run("AzureDevOps with SCM provider disabled", func(t *testing.T) {
+		t.Parallel()
+		client := fake.NewClientBuilder().Build()
+		generator := NewPullRequestGenerator(client, NewSCMConfig("", []string{}, false, true, nil, true))
+
+		applicationSetInfo := &argoprojiov1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-appset",
+				Namespace: "test-namespace",
+			},
+		}
+
+		generatorConfig := &argoprojiov1alpha1.PullRequestGenerator{
+			AzureDevOps: &argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+				API:                 "https://dev.azure.com",
+				Organization:        "test-org",
+				Project:             "test-project",
+				Repo:                "test-repo",
+				UseWorkloadIdentity: true,
+			},
+		}
+
+		ctx := context.Background()
+		service, err := generator.(*PullRequestGenerator).selectServiceProvider(ctx, generatorConfig, applicationSetInfo)
+
+		require.Error(t, err)
+		assert.Nil(t, service)
+		assert.ErrorIs(t, err, ErrSCMProvidersDisabled)
+	})
+}
+
+func TestAzureDevOpsAllowedSCMProvider(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Error AzureDevOps not in allowed list", func(t *testing.T) {
+		t.Parallel()
+		client := fake.NewClientBuilder().Build()
+		pullRequestGenerator := NewPullRequestGenerator(client, NewSCMConfig("", []string{
+			"github.myorg.com",
+			"gitlab.myorg.com",
+		}, true, true, nil, true))
+
+		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "set",
+			},
+			Spec: argoprojiov1alpha1.ApplicationSetSpec{
+				Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+					PullRequest: &argoprojiov1alpha1.PullRequestGenerator{
+						AzureDevOps: &argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+							API: "https://dev.azure.com",
+						},
+					},
+				}},
+			},
+		}
+
+		_, err := pullRequestGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+
+		require.Error(t, err, "Must return an error")
+		var expectedError ErrDisallowedSCMProvider
+		assert.ErrorAs(t, err, &expectedError)
+	})
+
+	t.Run("AzureDevOps in allowed list", func(t *testing.T) {
+		t.Parallel()
+		// Create a secret for the token
+		secret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "azure-token",
+				Namespace: "default",
+				Labels: map[string]string{
+					"argocd.argoproj.io/secret-type": "scm-creds",
+				},
+			},
+			Data: map[string][]byte{
+				"token": []byte("test-token"),
+			},
+		}
+
+		client := fake.NewClientBuilder().WithObjects(secret).Build()
+		pullRequestGenerator := NewPullRequestGenerator(client, NewSCMConfig("", []string{
+			"dev.azure.com",
+			"github.myorg.com",
+		}, true, true, nil, true))
+
+		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "set",
+				Namespace: "default",
+			},
+			Spec: argoprojiov1alpha1.ApplicationSetSpec{
+				Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+					PullRequest: &argoprojiov1alpha1.PullRequestGenerator{
+						AzureDevOps: &argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+							API:          "https://dev.azure.com",
+							Organization: "test-org",
+							Project:      "test-project",
+							Repo:         "test-repo",
+							TokenRef: &argoprojiov1alpha1.SecretRef{
+								SecretName: "azure-token",
+								Key:        "token",
+							},
+						},
+					},
+				}},
+			},
+		}
+
+		// Mock the selectServiceProviderFunc to avoid actual Azure DevOps API calls
+		generator := pullRequestGenerator.(*PullRequestGenerator)
+		generator.selectServiceProviderFunc = func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
+			return pullrequest.NewFakeService(
+				context.Background(),
+				[]*pullrequest.PullRequest{
+					{
+						Number:       1,
+						Title:        "test-pr",
+						Branch:       "feature-branch",
+						TargetBranch: "main",
+						HeadSHA:      "abc123",
+						Author:       "testuser",
+					},
+				},
+				nil,
+			)
+		}
+
+		params, err := pullRequestGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+
+		require.NoError(t, err)
+		assert.Len(t, params, 1)
+		assert.Equal(t, "1", params[0]["number"])
+		assert.Equal(t, "test-pr", params[0]["title"])
+	})
 }

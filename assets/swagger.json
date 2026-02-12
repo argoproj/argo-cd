@@ -9267,6 +9267,10 @@
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
+        },
+        "useWorkloadIdentity": {
+          "type": "boolean",
+          "title": "Enable use of Workload Identity for authentication"
         }
       }
     },

@@ -1673,6 +1673,9 @@ message PullRequestGeneratorAzureDevOps {
 
   // Labels is used to filter the PRs that you want to target
   repeated string labels = 6;
+
+  // Enable use of Workload Identity for authentication
+  optional bool useWorkloadIdentity = 7;
 }
 
 // PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.

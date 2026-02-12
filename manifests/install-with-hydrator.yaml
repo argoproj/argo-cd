@@ -15193,6 +15193,8 @@ spec:
                                         - key
                                         - secretName
                                         type: object
+                                      useWorkloadIdentity:
+                                        type: boolean
                                     required:
                                     - organization
                                     - project
@@ -22845,6 +22847,8 @@ spec:
                                         - key
                                         - secretName
                                         type: object
+                                      useWorkloadIdentity:
+                                        type: boolean
                                     required:
                                     - organization
                                     - project
@@ -26882,6 +26886,8 @@ spec:
                               - key
                               - secretName
                               type: object
+                            useWorkloadIdentity:
+                              type: boolean
                           required:
                           - organization
                           - project
