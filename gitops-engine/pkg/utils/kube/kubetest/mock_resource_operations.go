@@ -161,11 +161,3 @@ func (r *MockResourceOps) CreateResource(_ context.Context, obj *unstructured.Un
 	}
 	return command.Output, command.Err
 }
-
-/*func (r *MockResourceOps) ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error) {
-	if r.convertToVersionFunc != nil {
-		return (*r.convertToVersionFunc)(obj, group, version)
-	}
-
-	return obj, nil
-}*/

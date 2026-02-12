@@ -1305,6 +1305,9 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 			}
 		} else {
 			message, err = sc.resourceOps.CreateResource(context.TODO(), t.targetObj, dryRunStrategy, validate)
+			if apierrors.IsAlreadyExists(err) {
+				return common.ResultCodeSynced, fmt.Sprintf("%s/%s created (race)", t.targetObj.GetKind(), t.targetObj.GetName())
+			}
 		}
 	} else {
 		message, err = sc.resourceOps.ApplyResource(context.TODO(), t.targetObj, dryRunStrategy, force, validate, serverSideApply, sc.serverSideApplyManager)
@@ -1359,6 +1362,17 @@ func (sc *syncContext) targetObjs() []*unstructured.Unstructured {
 		}
 	}
 	return objs
+}
+
+func (sc *syncContext) syncResList() []common.ResourceSyncResult {
+	sc.lock.Lock()
+	defer sc.lock.Unlock()
+
+	results := make([]common.ResourceSyncResult, 0, len(sc.syncRes))
+	for _, r := range sc.syncRes {
+		results = append(results, r)
+	}
+	return results
 }
 
 func isCRDOfGroupKind(group string, kind string, obj *unstructured.Unstructured) bool {
