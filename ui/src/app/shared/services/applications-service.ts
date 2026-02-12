@@ -125,9 +125,12 @@ export class ApplicationsService {
 
     public watchResourceTree(name: string, appNamespace: string, objectListKind: string): Observable<models.ApplicationTree> {
         const isApplication = objectListKind === 'application';
-        const endpoint = isApplication ? 'applications' : 'applicationsets';
+        // ApplicationSet doesn't have a streaming resource-tree endpoint
+        if (!isApplication) {
+            return new Observable<models.ApplicationTree>(() => {});
+        }
         return requests
-            .loadEventSource(`/stream/${endpoint}/${name}/resource-tree?appNamespace=${appNamespace}`)
+            .loadEventSource(`/stream/applications/${name}/resource-tree?appNamespace=${appNamespace}`)
             .pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
     }
 
@@ -249,7 +252,9 @@ export class ApplicationsService {
             .pipe(map(data => JSON.parse(data).result as models.ApplicationWatchEvent))
             .pipe(
                 map(watchEvent => {
-                    watchEvent.application = this.parseAppFields(watchEvent.application, isApplication) as models.Application;
+                    // ApplicationSetWatchEvent has 'applicationSet' field, normalize to 'application'
+                    const rawApp = isApplication ? watchEvent.application : (watchEvent as unknown as models.ApplicationSetWatchEvent).applicationSet;
+                    watchEvent.application = this.parseAppFields(rawApp, isApplication) as models.Application;
                     return watchEvent;
                 })
             );

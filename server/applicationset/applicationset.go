@@ -37,6 +37,8 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/server/broadcast"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/collections"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -58,7 +60,7 @@ type Server struct {
 	appclientset             appclientset.Interface
 	appsetInformer           cache.SharedIndexInformer
 	appsetLister             applisters.ApplicationSetLister
-	appSetBroadcaster        Broadcaster
+	appSetBroadcaster        broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent]
 	auditLogger              *argo.AuditLogger
 	projectLock              sync.KeyLock
 	enabledNamespaces        []string
@@ -141,11 +143,14 @@ func (s *Server) isApplicationsetPermitted(selector labels.Selector, minVersion 
 	if appsetVersion, err := strconv.Atoi(appset.ResourceVersion); err == nil && appsetVersion < minVersion {
 		return false
 	}
-	matchedEvent := (appsetName == "" || (appset.Name == appsetName && appset.Namespace == appsetNs)) && selector.Matches(labels.Set(appset.Labels))
+	// Match by name, and optionally by namespace if provided
+	nameMatches := appsetName == "" || appset.Name == appsetName
+	nsMatches := appsetNs == "" || appset.Namespace == appsetNs
+	matchedEvent := nameMatches && nsMatches && selector.Matches(labels.Set(appset.Labels))
 	if !matchedEvent {
 		return false
 	}
-	// Skip any applicationsets that is neither in the conrol plane's namespace
+	// Skip any applicationsets that is neither in the control plane's namespace
 	// nor in the list of enabled namespaces.
 	if !security.IsNamespaceEnabled(appset.Namespace, s.ns, s.enabledNamespaces) {
 		return false
@@ -169,7 +174,7 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appsetInformer cache.SharedIndexInformer,
 	appsetLister applisters.ApplicationSetLister,
-	appSetBroadcaster Broadcaster,
+	appSetBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent],
 	namespace string,
 	projectLock sync.KeyLock,
 	enabledNamespaces []string,
@@ -183,7 +188,14 @@ func NewServer(
 	clusterInformer *settings.ClusterInformer,
 ) applicationset.ApplicationSetServiceServer {
 	if appSetBroadcaster == nil {
-		appSetBroadcaster = &BroadcasterHandler{}
+		appSetBroadcaster = broadcast.NewHandler[v1alpha1.ApplicationSet, v1alpha1.ApplicationSetWatchEvent](
+			func(appset *v1alpha1.ApplicationSet, eventType watch.EventType) *v1alpha1.ApplicationSetWatchEvent {
+				return &v1alpha1.ApplicationSetWatchEvent{ApplicationSet: *appset, Type: eventType}
+			},
+			func(appset *v1alpha1.ApplicationSet) log.Fields {
+				return applog.GetAppSetLogFields(appset)
+			},
+		)
 	}
 	// Register ApplicationSet level broadcaster to receive create/update/delete events
 	// and handle general applicationset event processing.

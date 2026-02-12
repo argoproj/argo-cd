@@ -1,13 +1,14 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"io"
-	k8swatch "k8s.io/apimachinery/pkg/watch"
 	"os"
 	"reflect"
 	"text/tabwriter"
+	"time"
+
+	k8swatch "k8s.io/apimachinery/pkg/watch"
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
@@ -379,10 +380,25 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 					confirm, confirmAll = promptUtil.ConfirmBaseOnCount(messageForSingle, messageForAll, numOfApps)
 				}
 				if confirm || confirmAll {
+					// Start watching BEFORE delete if --wait is requested to avoid race condition
+					var appEventCh chan *arogappsetv1.ApplicationSetWatchEvent
+					if wait {
+						appEventCh = acdClient.WatchApplicationSetWithRetry(ctx, appSetQualifiedName, "")
+						// Give the watch goroutine time to establish the connection
+						// before sending the delete request
+						time.Sleep(100 * time.Millisecond)
+					}
+
 					_, err := appIf.Delete(ctx, &appsetDeleteReq)
 					errors.CheckError(err)
+
 					if wait {
-						checkForAppsetDeleteEvent(ctx, acdClient, appSetName)
+						// Wait for delete event
+						for appEvent := range appEventCh {
+							if appEvent.Type == k8swatch.Deleted {
+								break
+							}
+						}
 					}
 					fmt.Printf("applicationset '%s' deleted\n", appSetQualifiedName)
 				} else {
@@ -394,16 +410,6 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of Application resources")
 	command.Flags().BoolVar(&wait, "wait", false, "Wait until deletion of the applicationset(s) completes")
 	return command
-}
-
-// checkForAppSetDeleteEvent watches for applicationset delete event
-func checkForAppsetDeleteEvent(ctx context.Context, acdClient argocdclient.Client, appsetName string) {
-	appEventCh := acdClient.WatchApplicationSetWithRetry(ctx, appsetName, "")
-	for appEvent := range appEventCh {
-		if appEvent.Type == k8swatch.Deleted {
-			return
-		}
-	}
 }
 
 // Print simple list of application names
