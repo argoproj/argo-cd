@@ -189,6 +189,12 @@ Using CLI for Helm OCI with Azure workload identity:
 argocd repo add contoso.azurecr.io/charts --type helm --enable-oci --use-azure-workload-identity
 ```
 
+Using CLI for Helm OCI with Azure workload identity in the Azure US Government Cloud:
+
+```
+argocd repo add contoso.azurecr.io/charts --type helm --enable-oci --use-azure-workload-identity --azure-cloud AzureUSGovernment
+```
+
 Using CLI for Azure Repos with Azure workload identity:
 
 ```
@@ -208,6 +214,7 @@ Using the UI:
     - Enter name, if the repo type is helm
     - Select `Enable OCI`, if repo type is helm
     - Select `Use Azure Workload Identity`
+
 
     ![connect repo](../assets/repo-add-azure-workload-identity.png)
 - Click `Connect`
@@ -232,6 +239,21 @@ stringData:
 apiVersion: v1
 kind: Secret
 metadata:
+  name: helm-private-repo-in-azure-usgov
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  url: contoso.azurecr.io/charts
+  name: contosocharts
+  enableOCI: "true"
+  useAzureWorkloadIdentity: "true"
+  azureCloud: AzureUSGovernment # Possible values are AzurePublic, AzureChina or AzureUSGovernment. Defaults to AzurePublic
+---
+apiVersion: v1
+kind: Secret
+metadata:
   name: git-private-repo
   namespace: argocd
   labels:
@@ -240,6 +262,55 @@ stringData:
   type: git
   url: https://contoso@dev.azure.com/my-projectcollection/my-project/_git/my-repo
   useAzureWorkloadIdentity: "true"
+```
+
+#### Authentication in a different Azure Cloud (Current Status: Alpha)
+
+There's now support for Azure Workload Identity authentication in the following Azure clouds:
+
+- `AzurePublic` (the default cloud)
+- `AzureUSGovernment`
+- `AzureChina`
+
+Using CLI for Helm OCI with Azure workload identity in the Azure US Government Cloud:
+
+```
+argocd repo add contoso.azurecr.io/charts --type helm --enable-oci --use-azure-workload-identity --azure-cloud AzureUSGovernment
+```
+
+Using the UI:
+
+
+   ![connect repo overview](../assets/repo-add-overview.png)
+- Click on `+ Connect Repo`
+- On the connection page:
+    - Choose Connection Method as `VIA HTTPS`
+    - Select the type as `helm`
+    - Enter the Repository URL
+    - Enter name
+    - Select `Enable OCI`
+    - Select `Use Azure Workload Identity`
+    - Select the `Azure Cloud`
+
+    ![Select the Azure Cloud](../assets/repo-add-azure-cloud.png)
+
+Using a secret definition:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: helm-private-repo-in-azure-usgov
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  url: contoso.azurecr.us/charts
+  name: contosocharts
+  enableOCI: "true"
+  useAzureWorkloadIdentity: "true"
+  azureCloud: AzureUSGovernment # Possible values are AzurePublic, AzureChina or AzureUSGovernment. Defaults to AzurePublic
 ```
 
 ## Credential templates

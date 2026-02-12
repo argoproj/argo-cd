@@ -59,6 +59,7 @@ argocd admin repo generate-spec REPOURL [flags]
 ### Options
 
 ```
+      --azure-cloud string                      the Azure cloud to use when authenticating with azure workload identity (e.g. AzurePublic, AzureChina, AzureUSGovernment. Defaults to AzurePublic)
       --bearer-token string                     bearer token to the Git BitBucket Data Center repository
       --depth int                               Specify a custom depth for git clone operations. Unless specified, a full clone is performed using the depth of 0
       --enable-lfs                              enable git-lfs (Large File Support) on this repository

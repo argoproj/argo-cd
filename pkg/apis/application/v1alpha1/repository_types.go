@@ -57,6 +57,8 @@ type RepoCreds struct {
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
+	// AzureCloud specifies which Azure cloud this repository is hosted in. Options are AzurePublic, AzureChina, AzureUSGovernment.
+	AzureCloud string `json:"azureCloud,omitempty" protobuf:"bytes,27,opt,name=azureCloud"`
 }
 
 // Repository is a repository holding application configurations
@@ -116,6 +118,8 @@ type Repository struct {
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
 	// Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
 	Depth int64 `json:"depth,omitempty" protobuf:"bytes,27,opt,name=depth"`
+	// AzureCloud specifies which Azure cloud this repository is hosted in. Options are AzurePublic, AzureChina, AzureUSGovernment.
+	AzureCloud string `json:"azureCloud,omitempty" protobuf:"bytes,28,opt,name=azureCloud"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
@@ -169,6 +173,10 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		if repo.GCPServiceAccountKey == "" {
 			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
 		}
+		if repo.AzureCloud == "" {
+			repo.AzureCloud = source.AzureCloud
+		}
+
 		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 		repo.UseAzureWorkloadIdentity = source.UseAzureWorkloadIdentity
@@ -220,6 +228,9 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.Type == "" {
 			repo.Type = source.Type
 		}
+		if repo.AzureCloud == "" {
+			repo.AzureCloud = source.AzureCloud
+		}
 
 		repo.EnableOCI = source.EnableOCI
 		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
@@ -246,7 +257,7 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
 	}
 	if repo.UseAzureWorkloadIdentity {
-		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider())
+		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider(repo.AzureCloud))
 	}
 	return git.NopCreds{}
 }
@@ -260,7 +271,7 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 			[]byte(repo.TLSClientCertData),
 			[]byte(repo.TLSClientCertKey),
 			repo.Insecure,
-			workloadidentity.NewWorkloadIdentityTokenProvider(),
+			workloadidentity.NewWorkloadIdentityTokenProvider(repo.AzureCloud),
 		)
 	}
 
