@@ -34,6 +34,14 @@ function hibernating(obj)
     return nil
 end
 
+-- Reconciliation suspension is a user-driven state and can have empty phaseReason.
+-- Return an explicit, stable health message for this case.
+if obj.metadata and obj.metadata.annotations and obj.metadata.annotations["cnpg.io/reconciliationLoop"] == "disabled" then
+    hs.status = "Healthy"
+    hs.message = "Cluster reconciliation is suspended"
+    return hs
+end
+
 if obj.status ~= nil and obj.status.conditions ~= nil then
     local hibernation = hibernating(obj)
     if hibernation ~= nil then
