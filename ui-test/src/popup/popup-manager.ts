@@ -26,6 +26,7 @@ export class PopupManager extends Base {
     public async clickPromptOk(): Promise<void> {
         const okButton = await UiTestUtilities.findUiElement(this.driver, DELETE_APP_PROMPT_POPUP_OK_BUTTON);
         await okButton.click();
+        await UiTestUtilities.captureSession(this.driver, "promptValidation_after.png")
     }
 
     public async clickPromptCancel(): Promise<void> {

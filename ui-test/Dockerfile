@@ -4,10 +4,9 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     software-properties-common 
 
 #Chrome browser to run the tests
-ARG CHROME_VERSION=86.0.4240.75
-RUN curl https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add \
-    && wget https://www.slimjet.com/chrome/download-chrome.php?file=files%2F$CHROME_VERSION%2Fgoogle-chrome-stable_current_amd64.deb \
-    && dpkg -i download-chrome*.deb || true
+ARG CHROME_VERSION=144.0.7559.27
+RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+    && dpkg -i google-chrome*.deb || true
 
 RUN apt-get install --no-install-recommends -y -f \
     && rm -rf /var/lib/apt/lists/*
@@ -23,3 +22,5 @@ COPY yarn.lock ./
 RUN yarn install && yarn cache clean
 COPY . .
 
+ENTRYPOINT ["bash", "-c"]
+CMD ["npm run compile && npm run pretest && npm run test"]

@@ -355,6 +355,10 @@ build-ui:
 	find ./ui/dist -type f -not -name gitkeep -delete
 	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
+.PHONY: test-ui
+test-ui:
+	cd ui-test && $(DOCKER) build . -t ui-test && $(DOCKER) run --rm --network=host -v ./_logs:/root/.npm/_logs ui-test
+
 .PHONY: image
 ifeq ($(DEV_IMAGE), true)
 # The "dev" image builds the binaries from the users desktop environment (instead of in Docker)

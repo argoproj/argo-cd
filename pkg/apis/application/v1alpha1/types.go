@@ -2034,6 +2034,8 @@ type ApplicationSummary struct {
 	ExternalURLs []string `json:"externalURLs,omitempty" protobuf:"bytes,1,opt,name=externalURLs"`
 	// Images holds all images of application child resources.
 	Images []string `json:"images,omitempty" protobuf:"bytes,2,opt,name=images"`
+	// IsAppOfApps holds true if the application has any application for child resource.
+	IsAppOfApps bool `json:"isAppOfApps,omitempty" protobuf:"bytes,3,opt,name=isAppOfApps"`
 }
 
 // FindNode searches for a resource node in the application tree.
@@ -2056,11 +2058,14 @@ func (t *ApplicationTree) FindNode(group string, kind string, namespace string, 
 // - It extracts container images referenced in the application's resources.
 // - Additionally, it includes links from application annotations that start with `common.AnnotationKeyLinkPrefix`.
 // - The collected URLs and images are sorted alphabetically before being returned.
+// - It also determines if the Application is managing other Applications (App of Apps pattern)
 //
-// Returns an `ApplicationSummary` containing a list of unique external URLs and container images.
+// Returns an `ApplicationSummary` containing a list of unique external URLs, container images,
+// and metadata such as app of apps pattern.
 func (t *ApplicationTree) GetSummary(app *Application) ApplicationSummary {
 	urlsSet := make(map[string]bool)
 	imagesSet := make(map[string]bool)
+	appOfApps := false
 
 	// Collect external URLs and container images from application nodes
 	for _, node := range t.Nodes {
@@ -2071,6 +2076,9 @@ func (t *ApplicationTree) GetSummary(app *Application) ApplicationSummary {
 		}
 		for _, image := range node.Images {
 			imagesSet[image] = true
+		}
+		if node.Group == "argoproj.io" && node.Kind == "Application" {
+			appOfApps = true
 		}
 	}
 
@@ -2093,7 +2101,7 @@ func (t *ApplicationTree) GetSummary(app *Application) ApplicationSummary {
 	}
 	sort.Strings(images)
 
-	return ApplicationSummary{ExternalURLs: urls, Images: images}
+	return ApplicationSummary{ExternalURLs: urls, Images: images, IsAppOfApps: appOfApps}
 }
 
 // ResourceRef includes fields which uniquely identify a resource
