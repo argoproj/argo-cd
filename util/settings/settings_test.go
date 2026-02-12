@@ -294,10 +294,13 @@ func TestGetIsIgnoreResourceUpdatesEnabledFalse(t *testing.T) {
 }
 
 func TestGetResourceOverrides(t *testing.T) {
-	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
-		JSONPointers: []string{"/status"},
-	}}
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
+	ignoreStatusAndMetadata := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+		JSONPointers: []string{"/status", "/metadata/resourceVersion", "/metadata/generation", "/metadata/managedFields"},
+	}}
+	ignoreMetadataOnly := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+		JSONPointers: []string{"/metadata/resourceVersion", "/metadata/generation", "/metadata/managedFields"},
+	}}
 
 	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"resource.customizations": `
@@ -330,22 +333,17 @@ func TestGetResourceOverrides(t *testing.T) {
 		},
 	}, webHookOverrides)
 
-	// by default, all status should be ignored
-	globalOverrides := overrides["*/*"]
-	assert.NotNil(t, globalOverrides)
-	assert.Equal(t, ignoreStatus, globalOverrides)
+	// by default, all status should be ignored (plus metadata fields)
+	assert.Equal(t, ignoreStatusAndMetadata, overrides["*/*"])
 
-	// with value all, status of all objects should be ignored
+	// with value all, status of all objects should be ignored (plus metadata fields)
 	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: all`,
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
-
-	globalOverrides = overrides["*/*"]
-	assert.NotNil(t, globalOverrides)
-	assert.Equal(t, ignoreStatus, globalOverrides)
+	assert.Equal(t, ignoreStatusAndMetadata, overrides["*/*"])
 
 	// with value crd, status of crd objects should be ignored
 	_, settingsManager = fixtures(t.Context(), map[string]string{
@@ -369,45 +367,43 @@ func TestGetResourceOverrides(t *testing.T) {
 		JSONPointers:      []string{"/webhooks/0/clientConfig/caBundle", "/status"},
 		JQPathExpressions: []string{".webhooks[0].clientConfig.caBundle"},
 	}}, crdOverrides)
+	assert.Equal(t, ignoreMetadataOnly, overrides["*/*"])
 
-	// with incorrect value, status of all objects should be ignored
+	// with incorrect value, status of all objects should be ignored (plus metadata fields)
 	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: foobar`,
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
+	assert.Equal(t, ignoreStatusAndMetadata, overrides["*/*"])
 
-	globalOverrides = overrides["*/*"]
-	assert.NotNil(t, globalOverrides)
-	assert.Equal(t, ignoreStatus, globalOverrides)
-
-	// with value non-string off, status of no objects should be ignored
+	// with value non-string off, status of no objects should be ignored, but metadata fields are always ignored
 	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: off`,
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
-	assert.Empty(t, overrides)
+	assert.Equal(t, ignoreMetadataOnly, overrides["*/*"])
 
-	// with value non-string false, status of no objects should be ignored
+	// with value non-string false, status of no objects should be ignored, but metadata fields are always ignored
 	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: false`,
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
-	assert.Empty(t, overrides)
+	assert.Equal(t, ignoreMetadataOnly, overrides["*/*"])
 
-	// with value none, status of no objects should be ignored
+	// with value none, status of no objects should be ignored, but metadata fields are always ignored
 	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: none`,
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
-	assert.Empty(t, overrides)
+	assert.Equal(t, ignoreMetadataOnly, overrides["*/*"])
 }
 
 func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
@@ -467,7 +463,8 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		require.NoError(t, err)
-		assert.Len(t, overrides, 4)
+		assert.Len(t, overrides, 5) // includes */* for metadata fields
+		assert.Contains(t, overrides["*/*"].IgnoreDifferences.JSONPointers, "/metadata/resourceVersion")
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
 		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers, 1)

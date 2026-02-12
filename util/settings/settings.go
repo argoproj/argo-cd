@@ -969,9 +969,8 @@ func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1al
 		log.Info("Using diffing customizations to ignore resource updates")
 	}
 
-	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/resourceVersion")
-	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/generation")
-	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/managedFields")
+	// Note: metadata fields (resourceVersion, generation, managedFields) are already
+	// added by GetResourceOverrides(), so no need to add them again here.
 
 	return resourceOverrides, nil
 }
@@ -1031,6 +1030,11 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		addStatusOverrideToGK(resourceOverrides, "*/*")
 		log.Warnf("Unrecognized value for ignoreResourceStatusField - %s, ignore status for all resources", diffOptions.IgnoreResourceStatusField)
 	}
+
+	// Always ignore metadata fields that change on every update
+	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/resourceVersion")
+	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/generation")
+	addIgnoreDiffItemOverrideToGK(resourceOverrides, "*/*", "/metadata/managedFields")
 
 	return resourceOverrides, nil
 }
