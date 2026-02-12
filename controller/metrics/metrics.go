@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/robfig/cron/v3"

@@ -28,8 +28,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
 	"github.com/argoproj/argo-cd/v3/applicationset/generators/mocks"
