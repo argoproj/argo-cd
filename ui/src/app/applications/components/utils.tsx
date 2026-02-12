@@ -1425,6 +1425,22 @@ export function getConditionCategory(condition: appModels.ApplicationCondition):
     }
 }
 
+export function getAppSetConditionCategory(condition: appModels.ApplicationSetCondition): 'error' | 'warning' | 'info' {
+    const status = condition.status?.toLowerCase();
+    const type = condition.type;
+
+    // ErrorOccurred with status True = error
+    if (type === 'ErrorOccurred' && status === 'true') {
+        return 'error';
+    }
+    // ParametersGenerated or ResourcesUpToDate with status False = error (indicates failure)
+    if ((type === 'ParametersGenerated' || type === 'ResourcesUpToDate') && status === 'false') {
+        return 'error';
+    }
+    // Otherwise it's informational
+    return 'info';
+}
+
 export function isAppNode(node: appModels.ResourceNode) {
     return node.kind === 'Application' && node.group === 'argoproj.io';
 }

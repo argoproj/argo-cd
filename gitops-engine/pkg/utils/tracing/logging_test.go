@@ -6,7 +6,7 @@ import (
 	"github.com/go-logr/logr"
 	"go.uber.org/mock/gomock"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/tracing/tracer_testing"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing/tracer_testing"
 )
 
 func TestLoggingTracer(t *testing.T) {

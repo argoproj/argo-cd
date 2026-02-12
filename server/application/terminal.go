@@ -7,7 +7,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
