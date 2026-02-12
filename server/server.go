@@ -37,7 +37,7 @@ import (
 	grpc_auth "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/auth"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/redis/go-redis/v9"
@@ -572,8 +572,8 @@ func (server *ArgoCDServer) Init(ctx context.Context) {
 
 // Run runs the API Server
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
-// k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
-// golang/protobuf).
+// With k8s.io/code-generator v0.35.0+, we use --drop-gogo-go and --only-idl to generate .proto files,
+// then use standard protoc-gen-go to generate .pb.go files with google.golang.org/protobuf.
 func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -1183,9 +1183,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	// HTTP 1.1+JSON Server
 	// grpc-ecosystem/grpc-gateway is used to proxy HTTP requests to the corresponding gRPC call
 	// NOTE: if a marshaller option is not supplied, grpc-gateway will default to the jsonpb from
-	// golang/protobuf. Which does not support types such as time.Time. gogo/protobuf does support
-	// time.Time, but does not support custom UnmarshalJSON() and MarshalJSON() methods. Therefore
-	// we use our own Marshaler
+	// golang/protobuf. We use our own Marshaler to support custom UnmarshalJSON() and MarshalJSON() methods.
 	gwMuxOpts := runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler))
 	gwCookieOpts := runtime.WithForwardResponseOption(server.translateGrpcCookieHeader)
 	gwmux := runtime.NewServeMux(gwMuxOpts, gwCookieOpts)

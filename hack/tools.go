@@ -4,14 +4,14 @@
 package tools
 
 import (
-	// gogo/protobuf is vendored because the generated *.pb.go code imports it.
-	// Also, we need the gogo/protobuf/gogoproto/gogo.proto file
-	_ "github.com/gogo/protobuf/protoc-gen-gogofast"
+	// Standard protobuf code generators for google.golang.org/protobuf
+	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
+	_ "google.golang.org/protobuf/cmd/protoc-gen-go"
 
-	// grpc-ecosystem/grpc-gateway is vendored because the generated *.pb.gw.go code imports it.
-	// Also, we need the .proto files under grpc-gateway/third_party/googleapis
-	_ "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway"
-	_ "github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger"
+	// grpc-ecosystem/grpc-gateway/v2 is vendored because the generated *.pb.gw.go code imports it.
+	// Also, we need the .proto files under googleapis
+	_ "github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway"
+	_ "github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2"
 
 	// k8s.io/code-generator is vendored to get generate-groups.sh, and k8s codegen utilities
 	_ "k8s.io/code-generator"
@@ -19,7 +19,6 @@ import (
 	_ "k8s.io/code-generator/cmd/deepcopy-gen"
 	_ "k8s.io/code-generator/cmd/defaulter-gen"
 	_ "k8s.io/code-generator/cmd/go-to-protobuf"
-	_ "k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo"
 	_ "k8s.io/code-generator/cmd/informer-gen"
 	_ "k8s.io/code-generator/cmd/lister-gen"
 

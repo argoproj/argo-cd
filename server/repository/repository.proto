@@ -118,7 +118,6 @@ service RepositoryService {
 
 	// List returns list of repos or repository credentials
 	rpc List(RepoQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RepositoryList) {
-		option (google.api.http).get = "/api/v1/repositories";
 		option deprecated = true;
 	}
 
@@ -170,10 +169,6 @@ service RepositoryService {
 
 	// Create creates a repo or a repo credential set
 	rpc Create(RepoCreateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
-		option (google.api.http) = {
-			post: "/api/v1/repositories"
-			body: "repo"
-		};
 		option deprecated = true;
 	}
 
@@ -195,10 +190,6 @@ service RepositoryService {
 
 	// Update updates a repo or repo credential set
 	rpc Update(RepoUpdateRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository) {
-		option (google.api.http) = {
-			put: "/api/v1/repositories/{repo.repo}"
-			body: "repo"
-		};
 		option deprecated = true;
 	}
 
@@ -220,7 +211,6 @@ service RepositoryService {
 
 	// Delete deletes a repository from the configuration
 	rpc Delete(RepoQuery) returns (RepoResponse) {
-		option (google.api.http).delete = "/api/v1/repositories/{repo}";
 		option deprecated = true;
 	}
 

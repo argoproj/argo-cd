@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	gohttp "net/http"
@@ -9,13 +10,13 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/kube"
 
-	"github.com/argoproj/pkg/v2/grpc/http"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 
 	//nolint:staticcheck
 	"github.com/golang/protobuf/proto"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	googproto "google.golang.org/protobuf/proto"
 )
 
 // appFields is a map of fields that can be selected from an application.
@@ -112,8 +113,112 @@ func processApplicationListField(v any, fields map[string]any, exclude bool) (an
 	return nil, errors.New("not an application list")
 }
 
+// streamForwarder handles streaming responses for grpc-gateway v2
+func streamForwarder(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w gohttp.ResponseWriter, req *gohttp.Request, recv func() (googproto.Message, error), opts ...func(context.Context, gohttp.ResponseWriter, googproto.Message) error) {
+	w.Header().Set("Transfer-Encoding", "chunked")
+	w.Header().Set("Content-Type", marshaler.ContentType(nil))
+
+	for {
+		resp, err := recv()
+		if err != nil {
+			runtime.HTTPError(ctx, mux, marshaler, w, req, err)
+			return
+		}
+
+		// Write the message
+		buf, err := marshaler.Marshal(resp)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, marshaler, w, req, err)
+			return
+		}
+
+		if _, err := w.Write(buf); err != nil {
+			return
+		}
+		if _, err := w.Write([]byte("\n")); err != nil {
+			return
+		}
+
+		if f, ok := w.(gohttp.Flusher); ok {
+			f.Flush()
+		}
+	}
+}
+
+// newStreamForwarder creates a stream forwarder with a message key function
+func newStreamForwarder(messageKey func(proto.Message) (string, error)) func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w gohttp.ResponseWriter, req *gohttp.Request, recv func() (googproto.Message, error), opts ...func(context.Context, gohttp.ResponseWriter, googproto.Message) error) {
+	return func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w gohttp.ResponseWriter, req *gohttp.Request, recv func() (googproto.Message, error), opts ...func(context.Context, gohttp.ResponseWriter, googproto.Message) error) {
+		w.Header().Set("Transfer-Encoding", "chunked")
+		w.Header().Set("Content-Type", marshaler.ContentType(nil))
+
+		for {
+			resp, err := recv()
+			if err != nil {
+				runtime.HTTPError(ctx, mux, marshaler, w, req, err)
+				return
+			}
+
+			// Try to extract the key if the message is a gogo proto type
+			if gogoMsg, ok := resp.(proto.Message); ok {
+				_, _ = messageKey(gogoMsg)
+			}
+
+			buf, err := marshaler.Marshal(resp)
+			if err != nil {
+				runtime.HTTPError(ctx, mux, marshaler, w, req, err)
+				return
+			}
+
+			if _, err := w.Write(buf); err != nil {
+				return
+			}
+			if _, err := w.Write([]byte("\n")); err != nil {
+				return
+			}
+
+			if f, ok := w.(gohttp.Flusher); ok {
+				f.Flush()
+			}
+		}
+	}
+}
+
+// unaryForwarderWithFieldProcessor creates a unary forwarder with field processing
+func unaryForwarderWithFieldProcessor(fieldProcessor func(val any, fields map[string]any, exclude bool) (any, error)) func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w gohttp.ResponseWriter, req *gohttp.Request, resp googproto.Message, opts ...func(context.Context, gohttp.ResponseWriter, googproto.Message) error) {
+	return func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w gohttp.ResponseWriter, req *gohttp.Request, resp googproto.Message, opts ...func(context.Context, gohttp.ResponseWriter, googproto.Message) error) {
+		// Process fields if requested
+		fieldsParam := req.URL.Query().Get("fields")
+		if fieldsParam != "" {
+			fields := make(map[string]any)
+			for _, field := range strings.Split(fieldsParam, ",") {
+				fields[strings.TrimSpace(field)] = true
+			}
+			processed, err := fieldProcessor(resp, fields, false)
+			if err == nil && processed != nil {
+				// Marshal the processed result directly as JSON
+				buf, err := json.Marshal(processed)
+				if err != nil {
+					runtime.HTTPError(ctx, mux, marshaler, w, req, err)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write(buf)
+				return
+			}
+		}
+
+		// Fall back to default forwarding
+		runtime.ForwardResponseMessage(ctx, mux, marshaler, w, req, resp, opts...)
+	}
+}
+
+// unaryForwarder is a simple unary forwarder
+func unaryForwarder(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w gohttp.ResponseWriter, req *gohttp.Request, resp googproto.Message, opts ...func(context.Context, gohttp.ResponseWriter, googproto.Message) error) {
+	runtime.ForwardResponseMessage(ctx, mux, marshaler, w, req, resp, opts...)
+}
+
 func init() {
-	logsForwarder := func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w gohttp.ResponseWriter, req *gohttp.Request, recv func() (proto.Message, error), opts ...func(context.Context, gohttp.ResponseWriter, proto.Message) error) {
+	logsForwarder := func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w gohttp.ResponseWriter, req *gohttp.Request, recv func() (googproto.Message, error), opts ...func(context.Context, gohttp.ResponseWriter, googproto.Message) error) {
 		if req.URL.Query().Get("download") == "true" {
 			w.Header().Set("Content-Type", "application/octet-stream")
 			fileName := "log"
@@ -130,7 +235,8 @@ func init() {
 					_, _ = w.Write([]byte(err.Error()))
 					return
 				}
-				if logEntry, ok := msg.(*LogEntry); ok {
+				// Type assert through any to handle gogo types
+				if logEntry, ok := any(msg).(*LogEntry); ok {
 					if logEntry.GetLast() {
 						return
 					}
@@ -140,19 +246,20 @@ func init() {
 				}
 			}
 		} else {
-			http.StreamForwarder(ctx, mux, marshaler, w, req, recv, opts...)
+			streamForwarder(ctx, mux, marshaler, w, req, recv, opts...)
 		}
 	}
 	forward_ApplicationService_PodLogs_0 = logsForwarder
 	forward_ApplicationService_PodLogs_1 = logsForwarder
-	forward_ApplicationService_WatchResourceTree_0 = http.StreamForwarder
-	forward_ApplicationService_Watch_0 = http.NewStreamForwarder(func(message proto.Message) (string, error) {
-		event, ok := message.(*v1alpha1.ApplicationWatchEvent)
+	forward_ApplicationService_WatchResourceTree_0 = streamForwarder
+	forward_ApplicationService_Watch_0 = newStreamForwarder(func(message proto.Message) (string, error) {
+		// Use any to handle gogo types
+		event, ok := any(message).(*v1alpha1.ApplicationWatchEvent)
 		if !ok {
 			return "", errors.New("unexpected message type")
 		}
 		return event.Application.Name, nil
 	})
-	forward_ApplicationService_List_0 = http.UnaryForwarderWithFieldProcessor(processApplicationListField)
-	forward_ApplicationService_ManagedResources_0 = http.UnaryForwarder
+	forward_ApplicationService_List_0 = unaryForwarderWithFieldProcessor(processApplicationListField)
+	forward_ApplicationService_ManagedResources_0 = unaryForwarder
 }
