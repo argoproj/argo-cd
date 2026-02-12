@@ -82,12 +82,12 @@ func ApplicationsExist(expectedApps []v1alpha1.Application) Expectation {
 
 // ApplicationSetHasConditions checks whether each of the 'expectedConditions' exist in the ApplicationSet status, and are
 // equivalent to provided values.
-func ApplicationSetHasConditions(applicationSetName string, expectedConditions []v1alpha1.ApplicationSetCondition) Expectation {
+func ApplicationSetHasConditions(expectedConditions []v1alpha1.ApplicationSetCondition) Expectation {
 	return func(c *Consequences) (state, string) {
 		// retrieve the application set
-		foundApplicationSet := c.applicationSet(applicationSetName)
+		foundApplicationSet := c.applicationSet(c.context.GetName())
 		if foundApplicationSet == nil {
-			return pending, fmt.Sprintf("application set '%s' not found", applicationSetName)
+			return pending, fmt.Sprintf("application set '%s' not found", c.context.GetName())
 		}
 
 		if !conditionsAreEqual(&expectedConditions, &foundApplicationSet.Status.Conditions) {
