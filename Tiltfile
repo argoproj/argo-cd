@@ -56,7 +56,23 @@ local_resource(
 )
 
 # deploy the argocd manifests
-k8s_yaml(kustomize('manifests/dev-tilt'))
+manifests = decode_yaml_stream(kustomize('manifests/dev-tilt'))
+others = []
+
+# docs/operator-manual/upgrading/3.2-3.3.md#applicationset-crd-exceeds-the-size-limit-for-client-side-apply
+for obj in manifests:
+    if obj.get('kind') != 'CustomResourceDefinition':
+        others.append(obj)
+
+k8s_yaml(encode_yaml_stream(others))
+
+# we should use server-side apply for CRDs
+k8s_custom_deploy(
+    name='argocd-crds',
+    apply_cmd="kubectl apply --server-side --force-conflicts -k manifests/crds -o yaml",
+    delete_cmd="echo 'skip crd deletion'",
+    deps=['manifests/crds']
+)
 
 # build dev image
 docker_build_with_restart(
@@ -126,13 +142,10 @@ k8s_resource(
     resource_deps=['build']
 )
 
-# track crds
+# track cluster resources (CRDs are now managed by argocd-crds custom deploy)
 k8s_resource(
     new_name='cluster-resources',
     objects=[
-        'applications.argoproj.io:customresourcedefinition',
-        'applicationsets.argoproj.io:customresourcedefinition',
-        'appprojects.argoproj.io:customresourcedefinition',
         'argocd:namespace'
     ]
 )
