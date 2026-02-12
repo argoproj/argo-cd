@@ -49,6 +49,7 @@ require (
 	github.com/go-redis/cache/v9 v9.0.0
 	github.com/gobwas/glob v0.2.3
 	github.com/gogits/go-gogs-client v0.0.0-20210131175652-1d7215cd8d85
+	github.com/gogo/protobuf v1.3.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/golang/protobuf v1.5.4
 	github.com/google/btree v1.1.3
@@ -125,8 +126,6 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.1-0.20251003215857-446d8398e19c
 	sigs.k8s.io/yaml v1.6.0
 )
-
-require github.com/gogo/protobuf v1.3.2
 
 require (
 	cloud.google.com/go/auth v0.15.0 // indirect
@@ -310,7 +309,7 @@ require (
 )
 
 replace (
-	github.com/argoproj/gitops-engine => ./gitops-engine
+	github.com/argoproj/argo-cd/gitops-engine => ./gitops-engine
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	golang.org/x/tools => golang.org/x/tools v0.35.0
 

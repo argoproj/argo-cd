@@ -135,9 +135,9 @@ PROTO_FILES=$(find "$PROJECT_ROOT" \( -name "*.proto" -and -path '*/server/*' -o
 for i in ${PROTO_FILES}; do
     protoc \
         -I"${PROJECT_ROOT}" \
+        -I"${protoc_include}" \
         -I./vendor \
         -I"$GOPATH"/src \
-        -I"${protoc_include}" \
         -I"${GOOGLE_PROTO_API_PATH}" \
         -I"${PROTO_IMPORTS_DIR}" \
         --go_out="$GOPATH"/src \
