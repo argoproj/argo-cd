@@ -95,9 +95,11 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 			pr.Repository.Name == nil ||
 			pr.PullRequestId == nil ||
 			pr.SourceRefName == nil ||
+			pr.CreationDate == nil ||
 			pr.TargetRefName == nil ||
 			pr.LastMergeSourceCommit == nil ||
-			pr.LastMergeSourceCommit.CommitId == nil {
+			pr.LastMergeSourceCommit.CommitId == nil ||
+			pr.LastMergeSourceCommit.Push.Date == nil {
 			continue
 		}
 
@@ -115,6 +117,8 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 				HeadSHA:      *pr.LastMergeSourceCommit.CommitId,
 				Labels:       azureDevOpsLabels,
 				Author:       strings.Split(*pr.CreatedBy.UniqueName, "@")[0], // Get the part before the @ in the email-address
+				CreatedAt:    pr.CreationDate.Time,
+				UpdatedAt:    pr.LastMergeSourceCommit.Push.Date.Time,
 			})
 		}
 	}
