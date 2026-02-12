@@ -528,7 +528,7 @@ func (sc *syncContext) Sync() {
 					continue
 				}
 
-				if result, ok := sc.syncRes[task.resultKey()]; ok && result.Status == common.ResultCodeSynced {
+				if _, ok := sc.syncRes[task.resultKey()]; ok {
 					sc.setResourceResult(task, common.ResultCodeSyncFailed, common.OperationError, fmt.Sprintf("Resource %s/%s/%s is missing, it might have been deleted", task.group(), task.kind(), task.name()))
 					continue
 				}
