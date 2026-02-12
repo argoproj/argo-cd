@@ -49,6 +49,43 @@ func setupAzureIdentity(t *testing.T) {
 	t.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
 }
 
+func TestGetDomainHint(t *testing.T) {
+	t.Run("Returns domain hint when OIDC config is set", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: `
+name: Test OIDC
+issuer: https://example.com
+clientID: test-client
+clientSecret: test-secret
+domainHint: example.com
+`,
+		}
+		domainHint := getDomainHint(settings)
+		assert.Equal(t, "example.com", domainHint)
+	})
+
+	t.Run("Returns empty string when domain hint is not set", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: `
+name: Test OIDC
+issuer: https://example.com
+clientID: test-client
+clientSecret: test-secret
+`,
+		}
+		domainHint := getDomainHint(settings)
+		assert.Equal(t, "", domainHint)
+	})
+
+	t.Run("Returns empty string when OIDC config is nil", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: "",
+		}
+		domainHint := getDomainHint(settings)
+		assert.Equal(t, "", domainHint)
+	})
+}
+
 func TestInferGrantType(t *testing.T) {
 	for _, path := range []string{"dex", "okta", "auth0", "onelogin"} {
 		t.Run(path, func(t *testing.T) {

@@ -167,6 +167,16 @@ func GetScopesOrDefault(scopes []string) []string {
 }
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
+// getDomainHint extracts the domain hint from OIDC configuration if available.
+// Returns an empty string if the OIDC config is nil or domain hint is not set.
+func getDomainHint(settings *settings.ArgoCDSettings) string {
+	oidcConfig := settings.OIDCConfig()
+	if oidcConfig != nil {
+		return oidcConfig.DomainHint
+	}
+	return ""
+}
+
 // object which has HTTP handlers for handling the HTTP responses for login and callback
 func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTLSConfig *dex.DexTLSConfig, baseHRef string, cacheClient cache.CacheClient) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
@@ -177,6 +187,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 	if err != nil {
 		return nil, err
 	}
+	domainHint := getDomainHint(settings)
 	a := ClientApp{
 		clientID:                 settings.OAuth2ClientID(),
 		clientSecret:             settings.OAuth2ClientSecret(),
@@ -189,13 +200,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 		clientCache:              cacheClient,
 		azure:                    azureApp{mtx: &sync.RWMutex{}},
 		refreshTokenThreshold:    settings.OIDCRefreshTokenThreshold,
-		domainHint: func() string {
-			oidcConfig := settings.OIDCConfig()
-			if oidcConfig != nil {
-				return oidcConfig.DomainHint
-			}
-			return ""
-		}(),
+		domainHint:               domainHint,
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -408,8 +413,6 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	if a.domainHint != "" {
 		opts = append(opts, oauth2.SetAuthURLParam("domain_hint", a.domainHint))
 	}
-	// debug log to confirm domainHint at runtime
-	log.Infof("OIDC HandleLogin: domainHint=%q", a.domainHint)
 	if a.usePKCE {
 		pkceVerifier = oauth2.GenerateVerifier()
 		opts = append(opts, oauth2.S256ChallengeOption(pkceVerifier))
