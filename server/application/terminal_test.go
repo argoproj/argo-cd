@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"

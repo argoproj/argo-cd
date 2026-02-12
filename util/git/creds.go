@@ -26,8 +26,8 @@ import (
 
 	gocache "github.com/patrickmn/go-cache"
 
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	argoio "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	log "github.com/sirupsen/logrus"
 

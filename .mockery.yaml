@@ -79,10 +79,10 @@ packages:
   github.com/argoproj/argo-cd/v3/util/workloadidentity:
     interfaces:
       TokenProvider: {}
-  github.com/argoproj/gitops-engine/pkg/cache:
+  github.com/argoproj/argo-cd/gitops-engine/pkg/cache:
     interfaces:
       ClusterCache: {}
-  github.com/argoproj/gitops-engine/pkg/diff:
+  github.com/argoproj/argo-cd/gitops-engine/pkg/diff:
     interfaces:
       ServerSideDryRunner: {}
   github.com/microsoft/azure-devops-go-api/azuredevops/v7/git:

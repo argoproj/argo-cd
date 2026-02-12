@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/argoproj/gitops-engine/pkg/utils/testing"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
 	"github.com/redis/go-redis/v9"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
