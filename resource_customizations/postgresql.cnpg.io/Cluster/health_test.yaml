@@ -10,12 +10,12 @@ tests:
 - healthStatus:
     status: Suspended
     message: "Cluster has been hibernated"
-  inputPath: testdata/cluster_suspended.yaml
+  inputPath: testdata/cluster_hybernated.yaml
 - healthStatus:
     status: Degraded
     message: "Initiating a failover from cluster-example-2"
   inputPath: testdata/cluster_degraded.yaml
 - healthStatus:
-    status: Suspended
+    status: Healthy
     message: "Cluster reconciliation is suspended"
   inputPath: testdata/cluster_reconcile_suspended.yaml

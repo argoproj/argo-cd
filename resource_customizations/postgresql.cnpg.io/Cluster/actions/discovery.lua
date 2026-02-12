@@ -20,21 +20,41 @@ actions["promote"] = {
 }
 
 -- Check if reconciliation is currently suspended
-local isSuspended = false
-if obj.metadata and obj.metadata.annotations and obj.metadata.annotations["cnpg.io/reconciliation"] == "disabled" then
-    isSuspended = true
+local isReconcileSuspended = false
+if obj.metadata and obj.metadata.annotations and obj.metadata.annotations["cnpg.io/reconciliationLoop"] == "disabled" then
+    isReconcileSuspended = true
+end
+
+-- Add reconcile suspend/resume actions based on current state
+if isReconcileSuspended then
+    actions["reconcile-resume"] = {
+        ["iconClass"] = "fa fa-fw fa-play",
+        ["displayName"] = "Reconcile Resume"
+    }
+else
+    actions["reconcile-suspend"] = {
+        ["iconClass"] = "fa fa-fw fa-pause",
+        ["displayName"] = "Reconcile Suspend"
+    }
 end
 
 -- Add suspend/resume actions based on current state
-if isSuspended then
-    actions["resume"] = {
-        ["iconClass"] = "fa fa-fw fa-play",
-        ["displayName"] = "Resume Reconciliation"
-    }
-else
-    actions["suspend"] = {
+local isHibernated = false
+if obj.metadata and obj.metadata.annotations and obj.metadata.annotations["cnpg.io/hibernation"] == "on" then
+    isHibernated = true
+end
+
+if isHibernated then
+    actions["hibernate"] = {
         ["iconClass"] = "fa fa-fw fa-pause",
-        ["displayName"] = "Suspend Reconciliation"
+        ["displayName"] = "Cluster Hibernate"
+    }
+end
+
+if isHibernated then
+    actions["rehydrate"] = {
+        ["iconClass"] = "fa fa-fw fa-play",
+        ["displayName"] = "Cluster Rehydrate"
     }
 end
 
