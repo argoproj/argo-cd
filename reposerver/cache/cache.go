@@ -221,6 +221,10 @@ func gitRefsKey(repo string) string {
 	return "git-refs|" + repo
 }
 
+func gitResolvedRefsKey(repo, revision string) string {
+	return "git-refs|" + repo + "|" + revision
+}
+
 // SetGitReferences saves resolved Git repository references to cache
 func (c *Cache) SetGitReferences(repo string, references []*plumbing.Reference) error {
 	var input [][2]string
@@ -321,6 +325,21 @@ func (c *Cache) UnlockGitReferences(repo string, lockId string) error {
 		return c.cache.SetItem(gitRefsKey(repo), input, &cacheutil.CacheActionOpts{Delete: true})
 	}
 	return err
+}
+
+// SetResolvedGitReference stores a resolved Git reference (revision -> commit SHA)
+func (c *Cache) SetResolvedGitReference(repo, revision, sha string) error {
+	return c.cache.SetItem(gitResolvedRefsKey(repo, revision), sha, &cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
+}
+
+// GetResolvedGitReference retrieves a resolved Git reference (revision -> commit SHA)
+func (c *Cache) GetResolvedGitReference(repo, revision string) (string, error) {
+	var sha string
+	err := c.cache.GetItem(gitResolvedRefsKey(repo, revision), &sha)
+	if err != nil && !errors.Is(err, ErrCacheMiss) {
+		return "", err
+	}
+	return sha, nil
 }
 
 // refSourceCommitSHAs is a list of resolved revisions for each ref source. This allows us to invalidate the cache

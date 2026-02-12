@@ -550,6 +550,30 @@ func TestGetOrLockGitReferences(t *testing.T) {
 	})
 }
 
+func TestGetResolvedGitReference(t *testing.T) {
+	t.Run("Test cache miss", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		cache := fixtures.cache
+		sha, err := cache.GetResolvedGitReference("test-repo", "main")
+		require.NoError(t, err)
+		assert.Empty(t, sha)
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 0, ExternalGets: 1})
+	})
+
+	t.Run("Test cache set and hit", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		cache := fixtures.cache
+		err := cache.SetResolvedGitReference("test-repo", "main", "test-sha")
+		require.NoError(t, err)
+		sha, err := cache.GetResolvedGitReference("test-repo", "main")
+		require.NoError(t, err)
+		assert.Equal(t, "test-sha", sha)
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
+	})
+}
+
 func TestUnlockGitReferences(t *testing.T) {
 	fixtures := newFixtures()
 	t.Cleanup(fixtures.mockCache.StopRedisCallback)
