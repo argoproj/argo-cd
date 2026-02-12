@@ -3,14 +3,15 @@ import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, HelpIc
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormField as ReactFormField, Text} from 'react-form';
-import {RevisionHelpIcon, YamlEditor} from '../../../shared/components';
+import {YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
-import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {SetFinalizerOnApplication} from './set-finalizer-on-application';
+import {HydratorSourcePanel} from './hydrator-source-panel';
+import {SourcePanel} from './source-panel';
 import './application-create-panel.scss';
 import {getAppDefaultSource} from '../utils';
 import {debounce} from 'lodash-es';
@@ -120,6 +121,8 @@ export const ApplicationCreatePanel = (props: {
     const currentRepoType = React.useRef(undefined);
     const lastGitOrHelmUrl = React.useRef('');
     const lastOciUrl = React.useRef('');
+    const [isHydratorEnabled, setIsHydratorEnabled] = React.useState(!!app.spec.sourceHydrator);
+    const [savedSyncSource, setSavedSyncSource] = React.useState(app.spec.sourceHydrator?.syncSource || {targetBranch: '', path: ''});
     let destinationComboValue = destinationFieldChanges.destFormat;
 
     React.useEffect(() => {
@@ -298,184 +301,54 @@ export const ApplicationCreatePanel = (props: {
                                         </div>
                                     );
 
-                                    const repoType = api.getFormState().values.spec.source.repoURL.startsWith('oci://')
-                                        ? 'oci'
-                                        : (api.getFormState().values.spec.source.hasOwnProperty('chart') && 'helm') || 'git';
                                     const sourcePanel = () => (
                                         <div className='white-box'>
                                             <p>SOURCE</p>
                                             <div className='row argo-form-row'>
-                                                <div className='columns small-10'>
-                                                    <FormField
-                                                        formApi={api}
-                                                        label='Repository URL'
-                                                        qeId='application-create-field-repository-url'
-                                                        field='spec.source.repoURL'
-                                                        component={AutocompleteField}
-                                                        componentProps={{
-                                                            items: repos,
-                                                            filterSuggestions: true
-                                                        }}
-                                                    />
-                                                </div>
-                                                <div className='columns small-2'>
-                                                    <div style={{paddingTop: '1.5em'}}>
-                                                        {(repoInfo && (
-                                                            <React.Fragment>
-                                                                <span>{(repoInfo.type || 'git').toUpperCase()}</span> <i className='fa fa-check' />
-                                                            </React.Fragment>
-                                                        )) || (
-                                                            <DropDownMenu
-                                                                anchor={() => (
-                                                                    <p>
-                                                                        {repoType.toUpperCase()} <i className='fa fa-caret-down' />
-                                                                    </p>
-                                                                )}
-                                                                qeId='application-create-dropdown-source-repository'
-                                                                items={['git', 'helm', 'oci'].map((type: 'git' | 'helm' | 'oci') => ({
-                                                                    title: type.toUpperCase(),
-                                                                    action: () => {
-                                                                        if (repoType !== type) {
-                                                                            const updatedApp = api.getFormState().values as models.Application;
-                                                                            const source = getAppDefaultSource(updatedApp);
-                                                                            // Save the previous URL value for later use
-                                                                            if (repoType === 'git' || repoType === 'helm') {
-                                                                                lastGitOrHelmUrl.current = source.repoURL;
-                                                                            } else {
-                                                                                lastOciUrl.current = source.repoURL;
-                                                                            }
-                                                                            currentRepoType.current = type;
-                                                                            switch (type) {
-                                                                                case 'git':
-                                                                                case 'oci':
-                                                                                    if (source.hasOwnProperty('chart')) {
-                                                                                        source.path = source.chart;
-                                                                                        delete source.chart;
-                                                                                    }
-                                                                                    source.targetRevision = 'HEAD';
-                                                                                    source.repoURL =
-                                                                                        type === 'git'
-                                                                                            ? lastGitOrHelmUrl.current
-                                                                                            : lastOciUrl.current === ''
-                                                                                              ? 'oci://'
-                                                                                              : lastOciUrl.current;
-                                                                                    break;
-                                                                                case 'helm':
-                                                                                    if (source.hasOwnProperty('path')) {
-                                                                                        source.chart = source.path;
-                                                                                        delete source.path;
-                                                                                    }
-                                                                                    source.targetRevision = '';
-                                                                                    source.repoURL = lastGitOrHelmUrl.current;
-                                                                                    break;
-                                                                            }
-                                                                            api.setAllValues(updatedApp);
-                                                                        }
+                                                <div className='columns small-12'>
+                                                    <div className='checkbox-container'>
+                                                        <Checkbox
+                                                            onChange={(val: boolean) => {
+                                                                const updatedApp = api.getFormState().values as models.Application;
+                                                                if (val) {
+                                                                    if (!updatedApp.spec.sourceHydrator) {
+                                                                        updatedApp.spec.sourceHydrator = {
+                                                                            drySource: {
+                                                                                repoURL: updatedApp.spec.source.repoURL,
+                                                                                targetRevision: updatedApp.spec.source.targetRevision,
+                                                                                path: updatedApp.spec.source.path
+                                                                            },
+                                                                            syncSource: savedSyncSource
+                                                                        };
+                                                                        delete updatedApp.spec.source;
                                                                     }
-                                                                }))}
-                                                            />
-                                                        )}
+                                                                } else if (updatedApp.spec.sourceHydrator) {
+                                                                    setSavedSyncSource(updatedApp.spec.sourceHydrator.syncSource);
+                                                                    updatedApp.spec.source = updatedApp.spec.sourceHydrator.drySource;
+                                                                    delete updatedApp.spec.sourceHydrator;
+                                                                }
+                                                                api.setAllValues(updatedApp);
+                                                                setIsHydratorEnabled(val);
+                                                            }}
+                                                            checked={!!(api.getFormState().values as models.Application).spec.sourceHydrator}
+                                                            id='enable-source-hydrator'
+                                                        />
+                                                        <label htmlFor='enable-source-hydrator'>enable source hydrator</label>
                                                     </div>
                                                 </div>
                                             </div>
-                                            {(repoType === 'oci' && (
-                                                <React.Fragment>
-                                                    <RevisionFormField formApi={api} helpIconTop={'2.5em'} repoURL={app.spec.source.repoURL} repoType={repoType} />
-                                                    <div className='argo-form-row'>
-                                                        <DataLoader
-                                                            input={{repoURL: app.spec.source.repoURL, revision: app.spec.source.targetRevision}}
-                                                            load={async src =>
-                                                                src.repoURL &&
-                                                                // TODO: for autocomplete we need to fetch paths that are used by other apps within the same project making use of the same OCI repo
-                                                                new Array<string>()
-                                                            }>
-                                                            {(paths: string[]) => (
-                                                                <FormField
-                                                                    formApi={api}
-                                                                    label='Path'
-                                                                    qeId='application-create-field-path'
-                                                                    field='spec.source.path'
-                                                                    component={AutocompleteField}
-                                                                    componentProps={{
-                                                                        items: paths,
-                                                                        filterSuggestions: true
-                                                                    }}
-                                                                />
-                                                            )}
-                                                        </DataLoader>
-                                                    </div>
-                                                </React.Fragment>
-                                            )) ||
-                                                (repoType === 'git' && (
-                                                    <React.Fragment>
-                                                        <RevisionFormField formApi={api} helpIconTop={'2.5em'} repoURL={app.spec.source.repoURL} repoType={repoType} />
-                                                        <div className='argo-form-row'>
-                                                            <DataLoader
-                                                                input={{repoURL: app.spec.source.repoURL, revision: app.spec.source.targetRevision}}
-                                                                load={async src =>
-                                                                    (src.repoURL &&
-                                                                        services.repos
-                                                                            .apps(src.repoURL, src.revision, app.metadata.name, app.spec.project)
-                                                                            .then(apps => Array.from(new Set(apps.map(item => item.path))).sort())
-                                                                            .catch(() => new Array<string>())) ||
-                                                                    new Array<string>()
-                                                                }>
-                                                                {(apps: string[]) => (
-                                                                    <FormField
-                                                                        formApi={api}
-                                                                        label='Path'
-                                                                        qeId='application-create-field-path'
-                                                                        field='spec.source.path'
-                                                                        component={AutocompleteField}
-                                                                        componentProps={{
-                                                                            items: apps,
-                                                                            filterSuggestions: true
-                                                                        }}
-                                                                    />
-                                                                )}
-                                                            </DataLoader>
-                                                        </div>
-                                                    </React.Fragment>
-                                                )) || (
-                                                    <DataLoader
-                                                        input={{repoURL: app.spec.source.repoURL}}
-                                                        load={async src =>
-                                                            (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) ||
-                                                            new Array<models.HelmChart>()
-                                                        }>
-                                                        {(charts: models.HelmChart[]) => {
-                                                            const selectedChart = charts.find(chart => chart.name === api.getFormState().values.spec.source.chart);
-                                                            return (
-                                                                <div className='row argo-form-row'>
-                                                                    <div className='columns small-10'>
-                                                                        <FormField
-                                                                            formApi={api}
-                                                                            label='Chart'
-                                                                            field='spec.source.chart'
-                                                                            component={AutocompleteField}
-                                                                            componentProps={{
-                                                                                items: charts.map(chart => chart.name),
-                                                                                filterSuggestions: true
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                    <div className='columns small-2'>
-                                                                        <FormField
-                                                                            formApi={api}
-                                                                            field='spec.source.targetRevision'
-                                                                            component={AutocompleteField}
-                                                                            componentProps={{
-                                                                                items: (selectedChart && selectedChart.versions) || [],
-                                                                                filterSuggestions: true
-                                                                            }}
-                                                                        />
-                                                                        <RevisionHelpIcon type='helm' />
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        }}
-                                                    </DataLoader>
-                                                )}
+                                            {isHydratorEnabled ? (
+                                                <HydratorSourcePanel formApi={api} repos={repos} />
+                                            ) : (
+                                                <SourcePanel
+                                                    formApi={api}
+                                                    repos={repos}
+                                                    repoInfo={repoInfo}
+                                                    currentRepoType={currentRepoType}
+                                                    lastGitOrHelmUrl={lastGitOrHelmUrl}
+                                                    lastOciUrl={lastOciUrl}
+                                                />
+                                            )}
                                         </div>
                                     );
                                     const destinationPanel = () => (
