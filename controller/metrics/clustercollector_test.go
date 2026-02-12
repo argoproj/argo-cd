@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	gitopsCache "github.com/argoproj/gitops-engine/pkg/cache"
+	gitopsCache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
 	"github.com/stretchr/testify/mock"
 
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"

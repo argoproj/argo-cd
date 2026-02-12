@@ -3,7 +3,7 @@ package kube
 import (
 	"testing"
 
-	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	testingutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

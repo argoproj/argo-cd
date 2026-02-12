@@ -1,6 +1,6 @@
 module github.com/argoproj/argo-cd/v3
 
-go 1.25.5
+go 1.26.0
 
 require (
 	code.gitea.io/sdk/gitea v0.23.2
@@ -12,7 +12,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v1.0.0
 	github.com/alicebob/miniredis/v2 v2.36.1
-	github.com/argoproj/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
+	github.com/argoproj/argo-cd/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
 	github.com/argoproj/notifications-engine v0.5.1-0.20260119155007-a23b5827d630
 	github.com/argoproj/pkg v0.13.6
 	github.com/argoproj/pkg/v2 v2.0.1
@@ -88,7 +88,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/yuin/gopher-lua v1.1.1
-	gitlab.com/gitlab-org/api/client-go v1.30.0
+	gitlab.com/gitlab-org/api/client-go v1.31.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.64.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.59.0
 	go.opentelemetry.io/otel v1.39.0
@@ -359,4 +359,4 @@ replace (
 	k8s.io/sample-controller => k8s.io/sample-controller v0.34.0
 )
 
-replace github.com/argoproj/gitops-engine => ./gitops-engine
+replace github.com/argoproj/argo-cd/gitops-engine => ./gitops-engine
