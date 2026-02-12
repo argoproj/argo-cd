@@ -24,7 +24,7 @@ type Version struct {
 }
 
 func (v Version) String() string {
-	return version.MustParseGeneric(v.GitVersion).String()
+	return "v" + version.MustParseGeneric(v.GitVersion).String()
 }
 
 func GetVersions(t *testing.T) *Versions {
