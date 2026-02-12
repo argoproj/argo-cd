@@ -35,27 +35,27 @@ func createTestPlugin(t *testing.T, name, content string) string {
 
 // TestCliAppCommand verifies the basic Argo CD CLI commands for app synchronization and listing.
 func TestCliAppCommand(t *testing.T) {
-	Given(t).
-		Path("hook").
+	ctx := Given(t)
+	ctx.Path("hook").
 		When().
 		CreateApp().
 		And(func() {
-			output, err := RunCli("app", "sync", Name(), "--timeout", "90")
+			output, err := RunCli("app", "sync", ctx.AppName(), "--timeout", "90")
 			require.NoError(t, err)
-			vars := map[string]any{"Name": Name(), "Namespace": DeploymentNamespace()}
+			vars := map[string]any{"Name": ctx.AppName(), "Namespace": ctx.DeploymentNamespace()}
 			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} pod Synced Progressing pod/pod created`, vars))
-			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} hook Succeeded Sync pod/hook created`, vars))
+			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} hook Succeeded Synced Sync pod/hook created`, vars))
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(_ *Application) {
+		And(func(a *Application) {
 			output, err := RunCli("app", "list")
 			require.NoError(t, err)
 			expected := Tmpl(
 				t,
 				`{{.Name}} https://kubernetes.default.svc {{.Namespace}} default Synced Healthy Manual <none>`,
-				map[string]any{"Name": Name(), "Namespace": DeploymentNamespace()})
+				map[string]any{"Name": a.GetName(), "Namespace": ctx.DeploymentNamespace()})
 			assert.Contains(t, NormalizeOutput(output), expected)
 		})
 }
@@ -75,19 +75,20 @@ func TestNormalArgoCDCommandsExecuteOverPluginsWithSameName(t *testing.T) {
 	})
 	t.Setenv("PATH", filepath.Dir(pluginPath)+":"+origPath)
 
-	Given(t).
+	ctx := Given(t)
+	ctx.Path("hook").
 		Path("hook").
 		When().
 		CreateApp().
 		And(func() {
-			output, err := RunCli("app", "sync", Name(), "--timeout", "90")
+			output, err := RunCli("app", "sync", ctx.AppName(), "--timeout", "90")
 			require.NoError(t, err)
 
 			assert.NotContains(t, NormalizeOutput(output), "I am a plugin, not Argo CD!")
 
-			vars := map[string]any{"Name": Name(), "Namespace": DeploymentNamespace()}
+			vars := map[string]any{"Name": ctx.AppName(), "Namespace": ctx.DeploymentNamespace()}
 			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} pod Synced Progressing pod/pod created`, vars))
-			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} hook Succeeded Sync pod/hook created`, vars))
+			assert.Contains(t, NormalizeOutput(output), Tmpl(t, `Pod {{.Namespace}} hook Succeeded Synced Sync pod/hook created`, vars))
 		}).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -101,7 +102,7 @@ func TestNormalArgoCDCommandsExecuteOverPluginsWithSameName(t *testing.T) {
 			expected := Tmpl(
 				t,
 				`{{.Name}} https://kubernetes.default.svc {{.Namespace}} default Synced Healthy Manual <none>`,
-				map[string]any{"Name": Name(), "Namespace": DeploymentNamespace()})
+				map[string]any{"Name": ctx.AppName(), "Namespace": ctx.DeploymentNamespace()})
 			assert.Contains(t, NormalizeOutput(output), expected)
 		})
 }

@@ -72,7 +72,7 @@ const (
 )
 
 func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) string {
-	result := ""
+	var result strings.Builder
 	lastIndex := 0
 
 	for _, v := range re.FindAllSubmatchIndex([]byte(str), -1) {
@@ -81,11 +81,11 @@ func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) strin
 			groups = append(groups, str[v[i]:v[i+1]])
 		}
 
-		result += str[lastIndex:v[0]] + groups[0] + repl
+		result.WriteString(str[lastIndex:v[0]] + groups[0] + repl)
 		lastIndex = v[1]
 	}
 
-	return result + str[lastIndex:]
+	return result.String() + str[lastIndex:]
 }
 
 // ServeHTTP returns badge with health and sync status for application
@@ -132,7 +132,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			status = app.Status.Sync.Status
 			applicationName = name[0]
 			if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
-				revision = app.Status.OperationState.SyncResult.Revision
+				if len(app.Status.OperationState.SyncResult.Revisions) > 0 {
+					revision = app.Status.OperationState.SyncResult.Revisions[0]
+				} else {
+					revision = app.Status.OperationState.SyncResult.Revision
+				}
 			}
 		} else if errors.IsNotFound(err) {
 			notFound = true

@@ -151,9 +151,9 @@ spec:
 func newFakeAppsets(fakeAppsetYAML string) []argoappv1.ApplicationSet {
 	var results []argoappv1.ApplicationSet
 
-	appsetRawYamls := strings.Split(fakeAppsetYAML, "---")
+	appsetRawYamls := strings.SplitSeq(fakeAppsetYAML, "---")
 
-	for _, appsetRawYaml := range appsetRawYamls {
+	for appsetRawYaml := range appsetRawYamls {
 		var appset argoappv1.ApplicationSet
 		err := yaml.Unmarshal([]byte(appsetRawYaml), &appset)
 		if err != nil {
@@ -174,7 +174,7 @@ func TestApplicationsetCollector(t *testing.T) {
 	appsetCollector := newAppsetCollector(utils.NewAppsetLister(client), collectedLabels, filter)
 
 	metrics.Registry.MustRegister(appsetCollector)
-	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
@@ -216,7 +216,7 @@ func TestObserveReconcile(t *testing.T) {
 
 	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
 
-	req, err := http.NewRequest(http.MethodGet, "/metrics", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})

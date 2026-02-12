@@ -85,15 +85,14 @@ func TestBlockingDial_ProxyEnvironmentHandling(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			clearProxyEnv(t)
 			applyProxyEnv(t, tt.proxyEnv)
 
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 			defer cancel()
 
-			conn, err := BlockingDial(ctx, "tcp", tt.address, nil)
+			conn, err := BlockingNewClient(ctx, "tcp", tt.address, nil)
 
 			if tt.expectError {
 				require.Error(t, err)

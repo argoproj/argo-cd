@@ -1,6 +1,6 @@
 module github.com/argoproj/argo-cd/get-previous-release
 
-go 1.23.5
+go 1.26.0
 
 require (
 	github.com/stretchr/testify v1.9.0

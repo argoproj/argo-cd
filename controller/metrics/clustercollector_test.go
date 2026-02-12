@@ -13,12 +13,12 @@ import (
 )
 
 func TestMetricClusterConnectivity(t *testing.T) {
-	db := dbmocks.ArgoDB{}
+	db := &dbmocks.ArgoDB{}
 	cluster1 := v1alpha1.Cluster{Name: "cluster1", Server: "server1", Labels: map[string]string{"env": "dev", "team": "team1"}}
 	cluster2 := v1alpha1.Cluster{Name: "cluster2", Server: "server2", Labels: map[string]string{"env": "staging", "team": "team2"}}
 	cluster3 := v1alpha1.Cluster{Name: "cluster3", Server: "server3", Labels: map[string]string{"env": "production", "team": "team3"}}
 	clusterList := &v1alpha1.ClusterList{Items: []v1alpha1.Cluster{cluster1, cluster2, cluster3}}
-	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
+	db.EXPECT().ListClusters(mock.Anything).Return(clusterList, nil)
 
 	type testCases struct {
 		testCombination
@@ -115,7 +115,6 @@ argocd_cluster_labels{label_env="production",label_team="team3",name="cluster3",
 	}
 
 	for _, c := range cases {
-		c := c
 		t.Run(c.description, func(t *testing.T) {
 			if !c.skip {
 				cfg := TestMetricServerConfig{

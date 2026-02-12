@@ -31,8 +31,13 @@ type layerConf struct {
 
 func generateManifest(t *testing.T, store *memory.Store, layerDescs ...layerConf) string {
 	t.Helper()
+	return generateManifestWithConfig(t, store, imagev1.MediaTypeImageConfig, layerDescs...)
+}
+
+func generateManifestWithConfig(t *testing.T, store *memory.Store, configMediaType string, layerDescs ...layerConf) string {
+	t.Helper()
 	configBlob := []byte("Hello config")
-	configDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageConfig, configBlob)
+	configDesc := content.NewDescriptorFromBytes(configMediaType, configBlob)
 
 	var layers []imagev1.Descriptor
 
@@ -122,7 +127,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			expectedError: errors.New("cannot extract contents of oci image with revision sha256:1b6dfd71e2b35c2f35dffc39007c2276f3c0e235cbae4c39cba74bd406174e22: failed to perform \"Push\" on destination: could not decompress layer: error while iterating on tar reader: unexpected EOF"),
 		},
 		{
-			name: "extraction fails due to multiple layers",
+			name: "extraction fails due to multiple content layers",
 			fields: fields{
 				allowedMediaTypes: []string{imagev1.MediaTypeImageLayerGzip},
 			},
@@ -135,7 +140,21 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: errors.New("expected only a single oci layer, got 2"),
+			expectedError: errors.New("expected only a single oci content layer, got 2"),
+		},
+		{
+			name: "extraction with multiple layers, but just a single content layer",
+			fields: fields{
+				allowedMediaTypes: []string{imagev1.MediaTypeImageLayerGzip},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					layerBlob := createGzippedTarWithContent(t, "some-path", "some content")
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, layerBlob), layerBlob}, layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.provenance.v1.prov", []byte{}), []byte{}})
+				},
+				manifestMaxExtractedSize:        1000,
+				disableManifestMaxExtractedSize: false,
+			},
 		},
 		{
 			name: "extraction fails due to invalid media type",
@@ -241,6 +260,31 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			},
 		},
 		{
+			name: "extraction with docker rootfs tar.gzip layer",
+			fields: fields{
+				allowedMediaTypes: []string{"application/vnd.docker.image.rootfs.diff.tar.gzip"},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					layerBlob := createGzippedTarWithContent(t, "foo.yaml", "some content")
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes("application/vnd.docker.image.rootfs.diff.tar.gzip", layerBlob), layerBlob})
+				},
+				postValidationFunc: func(_, path string, _ Client, _ fields, _ args) {
+					manifestDir, err := os.ReadDir(path)
+					require.NoError(t, err)
+					require.Len(t, manifestDir, 1)
+					require.Equal(t, "foo.yaml", manifestDir[0].Name())
+					f, err := os.Open(filepath.Join(path, manifestDir[0].Name()))
+					require.NoError(t, err)
+					contents, err := io.ReadAll(f)
+					require.NoError(t, err)
+					require.Equal(t, "some content", string(contents))
+				},
+				manifestMaxExtractedSize:        1000,
+				disableManifestMaxExtractedSize: false,
+			},
+		},
+		{
 			name: "extraction with standard gzip layer using cache",
 			fields: fields{
 				allowedMediaTypes: []string{imagev1.MediaTypeImageLayerGzip},
@@ -256,11 +300,287 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					store := memory.New()
 					c := newClientWithLock(fields.repoURL, globalLock, store, fields.tagsFunc, func(_ context.Context) error {
 						return nil
-					}, fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize))
+					}, fields.allowedMediaTypes,
+						WithImagePaths(cacheDir),
+						WithManifestMaxExtractedSize(args.manifestMaxExtractedSize),
+						WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize),
+						WithEventHandlers(fakeEventHandlers(t, fields.repoURL)))
 					_, gotCloser, err := c.Extract(t.Context(), sha)
 					require.NoError(t, err)
 					require.NoError(t, gotCloser.Close())
 				},
+			},
+		},
+		{
+			name: "helm chart with multiple layers (provenance + chart content) should succeed",
+			fields: fields{
+				allowedMediaTypes: []string{"application/vnd.cncf.helm.chart.content.v1.tar+gzip"},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					chartDir := t.TempDir()
+					chartName := "mychart"
+
+					parent := filepath.Join(chartDir, "parent")
+					require.NoError(t, os.Mkdir(parent, 0o755))
+
+					chartPath := filepath.Join(parent, chartName)
+					require.NoError(t, os.Mkdir(chartPath, 0o755))
+
+					addFileToDirectory(t, chartPath, "Chart.yaml", "helm chart content")
+
+					temp, err := os.CreateTemp(t.TempDir(), "")
+					require.NoError(t, err)
+					defer temp.Close()
+					_, err = files.Tgz(parent, nil, nil, temp)
+					require.NoError(t, err)
+					_, err = temp.Seek(0, io.SeekStart)
+					require.NoError(t, err)
+					chartBlob, err := io.ReadAll(temp)
+					require.NoError(t, err)
+
+					// Create provenance layer
+					provenanceBlob := []byte("provenance data")
+
+					return generateManifestWithConfig(t, store, "application/vnd.cncf.helm.config.v1+json",
+						layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.content.v1.tar+gzip", chartBlob), chartBlob},
+						layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.provenance.v1.prov", provenanceBlob), provenanceBlob})
+				},
+				postValidationFunc: func(_, path string, _ Client, _ fields, _ args) {
+					// Verify only chart content was extracted, not provenance
+					chartDir, err := os.ReadDir(path)
+					require.NoError(t, err)
+					require.Len(t, chartDir, 1)
+					require.Equal(t, "Chart.yaml", chartDir[0].Name())
+
+					chartYaml, err := os.Open(filepath.Join(path, chartDir[0].Name()))
+					require.NoError(t, err)
+					contents, err := io.ReadAll(chartYaml)
+					require.NoError(t, err)
+					require.Equal(t, "helm chart content", string(contents))
+				},
+				manifestMaxExtractedSize:        10000,
+				disableManifestMaxExtractedSize: false,
+			},
+		},
+		{
+			name: "helm chart with multiple layers (attestation + provenance + chart content) should succeed",
+			fields: fields{
+				allowedMediaTypes: []string{"application/vnd.cncf.helm.chart.content.v1.tar+gzip"},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					chartDir := t.TempDir()
+					chartName := "mychart"
+
+					parent := filepath.Join(chartDir, "parent")
+					require.NoError(t, os.Mkdir(parent, 0o755))
+
+					chartPath := filepath.Join(parent, chartName)
+					require.NoError(t, os.Mkdir(chartPath, 0o755))
+
+					addFileToDirectory(t, chartPath, "Chart.yaml", "multi-layer chart")
+					addFileToDirectory(t, chartPath, "values.yaml", "key: value")
+
+					temp, err := os.CreateTemp(t.TempDir(), "")
+					require.NoError(t, err)
+					defer temp.Close()
+					_, err = files.Tgz(parent, nil, nil, temp)
+					require.NoError(t, err)
+					_, err = temp.Seek(0, io.SeekStart)
+					require.NoError(t, err)
+					chartBlob, err := io.ReadAll(temp)
+					require.NoError(t, err)
+
+					// Create multiple non-content layers
+					attestationBlob := []byte("attestation data")
+					provenanceBlob := []byte("provenance data")
+
+					return generateManifestWithConfig(t, store, "application/vnd.cncf.helm.config.v1+json",
+						layerConf{content.NewDescriptorFromBytes("application/vnd.in-toto+json", attestationBlob), attestationBlob},
+						layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.content.v1.tar+gzip", chartBlob), chartBlob},
+						layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.provenance.v1.prov", provenanceBlob), provenanceBlob})
+				},
+				postValidationFunc: func(_, path string, _ Client, _ fields, _ args) {
+					// Verify only chart content was extracted
+					chartDir, err := os.ReadDir(path)
+					require.NoError(t, err)
+					require.Len(t, chartDir, 2) // Chart.yaml and values.yaml
+
+					files := make(map[string]bool)
+					for _, f := range chartDir {
+						files[f.Name()] = true
+					}
+					require.True(t, files["Chart.yaml"])
+					require.True(t, files["values.yaml"])
+
+					// Ensure no provenance or attestation files were extracted
+					require.False(t, files["provenance"])
+					require.False(t, files["attestation"])
+				},
+				manifestMaxExtractedSize:        10000,
+				disableManifestMaxExtractedSize: false,
+			},
+		},
+		{
+			name: "helm chart with only provenance layer should fail (no chart content)",
+			fields: fields{
+				allowedMediaTypes: []string{"application/vnd.cncf.helm.chart.content.v1.tar+gzip"},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					provenanceBlob := []byte("provenance data")
+					return generateManifestWithConfig(t, store, "application/vnd.cncf.helm.config.v1+json",
+						layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.provenance.v1.prov", provenanceBlob), provenanceBlob})
+				},
+				manifestMaxExtractedSize:        1000,
+				disableManifestMaxExtractedSize: false,
+			},
+			expectedError: errors.New("expected only a single oci content layer, got 0"),
+		},
+		{
+			name: "non-helm OCI with multiple content layers should still fail",
+			fields: fields{
+				allowedMediaTypes: []string{imagev1.MediaTypeImageLayerGzip},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					layerBlob1 := createGzippedTarWithContent(t, "file1.yaml", "content1")
+					layerBlob2 := createGzippedTarWithContent(t, "file2.yaml", "content2")
+					// Using standard image config, not Helm config
+					return generateManifest(t, store,
+						layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, layerBlob1), layerBlob1},
+						layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, layerBlob2), layerBlob2})
+				},
+				manifestMaxExtractedSize:        1000,
+				disableManifestMaxExtractedSize: false,
+			},
+			expectedError: errors.New("expected only a single oci content layer, got 2"),
+		},
+		{
+			name: "helm chart with extra content layer should succeed and ignore extra layer",
+			fields: fields{
+				allowedMediaTypes: []string{"application/vnd.cncf.helm.chart.content.v1.tar+gzip", imagev1.MediaTypeImageLayerGzip},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					chartDir := t.TempDir()
+					chartName := "mychart"
+
+					parent := filepath.Join(chartDir, "parent")
+					require.NoError(t, os.Mkdir(parent, 0o755))
+
+					chartPath := filepath.Join(parent, chartName)
+					require.NoError(t, os.Mkdir(chartPath, 0o755))
+
+					addFileToDirectory(t, chartPath, "Chart.yaml", "chart with extra docker layer")
+
+					temp, err := os.CreateTemp(t.TempDir(), "")
+					require.NoError(t, err)
+					defer temp.Close()
+					_, err = files.Tgz(parent, nil, nil, temp)
+					require.NoError(t, err)
+					_, err = temp.Seek(0, io.SeekStart)
+					require.NoError(t, err)
+					chartBlob, err := io.ReadAll(temp)
+					require.NoError(t, err)
+
+					// Extra OCI layer that Docker/some registries add
+					extraLayerBlob := createGzippedTarWithContent(t, "extra.txt", "extra layer content")
+
+					// Helm chart with proper Helm content layer + extra OCI layer that should be ignored
+					return generateManifestWithConfig(t, store, "application/vnd.cncf.helm.config.v1+json",
+						layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.content.v1.tar+gzip", chartBlob), chartBlob},
+						layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, extraLayerBlob), extraLayerBlob})
+				},
+				postValidationFunc: func(_, path string, _ Client, _ fields, _ args) {
+					// Verify only Helm chart content was extracted, not the extra OCI layer
+					chartDir, err := os.ReadDir(path)
+					require.NoError(t, err)
+					require.Len(t, chartDir, 1)
+					require.Equal(t, "Chart.yaml", chartDir[0].Name())
+
+					chartYaml, err := os.Open(filepath.Join(path, chartDir[0].Name()))
+					require.NoError(t, err)
+					contents, err := io.ReadAll(chartYaml)
+					require.NoError(t, err)
+					require.Equal(t, "chart with extra docker layer", string(contents))
+				},
+				manifestMaxExtractedSize:        10000,
+				disableManifestMaxExtractedSize: false,
+			},
+		},
+		{
+			name: "helm chart with extra OCI layer + provenance should extract only helm chart content",
+			fields: fields{
+				allowedMediaTypes: []string{"application/vnd.cncf.helm.chart.content.v1.tar+gzip", imagev1.MediaTypeImageLayerGzip},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					chartDir := t.TempDir()
+					chartName := "mychart"
+
+					parent := filepath.Join(chartDir, "parent")
+					require.NoError(t, os.Mkdir(parent, 0o755))
+
+					chartPath := filepath.Join(parent, chartName)
+					require.NoError(t, os.Mkdir(chartPath, 0o755))
+
+					templatesPath := filepath.Join(chartPath, "templates")
+					require.NoError(t, os.Mkdir(templatesPath, 0o755))
+
+					addFileToDirectory(t, chartPath, "Chart.yaml", "multi-layer helm chart")
+					addFileToDirectory(t, templatesPath, "deployment.yaml", "apiVersion: apps/v1")
+
+					temp, err := os.CreateTemp(t.TempDir(), "")
+					require.NoError(t, err)
+					defer temp.Close()
+					_, err = files.Tgz(parent, nil, nil, temp)
+					require.NoError(t, err)
+					_, err = temp.Seek(0, io.SeekStart)
+					require.NoError(t, err)
+					chartBlob, err := io.ReadAll(temp)
+					require.NoError(t, err)
+
+					provenanceBlob := []byte("provenance data")
+					extraLayerBlob := createGzippedTarWithContent(t, "extra.txt", "extra oci layer")
+
+					// Helm chart with: Helm content layer + extra OCI layer + provenance
+					// Only the Helm content layer should be extracted
+					return generateManifestWithConfig(t, store, "application/vnd.cncf.helm.config.v1+json",
+						layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.content.v1.tar+gzip", chartBlob), chartBlob},
+						layerConf{content.NewDescriptorFromBytes(imagev1.MediaTypeImageLayerGzip, extraLayerBlob), extraLayerBlob},
+						layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.provenance.v1.prov", provenanceBlob), provenanceBlob})
+				},
+				postValidationFunc: func(_, path string, _ Client, _ fields, _ args) {
+					// Verify only Helm chart content was extracted
+					entries, err := os.ReadDir(path)
+					require.NoError(t, err)
+					require.Len(t, entries, 2) // Chart.yaml and templates dir
+
+					files := make(map[string]bool)
+					for _, e := range entries {
+						files[e.Name()] = true
+					}
+					require.True(t, files["Chart.yaml"])
+					require.True(t, files["templates"])
+
+					// Verify Chart.yaml content
+					chartYaml, err := os.ReadFile(filepath.Join(path, "Chart.yaml"))
+					require.NoError(t, err)
+					require.YAMLEq(t, "multi-layer helm chart", string(chartYaml))
+
+					// Verify templates/deployment.yaml exists
+					deploymentYaml, err := os.ReadFile(filepath.Join(path, "templates", "deployment.yaml"))
+					require.NoError(t, err)
+					require.YAMLEq(t, "apiVersion: apps/v1", string(deploymentYaml))
+
+					// Ensure extra OCI layer and provenance were not extracted
+					require.False(t, files["extra.txt"])
+					require.False(t, files["provenance"])
+				},
+				manifestMaxExtractedSize:        10000,
+				disableManifestMaxExtractedSize: false,
 			},
 		},
 	}
@@ -272,7 +592,11 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 
 			c := newClientWithLock(tt.fields.repoURL, globalLock, store, tt.fields.tagsFunc, func(_ context.Context) error {
 				return nil
-			}, tt.fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(tt.args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(tt.args.disableManifestMaxExtractedSize))
+			}, tt.fields.allowedMediaTypes,
+				WithImagePaths(cacheDir),
+				WithManifestMaxExtractedSize(tt.args.manifestMaxExtractedSize),
+				WithDisableManifestMaxExtractedSize(tt.args.disableManifestMaxExtractedSize),
+				WithEventHandlers(fakeEventHandlers(t, tt.fields.repoURL)))
 			path, gotCloser, err := c.Extract(t.Context(), sha)
 
 			if tt.expectedError != nil {
@@ -422,7 +746,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := newClientWithLock(tt.fields.repoURL, globalLock, tt.fields.repo, tt.fields.tagsFunc, func(_ context.Context) error {
 				return nil
-			}, tt.fields.allowedMediaTypes)
+			}, tt.fields.allowedMediaTypes, WithEventHandlers(fakeEventHandlers(t, tt.fields.repoURL)))
 			got, err := c.ResolveRevision(t.Context(), tt.revision, tt.noCache)
 			if tt.expectedError != nil {
 				require.EqualError(t, err, tt.expectedError.Error())
@@ -434,5 +758,28 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 				t.Errorf("ResolveRevision() got = %v, expectedDigest %v", got, tt.expectedDigest)
 			}
 		})
+	}
+}
+
+func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {
+	t.Helper()
+	return EventHandlers{
+		OnExtract:         func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
+		OnResolveRevision: func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
+		OnDigestMetadata:  func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
+		OnTestRepo:        func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
+		OnGetTags:         func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
+		OnGetTagsFail: func(repo string) func() {
+			return func() { require.Equal(t, repoURL, repo) }
+		},
+		OnExtractFail: func(repo string) func(revision string) {
+			return func(_ string) { require.Equal(t, repoURL, repo) }
+		},
+		OnResolveRevisionFail: func(repo string) func(revision string) {
+			return func(_ string) { require.Equal(t, repoURL, repo) }
+		},
+		OnDigestMetadataFail: func(repo string) func(revision string) {
+			return func(_ string) { require.Equal(t, repoURL, repo) }
+		},
 	}
 }

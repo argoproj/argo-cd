@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "3scale OpenAPI is ready"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Failure message"
+    inputPath: testdata/degraded-failed.yaml
+  - healthStatus:
+      status: Degraded
+      message: "OpenAPI specification is invalid or malformed"
+    inputPath: testdata/degraded-invalid.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for 3scale OpenAPI status..."
+    inputPath: testdata/progressing.yaml

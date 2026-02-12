@@ -1,0 +1,21 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "3scale DeveloperAccount is ready"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Suspended
+      message: "Developer account is waiting for admin approval"
+    inputPath: testdata/waiting.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Failure message"
+    inputPath: testdata/degraded-failed.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Validation failure"
+    inputPath: testdata/degraded-invalid.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for 3scale DeveloperAccount status..."
+    inputPath: testdata/progressing.yaml

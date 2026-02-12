@@ -67,6 +67,7 @@ data:
     issuer: https://keycloak.example.com/realms/master
     clientID: argocd
     clientSecret: $oidc.keycloak.clientSecret
+    refreshTokenThreshold: 2m
     requestedScopes: ["openid", "profile", "email", "groups"]
 ```
 
@@ -77,6 +78,7 @@ Make sure that:
 - __clientID__ is set to the Client ID you configured in Keycloak
 - __clientSecret__ points to the right key you created in the _argocd-secret_ Secret
 - __requestedScopes__ contains the _groups_ claim if you didn't add it to the Default scopes
+- __refreshTokenThreshold__ is less than the client token lifetime.  If this setting is not less than the token lifetime, a new token will be obtained for every request.  Keycloak sets the client token lifetime to 5 minutes by default.
 
 ## Keycloak and ArgoCD with PKCE
 
@@ -139,6 +141,7 @@ data:
     issuer: https://keycloak.example.com/realms/master
     clientID: argocd
     enablePKCEAuthentication: true
+    refreshTokenThreshold: 2m
     requestedScopes: ["openid", "profile", "email", "groups"]
 ```
 
@@ -149,6 +152,7 @@ Make sure that:
 - __clientID__ is set to the Client ID you configured in Keycloak
 - __enablePKCEAuthentication__ must be set to true to enable correct ArgoCD behaviour with PKCE
 - __requestedScopes__ contains the _groups_ claim if you didn't add it to the Default scopes
+- __refreshTokenThreshold__ is less than the client token lifetime.  If this setting is not less than the token lifetime, a new token will be obtained for every request.  Keycloak sets the client token lifetime to 5 minutes by default.
 
 ## Configuring the groups claim
 

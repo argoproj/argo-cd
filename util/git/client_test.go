@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -27,38 +28,38 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
-func runCmd(workingDir string, name string, args ...string) error {
-	cmd := exec.Command(name, args...)
+func runCmd(ctx context.Context, workingDir string, name string, args ...string) error {
+	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = workingDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-func outputCmd(workingDir string, name string, args ...string) ([]byte, error) {
-	cmd := exec.Command(name, args...)
+func outputCmd(ctx context.Context, workingDir string, name string, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = workingDir
 	cmd.Stderr = os.Stderr
 	return cmd.Output()
 }
 
-func _createEmptyGitRepo() (string, error) {
+func _createEmptyGitRepo(ctx context.Context) (string, error) {
 	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		return tempDir, err
 	}
 
-	err = runCmd(tempDir, "git", "init")
+	err = runCmd(ctx, tempDir, "git", "init")
 	if err != nil {
 		return tempDir, err
 	}
 
-	err = runCmd(tempDir, "git", "commit", "-m", "Initial commit", "--allow-empty")
+	err = runCmd(ctx, tempDir, "git", "commit", "-m", "Initial commit", "--allow-empty")
 	return tempDir, err
 }
 
 func Test_nativeGitClient_Fetch(t *testing.T) {
-	tempDir, err := _createEmptyGitRepo()
+	tempDir, err := _createEmptyGitRepo(t.Context())
 	require.NoError(t, err)
 
 	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
@@ -67,12 +68,13 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	require.NoError(t, err)
 }
 
 func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
-	tempDir, err := _createEmptyGitRepo()
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
 	require.NoError(t, err)
 
 	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
@@ -81,23 +83,24 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = runCmd(tempDir, "git", "branch", "test/foo")
+	err = runCmd(ctx, tempDir, "git", "branch", "test/foo")
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
-	err = runCmd(tempDir, "git", "branch", "-d", "test/foo")
+	err = runCmd(ctx, tempDir, "git", "branch", "-d", "test/foo")
 	require.NoError(t, err)
-	err = runCmd(tempDir, "git", "branch", "test/foo/bar")
+	err = runCmd(ctx, tempDir, "git", "branch", "test/foo/bar")
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	require.NoError(t, err)
 }
 
 func Test_IsAnnotatedTag(t *testing.T) {
 	tempDir := t.TempDir()
+	ctx := t.Context()
 	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
@@ -112,16 +115,16 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	err = f.Close()
 	require.NoError(t, err)
 
-	err = runCmd(client.Root(), "git", "add", "README")
+	err = runCmd(ctx, client.Root(), "git", "add", "README")
 	require.NoError(t, err)
 
-	err = runCmd(client.Root(), "git", "commit", "-m", "Initial commit", "-a")
+	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Initial commit", "-a")
 	require.NoError(t, err)
 
 	atag := client.IsAnnotatedTag("master")
 	assert.False(t, atag)
 
-	err = runCmd(client.Root(), "git", "tag", "some-tag", "-a", "-m", "Create annotated tag")
+	err = runCmd(ctx, client.Root(), "git", "tag", "some-tag", "-a", "-m", "Create annotated tag")
 	require.NoError(t, err)
 	atag = client.IsAnnotatedTag("some-tag")
 	assert.True(t, atag)
@@ -130,9 +133,9 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	atag = client.IsAnnotatedTag("HEAD")
 	assert.True(t, atag)
 
-	err = runCmd(client.Root(), "git", "rm", "README")
+	err = runCmd(ctx, client.Root(), "git", "rm", "README")
 	require.NoError(t, err)
-	err = runCmd(client.Root(), "git", "commit", "-m", "remove README", "-a")
+	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "remove README", "-a")
 	require.NoError(t, err)
 
 	// We moved on, so tag doesn't point to HEAD anymore
@@ -155,6 +158,7 @@ func Test_resolveTagReference(t *testing.T) {
 
 func Test_ChangedFiles(t *testing.T) {
 	tempDir := t.TempDir()
+	ctx := t.Context()
 
 	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
@@ -162,11 +166,11 @@ func Test_ChangedFiles(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = runCmd(client.Root(), "git", "commit", "-m", "Initial commit", "--allow-empty")
+	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Initial commit", "--allow-empty")
 	require.NoError(t, err)
 
 	// Create a tag to have a second ref
-	err = runCmd(client.Root(), "git", "tag", "some-tag")
+	err = runCmd(ctx, client.Root(), "git", "tag", "some-tag")
 	require.NoError(t, err)
 
 	p := path.Join(client.Root(), "README")
@@ -177,10 +181,10 @@ func Test_ChangedFiles(t *testing.T) {
 	err = f.Close()
 	require.NoError(t, err)
 
-	err = runCmd(client.Root(), "git", "add", "README")
+	err = runCmd(ctx, client.Root(), "git", "add", "README")
 	require.NoError(t, err)
 
-	err = runCmd(client.Root(), "git", "commit", "-m", "Changes", "-a")
+	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Changes", "-a")
 	require.NoError(t, err)
 
 	previousSHA, err := client.LsRemote("some-tag")
@@ -210,6 +214,7 @@ func Test_ChangedFiles(t *testing.T) {
 
 func Test_SemverTags(t *testing.T) {
 	tempDir := t.TempDir()
+	ctx := t.Context()
 
 	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
@@ -228,11 +233,11 @@ func Test_SemverTags(t *testing.T) {
 		"2024-apple",
 		"2024-banana",
 	} {
-		err = runCmd(client.Root(), "git", "commit", "-m", tag+" commit", "--allow-empty")
+		err = runCmd(ctx, client.Root(), "git", "commit", "-m", tag+" commit", "--allow-empty")
 		require.NoError(t, err)
 
 		// Create an rc semver tag
-		err = runCmd(client.Root(), "git", "tag", tag)
+		err = runCmd(ctx, client.Root(), "git", "tag", tag)
 		require.NoError(t, err)
 
 		sha, err := client.LsRemote("HEAD")
@@ -353,37 +358,38 @@ func Test_SemverTags(t *testing.T) {
 func Test_nativeGitClient_Submodule(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "")
 	require.NoError(t, err)
+	ctx := t.Context()
 
 	foo := filepath.Join(tempDir, "foo")
 	err = os.Mkdir(foo, 0o755)
 	require.NoError(t, err)
 
-	err = runCmd(foo, "git", "init")
+	err = runCmd(ctx, foo, "git", "init")
 	require.NoError(t, err)
 
 	bar := filepath.Join(tempDir, "bar")
 	err = os.Mkdir(bar, 0o755)
 	require.NoError(t, err)
 
-	err = runCmd(bar, "git", "init")
+	err = runCmd(ctx, bar, "git", "init")
 	require.NoError(t, err)
 
-	err = runCmd(bar, "git", "commit", "-m", "Initial commit", "--allow-empty")
+	err = runCmd(ctx, bar, "git", "commit", "-m", "Initial commit", "--allow-empty")
 	require.NoError(t, err)
 
 	// Embed repository bar into repository foo
 	t.Setenv("GIT_ALLOW_PROTOCOL", "file")
-	err = runCmd(foo, "git", "submodule", "add", bar)
+	err = runCmd(ctx, foo, "git", "submodule", "add", bar)
 	require.NoError(t, err)
 
-	err = runCmd(foo, "git", "commit", "-m", "Initial commit")
+	err = runCmd(ctx, foo, "git", "commit", "-m", "Initial commit")
 	require.NoError(t, err)
 
 	tempDir, err = os.MkdirTemp("", "")
 	require.NoError(t, err)
 
 	// Clone foo
-	err = runCmd(tempDir, "git", "clone", foo)
+	err = runCmd(ctx, tempDir, "git", "clone", foo)
 	require.NoError(t, err)
 
 	client, err := NewClient("file://"+foo, NopCreds{}, true, false, "", "")
@@ -392,7 +398,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -403,7 +409,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check if submodule url does not exist in .git/config
-	err = runCmd(client.Root(), "git", "config", "submodule.bar.url")
+	err = runCmd(ctx, client.Root(), "git", "config", "submodule.bar.url")
 	require.Error(t, err)
 
 	// Call Submodule() via Checkout() with submoduleEnabled=true.
@@ -411,14 +417,14 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check if the .gitmodule URL is reflected in .git/config
-	cmd := exec.Command("git", "config", "submodule.bar.url")
+	cmd := exec.CommandContext(ctx, "git", "config", "submodule.bar.url")
 	cmd.Dir = client.Root()
 	result, err := cmd.Output()
 	require.NoError(t, err)
 	assert.Equal(t, bar+"\n", string(result))
 
 	// Change URL of submodule bar
-	err = runCmd(client.Root(), "git", "config", "--file=.gitmodules", "submodule.bar.url", bar+"baz")
+	err = runCmd(ctx, client.Root(), "git", "config", "--file=.gitmodules", "submodule.bar.url", bar+"baz")
 	require.NoError(t, err)
 
 	// Call Submodule()
@@ -426,7 +432,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check if the URL change in .gitmodule is reflected in .git/config
-	cmd = exec.Command("git", "config", "submodule.bar.url")
+	cmd = exec.CommandContext(ctx, "git", "config", "submodule.bar.url")
 	cmd.Dir = client.Root()
 	result, err = cmd.Output()
 	require.NoError(t, err)
@@ -441,6 +447,7 @@ func TestNewClient_invalidSSHURL(t *testing.T) {
 
 func Test_IsRevisionPresent(t *testing.T) {
 	tempDir := t.TempDir()
+	ctx := t.Context()
 
 	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
@@ -456,10 +463,10 @@ func Test_IsRevisionPresent(t *testing.T) {
 	err = f.Close()
 	require.NoError(t, err)
 
-	err = runCmd(client.Root(), "git", "add", "README")
+	err = runCmd(ctx, client.Root(), "git", "add", "README")
 	require.NoError(t, err)
 
-	err = runCmd(client.Root(), "git", "commit", "-m", "Initial Commit", "-a")
+	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Initial Commit", "-a")
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -490,15 +497,17 @@ func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
 	err = f.Close()
 	require.NoError(t, err)
 
-	err = runCmd(client.Root(), "git", "config", "user.name", "FooBar ||| something\nelse")
+	ctx := t.Context()
+
+	err = runCmd(ctx, client.Root(), "git", "config", "user.name", "FooBar ||| something\nelse")
 	require.NoError(t, err)
-	err = runCmd(client.Root(), "git", "config", "user.email", "foo@foo.com")
+	err = runCmd(ctx, client.Root(), "git", "config", "user.email", "foo@foo.com")
 	require.NoError(t, err)
 
-	err = runCmd(client.Root(), "git", "add", "README")
+	err = runCmd(ctx, client.Root(), "git", "add", "README")
 	require.NoError(t, err)
 	now := time.Now()
-	err = runCmd(client.Root(), "git", "commit", "--date=\"Sat Jun 5 20:00:00 2021 +0000 UTC\"", "-m", `| Initial commit |
+	err = runCmd(ctx, client.Root(), "git", "commit", "--date=\"Sat Jun 5 20:00:00 2021 +0000 UTC\"", "-m", `| Initial commit |
 
 
 (╯°□°)╯︵ ┻━┻
@@ -546,8 +555,9 @@ Argocd-reference-commit-repourl: https://git.example.com/test/repo.git`, now.For
 func Test_nativeGitClient_SetAuthor(t *testing.T) {
 	expectedName := "Tester"
 	expectedEmail := "test@example.com"
+	ctx := t.Context()
 
-	tempDir, err := _createEmptyGitRepo()
+	tempDir, err := _createEmptyGitRepo(ctx)
 	require.NoError(t, err)
 
 	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
@@ -560,13 +570,13 @@ func Test_nativeGitClient_SetAuthor(t *testing.T) {
 	require.NoError(t, err, "error output: ", out)
 
 	// Check git user.name
-	gitUserName, err := outputCmd(client.Root(), "git", "config", "--local", "user.name")
+	gitUserName, err := outputCmd(ctx, client.Root(), "git", "config", "--local", "user.name")
 	require.NoError(t, err)
 	actualName := strings.TrimSpace(string(gitUserName))
 	require.Equal(t, expectedName, actualName)
 
 	// Check git user.email
-	gitUserEmail, err := outputCmd(client.Root(), "git", "config", "--local", "user.email")
+	gitUserEmail, err := outputCmd(ctx, client.Root(), "git", "config", "--local", "user.email")
 	require.NoError(t, err)
 	actualEmail := strings.TrimSpace(string(gitUserEmail))
 	require.Equal(t, expectedEmail, actualEmail)
@@ -576,8 +586,9 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 	t.Run("checkout to an existing branch", func(t *testing.T) {
 		// not main or master
 		expectedBranch := "feature"
+		ctx := t.Context()
 
-		tempDir, err := _createEmptyGitRepo()
+		tempDir, err := _createEmptyGitRepo(ctx)
 		require.NoError(t, err)
 
 		client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
@@ -591,35 +602,35 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		require.NoError(t, err, "error output: %s", out)
 
 		// get base branch
-		gitCurrentBranch, err := outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+		gitCurrentBranch, err := outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
 		require.NoError(t, err)
 		baseBranch := strings.TrimSpace(string(gitCurrentBranch))
 
 		// get base commit
-		gitCurrentCommitHash, err := outputCmd(tempDir, "git", "rev-parse", "HEAD")
+		gitCurrentCommitHash, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
 		require.NoError(t, err)
 		expectedCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 
 		// make expected branch
-		err = runCmd(tempDir, "git", "checkout", "-b", expectedBranch)
+		err = runCmd(ctx, tempDir, "git", "checkout", "-b", expectedBranch)
 		require.NoError(t, err)
 
 		// checkout to base branch, ready to test
-		err = runCmd(tempDir, "git", "checkout", baseBranch)
+		err = runCmd(ctx, tempDir, "git", "checkout", baseBranch)
 		require.NoError(t, err)
 
 		out, err = client.CheckoutOrOrphan(expectedBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
-		gitCurrentBranch, err = outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+		gitCurrentBranch, err = outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
 		require.NoError(t, err)
 		actualBranch := strings.TrimSpace(string(gitCurrentBranch))
 		require.Equal(t, expectedBranch, actualBranch)
 
 		// get current commit hash, verify current commit hash
 		// equal -> not orphan
-		gitCurrentCommitHash, err = outputCmd(tempDir, "git", "rev-parse", "HEAD")
+		gitCurrentCommitHash, err = outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
 		require.NoError(t, err)
 		actualCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 		require.Equal(t, expectedCommitHash, actualCommitHash)
@@ -628,16 +639,17 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 	t.Run("orphan", func(t *testing.T) {
 		// not main or master
 		expectedBranch := "feature"
+		ctx := t.Context()
 
 		// make origin git repository
-		tempDir, err := _createEmptyGitRepo()
+		tempDir, err := _createEmptyGitRepo(ctx)
 		require.NoError(t, err)
 		originGitRepoURL := "file://" + tempDir
-		err = runCmd(tempDir, "git", "commit", "-m", "Second commit", "--allow-empty")
+		err = runCmd(ctx, tempDir, "git", "commit", "-m", "Second commit", "--allow-empty")
 		require.NoError(t, err)
 
 		// get base branch
-		gitCurrentBranch, err := outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+		gitCurrentBranch, err := outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
 		require.NoError(t, err)
 		baseBranch := strings.TrimSpace(string(gitCurrentBranch))
 
@@ -655,15 +667,15 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		out, err := client.SetAuthor("test", "test@example.com")
 		require.NoError(t, err, "error output: %s", out)
 
-		err = client.Fetch("")
+		err = client.Fetch("", 0)
 		require.NoError(t, err)
 
 		// checkout to origin base branch
-		err = runCmd(tempDir, "git", "checkout", baseBranch)
+		err = runCmd(ctx, tempDir, "git", "checkout", baseBranch)
 		require.NoError(t, err)
 
 		// get base commit
-		gitCurrentCommitHash, err := outputCmd(tempDir, "git", "rev-parse", "HEAD")
+		gitCurrentCommitHash, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
 		require.NoError(t, err)
 		baseCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 
@@ -671,7 +683,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
-		gitCurrentBranch, err = outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+		gitCurrentBranch, err = outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
 		require.NoError(t, err)
 		actualBranch := strings.TrimSpace(string(gitCurrentBranch))
 		require.Equal(t, expectedBranch, actualBranch)
@@ -680,13 +692,13 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 
 		// get current commit hash, verify current commit hash
 		// not equal -> orphan
-		gitCurrentCommitHash, err = outputCmd(tempDir, "git", "rev-parse", "HEAD")
+		gitCurrentCommitHash, err = outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
 		require.NoError(t, err)
 		currentCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 		require.NotEqual(t, baseCommitHash, currentCommitHash)
 
 		// get commit count on current branch, verify 1 -> orphan
-		gitCommitCount, err := outputCmd(tempDir, "git", "rev-list", "--count", actualBranch)
+		gitCommitCount, err := outputCmd(ctx, tempDir, "git", "rev-list", "--count", actualBranch)
 		require.NoError(t, err)
 		require.Equal(t, "1", strings.TrimSpace(string(gitCommitCount)))
 	})
@@ -705,8 +717,9 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 
 		// not main or master
 		expectedBranch := "feature"
+		ctx := t.Context()
 
-		tempDir, err := _createEmptyGitRepo()
+		tempDir, err := _createEmptyGitRepo(ctx)
 		require.NoError(t, err)
 
 		client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
@@ -719,16 +732,16 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		require.NoError(t, err, "error output: %s", out)
 
 		// get base branch
-		gitCurrentBranch, err := outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+		gitCurrentBranch, err := outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
 		require.NoError(t, err)
 		baseBranch := strings.TrimSpace(string(gitCurrentBranch))
 
 		// make expected branch
-		err = runCmd(tempDir, "git", "checkout", "-b", expectedBranch)
+		err = runCmd(ctx, tempDir, "git", "checkout", "-b", expectedBranch)
 		require.NoError(t, err)
 
 		// make expected commit
-		err = runCmd(tempDir, "git", "commit", "-m", "Second commit", "--allow-empty")
+		err = runCmd(ctx, tempDir, "git", "commit", "-m", "Second commit", "--allow-empty")
 		require.NoError(t, err)
 
 		// get expected commit
@@ -736,14 +749,14 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		require.NoError(t, err)
 
 		// checkout to base branch, ready to test
-		err = runCmd(tempDir, "git", "checkout", baseBranch)
+		err = runCmd(ctx, tempDir, "git", "checkout", baseBranch)
 		require.NoError(t, err)
 
 		out, err = client.CheckoutOrNew(expectedBranch, baseBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
-		gitCurrentBranch, err = outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+		gitCurrentBranch, err = outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
 		require.NoError(t, err)
 		actualBranch := strings.TrimSpace(string(gitCurrentBranch))
 		require.Equal(t, expectedBranch, actualBranch)
@@ -764,8 +777,9 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 
 		// not main or master
 		expectedBranch := "feature"
+		ctx := t.Context()
 
-		tempDir, err := _createEmptyGitRepo()
+		tempDir, err := _createEmptyGitRepo(ctx)
 		require.NoError(t, err)
 
 		client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
@@ -778,7 +792,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		require.NoError(t, err, "error output: %s", out)
 
 		// get base branch
-		gitCurrentBranch, err := outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+		gitCurrentBranch, err := outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
 		require.NoError(t, err)
 		baseBranch := strings.TrimSpace(string(gitCurrentBranch))
 
@@ -790,7 +804,7 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
-		gitCurrentBranch, err = outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+		gitCurrentBranch, err = outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
 		require.NoError(t, err)
 		actualBranch := strings.TrimSpace(string(gitCurrentBranch))
 		require.Equal(t, expectedBranch, actualBranch)
@@ -802,8 +816,10 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 	})
 }
 
-func Test_nativeGitClient_RemoveContents(t *testing.T) {
-	tempDir, err := _createEmptyGitRepo()
+func Test_nativeGitClient_RemoveContents_SpecificPath(t *testing.T) {
+	// given
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
 	require.NoError(t, err)
 
 	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
@@ -812,22 +828,20 @@ func Test_nativeGitClient_RemoveContents(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	out, err := client.SetAuthor("test", "test@example.com")
-	require.NoError(t, err, "error output: ", out)
-
-	err = runCmd(client.Root(), "touch", "README.md")
+	_, err = client.SetAuthor("test", "test@example.com")
 	require.NoError(t, err)
 
-	err = runCmd(client.Root(), "mkdir", "scripts")
+	err = runCmd(ctx, client.Root(), "touch", "README.md")
 	require.NoError(t, err)
 
-	err = runCmd(client.Root(), "touch", "scripts/startup.sh")
+	err = runCmd(ctx, client.Root(), "mkdir", "scripts")
+	require.NoError(t, err)
+	err = runCmd(ctx, client.Root(), "touch", "scripts/startup.sh")
 	require.NoError(t, err)
 
-	err = runCmd(client.Root(), "git", "add", "--all")
+	err = runCmd(ctx, client.Root(), "git", "add", "--all")
 	require.NoError(t, err)
-
-	err = runCmd(client.Root(), "git", "commit", "-m", "Make files")
+	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Make files")
 	require.NoError(t, err)
 
 	// when: remove only "scripts" directory
@@ -840,19 +854,25 @@ func Test_nativeGitClient_RemoveContents(t *testing.T) {
 
 	_, err = os.Stat(filepath.Join(client.Root(), "scripts"))
 	require.Error(t, err, "scripts directory should be removed")
+
+	// and: listing should only show README.md
+	ls, err := outputCmd(ctx, client.Root(), "ls")
+	require.NoError(t, err)
+	require.Equal(t, "README.md", strings.TrimSpace(string(ls)))
 }
 
 func Test_nativeGitClient_CommitAndPush(t *testing.T) {
-	tempDir, err := _createEmptyGitRepo()
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
 	require.NoError(t, err)
 
 	// config receive.denyCurrentBranch updateInstead
 	// because local git init make a non-bare repository which cannot be pushed normally
-	err = runCmd(tempDir, "git", "config", "--local", "receive.denyCurrentBranch", "updateInstead")
+	err = runCmd(ctx, tempDir, "git", "config", "--local", "receive.denyCurrentBranch", "updateInstead")
 	require.NoError(t, err)
 
 	// get branch
-	gitCurrentBranch, err := outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	gitCurrentBranch, err := outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
 	require.NoError(t, err)
 	branch := strings.TrimSpace(string(gitCurrentBranch))
 
@@ -865,14 +885,14 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	out, err := client.SetAuthor("test", "test@example.com")
 	require.NoError(t, err, "error output: ", out)
 
-	err = client.Fetch(branch)
+	err = client.Fetch(branch, 0)
 	require.NoError(t, err)
 
 	out, err = client.Checkout(branch, false)
 	require.NoError(t, err, "error output: ", out)
 
 	// make a file then commit and push
-	err = runCmd(client.Root(), "touch", "README.md")
+	err = runCmd(ctx, client.Root(), "touch", "README.md")
 	require.NoError(t, err)
 
 	out, err = client.CommitAndPush(branch, "docs: README")
@@ -883,7 +903,7 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	require.NoError(t, err)
 
 	// get origin repository's current commit hash
-	gitCurrentCommitHash, err := outputCmd(tempDir, "git", "rev-parse", "HEAD")
+	gitCurrentCommitHash, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
 	require.NoError(t, err)
 	actualCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 	require.Equal(t, expectedCommitHash, actualCommitHash)
@@ -891,7 +911,7 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 
 func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
 	tokenprovider := new(mocks.TokenProvider)
-	tokenprovider.On("GetToken", azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
+	tokenprovider.EXPECT().GetToken(azureDevopsEntraResourceId).Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil).Maybe()
 
 	creds := AzureWorkloadIdentityCreds{store: NoopCredsStore{}, tokenProvider: tokenprovider}
 
@@ -1003,8 +1023,9 @@ func Test_nativeGitClient_runCredentialedCmd(t *testing.T) {
 			client := &nativeGitClient{
 				creds: tt.creds,
 			}
+			ctx := t.Context()
 
-			err := client.runCredentialedCmd("status")
+			err := client.runCredentialedCmd(ctx, "status")
 			if (err != nil) != tt.expectedErr {
 				t.Errorf("runCredentialedCmd() error = %v, expectedErr %v", err, tt.expectedErr)
 				return
@@ -1014,7 +1035,7 @@ func Test_nativeGitClient_runCredentialedCmd(t *testing.T) {
 				return
 			}
 
-			cmd := exec.Command("git", tt.expectedArgs...)
+			cmd := exec.CommandContext(ctx, "git", tt.expectedArgs...)
 			cmd.Env = append(os.Environ(), tt.expectedEnv...)
 			output, err := cmd.CombinedOutput()
 			if err != nil {
@@ -1028,6 +1049,7 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 	// Create two temporary directories and initialize them as git repositories
 	tempDir1 := t.TempDir()
 	tempDir2 := t.TempDir()
+	ctx := t.Context()
 
 	client1, err := NewClient("file://"+tempDir1, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
@@ -1043,17 +1065,17 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 	file1 := filepath.Join(client1.Root(), "file1.txt")
 	err = os.WriteFile(file1, []byte("content1"), 0o644)
 	require.NoError(t, err)
-	err = runCmd(client1.Root(), "git", "add", "file1.txt")
+	err = runCmd(ctx, client1.Root(), "git", "add", "file1.txt")
 	require.NoError(t, err)
-	err = runCmd(client1.Root(), "git", "commit", "-m", "Add file1")
+	err = runCmd(ctx, client1.Root(), "git", "commit", "-m", "Add file1")
 	require.NoError(t, err)
 
 	file2 := filepath.Join(client2.Root(), "file2.txt")
 	err = os.WriteFile(file2, []byte("content2"), 0o644)
 	require.NoError(t, err)
-	err = runCmd(client2.Root(), "git", "add", "file2.txt")
+	err = runCmd(ctx, client2.Root(), "git", "add", "file2.txt")
 	require.NoError(t, err)
-	err = runCmd(client2.Root(), "git", "commit", "-m", "Add file2")
+	err = runCmd(ctx, client2.Root(), "git", "commit", "-m", "Add file2")
 	require.NoError(t, err)
 
 	// Assert that LsFiles returns the correct files when called sequentially
@@ -1069,7 +1091,7 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 	var wg sync.WaitGroup
 	callLsFiles := func(client Client, expectedFile string) {
 		defer wg.Done()
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			files, err := client.LsFiles("*", true)
 			require.NoError(t, err)
 			require.Contains(t, files, expectedFile)
@@ -1205,4 +1227,234 @@ Argocd-reference-commit-repourl: https://github.com/another/repo.git`,
 			assert.Equal(t, tt.expectedMessage, message)
 		})
 	}
+}
+
+func Test_BuiltinConfig(t *testing.T) {
+	ctx := t.Context()
+	tempDir := t.TempDir()
+	for _, enabled := range []bool{false, true} {
+		client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "", WithBuiltinGitConfig(enabled))
+		require.NoError(t, err)
+		native := client.(*nativeGitClient)
+
+		configOut, err := native.config(ctx, "--list", "--show-origin")
+		require.NoError(t, err)
+		for k, v := range builtinGitConfig {
+			r := regexp.MustCompile(fmt.Sprintf("(?m)^command line:\\s+%s=%s$", strings.ToLower(k), regexp.QuoteMeta(v)))
+			matches := r.FindString(configOut)
+			if enabled {
+				assert.NotEmpty(t, matches, "missing builtin configuration option: %s=%s", k, v)
+			} else {
+				assert.Empty(t, matches, "unexpected builtin configuration when builtin config is disabled: %s=%s", k, v)
+			}
+		}
+	}
+}
+
+func Test_GitNoDetachedMaintenance(t *testing.T) {
+	tempDir := t.TempDir()
+	ctx := t.Context()
+
+	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	native := client.(*nativeGitClient)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	cmd := exec.CommandContext(ctx, "git", "fetch")
+	// trace execution of Git subcommands and their arguments to stderr
+	cmd.Env = append(cmd.Env, "GIT_TRACE=true")
+	// Ignore system config in case it disables auto maintenance
+	cmd.Env = append(cmd.Env, "GIT_CONFIG_NOSYSTEM=true")
+	output, err := native.runCmdOutput(cmd, runOpts{CaptureStderr: true})
+	require.NoError(t, err)
+
+	lines := strings.SplitSeq(output, "\n")
+	for line := range lines {
+		if strings.Contains(line, "git maintenance run") {
+			assert.NotContains(t, output, "--detach", "Unexpected --detach when running git maintenance")
+			return
+		}
+	}
+	assert.Fail(t, "Expected to see `git maintenance` run after `git fetch`")
+}
+
+func Test_nativeGitClient_GetCommitNote(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	// Allow pushing to the same local repo (non-bare)
+	err = runCmd(ctx, tempDir, "git", "config", "--local", "receive.denyCurrentBranch", "updateInstead")
+	require.NoError(t, err)
+
+	// Get the current branch name
+	gitCurrentBranch, err := outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	require.NoError(t, err)
+	branch := strings.TrimSpace(string(gitCurrentBranch))
+
+	// Initialize client that uses this same repo as origin
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	out, err := client.SetAuthor("test", "test@example.com")
+	require.NoError(t, err, "error output: ", out)
+
+	err = client.Fetch(branch, 0)
+	require.NoError(t, err)
+
+	out, err = client.Checkout(branch, false)
+	require.NoError(t, err, "error output: ", out)
+
+	// Create and commit a test file
+	err = os.WriteFile(filepath.Join(client.Root(), "README.md"), []byte("content"), 0o644)
+	require.NoError(t, err)
+	out, err = client.CommitAndPush(branch, "initial commit")
+	require.NoError(t, err, "error output: %s", out)
+
+	// Get the latest commit SHA
+	sha, err := client.CommitSHA()
+	require.NoError(t, err)
+	require.NotEmpty(t, sha)
+
+	// No note found, should return ErrNoNoteFound
+	got, err := client.GetCommitNote(sha, "")
+	require.Empty(t, got)
+	unwrappedError := errors.Unwrap(err)
+	require.ErrorIs(t, unwrappedError, ErrNoNoteFound)
+
+	// Add a git note for this commit manually
+	noteMsg := "this is a test note"
+	err = runCmd(ctx, client.Root(), "git", "notes", "--ref=commit", "add", "-m", noteMsg, sha)
+	require.NoError(t, err)
+
+	// Call the method under test
+	got, err = client.GetCommitNote(sha, "")
+	require.NoError(t, err)
+	require.Equal(t, noteMsg, got)
+}
+
+func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	// Allow pushing to the same local repo (non-bare)
+	err = runCmd(ctx, tempDir, "git", "config", "--local", "receive.denyCurrentBranch", "updateInstead")
+	require.NoError(t, err)
+
+	// Get the current branch name
+	gitCurrentBranch, err := outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	require.NoError(t, err)
+	branch := strings.TrimSpace(string(gitCurrentBranch))
+
+	// Initialize client that uses this same repo as origin
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	out, err := client.SetAuthor("test", "test@example.com")
+	require.NoError(t, err, "error output: ", out)
+
+	err = client.Fetch(branch, 0)
+	require.NoError(t, err)
+
+	out, err = client.Checkout(branch, false)
+	require.NoError(t, err, "error output: ", out)
+
+	// Create and commit a test file
+	err = os.WriteFile(filepath.Join(client.Root(), "README.md"), []byte("content"), 0o644)
+	require.NoError(t, err)
+	out, err = client.CommitAndPush(branch, "initial commit")
+	require.NoError(t, err, "error output: %s", out)
+
+	// Get current commit SHA
+	sha, err := client.CommitSHA()
+	require.NoError(t, err)
+	require.NotEmpty(t, sha)
+
+	// Add and push a note (to the same repo acting as its own origin)
+	note := "this is a test note"
+	err = client.AddAndPushNote(sha, "", note)
+	require.NoError(t, err)
+
+	// Verify the note exists
+	outBytes, err := outputCmd(ctx, client.Root(), "git", "notes", "--ref=commit", "show", sha)
+	require.NoError(t, err)
+	require.Equal(t, note, strings.TrimSpace(string(outBytes)))
+
+	// test with a custom namespace too
+	t.Run("custom namespace", func(t *testing.T) {
+		customNS := "source-hydrator"
+		customNote := "custom namespace note"
+		err = client.AddAndPushNote(sha, customNS, customNote)
+		require.NoError(t, err)
+
+		outBytes, err := outputCmd(ctx, client.Root(), "git", "notes", "--ref="+customNS, "show", sha)
+		require.NoError(t, err)
+		require.Equal(t, customNote, strings.TrimSpace(string(outBytes)))
+	})
+}
+
+func Test_nativeGitClient_HasFileChanged(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	// Allow pushing to the same local repo (non-bare)
+	err = runCmd(ctx, tempDir, "git", "config", "--local", "receive.denyCurrentBranch", "updateInstead")
+	require.NoError(t, err)
+
+	// Get the current branch name
+	gitCurrentBranch, err := outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	require.NoError(t, err)
+	branch := strings.TrimSpace(string(gitCurrentBranch))
+
+	// Initialize client that uses this same repo as origin
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	out, err := client.SetAuthor("test", "test@example.com")
+	require.NoError(t, err, "error output: ", out)
+
+	err = client.Fetch(branch, 0)
+	require.NoError(t, err)
+
+	out, err = client.Checkout(branch, false)
+	require.NoError(t, err, "error output: ", out)
+
+	// Create the file inside repo root
+	fileName := "sample.txt"
+	filePath := filepath.Join(client.Root(), fileName)
+
+	err = os.WriteFile(filePath, []byte("first version"), 0o644)
+	require.NoError(t, err)
+
+	// Untracked file, should be reported as changed
+	changed, err := client.HasFileChanged(filePath)
+	require.NoError(t, err)
+	require.True(t, changed, "expected untracked file to be reported as changed")
+
+	// After commit, should NOT be changed
+	out, err = client.CommitAndPush(branch, "add sample.txt")
+	require.NoError(t, err, "error output: %s", out)
+	changed, err = client.HasFileChanged(filePath)
+	require.NoError(t, err)
+	require.False(t, changed, "expected committed file to not be changed")
+
+	// Modify the file should be reported as changed
+	err = os.WriteFile(filePath, []byte("modified content"), 0o644)
+	require.NoError(t, err)
+	changed, err = client.HasFileChanged(filePath)
+	require.NoError(t, err)
+	require.True(t, changed, "expected modified file to be reported as changed")
 }

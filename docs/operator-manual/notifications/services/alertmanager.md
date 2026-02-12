@@ -11,6 +11,10 @@ The notification service is used to push events to [Alertmanager](https://github
 * `basicAuth` - optional, server auth
 * `bearerToken` - optional, server auth
 * `timeout` - optional, the timeout in seconds used when sending alerts, default is "3 seconds"
+* `maxIdleConns` - optional, maximum number of idle (keep-alive) connections across all hosts.
+* `maxIdleConnsPerHost` - optional, maximum number of idle (keep-alive) connections per host.
+* `maxConnsPerHost` - optional, maximum total connections per host.
+* `idleConnTimeout` - optional, maximum amount of time an idle (keep-alive) connection will remain open before closing.
 
 `basicAuth` or `bearerToken` is used for authentication, you can choose one. If the two are set at the same time, `basicAuth` takes precedence over `bearerToken`.
 

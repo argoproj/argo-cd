@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/instance: httpbin
+  name: httpbin-svc
+  namespace: httpbin
+spec:
+  ports:
+    - name: http-port
+      port: 7777
+      protocol: TCP
+      targetPort: 80
+  selector:
+    app: httpbin

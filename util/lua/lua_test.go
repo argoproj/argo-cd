@@ -109,7 +109,8 @@ func TestFailExternalLibCall(t *testing.T) {
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, osLuaScript)
 	require.Error(t, err)
-	assert.IsType(t, &lua.ApiError{}, err)
+	var target *lua.ApiError
+	assert.ErrorAs(t, err, &target)
 }
 
 const returnInt = `return 1`
@@ -183,7 +184,8 @@ func TestHandleInfiniteLoop(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, infiniteLoop)
-	assert.IsType(t, &lua.ApiError{}, err)
+	var target *lua.ApiError
+	require.ErrorAs(t, err, &target)
 }
 
 func TestGetHealthScriptWithOverride(t *testing.T) {
@@ -952,7 +954,8 @@ return hs`
 		testObj := StrToUnstructured(testSA)
 		overrides := getHealthOverride(false)
 		status, err := overrides.GetResourceHealth(testObj)
-		assert.IsType(t, &lua.ApiError{}, err)
+		var target *lua.ApiError
+		require.ErrorAs(t, err, &target)
 		expectedErr := "<string>:4: attempt to index a non-table object(nil) with key 'find'"
 		require.EqualError(t, err, expectedErr)
 		assert.Nil(t, status)
@@ -1072,5 +1075,10 @@ func Test_getHealthScriptPaths(t *testing.T) {
 
 	// This test will fail any time a glob pattern is added to the health script paths. We don't expect that to happen
 	// often.
-	assert.Equal(t, []string{"_.crossplane.io/_", "_.upbound.io/_"}, paths)
+	assert.Equal(t, []string{
+		"_.cnrm.cloud.google.com/_",
+		"_.crossplane.io/_",
+		"_.upbound.io/_",
+		"grafana-org-operator.kubitus-project.gitlab.io/_",
+	}, paths)
 }

@@ -29,6 +29,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	k8sbatchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -111,14 +112,6 @@ func fakeCluster() *v1alpha1.Cluster {
 	}
 }
 
-func fakeAppList() *apiclient.AppList {
-	return &apiclient.AppList{
-		Apps: map[string]string{
-			"some/path": "Ksonnet",
-		},
-	}
-}
-
 func fakeResolveRevisionResponse() *apiclient.ResolveRevisionResponse {
 	return &apiclient.ResolveRevisionResponse{
 		Revision:          "f9ba9e98119bf8c1176fbd65dbae26a71d044add",
@@ -134,25 +127,24 @@ func fakeResolveRevisionResponseHelm() *apiclient.ResolveRevisionResponse {
 }
 
 func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
-	mockRepoServiceClient := mocks.RepoServerServiceClient{}
-	mockRepoServiceClient.On("GetProcessableApps", mock.Anything, mock.Anything).Return(fakeAppList(), nil)
-	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
-	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
-	mockRepoServiceClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
-	mockRepoServiceClient.On("GetRevisionMetadata", mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
+	mockRepoServiceClient := &mocks.RepoServerServiceClient{}
+	mockRepoServiceClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
+	mockRepoServiceClient.EXPECT().GetAppDetails(mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
+	mockRepoServiceClient.EXPECT().TestRepository(mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+	mockRepoServiceClient.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	mockWithFilesClient := &mocks.RepoServerService_GenerateManifestWithFilesClient{}
-	mockWithFilesClient.On("Send", mock.Anything).Return(nil)
-	mockWithFilesClient.On("CloseAndRecv").Return(&apiclient.ManifestResponse{}, nil)
-	mockRepoServiceClient.On("GenerateManifestWithFiles", mock.Anything, mock.Anything).Return(mockWithFilesClient, nil)
-	mockRepoServiceClient.On("GetRevisionChartDetails", mock.Anything, mock.Anything).Return(&v1alpha1.ChartDetails{}, nil)
+	mockWithFilesClient.EXPECT().Send(mock.Anything).Return(nil).Maybe()
+	mockWithFilesClient.EXPECT().CloseAndRecv().Return(&apiclient.ManifestResponse{}, nil).Maybe()
+	mockRepoServiceClient.EXPECT().GenerateManifestWithFiles(mock.Anything, mock.Anything).Return(mockWithFilesClient, nil)
+	mockRepoServiceClient.EXPECT().GetRevisionChartDetails(mock.Anything, mock.Anything).Return(&v1alpha1.ChartDetails{}, nil)
 
 	if isHelm {
-		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevisionResponseHelm(), nil)
+		mockRepoServiceClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(fakeResolveRevisionResponseHelm(), nil)
 	} else {
-		mockRepoServiceClient.On("ResolveRevision", mock.Anything, mock.Anything).Return(fakeResolveRevisionResponse(), nil)
+		mockRepoServiceClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(fakeResolveRevisionResponse(), nil)
 	}
 
-	return &mockRepoServiceClient
+	return mockRepoServiceClient
 }
 
 // return an ApplicationServiceServer which returns fake data
@@ -546,6 +538,30 @@ func newTestAppWithDestName(opts ...func(app *v1alpha1.Application)) *v1alpha1.A
 
 func newTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	return createTestApp(fakeApp, opts...)
+}
+
+func newMultiSourceTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
+	multiSourceApp := newTestApp(opts...)
+	multiSourceApp.Name = "multi-source-app"
+	multiSourceApp.Spec = v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "helm-guestbook",
+				TargetRevision: "appbranch1",
+			},
+			{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "kustomize-guestbook",
+				TargetRevision: "appbranch2",
+			},
+		},
+		Destination: v1alpha1.ApplicationDestination{
+			Server:    "https://cluster-api.example.com",
+			Namespace: test.FakeDestNamespace,
+		},
+	}
+	return multiSourceApp
 }
 
 func newTestAppWithAnnotations(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
@@ -988,7 +1004,21 @@ func TestNoAppEnumeration(t *testing.T) {
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
 
+	//nolint:staticcheck // SA1019: RunResourceAction is deprecated, but we still need to support it for backward compatibility.
 	t.Run("RunResourceAction", func(t *testing.T) {
+		_, err := appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Action: ptr.To("restart")})
+		require.NoError(t, err)
+		_, err = appServer.RunResourceAction(noRoleCtx, &application.ResourceActionRunRequest{Name: ptr.To("test")})
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.RunResourceAction(noRoleCtx, &application.ResourceActionRunRequest{Group: ptr.To("argoproj.io"), Kind: ptr.To("Application"), Name: ptr.To("test")})
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("doest-not-exist")})
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("doest-not-exist"), Project: ptr.To("test")})
+		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
+	})
+
+	t.Run("RunResourceActionV2", func(t *testing.T) {
 		_, err := appServer.RunResourceActionV2(adminCtx, &application.ResourceActionRunRequestV2{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Action: ptr.To("restart")})
 		require.NoError(t, err)
 		_, err = appServer.RunResourceActionV2(noRoleCtx, &application.ResourceActionRunRequestV2{Name: ptr.To("test")})
@@ -1297,14 +1327,14 @@ func TestCoupleAppsListApps(t *testing.T) {
 	ctx := t.Context()
 
 	var groups []string
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		groups = append(groups, fmt.Sprintf("group-%d", i))
 	}
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.MapClaims{"groups": groups})
-	for projectId := 0; projectId < 100; projectId++ {
+	for projectId := range 100 {
 		projectName := fmt.Sprintf("proj-%d", projectId)
-		for appId := 0; appId < 100; appId++ {
+		for appId := range 100 {
 			objects = append(objects, newTestApp(func(app *v1alpha1.Application) {
 				app.Name = fmt.Sprintf("app-%d-%d", projectId, appId)
 				app.Spec.Project = projectName
@@ -1337,7 +1367,7 @@ g, group-49, role:test3
 
 func generateTestApp(num int) []*v1alpha1.Application {
 	apps := []*v1alpha1.Application{}
-	for i := 0; i < num; i++ {
+	for i := range num {
 		apps = append(apps, newTestApp(func(app *v1alpha1.Application) {
 			app.Name = fmt.Sprintf("test-app%.6d", i)
 		}))
@@ -1355,8 +1385,7 @@ func BenchmarkListMuchApps(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, err := appServer.List(b.Context(), &application.ApplicationQuery{})
 		if err != nil {
 			break
@@ -1373,8 +1402,7 @@ func BenchmarkListSomeApps(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, err := appServer.List(b.Context(), &application.ApplicationQuery{})
 		if err != nil {
 			break
@@ -1391,8 +1419,7 @@ func BenchmarkListFewApps(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, err := appServer.List(b.Context(), &application.ApplicationQuery{})
 		if err != nil {
 			break
@@ -1413,8 +1440,7 @@ func BenchmarkListMuchAppsWithName(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		app := &application.ApplicationQuery{Name: strToPtr("test-app000099")}
 		_, err := appServer.List(b.Context(), app)
 		if err != nil {
@@ -1434,8 +1460,7 @@ func BenchmarkListMuchAppsWithProjects(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		app := &application.ApplicationQuery{Project: []string{"test-project1", "test-project2"}}
 		_, err := appServer.List(b.Context(), app)
 		if err != nil {
@@ -1454,8 +1479,7 @@ func BenchmarkListMuchAppsWithRepo(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		app := &application.ApplicationQuery{Repo: strToPtr("https://some-fake-source")}
 		_, err := appServer.List(b.Context(), app)
 		if err != nil {
@@ -2025,6 +2049,545 @@ p, test-user, applications, update/fake.io/PodTest/*, default/test-app, deny
 	})
 }
 
+func TestSyncRBACOverrideRequired_DiffRevDenied(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		map[string]string{"application.sync.requireOverridePrivilegeForRevisionSync": "true"})
+
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, deny
+    `)
+
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("revisionbranch"),
+	}
+	_, err = appServer.Sync(ctx, syncReq)
+	assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String(),
+		"should not be able to sync to different revision without override permission")
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{1},
+		Revisions:       []string{"revisionbranch1"},
+	}
+	_, err = appServer.Sync(ctx, syncReq)
+	assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String(),
+		"should not be able to sync to different revision without override permission, multi-source app")
+}
+
+func TestSyncRBACOverrideRequired_SameRevisionAllowed(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		map[string]string{"application.sync.requireOverridePrivilegeForRevisionSync": "true"})
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, deny
+    `)
+
+	// create an app and sync to the same revision
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("HEAD"),
+	}
+	syncedApp, err := appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to the same revision without override permission")
+	assert.NotNil(t, syncedApp)
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{1, 2},
+		Revisions:       []string{"appbranch1", "appbranch2"},
+	}
+	syncedApp, err = appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to the same revision without override permission, multi-source app")
+	assert.NotNil(t, syncedApp)
+}
+
+func TestSyncRBACOverrideRequired_WithoutRevisionAllowed(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		map[string]string{"application.sync.requireOverridePrivilegeForRevisionSync": "true"})
+
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, deny
+    `)
+
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name: &app.Name,
+	}
+	syncedApp, err := appServer.Sync(ctx, syncReq)
+	require.NoError(t, err)
+	assert.NotNil(t, syncedApp)
+	assert.Equal(t, app.Spec, testApp.Spec)
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name: &app.Name,
+	}
+	syncedApp, err = appServer.Sync(ctx, syncReq)
+	require.NoError(t, err)
+	assert.NotNil(t, syncedApp)
+}
+
+func TestSyncRBACOverrideGranted_DiffRevisionAllowed(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		map[string]string{"application.sync.requireOverridePrivilegeForRevisionSync": "true"})
+
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, allow
+    `)
+
+	testApp := newTestApp()
+
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("revisionbranch"),
+	}
+	syncedApp, err := appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to different revision with override permission")
+	assert.NotNil(t, syncedApp)
+	assert.Equal(t, "HEAD", syncedApp.Spec.Source.TargetRevision)
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{1, 2},
+		Revisions:       []string{"appbranch1", "appbranch2"},
+	}
+	syncedApp, err = appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to different revision with override permission, multi-source app")
+	assert.NotNil(t, syncedApp)
+}
+
+func TestSyncMultiSource_PosTooLarge(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+
+	_ = appServer.enf.SetBuiltinPolicy(`
+    p, test-user, applications, get, default/*, allow
+    p, test-user, applications, create, default/*, allow
+    p, test-user, applications, sync, default/*, allow
+    `)
+	// create a new app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	// sync with source position greater than the number of sources
+	syncReq := &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{3, 2},
+		Revisions:       []string{"appbranch1", "appbranch2"},
+	}
+	_, err = appServer.Sync(ctx, syncReq)
+	require.EqualError(t, err, "source position is out of range",
+		"should fail because source position is greater than the number of sources")
+}
+
+func TestSyncMultiSource_PosTooSmall(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+
+	_ = appServer.enf.SetBuiltinPolicy(`
+    p, test-user, applications, get, default/*, allow
+    p, test-user, applications, create, default/*, allow
+    p, test-user, applications, sync, default/*, allow
+    `)
+	// create a new app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	// sync with source position less than 1
+	// this should fail because source positions are 1-based
+	syncReq := &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{0, 2},
+		Revisions:       []string{"appbranch1", "appbranch2"},
+	}
+	_, err = appServer.Sync(ctx, syncReq)
+	require.EqualError(t, err, "source position is out of range",
+		"should fail because source position is less than 1")
+}
+
+func TestSync_SyncWithoutSyncPermissionShouldFail(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+		p, test-user, applications, get, default/*, allow
+		p, test-user, applications, create, default/*, allow
+		p, test-user, applications, sync, default/*, deny`)
+
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name: &app.Name,
+	}
+	_, err = appServer.Sync(ctx, syncReq)
+	assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name: &app.Name,
+	}
+	_, err = appServer.Sync(ctx, syncReq)
+	assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+}
+
+func TestSyncRBACSettingsError(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+		p, test-user, applications, get, default/*, allow
+		p, test-user, applications, create, default/*, allow
+		p, test-user, applications, sync, default/*, allow
+		p, test-user, applications, override, default/*, deny
+	`)
+
+	// create a new app
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+
+	// override settings manager to return error
+	brokenclientset := fake.NewClientset(&corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-secret",
+			Namespace: testNamespace,
+		},
+		Data: map[string][]byte{
+			"admin.password":   []byte("test"),
+			"server.secretkey": []byte("test"),
+		},
+	})
+	appServer.settingsMgr = settings.NewSettingsManager(ctx, brokenclientset, testNamespace)
+	// and sync to different revision
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("revisionbranch"),
+	}
+
+	_, err2 := appServer.Sync(ctx, syncReq)
+	require.Error(t, err2)
+	require.ErrorContains(t, err2, "error getting setting")
+}
+
+func TestSyncRBACOverrideFalse_DiffRevNoOverrideAllowed(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, deny
+    `)
+
+	// create a new app
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	// and sync to different revision
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("revisionbranch"),
+	}
+
+	syncedApp, err := appServer.Sync(ctx, syncReq)
+	require.NoError(t, err)
+	assert.NotNil(t, syncedApp)
+	assert.Equal(t, "HEAD", syncedApp.Spec.Source.TargetRevision)
+
+	// same for multi-source app
+
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx,
+		&application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{1},
+		Revisions:       []string{"revisionbranch1"},
+	}
+	syncedApp, err = appServer.Sync(ctx, syncReq)
+	require.NoError(t, err)
+	assert.NotNil(t, syncedApp)
+	// Sync to different revision must not change app spec
+	assert.Equal(t, "appbranch1", syncedApp.Spec.Sources[0].TargetRevision)
+	assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
+}
+
+func TestSyncRBACOverrideNotRequired_SameRevisionAllowed(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, deny`)
+
+	// create a new app
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("HEAD"),
+	}
+
+	syncedApp, err := appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to the same revision without override permission")
+	assert.NotNil(t, syncedApp)
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{1, 2},
+		Revisions:       []string{"appbranch1", "appbranch2"},
+	}
+	syncedApp, err = appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to the same revision without override permission, multi-source app")
+	assert.NotNil(t, syncedApp)
+}
+
+func TestSyncRBACOverrideNotRequired_EmptyRevisionAllowed(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, deny
+    `)
+
+	// create a new app
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name: &app.Name,
+	}
+
+	syncedApp, err := appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync with empty revision without override permission")
+	assert.NotNil(t, app)
+	assert.Equal(t, "HEAD", syncedApp.Spec.Source.TargetRevision)
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name: &app.Name,
+	}
+	syncedApp, err = appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync with empty revision without override permission, multi-source app")
+	assert.NotNil(t, syncedApp)
+	assert.Equal(t, "appbranch1", syncedApp.Spec.Sources[0].TargetRevision)
+	assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
+}
+
+func TestSyncRBACOverrideNotRequired_DiffRevisionAllowed(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, allow
+    `)
+	// create a new app
+	testApp := newTestApp()
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("revisionbranch"),
+	}
+
+	syncedApp, err := appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to different revision with override permission")
+	assert.NotNil(t, syncedApp)
+	// Sync must not change app spec
+	assert.Equal(t, "HEAD", syncedApp.Spec.Source.TargetRevision)
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name: &app.Name,
+	}
+	syncedApp, err = appServer.Sync(ctx, syncReq)
+	require.NoError(t, err,
+		"should be able to sync to different revision with override permission, multi-source app")
+	assert.NotNil(t, syncedApp)
+	assert.Equal(t, "appbranch1", syncedApp.Spec.Sources[0].TargetRevision)
+	assert.Equal(t, "appbranch2", syncedApp.Spec.Sources[1].TargetRevision)
+}
+
+func TestSyncRBACOverrideNotRequired_DiffRevisionWithAutosyncPrevented(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+	appServer := newTestAppServer(t)
+	_ = appServer.enf.SetBuiltinPolicy(`
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, sync, default/*, allow
+        p, test-user, applications, override, default/*, allow
+    `)
+
+	// create a new app
+	testApp := newTestApp()
+	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		Automated: &v1alpha1.SyncPolicyAutomated{
+			Prune:    true,
+			SelfHeal: true,
+		},
+	}
+	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
+	require.NoError(t, err)
+	syncReq := &application.ApplicationSyncRequest{
+		Name:     &app.Name,
+		Revision: ptr.To("revisionbranch"),
+	}
+
+	_, err = appServer.Sync(ctx, syncReq)
+	require.EqualError(t, err, "rpc error: code = FailedPrecondition desc = Cannot sync to revisionbranch: auto-sync currently set to HEAD",
+		"should not be able to sync to different revision with auto-sync enabled")
+
+	// same for multi-source app
+	multiSourceApp := newMultiSourceTestApp()
+	multiSourceApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		Automated: &v1alpha1.SyncPolicyAutomated{
+			Prune:    true,
+			SelfHeal: true,
+		},
+	}
+
+	app, err = appServer.Create(ctx, &application.ApplicationCreateRequest{Application: multiSourceApp})
+	require.NoError(t, err)
+	syncReq = &application.ApplicationSyncRequest{
+		Name:            &app.Name,
+		SourcePositions: []int64{1},
+		Revisions:       []string{"revisionbranch1"},
+	}
+	_, err = appServer.Sync(ctx, syncReq)
+	assert.EqualError(t, err, "rpc error: code = FailedPrecondition desc = Cannot sync source https://github.com/argoproj/argocd-example-apps.git to revisionbranch1: auto-sync currently set to appbranch1",
+		"should not be able to sync to different revision with auto-sync enabled, multi-source app")
+}
+
 func TestSyncAndTerminate(t *testing.T) {
 	ctx := t.Context()
 	appServer := newTestAppServer(t)
@@ -2039,6 +2602,7 @@ func TestSyncAndTerminate(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, app)
 	assert.NotNil(t, app.Operation)
+	assert.Equal(t, testApp.Spec.GetSource(), *app.Operation.Sync.Source)
 
 	events, err := appServer.kubeclientset.CoreV1().Events(appServer.ns).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
@@ -2117,8 +2681,81 @@ func TestSyncGit(t *testing.T) {
 	assert.Equal(t, "Unknown user initiated sync locally", events.Items[1].Message)
 }
 
+func TestSync_WithRefresh(t *testing.T) {
+	ctx := t.Context()
+	appServer := newTestAppServer(t)
+	testApp := newTestApp()
+	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		Retry: &v1alpha1.RetryStrategy{
+			Refresh: true,
+		},
+	}
+	testApp.Spec.Source.RepoURL = "https://github.com/argoproj/argo-cd.git"
+	createReq := application.ApplicationCreateRequest{
+		Application: testApp,
+	}
+	app, err := appServer.Create(ctx, &createReq)
+	require.NoError(t, err)
+	app, err = appServer.Sync(ctx, &application.ApplicationSyncRequest{Name: &app.Name})
+	require.NoError(t, err)
+	assert.NotNil(t, app)
+	assert.NotNil(t, app.Operation)
+	assert.True(t, app.Operation.Retry.Refresh)
+}
+
+func TestGetManifests_WithNoCache(t *testing.T) {
+	testApp := newTestApp()
+	appServer := newTestAppServer(t, testApp)
+
+	mockRepoServiceClient := mocks.NewRepoServerServiceClient(t)
+	mockRepoServiceClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
+		return mr.NoCache
+	})).Return(&apiclient.ManifestResponse{}, nil)
+
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
+
+	_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
+		Name:    &testApp.Name,
+		NoCache: ptr.To(true),
+	})
+	require.NoError(t, err)
+}
+
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
+	testApp.Status.History = []v1alpha1.RevisionHistory{{
+		ID:        1,
+		Revision:  "abc",
+		Revisions: []string{"abc"},
+		Source:    *testApp.Spec.Source.DeepCopy(),
+		Sources:   []v1alpha1.ApplicationSource{*testApp.Spec.Source.DeepCopy()},
+	}}
+	appServer := newTestAppServer(t, testApp)
+
+	updatedApp, err := appServer.Rollback(t.Context(), &application.ApplicationRollbackRequest{
+		Name: &testApp.Name,
+		Id:   ptr.To(int64(1)),
+	})
+
+	require.NoError(t, err)
+
+	assert.NotNil(t, updatedApp.Operation)
+	assert.NotNil(t, updatedApp.Operation.Sync)
+	assert.NotNil(t, updatedApp.Operation.Sync.Source)
+	assert.Equal(t, testApp.Status.History[0].Source, *updatedApp.Operation.Sync.Source)
+	assert.Equal(t, testApp.Status.History[0].Sources, updatedApp.Operation.Sync.Sources)
+	assert.Equal(t, testApp.Status.History[0].Revision, updatedApp.Operation.Sync.Revision)
+	assert.Equal(t, testApp.Status.History[0].Revisions, updatedApp.Operation.Sync.Revisions)
+}
+
+func TestRollbackApp_WithRefresh(t *testing.T) {
+	testApp := newTestApp()
+	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+		Retry: &v1alpha1.RetryStrategy{
+			Refresh: true,
+		},
+	}
+
 	testApp.Status.History = []v1alpha1.RevisionHistory{{
 		ID:       1,
 		Revision: "abc",
@@ -2134,9 +2771,8 @@ func TestRollbackApp(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.NotNil(t, updatedApp.Operation)
-	assert.NotNil(t, updatedApp.Operation.Sync)
-	assert.NotNil(t, updatedApp.Operation.Sync.Source)
-	assert.Equal(t, "abc", updatedApp.Operation.Sync.Revision)
+	assert.NotNil(t, updatedApp.Operation.Retry)
+	assert.False(t, updatedApp.Operation.Retry.Refresh, "refresh should never be set on rollback")
 }
 
 func TestUpdateAppProject(t *testing.T) {
@@ -2491,7 +3127,7 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 	runtimeObjects := make([]runtime.Object, podNumber+1)
 	resources := make([]v1alpha1.ResourceStatus, podNumber)
 
-	for i := 0; i < podNumber; i++ {
+	for i := range podNumber {
 		pod := corev1.Pod{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
@@ -2591,12 +3227,12 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	appServer := newTestAppServer(t, testApp)
 
 	var getAppDetailsQuery *apiclient.RepoServerAppDetailsQuery
-	mockRepoServiceClient := mocks.RepoServerServiceClient{}
-	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
+	mockRepoServiceClient := &mocks.RepoServerServiceClient{}
+	mockRepoServiceClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(q *apiclient.RepoServerAppDetailsQuery) bool {
 		getAppDetailsQuery = q
 		return true
 	})).Return(&apiclient.RepoAppDetailsResponse{}, nil)
-	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoServiceClient}
 
 	var patched int32
 
@@ -2620,6 +3256,99 @@ func TestGetAppRefresh_HardRefresh(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		assert.Fail(t, "Out of time ( 10 seconds )")
 	}
+}
+
+func TestGetApp_HealthStatusPropagation(t *testing.T) {
+	newServerWithTree := func(t *testing.T) (*Server, *v1alpha1.Application) {
+		t.Helper()
+		cacheClient := cache.NewCache(cache.NewInMemoryCache(1 * time.Hour))
+
+		testApp := newTestApp()
+		testApp.Status.ResourceHealthSource = v1alpha1.ResourceHealthLocationAppTree
+		testApp.Status.Resources = []v1alpha1.ResourceStatus{
+			{
+				Group:     "apps",
+				Kind:      "Deployment",
+				Name:      "guestbook",
+				Namespace: "default",
+			},
+		}
+
+		appServer := newTestAppServer(t, testApp)
+
+		appStateCache := appstate.NewCache(cacheClient, time.Minute)
+		appInstanceName := testApp.InstanceName(appServer.appNamespaceOrDefault(testApp.Namespace))
+		err := appStateCache.SetAppResourcesTree(appInstanceName, &v1alpha1.ApplicationTree{
+			Nodes: []v1alpha1.ResourceNode{{
+				ResourceRef: v1alpha1.ResourceRef{
+					Group:     "apps",
+					Kind:      "Deployment",
+					Name:      "guestbook",
+					Namespace: "default",
+				},
+				Health: &v1alpha1.HealthStatus{Status: health.HealthStatusDegraded},
+			}},
+		})
+		require.NoError(t, err)
+		appServer.cache = servercache.NewCache(appStateCache, time.Minute, time.Minute)
+
+		return appServer, testApp
+	}
+
+	t.Run("propagated health status on get with no refresh", func(t *testing.T) {
+		appServer, testApp := newServerWithTree(t)
+		fetchedApp, err := appServer.Get(t.Context(), &application.ApplicationQuery{
+			Name: &testApp.Name,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, health.HealthStatusDegraded, fetchedApp.Status.Resources[0].Health.Status)
+	})
+
+	t.Run("propagated health status on normal refresh", func(t *testing.T) {
+		appServer, testApp := newServerWithTree(t)
+		var patched int32
+		ch := make(chan string, 1)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
+
+		fetchedApp, err := appServer.Get(t.Context(), &application.ApplicationQuery{
+			Name:    &testApp.Name,
+			Refresh: ptr.To(string(v1alpha1.RefreshTypeNormal)),
+		})
+		require.NoError(t, err)
+
+		select {
+		case <-ch:
+			assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
+		case <-time.After(10 * time.Second):
+			assert.Fail(t, "Out of time ( 10 seconds )")
+		}
+		assert.Equal(t, health.HealthStatusDegraded, fetchedApp.Status.Resources[0].Health.Status)
+	})
+
+	t.Run("propagated health status on hard refresh", func(t *testing.T) {
+		appServer, testApp := newServerWithTree(t)
+		var patched int32
+		ch := make(chan string, 1)
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go refreshAnnotationRemover(t, ctx, &patched, appServer, testApp.Name, ch)
+
+		fetchedApp, err := appServer.Get(t.Context(), &application.ApplicationQuery{
+			Name:    &testApp.Name,
+			Refresh: ptr.To(string(v1alpha1.RefreshTypeHard)),
+		})
+		require.NoError(t, err)
+
+		select {
+		case <-ch:
+			assert.Equal(t, int32(1), atomic.LoadInt32(&patched))
+		case <-time.After(10 * time.Second):
+			assert.Fail(t, "Out of time ( 10 seconds )")
+		}
+		assert.Equal(t, health.HealthStatusDegraded, fetchedApp.Status.Resources[0].Health.Status)
+	})
 }
 
 func TestInferResourcesStatusHealth(t *testing.T) {
@@ -3847,4 +4576,76 @@ func TestServerSideDiff(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "application")
 	})
+}
+
+// TestTerminateOperationWithConflicts tests that TerminateOperation properly handles
+// concurrent update conflicts by retrying with the fresh application object.
+//
+// This test reproduces a bug where the retry loop discards the fresh app object
+// fetched from Get(), causing all retries to fail with stale resource versions.
+func TestTerminateOperationWithConflicts(t *testing.T) {
+	testApp := newTestApp()
+	testApp.ResourceVersion = "1"
+	testApp.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}
+	testApp.Status.OperationState = &v1alpha1.OperationState{
+		Operation: *testApp.Operation,
+		Phase:     synccommon.OperationRunning,
+	}
+
+	appServer := newTestAppServer(t, testApp)
+	ctx := context.Background()
+
+	// Get the fake clientset from the deepCopy wrapper
+	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+
+	getCallCount := 0
+	updateCallCount := 0
+
+	// Remove default reactors and add our custom ones
+	fakeAppCs.ReactionChain = nil
+
+	// Mock Get to return original version first, then fresh version
+	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		getCallCount++
+		freshApp := testApp.DeepCopy()
+		if getCallCount == 1 {
+			// First Get (for initialization) returns original version
+			freshApp.ResourceVersion = "1"
+		} else {
+			// Subsequent Gets (during retry) return fresh version
+			freshApp.ResourceVersion = "2"
+		}
+		return true, freshApp, nil
+	})
+
+	// Mock Update to return conflict on first call, success on second
+	fakeAppCs.AddReactor("update", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		updateCallCount++
+		updateAction := action.(kubetesting.UpdateAction)
+		app := updateAction.GetObject().(*v1alpha1.Application)
+
+		// First call (with original resource version): return conflict
+		if app.ResourceVersion == "1" {
+			return true, nil, apierrors.NewConflict(
+				schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
+				app.Name,
+				stderrors.New("the object has been modified"),
+			)
+		}
+
+		// Second call (with refreshed resource version from Get): return success
+		updatedApp := app.DeepCopy()
+		return true, updatedApp, nil
+	})
+
+	// Attempt to terminate the operation
+	_, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{
+		Name: ptr.To(testApp.Name),
+	})
+
+	// Should succeed after retrying with the fresh app
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, updateCallCount, 2, "Update should be called at least twice (once with conflict, once with success)")
 }

@@ -59,7 +59,7 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 	filteredItems := clusterList.Items
 
 	// Filter clusters by id
-	if filteredItems, err = filterClustersById(filteredItems, q.Id); err != nil {
+	if filteredItems, err = filterClustersByID(filteredItems, q.Id); err != nil {
 		return nil, fmt.Errorf("error filtering clusters by id: %w", err)
 	}
 
@@ -89,7 +89,7 @@ func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.Clus
 	return &cl, nil
 }
 
-func filterClustersById(clusters []appv1.Cluster, id *cluster.ClusterID) ([]appv1.Cluster, error) {
+func filterClustersByID(clusters []appv1.Cluster, id *cluster.ClusterID) ([]appv1.Cluster, error) {
 	if id == nil {
 		return clusters, nil
 	}
@@ -117,7 +117,7 @@ func filterClustersByName(clusters []appv1.Cluster, name string) []appv1.Cluster
 		return clusters
 	}
 	items := make([]appv1.Cluster, 0)
-	for i := 0; i < len(clusters); i++ {
+	for i := range clusters {
 		if clusters[i].Name == name {
 			items = append(items, clusters[i])
 			return items
@@ -131,7 +131,7 @@ func filterClustersByServer(clusters []appv1.Cluster, server string) []appv1.Clu
 		return clusters
 	}
 	items := make([]appv1.Cluster, 0)
-	for i := 0; i < len(clusters); i++ {
+	for i := range clusters {
 		if clusters[i].Server == server {
 			items = append(items, clusters[i])
 			return items
@@ -471,19 +471,8 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 }
 
 func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
+	clust = clust.Sanitized()
 	_ = s.cache.GetClusterInfo(clust.Server, &clust.Info)
-
-	clust.Config.Password = ""
-	clust.Config.BearerToken = ""
-	clust.Config.KeyData = nil
-	if clust.Config.ExecProviderConfig != nil {
-		// We can't know what the user has put into args or
-		// env vars on the exec provider that might be sensitive
-		// (e.g. --private-key=XXX, PASSWORD=XXX)
-		// Implicitly assumes the command executable name is non-sensitive
-		clust.Config.ExecProviderConfig.Env = make(map[string]string)
-		clust.Config.ExecProviderConfig.Args = nil
-	}
 	// populate deprecated fields for backward compatibility
 	//nolint:staticcheck
 	clust.ServerVersion = clust.Info.ServerVersion

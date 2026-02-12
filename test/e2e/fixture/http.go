@@ -2,6 +2,7 @@ package fixture
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"io"
@@ -27,7 +28,7 @@ func DoHttpRequest(method string, path string, host string, data ...byte) (*http
 	if data != nil {
 		body = bytes.NewReader(data)
 	}
-	req, err := http.NewRequest(method, reqURL.String(), body)
+	req, err := http.NewRequestWithContext(context.Background(), method, reqURL.String(), body)
 	if err != nil {
 		return nil, err
 	}

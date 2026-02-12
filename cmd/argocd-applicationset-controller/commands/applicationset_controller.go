@@ -14,6 +14,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
+	"github.com/argoproj/argo-cd/v3/util/profile"
 	"github.com/argoproj/argo-cd/v3/util/tls"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/controllers"
@@ -31,6 +32,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -79,6 +81,7 @@ func NewCommand() *cobra.Command {
 		enableScmProviders           bool
 		webhookParallelism           int
 		tokenRefStrictMode           bool
+		maxResourcesStatusCount      int
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -103,7 +106,12 @@ func NewCommand() *cobra.Command {
 			)
 
 			cli.SetLogFormat(cmdutil.LogFormat)
-			cli.SetLogLevel(cmdutil.LogLevel)
+
+			if debugLog {
+				cli.SetLogLevel("debug")
+			} else {
+				cli.SetLogLevel(cmdutil.LogLevel)
+			}
 
 			ctrl.SetLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()))
 
@@ -169,6 +177,15 @@ func NewCommand() *cobra.Command {
 				log.Error(err, "unable to start manager")
 				os.Exit(1)
 			}
+
+			pprofMux := http.NewServeMux()
+			profile.RegisterProfiler(pprofMux)
+			// This looks a little strange. Eg, not using ctrl.Options PprofBindAddress and then adding the pprof mux
+			// to the metrics server. However, it allows for the controller to dynamically expose the pprof endpoints
+			// and use the existing metrics server, the same pattern that the application controller and api-server follow.
+			if err = mgr.AddMetricsServerExtraHandler("/debug/pprof/", pprofMux); err != nil {
+				log.Error(err, "failed to register pprof handlers")
+			}
 			dynamicClient, err := dynamic.NewForConfig(mgr.GetConfig())
 			errors.CheckError(err)
 			k8sClient, err := kubernetes.NewForConfig(mgr.GetConfig())
@@ -176,6 +193,18 @@ func NewCommand() *cobra.Command {
 
 			argoSettingsMgr := argosettings.NewSettingsManager(ctx, k8sClient, namespace)
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
+
+			clusterInformer, err := argosettings.NewClusterInformer(k8sClient, namespace)
+			if err != nil {
+				log.Error(err, "unable to create cluster informer")
+				os.Exit(1)
+			}
+			go clusterInformer.Run(ctx.Done())
+
+			if !cache.WaitForCacheSync(ctx.Done(), clusterInformer.HasSynced) {
+				log.Error("Timed out waiting for cluster cache to sync")
+				os.Exit(1)
+			}
 
 			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, enableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), tokenRefStrictMode)
 
@@ -196,7 +225,7 @@ func NewCommand() *cobra.Command {
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
 			argoCDService := services.NewArgoCDService(argoCDDB, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 
-			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig)
+			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig, clusterInformer)
 
 			// start a webhook server that listens to incoming webhook payloads
 			webhookHandler, err := webhook.NewWebhookHandler(webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
@@ -231,6 +260,8 @@ func NewCommand() *cobra.Command {
 				GlobalPreservedAnnotations: globalPreservedAnnotations,
 				GlobalPreservedLabels:      globalPreservedLabels,
 				Metrics:                    &metrics,
+				MaxResourcesStatusCount:    maxResourcesStatusCount,
+				ClusterInformer:            clusterInformer,
 			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
@@ -275,6 +306,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
 	command.Flags().StringSliceVar(&metricsAplicationsetLabels, "metrics-applicationset-labels", []string{}, "List of Application labels that will be added to the argocd_applicationset_labels metric")
 	command.Flags().BoolVar(&enableGitHubAPIMetrics, "enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
+	command.Flags().IntVar(&maxResourcesStatusCount, "max-resources-status-count", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT", 5000, 0, math.MaxInt), "Max number of resources stored in appset status.")
 
 	return &command
 }

@@ -31,19 +31,19 @@ The following configuration options are available for Kustomize:
 * `commonLabels` is a string map of additional labels
 * `labelWithoutSelector` is a boolean value which defines if the common label(s) should be applied to resource selectors. It also excludes common labels from templates unless `labelIncludeTemplates` is set to true.
 * `labelIncludeTemplates` is a boolean value which defines if the common label(s) should be applied to resource templates.
-* `forceCommonLabels` is a boolean value which defines if it's allowed to override existing labels
 * `commonAnnotations` is a string map of additional annotations
 * `namespace` is a Kubernetes resources namespace
-* `forceCommonAnnotations` is a boolean value which defines if it's allowed to override existing annotations
 * `commonAnnotationsEnvsubst` is a boolean value which enables env variables substitution in annotation  values
 * `patches` is a list of Kustomize patches that supports inline updates
 * `components` is a list of Kustomize components
 * `ignoreMissingComponents` prevents kustomize from failing when components do not exist locally by not appending them to kustomization file
+* `forceCommonLabels` is a boolean value. When true, Argo CD passes --force to kustomize edit add label, allowing an existing commonLabels/labels entry in kustomization.yaml to be replaced. When false, generation fails if the label key already exists.
+* `forceCommonAnnotations` is a boolean value. When true, Argo CD passes --force to kustomize edit add annotation, allowing an existing commonAnnotations entry in kustomization.yaml to be replaced. When false, generation fails if the annotation key already exists. 
 
 To use Kustomize with an overlay, point your path to the overlay.
 
-!!! tip
-    If you're generating resources, you should read up how to ignore those generated resources using the [`IgnoreExtraneous` compare option](compare-options.md).
+> [!TIP]
+> If you're generating resources, you should read up how to ignore those generated resources using the [`IgnoreExtraneous` compare option](compare-options.md).
 
 ## Patches
 Patches are a way to kustomize resources using inline configurations in Argo CD applications.  `patches`  follow the same logic as the corresponding Kustomization.  Any patches that target existing Kustomization file will be merged.
@@ -168,7 +168,7 @@ spec:
 
 If you have remote bases that are either (a) HTTPS and need username/password (b) SSH and need SSH private key, then they'll inherit that from the app's repo.
 
-This will work if the remote bases uses the same credentials/private key. It will not work if they use different ones. For security reasons your app only ever knows about its own repo (not other team's or users repos), and so you won't be able to access other private repos, even if Argo CD knows about them.
+This will work if the remote bases use the same credentials/private key. It will not work if they use different ones. For security reasons your app only ever knows about its own repo (not other team's or users repos), and so you won't be able to access other private repos, even if Argo CD knows about them.
 
 Read more about [private repos](private-repositories.md).
 

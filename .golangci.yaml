@@ -22,6 +22,8 @@ linters:
     - govet
     - importas
     - misspell
+    - modernize
+    - noctx
     - perfsprint
     - revive
     - staticcheck
@@ -119,6 +121,13 @@ linters:
 
         - pkg: github.com/argoproj/argo-cd/v3/util/io
           alias: utilio
+
+    modernize:
+      disable:
+        # Suggest replacing omitempty with omitzero for struct fields.
+        - omitzero
+        # Simplify code by using go1.26's new(expr). - generates lots of false positives.
+        - newexpr
 
     nolintlint:
       require-specific: true

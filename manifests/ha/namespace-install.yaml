@@ -881,12 +881,28 @@ data:
         if [ "$MASTER" = "$ANNOUNCE_IP" ]; then
             redis_role
             if [ "$ROLE" != "master" ]; then
-                reinit
+                echo "waiting for redis to become master"
+                sleep 10
+                identify_master
+                redis_role
+                echo "Redis role is $ROLE, expected role is master. No need to reinitialize."
+                if [ "$ROLE" != "master" ]; then
+                    echo "Redis role is $ROLE, expected role is master, reinitializing"
+                    reinit
+                fi
             fi
         elif [ "${MASTER}" ]; then
             identify_redis_master
             if [ "$REDIS_MASTER" != "$MASTER" ]; then
-                reinit
+                echo "Redis master and local master are not the same. waiting."
+                sleep 10
+                identify_master
+                identify_redis_master
+                echo "Redis master is ${MASTER}, expected master is ${REDIS_MASTER}. No need to reinitialize."
+                if [ "${REDIS_MASTER}" != "${MASTER}" ]; then
+                    echo "Redis master is ${MASTER}, expected master is ${REDIS_MASTER}, reinitializing"
+                    reinit
+                fi
             fi
         fi
     done
@@ -1685,6 +1701,12 @@ spec:
       - args:
         - /usr/local/bin/argocd-applicationset-controller
         env:
+        - name: GRPC_ENABLE_TXT_SERVICE_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.grpc.enable.txt.service.config
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS
           valueFrom:
             configMapKeyRef:
@@ -1747,6 +1769,48 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_QPS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.client.qps
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_BURST
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.client.burst
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.client.max.idle.connections
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.tcp.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_KEEPALIVE
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.tcp.keepalive
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.tls.handshake.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_IDLE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.tcp.idle.timeout
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN
@@ -1845,6 +1909,12 @@ spec:
               key: applicationsetcontroller.requeue.after
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.status.max.resources.count
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -1875,6 +1945,8 @@ spec:
           name: tmp
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
       nodeSelector:
         kubernetes.io/os: linux
       serviceAccountName: argocd-applicationset-controller
@@ -1903,6 +1975,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - configMap:
+          items:
+          - key: applicationsetcontroller.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -2297,6 +2376,12 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
+        - name: GRPC_ENABLE_TXT_SERVICE_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.grpc.enable.txt.service.config
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
@@ -2507,6 +2592,12 @@ spec:
               key: reposerver.git.request.timeout
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.enable.builtin.git.config
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_GRPC_MAX_SIZE_MB
           valueFrom:
             configMapKeyRef:
@@ -2517,6 +2608,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.include.hidden.directories
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_HELM_USER_AGENT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.helm.user.agent
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME
@@ -2572,11 +2669,12 @@ spec:
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
       initContainers:
-      - command:
-        - /bin/cp
-        - -n
-        - /usr/local/bin/argocd
-        - /var/run/argocd/argocd-cmp-server
+      - args:
+        - /bin/cp --update=none /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln
+          -s /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
+        command:
+        - sh
+        - -c
         image: quay.io/argoproj/argocd:latest
         name: copyutil
         securityContext:
@@ -2669,6 +2767,12 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
+        - name: GRPC_ENABLE_TXT_SERVICE_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              key: server.grpc.enable.txt.service.config
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
             configMapKeyRef:
@@ -2697,6 +2801,48 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.log.level
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_QPS
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.client.qps
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_BURST
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.client.burst
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.client.max.idle.connections
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.tcp.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_KEEPALIVE
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.tcp.keepalive
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.tls.handshake.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_IDLE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.tcp.idle.timeout
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_SERVER_REPO_SERVER
@@ -3079,6 +3225,12 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
+        - name: GRPC_ENABLE_TXT_SERVICE_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              key: controller.grpc.enable.txt.service.config
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "1"
         - name: ARGOCD_RECONCILIATION_TIMEOUT
@@ -3147,6 +3299,48 @@ spec:
               key: log.format.timestamp
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_K8S_CLIENT_QPS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.client.qps
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_BURST
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.client.burst
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.client.max.idle.connections
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.tcp.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_KEEPALIVE
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.tcp.keepalive
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.tls.handshake.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_IDLE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.tcp.idle.timeout
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -3181,6 +3375,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.self.heal.backoff.cooldown.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SYNC_WAVE_DELAY
+          valueFrom:
+            configMapKeyRef:
+              key: controller.sync.wave.delay.seconds
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT
@@ -3404,7 +3604,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: bd30e83dfdad9912b6c1cc32a8c26d7d01429a0730f5ee7af380fb593e874d54
+        checksum/init-config: fd74f7d84e39b3f6eac1d7ce5deb0083e58f218376faf363343d91a0fb4f2563
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
@@ -3427,7 +3627,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -3475,9 +3675,9 @@ spec:
             - sh
             - -c
             - /health/redis_readiness.sh
-          failureThreshold: 3
-          initialDelaySeconds: 5
-          periodSeconds: 10
+          failureThreshold: 5
+          initialDelaySeconds: 30
+          periodSeconds: 15
           successThreshold: 1
           timeoutSeconds: 15
         volumeMounts:
@@ -3498,7 +3698,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           postStart:
@@ -3573,7 +3773,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -3608,7 +3808,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.2.7-alpine
+        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:

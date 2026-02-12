@@ -2,10 +2,12 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"encoding/pem"
 	stderrors "errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -29,7 +31,11 @@ import (
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util"
+	"github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/crypto"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/oidc"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	utiltest "github.com/argoproj/argo-cd/v3/util/test"
@@ -223,7 +229,7 @@ type tokenVerifierMock struct {
 	err    error
 }
 
-func (tm *tokenVerifierMock) VerifyToken(_ string) (jwt.Claims, string, error) {
+func (tm *tokenVerifierMock) VerifyToken(_ context.Context, _ string) (jwt.Claims, string, error) {
 	if tm.claims == nil {
 		return nil, "", tm.err
 	}
@@ -236,20 +242,39 @@ func strPointer(str string) *string {
 
 func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	handlerFunc := func() func(http.ResponseWriter, *http.Request) {
-		return func(w http.ResponseWriter, _ *http.Request) {
+		return func(w http.ResponseWriter, r *http.Request) {
 			t.Helper()
 			w.WriteHeader(http.StatusOK)
-			w.Header().Set("Content-Type", "application/text")
-			_, err := w.Write([]byte("Ok"))
-			require.NoError(t, err, "error writing response: %s", err)
+
+			contextClaims := r.Context().Value("claims")
+			if contextClaims != nil {
+				var gotClaims jwt.MapClaims
+				var ok bool
+				if gotClaims, ok = contextClaims.(jwt.MapClaims); !ok {
+					if tmpClaims, ok := contextClaims.(*jwt.MapClaims); ok && tmpClaims != nil {
+						gotClaims = *tmpClaims
+					}
+				}
+				jsonClaims, err := json.Marshal(gotClaims)
+				require.NoError(t, err, "error marshalling claims set by AuthMiddleware")
+				w.Header().Set("Content-Type", "application/json")
+				_, err = w.Write(jsonClaims)
+				require.NoError(t, err, "error writing response: %s", err)
+			} else {
+				w.Header().Set("Content-Type", "application/text")
+				_, err := w.Write([]byte("Ok"))
+				require.NoError(t, err, "error writing response: %s", err)
+			}
 		}
 	}
 	type testCase struct {
 		name                 string
 		authDisabled         bool
+		ssoEnabled           bool
 		cookieHeader         bool
-		verifiedClaims       *jwt.RegisteredClaims
+		verifiedClaims       *jwt.MapClaims
 		verifyTokenErr       error
+		userInfoCacheClaims  *jwt.MapClaims
 		expectedStatusCode   int
 		expectedResponseBody *string
 	}
@@ -258,51 +283,82 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 		{
 			name:                 "will authenticate successfully",
 			authDisabled:         false,
+			ssoEnabled:           false,
 			cookieHeader:         true,
-			verifiedClaims:       &jwt.RegisteredClaims{},
+			verifiedClaims:       &jwt.MapClaims{},
 			verifyTokenErr:       nil,
+			userInfoCacheClaims:  nil,
 			expectedStatusCode:   http.StatusOK,
-			expectedResponseBody: strPointer("Ok"),
+			expectedResponseBody: strPointer("{}"),
 		},
 		{
 			name:                 "will be noop if auth is disabled",
 			authDisabled:         true,
+			ssoEnabled:           false,
 			cookieHeader:         false,
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
+			userInfoCacheClaims:  nil,
 			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: strPointer("Ok"),
 		},
 		{
 			name:                 "will return 400 if no cookie header",
 			authDisabled:         false,
+			ssoEnabled:           false,
 			cookieHeader:         false,
-			verifiedClaims:       &jwt.RegisteredClaims{},
+			verifiedClaims:       &jwt.MapClaims{},
 			verifyTokenErr:       nil,
+			userInfoCacheClaims:  nil,
 			expectedStatusCode:   http.StatusBadRequest,
 			expectedResponseBody: nil,
 		},
 		{
 			name:                 "will return 401 verify token fails",
 			authDisabled:         false,
+			ssoEnabled:           false,
 			cookieHeader:         true,
-			verifiedClaims:       &jwt.RegisteredClaims{},
+			verifiedClaims:       &jwt.MapClaims{},
 			verifyTokenErr:       stderrors.New("token error"),
+			userInfoCacheClaims:  nil,
 			expectedStatusCode:   http.StatusUnauthorized,
 			expectedResponseBody: nil,
 		},
 		{
 			name:                 "will return 200 if claims are nil",
 			authDisabled:         false,
+			ssoEnabled:           false,
 			cookieHeader:         true,
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
+			userInfoCacheClaims:  nil,
 			expectedStatusCode:   http.StatusOK,
-			expectedResponseBody: strPointer("Ok"),
+			expectedResponseBody: strPointer("null"),
+		},
+		{
+			name:                 "will return 401 if sso is enabled but userinfo response not working",
+			authDisabled:         false,
+			ssoEnabled:           true,
+			cookieHeader:         true,
+			verifiedClaims:       nil,
+			verifyTokenErr:       nil,
+			userInfoCacheClaims:  nil, // indicates that the userinfo response will not work since cache is empty and userinfo endpoint not rechable
+			expectedStatusCode:   http.StatusUnauthorized,
+			expectedResponseBody: strPointer("Invalid session"),
+		},
+		{
+			name:                 "will return 200 if sso is enabled and userinfo response from cache is valid",
+			authDisabled:         false,
+			ssoEnabled:           true,
+			cookieHeader:         true,
+			verifiedClaims:       &jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			verifyTokenErr:       nil,
+			userInfoCacheClaims:  &jwt.MapClaims{"sub": "randomUser", "groups": []string{"superusers"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			expectedStatusCode:   http.StatusOK,
+			expectedResponseBody: strPointer("\"groups\":[\"superusers\"]"),
 		},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			mux := http.NewServeMux()
@@ -311,9 +367,49 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 				claims: tc.verifiedClaims,
 				err:    tc.verifyTokenErr,
 			}
-			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tm, mux))
+			clientApp := &oidc.ClientApp{} // all testcases need at least the empty struct for the function to work
+			if tc.ssoEnabled {
+				userInfoCache := cache.NewInMemoryCache(24 * time.Hour)
+				signature, err := util.MakeSignature(32)
+				require.NoError(t, err, "failed creating signature for settings object")
+				cdSettings := &settings.ArgoCDSettings{
+					ServerSignature: signature,
+					OIDCConfigRAW: `
+issuer: http://localhost:63231
+enableUserInfoGroups: true
+userInfoPath: /`,
+				}
+				clientApp, err = oidc.NewClientApp(cdSettings, "", nil, "/argo-cd", userInfoCache)
+				require.NoError(t, err, "failed creating clientapp")
+
+				// prepopulate the cache with claims to return for a userinfo call
+				encryptionKey, err := cdSettings.GetServerEncryptionKey()
+				require.NoError(t, err, "failed obtaining encryption key from settings")
+				// set fake accessToken for GetUserInfo to not return early (can be the same for all cases)
+				encAccessToken, err := crypto.Encrypt([]byte("123456"), encryptionKey)
+				require.NoError(t, err, "failed encrypting dummy access token")
+				err = userInfoCache.Set(&cache.Item{
+					Key:    oidc.FormatAccessTokenCacheKey("randomUser"),
+					Object: encAccessToken,
+				})
+				require.NoError(t, err, "failed setting item to in-memory cache")
+
+				// set cacheClaims to in-memory cache to let GetUserInfo return early with this information
+				if tc.userInfoCacheClaims != nil {
+					cacheClaims, err := json.Marshal(tc.userInfoCacheClaims)
+					require.NoError(t, err)
+					encCacheClaims, err := crypto.Encrypt([]byte(cacheClaims), encryptionKey)
+					require.NoError(t, err, "failed encrypting cache Claims")
+					err = userInfoCache.Set(&cache.Item{
+						Key:    oidc.FormatUserInfoResponseCacheKey("randomUser"),
+						Object: encCacheClaims,
+					})
+					require.NoError(t, err, "failed setting item to in-memory cache")
+				}
+			}
+			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tc.ssoEnabled, clientApp, tm, mux))
 			defer ts.Close()
-			req, err := http.NewRequest(http.MethodGet, ts.URL, http.NoBody)
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL, http.NoBody)
 			require.NoErrorf(t, err, "error creating request: %s", err)
 			if tc.cookieHeader {
 				req.Header.Add("Cookie", "argocd.token=123456")
@@ -520,13 +616,13 @@ func TestLoginRateLimiter(t *testing.T) {
 }
 
 func TestMaxUsernameLength(t *testing.T) {
-	username := ""
-	for i := 0; i < maxUsernameLength+1; i++ {
-		username += "a"
+	var username strings.Builder
+	for range maxUsernameLength + 1 {
+		username.WriteString("a")
 	}
 	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
-	err := mgr.VerifyUsernamePassword(username, "password")
+	err := mgr.VerifyUsernamePassword(username.String(), "password")
 	assert.ErrorContains(t, err, fmt.Sprintf(usernameTooLongError, maxUsernameLength))
 }
 
@@ -570,9 +666,7 @@ func getKubeClientWithConfig(config map[string]string, secretConfig map[string][
 	mergedSecretConfig := map[string][]byte{
 		"server.secretkey": []byte("Hello, world!"),
 	}
-	for key, value := range secretConfig {
-		mergedSecretConfig[key] = value
-	}
+	maps.Copy(mergedSecretConfig, secretConfig)
 
 	return fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -624,7 +718,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		assert.NotContains(t, err.Error(), "oidc: id token signed with unsupported algorithm")
 	})
 
@@ -656,7 +750,7 @@ rootCA: |
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		// If the root CA is being respected, we won't get this error. The error message is environment-dependent, so
 		// we check for either of the error messages associated with a failed cert check.
 		assert.NotContains(t, err.Error(), "certificate is not trusted")
@@ -693,7 +787,7 @@ rootCA: |
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -728,7 +822,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -763,7 +857,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -799,7 +893,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		assert.NotContains(t, err.Error(), "certificate is not trusted")
 		assert.NotContains(t, err.Error(), "certificate signed by unknown authority")
 	})
@@ -828,7 +922,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		// This is the error thrown when the test server's certificate _is_ being verified.
 		assert.NotContains(t, err.Error(), "certificate is not trusted")
 		assert.NotContains(t, err.Error(), "certificate signed by unknown authority")
@@ -865,7 +959,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 	})
 
@@ -901,7 +995,7 @@ skipAudienceCheckWhenTokenHasNoAudience: true`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.NoError(t, err)
 	})
 
@@ -937,7 +1031,7 @@ skipAudienceCheckWhenTokenHasNoAudience: false`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -973,7 +1067,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.NoError(t, err)
 	})
 
@@ -1010,7 +1104,7 @@ allowedAudiences:
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.NoError(t, err)
 	})
 
@@ -1047,7 +1141,7 @@ allowedAudiences:
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -1083,7 +1177,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -1120,7 +1214,7 @@ allowedAudiences: []`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -1158,7 +1252,7 @@ allowedAudiences: ["aud-a", "aud-b"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.NoError(t, err)
 	})
 
@@ -1193,7 +1287,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -1211,7 +1305,7 @@ func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
 		}
 
 		// inside pickRandomNonAdminLoginFailure, it uses random, so we need to test it multiple times
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			user := pickRandomNonAdminLoginFailure(failures, "test")
 			assert.Equal(t, "test2", *user)
 		}
@@ -1231,7 +1325,7 @@ func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
 		}
 
 		// inside pickRandomNonAdminLoginFailure, it uses random, so we need to test it multiple times
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			user := pickRandomNonAdminLoginFailure(failures, "test")
 			assert.Equal(t, "test2", *user)
 		}
