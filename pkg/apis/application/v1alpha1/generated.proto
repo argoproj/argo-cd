@@ -278,6 +278,8 @@ message ApplicationSetGenerator {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
 
   optional PluginGenerator plugin = 10;
+
+  optional OciGenerator oci = 11;
 }
 
 // ApplicationSetList contains a list of ApplicationSet
@@ -314,6 +316,8 @@ message ApplicationSetNestedGenerator {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
 
   optional PluginGenerator plugin = 10;
+
+  optional OciGenerator oci = 11;
 }
 
 // ApplicationSetResourceIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live
@@ -450,6 +454,8 @@ message ApplicationSetTerminalGenerator {
 
   // Selector allows to post-filter all generator.
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
+
+  optional OciGenerator oci = 9;
 }
 
 // ApplicationSetTree holds nodes which belongs to the application
@@ -1484,6 +1490,37 @@ message OCIMetadata {
   optional string version = 6;
 
   optional string description = 7;
+}
+
+message OciDirectoryGeneratorItem {
+  optional string path = 1;
+
+  optional bool exclude = 2;
+}
+
+message OciFileGeneratorItem {
+  optional string path = 1;
+
+  optional bool exclude = 2;
+}
+
+message OciGenerator {
+  optional string repoURL = 1;
+
+  repeated OciDirectoryGeneratorItem directories = 2;
+
+  repeated OciFileGeneratorItem files = 3;
+
+  optional string revision = 4;
+
+  optional int64 requeueAfterSeconds = 5;
+
+  optional ApplicationSetTemplate template = 6;
+
+  optional string pathParamPrefix = 7;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 8;
 }
 
 // Operation contains information about a requested or running operation

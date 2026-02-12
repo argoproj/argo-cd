@@ -15,6 +15,7 @@ As of this writing there are nine generators:
 - [Pull Request generator](Generators-Pull-Request.md): The Pull Request generator uses the API of an SCMaaS provider (eg GitHub) to automatically discover open pull requests within an repository.
 - [Cluster Decision Resource generator](Generators-Cluster-Decision-Resource.md): The Cluster Decision Resource generator is used to interface with Kubernetes custom resources that use custom resource-specific logic to decide which set of Argo CD clusters to deploy to.
 - [Plugin generator](Generators-Plugin.md): The Plugin generator makes RPC HTTP requests to provide parameters.
+- [OCI generator](Generators-OCI.md): Similar to the Git generator, allows you to create Applications based on files within a OCI artefact, or based on the directory structure of a OCI artefact.
 
 All generators can be filtered by using the [Post Selector](Generators-Post-Selector.md)
 
