@@ -1,17 +1,17 @@
 package scm_provider
 
 import (
-	ctx "context"
+	"context"
 	"errors"
 	"fmt"
-	rgsatypes "github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi/types"
-	"github.com/aws/aws-sdk-go-v2/service/sts"
-	"golang.org/x/net/context"
 	"maps"
 	pathpkg "path"
 	"path/filepath"
 	"slices"
 	"strings"
+
+	rgsatypes "github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
@@ -21,8 +21,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi"
 	log "github.com/sirupsen/logrus"
 
-	application "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/aws/aws-sdk-go-v2/config"
+
+	application "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 const (
@@ -34,7 +35,7 @@ const (
 // AWSCodeCommitClient is a lean facade to the codecommitiface.CodeCommitAPI
 // it helps to reduce the mockery generated code.
 type AWSCodeCommitClient interface {
-	ListRepositories(ctx.Context, *codecommit.ListRepositoriesInput, ...func(*codecommit.Options)) (*codecommit.ListRepositoriesOutput, error)
+	ListRepositories(context.Context, *codecommit.ListRepositoriesInput, ...func(*codecommit.Options)) (*codecommit.ListRepositoriesOutput, error)
 	GetRepository(context.Context, *codecommit.GetRepositoryInput, ...func(*codecommit.Options)) (*codecommit.GetRepositoryOutput, error)
 	ListBranches(context.Context, *codecommit.ListBranchesInput, ...func(*codecommit.Options)) (*codecommit.ListBranchesOutput, error)
 	GetFolder(context.Context, *codecommit.GetFolderInput, ...func(*codecommit.Options)) (*codecommit.GetFolderOutput, error)
