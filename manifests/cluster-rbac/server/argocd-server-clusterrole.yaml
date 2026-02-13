@@ -49,3 +49,9 @@ rules:
   - workflows
   verbs:
   - create   # supports triggering workflows from UI
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - backups
+  verbs:
+  - create   # supports triggering backups from UI
