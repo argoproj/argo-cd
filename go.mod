@@ -11,7 +11,6 @@ require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v1.0.0
-	github.com/aalexzy/sourcecraft-sdk v0.1.0
 	github.com/alicebob/miniredis/v2 v2.36.1
 	github.com/argoproj/argo-cd/gitops-engine v0.7.1-0.20250908182407-97ad5b59a627
 	github.com/argoproj/notifications-engine v0.5.1-0.20260119155007-a23b5827d630

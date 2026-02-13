@@ -18,7 +18,6 @@ import (
 	alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 
 	"github.com/Masterminds/semver/v3"
-	sourcecraft "github.com/aalexzy/sourcecraft-sdk"
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/bitbucket"
 	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
@@ -27,6 +26,8 @@ import (
 	"github.com/go-playground/webhooks/v6/gogs"
 	gogsclient "github.com/gogits/go-gogs-client"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v3/util/sourcecraft"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -313,7 +314,7 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 			change.shaBefore = ParseRevision(payload.RefUpdate.BeforeSha)
 		}
 		if payload.Repository != nil {
-			webURLs = append(webURLs, payload.Repository.WebUrl)
+			webURLs = append(webURLs, payload.Repository.WebURL)
 		}
 		touchedHead = payload.IsDefaultBranchUpdated
 		for _, commit := range payload.Commits {

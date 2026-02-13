@@ -6,7 +6,7 @@ import (
 	"os"
 	"strconv"
 
-	sourcecraft "github.com/aalexzy/sourcecraft-sdk"
+	"github.com/argoproj/argo-cd/v3/util/sourcecraft"
 )
 
 type SourceCraftService struct {

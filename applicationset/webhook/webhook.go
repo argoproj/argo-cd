@@ -16,12 +16,11 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	sourcecraft "github.com/aalexzy/sourcecraft-sdk"
-
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/sourcecraft"
 	"github.com/argoproj/argo-cd/v3/util/webhook"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
@@ -231,7 +230,7 @@ func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
 		// unfortunately, Azure DevOps doesn't provide a list of changed files
 	case sourcecraft.PushEventPayload:
-		webURL = payload.Repository.WebUrl
+		webURL = payload.Repository.WebURL
 		revision = webhook.ParseRevision(payload.RefUpdate.Ref)
 		touchedHead = payload.IsDefaultBranchUpdated
 	default:
