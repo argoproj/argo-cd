@@ -2674,6 +2674,54 @@ func TestPerformCSAUpgradeMigration_WithCSAManager(t *testing.T) {
 	}
 }
 
+func TestPerformCSAUpgradeMigration_ConflictRetry(t *testing.T) {
+	// This test verifies that when a 409 Conflict occurs on the patch because
+	// another actor modified the object between Get and Patch, changing the resourceVersion,
+	// the retry.RetryOnConflict loop retries and eventually succeeds.
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	obj := testingutils.NewPod()
+	obj.SetNamespace(testingutils.FakeArgoCDNamespace)
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+		{
+			Manager:   "kubectl-client-side-apply",
+			Operation: metav1.ManagedFieldsOperationUpdate,
+			FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:metadata":{"f:labels":{"f:app":{}}}}`)},
+		},
+	})
+
+	dynamicClient := fake.NewSimpleDynamicClient(scheme, obj)
+
+	// Simulate a conflict on the first patch attempt where another
+	// controller modified the object between our Get and Patch, bumping resourceVersion).
+	// The second attempt should succeed.
+	patchAttempt := 0
+	dynamicClient.PrependReactor("patch", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+		patchAttempt++
+		if patchAttempt == 1 {
+			// First attempt: simulate 409 Conflict (resourceVersion mismatch)
+			return true, nil, apierrors.NewConflict(
+				schema.GroupResource{Group: "", Resource: "pods"},
+				obj.GetName(),
+				errors.New("the object has been modified; please apply your changes to the latest version"),
+			)
+		}
+		return false, nil, nil
+	})
+
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.serverSideApplyManager = "argocd-controller"
+	syncCtx.dynamicIf = dynamicClient
+	syncCtx.disco = &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources},
+	}
+
+	err := syncCtx.performCSAUpgradeMigration(obj, "kubectl-client-side-apply")
+	assert.NoError(t, err, "Migration should succeed after retrying on conflict")
+	assert.Equal(t, 2, patchAttempt, "Expected exactly 2 patch attempts (1 conflict + 1 success)")
+}
+
 func diffResultListClusterResource() *diff.DiffResultList {
 	ns1 := testingutils.NewNamespace()
 	ns1.SetName("ns-1")

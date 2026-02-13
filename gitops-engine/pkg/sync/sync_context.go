@@ -1290,17 +1290,18 @@ func (sc *syncContext) performCSAUpgradeMigration(liveObj *unstructured.Unstruct
 			return nil
 		}
 
-		// Apply the migration patch to transfer field ownership
+		// Apply the migration patch to transfer field ownership.
 		_, patchErr = resIf.Patch(context.TODO(), liveObj.GetName(), types.JSONPatchType, patchData, metav1.PatchOptions{})
 		if patchErr != nil {
 			if apierrors.IsConflict(patchErr) {
 				sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).V(1).Info(
 					"Retrying CSA migration due to conflict")
 			}
-			return fmt.Errorf("failed to apply csaupgrade migration patch: %w", patchErr)
+			// Return the error unmodified so RetryOnConflict can identify conflicts correctly.
+			return patchErr
 		}
 
-		sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).Info(
+		sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).V(1).Info(
 			"Successfully migrated managed fields using csaupgrade")
 		return nil
 	})
@@ -1331,7 +1332,7 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 		if sc.needsClientSideApplyMigration(t.liveObj, sc.clientSideApplyMigrationManager) {
 			err = sc.performCSAUpgradeMigration(t.liveObj, sc.clientSideApplyMigrationManager)
 			if err != nil {
-				return common.ResultCodeSyncFailed, fmt.Sprintf("Failed to perform client-side apply migration: %v", err)
+				return common.ResultCodeSyncFailed, fmt.Sprintf("Failed to perform client-side apply migration for %s: %v", kubeutil.GetResourceKey(t.liveObj), err)
 			}
 		}
 	}
