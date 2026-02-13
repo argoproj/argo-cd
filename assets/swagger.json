@@ -9756,7 +9756,7 @@
       "type": "object",
       "properties": {
         "diff": {
-          "description": "Diff contains the JSON patch representing the difference between the live and target resource.\nDeprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.",
+          "description": "Diff contains the JSON patch representing the difference between the live and target resource.\n\nDeprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.",
           "type": "string"
         },
         "group": {
