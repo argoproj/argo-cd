@@ -290,6 +290,10 @@ func (h *LogHook) Fire(entry *log.Entry) error {
 	return nil
 }
 
+func (h *LogHook) CleanupHook() {
+	log.StandardLogger().ReplaceHooks(log.LevelHooks{})
+}
+
 func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
 	re := regexp.MustCompile(match)
 	matches := make([]string, 0)
@@ -297,6 +301,13 @@ func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
 		if re.MatchString(entry.Message) {
 			matches = append(matches, entry.Message)
 		}
+	}
+	return matches
+}
+
+func (h *LogHook) GetEntries() (matches []string) {
+	for _, entry := range h.Entries {
+		matches = append(matches, entry.Message)
 	}
 	return matches
 }

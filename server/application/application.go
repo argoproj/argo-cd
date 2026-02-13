@@ -1619,9 +1619,9 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	}
 	defer utilio.Close(conn)
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
-		Repo:           repo,
-		Revision:       q.GetRevision(),
-		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
+		Repo:            repo,
+		Revision:        q.GetRevision(),
+		SourceIntegrity: proj.EffectiveSourceIntegrity(),
 	})
 }
 
@@ -2063,11 +2063,6 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, status.Error(codes.FailedPrecondition, "sync with replace was disabled on the API Server level via the server configuration")
 	}
 
-	// We cannot use local manifests if we're only allowed to sync to signed commits
-	if syncReq.Manifests != nil && len(proj.Spec.SignatureKeys) > 0 {
-		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local sync when signature keys are required.")
-	}
-
 	resources := []v1alpha1.SyncOperationResource{}
 	if syncReq.GetResources() != nil {
 		for _, r := range syncReq.GetResources() {
@@ -2078,8 +2073,16 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	}
 
 	var source *v1alpha1.ApplicationSource
+	var repoURL string
 	if !a.Spec.HasMultipleSources() {
 		source = ptr.To(a.Spec.GetSource())
+		repoURL = source.RepoURL
+	} else {
+		repoURL = a.Spec.Sources[0].RepoURL
+	}
+
+	if syncReq.Manifests != nil && proj.EffectiveSourceIntegrity().ForGit(repoURL) != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local sync when signature keys are required.")
 	}
 
 	op := v1alpha1.Operation{

@@ -268,6 +268,46 @@ spec:
                   - keyID
                   type: object
                 type: array
+              sourceIntegrity:
+                description: SourceIntegrity represents a constraint on manifest sources
+                  integrity to be met before they can be used.
+                properties:
+                  git:
+                    description: |-
+                      Git - policies for git source verification
+                      Mandatory field until there are alternatives
+                    properties:
+                      policies:
+                        items:
+                          properties:
+                            gpg:
+                              description: Mandatory field until there are alternatives
+                              properties:
+                                keys:
+                                  items:
+                                    type: string
+                                  type: array
+                                mode:
+                                  type: string
+                              required:
+                              - keys
+                              - mode
+                              type: object
+                            repos:
+                              items:
+                                type: string
+                              type: array
+                          required:
+                          - gpg
+                          - repos
+                          type: object
+                        type: array
+                    required:
+                    - policies
+                    type: object
+                required:
+                - git
+                type: object
               sourceNamespaces:
                 description: SourceNamespaces defines the namespaces application resources
                   are allowed to be created in

@@ -250,7 +250,7 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 	err := RotateServiceAccountSecrets(kubeclientset, &testClaims, generatedSecret)
 	require.NoError(t, err)
 
-	// Verify service account references new secret and old secret is deleted
+	// Verifyservice account references new secret and old secret is deleted
 	saClient := kubeclientset.CoreV1().ServiceAccounts(testClaims.Namespace)
 	sa, err := saClient.Get(t.Context(), testClaims.ServiceAccountName, metav1.GetOptions{})
 	require.NoError(t, err)

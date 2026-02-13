@@ -7,6 +7,7 @@ package mocks
 import (
 	"context"
 
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -38,8 +39,8 @@ func (_m *Repos) EXPECT() *Repos_Expecter {
 }
 
 // GetDirectories provides a mock function for the type Repos
-func (_mock *Repos) GetDirectories(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, verifyCommit bool) ([]string, error) {
-	ret := _mock.Called(ctx, repoURL, revision, project, noRevisionCache, verifyCommit)
+func (_mock *Repos) GetDirectories(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, SourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error) {
+	ret := _mock.Called(ctx, repoURL, revision, project, noRevisionCache, SourceIntegrity)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetDirectories")
@@ -47,18 +48,18 @@ func (_mock *Repos) GetDirectories(ctx context.Context, repoURL string, revision
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool, bool) ([]string, error)); ok {
-		return returnFunc(ctx, repoURL, revision, project, noRevisionCache, verifyCommit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool, *v1alpha1.SourceIntegrity) ([]string, error)); ok {
+		return returnFunc(ctx, repoURL, revision, project, noRevisionCache, SourceIntegrity)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool, bool) []string); ok {
-		r0 = returnFunc(ctx, repoURL, revision, project, noRevisionCache, verifyCommit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool, *v1alpha1.SourceIntegrity) []string); ok {
+		r0 = returnFunc(ctx, repoURL, revision, project, noRevisionCache, SourceIntegrity)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, bool, bool) error); ok {
-		r1 = returnFunc(ctx, repoURL, revision, project, noRevisionCache, verifyCommit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, bool, *v1alpha1.SourceIntegrity) error); ok {
+		r1 = returnFunc(ctx, repoURL, revision, project, noRevisionCache, SourceIntegrity)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -76,12 +77,12 @@ type Repos_GetDirectories_Call struct {
 //   - revision string
 //   - project string
 //   - noRevisionCache bool
-//   - verifyCommit bool
-func (_e *Repos_Expecter) GetDirectories(ctx interface{}, repoURL interface{}, revision interface{}, project interface{}, noRevisionCache interface{}, verifyCommit interface{}) *Repos_GetDirectories_Call {
-	return &Repos_GetDirectories_Call{Call: _e.mock.On("GetDirectories", ctx, repoURL, revision, project, noRevisionCache, verifyCommit)}
+//   - SourceIntegrity *v1alpha1.SourceIntegrity
+func (_e *Repos_Expecter) GetDirectories(ctx interface{}, repoURL interface{}, revision interface{}, project interface{}, noRevisionCache interface{}, SourceIntegrity interface{}) *Repos_GetDirectories_Call {
+	return &Repos_GetDirectories_Call{Call: _e.mock.On("GetDirectories", ctx, repoURL, revision, project, noRevisionCache, SourceIntegrity)}
 }
 
-func (_c *Repos_GetDirectories_Call) Run(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, verifyCommit bool)) *Repos_GetDirectories_Call {
+func (_c *Repos_GetDirectories_Call) Run(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, SourceIntegrity *v1alpha1.SourceIntegrity)) *Repos_GetDirectories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -103,9 +104,9 @@ func (_c *Repos_GetDirectories_Call) Run(run func(ctx context.Context, repoURL s
 		if args[4] != nil {
 			arg4 = args[4].(bool)
 		}
-		var arg5 bool
+		var arg5 *v1alpha1.SourceIntegrity
 		if args[5] != nil {
-			arg5 = args[5].(bool)
+			arg5 = args[5].(*v1alpha1.SourceIntegrity)
 		}
 		run(
 			arg0,
@@ -124,14 +125,14 @@ func (_c *Repos_GetDirectories_Call) Return(strings []string, err error) *Repos_
 	return _c
 }
 
-func (_c *Repos_GetDirectories_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, verifyCommit bool) ([]string, error)) *Repos_GetDirectories_Call {
+func (_c *Repos_GetDirectories_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, SourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error)) *Repos_GetDirectories_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetFiles provides a mock function for the type Repos
-func (_mock *Repos) GetFiles(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, verifyCommit bool) (map[string][]byte, error) {
-	ret := _mock.Called(ctx, repoURL, revision, project, pattern, noRevisionCache, verifyCommit)
+func (_mock *Repos) GetFiles(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error) {
+	ret := _mock.Called(ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFiles")
@@ -139,18 +140,18 @@ func (_mock *Repos) GetFiles(ctx context.Context, repoURL string, revision strin
 
 	var r0 map[string][]byte
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool, bool) (map[string][]byte, error)); ok {
-		return returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache, verifyCommit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool, *v1alpha1.SourceIntegrity) (map[string][]byte, error)); ok {
+		return returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool, bool) map[string][]byte); ok {
-		r0 = returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache, verifyCommit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string, bool, *v1alpha1.SourceIntegrity) map[string][]byte); ok {
+		r0 = returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string][]byte)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, bool, bool) error); ok {
-		r1 = returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache, verifyCommit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string, bool, *v1alpha1.SourceIntegrity) error); ok {
+		r1 = returnFunc(ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -169,12 +170,12 @@ type Repos_GetFiles_Call struct {
 //   - project string
 //   - pattern string
 //   - noRevisionCache bool
-//   - verifyCommit bool
-func (_e *Repos_Expecter) GetFiles(ctx interface{}, repoURL interface{}, revision interface{}, project interface{}, pattern interface{}, noRevisionCache interface{}, verifyCommit interface{}) *Repos_GetFiles_Call {
-	return &Repos_GetFiles_Call{Call: _e.mock.On("GetFiles", ctx, repoURL, revision, project, pattern, noRevisionCache, verifyCommit)}
+//   - sourceIntegrity *v1alpha1.SourceIntegrity
+func (_e *Repos_Expecter) GetFiles(ctx interface{}, repoURL interface{}, revision interface{}, project interface{}, pattern interface{}, noRevisionCache interface{}, sourceIntegrity interface{}) *Repos_GetFiles_Call {
+	return &Repos_GetFiles_Call{Call: _e.mock.On("GetFiles", ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)}
 }
 
-func (_c *Repos_GetFiles_Call) Run(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, verifyCommit bool)) *Repos_GetFiles_Call {
+func (_c *Repos_GetFiles_Call) Run(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity)) *Repos_GetFiles_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -200,9 +201,9 @@ func (_c *Repos_GetFiles_Call) Run(run func(ctx context.Context, repoURL string,
 		if args[5] != nil {
 			arg5 = args[5].(bool)
 		}
-		var arg6 bool
+		var arg6 *v1alpha1.SourceIntegrity
 		if args[6] != nil {
-			arg6 = args[6].(bool)
+			arg6 = args[6].(*v1alpha1.SourceIntegrity)
 		}
 		run(
 			arg0,
@@ -222,7 +223,7 @@ func (_c *Repos_GetFiles_Call) Return(stringToBytes map[string][]byte, err error
 	return _c
 }
 
-func (_c *Repos_GetFiles_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, verifyCommit bool) (map[string][]byte, error)) *Repos_GetFiles_Call {
+func (_c *Repos_GetFiles_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error)) *Repos_GetFiles_Call {
 	_c.Call.Return(run)
 	return _c
 }

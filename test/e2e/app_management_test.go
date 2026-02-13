@@ -243,7 +243,9 @@ func TestSyncToSignedBranchWithUnknownKey(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
+		Expect(HealthIs(health.HealthStatusMissing)).
+		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: Failed verifying revision")).
+		Expect(Condition(ApplicationConditionComparisonError, "signed with key not in keyring (key_id="+fixture.GpgGoodKeyID+")"))
 }
 
 func TestSyncToUnsignedBranch(t *testing.T) {
@@ -261,7 +263,9 @@ func TestSyncToUnsignedBranch(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
+		Expect(HealthIs(health.HealthStatusMissing)).
+		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: Failed verifying revision")).
+		Expect(Condition(ApplicationConditionComparisonError, "unsigned (key_id=)"))
 }
 
 func TestSyncToSignedTagWithKnownKey(t *testing.T) {
@@ -298,7 +302,9 @@ func TestSyncToSignedTagWithUnknownKey(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
+		Expect(HealthIs(health.HealthStatusMissing)).
+		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: Failed verifying revision signed-tag by ")).
+		Expect(Condition(ApplicationConditionComparisonError, "signed with key not in keyring (key_id="+fixture.GpgGoodKeyID+")"))
 }
 
 func TestSyncToUnsignedTag(t *testing.T) {
@@ -317,7 +323,9 @@ func TestSyncToUnsignedTag(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
+		Expect(HealthIs(health.HealthStatusMissing)).
+		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: Failed verifying revision ")).
+		Expect(Condition(ApplicationConditionComparisonError, "unsigned (key_id=)"))
 }
 
 func TestAppCreation(t *testing.T) {

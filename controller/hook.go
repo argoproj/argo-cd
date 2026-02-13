@@ -83,7 +83,7 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 		revisions = append(revisions, src.TargetRevision)
 	}
 
-	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, true)
+	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(context.Background(), app, app.Spec.GetSources(), appLabelKey, revisions, false, false, nil, proj, true)
 	if err != nil {
 		return false, err
 	}

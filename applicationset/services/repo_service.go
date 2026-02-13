@@ -20,10 +20,10 @@ type argoCDService struct {
 
 type Repos interface {
 	// GetFiles returns content of files (not directories) within the target repo
-	GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, error)
+	GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error)
 
 	// GetDirectories returns a list of directories (not files) within the target repo
-	GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, error)
+	GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, SourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error)
 }
 
 func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) Repos {
@@ -50,7 +50,7 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 	}
 }
 
-func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, error) {
+func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error) {
 	repo, err := a.getRepository(ctx, repoURL, project)
 	if err != nil {
 		return nil, fmt.Errorf("error in GetRepository: %w", err)
@@ -63,8 +63,9 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project
 		Path:                      pattern,
 		NewGitFileGlobbingEnabled: a.newFileGlobbingEnabled,
 		NoRevisionCache:           noRevisionCache,
-		VerifyCommit:              verifyCommit,
+		SourceIntegrity:           sourceIntegrity,
 	}
+
 	fileResponse, err := a.getGitFilesFromRepoServer(ctx, fileRequest)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving Git files: %w", err)
@@ -72,7 +73,7 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project
 	return fileResponse.GetMap(), nil
 }
 
-func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, error) {
+func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error) {
 	repo, err := a.getRepository(ctx, repoURL, project)
 	if err != nil {
 		return nil, fmt.Errorf("error in GetRepository: %w", err)
@@ -83,7 +84,7 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, p
 		SubmoduleEnabled: a.submoduleEnabled,
 		Revision:         revision,
 		NoRevisionCache:  noRevisionCache,
-		VerifyCommit:     verifyCommit,
+		SourceIntegrity:  sourceIntegrity,
 	}
 
 	dirResponse, err := a.getGitDirectoriesFromRepoServer(ctx, dirRequest)

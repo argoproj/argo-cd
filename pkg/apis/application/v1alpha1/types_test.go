@@ -2375,6 +2375,85 @@ func TestAppProjectSpec_AddWindow(t *testing.T) {
 	}
 }
 
+func TestAppProject_SourceIntegrity(t *testing.T) {
+	sourceIntegrity := func(repo string, mode SourceIntegrityGitPolicyGPGMode, keys ...string) *SourceIntegrity {
+		return &SourceIntegrity{
+			Git: &SourceIntegrityGit{
+				Policies: []*SourceIntegrityGitPolicy{{
+					Repos: []string{repo},
+					GPG: &SourceIntegrityGitPolicyGPG{
+						Mode: mode,
+						Keys: keys,
+					},
+				}},
+			},
+		}
+	}
+	tests := []struct {
+		name     string
+		spec     AppProjectSpec
+		expected *SourceIntegrity
+	}{
+		{
+			name:     "no old, no new",
+			spec:     AppProjectSpec{},
+			expected: nil,
+		}, {
+			name: "no old, new unchanged",
+			spec: AppProjectSpec{
+				SourceIntegrity: sourceIntegrity("https://github.com/*", SourceIntegrityGitPolicyGPGModeStrict, "FOO"),
+			},
+			expected: sourceIntegrity("https://github.com/*", SourceIntegrityGitPolicyGPGModeStrict, "FOO"),
+		}, {
+			name: "old, no new",
+			spec: AppProjectSpec{
+				SignatureKeys: []SignatureKey{{"LEGACY"}, {"KEYS"}, {"FOUND"}},
+			},
+			expected: sourceIntegrity("*", SourceIntegrityGitPolicyGPGModeHead, "LEGACY", "KEYS", "FOUND"),
+		}, {
+			name: "old ignored, overlap with new on *",
+			spec: AppProjectSpec{
+				SignatureKeys:   []SignatureKey{{"LEGACY"}, {"KEYS"}, {"FOUND"}},
+				SourceIntegrity: sourceIntegrity("*", SourceIntegrityGitPolicyGPGModeStrict, "NEW_KEY"),
+			},
+			expected: sourceIntegrity("*", SourceIntegrityGitPolicyGPGModeStrict, "NEW_KEY"),
+		}, {
+			name: "old, merge with new",
+			spec: AppProjectSpec{
+				SignatureKeys:   []SignatureKey{{KeyID: "LEGACY_KEY"}},
+				SourceIntegrity: sourceIntegrity("https://github.com/*", SourceIntegrityGitPolicyGPGModeStrict, "NEW_KEY"),
+			},
+			expected: &SourceIntegrity{
+				Git: &SourceIntegrityGit{
+					Policies: []*SourceIntegrityGitPolicy{
+						{
+							// Kept
+							Repos: []string{"https://github.com/*"},
+							GPG: &SourceIntegrityGitPolicyGPG{
+								Mode: SourceIntegrityGitPolicyGPGModeStrict,
+								Keys: []string{"NEW_KEY"},
+							},
+						}, {
+							// Added
+							Repos: []string{"*"},
+							GPG: &SourceIntegrityGitPolicyGPG{
+								Mode: SourceIntegrityGitPolicyGPGModeHead,
+								Keys: []string{"LEGACY_KEY"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			appProj := &AppProject{Spec: tt.spec, ObjectMeta: metav1.ObjectMeta{Name: "sut"}}
+			assert.Equal(t, tt.expected, appProj.EffectiveSourceIntegrity())
+		})
+	}
+}
+
 func TestAppProjectSpecWindowWithDescription(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
 	require.NoError(t, proj.Spec.AddWindow("allow", "* * * * *", "1h", []string{"app1"}, []string{}, []string{}, false, "error", false, "Ticket AAAAA"))

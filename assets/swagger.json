@@ -6041,12 +6041,11 @@
         "server": {
           "type": "string"
         },
+        "sourceIntegrityResult": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityCheckResult"
+        },
         "sourceType": {
           "type": "string"
-        },
-        "verifyResult": {
-          "type": "string",
-          "title": "Raw response of git verify-commit operation (always the empty string for Helm)"
         }
       }
     },
@@ -6929,6 +6928,9 @@
           "items": {
             "$ref": "#/definitions/v1alpha1SignatureKey"
           }
+        },
+        "sourceIntegrity": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrity"
         },
         "sourceNamespaces": {
           "type": "array",
@@ -9756,7 +9758,7 @@
       "type": "object",
       "properties": {
         "diff": {
-          "description": "Diff contains the JSON patch representing the difference between the live and target resource.\nDeprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.",
+          "description": "Diff contains the JSON patch representing the difference between the live and target resource.\n\nDeprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.",
           "type": "string"
         },
         "group": {
@@ -10117,9 +10119,8 @@
             "$ref": "#/definitions/v1alpha1RevisionReference"
           }
         },
-        "signatureInfo": {
-          "description": "SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.",
-          "type": "string"
+        "sourceIntegrityResult": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityCheckResult"
         },
         "tags": {
           "type": "array",
@@ -10462,6 +10463,82 @@
         },
         "lastSuccessfulOperation": {
           "$ref": "#/definitions/v1alpha1SuccessfulHydrateOperation"
+        }
+      }
+    },
+    "v1alpha1SourceIntegrity": {
+      "type": "object",
+      "properties": {
+        "git": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityGit"
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityCheckResult": {
+      "description": "SourceIntegrityCheckResult represents a conclusion of the SourceIntegrity evaluation.\nEach check performed on a source(es), holds a check item representing all checks performed.",
+      "type": "object",
+      "properties": {
+        "checks": {
+          "description": "Checks holds a list of checks performed, with their eventual problems. If a check is not specified here,\nit means it was not performed.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SourceIntegrityCheckResultItem"
+          }
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityCheckResultItem": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Name of the check that is human-understandable pointing out to the kind of verification performed.",
+          "type": "string"
+        },
+        "problems": {
+          "description": "Problems is a list of messages explaining why the check failed. Empty list means success.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityGit": {
+      "type": "object",
+      "properties": {
+        "policies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SourceIntegrityGitPolicy"
+          }
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityGitPolicy": {
+      "type": "object",
+      "properties": {
+        "gpg": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityGitPolicyGPG"
+        },
+        "repos": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityGitPolicyGPG": {
+      "type": "object",
+      "properties": {
+        "keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mode": {
+          "type": "string"
         }
       }
     },

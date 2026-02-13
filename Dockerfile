@@ -56,7 +56,6 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
 COPY hack/gpg-wrapper.sh \
-    hack/git-verify-wrapper.sh \
     entrypoint.sh \
     /usr/local/bin/
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
