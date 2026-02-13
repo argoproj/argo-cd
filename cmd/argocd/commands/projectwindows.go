@@ -76,10 +76,16 @@ func newProjectWindowsToggleCommand(clientOpts *argocdclient.ClientOptions, use,
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
+			found := false
 			for i, window := range proj.Spec.SyncWindows {
 				if id == i {
 					updateFn(window)
+					found = true
+					break
 				}
+			}
+			if !found {
+				errors.CheckError(fmt.Errorf("window with id '%d' not found", id))
 			}
 
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})

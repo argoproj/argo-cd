@@ -5134,6 +5134,7 @@ func TestSyncPolicyAutomatedSerialisation(t *testing.T) {
 			assert.Equal(t, tt.automated.AllowEmpty, got.AllowEmpty)
 		})
 	}
+}
 
 func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("DenyWindowWithoutOverrunBlocksContinuingSync", func(t *testing.T) {
