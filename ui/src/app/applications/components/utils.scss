@@ -44,11 +44,12 @@ i.utils-health-status-icon {
     }
 }
 
-.icon.spin {
+svg.icon.spin {
     animation: spin 2s linear infinite; 
-    width: 0.5em;
-    height: 0.5em;
-    vertical-align: -0.05em;
+    font-size: inherit;
+    width: 1em;
+    height: 1em;
+    vertical-align: -0.125em;
     overflow: visible;
 }
 
