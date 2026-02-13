@@ -312,8 +312,6 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 )
 
-require github.com/argoproj/gitops-engine v0.7.3
-
 require github.com/aws/aws-sdk-go-v2/service/signin v1.0.5 // indirect
 
 replace (

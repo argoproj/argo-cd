@@ -71,8 +71,8 @@ Expire-Date: 0
 	require.NoError(g.t, err)
 
 	// Parse output to get key ID
-	lines := strings.Split(string(out), "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(string(out), "\n")
+	for line := range lines {
 		if strings.HasPrefix(line, "pub:") {
 			fields := strings.Split(line, ":")
 			if len(fields) > 4 {
