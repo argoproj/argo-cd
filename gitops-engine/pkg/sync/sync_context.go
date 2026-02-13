@@ -1336,7 +1336,8 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 
 // pruneObject deletes the object if both prune is true and dryRun is false. Otherwise appropriate message
 func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) (common.ResultCode, string) {
-	if !prune {
+	pruneAllowed := prune || resourceutil.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, common.SyncOptionEnablePrune)
+	if !pruneAllowed {
 		return common.ResultCodePruneSkipped, "ignored (requires pruning)"
 	} else if resourceutil.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, common.SyncOptionDisablePrune) {
 		return common.ResultCodePruneSkipped, "ignored (no prune)"
