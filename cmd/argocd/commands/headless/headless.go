@@ -100,6 +100,12 @@ func (c *forwardCacheClient) Delete(key string) error {
 	})
 }
 
+func (c *forwardCacheClient) DeleteByPattern(key string) error {
+	return c.doLazy(func(client cache.CacheClient) error {
+		return client.DeleteByPattern(key)
+	})
+}
+
 func (c *forwardCacheClient) OnUpdated(ctx context.Context, key string, callback func() error) error {
 	return c.doLazy(func(client cache.CacheClient) error {
 		return client.OnUpdated(ctx, key, callback)

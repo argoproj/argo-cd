@@ -352,6 +352,11 @@ func (c *Cache) SetItem(key string, item any, opts *CacheActionOpts) error {
 	if opts.Delete {
 		return client.Delete(fullKey)
 	}
+	if opts.KeyPatternToDelete != "" {
+		if err := client.DeleteByPattern(opts.KeyPatternToDelete); err != nil {
+			return fmt.Errorf("failed to delete cache items by pattern %s: %w", opts.KeyPatternToDelete, err)
+		}
+	}
 	return client.Set(&Item{Key: fullKey, Object: item, CacheActionOpts: *opts})
 }
 
