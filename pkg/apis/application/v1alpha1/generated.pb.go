@@ -14322,6 +14322,14 @@ func (m *ResourceStatus) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	var l int
 	_ = l
 	i--
+	if m.PruneRequested {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x60
+	i--
 	if m.RequiresDeletionConfirmation {
 		dAtA[i] = 1
 	} else {
@@ -19515,6 +19523,7 @@ func (m *ResourceStatus) Size() (n int) {
 	n += 2
 	n += 1 + sovGenerated(uint64(m.SyncWave))
 	n += 2
+	n += 2
 	return n
 }
 
@@ -22636,6 +22645,7 @@ func (this *ResourceStatus) String() string {
 		`RequiresPruning:` + fmt.Sprintf("%v", this.RequiresPruning) + `,`,
 		`SyncWave:` + fmt.Sprintf("%v", this.SyncWave) + `,`,
 		`RequiresDeletionConfirmation:` + fmt.Sprintf("%v", this.RequiresDeletionConfirmation) + `,`,
+		`PruneRequested:` + fmt.Sprintf("%v", this.PruneRequested) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -51763,6 +51773,26 @@ func (m *ResourceStatus) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.RequiresDeletionConfirmation = bool(v != 0)
+		case 12:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PruneRequested", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.PruneRequested = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
