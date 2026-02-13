@@ -2588,8 +2588,8 @@ message SourceIntegrityGit {
 }
 
 message SourceIntegrityGitPolicy {
-  // List of repository glob patterns restricting repositories the policy will apply to
-  repeated string repos = 1;
+  // List of repository criteria restricting repositories the policy will apply to
+  repeated SourceIntegrityGitPolicyRepo repos = 1;
 
   // Verify GPG commit/tag signatures
   optional SourceIntegrityGitPolicyGPG gpg = 2;
@@ -2609,6 +2609,11 @@ message SourceIntegrityGitPolicyGPG {
 
   // List of key IDs to trust. The keys need to be in the repository server keyring.
   repeated string keys = 3;
+}
+
+message SourceIntegrityGitPolicyRepo {
+  // URL specifier, glob.
+  optional string url = 1;
 }
 
 // SuccessfulHydrateOperation contains information about the most recent successful hydrate operation

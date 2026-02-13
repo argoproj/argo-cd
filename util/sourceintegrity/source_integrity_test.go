@@ -37,7 +37,7 @@ func Test_GPGDisabledLogging(t *testing.T) {
 	t.Setenv("ARGOCD_GPG_ENABLED", "false")
 
 	si := &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
-		Repos: []string{"*"},
+		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{Url: "*"}},
 		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
 			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
 			Keys: []string{"SOME_KEY_ID"},
@@ -93,19 +93,17 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 			logged: []string{},
 		},
 		{
-			name: "No matching policy",
-			si: &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
-				// No policies configured here
-			}},
+			name:   "No matching policy",
+			si:     &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{}}, // No policies configured here
 			logged: []string{},
 		},
 		{
 			name: "Matching policy does nothing",
 			si: &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
-				Repos: []string{"*"},
+				Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{Url: "*"}},
 				// No GPG or alternative specified
 			}}}},
-			logged: []string{"No verification configured for SourceIntegrity policy for [*]"},
+			logged: []string{"No verification configured for SourceIntegrity policy for [{Url:*}]"},
 		},
 	}
 
@@ -123,22 +121,31 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 
 func TestPolicyMatching(t *testing.T) {
 	eitherOr := &v1alpha1.SourceIntegrityGitPolicy{
-		Repos: []string{"https://github.com/group/either.git", "https://github.com/group/or.git"},
-		GPG:   &v1alpha1.SourceIntegrityGitPolicyGPG{},
+		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
+			{Url: "https://github.com/group/either.git"},
+			{Url: "https://github.com/group/or.git"},
+		},
+		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{},
 	}
 	ignored := &v1alpha1.SourceIntegrityGitPolicy{
-		Repos: []string{"https://github.com/group/ignored.git"},
+		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
+			{Url: "https://github.com/group/ignored.git"},
+		},
 		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
 			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeNone,
 		},
 	}
 	group := &v1alpha1.SourceIntegrityGitPolicy{
-		Repos: []string{"https://github.com/group/*"},
-		GPG:   &v1alpha1.SourceIntegrityGitPolicyGPG{},
+		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
+			{Url: "https://github.com/group/*"},
+		},
+		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{},
 	}
 	prefix := &v1alpha1.SourceIntegrityGitPolicy{
-		Repos: []string{"https://github.com/group*"},
-		GPG:   &v1alpha1.SourceIntegrityGitPolicyGPG{},
+		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
+			{Url: "https://github.com/group*"},
+		},
+		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{},
 	}
 	sig := &v1alpha1.SourceIntegrityGit{
 		Policies: []*v1alpha1.SourceIntegrityGitPolicy{eitherOr, ignored, group, prefix},
