@@ -2351,7 +2351,6 @@ func Test_getDexAuthConnectorID(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			got := getDexAuthConnectorID(tc.cmData)
 			assert.Equal(t, tc.expectedConnector, got)
