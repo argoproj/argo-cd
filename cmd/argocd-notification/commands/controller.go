@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"syscall"
 
@@ -20,7 +19,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/tools/clientcmd"
-
+	
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
 	notificationscontroller "github.com/argoproj/argo-cd/v3/notification_controller/controller"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -41,7 +41,6 @@ func NewCommand() *cobra.Command {
 		processorsCount                int
 		appLabelSelector               string
 		logLevel                       string
-		logFormat                      string
 		metricsPort                    int
 		argocdRepoServer               string
 		argocdRepoServerPlaintext      bool
@@ -92,17 +91,17 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("failed to parse log level: %w", err)
 			}
 			log.SetLevel(level)
-
-			switch strings.ToLower(logFormat) {
-			case "json":
-				log.SetFormatter(&log.JSONFormatter{})
-			case "text":
-				if os.Getenv("FORCE_LOG_COLORS") == "1" {
-					log.SetFormatter(&log.TextFormatter{ForceColors: true})
-				}
-			default:
-				return fmt.Errorf("unknown log format '%s'", logFormat)
-			}
+			cli.SetLogFormat(cmdutil.LogFormat)
+			// switch strings.ToLower(logFormat) {
+			// case "json":
+			// 	log.SetFormatter(&log.JSONFormatter{})
+			// case "text":
+			// 	if os.Getenv("FORCE_LOG_COLORS") == "1" {
+			// 		log.SetFormatter(&log.TextFormatter{ForceColors: true})
+			// 	}
+			// default:
+			// 	return fmt.Errorf("unknown log format '%s'", logFormat)
+			// }
 
 			// Recover from panic and log the error using the configured logger instead of the default.
 			defer func() {
@@ -165,7 +164,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&processorsCount, "processors-count", 1, "Processors count.")
 	command.Flags().StringVar(&appLabelSelector, "app-label-selector", "", "App label selector.")
 	command.Flags().StringVar(&logLevel, "loglevel", env.StringFromEnv("ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
-	command.Flags().StringVar(&logFormat, "logformat", env.StringFromEnv("ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().IntVar(&metricsPort, "metrics-port", defaultMetricsPort, "Metrics port")
 	command.Flags().StringVar(&argocdRepoServer, "argocd-repo-server", common.DefaultRepoServerAddr, "Argo CD repo server address")
 	command.Flags().BoolVar(&argocdRepoServerPlaintext, "argocd-repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to repository server")
