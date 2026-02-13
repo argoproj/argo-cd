@@ -36,7 +36,7 @@ func Test_GPGDisabledLogging(t *testing.T) {
 	t.Setenv("ARGOCD_GPG_ENABLED", "false")
 
 	si := &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
-		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{Url: "*"}},
+		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "*"}},
 		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
 			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
 			Keys: []string{"SOME_KEY_ID"},
@@ -99,10 +99,10 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 		{
 			name: "Matching policy does nothing",
 			si: &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
-				Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{Url: "*"}},
+				Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "*"}},
 				// No GPG or alternative specified
 			}}}},
-			logged: []string{"No verification configured for SourceIntegrity policy for [{Url:*}]"},
+			logged: []string{"No verification configured for SourceIntegrity policy for [{URL:*}]"},
 		},
 	}
 
@@ -121,14 +121,14 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 func TestPolicyMatching(t *testing.T) {
 	eitherOr := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
-			{Url: "https://github.com/group/either.git"},
-			{Url: "https://github.com/group/or.git"},
+			{URL: "https://github.com/group/either.git"},
+			{URL: "https://github.com/group/or.git"},
 		},
 		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{},
 	}
 	ignored := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
-			{Url: "https://github.com/group/ignored.git"},
+			{URL: "https://github.com/group/ignored.git"},
 		},
 		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
 			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeNone,
@@ -136,13 +136,13 @@ func TestPolicyMatching(t *testing.T) {
 	}
 	group := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
-			{Url: "https://github.com/group/*"},
+			{URL: "https://github.com/group/*"},
 		},
 		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{},
 	}
 	prefix := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
-			{Url: "https://github.com/group*"},
+			{URL: "https://github.com/group*"},
 		},
 		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{},
 	}

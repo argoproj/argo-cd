@@ -28,7 +28,7 @@ func appProjectWithSourceIntegrity(keys ...string) AppProjectSpec {
 		SourceIntegrity: &SourceIntegrity{
 			Git: &SourceIntegrityGit{
 				Policies: []*SourceIntegrityGitPolicy{{
-					Repos: []SourceIntegrityGitPolicyRepo{{Url: "*"}},
+					Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
 					GPG: &SourceIntegrityGitPolicyGPG{
 						Keys: keys,
 						Mode: SourceIntegrityGitPolicyGPGModeHead,

@@ -2783,7 +2783,7 @@ func (proj *AppProject) EffectiveSourceIntegrity() *SourceIntegrity {
 		return &SourceIntegrity{
 			Git: &SourceIntegrityGit{
 				Policies: []*SourceIntegrityGitPolicy{{
-					Repos: []SourceIntegrityGitPolicyRepo{{Url: "*"}},
+					Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
 					GPG: &SourceIntegrityGitPolicyGPG{
 						Mode: "head",
 						Keys: legacyKeys,
@@ -2795,7 +2795,7 @@ func (proj *AppProject) EffectiveSourceIntegrity() *SourceIntegrity {
 
 	for _, p := range proj.Spec.SourceIntegrity.Git.Policies {
 		for _, repo := range p.Repos {
-			if repo.Url == "*" {
+			if repo.URL == "*" {
 				log.Warnf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Ignoring SignatureKeys", proj.Name)
 				return proj.Spec.SourceIntegrity
 			}
@@ -2804,7 +2804,7 @@ func (proj *AppProject) EffectiveSourceIntegrity() *SourceIntegrity {
 
 	log.Warnf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Adding policy with %d legacy keys for all repositories", proj.Name, len(legacyKeys))
 	proj.Spec.SourceIntegrity.Git.Policies = append(proj.Spec.SourceIntegrity.Git.Policies, &SourceIntegrityGitPolicy{
-		Repos: []SourceIntegrityGitPolicyRepo{{Url: "*"}},
+		Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
 		GPG: &SourceIntegrityGitPolicyGPG{
 			Mode: "head",
 			Keys: legacyKeys,

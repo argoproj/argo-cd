@@ -23,7 +23,7 @@ type SourceIntegrityGitPolicy struct {
 
 type SourceIntegrityGitPolicyRepo struct {
 	// URL specifier, glob.
-	Url string `json:"url" protobuf:"bytes,1,name=url"`
+	URL string `json:"url" protobuf:"bytes,1,name=url"`
 }
 
 type SourceIntegrityGitPolicyGPGMode string

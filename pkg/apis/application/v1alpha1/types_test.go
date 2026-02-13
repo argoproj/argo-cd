@@ -2380,7 +2380,7 @@ func TestAppProject_SourceIntegrity(t *testing.T) {
 		return &SourceIntegrity{
 			Git: &SourceIntegrityGit{
 				Policies: []*SourceIntegrityGitPolicy{{
-					Repos: []SourceIntegrityGitPolicyRepo{{Url: repo}},
+					Repos: []SourceIntegrityGitPolicyRepo{{URL: repo}},
 					GPG: &SourceIntegrityGitPolicyGPG{
 						Mode: mode,
 						Keys: keys,
@@ -2428,14 +2428,14 @@ func TestAppProject_SourceIntegrity(t *testing.T) {
 					Policies: []*SourceIntegrityGitPolicy{
 						{
 							// Kept
-							Repos: []SourceIntegrityGitPolicyRepo{{Url: "https://github.com/*"}},
+							Repos: []SourceIntegrityGitPolicyRepo{{URL: "https://github.com/*"}},
 							GPG: &SourceIntegrityGitPolicyGPG{
 								Mode: SourceIntegrityGitPolicyGPGModeStrict,
 								Keys: []string{"NEW_KEY"},
 							},
 						}, {
 							// Added
-							Repos: []SourceIntegrityGitPolicyRepo{{Url: "*"}},
+							Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
 							GPG: &SourceIntegrityGitPolicyGPG{
 								Mode: SourceIntegrityGitPolicyGPGModeHead,
 								Keys: []string{"LEGACY_KEY"},
