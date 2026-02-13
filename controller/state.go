@@ -22,6 +22,8 @@ import (
 	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/syncwaves"
 	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
+
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -592,7 +594,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	} else {
 		// Prevent applying local manifests for now when source integrity is enforced
 		// This is also enforced on API level, but as a last resort, we also enforce it here
-		if project.EffectiveSourceIntegrity().ForGit(sources[0].RepoURL) != nil {
+		if sourceintegrity.ForGit(project.EffectiveSourceIntegrity(), sources[0].RepoURL) != nil {
 			msg := "Cannot use local manifests when source integrity is enforced"
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})

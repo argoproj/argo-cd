@@ -273,17 +273,17 @@ spec:
                   integrity to be met before they can be used.
                 properties:
                   git:
-                    description: |-
-                      Git - policies for git source verification
-                      Mandatory field until there are alternatives
+                    description: Git - policies for git source verification
                     properties:
                       policies:
                         items:
                           properties:
                             gpg:
-                              description: Mandatory field until there are alternatives
+                              description: Verify GPG commit/tag signatures
                               properties:
                                 keys:
+                                  description: List of key IDs to trust. The keys
+                                    need to be in the repository server keyring.
                                   items:
                                     type: string
                                   type: array
@@ -294,6 +294,8 @@ spec:
                               - mode
                               type: object
                             repos:
+                              description: List of repository glob patterns restricting
+                                repositories the policy will apply to
                               items:
                                 type: string
                               type: array

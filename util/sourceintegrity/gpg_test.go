@@ -1,4 +1,4 @@
-package gpg
+package sourceintegrity
 
 import (
 	"fmt"
@@ -296,30 +296,35 @@ func Test_GetGnuPGHomePath(t *testing.T) {
 func Test_KeyID(t *testing.T) {
 	// Good case - long key ID (aka fingerprint) to short key ID
 	{
-		res := KeyID(longKeyID)
+		res, err := KeyID(longKeyID)
+		require.NoError(t, err)
 		assert.Equal(t, shortKeyID, res)
 	}
 	// Good case - short key ID remains same
 	{
-		res := KeyID(shortKeyID)
+		res, err := KeyID(shortKeyID)
+		require.NoError(t, err)
 		assert.Equal(t, shortKeyID, res)
 	}
 	// Bad case - key ID too short
 	{
 		keyID := "AEE18F83AFDEB23"
-		res := KeyID(keyID)
+		res, err := KeyID(keyID)
+		require.Error(t, err)
 		assert.Empty(t, res)
 	}
 	// Bad case - key ID too long
 	{
 		keyID := "5DE3E0509C47EA3CF04A42D34AEE18F83AFDEB2323"
-		res := KeyID(keyID)
+		res, err := KeyID(keyID)
+		require.Error(t, err)
 		assert.Empty(t, res)
 	}
 	// Bad case - right length, but not hex string
 	{
 		keyID := "abcdefghijklmn"
-		res := KeyID(keyID)
+		res, err := KeyID(keyID)
+		require.Error(t, err)
 		assert.Empty(t, res)
 	}
 }
