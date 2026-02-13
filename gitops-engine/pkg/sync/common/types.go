@@ -20,6 +20,10 @@ const (
 
 	// Sync option that disables dry run in resource is missing in the cluster
 	SyncOptionSkipDryRunOnMissingResource = "SkipDryRunOnMissingResource=true"
+	// Sync option that disables resource pruning
+	SyncOptionDisablePrune = "Prune=false"
+	// Sync option that enables resource pruning even when application pruning is disabled
+	SyncOptionEnablePrune = "Prune=true"
 	// Sync option that disables resource validation
 	SyncOptionsDisableValidation = "Validate=false"
 	// Sync option that enables pruneLast
