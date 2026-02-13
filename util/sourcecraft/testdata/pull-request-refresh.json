@@ -1,0 +1,58 @@
+{
+  "header": {
+    "id": "469d9b79-f154-4b00-a4ee-a327fa080fa2",
+    "type": "pull_request.refresh",
+    "occurred_at": "2026-02-03T14:01:11.180176372Z",
+    "aggregate_id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+    "aggregate_type": "pull_request",
+    "organization_id": "019711c4-14ec-746f-abd4-5968016b9f8v",
+    "repository_id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+    "triggered_by": {
+      "id": "019711c3-fd2a-7729-8460-de195bc4ebf8",
+      "slug": "user"
+    }
+  },
+  "repository": {
+    "id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+    "name": "test_repo",
+    "default_branch": "master",
+    "organization": {
+      "id": "019711c4-14ec-746f-abd4-5968016b9f8v",
+      "slug": "test-org"
+    },
+    "slug": "test_repo",
+    "template_type": "not_a_template",
+    "visibility": "public",
+    "clone_url": {
+      "https": "https://git@git.domain.net/org/test-rep.git",
+      "ssh": "ssh://ssh.domain.net/org/test-rep.git"
+    },
+    "web_url": "https://domain.net/org/test-rep",
+    "last_updated": "2026-02-03T14:01:10.105629Z"
+  },
+  "pull_request": {
+    "id": "019c23cd-7126-7dd3-8dde-0afb4c6dd441",
+    "slug": "3",
+    "author": {
+      "id": "019711c3-fd2a-7729-8460-de195bc4ebf8",
+      "slug": "user"
+    },
+    "updated_by": {
+      "id": "019711c3-fd2a-7729-8460-de195bc4ebf8",
+      "slug": "user"
+    },
+    "title": "Test2",
+    "repository": {
+      "id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+      "slug": "test_repo"
+    },
+    "source_branch": "b1",
+    "target_branch": "master",
+    "status": "open",
+    "created_at": "2026-02-03T13:59:52.358906Z",
+    "updated_at": "2026-02-03T14:01:10.378183Z"
+  },
+  "previous_status": "open",
+  "head_sha": "18118a647b3c6e53a2275d17afcc161b8bf49af5",
+  "merge_base_sha": "379995f847a73dc88f2a9fbbea4bc9efe04e730b"
+}

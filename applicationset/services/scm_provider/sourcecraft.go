@@ -8,7 +8,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	sourcecraft "github.com/aalexzy/sourcecraft-sdk"
+	"github.com/argoproj/argo-cd/v3/util/sourcecraft"
 )
 
 type SourceCraftProvider struct {
@@ -86,7 +86,7 @@ func (g *SourceCraftProvider) ListRepos(ctx context.Context, cloneProtocol strin
 		return nil, err
 	}
 	for _, repo := range reposResp.Repositories {
-		if repo.CloneUrl == nil {
+		if repo.CloneURL == nil {
 			log.Errorf("error repo clone url is nil '%v'", repo.Slug)
 			continue
 		}
@@ -94,9 +94,9 @@ func (g *SourceCraftProvider) ListRepos(ctx context.Context, cloneProtocol strin
 		switch cloneProtocol {
 		// Default to SSH if unspecified (i.e. if "").
 		case "", "ssh":
-			url = repo.CloneUrl.Ssh
+			url = repo.CloneURL.SSH
 		case "https":
-			url = repo.CloneUrl.Https
+			url = repo.CloneURL.HTTPS
 		default:
 			return nil, fmt.Errorf("unknown clone protocol for SourceCraft %v", cloneProtocol)
 		}
