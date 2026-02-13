@@ -2564,7 +2564,6 @@ message SourceHydratorStatus {
 
 message SourceIntegrity {
   // Git - policies for git source verification
-  // Mandatory field until there are alternatives
   optional SourceIntegrityGit git = 1;
 }
 
@@ -2589,9 +2588,10 @@ message SourceIntegrityGit {
 }
 
 message SourceIntegrityGitPolicy {
+  // List of repository glob patterns restricting repositories the policy will apply to
   repeated string repos = 1;
 
-  // Mandatory field until there are alternatives
+  // Verify GPG commit/tag signatures
   optional SourceIntegrityGitPolicyGPG gpg = 2;
 }
 
@@ -2607,6 +2607,7 @@ message SourceIntegrityGitPolicy {
 message SourceIntegrityGitPolicyGPG {
   optional string mode = 1;
 
+  // List of key IDs to trust. The keys need to be in the repository server keyring.
   repeated string keys = 3;
 }
 

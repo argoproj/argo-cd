@@ -3,78 +3,22 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
-	"os"
-	"slices"
-	"strings"
-
-	log "github.com/sirupsen/logrus"
-
-	"github.com/argoproj/argo-cd/v3/util/git"
 )
 
 type SourceIntegrity struct {
 	// Git - policies for git source verification
-	// Mandatory field until there are alternatives
-	Git *SourceIntegrityGit `json:"git" protobuf:"bytes,1,name=git"`
-}
-
-type SourceIntegrityGitFunc func(gitClient git.Client, unresolvedRevision string) (*SourceIntegrityCheckResult, error)
-
-func (f SourceIntegrityGitFunc) Verify(gitClient git.Client, unresolvedRevision string) (*SourceIntegrityCheckResult, error) {
-	if f == nil {
-		return nil, nil
-	}
-	return f(gitClient, unresolvedRevision)
-}
-
-// ForGit evaluate if there are cheks for the git sources per given ApplicationSource and returns a function performing such check.
-// If there are no cheks for git or the application source, this returns nil.
-// This indirection is needed to detect the existence of relevant criteria without their actual execution.
-func (si *SourceIntegrity) ForGit(repoURL string) SourceIntegrityGitFunc {
-	if si == nil || si.Git == nil {
-		return nil
-	}
-
-	policies := si.Git.findMatchingPolicies(repoURL)
-	nPolicies := len(policies)
-	if nPolicies == 0 {
-		log.Infof("No git source integrity policies found for repo URL: %s", repoURL)
-		return nil
-	}
-	if nPolicies > 1 {
-		log.Infof("Multiple (%d) git source integrity policies found for repo URL: %s. Using the first matching one", nPolicies, repoURL)
-	}
-	return policies[0].ForGit(repoURL)
+	Git *SourceIntegrityGit `json:"git" protobuf:"bytes,1,name=git"` // A mandatory field until there are alternatives
 }
 
 type SourceIntegrityGit struct {
 	Policies []*SourceIntegrityGitPolicy `json:"policies" protobuf:"bytes,1,name=policies"`
 }
 
-func (si *SourceIntegrityGit) findMatchingPolicies(repoURL string) (policies []*SourceIntegrityGitPolicy) {
-	for _, p := range si.Policies {
-		for _, r := range p.Repos {
-			if globMatch(r, repoURL, false) {
-				policies = append(policies, p)
-			}
-		}
-	}
-	return policies
-}
-
 type SourceIntegrityGitPolicy struct {
+	// List of repository glob patterns restricting repositories the policy will apply to
 	Repos []string `json:"repos" protobuf:"bytes,1,name=repos"`
-	// Mandatory field until there are alternatives
-	GPG *SourceIntegrityGitPolicyGPG `json:"gpg" protobuf:"bytes,2,name=gpg"`
-}
-
-func (gp *SourceIntegrityGitPolicy) ForGit(repoURL string) SourceIntegrityGitFunc {
-	if gp.GPG != nil {
-		return gp.GPG.forGit(repoURL)
-	}
-
-	log.Warnf("No verification configured for SourceIntegrity policy for %v", gp.Repos)
-	return nil
+	// Verify GPG commit/tag signatures
+	GPG *SourceIntegrityGitPolicyGPG `json:"gpg" protobuf:"bytes,2,name=gpg"` // A mandatory field until there are alternatives
 }
 
 type SourceIntegrityGitPolicyGPGMode string
@@ -101,99 +45,8 @@ var (
 // with gpg keys that are in the keyring, but not listed in Keys.
 type SourceIntegrityGitPolicyGPG struct {
 	Mode SourceIntegrityGitPolicyGPGMode `json:"mode" protobuf:"bytes,1,name=mode"`
-	Keys []string                        `json:"keys" protobuf:"bytes,3,name=keys"`
-}
-
-var _disabledLoggedAlready bool
-
-func (g *SourceIntegrityGitPolicyGPG) forGit(_ string) SourceIntegrityGitFunc {
-	if g.Mode == SourceIntegrityGitPolicyGPGModeNone {
-		// Declare missing check because there is no verification performed
-		return nil
-	}
-
-	if !_disabledLoggedAlready && !IsGPGEnabled() {
-		log.Warnf("SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED")
-		_disabledLoggedAlready = true
-		return nil
-	}
-
-	return g.verify
-}
-
-func (g *SourceIntegrityGitPolicyGPG) verify(gitClient git.Client, unresolvedRevision string) (result *SourceIntegrityCheckResult, err error) {
-	const checkName = "GIT/GPG"
-
-	var revisions []git.RevisionSignatureInfo
-
-	verifyingTag := gitClient.IsAnnotatedTag(unresolvedRevision)
-	// If on tag, verify tag in both head and strict mode
-	if verifyingTag {
-		tagRev, err := gitClient.TagSignature(unresolvedRevision)
-		if err != nil {
-			return nil, err
-		}
-		revisions = append(revisions, *tagRev)
-	}
-
-	commitSHA, err := gitClient.CommitSHA()
-	if err != nil {
-		return nil, err
-	}
-
-	switch g.Mode {
-	case SourceIntegrityGitPolicyGPGModeHead:
-		// verify tag if on tag, latest revision otherwise
-		if !verifyingTag {
-			tagRevs, err := gitClient.LsSignatures(commitSHA, false)
-			if err != nil {
-				return nil, err
-			}
-			revisions = append(revisions, tagRevs...)
-		}
-	case SourceIntegrityGitPolicyGPGModeStrict:
-		// verify history from the current commit
-		deepRevs, err := gitClient.LsSignatures(commitSHA, true)
-		if err != nil {
-			return nil, err
-		}
-		revisions = append(revisions, deepRevs...)
-	default:
-		return nil, fmt.Errorf("unknown GPG mode %q configured for GIT source integrity", g.Mode)
-	}
-
-	var problems []string
-	for _, signatureInfo := range revisions {
-		// TODO: For deep verification, the list of commits/problems can be too long to present to user, or even too long to transfer
-		// TODO: Keep only the most recent commit for every given GPG key, as that is what is actionable for an admin anyway.
-		problem := gpgProblemMessage(signatureInfo, g.Keys)
-		if problem != "" {
-			problems = append(problems, problem)
-		}
-	}
-
-	return &SourceIntegrityCheckResult{Checks: []SourceIntegrityCheckResultItem{{
-		Name:     checkName,
-		Problems: problems,
-	}}}, nil
-}
-
-func gpgProblemMessage(signatureInfo git.RevisionSignatureInfo, allowedKeys []string) string {
-	if signatureInfo.VerificationResult != git.GPGVerificationResultGood {
-		return fmt.Sprintf(
-			"Failed verifying revision %s by '%s': %s (key_id=%s)",
-			signatureInfo.Revision, signatureInfo.AuthorIdentity, signatureInfo.VerificationResult, signatureInfo.SignatureKeyID,
-		)
-	}
-
-	if !slices.Contains(allowedKeys, signatureInfo.SignatureKeyID) {
-		return fmt.Sprintf(
-			"Failed verifying revision %s by '%s': signed with unallowed key (key_id=%s)",
-			signatureInfo.Revision, signatureInfo.AuthorIdentity, signatureInfo.SignatureKeyID,
-		)
-	}
-
-	return ""
+	// List of key IDs to trust. The keys need to be in the repository server keyring.
+	Keys []string `json:"keys" protobuf:"bytes,3,name=keys"`
 }
 
 // TODO how to indicate partial integrity with multi-source apps? How to point to given source?
@@ -246,14 +99,6 @@ func (r *SourceIntegrityCheckResult) IsValid() bool {
 		if len(item.Problems) > 0 {
 			return false
 		}
-	}
-	return true
-}
-
-// IsGPGEnabled returns true if the GPG feature is enabled
-func IsGPGEnabled() bool {
-	if en := os.Getenv("ARGOCD_GPG_ENABLED"); strings.EqualFold(en, "false") || strings.EqualFold(en, "no") {
-		return false
 	}
 	return true
 }

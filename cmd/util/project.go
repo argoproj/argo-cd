@@ -16,7 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/config"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 )
 
 type ProjectOpts struct {
@@ -129,10 +129,11 @@ func (opts *ProjectOpts) GetDestinationServiceAccounts() []v1alpha1.ApplicationD
 func (opts *ProjectOpts) GetSignatureKeys() []v1alpha1.SignatureKey {
 	signatureKeys := make([]v1alpha1.SignatureKey, 0)
 	for _, keyStr := range opts.SignatureKeys {
-		if !gpg.IsShortKeyID(keyStr) && !gpg.IsLongKeyID(keyStr) {
-			log.Fatalf("'%s' is not a valid GnuPG key ID", keyStr)
+		keyId, err := sourceintegrity.KeyID(keyStr)
+		if err != nil {
+			log.Fatal(err.Error())
 		}
-		signatureKeys = append(signatureKeys, v1alpha1.SignatureKey{KeyID: gpg.KeyID(keyStr)})
+		signatureKeys = append(signatureKeys, v1alpha1.SignatureKey{KeyID: keyId})
 	}
 	return signatureKeys
 }

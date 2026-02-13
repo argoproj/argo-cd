@@ -15,6 +15,7 @@ import (
 	"time"
 
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 
 	kubecache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
@@ -2081,7 +2082,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		repoURL = a.Spec.Sources[0].RepoURL
 	}
 
-	if syncReq.Manifests != nil && proj.EffectiveSourceIntegrity().ForGit(repoURL) != nil {
+	if syncReq.Manifests != nil && sourceintegrity.ForGit(proj.EffectiveSourceIntegrity(), repoURL) != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local sync when signature keys are required.")
 	}
 

@@ -1034,6 +1034,16 @@ func gpgVerificationFromGitRevParse(oneLetter string) GPGVerificationResult {
 	}
 }
 
+var gpgKeyIdRegexp = regexp.MustCompile("[0-9a-zA-Z]{16}")
+
+func validateGpgKey(key string, revision string) error {
+	if key == "" || gpgKeyIdRegexp.MatchString(key) {
+		return nil
+	}
+
+	return fmt.Errorf("gpg failed interpretting reported signing key for %q: %q", revision, key)
+}
+
 func (m *nativeGitClient) TagSignature(tagRevision string) (*RevisionSignatureInfo, error) {
 	ctx := context.Background()
 	// Unlike for tags, there is no nice way to slurp all signature info for tag. So this extracts parts from 2 different commands.
@@ -1058,6 +1068,9 @@ func (m *nativeGitClient) TagSignature(tagRevision string) (*RevisionSignatureIn
 	status, keyId, err := evaluateGpgSignStatus(err, tagGpgOut)
 	if err != nil {
 		return nil, fmt.Errorf("gpg failed veriying git tag %q: %s", tagRevision, err.Error())
+	}
+	if err := validateGpgKey(keyId, tagRevision); err != nil {
+		return nil, err
 	}
 	return &RevisionSignatureInfo{
 		Revision:           tagRevision,
@@ -1165,10 +1178,15 @@ func (m *nativeGitClient) LsSignatures(revisionSha string, deep bool) ([]Revisio
 			return nil, fmt.Errorf("invalid rev-list output, refusing to continue (fields=%d)", len(r))
 		}
 
+		revision := r[0]
+		keyId := r[2]
+		if err := validateGpgKey(keyId, revision); err != nil {
+			return nil, err
+		}
 		commits = append(commits, RevisionSignatureInfo{
-			Revision:           r[0],
+			Revision:           revision,
 			VerificationResult: gpgVerificationFromGitRevParse(r[1]),
-			SignatureKeyID:     r[2],
+			SignatureKeyID:     keyId,
 			Date:               r[3],
 			AuthorIdentity:     r[4],
 		})

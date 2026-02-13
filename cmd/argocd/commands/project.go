@@ -26,8 +26,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/git"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 )
 
@@ -190,6 +190,7 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 			# Add GnuPG signature key KEY-ID to project PROJECT
 			argocd proj add-signature-key PROJECT KEY-ID
 		`),
+		Deprecated: "Managing project signature keys in CLI is deprecated, manage its changes through AppProject manifest",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -200,10 +201,9 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 			projName := args[0]
 			signatureKey := args[1]
 
-			log.Warn("Managing project signature keys in CLI is deprecated, manage its changes through AppProject manifest")
-
-			if !gpg.IsShortKeyID(signatureKey) && !gpg.IsLongKeyID(signatureKey) {
-				log.Fatalf("%s is not a valid GnuPG key ID", signatureKey)
+			_, err := sourceintegrity.KeyID(signatureKey)
+			if err != nil {
+				log.Fatal(err.Error())
 			}
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
@@ -234,6 +234,7 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 			# Remove GnuPG signature key KEY-ID from project PROJECT
 			argocd proj remove-signature-key PROJECT KEY-ID
 		`),
+		Deprecated: "Managing project signature keys in CLI is deprecated, manage its changes through AppProject manifest",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -243,8 +244,6 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 			}
 			projName := args[0]
 			signatureKey := args[1]
-
-			log.Warn("Managing project signature keys in CLI is deprecated, manage its changes through AppProject manifest")
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer utilio.Close(conn)

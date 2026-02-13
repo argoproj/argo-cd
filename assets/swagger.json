@@ -10522,6 +10522,7 @@
         },
         "repos": {
           "type": "array",
+          "title": "List of repository glob patterns restricting repositories the policy will apply to",
           "items": {
             "type": "string"
           }
@@ -10533,6 +10534,7 @@
       "type": "object",
       "properties": {
         "keys": {
+          "description": "List of key IDs to trust. The keys need to be in the repository server keyring.",
           "type": "array",
           "items": {
             "type": "string"

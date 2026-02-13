@@ -1,4 +1,4 @@
-package v1alpha1
+package sourceintegrity
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 	utilTest "github.com/argoproj/argo-cd/v3/util/test"
@@ -35,10 +36,10 @@ func Test_IsGPGEnabled(t *testing.T) {
 func Test_GPGDisabledLogging(t *testing.T) {
 	t.Setenv("ARGOCD_GPG_ENABLED", "false")
 
-	si := &SourceIntegrity{Git: &SourceIntegrityGit{Policies: []*SourceIntegrityGitPolicy{{
+	si := &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
 		Repos: []string{"*"},
-		GPG: &SourceIntegrityGitPolicyGPG{
-			Mode: SourceIntegrityGitPolicyGPGModeStrict,
+		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
 			Keys: []string{"SOME_KEY_ID"},
 		},
 	}}}}
@@ -47,13 +48,13 @@ func Test_GPGDisabledLogging(t *testing.T) {
 	logrus.AddHook(&logger)
 	t.Cleanup(logger.CleanupHook)
 
-	fun := si.ForGit("https://github.com/argoproj/argo-cd.git")
+	fun := ForGit(si, "https://github.com/argoproj/argo-cd.git")
 	assert.Equal(t, []string{"SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED"}, logger.GetEntries())
 	assert.Nil(t, fun)
 
 	// No logs on the second call
 	logger.Entries = []logrus.Entry{}
-	si.ForGit("https://github.com/argoproj/argo-cd-ext.git")
+	ForGit(si, "https://github.com/argoproj/argo-cd-ext.git")
 	assert.Equal(t, []string{}, logger.GetEntries())
 	assert.Nil(t, fun)
 }
@@ -63,8 +64,8 @@ func TestGPGUnknownMode(t *testing.T) {
 	gitClient.EXPECT().IsAnnotatedTag(mock.Anything).Return(false)
 	gitClient.EXPECT().CommitSHA().Return("DEADBEEF", nil)
 
-	s := &SourceIntegrityGitPolicyGPG{Mode: "foobar", Keys: []string{}}
-	result, err := s.verify(gitClient, "https://github.com/argoproj/argo-cd.git")
+	s := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: "foobar", Keys: []string{}}
+	result, err := verify(s, gitClient, "https://github.com/argoproj/argo-cd.git")
 	require.ErrorContains(t, err, `unknown GPG mode "foobar" configured for GIT source integrity`)
 	assert.Nil(t, result)
 }
@@ -76,7 +77,7 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		si     *SourceIntegrity
+		si     *v1alpha1.SourceIntegrity
 		logged []string
 	}{
 		{
@@ -86,21 +87,21 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 		},
 		{
 			name: "No GIT",
-			si:   &SourceIntegrity{
+			si: &v1alpha1.SourceIntegrity{
 				// No Git or alternative specified
 			},
 			logged: []string{},
 		},
 		{
 			name: "No matching policy",
-			si:   &SourceIntegrity{Git: &SourceIntegrityGit{
+			si: &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
 				// No policies configured here
 			}},
 			logged: []string{},
 		},
 		{
 			name: "Matching policy does nothing",
-			si: &SourceIntegrity{Git: &SourceIntegrityGit{Policies: []*SourceIntegrityGitPolicy{{
+			si: &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
 				Repos: []string{"*"},
 				// No GPG or alternative specified
 			}}}},
@@ -114,39 +115,39 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 			logrus.AddHook(&logger)
 			t.Cleanup(logger.CleanupHook)
 
-			assert.Nil(t, tt.si.ForGit(repoURL))
+			assert.Nil(t, ForGit(tt.si, repoURL))
 			assert.Equal(t, tt.logged, logger.GetEntries())
 		})
 	}
 }
 
 func TestPolicyMatching(t *testing.T) {
-	eitherOr := &SourceIntegrityGitPolicy{
+	eitherOr := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []string{"https://github.com/group/either.git", "https://github.com/group/or.git"},
-		GPG:   &SourceIntegrityGitPolicyGPG{},
+		GPG:   &v1alpha1.SourceIntegrityGitPolicyGPG{},
 	}
-	ignored := &SourceIntegrityGitPolicy{
+	ignored := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []string{"https://github.com/group/ignored.git"},
-		GPG: &SourceIntegrityGitPolicyGPG{
-			Mode: SourceIntegrityGitPolicyGPGModeNone,
+		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeNone,
 		},
 	}
-	group := &SourceIntegrityGitPolicy{
+	group := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []string{"https://github.com/group/*"},
-		GPG:   &SourceIntegrityGitPolicyGPG{},
+		GPG:   &v1alpha1.SourceIntegrityGitPolicyGPG{},
 	}
-	prefix := &SourceIntegrityGitPolicy{
+	prefix := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []string{"https://github.com/group*"},
-		GPG:   &SourceIntegrityGitPolicyGPG{},
+		GPG:   &v1alpha1.SourceIntegrityGitPolicyGPG{},
 	}
-	sig := &SourceIntegrityGit{
-		Policies: []*SourceIntegrityGitPolicy{eitherOr, ignored, group, prefix},
+	sig := &v1alpha1.SourceIntegrityGit{
+		Policies: []*v1alpha1.SourceIntegrityGitPolicy{eitherOr, ignored, group, prefix},
 	}
 
-	p := func(ps ...*SourceIntegrityGitPolicy) []*SourceIntegrityGitPolicy { return ps }
+	p := func(ps ...*v1alpha1.SourceIntegrityGitPolicy) []*v1alpha1.SourceIntegrityGitPolicy { return ps }
 	testCases := []struct {
 		repo             string
-		expectedPolicies []*SourceIntegrityGitPolicy
+		expectedPolicies []*v1alpha1.SourceIntegrityGitPolicy
 		expectedLogs     []string
 		expectedNoFunc   bool
 	}{
@@ -186,15 +187,15 @@ func TestPolicyMatching(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.repo, func(t *testing.T) {
-			actual := sig.findMatchingPolicies(tt.repo)
+			actual := findMatchingPolicies(sig, tt.repo)
 
 			assert.Equal(t, tt.expectedPolicies, actual)
 
 			hook := utilTest.NewLogHook(logrus.InfoLevel)
 			logrus.AddHook(hook)
 			defer hook.CleanupHook()
-			si := SourceIntegrity{Git: sig}
-			forGitFunc := si.ForGit(tt.repo)
+			si := &v1alpha1.SourceIntegrity{Git: sig}
+			forGitFunc := ForGit(si, tt.repo)
 			if tt.expectedNoFunc {
 				assert.Nil(t, forGitFunc)
 			} else {
@@ -205,9 +206,33 @@ func TestPolicyMatching(t *testing.T) {
 	}
 }
 
+// Verify that when a user has configured the full fingerprint, it is still accepted
+func TestComparingWithGPGFingerprint(t *testing.T) {
+	const shortKey = "D56C4FCA57A46444"
+	const fingerprint = "01234567890123456789abcd" + shortKey
+	require.True(t, IsShortKeyID(shortKey))
+	require.True(t, IsLongKeyID(fingerprint))
+
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().IsAnnotatedTag(mock.Anything).Return(true)
+	gitClient.EXPECT().CommitSHA().Return("ignored", nil)
+	gitClient.EXPECT().TagSignature(mock.Anything).Return(&git.RevisionSignatureInfo{
+		Revision: "1.0", VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: shortKey, Date: "ignored", AuthorIdentity: "ignored",
+	}, nil)
+
+	gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{fingerprint}}
+	// And verifying a given revision
+	result, err := verify(gpgWithTag, gitClient, "1.0")
+	require.NoError(t, err)
+
+	assert.True(t, result.IsValid())
+	assert.NoError(t, result.AsError())
+}
+
 func TestGPGHeadValid(t *testing.T) {
 	const sha = "0c7a9c3f939c1f19b518bcdd11e2fce9703c4901"
 	const tag = "tag"
+	const keyId = "4cfe068f80b1681b"
 	testCases := []struct {
 		revision string
 		check    func(gitClient *gitmocks.Client, logger utilTest.LogHook)
@@ -234,18 +259,18 @@ func TestGPGHeadValid(t *testing.T) {
 
 	for _, test := range testCases {
 		t.Run("verify "+test.revision, func(t *testing.T) {
-			// Given repo with tagged commit
+			// Given repo with a tagged commit
 			gitClient := &gitmocks.Client{}
 			gitClient.EXPECT().CommitSHA().RunAndReturn(func() (string, error) { return sha, nil })
 			gitClient.EXPECT().IsAnnotatedTag(mock.Anything).RunAndReturn(func(s string) bool { return tag == s })
 			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).RunAndReturn(func(revision string, _ bool) ([]git.RevisionSignatureInfo, error) {
 				return []git.RevisionSignatureInfo{{
-					Revision: revision, VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: "KEYID", Date: "ignored", AuthorIdentity: "ignored",
+					Revision: revision, VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: keyId, Date: "ignored", AuthorIdentity: "ignored",
 				}}, nil
 			})
 			gitClient.EXPECT().TagSignature(mock.Anything).RunAndReturn(func(revision string) (*git.RevisionSignatureInfo, error) {
 				return &git.RevisionSignatureInfo{
-					Revision: revision, VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: "KEYID", Date: "ignored", AuthorIdentity: "ignored",
+					Revision: revision, VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: keyId, Date: "ignored", AuthorIdentity: "ignored",
 				}, nil
 			})
 
@@ -254,9 +279,9 @@ func TestGPGHeadValid(t *testing.T) {
 			t.Cleanup(logger.CleanupHook)
 
 			// When using head mode
-			gpgWithTag := SourceIntegrityGitPolicyGPG{SourceIntegrityGitPolicyGPGModeHead, []string{"KEYID", "one_more"}}
+			gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{keyId, "0000000000000000"}}
 			// And verifying a given revision
-			result, err := gpgWithTag.verify(gitClient, test.revision)
+			result, err := verify(gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
 			// Then it is checked and valid
 			assert.True(t, result.IsValid())
@@ -279,17 +304,20 @@ func TestGPGStrictValid(t *testing.T) {
 		tagSecond: shaSecond,
 		tagThird:  shaThird,
 	}
+	const keyOfThird = "9c698b961c1088db"
+	const keyOfSecond = "f4b9db205449e1d9"
+	const keyOfFirst = "92bfcec2e8161558"
 	rsi3 := git.RevisionSignatureInfo{
 		Revision: shaThird, VerificationResult: git.GPGVerificationResultGood,
-		SignatureKeyID: "KEY_OF_THIRD", Date: "ignored", AuthorIdentity: "ignored",
+		SignatureKeyID: keyOfThird, Date: "ignored", AuthorIdentity: "ignored",
 	}
 	rsi2 := git.RevisionSignatureInfo{
 		Revision: shaSecond, VerificationResult: git.GPGVerificationResultGood,
-		SignatureKeyID: "KEY_OF_SECOND", Date: "ignored", AuthorIdentity: "ignored",
+		SignatureKeyID: keyOfSecond, Date: "ignored", AuthorIdentity: "ignored",
 	}
 	rsi1 := git.RevisionSignatureInfo{
 		Revision: shaFirst, VerificationResult: git.GPGVerificationResultGood,
-		SignatureKeyID: "KEY_OF_FIRST", Date: "ignored", AuthorIdentity: "ignored",
+		SignatureKeyID: keyOfFirst, Date: "ignored", AuthorIdentity: "ignored",
 	}
 
 	tests := []struct {
@@ -312,7 +340,7 @@ func TestGPGStrictValid(t *testing.T) {
 		{
 			revision:       shaThird,
 			expectedPassed: []string{},
-			expectedErr:    fmt.Sprintf("GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (key_id=KEY_OF_THIRD)", shaThird),
+			expectedErr:    fmt.Sprintf("GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (key_id=%s)", shaThird, keyOfThird),
 			expectedLsArgs: []any{shaThird, true},
 		},
 		{
@@ -330,8 +358,8 @@ func TestGPGStrictValid(t *testing.T) {
 		{
 			revision:       tagThird,
 			expectedPassed: []string{},
-			expectedErr: fmt.Sprintf(`GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (key_id=KEY_OF_THIRD)
-GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (key_id=KEY_OF_THIRD)`, tagThird, shaThird),
+			expectedErr: fmt.Sprintf(`GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (key_id=%s)
+GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (key_id=%s)`, tagThird, keyOfThird, shaThird, keyOfThird),
 			expectedTagArgs: []any{tagThird},
 			expectedLsArgs:  []any{shaThird, true},
 		},
@@ -339,7 +367,7 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 
 	for _, test := range tests {
 		t.Run("verify "+test.revision, func(t *testing.T) {
-			// Given repo with tagged commit
+			// Given repo with a tagged commit
 			gitClient := &gitmocks.Client{}
 			gitClient.EXPECT().CommitSHA().RunAndReturn(func() (string, error) {
 				if sha, ok := tag2commit[test.revision]; ok {
@@ -354,11 +382,11 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 				keyId := ""
 				switch tagRevision {
 				case tagFirst:
-					keyId = "KEY_OF_FIRST"
+					keyId = keyOfFirst
 				case tagSecond:
-					keyId = "KEY_OF_SECOND"
+					keyId = keyOfSecond
 				case tagThird:
-					keyId = "KEY_OF_THIRD"
+					keyId = keyOfThird
 				default:
 					require.Fail(t, "tag revision '"+tagRevision+"' not recognized")
 				}
@@ -397,12 +425,12 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 			t.Cleanup(logger.CleanupHook)
 
 			// When using head mode
-			gpgWithTag := SourceIntegrityGitPolicyGPG{
-				Mode: SourceIntegrityGitPolicyGPGModeStrict,
-				Keys: []string{"KEY_OF_FIRST", "KEY_OF_SECOND"},
+			gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{
+				Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+				Keys: []string{keyOfFirst, keyOfSecond},
 			}
 			// And verifying a given revision
-			result, err := gpgWithTag.verify(gitClient, test.revision)
+			result, err := verify(gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
 			// Then it is checked and valid
 			err = result.AsError()
