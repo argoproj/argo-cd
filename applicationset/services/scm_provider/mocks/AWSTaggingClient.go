@@ -5,9 +5,10 @@
 package mocks
 
 import (
+	"context"
+
 	"github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi"
 	mock "github.com/stretchr/testify/mock"
-	"golang.org/x/net/context"
 )
 
 // NewAWSTaggingClient creates a new instance of AWSTaggingClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -38,14 +39,14 @@ func (_m *AWSTaggingClient) EXPECT() *AWSTaggingClient_Expecter {
 }
 
 // GetResources provides a mock function for the type AWSTaggingClient
-func (_mock *AWSTaggingClient) GetResources(v context.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, fns ...func(*resourcegroupstaggingapi.Options)) (*resourcegroupstaggingapi.GetResourcesOutput, error) {
+func (_mock *AWSTaggingClient) GetResources(context1 context.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, fns ...func(*resourcegroupstaggingapi.Options)) (*resourcegroupstaggingapi.GetResourcesOutput, error) {
 	// func(*resourcegroupstaggingapi.Options)
 	_va := make([]interface{}, len(fns))
 	for _i := range fns {
 		_va[_i] = fns[_i]
 	}
 	var _ca []interface{}
-	_ca = append(_ca, v, getResourcesInput)
+	_ca = append(_ca, context1, getResourcesInput)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
 
@@ -56,17 +57,17 @@ func (_mock *AWSTaggingClient) GetResources(v context.Context, getResourcesInput
 	var r0 *resourcegroupstaggingapi.GetResourcesOutput
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, *resourcegroupstaggingapi.GetResourcesInput, ...func(*resourcegroupstaggingapi.Options)) (*resourcegroupstaggingapi.GetResourcesOutput, error)); ok {
-		return returnFunc(v, getResourcesInput, fns...)
+		return returnFunc(context1, getResourcesInput, fns...)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, *resourcegroupstaggingapi.GetResourcesInput, ...func(*resourcegroupstaggingapi.Options)) *resourcegroupstaggingapi.GetResourcesOutput); ok {
-		r0 = returnFunc(v, getResourcesInput, fns...)
+		r0 = returnFunc(context1, getResourcesInput, fns...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*resourcegroupstaggingapi.GetResourcesOutput)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, *resourcegroupstaggingapi.GetResourcesInput, ...func(*resourcegroupstaggingapi.Options)) error); ok {
-		r1 = returnFunc(v, getResourcesInput, fns...)
+		r1 = returnFunc(context1, getResourcesInput, fns...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -79,15 +80,15 @@ type AWSTaggingClient_GetResources_Call struct {
 }
 
 // GetResources is a helper method to define mock.On call
-//   - v context.Context
+//   - context1 context.Context
 //   - getResourcesInput *resourcegroupstaggingapi.GetResourcesInput
 //   - fns ...func(*resourcegroupstaggingapi.Options)
-func (_e *AWSTaggingClient_Expecter) GetResources(v interface{}, getResourcesInput interface{}, fns ...interface{}) *AWSTaggingClient_GetResources_Call {
+func (_e *AWSTaggingClient_Expecter) GetResources(context1 interface{}, getResourcesInput interface{}, fns ...interface{}) *AWSTaggingClient_GetResources_Call {
 	return &AWSTaggingClient_GetResources_Call{Call: _e.mock.On("GetResources",
-		append([]interface{}{v, getResourcesInput}, fns...)...)}
+		append([]interface{}{context1, getResourcesInput}, fns...)...)}
 }
 
-func (_c *AWSTaggingClient_GetResources_Call) Run(run func(v context.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, fns ...func(*resourcegroupstaggingapi.Options))) *AWSTaggingClient_GetResources_Call {
+func (_c *AWSTaggingClient_GetResources_Call) Run(run func(context1 context.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, fns ...func(*resourcegroupstaggingapi.Options))) *AWSTaggingClient_GetResources_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -119,7 +120,7 @@ func (_c *AWSTaggingClient_GetResources_Call) Return(getResourcesOutput *resourc
 	return _c
 }
 
-func (_c *AWSTaggingClient_GetResources_Call) RunAndReturn(run func(v context.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, fns ...func(*resourcegroupstaggingapi.Options)) (*resourcegroupstaggingapi.GetResourcesOutput, error)) *AWSTaggingClient_GetResources_Call {
+func (_c *AWSTaggingClient_GetResources_Call) RunAndReturn(run func(context1 context.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, fns ...func(*resourcegroupstaggingapi.Options)) (*resourcegroupstaggingapi.GetResourcesOutput, error)) *AWSTaggingClient_GetResources_Call {
 	_c.Call.Return(run)
 	return _c
 }
