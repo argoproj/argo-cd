@@ -2077,6 +2077,93 @@ func TestFinalizeProjectDeletion_DoesNotHaveApplications(t *testing.T) {
 	}, receivedPatch)
 }
 
+func TestFinalizeProjectDeletion_HasApplicationInOtherNamespace(t *testing.T) {
+	app := newFakeApp()
+	app.Namespace = "team-a"
+	proj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceNamespaces: []string{"team-a"},
+		},
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:                  []runtime.Object{app, proj},
+		applicationNamespaces: []string{"team-a"},
+	}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	patched := false
+	fakeAppCs.PrependReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, &v1alpha1.AppProject{}, nil
+	})
+
+	err := ctrl.finalizeProjectDeletion(proj)
+	require.NoError(t, err)
+	assert.False(t, patched)
+}
+
+func TestFinalizeProjectDeletion_IgnoresAppsInUnmonitoredNamespace(t *testing.T) {
+	app := newFakeApp()
+	app.Namespace = "team-b"
+	proj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:                  []runtime.Object{app, proj},
+		applicationNamespaces: []string{"team-a"},
+	}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]any{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.AppProject{}, nil
+	})
+
+	err := ctrl.finalizeProjectDeletion(proj)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"metadata": map[string]any{
+			"finalizers": nil,
+		},
+	}, receivedPatch)
+}
+
+func TestFinalizeProjectDeletion_IgnoresAppsNotPermittedByProject(t *testing.T) {
+	app := newFakeApp()
+	app.Namespace = "team-b"
+	proj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceNamespaces: []string{"team-a"},
+		},
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:                  []runtime.Object{app, proj},
+		applicationNamespaces: []string{"team-a", "team-b"},
+	}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]any{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.AppProject{}, nil
+	})
+
+	err := ctrl.finalizeProjectDeletion(proj)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"metadata": map[string]any{
+			"finalizers": nil,
+		},
+	}, receivedPatch)
+}
+
 func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Project = "default"
