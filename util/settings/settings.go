@@ -1592,8 +1592,8 @@ func getDexAuthConnectorID(cmData map[string]string) string {
 	return ""
 }
 
-// validateExternalURL ensures the external URL that is set on the configmap is valid
-func validateExternalURL(u string) error {
+// ValidateExternalURL ensures the external URL that is set on the configmap is valid
+func ValidateExternalURL(u string) error {
 	if u == "" {
 		return nil
 	}
