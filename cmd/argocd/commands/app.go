@@ -3326,19 +3326,6 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			default:
 				log.Fatalf("Unknown source type '%s'", source)
 			}
-
-			// If no resources are found, there are two possible reasons
-			// either the application doesn't have manifests associated with it
-			// OR the redis cache is empty. Hence it is better to return early
-			if len(unstructureds) == 0 {
-				if !*resources.CacheAvailable {
-					log.Infof("no Kubernetes resources found for application %q:"+
-						"since the Redis cache is empty", appName)
-				} else {
-					log.Infof("manifest doesn't exist")
-				}
-				return
-			}
 			for _, obj := range unstructureds {
 				fmt.Println("---")
 				yamlBytes, err := yaml.Marshal(obj)

@@ -317,7 +317,6 @@ message ResourcesQuery {
 
 message ManagedResourcesResponse {
 	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
-	optional bool cacheAvailable = 2;
 }
 
 message ApplicationServerSideDiffQuery {
