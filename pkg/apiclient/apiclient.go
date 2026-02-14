@@ -803,7 +803,7 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 	return conn, usrIf
 }
 
-func (c *client) WatchApplicationSetWithRetry(ctx context.Context, appSetName, revision string) chan *v1alpha1.ApplicationSetWatchEvent {
+func (c *client) WatchApplicationSetWithRetry(ctx context.Context, appSetName, _ string) chan *v1alpha1.ApplicationSetWatchEvent {
 	appSetEventCh := make(chan *v1alpha1.ApplicationSetWatchEvent)
 	cancelled := false
 	appSetName, appSetNs := argo.ParseFromQualifiedName(appSetName, "")

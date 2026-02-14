@@ -18,13 +18,13 @@ package v1alpha1
 
 import (
 	"encoding/json"
-	"k8s.io/apimachinery/pkg/watch"
 	"sort"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/security"

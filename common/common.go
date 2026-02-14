@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v3/util/env"
 	"math"
 	"os"
 	"path/filepath"
@@ -17,6 +16,8 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 // Component names
