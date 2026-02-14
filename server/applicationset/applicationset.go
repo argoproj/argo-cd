@@ -192,9 +192,7 @@ func NewServer(
 			func(appset *v1alpha1.ApplicationSet, eventType watch.EventType) *v1alpha1.ApplicationSetWatchEvent {
 				return &v1alpha1.ApplicationSetWatchEvent{ApplicationSet: *appset, Type: eventType}
 			},
-			func(appset *v1alpha1.ApplicationSet) log.Fields {
-				return applog.GetAppSetLogFields(appset)
-			},
+			applog.GetAppSetLogFields,
 		)
 	}
 	// Register ApplicationSet level broadcaster to receive create/update/delete events
