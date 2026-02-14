@@ -5,11 +5,11 @@
   },
   "CHECKS": {
     "prefixes": ["[Bot] docs: "],
-    "regexp": "^(feat|fix|docs|test|ci|chore)!?(\\(.*\\))?!?:.*"
+    "regexp": "^(refactor|feat|fix|docs|test|ci|chore)!?(\\(.*\\))?!?:.*"
   },
   "MESSAGES": {
     "success": "PR title is valid",
     "failure": "PR title is invalid",
-    "notice": "PR Title needs to pass regex '^(feat|fix|docs|test|ci|chore)!?(\\(.*\\))?!?:.*"
+    "notice": "PR Title needs to pass regex '^(refactor|feat|fix|docs|test|ci|chore)!?(\\(.*\\))?!?:.*"
   }
 }
