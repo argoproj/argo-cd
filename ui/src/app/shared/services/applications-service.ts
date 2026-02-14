@@ -125,12 +125,9 @@ export class ApplicationsService {
 
     public watchResourceTree(name: string, appNamespace: string, objectListKind: string): Observable<models.ApplicationTree> {
         const isApplication = objectListKind === 'application';
-        // ApplicationSet doesn't have a streaming resource-tree endpoint
-        if (!isApplication) {
-            return new Observable<models.ApplicationTree>(() => {});
-        }
+        const endpoint = isApplication ? 'applications' : 'applicationsets';
         return requests
-            .loadEventSource(`/stream/applications/${name}/resource-tree?appNamespace=${appNamespace}`)
+            .loadEventSource(`/stream/${endpoint}/${name}/resource-tree?appNamespace=${appNamespace}`)
             .pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
     }
 
@@ -220,13 +217,9 @@ export class ApplicationsService {
         query?: {name?: string; resourceVersion?: string; projects?: string[]; appNamespace?: string},
         options?: QueryOptions
     ): Observable<models.ApplicationWatchEvent> {
-        const isApplication = objectListKind === 'application';
-        // ApplicationSet watch - use separate PR after backend is merged
-        if (!isApplication) {
-            return new Observable<models.ApplicationWatchEvent>(() => {});
-        }
         const search = new URLSearchParams();
-        const endpoint = '/applications';
+        const isApplication = objectListKind === 'application';
+        const endpoint = isApplication ? '/applications' : '/applicationsets';
         if (query) {
             if (query.name) {
                 search.set('name', query.name);
@@ -243,7 +236,9 @@ export class ApplicationsService {
             search.set('fields', searchOptions.fields);
             search.set('selector', searchOptions.selector);
             search.set('appNamespace', searchOptions.appNamespace);
-            query?.projects?.forEach(project => search.append('projects', project));
+            if (isApplication) {
+                query?.projects?.forEach(project => search.append('projects', project));
+            }
         }
         const searchStr = search.toString();
         const url = `/stream${endpoint}${(searchStr && '?' + searchStr) || ''}`;
@@ -254,7 +249,7 @@ export class ApplicationsService {
             .pipe(map(data => JSON.parse(data).result as models.ApplicationWatchEvent))
             .pipe(
                 map(watchEvent => {
-                    watchEvent.application = this.parseAppFields(watchEvent.application, true) as models.Application;
+                    watchEvent.application = this.parseAppFields(watchEvent.application, isApplication) as models.Application;
                     return watchEvent;
                 })
             );
