@@ -28,4 +28,6 @@ jobs:
           exempt-issue-labels: >
             bug, security, breaking/high, breaking/medium, breaking/low
 
+          # General configuration
           operations-per-run: 200
+          remove-stale-when-updated: true #Remove stale label when issue/pr is updated
