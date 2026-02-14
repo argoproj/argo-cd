@@ -220,9 +220,13 @@ export class ApplicationsService {
         query?: {name?: string; resourceVersion?: string; projects?: string[]; appNamespace?: string},
         options?: QueryOptions
     ): Observable<models.ApplicationWatchEvent> {
-        const search = new URLSearchParams();
         const isApplication = objectListKind === 'application';
-        const endpoint = isApplication ? '/applications' : '/applicationsets';
+        // ApplicationSet watch - use separate PR after backend is merged
+        if (!isApplication) {
+            return new Observable<models.ApplicationWatchEvent>(() => {});
+        }
+        const search = new URLSearchParams();
+        const endpoint = '/applications';
         if (query) {
             if (query.name) {
                 search.set('name', query.name);
@@ -239,9 +243,7 @@ export class ApplicationsService {
             search.set('fields', searchOptions.fields);
             search.set('selector', searchOptions.selector);
             search.set('appNamespace', searchOptions.appNamespace);
-            if (isApplication) {
-                query?.projects?.forEach(project => search.append('projects', project));
-            }
+            query?.projects?.forEach(project => search.append('projects', project));
         }
         const searchStr = search.toString();
         const url = `/stream${endpoint}${(searchStr && '?' + searchStr) || ''}`;
@@ -252,9 +254,7 @@ export class ApplicationsService {
             .pipe(map(data => JSON.parse(data).result as models.ApplicationWatchEvent))
             .pipe(
                 map(watchEvent => {
-                    // ApplicationSetWatchEvent has 'applicationSet' field, normalize to 'application'
-                    const rawApp = isApplication ? watchEvent.application : (watchEvent as unknown as models.ApplicationSetWatchEvent).applicationSet;
-                    watchEvent.application = this.parseAppFields(rawApp, isApplication) as models.Application;
+                    watchEvent.application = this.parseAppFields(watchEvent.application, true) as models.Application;
                     return watchEvent;
                 })
             );

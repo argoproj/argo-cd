@@ -6,7 +6,6 @@ import (
 	"os"
 	"reflect"
 	"text/tabwriter"
-	"time"
 
 	k8swatch "k8s.io/apimachinery/pkg/watch"
 
@@ -380,20 +379,16 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 					confirm, confirmAll = promptUtil.ConfirmBaseOnCount(messageForSingle, messageForAll, numOfApps)
 				}
 				if confirm || confirmAll {
-					// Start watching BEFORE delete if --wait is requested to avoid race condition
+					// Start watching before delete if --wait is requested to avoid race condition
 					var appEventCh chan *arogappsetv1.ApplicationSetWatchEvent
 					if wait {
 						appEventCh = acdClient.WatchApplicationSetWithRetry(ctx, appSetQualifiedName, "")
-						// Give the watch goroutine time to establish the connection
-						// before sending the delete request
-						time.Sleep(100 * time.Millisecond)
 					}
 
 					_, err := appIf.Delete(ctx, &appsetDeleteReq)
 					errors.CheckError(err)
 
 					if wait {
-						// Wait for delete event
 						for appEvent := range appEventCh {
 							if appEvent.Type == k8swatch.Deleted {
 								break
