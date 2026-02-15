@@ -776,6 +776,17 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	// symbolic reference (like HEAD), in which case we will resolve it from the refToHash map
 	refToResolve := ""
 
+	// ref.Name().Short() is an expensive call in the for loop below,
+	// so we call it once for the revision string up front to determine if the supplied revision is a short ref (e.g. "master" instead of "refs/heads/master").
+	// The intention is to optimize for a case where the full ref string is supplied, as comparing the full ref string is cheaper than calling Short() on every ref in the loop.
+	// If the supplied revision is a short ref, we will compare it with the short version of each ref in the loop.
+	// If the supplied revision is not a short ref, we will compare it with the full ref string in the loop, which is cheaper than calling Short() on every ref.
+	// This performance optimization is based on the observation coming from larger repositories where the number of refs can be in the order of tens of thousands,
+	// and we want to avoid calling Short() on every ref if we can determine up front that the supplied revision is not a short ref.
+	refTentative := plumbing.NewReferenceFromStrings(revision, "dummyHash")
+	isShortRef := refTentative.Name().Short() == revision
+	log.Debugf("Attempting to resolve revision '%s' (is short ref: %t)", revision, isShortRef)
+
 	for _, ref := range refs {
 		refName := ref.Name().String()
 		hash := ref.Hash().String()
@@ -783,7 +794,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 			refToHash[refName] = hash
 		}
 		// log.Debugf("%s\t%s", hash, refName)
-		if ref.Name().Short() == revision || refName == revision {
+		if (isShortRef && ref.Name().Short() == revision) || refName == revision {
 			if ref.Type() == plumbing.HashReference {
 				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
 				return hash, nil
