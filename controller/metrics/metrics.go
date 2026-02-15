@@ -300,12 +300,12 @@ func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server,
 }
 
 func (m *MetricsServer) IncRedisRequest(failed bool) {
-	m.redisRequestCounter.WithLabelValues(m.hostname, common.ApplicationController, strconv.FormatBool(failed)).Inc()
+	m.redisRequestCounter.WithLabelValues(m.hostname, common.CommandApplicationController, strconv.FormatBool(failed)).Inc()
 }
 
 // ObserveRedisRequestDuration observes redis request duration
 func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
-	m.redisRequestHistogram.WithLabelValues(m.hostname, common.ApplicationController).Observe(duration.Seconds())
+	m.redisRequestHistogram.WithLabelValues(m.hostname, common.CommandApplicationController).Observe(duration.Seconds())
 }
 
 // ObserveResourceEventsProcessingDuration observes resource events processing duration
