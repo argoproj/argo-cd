@@ -750,3 +750,41 @@ func TestGetGitFiles(t *testing.T) {
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
 	})
 }
+
+func TestGetGitFilesChanges(t *testing.T) {
+	t.Run("GetGitFilesChanges cache miss", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		directories, err := fixtures.cache.GetGitFilesChanges("test-repo", "test-revision", "syncedRevision")
+		require.ErrorIs(t, err, ErrCacheMiss)
+		assert.Empty(t, directories)
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
+	})
+	t.Run("GetGitFilesChanges cache hit", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		cache := fixtures.cache
+		expectedItem := []string{"test/path/file-1.yaml", "test/path1/file-2.yaml"}
+		err := cache.cache.SetItem(
+			getGitFilesChangesKey("test-repo", "test-revision", "syncedRevision"),
+			expectedItem,
+			&cacheutil.CacheActionOpts{Expiration: 30 * time.Second})
+		require.NoError(t, err)
+		files, err := fixtures.cache.GetGitFilesChanges("test-repo", "test-revision", "syncedRevision")
+		require.NoError(t, err)
+		assert.Equal(t, expectedItem, files)
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
+	})
+
+	t.Run("SetGitFilesChanges", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		expectedItem := []string{"test/path/file-1.yaml", "test/path1/file-2.yaml"}
+		err := fixtures.cache.SetGitFilesChanges("test-repo", "test-revision", "syncedRevision", expectedItem)
+		require.NoError(t, err)
+		files, err := fixtures.cache.GetGitFilesChanges("test-repo", "test-revision", "syncedRevision")
+		require.NoError(t, err)
+		assert.Equal(t, expectedItem, files)
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
+	})
+}

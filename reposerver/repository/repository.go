@@ -3061,24 +3061,41 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 		return revision, syncedRevision, false, nil
 	}
 
-	s.metricsServer.IncPendingRepoRequest(repo.Repo)
-	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
+	getGitFilesChanges := func() ([]string, error) {
+		var files []string
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, false, 0)
-	})
-	if err != nil {
-		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+		s.metricsServer.IncPendingRepoRequest(repo.Repo)
+		defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
+
+		closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
+			return s.checkoutRevision(gitClient, revision, false, 0)
+		})
+		if err != nil {
+			return files, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+		}
+		defer utilio.Close(closer)
+
+		if err := s.fetch(gitClient, []string{syncedRevision}); err != nil {
+			return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
+		}
+
+		files, err = gitClient.ChangedFiles(syncedRevision, revision)
+		if err != nil {
+			return files, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
+		}
+		return files, nil
 	}
-	defer utilio.Close(closer)
 
-	if err := s.fetch(gitClient, []string{syncedRevision}); err != nil {
-		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
+	files, err := s.cache.GetGitFilesChanges(repo.Repo, revision, syncedRevision)
+	if err != nil {
+		files, err = getGitFilesChanges()
+		if err != nil {
+			return revision, syncedRevision, true, err
+		}
 	}
 
-	files, err := gitClient.ChangedFiles(syncedRevision, revision)
-	if err != nil {
-		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
+	if err := s.cache.SetGitFilesChanges(repo.Repo, revision, syncedRevision, files); err != nil {
+		log.Warnf("Failed to store git files changes for `%s` repo in `%s...%s` with: %v", repo.Repo, revision, syncedRevision, err)
 	}
 
 	changed := false
