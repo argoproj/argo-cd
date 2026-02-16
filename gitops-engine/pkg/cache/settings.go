@@ -73,6 +73,14 @@ func SetClusterResources(val bool) UpdateSettingsFunc {
 	}
 }
 
+// WithIncrementalNamespaceSync enables or disables incremental namespace syncing.
+// When enabled, adding a namespace syncs only that namespace instead of invalidating the entire cache.
+func WithIncrementalNamespaceSync(enabled bool) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.incrementalNamespaceSync = enabled
+	}
+}
+
 // SetConfig updates cluster rest config
 func SetConfig(config *rest.Config) UpdateSettingsFunc {
 	return func(cache *clusterCache) {

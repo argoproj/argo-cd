@@ -27,6 +27,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"maps"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -97,6 +98,11 @@ type apiMeta struct {
 	// watchCancel stops the watch of all resources for this API. This gets called when the cache is invalidated or when
 	// the watched API ceases to exist (e.g. a CRD gets deleted).
 	watchCancel context.CancelFunc
+	// watchCtx is the parent context for all watches of this API. Used to derive per-namespace contexts.
+	watchCtx context.Context
+	// namespaceCancels tracks per-namespace watch cancellation for incremental namespace operations.
+	// Only populated when using incremental namespace sync.
+	namespaceCancels map[string]context.CancelFunc
 }
 
 type eventMeta struct {
@@ -151,6 +157,10 @@ type ClusterCache interface {
 	GetGVKParser() *managedfields.GvkParser
 	// Invalidate cache and executes callback that optionally might update cache settings
 	Invalidate(opts ...UpdateSettingsFunc)
+	// AddNamespace incrementally syncs a new namespace to the cluster cache if incremental sync is enabled, otherwise falls back to full invalidation
+	AddNamespace(namespace string) error
+	// RemoveNamespace incrementally removes a namespace from the cluster cache if incremental sync is enabled, otherwise falls back to full invalidation
+	RemoveNamespace(namespace string) error
 	// FindResources returns resources that matches given list of predicates from specified namespace or everywhere if specified namespace is empty
 	FindResources(namespace string, predicates ...func(r *Resource) bool) map[kube.ResourceKey]*Resource
 	// IterateHierarchyV2 iterates resource tree starting from the specified top level resources and executes callback for each resource in the tree.
@@ -259,6 +269,9 @@ type clusterCache struct {
 	namespaces       []string
 	clusterResources bool
 	settings         Settings
+
+	// incrementalNamespaceSync enables incremental namespace syncing instead of full cache invalidation
+	incrementalNamespaceSync bool
 
 	handlersLock                sync.Mutex
 	handlerKey                  uint64
@@ -610,6 +623,170 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	c.log.Info("Invalidated cluster")
 }
 
+// AddNamespace incrementally syncs a new namespace to the cluster cache if incremental sync is enabled,
+// otherwise falls back to full cluster cache invalidation
+func (c *clusterCache) AddNamespace(namespace string) error {
+	if !c.incrementalNamespaceSync {
+		c.Invalidate(func(cache *clusterCache) {
+			cache.namespaces = append(cache.namespaces, namespace)
+		})
+
+		return nil
+	}
+
+	// Feature enabled: incremental sync
+	c.log.Info("Start syncing namespace", "namespace", namespace)
+
+	c.lock.Lock()
+	c.namespaces = append(c.namespaces, namespace)
+	apisToSync := c.snapshotApisMeta()
+	c.lock.Unlock()
+
+	err := c.syncNamespaceResources(namespace, apisToSync)
+	if err != nil {
+		c.log.Error(err, "Failed to sync namespace", "namespace", namespace)
+		return err
+	}
+
+	c.log.Info("Namespace successfully synced", "namespace", namespace)
+
+	return nil
+}
+
+// RemoveNamespace incrementally removes a namespace from the cluster cache if incremental sync is enabled,
+// otherwise falls back to full cluster cache invalidation
+func (c *clusterCache) RemoveNamespace(namespace string) error {
+	if !c.incrementalNamespaceSync {
+		c.Invalidate(func(cache *clusterCache) {
+			cache.namespaces = removeNamespaceFromList(cache.namespaces, namespace)
+		})
+		return nil
+	}
+
+	// Feature enabled: incremental removal
+	c.lock.Lock()
+	c.namespaces = removeNamespaceFromList(c.namespaces, namespace)
+
+	// Remove all resources from the removed namespace
+	for key := range c.resources {
+		if key.Namespace == namespace {
+			delete(c.resources, key)
+		}
+	}
+
+	// Cancel watches for the removed namespace
+	for _, meta := range c.apisMeta {
+		if cancel, exists := meta.namespaceCancels[namespace]; exists {
+			cancel()
+			delete(meta.namespaceCancels, namespace)
+		}
+	}
+
+	c.lock.Unlock()
+
+	return nil
+}
+
+func removeNamespaceFromList(namespaces []string, namespace string) []string {
+	result := make([]string, 0, len(namespaces)-1)
+	for _, ns := range namespaces {
+		if ns != namespace {
+			result = append(result, ns)
+		}
+	}
+	return result
+}
+
+func (c *clusterCache) snapshotApisMeta() map[schema.GroupKind]*apiMeta {
+	snapshot := make(map[schema.GroupKind]*apiMeta)
+	maps.Copy(snapshot, c.apisMeta)
+	return snapshot
+}
+
+// syncNamespaceResources lists and caches resources for the given namespace across all watched APIs
+func (c *clusterCache) syncNamespaceResources(namespace string, apisToSync map[schema.GroupKind]*apiMeta) error {
+	client, err := c.kubectl.NewDynamicClient(c.config)
+	if err != nil {
+		return fmt.Errorf("failed to create client: %w", err)
+	}
+
+	clientset, err := kubernetes.NewForConfig(c.config)
+	if err != nil {
+		return fmt.Errorf("failed to create clientset: %w", err)
+	}
+
+	apiMap, err := c.buildAPIMap()
+	if err != nil {
+		return err
+	}
+
+	for gk, meta := range apisToSync {
+		if !meta.namespaced {
+			continue
+		}
+
+		api, exists := apiMap[gk]
+		if !exists {
+			continue
+		}
+
+		// Create per-namespace context derived from the API's parent context
+		nsCtx, nsCancel := context.WithCancel(meta.watchCtx)
+		meta.namespaceCancels[namespace] = nsCancel
+
+		if err := c.loadNamespaceResources(nsCtx, client, clientset, api, namespace); err != nil {
+			return fmt.Errorf("failed to load resources for %s in namespace %s: %w", gk.String(), namespace, err)
+		}
+	}
+
+	return nil
+}
+
+// buildAPIMap creates a lookup map from GroupKind to APIResourceInfo
+func (c *clusterCache) buildAPIMap() (map[schema.GroupKind]kube.APIResourceInfo, error) {
+	apis, err := c.kubectl.GetAPIResources(c.config, true, c.settings.ResourcesFilter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get api resources: %w", err)
+	}
+
+	apiMap := make(map[schema.GroupKind]kube.APIResourceInfo)
+	for _, api := range apis {
+		apiMap[api.GroupKind] = api
+	}
+	return apiMap, nil
+}
+
+// loadNamespaceResources lists and caches all resources for a given API in a specific namespace,
+// and starts watching for changes
+func (c *clusterCache) loadNamespaceResources(ctx context.Context, client dynamic.Interface, clientset kubernetes.Interface, api kube.APIResourceInfo, namespace string) error {
+	resClient := client.Resource(api.GroupVersionResource).Namespace(namespace)
+
+	resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
+		return listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
+			un, ok := obj.(*unstructured.Unstructured)
+			if !ok {
+				return fmt.Errorf("object has unexpected type: %T", obj)
+			}
+			newRes := c.newResource(un)
+			c.lock.Lock()
+			c.setNode(newRes)
+			c.lock.Unlock()
+			return nil
+		})
+	})
+	if err != nil {
+		if c.isRestrictedResource(err) {
+			return c.handleRestrictedListError(ctx, clientset, api, namespace, err)
+		}
+
+		return err
+	}
+
+	go c.watchEvents(ctx, api, resClient, namespace, resourceVersion)
+
+	return nil
+}
+
 // clusterCacheSync's lock should be held before calling this method
 func (syncStatus *clusterCacheSync) synced(clusterRetryTimeout time.Duration) bool {
 	syncTime := syncStatus.syncTime
@@ -753,7 +930,7 @@ func (c *clusterCache) loadInitialState(ctx context.Context, api kube.APIResourc
 	resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
 		return listPager.EachListItem(ctx, metav1.ListOptions{}, func(obj runtime.Object) error {
 			if un, ok := obj.(*unstructured.Unstructured); !ok {
-				return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
+				return fmt.Errorf("object has unexpected type: %T", obj)
 			} else {
 				items = append(items, c.newResource(un))
 			}
@@ -979,6 +1156,50 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 	return true, nil
 }
 
+// checkPermissionForNamespace checks if the controller has permission to list a resource in a specific namespace
+func (c *clusterCache) checkPermissionForNamespace(ctx context.Context, reviewInterface authType1.SelfSubjectAccessReviewInterface, api kube.APIResourceInfo, namespace string) (bool, error) {
+	sar := &authorizationv1.SelfSubjectAccessReview{
+		Spec: authorizationv1.SelfSubjectAccessReviewSpec{
+			ResourceAttributes: &authorizationv1.ResourceAttributes{
+				Namespace: namespace,
+				Verb:      "list",
+				Resource:  api.GroupVersionResource.Resource,
+			},
+		},
+	}
+
+	resp, err := reviewInterface.Create(ctx, sar, metav1.CreateOptions{})
+	if err != nil {
+		return false, fmt.Errorf("failed to create self subject access review: %w", err)
+	}
+
+	if resp != nil && resp.Status.Allowed {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+// handleRestrictedListError manages forbidden/unauthorized list errors with optional self subject access review (SSAR) verification
+func (c *clusterCache) handleRestrictedListError(ctx context.Context, clientset kubernetes.Interface, api kube.APIResourceInfo, namespace string, listErr error) error {
+	if c.respectRBAC != RespectRbacStrict {
+		// RespectRbacNormal: silently skip forbidden resources
+		return nil
+	}
+
+	keep, permErr := c.checkPermissionForNamespace(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api, namespace)
+	if permErr != nil {
+		return fmt.Errorf("failed to check permissions for %s in namespace %s: %w", api.GroupKind.String(), namespace, permErr)
+	}
+	if !keep {
+		// SSAR confirms no permission - silently skip this resource
+		return nil
+	}
+
+	// SSAR says we have permission, but list failed - propagate the original list error
+	return fmt.Errorf("list failed despite having permissions for %s in namespace %s: %w", api.GroupKind.String(), namespace, listErr)
+}
+
 // sync retrieves the current state of the cluster and stores relevant information in the clusterCache fields.
 //
 // First we get some metadata from the cluster, like the server version, OpenAPI document, and the list of all API
@@ -1053,7 +1274,12 @@ func (c *clusterCache) sync() error {
 
 		lock.Lock()
 		ctx, cancel := context.WithCancel(context.Background())
-		info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
+		info := &apiMeta{
+			namespaced:       api.Meta.Namespaced,
+			watchCancel:      cancel,
+			watchCtx:         ctx,
+			namespaceCancels: make(map[string]context.CancelFunc),
+		}
 		c.apisMeta[api.GroupKind] = info
 		c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
 		lock.Unlock()
@@ -1062,7 +1288,7 @@ func (c *clusterCache) sync() error {
 			resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
 				return listPager.EachListItem(context.Background(), metav1.ListOptions{}, func(obj runtime.Object) error {
 					if un, ok := obj.(*unstructured.Unstructured); !ok {
-						return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
+						return fmt.Errorf("object has unexpected type: %T", obj)
 					} else {
 						newRes := c.newResource(un)
 						lock.Lock()

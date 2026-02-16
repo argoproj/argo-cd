@@ -127,6 +127,12 @@ data:
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
   # See https://github.com/argoproj/argo-cd/issues/24991
   controller.grpc.enable.txt.service.config: "false"
+  # Enables incremental namespace sync in cluster cache for performance optimization. When enabled, only changed
+  # namespaces are synced instead of performing a full cluster cache rebuild. This significantly improves sync
+  # performance for clusters with many namespaces. (default "false")
+  #
+  # Feature state: Alpha (since v3.3.0)
+  controller.incremental.namespace.sync.enabled: "false"
 
   ## Server properties
   # Listen on given address for incoming connections (default "0.0.0.0")

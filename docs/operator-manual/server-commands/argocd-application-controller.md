@@ -37,6 +37,7 @@ argocd-application-controller [flags]
   -h, --help                                                      help for argocd-application-controller
       --hydrator-enabled                                          Feature flag to enable Hydrator. Default ("false")
       --ignore-normalizer-jq-execution-timeout-seconds duration   Set ignore normalizer JQ execution timeout
+      --incremental-namespace-sync-enabled                        Enables incremental namespace sync in cluster cache for performance optimization. Default ("false")
       --insecure-skip-tls-verify                                  If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                                         Path to a kube config. Only required if out-of-cluster
       --kubectl-parallelism-limit int                             Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit. (default 20)

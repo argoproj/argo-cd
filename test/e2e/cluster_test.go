@@ -6,13 +6,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	clusterFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/cluster"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )
@@ -30,7 +32,7 @@ https://kubernetes.default.svc  in-cluster  %v     Successful           `, fixtu
 
 	// We need an application targeting the cluster, otherwise the test will
 	// fail if run isolated.
-	app.GivenWithSameState(ctx).
+	GivenWithSameState(ctx).
 		Path(guestbookPath).
 		When().
 		CreateApp()
@@ -165,6 +167,139 @@ func TestClusterSet(t *testing.T) {
 			assert.Contains(t, output, "namespace-edit-1")
 			assert.Contains(t, output, "namespace-edit-2")
 		})
+}
+
+func TestClusterIncrementalAddNamespace(t *testing.T) {
+	// Given: cluster with 1 deployed app in 1 namespace and incremental
+	// namespace sync is enabled
+	testCtx := fixture.EnsureCleanState(t)
+	existingNs := testCtx.DeploymentNamespace()
+	newNs := "new-ns"
+	t.Setenv("ARGOCD_ENABLE_INCREMENTAL_NAMESPACE_SYNC", "true")
+	clusterFixture.
+		GivenWithSameState(testCtx).
+		Project(fixture.ProjectName).
+		Name("in-cluster").
+		Namespaces([]string{existingNs}).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		SetNamespaces()
+	GivenWithSameState(testCtx).
+		Name("app-1").
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+
+	// When: A new namespace is created and added to the cluster and a new
+	// app is deployed to it
+	errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "create", "namespace", newNs))
+	t.Cleanup(func() {
+		errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "delete", "namespace", newNs, "--ignore-not-found=true"))
+	})
+	clusterFixture.
+		GivenWithSameState(testCtx).
+		Project(fixture.ProjectName).
+		Name("in-cluster").
+		Namespaces([]string{existingNs, newNs}).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		SetNamespaces()
+	GivenWithSameState(testCtx).
+		Name("app-2").
+		Path(guestbookPath).
+		When().
+		CreateWithNoNameSpace("--dest-namespace", newNs).
+		Sync()
+
+	// Then: both the new app and the existing app are healthy and synced
+	GivenWithSameState(testCtx).
+		Name("app-2").
+		When().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+	GivenWithSameState(testCtx).
+		Name("app-1").
+		When().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestClusterIncrementalRemoveNamespace(t *testing.T) {
+	// Given: cluster with 2 namespaces, each with a deployed app and
+	// incremental namespace sync is enabled
+	testCtx := fixture.EnsureCleanState(t)
+	existingNs := testCtx.DeploymentNamespace()
+	removableNs := "removable-ns"
+	t.Setenv("ARGOCD_ENABLE_INCREMENTAL_NAMESPACE_SYNC", "true")
+	errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "create", "namespace", removableNs))
+	t.Cleanup(func() {
+		errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "delete", "namespace", removableNs, "--ignore-not-found=true"))
+	})
+	clusterFixture.
+		GivenWithSameState(testCtx).
+		Project(fixture.ProjectName).
+		Name("in-cluster").
+		Namespaces([]string{existingNs, removableNs}).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		SetNamespaces()
+	GivenWithSameState(testCtx).
+		Name("app-1").
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+	GivenWithSameState(testCtx).
+		Name("app-2").
+		Path(guestbookPath).
+		When().
+		CreateWithNoNameSpace("--dest-namespace", removableNs).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+
+	// When: One namespace is removed from the cluster configuration
+	clusterFixture.
+		GivenWithSameState(testCtx).
+		Project(fixture.ProjectName).
+		Name("in-cluster").
+		Namespaces([]string{existingNs}).
+		Server(KubernetesInternalAPIServerAddr).
+		When().
+		SetNamespaces()
+
+	// Then: the namespace is removed from config and the app in the
+	// remaining namespace is still healthy and synced
+	clusterFixture.
+		GivenWithSameState(testCtx).
+		Name("in-cluster").
+		When().
+		GetByName().
+		Then().
+		AndCLIOutput(func(output string, _ error) {
+			assert.Contains(t, output, existingNs)
+			assert.NotContains(t, output, removableNs)
+		})
+	GivenWithSameState(testCtx).
+		Name("app-1").
+		When().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
 func TestClusterGet(t *testing.T) {

@@ -34427,6 +34427,12 @@ spec:
               key: controller.diff.server.side
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_ENABLE_INCREMENTAL_NAMESPACE_SYNC
+          valueFrom:
+            configMapKeyRef:
+              key: controller.incremental.namespace.sync.enabled
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT
           valueFrom:
             configMapKeyRef:
