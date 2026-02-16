@@ -575,6 +575,70 @@ func TestExtractGVK(t *testing.T) {
 	}
 }
 
+func TestExtractGVKObjectCoreTypes(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		wantGroup   string
+		wantVersion string
+		wantKind    string
+		wantNil     bool
+	}{
+		{
+			name:        "apps/v1 Deployment",
+			input:       "apps/v1, Kind=Deployment",
+			wantGroup:   "apps",
+			wantVersion: "v1",
+			wantKind:    "Deployment",
+		},
+		{
+			name:        "core v1 Pod with leading slash",
+			input:       "/v1, Kind=Pod",
+			wantGroup:   "",
+			wantVersion: "v1",
+			wantKind:    "Pod",
+		},
+		{
+			name:        "CRD with long group",
+			input:       "s3.aws.upbound.io/v1beta1, Kind=Bucket",
+			wantGroup:   "s3.aws.upbound.io",
+			wantVersion: "v1beta1",
+			wantKind:    "Bucket",
+		},
+		{
+			name:        "networking.k8s.io Ingress",
+			input:       "networking.k8s.io/v1, Kind=Ingress",
+			wantGroup:   "networking.k8s.io",
+			wantVersion: "v1",
+			wantKind:    "Ingress",
+		},
+		{
+			name:    "invalid format - no Kind",
+			input:   "apps/v1",
+			wantNil: true,
+		},
+		{
+			name:    "invalid format - empty",
+			input:   "",
+			wantNil: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gvk := ExtractGVKObject(tt.input)
+			if tt.wantNil {
+				assert.Nil(t, gvk)
+				return
+			}
+			require.NotNil(t, gvk)
+			assert.Equal(t, tt.wantGroup, gvk.Group)
+			assert.Equal(t, tt.wantVersion, gvk.Version)
+			assert.Equal(t, tt.wantKind, gvk.Kind)
+		})
+	}
+}
+
 func TestCredentialsConfigurationError(t *testing.T) {
 	originalErr := errors.New("original credential error")
 

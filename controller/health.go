@@ -30,8 +30,10 @@ func setApplicationHealthWithClusterInfo(resources []managedResource, statuses [
 	// Start with Healthy status, but adjust if app uses tainted resources
 	appHealthStatus := health.HealthStatusHealthy
 	if clusterHealth != nil && clusterHealth.UsesTaintedResources {
-		// If app uses tainted resources, start with Degraded status
-		appHealthStatus = health.HealthStatusDegraded
+		// If app uses tainted resources, start with Unknown status
+		// We use Unknown (not Degraded) because we cannot actually fetch
+		// the resource to assess its true health - the health is genuinely unknown.
+		appHealthStatus = health.HealthStatusUnknown
 	}
 	for i, res := range resources {
 		if res.Target != nil && hookutil.Skip(res.Target) {

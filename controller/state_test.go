@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -2205,3 +2206,184 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T)
 	require.NoError(t, err)
 	require.False(t, revisionsMayHaveChanges)
 }
+
+// TestCompareAppStateProjectPermitsTaintedGVKs tests that when a project permits tainted GVKs
+// that are NOT in the target objects, a warning condition is added.
+func TestCompareAppStateProjectPermitsTaintedGVKs(t *testing.T) {
+	app := newFakeApp()
+
+	// Create a Deployment target object
+	deployment := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata": map[string]any{
+				"name":      "test-deployment",
+				"namespace": test.FakeDestNamespace,
+			},
+		},
+	}
+
+	deploymentBytes, _ := json.Marshal(deployment.Object)
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(deploymentBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		// Pod GVK is tainted but Deployment (the target object) is not
+		taintedGVKs: []string{"/v1, Kind=Pod"},
+	}
+
+	ctrl := newFakeController(context.Background(), &data, nil)
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+
+	// The app doesn't directly use the tainted GVK (Pod), so sync status is based on
+	// normal comparison logic (OutOfSync because deployment has no live state)
+	// The important check is that we add the project-permits warning
+	assert.NotEqual(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status,
+		"Status should NOT be Unknown since the app doesn't directly use tainted GVKs")
+
+	// Since the project permits Pods (and Pods are tainted), there should be a warning condition
+	// about potential child resource impacts
+	found := false
+	for _, cond := range app.Status.Conditions {
+		if cond.Type == v1alpha1.ApplicationConditionComparisonError &&
+			strings.Contains(cond.Message, "project permits") {
+			found = true
+			assert.Contains(t, cond.Message, "child resources")
+		}
+	}
+	assert.True(t, found, "Expected a warning condition about project permitting tainted GVKs, got conditions: %v", app.Status.Conditions)
+}
+
+// TestCompareAppStateNoWarningWhenTaintedGVKNotPermitted tests that no warning is added
+// when the tainted GVK is not permitted by the project.
+func TestCompareAppStateNoWarningWhenTaintedGVKNotPermitted(t *testing.T) {
+	app := newFakeApp()
+
+	// Create a Deployment target object
+	deployment := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "apps/v1",
+			"kind":       "Deployment",
+			"metadata": map[string]any{
+				"name":      "test-deployment",
+				"namespace": test.FakeDestNamespace,
+			},
+		},
+	}
+
+	deploymentBytes, _ := json.Marshal(deployment.Object)
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(deploymentBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		// A custom CRD GVK is tainted
+		taintedGVKs: []string{"custom.example.com/v1, Kind=CustomResource"},
+	}
+
+	// Use a restrictive project that only allows apps/v1 Deployments via blacklist
+	restrictiveProj := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-project",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:      []string{"*"},
+			Destinations:     []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+			SourceNamespaces: []string{"*"},
+			// Block the custom CRD
+			NamespaceResourceBlacklist: []metav1.GroupKind{
+				{Group: "custom.example.com", Kind: "CustomResource"},
+			},
+		},
+	}
+
+	ctrl := newFakeController(context.Background(), &data, nil)
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &restrictiveProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+
+	// The project doesn't permit the tainted GVK (it's blacklisted), so no warning should be added
+	for _, cond := range app.Status.Conditions {
+		if cond.Type == v1alpha1.ApplicationConditionComparisonError {
+			assert.NotContains(t, cond.Message, "project permits")
+		}
+	}
+}
+
+// TestCompareAppStateNoWarningWhenTaintedGVKInTargets tests that no duplicate warning
+// is added when the tainted GVK is already in target objects (direct impact case).
+func TestCompareAppStateNoWarningWhenTaintedGVKInTargets(t *testing.T) {
+	app := newFakeApp()
+
+	// Create a Pod target object (directly using the tainted GVK)
+	pod := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+			"metadata": map[string]any{
+				"name":      "test-pod",
+				"namespace": test.FakeDestNamespace,
+			},
+		},
+	}
+
+	podBytes, _ := json.Marshal(pod.Object)
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{string(podBytes)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		// Pod GVK is tainted and is directly in target objects
+		taintedGVKs: []string{"/v1, Kind=Pod"},
+	}
+
+	ctrl := newFakeController(context.Background(), &data, nil)
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+
+	// The app directly uses the tainted GVK, so sync status should be Unknown
+	assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
+
+	// The project permits warning should NOT be added since the GVK is already in targets
+	// (the direct impact is handled separately)
+	for _, cond := range app.Status.Conditions {
+		if cond.Type == v1alpha1.ApplicationConditionComparisonError {
+			// Should NOT contain "project permits" - only direct impact message
+			assert.NotContains(t, cond.Message, "project permits", "Unexpected project permits warning when GVK is in targets")
+		}
+	}
+}
+

@@ -113,8 +113,8 @@ var (
 	// GVK extraction patterns - matches different formats:
 	// 1. Group:"example.io" Version:"v1" Kind:"Example" (structured)
 	gvkExtractionPattern = regexp.MustCompile(`(?:Group|group):"([^"]*)".*(?:Version|version):"([^"]*)".*(?:Kind|kind):"([^"]*)"`)
-	// 2. "example.io/v1, Kind=Example" (conversion webhook format - may have quotes)
-	conversionWebhookGVKPattern = regexp.MustCompile(`"?([^"\s]+)/([^"\s,]+),\s*Kind=([^"\s]+)"?`)
+	// 2. "example.io/v1, Kind=Example" or "/v1, Kind=Pod" (conversion webhook format - may have quotes, group is optional for core types)
+	conversionWebhookGVKPattern = regexp.MustCompile(`"?([^"\s]*)/([^"\s,]+),\s*Kind=([^"\s]+)"?`)
 )
 
 // AnalyzeError analyzes an error and returns structured health information
@@ -294,7 +294,6 @@ func IsConversionWebhookError(input any) bool {
 	return analysis.IssueType == IssueTypeConversionWebhook
 }
 
-// extractGVK attempts to extract GVK information from error messages
 // ExtractGVKObject extracts GroupVersionKind information from error messages
 // and returns it as a schema.GroupVersionKind object
 func ExtractGVKObject(message string) *schema.GroupVersionKind {
@@ -308,7 +307,7 @@ func ExtractGVKObject(message string) *schema.GroupVersionKind {
 		}
 	}
 
-	// Try conversion webhook format: example.io/v1, Kind=Example
+	// Try conversion webhook format: example.io/v1, Kind=Example or /v1, Kind=Pod
 	matches = conversionWebhookGVKPattern.FindStringSubmatch(message)
 	if len(matches) == 4 {
 		return &schema.GroupVersionKind{

@@ -1920,9 +1920,11 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	// Set health status based on the severity of detected issues
 	switch {
 	case usesTaintedResources:
-		// Application directly uses tainted resources - mark as degraded
-		logCtx.Info("Setting app health to Degraded due to tainted resources")
-		app.Status.Health.Status = health.HealthStatusDegraded
+		// Application directly uses tainted resources - mark as Unknown
+		// We use Unknown (not Degraded) because we cannot actually fetch
+		// the resource to assess its true health - the health is genuinely unknown.
+		logCtx.Info("Setting app health to Unknown due to tainted resources")
+		app.Status.Health.Status = health.HealthStatusUnknown
 		// Add a condition explaining why it's degraded, with specific details about affected GVKs
 		now := metav1.Now()
 		gvkList := ""
