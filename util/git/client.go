@@ -248,7 +248,8 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 		TLSClientConfig: &tls.Config{
 			GetClientCertificate: clientCertFunc,
 		},
-		DisableKeepAlives: true,
+		DisableKeepAlives:     true,
+		ResponseHeaderTimeout: gitClientTimeout,
 	}
 	customHTTPClient.Transport = transport
 	if insecure {
