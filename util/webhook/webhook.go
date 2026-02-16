@@ -2,7 +2,6 @@ package webhook
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"html"
 	"net/http"
@@ -27,7 +26,6 @@ import (
 	gogsclient "github.com/gogits/go-gogs-client"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/reposerver/cache"
@@ -76,6 +74,7 @@ type ArgoCDWebhookHandler struct {
 	settingsSrc            settingsSource
 	queue                  chan any
 	maxWebhookPayloadSizeB int64
+	registryHandler        *WebhookRegistryHandler
 }
 
 func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64) *ArgoCDWebhookHandler {
@@ -103,7 +102,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	if err != nil {
 		log.Warnf("Unable to init the Azure DevOps webhook")
 	}
-
+	registryHandler := NewWebhookRegistryHandler(set.GetWebhookGitHubSecret())
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:                     namespace,
 		appNs:                  applicationNamespaces,
@@ -122,6 +121,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		queue:                  make(chan any, payloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
 		appsLister:             appsLister,
+		registryHandler:        registryHandler,
 	}
 
 	acdWebhook.startWorkerPool(webhookParallelism)
@@ -309,6 +309,11 @@ type changeInfo struct {
 
 // HandleEvent handles webhook events for repo push events
 func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
+	switch e := payload.(type) {
+	case *WebhookRegistryEvent:
+		a.HandleRegistryEvent(e)
+		return
+	}
 	webURLs, revision, change, touchedHead, changedFiles := a.affectedRevisionInfo(payload)
 	// NOTE: the webURL does not include the .git extension
 	if len(webURLs) == 0 {
@@ -635,39 +640,39 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
+	if a.registryHandler != nil {
+		event, err := a.registryHandler.ProcessWebhook(r)
+		if err != nil {
+			log.Println("Error processing registry webhook:", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if event == nil {
+			log.Println("Registry webhook received but no event generated (ignored payload)")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		log.Println("Registry webhook event queued:", event)
+		a.queue <- event
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 
 	switch {
 	case r.Header.Get("X-Vss-Activityid") != "":
 		payload, err = a.azuredevops.Parse(r, azuredevops.GitPushEventType)
-		if errors.Is(err, azuredevops.ErrBasicAuthVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Azure DevOps webhook basic auth verification failed")
-		}
-	// Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
 	case r.Header.Get("X-Gogs-Event") != "":
 		payload, err = a.gogs.Parse(r, gogs.PushEvent)
-		if errors.Is(err, gogs.ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Gogs webhook HMAC verification failed")
-		}
 	case r.Header.Get("X-GitHub-Event") != "":
 		payload, err = a.github.Parse(r, github.PushEvent, github.PingEvent)
-		if errors.Is(err, github.ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitHub webhook HMAC verification failed")
-		}
 	case r.Header.Get("X-Gitlab-Event") != "":
 		payload, err = a.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.SystemHookEvents)
-		if errors.Is(err, gitlab.ErrGitLabTokenVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab webhook token verification failed")
-		}
 	case r.Header.Get("X-Hook-UUID") != "":
 		payload, err = a.bitbucket.Parse(r, bitbucket.RepoPushEvent)
-		if errors.Is(err, bitbucket.ErrUUIDVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket webhook UUID verification failed")
-		}
 	case r.Header.Get("X-Event-Key") != "":
 		payload, err = a.bitbucketserver.Parse(r, bitbucketserver.RepositoryReferenceChangedEvent, bitbucketserver.DiagnosticsPingEvent)
-		if errors.Is(err, bitbucketserver.ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket webhook HMAC verification failed")
-		}
 	default:
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
@@ -675,27 +680,20 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		// If the error is due to a large payload, return a more user-friendly error message
-		if err.Error() == "error parsing payload" {
-			msg := fmt.Sprintf("Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under %v MB) and ensure it is valid JSON", a.maxWebhookPayloadSizeB/1024/1024)
-			log.WithField(common.SecurityField, common.SecurityHigh).Warn(msg)
-			http.Error(w, msg, http.StatusBadRequest)
-			return
-		}
-
-		log.Infof("Webhook processing failed: %s", err)
-		status := http.StatusBadRequest
-		if r.Method != http.MethodPost {
-			status = http.StatusMethodNotAllowed
-		}
-		http.Error(w, "Webhook processing failed: "+html.EscapeString(err.Error()), status)
+		log.Println("Webhook parsing error:", err)
+		http.Error(w, "Webhook processing failed: "+html.EscapeString(err.Error()), http.StatusBadRequest)
 		return
 	}
 
-	select {
-	case a.queue <- payload:
-	default:
-		log.Info("Queue is full, discarding webhook payload")
-		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
+	if payload != nil {
+		select {
+		case a.queue <- payload:
+			log.Println("Webhook payload queued successfully")
+		default:
+			log.Println("Queue is full, discarding webhook payload")
+			http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
+			return
+		}
 	}
+	w.WriteHeader(http.StatusOK)
 }
