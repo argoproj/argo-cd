@@ -86,7 +86,8 @@ type ClientApp struct {
 	provider Provider
 	// clientCache represent a cache of sso artifact
 	clientCache cache.CacheClient
-	// properties for azure workload identity.
+	// domainHint is an optional hint to the identity provider about the domain the user belongs to.
+	// Used to pre-fill or streamline the login experience (e.g., for Azure AD multi-tenant scenarios).
 	domainHint string
 	azure      azureApp
 	// preemptive token refresh threshold
