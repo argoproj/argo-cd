@@ -118,7 +118,7 @@ A typical Git repository layout for a Helm-based app of apps is as follows:
 ```
 
 - `Chart.yaml` defines the Helm chart for the parent app.
-- `values.yaml` contains the default values shared across all child applicaitons.
+- `values.yaml` contains the default values shared across all child applications.
 - `templates/` contains one Helm template per child Application.
 
 ### Child Application Template
@@ -211,7 +211,7 @@ You may either:
     targetRevision: staging
 ```
 
-Pinning ensures child Applications only change when the parent Application changes. Even if the child apps repo changes, the child app will only change when the parent app change that revision.
+Pinning ensures child Applications only change when the parent Application changes. Even if the child applications repo changes, the child application will only change when the parent app changes that revision.
 
 ### `values.yaml`
 The `values.yaml` file provides default values shared across all child Applications:
