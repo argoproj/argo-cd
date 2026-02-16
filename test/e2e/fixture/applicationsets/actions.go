@@ -566,3 +566,36 @@ func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
 	fixture.AddSignedFile(a.context.T(), a.context.path+"/"+fileName, fileContents)
 	return a
 }
+
+func (a *Actions) RemoveFinalizerFromApps(appNames []string, finalizer string) *Actions {
+	a.context.T().Helper()
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
+
+	for _, appName := range appNames {
+		app, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(
+			context.Background(), appName, metav1.GetOptions{})
+		if err != nil {
+			a.lastError = err
+			continue
+		}
+
+		// Remove the finalizer
+		finalizers := []string{}
+		for _, f := range app.Finalizers {
+			if f != finalizer {
+				finalizers = append(finalizers, f)
+			}
+		}
+		app.Finalizers = finalizers
+
+		_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Update(
+			context.Background(), app, metav1.UpdateOptions{})
+
+		if err != nil {
+			a.lastError = err
+		}
+	}
+	a.describeAction = fmt.Sprintf("removing finalizer '%s' from apps %v", finalizer, appNames)
+	a.verifyAction()
+	return a
+}

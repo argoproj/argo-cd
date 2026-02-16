@@ -336,3 +336,32 @@ func ApplicationSetHasApplicationStatus(expectedApplicationStatusLength int) Exp
 		return succeeded, fmt.Sprintf("All Applications in ApplicationSet: '%s' are Healthy ", c.context.GetName())
 	}
 }
+
+// ApplicationsBeingDeletedOrGone checks that specified apps either have DeletionTimestamp set or no longer exist
+func ApplicationsBeingDeletedOrGone(appNames []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, appName := range appNames {
+			app := c.app(appName)
+			if app != nil && app.DeletionTimestamp == nil {
+				return pending, fmt.Sprintf("app '%s' exists and is not being deleted yet", appName)
+			}
+		}
+		return succeeded, fmt.Sprintf("all apps %v are being deleted or gone", appNames)
+	}
+}
+
+// ApplicationsExistAndNotBeingDeleted checks that specified apps exist and do NOT have DeletionTimestamp set
+func ApplicationsExistAndNotBeingDeleted(appNames []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, appName := range appNames {
+			app := c.app(appName)
+			if app == nil {
+				return failed, fmt.Sprintf("app '%s' does not exist but should", appName)
+			}
+			if app.DeletionTimestamp != nil {
+				return failed, fmt.Sprintf("app '%s' is being deleted but should not be yet", appName)
+			}
+		}
+		return succeeded, fmt.Sprintf("all apps %v exist and are not being deleted", appNames)
+	}
+}
