@@ -90,8 +90,8 @@ func TestConversionWebhookFailureIsolation(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
-		Expect(HealthIs(health.HealthStatusDegraded)).
-		Expect(SyncStatusIs(SyncStatusCodeUnknown)) // Cache tainting from conversion failures prevents safe sync operations
+		Expect(HealthIs(health.HealthStatusUnknown)). // Unknown because we can't fetch to assess health
+		Expect(SyncStatusIs(SyncStatusCodeUnknown))   // Cache tainting from conversion failures prevents safe sync operations
 
 	// Allow time for sync to process and conversion webhook errors to be detected
 	time.Sleep(10 * time.Second)

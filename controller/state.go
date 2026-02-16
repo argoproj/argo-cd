@@ -863,6 +863,23 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		if !hasCacheTaintingIssues {
 			logCtx.Infof("Application does not use any tainted GVKs")
 		}
+
+		// Check for tainted GVKs that the project permits but are not in target objects.
+		// These could affect the app through dynamically-discovered children (e.g., Pods from Deployments).
+		permittedTaintedGVKs := m.checkProjectPermitsTaintedGVKs(project, destCluster, taintedGVKs, targetObjs, logCtx)
+		if len(permittedTaintedGVKs) > 0 {
+			msg := fmt.Sprintf(
+				"Cluster has degraded resource types that this application's project permits: %v. "+
+					"These may affect child resources discovered dynamically (e.g., Pods from Deployments). "+
+					"Check cluster status for details.",
+				permittedTaintedGVKs)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{
+				Type:               v1alpha1.ApplicationConditionComparisonError,
+				Message:            msg,
+				LastTransitionTime: &now,
+			})
+			logCtx.Warnf("Project permits tainted GVKs not in targets: %v", permittedTaintedGVKs)
+		}
 	}
 
 	ts.AddCheckpoint("live_ms")
@@ -1404,6 +1421,54 @@ func (m *appStateManager) validateAppGVKTaints(cluster *v1alpha1.Cluster, target
 
 	logCtx.Infof("Hard refresh GVK validation complete - tested: %d, healthy: %d, newly tainted: %d",
 		len(gvksToTest), len(testedGVKs), len(newlyTaintedGVKs))
+}
+
+// checkProjectPermitsTaintedGVKs checks if any tainted GVKs are permitted by the app's project
+// but are NOT in the target objects. These could affect the app through dynamically-discovered
+// children (e.g., Pods created by Deployments). Returns a list of permitted tainted GVKs.
+func (m *appStateManager) checkProjectPermitsTaintedGVKs(
+	project *v1alpha1.AppProject,
+	destCluster *v1alpha1.Cluster,
+	taintedGVKs []string,
+	targetObjs []*unstructured.Unstructured,
+	logCtx *log.Entry,
+) []string {
+	// Build set of GVKs already in target objects
+	targetGVKSet := make(map[string]bool)
+	for _, obj := range targetObjs {
+		targetGVKSet[obj.GroupVersionKind().String()] = true
+	}
+
+	var permittedTaintedGVKs []string
+
+	for _, gvkStr := range taintedGVKs {
+		// Skip if already in target objects (handled by direct taint detection)
+		if targetGVKSet[gvkStr] {
+			continue
+		}
+
+		// Parse GVK string using centralized parser (format: "group/version, Kind=kind")
+		gvk := argoerrors.ExtractGVKObject(gvkStr)
+		if gvk == nil {
+			logCtx.Warnf("Failed to parse tainted GVK string %q", gvkStr)
+			continue
+		}
+		gk := gvk.GroupKind()
+
+		// Check if namespaced (default to true if unknown - safer to warn)
+		isNamespaced := true
+		namespaced, err := m.liveStateCache.IsNamespaced(destCluster, gk)
+		if err == nil {
+			isNamespaced = namespaced
+		}
+
+		// Check if project permits this GVK
+		if project.IsGroupKindNamePermitted(gk, "", isNamespaced) {
+			permittedTaintedGVKs = append(permittedTaintedGVKs, gvkStr)
+		}
+	}
+
+	return permittedTaintedGVKs
 }
 
 // testGVKHealth tests if a specific GVK is healthy by attempting to fetch resources using actual
