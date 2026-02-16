@@ -1,4 +1,5 @@
 import {Autocomplete, Checkbox} from 'argo-ui/v2';
+import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 
 import './filter.scss';
@@ -31,6 +32,17 @@ export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) 
         setValue(props.value);
     }, [props.value]);
 
+    const tooltipProps: Partial<React.ComponentProps<typeof Tooltip>> = {
+        placement: 'top',
+        popperOptions: {
+            modifiers: {
+                preventOverflow: {
+                    boundariesElement: 'window'
+                }
+            }
+        }
+    };
+
     return (
         <div className={`filter__item ${value ? 'filter__item--selected' : ''}`} onClick={() => setValue(!value)}>
             <Checkbox
@@ -46,7 +58,9 @@ export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) 
                 }}
             />
             {props.option.icon && <div style={{marginRight: '5px'}}>{props.option.icon}</div>}
-            <div className='filter__item__label'>{props.option.label}</div>
+            <Tooltip content={<div className='filter__tooltip'>{props.option.label}</div>} {...tooltipProps}>
+                <div className='filter__item__label'>{props.option.label}</div>
+            </Tooltip>
             <div style={{marginLeft: 'auto'}}>{props.option.count}</div>
         </div>
     );
@@ -95,8 +109,25 @@ export const Filter = (props: FilterProps) => {
     const labels = props.labels || options.map(o => o.label);
 
     React.useEffect(() => {
-        const map: string[] = Object.keys(values).filter(s => values[s]);
-        props.setSelected(map);
+        const {cleanedValues, selectedKeys} = Object.entries(values).reduce(
+            (acc, [key, value]) => {
+                if (value !== undefined) {
+                    acc.cleanedValues[key] = value;
+                    if (value) {
+                        acc.selectedKeys.push(key);
+                    }
+                }
+                return acc;
+            },
+            {cleanedValues: {} as {[label: string]: boolean}, selectedKeys: [] as string[]}
+        );
+
+        if (Object.keys(cleanedValues).length !== Object.keys(values).length) {
+            setValues(cleanedValues);
+            return;
+        }
+
+        props.setSelected(selectedKeys);
         if (props.field) {
             setTags(
                 Object.keys(values).map(v => {
@@ -114,14 +145,12 @@ export const Filter = (props: FilterProps) => {
         }
     }, [props.selected.length]);
 
-    const totalCount = options.reduce((countSum, option) => {
-        return countSum + option.count;
-    }, 0);
-
     return (
-        <div className='filter' key={totalCount + props.label}>
+        <div className='filter'>
             <div className='filter__header'>
-                {props.label || 'FILTER'}
+                <span className='filter__header__label' title={props.label || 'FILTER'}>
+                    {props.label || 'FILTER'}
+                </span>
                 {(props.selected || []).length > 0 || (props.field && Object.keys(values).length > 0) ? (
                     <button
                         className='argo-button argo-button--base argo-button--sm argo-button--right'

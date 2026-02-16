@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
 
-	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
+	enginecache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
 	timeutil "github.com/argoproj/pkg/v2/time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -44,6 +44,21 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/password"
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
+
+var CommitMessageTemplate = `{{.metadata.drySha | trunc 7}}: {{ .metadata.subject }}
+{{- if .metadata.body }}
+
+{{ .metadata.body }}
+{{- end }}
+{{ range $ref := .metadata.references }}
+{{- if and $ref.commit $ref.commit.author }}
+Co-authored-by: {{ $ref.commit.author }}
+{{- end }}
+{{- end }}
+{{- if .metadata.author }}
+Co-authored-by: {{ .metadata.author }}
+{{- end }}
+`
 
 // ArgoCDSettings holds in-memory runtime configuration options.
 type ArgoCDSettings struct {
@@ -121,6 +136,9 @@ type ArgoCDSettings struct {
 	// token verification to pass despite the OIDC provider having an invalid certificate. Only set to `true` if you
 	// understand the risks.
 	OIDCTLSInsecureSkipVerify bool `json:"oidcTLSInsecureSkipVerify"`
+	// OIDCRefreshTokenThreshold sets the threshold for preemptive server-side token refresh.  If set to 0, tokens
+	// will not be refreshed and will expire before client is redirected to login.
+	OIDCRefreshTokenThreshold time.Duration `json:"oidcRefreshTokenThreshold,omitempty"`
 	// AppsInAnyNamespaceEnabled indicates whether applications are allowed to be created in any namespace
 	AppsInAnyNamespaceEnabled bool `json:"appsInAnyNamespaceEnabled"`
 	// ExtensionConfig configurations related to ArgoCD proxy extensions. The keys are the extension name.
@@ -129,6 +147,9 @@ type ArgoCDSettings struct {
 	// ImpersonationEnabled indicates whether Application sync privileges can be decoupled from control plane
 	// privileges using impersonation
 	ImpersonationEnabled bool `json:"impersonationEnabled"`
+	// RequireOverridePrivilegeForRevisionSync indicates whether giving an external revision during snyc is considered an override.
+	// Up to revision 3.2, this was always false. It is now still false by default, in order to not breaking existing usage.
+	RequireOverridePrivilegeForRevisionSync bool `json:"requireOverridePrivilegeForRevisionSync"`
 }
 
 type GoogleAnalytics struct {
@@ -175,6 +196,7 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		UserInfoPath:             o.UserInfoPath,
 		EnableUserInfoGroups:     o.EnableUserInfoGroups,
 		UserInfoCacheExpiration:  o.UserInfoCacheExpiration,
+		RefreshTokenThreshold:    o.RefreshTokenThreshold,
 		RequestedScopes:          o.RequestedScopes,
 		RequestedIDTokenClaims:   o.RequestedIDTokenClaims,
 		LogoutURL:                o.LogoutURL,
@@ -200,36 +222,11 @@ type OIDCConfig struct {
 	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
 	DomainHint               string                 `json:"domainHint,omitempty"`
 	Azure                    *AzureOIDCConfig       `json:"azure,omitempty"`
+	RefreshTokenThreshold    string                 `json:"refreshTokenThreshold,omitempty"`
 }
 
 type AzureOIDCConfig struct {
 	UseWorkloadIdentity bool `json:"useWorkloadIdentity,omitempty"`
-}
-
-// DEPRECATED. Helm repository credentials are now managed using RepoCredentials
-type HelmRepoCredentials struct {
-	URL            string                    `json:"url,omitempty"`
-	Name           string                    `json:"name,omitempty"`
-	UsernameSecret *corev1.SecretKeySelector `json:"usernameSecret,omitempty"`
-	PasswordSecret *corev1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	CertSecret     *corev1.SecretKeySelector `json:"certSecret,omitempty"`
-	KeySecret      *corev1.SecretKeySelector `json:"keySecret,omitempty"`
-}
-
-// KustomizeVersion holds information about additional Kustomize version
-type KustomizeVersion struct {
-	// Name holds Kustomize version name
-	Name string
-	// Path holds corresponding binary path
-	Path string
-	// BuildOptions that are specific to Kustomize version
-	BuildOptions string
-}
-
-// KustomizeSettings holds kustomize settings
-type KustomizeSettings struct {
-	BuildOptions string
-	Versions     []KustomizeVersion
 }
 
 var (
@@ -290,29 +287,39 @@ var (
 	}
 )
 
-func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1alpha1.KustomizeOptions, error) {
-	binaryPath := ""
-	buildOptions := ""
+// KustomizeVersionNotRegisteredError is an error type that indicates a requested Kustomize version is not registered in
+// the Kustomize options in argocd-cm.
+type KustomizeVersionNotRegisteredError struct {
+	// Version is the Kustomize version that is not registered
+	Version string
+}
+
+func (e KustomizeVersionNotRegisteredError) Error() string {
+	return fmt.Sprintf("kustomize version %s is not registered", e.Version)
+}
+
+// GetKustomizeBinaryPath returns the path to the kustomize binary based on the provided KustomizeOptions and ApplicationSource.
+func GetKustomizeBinaryPath(ks *v1alpha1.KustomizeOptions, source v1alpha1.ApplicationSource) (string, error) {
+	if ks == nil {
+		// No versions or binary path specified, stick with defaults.
+		return "", nil
+	}
+
+	if ks.BinaryPath != "" { // nolint:staticcheck // BinaryPath is deprecated, but still supported for backward compatibility
+		log.Warn("kustomizeOptions.binaryPath is deprecated, use KustomizeOptions.versions instead")
+		// nolint:staticcheck // BinaryPath is deprecated, but if it's set, we'll use it to ensure backward compatibility
+		return ks.BinaryPath, nil
+	}
+
 	if source.Kustomize != nil && source.Kustomize.Version != "" {
 		for _, ver := range ks.Versions {
 			if ver.Name == source.Kustomize.Version {
-				// add version specific path and build options
-				binaryPath = ver.Path
-				buildOptions = ver.BuildOptions
-				break
+				return ver.Path, nil
 			}
 		}
-		if binaryPath == "" {
-			return nil, fmt.Errorf("kustomize version %s is not registered", source.Kustomize.Version)
-		}
-	} else {
-		// add build options for the default version
-		buildOptions = ks.BuildOptions
+		return "", KustomizeVersionNotRegisteredError{Version: source.Kustomize.Version}
 	}
-	return &v1alpha1.KustomizeOptions{
-		BuildOptions: buildOptions,
-		BinaryPath:   binaryPath,
-	}, nil
+	return "", nil
 }
 
 // Credentials for accessing a Git repository
@@ -500,6 +507,12 @@ const (
 	settingUIBannerPositionKey = "ui.bannerposition"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
 	settingsBinaryUrlsKey = "help.download"
+	// settingsSourceHydratorCommitMessageTemplateKey is the key for the hydrator commit message template
+	settingsSourceHydratorCommitMessageTemplateKey = "sourceHydrator.commitMessageTemplate"
+	// settingsCommitAuthorNameKey is the key for the commit author name
+	settingsCommitAuthorNameKey = "commit.author.name"
+	// settingsCommitAuthorEmailKey is the key for the commit author email
+	settingsCommitAuthorEmailKey = "commit.author.email"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -541,6 +554,8 @@ const (
 	RespectRBACValueNormal = "normal"
 	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
 	impersonationEnabledKey = "application.sync.impersonation.enabled"
+	// requireOverridePrivilegeForRevisionSyncKey is the key to configure whether giving an external revision during sync is considered an override
+	requireOverridePrivilegeForRevisionSyncKey = "application.sync.requireOverridePrivilegeForRevisionSync"
 )
 
 const (
@@ -568,9 +583,15 @@ type SettingsManager struct {
 	// subscribers is a list of subscribers to settings updates
 	subscribers []chan<- *ArgoCDSettings
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
-	mutex                 *sync.Mutex
-	initContextCancel     func()
-	reposOrClusterChanged func()
+	mutex                     *sync.Mutex
+	initContextCancel         func()
+	reposOrClusterChanged     func()
+	tlsCertParser             func([]byte, []byte) (tls.Certificate, error)
+	tlsCertCache              *tls.Certificate
+	tlsCertCacheSecretName    string
+	tlsCertCacheSecretVersion string
+	// clusterInformer provides optimized cluster lookups using informer transforms
+	clusterInformer *ClusterInformer
 }
 
 type incompleteSettingsError struct {
@@ -640,6 +661,13 @@ func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, err
 		return nil, fmt.Errorf("error ensuring that the secrets manager is synced: %w", err)
 	}
 	return mgr.secretsInformer, nil
+}
+
+// GetClusterInformer returns the cluster cache for optimized cluster lookups.
+func (mgr *SettingsManager) GetClusterInformer() *ClusterInformer {
+	// Ensure the settings manager is initialized
+	_ = mgr.ensureSynced(false)
+	return mgr.clusterInformer
 }
 
 func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) error {
@@ -1007,6 +1035,33 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	return resourceOverrides, nil
 }
 
+func (mgr *SettingsManager) GetSourceHydratorCommitMessageTemplate() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	if argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey] == "" {
+		return CommitMessageTemplate, nil // in case template is not defined return default
+	}
+	return argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey], nil
+}
+
+func (mgr *SettingsManager) GetCommitAuthorName() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	return argoCDCM.Data[settingsCommitAuthorNameKey], nil
+}
+
+func (mgr *SettingsManager) GetCommitAuthorEmail() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	return argoCDCM.Data[settingsCommitAuthorEmailKey], nil
+}
+
 func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind string) {
 	if val, ok := resourceOverrides[groupKind]; ok {
 		val.IgnoreDifferences.JSONPointers = append(val.IgnoreDifferences.JSONPointers, "/status")
@@ -1141,7 +1196,7 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 	}
 	helmOptions := &v1alpha1.HelmOptions{}
 	if value, ok := argoCDCM.Data[helmValuesFileSchemesKey]; ok {
-		for _, item := range strings.Split(value, ",") {
+		for item := range strings.SplitSeq(value, ",") {
 			if item := strings.TrimSpace(item); item != "" {
 				helmOptions.ValuesFileSchemes = append(helmOptions.ValuesFileSchemes, item)
 			}
@@ -1153,14 +1208,14 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 }
 
 // GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
-func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
+func (mgr *SettingsManager) GetKustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
-	kustomizeVersionsMap := map[string]KustomizeVersion{}
+	kustomizeVersionsMap := map[string]v1alpha1.KustomizeVersion{}
 	buildOptions := map[string]string{}
-	settings := &KustomizeSettings{}
+	settings := &v1alpha1.KustomizeOptions{}
 
 	// extract build options for the default version
 	if options, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
@@ -1200,12 +1255,12 @@ func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 	return settings, nil
 }
 
-func addKustomizeVersion(prefix, name, path string, kvMap map[string]KustomizeVersion) error {
+func addKustomizeVersion(prefix, name, path string, kvMap map[string]v1alpha1.KustomizeVersion) error {
 	version := name[len(prefix)+1:]
 	if _, ok := kvMap[version]; ok {
 		return fmt.Errorf("found duplicate kustomize version: %s", version)
 	}
-	kvMap[version] = KustomizeVersion{
+	kvMap[version] = v1alpha1.KustomizeVersion{
 		Name: version,
 		Path: path,
 	}
@@ -1243,6 +1298,26 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	}, nil
 }
 
+func (mgr *SettingsManager) RequireOverridePrivilegeForRevisionSync() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, err
+	}
+
+	// false is default in order to not break existing installations
+	if argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey] == "" {
+		return false, nil
+	}
+
+	maybeBooleanFlagValue, err2 := strconv.ParseBool(
+		argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey])
+	if err2 != nil {
+		return false, fmt.Errorf("error parsing %s value: %w, expected true or false",
+			requireOverridePrivilegeForRevisionSyncKey, err2)
+	}
+	return maybeBooleanFlagValue, nil
+}
+
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.
 func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	argoCDCM, err := mgr.getConfigMap()
@@ -1260,13 +1335,13 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 
 	var settings ArgoCDSettings
 	var errs []error
-	updateSettingsFromConfigMap(&settings, argoCDCM)
 	if err := mgr.updateSettingsFromSecret(&settings, argoCDSecret, secrets); err != nil {
 		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
 		return &settings, errors.Join(errs...)
 	}
+	updateSettingsFromConfigMap(&settings, argoCDCM)
 
 	return &settings, nil
 }
@@ -1298,12 +1373,22 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 	cmInformer := informersv1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
 	secretsInformer := informersv1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
-	_, err := cmInformer.AddEventHandler(eventHandler)
+	clusterInformer, err := NewClusterInformer(mgr.clientset, mgr.namespace)
+	if err != nil {
+		log.Error(err)
+	}
+
+	_, err = cmInformer.AddEventHandler(eventHandler)
 	if err != nil {
 		log.Error(err)
 	}
 
 	_, err = secretsInformer.AddEventHandler(eventHandler)
+	if err != nil {
+		log.Error(err)
+	}
+
+	_, err = clusterInformer.AddEventHandler(eventHandler)
 	if err != nil {
 		log.Error(err)
 	}
@@ -1318,10 +1403,18 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 		log.Info("secrets informer cancelled")
 	}()
 
-	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced) {
+	go func() {
+		clusterInformer.Run(ctx.Done())
+		log.Info("cluster secrets informer cancelled")
+	}()
+
+	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced, clusterInformer.HasSynced) {
 		return errors.New("timed out waiting for settings cache to sync")
 	}
 	log.Info("Configmap/secret informer synced")
+
+	mgr.clusterInformer = clusterInformer
+	log.Info("Cluster cache informer synced")
 
 	tryNotify := func() {
 		newSettings, err := mgr.GetSettings()
@@ -1391,6 +1484,7 @@ func getDownloadBinaryUrlsFromConfigMap(argoCDCM *corev1.ConfigMap) map[string]s
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
+	settings.OIDCRefreshTokenThreshold = settings.RefreshTokenThreshold()
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.StatusBadgeRootUrl = argoCDCM.Data[statusBadgeRootURLKey]
@@ -1400,11 +1494,11 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.UiBannerPermanent = argoCDCM.Data[settingUIBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUIBannerPositionKey]
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
-	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
+	if err := ValidateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
 	settings.URL = argoCDCM.Data[settingURLKey]
-	if err := validateExternalURL(argoCDCM.Data[settingUIBannerURLKey]); err != nil {
+	if err := ValidateExternalURL(argoCDCM.Data[settingUIBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
 	if argoCDCM.Data[settingAdditionalUrlsKey] != "" {
@@ -1413,7 +1507,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 		}
 	}
 	for _, url := range settings.AdditionalURLs {
-		if err := validateExternalURL(url); err != nil {
+		if err := ValidateExternalURL(url); err != nil {
 			log.Warnf("Failed to validate external URL in configmap: %v", err)
 		}
 	}
@@ -1450,21 +1544,22 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
 	settings.ExtensionConfig = getExtensionConfigs(argoCDCM.Data)
 	settings.ImpersonationEnabled = argoCDCM.Data[impersonationEnabledKey] == "true"
+	settings.RequireOverridePrivilegeForRevisionSync = argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey] == "true"
 }
 
 func getExtensionConfigs(cmData map[string]string) map[string]string {
 	result := make(map[string]string)
 	for k, v := range cmData {
-		if strings.HasPrefix(k, extensionConfig) {
-			extName := strings.TrimPrefix(strings.TrimPrefix(k, extensionConfig), ".")
+		if extName, found := strings.CutPrefix(k, extensionConfig); found {
+			extName = strings.TrimPrefix(extName, ".")
 			result[extName] = v
 		}
 	}
 	return result
 }
 
-// validateExternalURL ensures the external URL that is set on the configmap is valid
-func validateExternalURL(u string) error {
+// ValidateExternalURL ensures the external URL that is set on the configmap is valid
+func ValidateExternalURL(u string) error {
 	if u == "" {
 		return nil
 	}
@@ -1491,28 +1586,16 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	// The TLS certificate may be externally managed. We try to load it from an
 	// external secret first. If the external secret doesn't exist, we either
 	// load it from argocd-secret or generate (and persist) a self-signed one.
-	cert, err := mgr.externalServerTLSCertificate()
-	if err != nil {
+	externalSecret, err := mgr.GetSecretByName(externalServerTLSSecretName)
+	if err != nil && !apierrors.IsNotFound(err) {
 		errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("could not read from secret %s/%s: %v", mgr.namespace, externalServerTLSSecretName, err)})
 	} else {
-		if cert != nil {
-			settings.Certificate = cert
-			settings.CertificateIsExternal = true
-			log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, externalServerTLSSecretName)
-		} else {
-			serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
-			serverKey, keyOk := argoCDSecret.Data[settingServerPrivateKey]
-			if certOk && keyOk {
-				cert, err := tls.X509KeyPair(serverCert, serverKey)
-				if err != nil {
-					errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)})
-				} else {
-					settings.Certificate = &cert
-					settings.CertificateIsExternal = false
-				}
-			}
+		err = mgr.loadTLSCertificate(settings, externalSecret, argoCDSecret)
+		if err != nil {
+			errs = append(errs, err)
 		}
 	}
+
 	secretValues := make(map[string]string, len(argoCDSecret.Data))
 	for _, s := range secrets {
 		for k, v := range s.Data {
@@ -1523,103 +1606,77 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 		secretValues[k] = string(v)
 	}
 	settings.Secrets = secretValues
+
+	settings.WebhookGitHubSecret = string(argoCDSecret.Data[settingsWebhookGitHubSecretKey])
+	settings.WebhookGitLabSecret = string(argoCDSecret.Data[settingsWebhookGitLabSecretKey])
+	settings.WebhookBitbucketUUID = string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey])
+	settings.WebhookBitbucketServerSecret = string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey])
+	settings.WebhookGogsSecret = string(argoCDSecret.Data[settingsWebhookGogsSecretKey])
+	settings.WebhookAzureDevOpsUsername = string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey])
+	settings.WebhookAzureDevOpsPassword = string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey])
+
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
 
-	settings.WebhookGitHubSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitHubSecretKey]), settings.Secrets)
-	settings.WebhookGitLabSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitLabSecretKey]), settings.Secrets)
-	settings.WebhookBitbucketUUID = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]), settings.Secrets)
-	settings.WebhookBitbucketServerSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey]), settings.Secrets)
-	settings.WebhookGogsSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGogsSecretKey]), settings.Secrets)
-	settings.WebhookAzureDevOpsUsername = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey]), settings.Secrets)
-	settings.WebhookAzureDevOpsPassword = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey]), settings.Secrets)
-
 	return nil
 }
 
-// externalServerTLSCertificate will try and load a TLS certificate from an
-// external secret, instead of tls.crt and tls.key in argocd-secret. If both
-// return values are nil, no external secret has been configured.
-func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, error) {
-	var cert tls.Certificate
-	secret, err := mgr.GetSecretByName(externalServerTLSSecretName)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
+func (mgr *SettingsManager) loadTLSCertificate(settings *ArgoCDSettings, externalSecret *corev1.Secret, argoCDSecret *corev1.Secret) error {
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+	if externalSecret != nil {
+		cert, err := mgr.loadTLSCertificateFromSecret(externalSecret)
+
+		if err != nil {
+			return err
+		} else if cert != nil {
+			settings.Certificate = cert
+			settings.CertificateIsExternal = true
 		}
 	}
+	// if there was no external cert found, check internal
+	if !settings.CertificateIsExternal {
+		cert, err := mgr.loadTLSCertificateFromSecret(argoCDSecret)
+
+		if err != nil {
+			return err
+		} else if cert != nil {
+			settings.Certificate = cert
+			settings.CertificateIsExternal = false
+		}
+	}
+	return nil
+}
+
+func (mgr *SettingsManager) loadTLSCertificateFromSecret(secret *corev1.Secret) (*tls.Certificate, error) {
+	if mgr.tlsCertCache != nil && mgr.tlsCertCacheSecretName == secret.Name && mgr.tlsCertCacheSecretVersion == secret.ResourceVersion {
+		return mgr.tlsCertCache, nil
+	}
+
 	tlsCert, certOK := secret.Data[settingServerCertificate]
 	tlsKey, keyOK := secret.Data[settingServerPrivateKey]
-	if certOK && keyOK {
-		cert, err = tls.X509KeyPair(tlsCert, tlsKey)
-		if err != nil {
-			return nil, err
-		}
+	if !certOK || !keyOK {
+		return nil, nil
 	}
+
+	log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, secret.Name)
+	cert, err := mgr.tlsCertParser(tlsCert, tlsKey)
+	if err != nil {
+		return nil, err
+	}
+
+	mgr.tlsCertCache = &cert
+	mgr.tlsCertCacheSecretName = secret.Name
+	mgr.tlsCertCacheSecretVersion = secret.ResourceVersion
+
 	return &cert, nil
 }
 
-// SaveSettings serializes ArgoCDSettings and upserts it into K8s secret/configmap
-func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
-	err := mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
-		if settings.URL != "" {
-			argoCDCM.Data[settingURLKey] = settings.URL
-		} else {
-			delete(argoCDCM.Data, settingURLKey)
-		}
-		if settings.DexConfig != "" {
-			argoCDCM.Data[settingDexConfigKey] = settings.DexConfig
-		} else {
-			delete(argoCDCM.Data, settings.DexConfig)
-		}
-		if settings.OIDCConfigRAW != "" {
-			argoCDCM.Data[settingsOIDCConfigKey] = settings.OIDCConfigRAW
-		} else {
-			delete(argoCDCM.Data, settingsOIDCConfigKey)
-		}
-		if settings.UiCssURL != "" {
-			argoCDCM.Data[settingUICSSURLKey] = settings.UiCssURL
-		}
-		if settings.UiBannerContent != "" {
-			argoCDCM.Data[settingUIBannerContentKey] = settings.UiBannerContent
-		} else {
-			delete(argoCDCM.Data, settingUIBannerContentKey)
-		}
-		if settings.UiBannerURL != "" {
-			argoCDCM.Data[settingUIBannerURLKey] = settings.UiBannerURL
-		} else {
-			delete(argoCDCM.Data, settingUIBannerURLKey)
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
+// saveSignatureAndCertificate serializes the server Signature and Certificate ArgoCDSettings and upserts it into the secret
+func (mgr *SettingsManager) saveSignatureAndCertificate(settings *ArgoCDSettings) error {
 	return mgr.updateSecret(func(argoCDSecret *corev1.Secret) error {
 		argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
-		if settings.WebhookGitHubSecret != "" {
-			argoCDSecret.Data[settingsWebhookGitHubSecretKey] = []byte(settings.WebhookGitHubSecret)
-		}
-		if settings.WebhookGitLabSecret != "" {
-			argoCDSecret.Data[settingsWebhookGitLabSecretKey] = []byte(settings.WebhookGitLabSecret)
-		}
-		if settings.WebhookBitbucketUUID != "" {
-			argoCDSecret.Data[settingsWebhookBitbucketUUIDKey] = []byte(settings.WebhookBitbucketUUID)
-		}
-		if settings.WebhookBitbucketServerSecret != "" {
-			argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey] = []byte(settings.WebhookBitbucketServerSecret)
-		}
-		if settings.WebhookGogsSecret != "" {
-			argoCDSecret.Data[settingsWebhookGogsSecretKey] = []byte(settings.WebhookGogsSecret)
-		}
-		if settings.WebhookAzureDevOpsUsername != "" {
-			argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey] = []byte(settings.WebhookAzureDevOpsUsername)
-		}
-		if settings.WebhookAzureDevOpsPassword != "" {
-			argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey] = []byte(settings.WebhookAzureDevOpsPassword)
-		}
 		// we only write the certificate to the secret if it's not externally
 		// managed.
 		if settings.Certificate != nil && !settings.CertificateIsExternal {
@@ -1692,10 +1749,11 @@ func WithRepoOrClusterChangedHandler(handler func()) SettingsManagerOpts {
 // NewSettingsManager generates a new SettingsManager pointer and returns it
 func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string, opts ...SettingsManagerOpts) *SettingsManager {
 	mgr := &SettingsManager{
-		ctx:       ctx,
-		clientset: clientset,
-		namespace: namespace,
-		mutex:     &sync.Mutex{},
+		ctx:           ctx,
+		clientset:     clientset,
+		namespace:     namespace,
+		mutex:         &sync.Mutex{},
+		tlsCertParser: tls.X509KeyPair,
 	}
 	for i := range opts {
 		opts[i](mgr)
@@ -1777,6 +1835,41 @@ func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
 	return config.toExported()
 }
 
+// GetWebhookGitHubSecret returns the resolved GitHub webhook secret
+func (a *ArgoCDSettings) GetWebhookGitHubSecret() string {
+	return ReplaceStringSecret(a.WebhookGitHubSecret, a.Secrets)
+}
+
+// GetWebhookGitLabSecret returns the resolved GitLab webhook secret
+func (a *ArgoCDSettings) GetWebhookGitLabSecret() string {
+	return ReplaceStringSecret(a.WebhookGitLabSecret, a.Secrets)
+}
+
+// GetWebhookBitbucketUUID returns the resolved Bitbucket webhook UUID
+func (a *ArgoCDSettings) GetWebhookBitbucketUUID() string {
+	return ReplaceStringSecret(a.WebhookBitbucketUUID, a.Secrets)
+}
+
+// GetWebhookBitbucketServerSecret returns the resolved Bitbucket Server webhook secret
+func (a *ArgoCDSettings) GetWebhookBitbucketServerSecret() string {
+	return ReplaceStringSecret(a.WebhookBitbucketServerSecret, a.Secrets)
+}
+
+// GetWebhookGogsSecret returns the resolved Gogs webhook secret
+func (a *ArgoCDSettings) GetWebhookGogsSecret() string {
+	return ReplaceStringSecret(a.WebhookGogsSecret, a.Secrets)
+}
+
+// GetWebhookAzureDevOpsUsername returns the resolved Azure DevOps webhook username
+func (a *ArgoCDSettings) GetWebhookAzureDevOpsUsername() string {
+	return ReplaceStringSecret(a.WebhookAzureDevOpsUsername, a.Secrets)
+}
+
+// GetWebhookAzureDevOpsPassword returns the resolved Azure DevOps webhook password
+func (a *ArgoCDSettings) GetWebhookAzureDevOpsPassword() string {
+	return ReplaceStringSecret(a.WebhookAzureDevOpsPassword, a.Secrets)
+}
+
 func unmarshalOIDCConfig(configStr string) (oidcConfig, error) {
 	var config oidcConfig
 	err := yaml.Unmarshal([]byte(configStr), &config)
@@ -1838,6 +1931,18 @@ func (a *ArgoCDSettings) UserInfoCacheExpiration() time.Duration {
 			log.Warnf("Failed to parse 'oidc.config.userInfoCacheExpiration' key: %v", err)
 		}
 		return userInfoCacheExpiration
+	}
+	return 0
+}
+
+// RefreshTokenThreshold returns the duration before token expiration that a token should be refreshed by the server
+func (a *ArgoCDSettings) RefreshTokenThreshold() time.Duration {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.RefreshTokenThreshold != "" {
+		refreshTokenThreshold, err := time.ParseDuration(oidcConfig.RefreshTokenThreshold)
+		if err != nil {
+			log.Warnf("Failed to parse 'oidc.config.refreshTokenThreshold' key: %v", err)
+		}
+		return refreshTokenThreshold
 	}
 	return 0
 }
@@ -1961,6 +2066,9 @@ func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
 }
 
 func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) {
+	if r == nil {
+		return "", errors.New("request is nil")
+	}
 	base, err := a.ArgoURLForRequest(r)
 	if err != nil {
 		return "", err
@@ -2043,29 +2151,12 @@ func isIncompleteSettingsError(err error) bool {
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
 func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
 	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
-
-	cdSettings, err := mgr.GetSettings()
-	if err != nil && !isIncompleteSettingsError(err) {
-		return nil, err
-	}
-	if cdSettings == nil {
-		cdSettings = &ArgoCDSettings{}
-	}
-	if cdSettings.ServerSignature == nil {
-		// set JWT signature
-		signature, err := util.MakeSignature(32)
-		if err != nil {
-			return nil, fmt.Errorf("error setting JWT signature: %w", err)
-		}
-		cdSettings.ServerSignature = signature
-		log.Info("Initialized server signature")
-	}
-	err = mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
+	err := mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
 		if adminAccount.Enabled {
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
 				randBytes := make([]byte, initialPasswordLength)
-				for i := 0; i < initialPasswordLength; i++ {
+				for i := range initialPasswordLength {
 					num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
 					if err != nil {
 						return err
@@ -2100,6 +2191,23 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		return nil, err
 	}
 
+	cdSettings, err := mgr.GetSettings()
+	if err != nil && !isIncompleteSettingsError(err) {
+		return nil, err
+	}
+	if cdSettings == nil {
+		cdSettings = &ArgoCDSettings{}
+	}
+	if cdSettings.ServerSignature == nil {
+		// set JWT signature
+		signature, err := util.MakeSignature(32)
+		if err != nil {
+			return nil, fmt.Errorf("error setting JWT signature: %w", err)
+		}
+		cdSettings.ServerSignature = signature
+		log.Info("Initialized server signature")
+	}
+
 	if cdSettings.Certificate == nil && !insecureModeEnabled {
 		// generate TLS cert
 		hosts := []string{
@@ -2122,7 +2230,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		log.Info("Initialized TLS certificate")
 	}
 
-	err = mgr.SaveSettings(cdSettings)
+	err = mgr.saveSignatureAndCertificate(cdSettings)
 	if apierrors.IsConflict(err) {
 		// assume settings are initialized by another instance of api server
 		log.Warnf("conflict when initializing settings. assuming updated by another replica")
@@ -2262,8 +2370,7 @@ func (mgr *SettingsManager) GetSensitiveAnnotations() map[string]bool {
 	}
 
 	value = strings.ReplaceAll(value, " ", "")
-	keys := strings.Split(value, ",")
-	for _, k := range keys {
+	for k := range strings.SplitSeq(value, ",") {
 		annotationKeys[k] = true
 	}
 	return annotationKeys

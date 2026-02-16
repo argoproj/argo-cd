@@ -31,7 +31,7 @@ func (ctrl *ApplicationController) GetProcessableApps() (*appv1.ApplicationList,
 	return ctrl.getAppList(metav1.ListOptions{})
 }
 
-func (ctrl *ApplicationController) GetRepoObjs(origApp *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, origApp *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	drySources := []appv1.ApplicationSource{drySource}
 	dryRevisions := []string{revision}
 
@@ -50,9 +50,18 @@ func (ctrl *ApplicationController) GetRepoObjs(origApp *appv1.Application, drySo
 	delete(app.Annotations, appv1.AnnotationKeyManifestGeneratePaths)
 
 	// FIXME: use cache and revision cache
-	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(app, drySources, appLabelKey, dryRevisions, true, true, false, project, false)
+	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, false, project, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
+	}
+	trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get tracking method: %w", err)
+	}
+	for _, obj := range objs {
+		if err := argoutil.NewResourceTracking().RemoveAppInstance(obj, trackingMethod); err != nil {
+			return nil, nil, fmt.Errorf("failed to remove the app instance value: %w", err)
+		}
 	}
 
 	if len(resp) != 1 {
@@ -87,4 +96,29 @@ func (ctrl *ApplicationController) PersistAppHydratorStatus(orig *appv1.Applicat
 
 func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
 	ctrl.hydrationQueue.AddRateLimited(key)
+}
+
+func (ctrl *ApplicationController) GetHydratorCommitMessageTemplate() (string, error) {
+	sourceHydratorCommitMessageKey, err := ctrl.settingsMgr.GetSourceHydratorCommitMessageTemplate()
+	if err != nil {
+		return "", fmt.Errorf("failed to get sourceHydrator commit message template key: %w", err)
+	}
+
+	return sourceHydratorCommitMessageKey, nil
+}
+
+func (ctrl *ApplicationController) GetCommitAuthorName() (string, error) {
+	authorName, err := ctrl.settingsMgr.GetCommitAuthorName()
+	if err != nil {
+		return "", fmt.Errorf("failed to get commit author name: %w", err)
+	}
+	return authorName, nil
+}
+
+func (ctrl *ApplicationController) GetCommitAuthorEmail() (string, error) {
+	authorEmail, err := ctrl.settingsMgr.GetCommitAuthorEmail()
+	if err != nil {
+		return "", fmt.Errorf("failed to get commit author email: %w", err)
+	}
+	return authorEmail, nil
 }

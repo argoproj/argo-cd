@@ -26,9 +26,11 @@ import (
 
 var (
 	localCluster = appv1.Cluster{
-		Name:            "in-cluster",
-		Server:          appv1.KubernetesInternalAPIServerAddr,
-		ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
+		Name:   "in-cluster",
+		Server: appv1.KubernetesInternalAPIServerAddr,
+		Info: appv1.ClusterInfo{
+			ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
+		},
 	}
 	initLocalCluster sync.Once
 )
@@ -37,13 +39,10 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	initLocalCluster.Do(func() {
 		info, err := db.kubeclientset.Discovery().ServerVersion()
 		if err == nil {
-			//nolint:staticcheck
-			localCluster.ServerVersion = fmt.Sprintf("%s.%s", info.Major, info.Minor)
-			//nolint:staticcheck
-			localCluster.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
+			localCluster.Info.ServerVersion = fmt.Sprintf("%s.%s", info.Major, info.Minor)
+			localCluster.Info.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 		} else {
-			//nolint:staticcheck
-			localCluster.ConnectionState = appv1.ConnectionState{
+			localCluster.Info.ConnectionState = appv1.ConnectionState{
 				Status:  appv1.ConnectionStatusFailed,
 				Message: err.Error(),
 			}
@@ -51,8 +50,7 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	})
 	cluster := localCluster.DeepCopy()
 	now := metav1.Now()
-	//nolint:staticcheck
-	cluster.ConnectionState.ModifiedAt = &now
+	cluster.Info.ConnectionState.ModifiedAt = &now
 	return cluster
 }
 
@@ -94,12 +92,14 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 
 // CreateCluster creates a cluster
 func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
-	settings, err := db.settingsMgr.GetSettings()
-	if err != nil {
-		return nil, err
-	}
-	if c.Server == appv1.KubernetesInternalAPIServerAddr && !settings.InClusterEnabled {
-		return nil, status.Errorf(codes.InvalidArgument, "cannot register cluster: in-cluster has been disabled")
+	if c.Server == appv1.KubernetesInternalAPIServerAddr {
+		settings, err := db.settingsMgr.GetSettings()
+		if err != nil {
+			return nil, err
+		}
+		if !settings.InClusterEnabled {
+			return nil, status.Errorf(codes.InvalidArgument, "cannot register cluster: in-cluster has been disabled")
+		}
 	}
 	secName, err := URIToSecretName("cluster", c.Server)
 	if err != nil {
@@ -226,31 +226,33 @@ func (db *db) getClusterSecret(server string) (*corev1.Secret, error) {
 
 // GetCluster returns a cluster from a query
 func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, error) {
-	argoSettings, err := db.settingsMgr.GetSettings()
-	if err != nil {
-		return nil, err
-	}
-	if server == appv1.KubernetesInternalAPIServerAddr && !argoSettings.InClusterEnabled {
-		return nil, status.Errorf(codes.NotFound, "cluster %q is disabled", server)
-	}
-
-	informer, err := db.settingsMgr.GetSecretsInformer()
-	if err != nil {
-		return nil, err
-	}
-	res, err := informer.GetIndexer().ByIndex(settings.ByClusterURLIndexer, server)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(res) > 0 {
-		return SecretToCluster(res[0].(*corev1.Secret))
-	}
+	informer := db.settingsMgr.GetClusterInformer()
 	if server == appv1.KubernetesInternalAPIServerAddr {
+		argoSettings, err := db.settingsMgr.GetSettings()
+		if err != nil {
+			return nil, err
+		}
+		if !argoSettings.InClusterEnabled {
+			return nil, status.Errorf(codes.NotFound, "cluster %q is disabled", server)
+		}
+
+		// Check if there's a secret configured for the in-cluster address
+		// If so, use that instead of the hardcoded local cluster
+		cluster, err := informer.GetClusterByURL(server)
+		if err == nil {
+			return cluster, nil
+		}
+
+		// Fall back to the hardcoded local cluster if no secret is configured
 		return db.getLocalCluster(), nil
 	}
 
-	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+	cluster, err := informer.GetClusterByURL(server)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+	}
+
+	return cluster, nil
 }
 
 // GetProjectClusters return project scoped clusters by given project name
@@ -279,35 +281,30 @@ func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string,
 	if err != nil {
 		return nil, err
 	}
-	informer, err := db.settingsMgr.GetSecretsInformer()
+
+	informer := db.settingsMgr.GetClusterInformer()
+	servers, err := informer.GetClusterServersByName(name)
 	if err != nil {
 		return nil, err
 	}
 
-	// if local cluster name is not overridden and specified name is local cluster name, return local cluster server
-	localClusterSecrets, err := informer.GetIndexer().ByIndex(settings.ByClusterURLIndexer, appv1.KubernetesInternalAPIServerAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(localClusterSecrets) == 0 && db.getLocalCluster().Name == name && argoSettings.InClusterEnabled {
+	// Handle local cluster special case
+	if len(servers) == 0 && name == "in-cluster" && argoSettings.InClusterEnabled {
 		return []string{appv1.KubernetesInternalAPIServerAddr}, nil
 	}
 
-	secrets, err := informer.GetIndexer().ByIndex(settings.ByClusterNameIndexer, name)
-	if err != nil {
-		return nil, err
-	}
-	var res []string
-	for i := range secrets {
-		s := secrets[i].(*corev1.Secret)
-		server := strings.TrimRight(string(s.Data["server"]), "/")
-		if !argoSettings.InClusterEnabled && server == appv1.KubernetesInternalAPIServerAddr {
-			continue
+	// Filter out disabled in-cluster
+	if !argoSettings.InClusterEnabled {
+		filtered := make([]string, 0, len(servers))
+		for _, s := range servers {
+			if s != appv1.KubernetesInternalAPIServerAddr {
+				filtered = append(filtered, s)
+			}
 		}
-		res = append(res, server)
+		return filtered, nil
 	}
-	return res, nil
+
+	return servers, nil
 }
 
 // UpdateCluster updates a cluster
@@ -408,7 +405,7 @@ func SecretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 	}
 
 	var namespaces []string
-	for _, ns := range strings.Split(string(s.Data["namespaces"]), ",") {
+	for ns := range strings.SplitSeq(string(s.Data["namespaces"]), ",") {
 		if ns = strings.TrimSpace(ns); ns != "" {
 			namespaces = append(namespaces, ns)
 		}

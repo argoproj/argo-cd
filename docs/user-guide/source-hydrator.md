@@ -26,8 +26,8 @@ data:
   hydrator.enabled: "true"
 ```
 
-!!! important
-    After updating the ConfigMap, you must restart the Argo CD controller and API server for the changes to take effect.
+> [!IMPORTANT]
+> After updating the ConfigMap, you must restart the Argo CD controller and API server for the changes to take effect.
 
 If you are using one of the `*-install.yaml` manifests to install Argo CD, you can use the 
 `*-install-with-hydrator.yaml` version of that file instead.
@@ -39,10 +39,10 @@ Without hydrator: https://raw.githubusercontent.com/argoproj/argo-cd/stable/mani
 With hydrator:    https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install-with-hydrator.yaml
 ```
 
-!!! important
-    The `*-with-hydrator-install.yaml` manifests will eventually be removed when the source hydrator is either enabled
-    by default or removed. The upgrade guide will note if the `install-with-hydrator.yaml` manifests are no longer
-    available.
+> [!IMPORTANT]
+> The `*-with-hydrator-install.yaml` manifests will eventually be removed when the source hydrator is either enabled
+> by default or removed. The upgrade guide will note if the `install-with-hydrator.yaml` manifests are no longer
+> available.
 
 ## Using the Source Hydrator
 
@@ -59,10 +59,11 @@ metadata:
     argocd.argoproj.io/secret-type: repository-write
 type: Opaque
 stringData:
-  url: "https://github.com"
+  url: "https://github.com/<your org or user>/<your repo>"
   type: "git"
   githubAppID: "<your app ID here>"
-  githubAppInstallationID: "<your installation ID here>"
+  # githubAppInstallationID is optional and will be auto-discovered if omitted
+  githubAppInstallationID: "<your installation ID here>" # Optional
   githubAppPrivateKey: |
     <your private key here>
 ---
@@ -75,10 +76,11 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 type: Opaque
 stringData:
-  url: "https://github.com"
+  url: "https://github.com/<your org or user>/<your repo>"
   type: "git"
   githubAppID: "<your app ID here>"
-  githubAppInstallationID: "<your installation ID here>"
+  # githubAppInstallationID is optional and will be auto-discovered if omitted
+  githubAppInstallationID: "<your installation ID here>"  # Optional
   githubAppPrivateKey: |
     <your private key here>
 ```
@@ -106,9 +108,26 @@ spec:
 ```
 
 In this example, the hydrated manifests will be pushed to the `environments/dev` branch of the `argocd-example-apps`
-repository.
+repository. The `drySource` field tells Argo CD where your original, unrendered configuration lives.
+This can be a Helm chart, a Kustomize directory, or plain manifests. Argo CD reads this source, renders the final Kubernetes
+manifests from it, and then writes those hydrated manifests into the location specified by `syncSource.path`.
 
-!!! important "Project-Scoped Repositories"
+When using source hydration, the `syncSource.path` field is required and must always point to a non-root
+directory in the repository. Setting the path to the repository root (for eg. `"."` or `""`) is not
+supported. This ensures that hydration is always scoped to a dedicated subdirectory, which avoids unintentionally overwriting or removing files that may exist in the repository root.
+
+During each hydration run, Argo CD cleans the application's configured path before writing out newly generated manifests. This guarantees that old or stale files from previous hydration do not linger in the output directory. However, the repository root is never cleaned, so files such as CI/CD configuration, README files, or other root-level assets remain untouched.
+
+It is important to note that hydration only cleans the currently configured application path. If an application’s path changes, the old directory is not removed automatically. Likewise, if an application is deleted, its output path remains in the repository and must be cleaned up manually by the repository owner if desired. This design is intentional: it prevents accidental deletion of files when applications are restructured or removed, and it protects critical files like CI pipelines that may coexist in the repository.
+
+> [!NOTE] 
+> The hydrator triggers only when a new commit is detected in the dry source.  
+> Adding or removing Applications does not on its own cause hydration to run.  
+> If the set of Applications changes but the dry-source commit does not, hydration will wait until the next commit.  
+
+> [!IMPORTANT]
+> **Project-Scoped Repositories**
+>
 
     Repository Secrets may contain a `project` field, making the secret only usable by Applications in that project.
     The source hydrator only supports project-scoped repositories if all Applications writing to the same repository and
@@ -118,6 +137,112 @@ repository.
 
 If there are multiple repository-write Secrets available for a repo, the source hydrator will non-deterministically
 select one of the matching Secrets and log a warning saying "Found multiple credentials for repoURL".
+
+## Source Configuration Options
+
+The source hydrator supports various source types through inline configuration options in the `drySource` field. This allows you to use Helm charts, Kustomize applications, directories, and plugins with environment-specific configurations.
+
+### Helm Charts
+
+You can use Helm charts by specifying the `helm` field in the `drySource`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-helm-app
+spec:
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
+      path: helm-guestbook
+      targetRevision: HEAD
+      helm:
+        valueFiles:
+          - values-prod.yaml
+        parameters:
+          - name: image.tag
+            value: v1.2.3
+        releaseName: my-release
+    syncSource:
+      targetBranch: environments/prod
+      path: helm-guestbook-hydrated
+```
+
+### Kustomize Applications
+
+For Kustomize applications, use the `kustomize` field:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-kustomize-app
+spec:
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
+      path: kustomize-guestbook
+      targetRevision: HEAD
+      kustomize:
+        namePrefix: prod-
+        nameSuffix: -v1
+        images:
+          - gcr.io/heptio-images/ks-guestbook-demo:0.2
+    syncSource:
+      targetBranch: environments/prod
+      path: kustomize-guestbook-hydrated
+```
+
+### Directory Applications
+
+For plain directory applications with specific options, use the `directory` field:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-directory-app
+spec:
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
+      path: guestbook
+      targetRevision: HEAD
+      directory:
+        recurse: true
+    syncSource:
+      targetBranch: environments/prod
+      path: guestbook-hydrated
+```
+
+### Config Management Plugins
+
+You can also use Config Management Plugins by specifying the `plugin` field:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-plugin-app
+spec:
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
+      path: my-plugin-app
+      targetRevision: HEAD
+      plugin:
+        name: my-custom-plugin
+        env:
+          - name: ENV_VAR
+            value: prod
+    syncSource:
+      targetBranch: environments/prod
+      path: my-plugin-app-hydrated
+```
+
+!!! note "Feature Parity"
+    The source hydrator supports the same configuration options as the regular Application source field. You can use any combination of these source types with their respective configuration options to match your application's needs.
 
 ## Pushing to a "Staging" Branch
 
@@ -174,10 +299,9 @@ code commit.
 git commit -m "Bump image to v1.2.3" \
   # Must be an RFC 5322 name
   --trailer "Argocd-reference-commit-author: Author Name <author@example.com>" \
-  # Must be a valid email address per RFC 5322
-  --trailer "Argocd-reference-commit-author-email: author@example.com" \
   # Must be a hex string 5-40 characters long
   --trailer "Argocd-reference-commit-sha: <code-commit-sha>" \
+  # The subject is the first line of the commit message. It cannot contain newlines.
   --trailer "Argocd-reference-commit-subject: Commit message of the code commit" \
    # The body must be a valid JSON string, including opening and closing quotes
   --trailer 'Argocd-reference-commit-body: "Commit message of the code commit\n\nSigned-off-by: Author Name <author@example.com>"' \
@@ -187,8 +311,8 @@ git commit -m "Bump image to v1.2.3" \
   --trailer "Argocd-reference-commit-date: 2025-06-09T13:50:18-04:00" 
 ```
 
-!!!note Newlines are not allowed
-    The commit trailers must not contain newlines. The 
+> [!NOTE]
+> The commit trailers must not contain newlines. 
 
 So the full CI script might look something like this:
 
@@ -198,7 +322,7 @@ git clone https://git.example.com/owner/repo.git
 cd repo
 
 # Build the image and get the new image tag
-# <cusom build logic here>
+# <custom build logic here>
 
 # Get the commit information
 author=$(git show -s --format="%an <%ae>")
@@ -263,6 +387,88 @@ specified more than once, the last one will be used.
 
 All trailers are optional. If a trailer is not specified, the corresponding field in the metadata will be omitted.
 
+## Commit Message Template
+
+The commit message is generated using a [Go text/template](https://pkg.go.dev/text/template), optionally configured by the user via the argocd-cm ConfigMap. The template is rendered using the values from `hydrator.metadata`. The template can be multi-line, allowing users to define a subject line, body and optional trailers. To define the commit message template, you need to set the `sourceHydrator.commitMessageTemplate` field in argocd-cm ConfigMap.
+
+The template may functions from the [Sprig function library](https://github.com/Masterminds/sprig).
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  sourceHydrator.commitMessageTemplate: |
+    {{.metadata.drySha | trunc 7}}: {{ .metadata.subject }}
+    {{- if .metadata.body }}
+    
+    {{ .metadata.body }}
+    {{- end }}
+    {{ range $ref := .metadata.references }}
+    {{- if and $ref.commit $ref.commit.author }}
+    Co-authored-by: {{ $ref.commit.author }}
+    {{- end }}
+    {{- end }}
+    {{- if .metadata.author }}
+    Co-authored-by: {{ .metadata.author }}
+    {{- end }}
+```
+
+## Commit Author Configuration
+
+You can customize the git commit author name and email used by the source hydrator when committing hydrated manifests. This is configured via the `argocd-cm` ConfigMap.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  commit.author.name: "GitOps Bot"
+  commit.author.email: "gitops@company.com"
+```
+
+**Configuration Keys:**
+- `commit.author.name`: The git commit author name (defaults to `"Argo CD"` if not set)
+- `commit.author.email`: The git commit author email (defaults to `"argo-cd@example.com"` if not set)
+
+Both values are optional. If only one is configured, the configured value will be used and the other will use its default.
+
+### Credential Templates
+
+Credential templates allow a single credential to be used for multiple repositories. The source hydrator supports credential templates. For example, if you setup credential templates for the URL prefix `https://github.com/argoproj`, these credentials will be used for all repositories with this URL as prefix (e.g. `https://github.com/argoproj/argocd-example-apps`) that do not have their own credentials configured.
+For more information please refer [credential-template](private-repositories.md#credential-templates). 
+An example of repo-write-creds secret.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-write-creds
+stringData:
+  type: git
+  url: https://github.com/argoproj
+  password: my-password
+  username: my-username
+```
+
+## Git Note-based Hydration State Tracking
+
+The Source Hydrator does not create a new hydrated commit for a DRY commit if the commit doesn't affect the hydrated manifests. Instead, the hydration state (the DRY SHA last hydrated) is tracked using a [git note](https://git-scm.com/docs/git-notes) in a dedicated `source-hydrator` namespace.
+
+On each run, the hydrator:
+- Checks the git note for the last hydrated DRY SHA.
+- If manifests have not changed since that SHA, only updates the note.
+- If manifests have changed, commits the new manifests and updates the note as well.
+
+This improves efficiency and reduces commit noise in your repository.
+
 ## Limitations
 
 ### Signature Verification
@@ -276,11 +482,6 @@ verification when Argo CD attempts to sync the hydrated manifests.
 If all the Applications for a given destination repo/branch are under the same project, then the hydrator will use any
 available project-scoped push secrets. If two Applications for a given repo/branch are in different projects, then the
 hydrator will not be able to use a project-scoped push secret and will require a global push secret.
-
-### Credential Templates
-
-Credential templates allow a single credential to be used for multiple repositories. The source hydrator does not 
-currently support credential templates. You will need a separate credential for each repository.
 
 ### `manifest-generate-paths` Annotation Support
 
@@ -323,3 +524,13 @@ from pushing to the hydrated branches, enable branch protection in your SCM.
 
 It is best practice to prefix the hydrated branches with a common prefix, such as `environments/`. This makes it easier
 to configure branch protection rules on the destination repository.
+
+> [!NOTE]
+> To maintain reproducibility and determinism in the Hydrator’s output,
+> Argo CD-specific metadata (such as `argocd.argoproj.io/tracking-id`) is
+> not written to Git during hydration. These annotations are added dynamically
+> during application sync and comparison.
+
+### Application Path Cleaning Behavior
+
+The Source Hydrator does not clean (remove) files from the application's configured output path before writing new manifests. This means that any files previously generated by hydration (or otherwise present) that are not overwritten by the new hydration run will remain in the output directory.

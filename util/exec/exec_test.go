@@ -29,19 +29,20 @@ func Test_timeout(t *testing.T) {
 }
 
 func TestRun(t *testing.T) {
-	out, err := Run(exec.Command("ls"))
+	out, err := Run(exec.CommandContext(t.Context(), "ls"))
 	require.NoError(t, err)
 	assert.NotEmpty(t, out)
 }
 
 func TestHideUsernamePassword(t *testing.T) {
-	_, err := RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), nil)
+	ctx := t.Context()
+	_, err := RunWithRedactor(exec.CommandContext(ctx, "helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), nil)
 	require.Error(t, err)
 
 	redactor := func(text string) string {
 		return regexp.MustCompile("(--username|--password) [^ ]*").ReplaceAllString(text, "$1 ******")
 	}
-	_, err = RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), redactor)
+	_, err = RunWithRedactor(exec.CommandContext(ctx, "helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), redactor)
 	require.Error(t, err)
 }
 
@@ -56,7 +57,7 @@ func TestRunWithExecRunOpts(t *testing.T) {
 			ShouldWait: true,
 		},
 	}
-	_, err := RunWithExecRunOpts(exec.Command("sh", "-c", "trap 'trap - 15 && echo captured && exit' 15 && sleep 2"), opts)
+	_, err := RunWithExecRunOpts(exec.CommandContext(t.Context(), "sh", "-c", "trap 'trap - 15 && echo captured && exit' 15 && sleep 2"), opts)
 	assert.ErrorContains(t, err, "failed timeout after 200ms")
 }
 
@@ -74,7 +75,7 @@ func TestRunWithExecRunOptsFatal(t *testing.T) {
 		},
 	}
 	// The returned error string in this case should contain a "fatal" in this case
-	_, err := RunWithExecRunOpts(exec.Command("sh", "-c", "trap 'trap - 15 && echo captured && sleep 10000' 15 && sleep 2"), opts)
+	_, err := RunWithExecRunOpts(exec.CommandContext(t.Context(), "sh", "-c", "trap 'trap - 15 && echo captured && sleep 10000' 15 && sleep 2"), opts)
 	// The expected timeout is ARGOCD_EXEC_TIMEOUT + ARGOCD_EXEC_FATAL_TIMEOUT = 200ms + 100ms = 300ms
 	assert.ErrorContains(t, err, "failed fatal timeout after 300ms")
 }
@@ -108,7 +109,7 @@ func Test_getCommandArgsToLog(t *testing.T) {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tcc.expected, GetCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
+			assert.Equal(t, tcc.expected, GetCommandArgsToLog(exec.CommandContext(t.Context(), tcc.args[0], tcc.args[1:]...)))
 		})
 	}
 }
@@ -195,7 +196,7 @@ func TestRunCommandErr(t *testing.T) {
 }
 
 func TestRunInDir(t *testing.T) {
-	cmd := exec.Command("pwd")
+	cmd := exec.CommandContext(t.Context(), "pwd")
 	cmd.Dir = "/"
 	message, err := RunCommandExt(cmd, CmdOpts{})
 	require.NoError(t, err)
@@ -214,6 +215,14 @@ func TestRedact(t *testing.T) {
 
 func TestRunCaptureStderr(t *testing.T) {
 	output, err := RunCommand("sh", CmdOpts{CaptureStderr: true}, "-c", "echo hello world && echo my-error >&2 && exit 0")
+	assert.Equal(t, "hello world\nmy-error", output)
+	assert.NoError(t, err)
+}
+
+func TestRunWithExecRunOptsCaptureStderr(t *testing.T) {
+	ctx := t.Context()
+	cmd := exec.CommandContext(ctx, "sh", "-c", "echo hello world && echo my-error >&2 && exit 0")
+	output, err := RunWithExecRunOpts(cmd, ExecRunOpts{CaptureStderr: true})
 	assert.Equal(t, "hello world\nmy-error", output)
 	assert.NoError(t, err)
 }

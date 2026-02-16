@@ -1,11 +1,6 @@
 dir: '{{.InterfaceDir}}/mocks'
-structname: '{{.InterfaceName}}'
 filename: '{{.InterfaceName}}.go'
-pkgname: mocks
-
-template-data:
-  unroll-variadic: true
-
+include-auto-generated: true # Needed since mockery 3.6.1
 packages:
   github.com/argoproj/argo-cd/v3/applicationset/generators:
     interfaces:
@@ -14,17 +9,15 @@ packages:
     interfaces:
       Repos: {}
   github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider:
-    config:
-      dir: applicationset/services/scm_provider/aws_codecommit/mocks
     interfaces:
       AWSCodeCommitClient: {}
       AWSTaggingClient: {}
+      AzureDevOpsClientFactory: {}
   github.com/argoproj/argo-cd/v3/applicationset/utils:
     interfaces:
       Renderer: {}
   github.com/argoproj/argo-cd/v3/commitserver/apiclient:
     interfaces:
-      Clientset: {}
       CommitServiceClient: {}
   github.com/argoproj/argo-cd/v3/commitserver/commit:
     interfaces:
@@ -35,9 +28,13 @@ packages:
   github.com/argoproj/argo-cd/v3/controller/hydrator:
     interfaces:
       Dependencies: {}
+      RepoGetter: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster:
     interfaces:
       ClusterServiceServer: {}
+  github.com/argoproj/argo-cd/v3/pkg/apiclient/project:
+    interfaces:
+      ProjectServiceClient: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/session:
     interfaces:
       SessionServiceClient: {}
@@ -47,8 +44,8 @@ packages:
       AppProjectInterface: {}
   github.com/argoproj/argo-cd/v3/reposerver/apiclient:
     interfaces:
-      RepoServerService_GenerateManifestWithFilesClient: {}
       RepoServerServiceClient: {}
+      RepoServerService_GenerateManifestWithFilesClient: {}
   github.com/argoproj/argo-cd/v3/server/application:
     interfaces:
       Broadcaster: {}
@@ -63,13 +60,11 @@ packages:
   github.com/argoproj/argo-cd/v3/util/db:
     interfaces:
       ArgoDB: {}
+      RepoCredsDB: {}
   github.com/argoproj/argo-cd/v3/util/git:
     interfaces:
       Client: {}
   github.com/argoproj/argo-cd/v3/util/helm:
-    interfaces:
-      Client: {}
-  github.com/argoproj/argo-cd/v3/util/oci:
     interfaces:
       Client: {}
   github.com/argoproj/argo-cd/v3/util/io:
@@ -78,11 +73,24 @@ packages:
   github.com/argoproj/argo-cd/v3/util/notification/argocd:
     interfaces:
       Service: {}
+  github.com/argoproj/argo-cd/v3/util/oci:
+    interfaces:
+      Client: {}
   github.com/argoproj/argo-cd/v3/util/workloadidentity:
     interfaces:
       TokenProvider: {}
+  github.com/argoproj/argo-cd/gitops-engine/pkg/cache:
+    interfaces:
+      ClusterCache: {}
+  github.com/argoproj/argo-cd/gitops-engine/pkg/diff:
+    interfaces:
+      ServerSideDryRunner: {}
   github.com/microsoft/azure-devops-go-api/azuredevops/v7/git:
     config:
       dir: applicationset/services/scm_provider/azure_devops/git/mocks
     interfaces:
       Client: {}
+pkgname: mocks
+structname: '{{.InterfaceName}}'
+template-data:
+  unroll-variadic: true

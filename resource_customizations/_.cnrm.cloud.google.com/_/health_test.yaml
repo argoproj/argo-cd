@@ -1,0 +1,45 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: "Dependency not found"
+  inputPath: testdata/dependency_not_found.yaml
+- healthStatus:
+    status: Suspended
+    message: "Dependency not ready"
+  inputPath: testdata/dependency_not_ready.yaml
+- healthStatus:
+    status: Healthy
+    message: "The resource is up to date"
+  inputPath: testdata/up_to_date.yaml
+- healthStatus:
+    status: Degraded
+    message: "Update failed"
+  inputPath: testdata/update_failed.yaml
+- healthStatus:
+    status: Progressing
+    message: "Update in progress"
+  inputPath: testdata/update_in_progress.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Update in progress'
+  inputPath: testdata/generation.yaml
+- healthStatus:
+    status: Healthy
+    message: "ConfigConnectorContext is healthy"
+  inputPath: testdata/config-connector-context.yaml
+- healthStatus:
+    status: Degraded
+    message: "ConfigConnectorContext is not healthy"
+  inputPath: testdata/config-connector-context-unhealthy.yaml
+- healthStatus:
+    status: Healthy
+    message: "ConfigConnector is healthy"
+  inputPath: testdata/config-connector-healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "ConfigConnector is not healthy"
+  inputPath: testdata/config-connector-unhealthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Update in progress"
+  inputPath: testdata/config-connector-stale.yaml

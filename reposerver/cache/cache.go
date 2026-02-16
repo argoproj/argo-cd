@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"hash/fnv"
 	"math"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/go-git/go-git/v5/plumbing"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hash"
 )
 
@@ -98,9 +99,12 @@ func refTargetForCacheKeyFromRefTarget(refTarget *appv1.RefTarget) refTargetForC
 
 type refTargetRevisionMappingForCacheKey map[string]refTargetForCacheKey
 
-func getRefTargetRevisionMappingForCacheKey(refTargetRevisionMapping appv1.RefTargetRevisionMapping) refTargetRevisionMappingForCacheKey {
+func getRefTargetRevisionMappingForCacheKey(refTargetRevisionMapping appv1.RefTargetRevisionMapping, refSourceCommitSHAs ResolvedRevisions) refTargetRevisionMappingForCacheKey {
 	res := make(refTargetRevisionMappingForCacheKey)
+
 	for k, v := range refTargetRevisionMapping {
+		// forcefully update TargetRevision based on refSourceCommitSHAs so that the resolved revision is always stored in the cache
+		v.TargetRevision = refSourceCommitSHAs[git.NormalizeGitURL(v.Repo.Repo)]
 		res[k] = refTargetForCacheKeyFromRefTarget(v)
 	}
 	return res
@@ -129,7 +133,7 @@ func appSourceKeyJSON(appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRe
 	}
 	appSrcStr, _ := json.Marshal(appSourceKeyStruct{
 		AppSrc:            appSrc,
-		SrcRefs:           getRefTargetRevisionMappingForCacheKey(srcRefs),
+		SrcRefs:           getRefTargetRevisionMappingForCacheKey(srcRefs, refSourceCommitSHAs),
 		ResolvedRevisions: refSourceCommitSHAs,
 	})
 	return string(appSrcStr)
@@ -147,9 +151,7 @@ func clusterRuntimeInfoKey(info ClusterRuntimeInfo) uint32 {
 // check if info is nil, the caller must do that.
 func clusterRuntimeInfoKeyUnhashed(info ClusterRuntimeInfo) string {
 	apiVersions := info.GetApiVersions()
-	sort.Slice(apiVersions, func(i, j int) bool {
-		return apiVersions[i] < apiVersions[j]
-	})
+	slices.Sort(apiVersions)
 	return info.GetKubeVersion() + "|" + strings.Join(apiVersions, ",")
 }
 
@@ -328,6 +330,7 @@ func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs 
 	//       example, revision could be part of ResolvedRevisions. And srcRefs is probably redundant now that
 	//       refSourceCommitSHAs has been added. We don't need to know the _target_ revisions of the referenced sources
 	//       when the _resolved_ revisions are already part of the key.
+
 	trackingKey := trackingKey(appLabelKey, trackingMethod)
 	key := fmt.Sprintf("mfst|%s|%s|%s|%s|%d", trackingKey, appName, revision, namespace, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs)+clusterRuntimeInfoKey(info))
 	if installationID != "" {
@@ -360,9 +363,9 @@ func LogDebugManifestCacheKeyFields(message string, reason string, revision stri
 	}
 }
 
-func (c *Cache) SetNewRevisionManifests(newRevision string, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
-	oldKey := manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID)
-	newKey := manifestCacheKey(newRevision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID)
+func (c *Cache) SetNewRevisionManifests(newRevision string, revision string, appSrc *appv1.ApplicationSource, oldSrcRefs appv1.RefTargetRevisionMapping, newSrcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, oldRefSourceCommitSHAs ResolvedRevisions, newRefSourceCommitSHAs ResolvedRevisions, installationID string) error {
+	oldKey := manifestCacheKey(revision, appSrc, oldSrcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, oldRefSourceCommitSHAs, installationID)
+	newKey := manifestCacheKey(newRevision, appSrc, newSrcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, newRefSourceCommitSHAs, installationID)
 	return c.cache.RenameItem(oldKey, newKey, c.repoCacheExpiration)
 }
 

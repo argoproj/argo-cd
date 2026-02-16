@@ -41,7 +41,6 @@
     &__conditions {
         display: flex;
         max-width: 250px;
-        margin: auto;
         flex-wrap: wrap;
         justify-content: center;
         line-height: 1.5em;
@@ -98,10 +97,6 @@
             @include responsive-widths();
         }
 
-        &:first-child {
-            margin-top: 7px;
-        }
-
         &:not(:first-child) {
             @include themify($themes) {
                 border-left: 1px solid themed('border');
@@ -139,7 +134,7 @@
 
     &__item-value {
         display: flex;
-        align-items: center;
+        align-items: baseline;
         margin-bottom: 0.5em;
         font-weight: 500;
         padding: 2px 0px;

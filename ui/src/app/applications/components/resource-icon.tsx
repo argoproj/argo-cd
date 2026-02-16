@@ -1,16 +1,35 @@
 import * as React from 'react';
 import {resourceIcons} from './resources';
+import {resourceIconGroups as resourceCustomizations} from './resource-customizations';
+import * as minimatch from 'minimatch';
 
-export const ResourceIcon = ({kind, customStyle}: {kind: string; customStyle?: React.CSSProperties}) => {
+export const ResourceIcon = ({group, kind, customStyle}: {group: string; kind: string; customStyle?: React.CSSProperties}) => {
     if (kind === 'node') {
         return <img src={'assets/images/infrastructure_components/' + kind + '.svg'} alt={kind} style={{padding: '2px', width: '40px', height: '32px', ...customStyle}} />;
     }
+    if (kind === 'Application') {
+        return <i title={kind} className={`icon argo-icon-application`} style={customStyle} />;
+    }
+    if (kind === 'ApplicationSet') {
+        return (
+            <span title={kind} style={{display: 'inline-flex', alignItems: 'center', ...customStyle}}>
+                {'{'}
+                <i className='icon argo-icon-application' style={{margin: '0 1px'}} />
+                {'}'}
+            </span>
+        );
+    }
+    // First, check for group-based custom icons
+    if (group) {
+        const matchedGroup = matchGroupToResource(group);
+        if (matchedGroup) {
+            return <img src={`assets/images/resources/${matchedGroup}/icon.svg`} alt={kind} style={{paddingBottom: '2px', width: '40px', height: '32px', ...customStyle}} />;
+        }
+    }
+    // Fallback to kind-based icons (works for both empty group and non-matching groups)
     const i = resourceIcons.get(kind);
     if (i !== undefined) {
         return <img src={'assets/images/resources/' + i + '.svg'} alt={kind} style={{padding: '2px', width: '40px', height: '32px', ...customStyle}} />;
-    }
-    if (kind === 'Application') {
-        return <i title={kind} className={`icon argo-icon-application`} style={customStyle} />;
     }
     const initials = kind.replace(/[a-z]/g, '');
     const n = initials.length;
@@ -32,3 +51,22 @@ export const ResourceIcon = ({kind, customStyle}: {kind: string; customStyle?: R
         </div>
     );
 };
+
+// Utility function to match group with possible wildcards in resourceCustomizations. If found, returns the matched key
+// as a path component (with '*' replaced by '_' if necessary), otherwise returns an empty string.
+function matchGroupToResource(group: string): string {
+    // Check for an exact match
+    if (group in resourceCustomizations) {
+        return group;
+    }
+
+    // Loop over the map keys to find a match using minimatch
+    for (const key in resourceCustomizations) {
+        if (key.includes('*') && minimatch(group, key)) {
+            return key.replace(/\*/g, '_');
+        }
+    }
+
+    // Return an empty string if no match is found
+    return '';
+}

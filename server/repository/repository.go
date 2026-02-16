@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -127,6 +127,7 @@ func (s *Server) getConnectionState(ctx context.Context, url string, project str
 }
 
 // List returns list of repositories
+//
 // Deprecated: Use ListRepositories instead
 func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*v1alpha1.RepositoryList, error) {
 	return s.ListRepositories(ctx, q)
@@ -382,10 +383,6 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
-	kustomizeOptions, err := kustomizeSettings.GetOptions(*q.Source)
-	if err != nil {
-		return nil, err
-	}
 	helmOptions, err := s.settings.GetHelmSettings()
 	if err != nil {
 		return nil, err
@@ -404,7 +401,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		Repo:             repo,
 		Source:           q.Source,
 		Repos:            helmRepos,
-		KustomizeOptions: kustomizeOptions,
+		KustomizeOptions: kustomizeSettings,
 		HelmOptions:      helmOptions,
 		AppName:          q.AppName,
 		RefSources:       refSources,
@@ -429,6 +426,7 @@ func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) 
 }
 
 // Create creates a repository or repository credential set
+//
 // Deprecated: Use CreateRepository() instead
 func (s *Server) Create(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*v1alpha1.Repository, error) {
 	return s.CreateRepository(ctx, q)
@@ -539,6 +537,7 @@ func (s *Server) CreateWriteRepository(ctx context.Context, q *repositorypkg.Rep
 }
 
 // Update updates a repository or credential set
+//
 // Deprecated: Use UpdateRepository() instead
 func (s *Server) Update(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*v1alpha1.Repository, error) {
 	return s.UpdateRepository(ctx, q)
@@ -595,6 +594,7 @@ func (s *Server) UpdateWriteRepository(ctx context.Context, q *repositorypkg.Rep
 }
 
 // Delete removes a repository from the configuration
+//
 // Deprecated: Use DeleteRepository() instead
 func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
 	return s.DeleteRepository(ctx, q)
@@ -791,6 +791,14 @@ func (s *Server) isRepoPermittedInProject(ctx context.Context, repo string, proj
 // isSourceInHistory checks if the supplied application source is either our current application
 // source, or was something which we synced to previously.
 func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource, index int32, versionId int32) bool {
+	if app.Spec.SourceHydrator != nil {
+		drySource := app.Spec.SourceHydrator.GetDrySource()
+		syncSource := app.Spec.SourceHydrator.GetSyncSource()
+		if source.Equals(&drySource) || source.Equals(&syncSource) {
+			return true
+		}
+		return false
+	}
 	// We have to check if the spec is within the source or sources split
 	// and then iterate over the historical
 	if app.Spec.HasMultipleSources() {

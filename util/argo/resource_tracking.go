@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -28,6 +28,7 @@ type ResourceTracking interface {
 	BuildAppInstanceValue(value AppInstanceValue) string
 	ParseAppInstanceValue(value string) (*AppInstanceValue, error)
 	Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error
+	RemoveAppInstance(un *unstructured.Unstructured, trackingMethod string) error
 }
 
 // AppInstanceValue store information about resource tracking info
@@ -168,6 +169,46 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 	default:
 		return setAppInstanceAnnotation()
 	}
+}
+
+func (rt *resourceTracking) RemoveAppInstance(un *unstructured.Unstructured, trackingMethod string) error {
+	switch v1alpha1.TrackingMethod(trackingMethod) {
+	case v1alpha1.TrackingMethodLabel:
+		if err := kube.RemoveLabel(un, common.LabelKeyAppInstance); err != nil {
+			return err
+		}
+		return nil
+	case v1alpha1.TrackingMethodAnnotation:
+		if err := kube.RemoveAnnotation(un, common.AnnotationKeyAppInstance); err != nil {
+			return err
+		}
+		if err := kube.RemoveAnnotation(un, common.AnnotationInstallationID); err != nil {
+			return err
+		}
+		return nil
+	case v1alpha1.TrackingMethodAnnotationAndLabel:
+		if err := kube.RemoveAnnotation(un, common.AnnotationKeyAppInstance); err != nil {
+			return err
+		}
+		if err := kube.RemoveAnnotation(un, common.AnnotationInstallationID); err != nil {
+			return err
+		}
+		if err := kube.RemoveLabel(un, common.LabelKeyAppInstance); err != nil {
+			return err
+		}
+		return nil
+	default:
+		// By default, only app instance annotations are set and not labels
+		// hence the default case should be only to remove annotations and not labels
+		if err := kube.RemoveAnnotation(un, common.AnnotationKeyAppInstance); err != nil {
+			return err
+		}
+		if err := kube.RemoveAnnotation(un, common.AnnotationInstallationID); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // BuildAppInstanceValue build resource tracking id in format <application-name>;<group>/<kind>/<namespace>/<name>

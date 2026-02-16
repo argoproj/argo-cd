@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -2250,6 +2250,10 @@ func (c *fakeAppServiceClient) ListLinks(_ context.Context, _ *applicationpkg.Li
 }
 
 func (c *fakeAppServiceClient) ListResourceLinks(_ context.Context, _ *applicationpkg.ApplicationResourceRequest, _ ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ServerSideDiff(_ context.Context, _ *applicationpkg.ApplicationServerSideDiffQuery, _ ...grpc.CallOption) (*applicationpkg.ApplicationServerSideDiffResponse, error) {
 	return nil, nil
 }
 

@@ -20,7 +20,7 @@ set -o nounset
 set -o pipefail
 
 PROJECT_ROOT=$(
-  cd $(dirname ${BASH_SOURCE})/..
+  cd "$(dirname "${BASH_SOURCE[0]}")"/..
   pwd
 )
 PATH="${PROJECT_ROOT}/dist:${PATH}"
@@ -29,12 +29,13 @@ GOPATH_PROJECT_ROOT="${GOPATH}/src/github.com/argoproj/argo-cd"
 
 TARGET_SCRIPT=kube_codegen.sh
 
-# codegen utilities are installed outside of kube_codegen.sh so remove the `go install` step in the script.
-sed -e '/go install/d' ${PROJECT_ROOT}/vendor/k8s.io/code-generator/kube_codegen.sh >${TARGET_SCRIPT}
+# codegen utilities are installed outside kube_codegen.sh so remove the `go install` step in the script.
+sed -e '/go install/d' "${PROJECT_ROOT}/vendor/k8s.io/code-generator/kube_codegen.sh" > ${TARGET_SCRIPT}
 
 # generate-groups.sh assumes codegen utilities are installed to GOBIN, but we just ensure the CLIs
 # are in the path and invoke them without assumption of their location
-sed -i.bak -e 's#${gobin}/##g' ${TARGET_SCRIPT}
+# shellcheck disable=SC2016
+sed -i.bak -e 's#${GOBIN}/##g' ${TARGET_SCRIPT}
 
 [ -e ./v3 ] || ln -s . v3
 [ -e "${GOPATH_PROJECT_ROOT}" ] || (mkdir -p "$(dirname "${GOPATH_PROJECT_ROOT}")" && ln -s "${PROJECT_ROOT}" "${GOPATH_PROJECT_ROOT}")

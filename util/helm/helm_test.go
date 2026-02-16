@@ -8,7 +8,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/io/path"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -236,7 +236,7 @@ func TestKubeVersionWithSymbol(t *testing.T) {
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &configMap)
 		require.NoError(t, err)
 		if data, ok := configMap.Data["kubeVersion"]; ok {
-			assert.Equal(t, "v1.30.11+IKS", data)
+			assert.Equal(t, "v1.30.11", data)
 			return
 		}
 		t.Fatal("expected kubeVersion key not found in configMap")

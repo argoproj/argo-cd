@@ -5,6 +5,7 @@ package cli
 import (
 	"bufio"
 	"bytes"
+	"context"
 	stderrors "errors"
 	"flag"
 	"fmt"
@@ -14,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -246,7 +247,7 @@ const (
 func setComments(input []byte, comments string) []byte {
 	input = stripComments(input)
 	var commentLines []string
-	for _, line := range strings.Split(comments, "\n") {
+	for line := range strings.SplitSeq(comments, "\n") {
 		if line != "" {
 			commentLines = append(commentLines, "# "+line)
 		}
@@ -275,7 +276,7 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 	for {
 		data = setComments(data, errorComment)
 		tempFile := writeToTempFile(filePattern, data)
-		cmd := exec.Command(editor, append(editorArgs, tempFile)...)
+		cmd := exec.CommandContext(context.Background(), editor, append(editorArgs, tempFile)...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
@@ -340,7 +341,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 		cmdBinary = parts[0]
 		args = parts[1:]
 	}
-	cmd := exec.Command(cmdBinary, append(args, liveFile, targetFile)...)
+	cmd := exec.CommandContext(context.Background(), cmdBinary, append(args, liveFile, targetFile)...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	return cmd.Run()

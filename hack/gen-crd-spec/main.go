@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,7 +11,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
@@ -22,8 +23,8 @@ var kindToCRDPath = map[string]string{
 	application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
 }
 
-func getCustomResourceDefinitions() map[string]*apiextensionsv1.CustomResourceDefinition {
-	crdYamlBytes, err := exec.Command(
+func getCustomResourceDefinitions(ctx context.Context) map[string]*apiextensionsv1.CustomResourceDefinition {
+	crdYamlBytes, err := exec.CommandContext(ctx,
 		"controller-gen",
 		"paths=./pkg/apis/application/...",
 		"crd:crdVersions=v1",
@@ -74,7 +75,7 @@ func deleteFile(path string) {
 
 func removeValidation(un *unstructured.Unstructured, path string) {
 	schemaPath := []string{"spec", "versions[*]", "schema", "openAPIV3Schema"}
-	for _, part := range strings.Split(path, ".") {
+	for part := range strings.SplitSeq(path, ".") {
 		schemaPath = append(schemaPath, "properties", part)
 	}
 	unstructured.RemoveNestedField(un.Object, schemaPath...)
@@ -124,7 +125,7 @@ func checkErr(err error) {
 }
 
 func main() {
-	crdsapp := getCustomResourceDefinitions()
+	crdsapp := getCustomResourceDefinitions(context.Background())
 	for kind, path := range kindToCRDPath {
 		crd := crdsapp[kind]
 		if crd == nil {

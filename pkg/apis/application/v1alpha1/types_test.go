@@ -14,7 +14,7 @@ import (
 
 	argocdcommon "github.com/argoproj/argo-cd/v3/common"
 
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -226,7 +226,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 	}
 
 	for _, data := range testData {
-		data := data
 		t.Run(data.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -513,8 +512,8 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
 		},
 	}
-	assert.False(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
-	assert.False(t, proj.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Deployment"}, true))
+	assert.False(t, proj.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, "", true))
+	assert.False(t, proj.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "Deployment"}, "", true))
 
 	proj2 := AppProject{
 		Spec: AppProjectSpec{
@@ -522,39 +521,121 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "apps", Kind: "Deployment"}},
 		},
 	}
-	assert.True(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, true))
-	assert.False(t, proj2.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+	assert.True(t, proj2.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "ReplicaSet"}, "", true))
+	assert.False(t, proj2.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, "", true))
 
 	proj3 := AppProject{
 		Spec: AppProjectSpec{
-			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
+			ClusterResourceBlacklist: []ClusterResourceRestrictionItem{{Group: "", Kind: "Namespace"}},
 		},
 	}
-	assert.False(t, proj3.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
+	assert.False(t, proj3.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "", false))
 
 	proj4 := AppProject{
 		Spec: AppProjectSpec{
-			ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
-			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceWhitelist: []ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
+			ClusterResourceBlacklist: []ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
 		},
 	}
-	assert.False(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
-	assert.True(t, proj4.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+	assert.False(t, proj4.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "", false))
+	assert.True(t, proj4.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, "", true))
 
 	proj5 := AppProject{
 		Spec: AppProjectSpec{
-			ClusterResourceWhitelist:   []metav1.GroupKind{},
+			ClusterResourceWhitelist:   []ClusterResourceRestrictionItem{},
 			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
 		},
 	}
-	assert.False(t, proj5.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
-	assert.True(t, proj5.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+	assert.False(t, proj5.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "", false))
+	assert.True(t, proj5.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, "", true))
 
 	proj6 := AppProject{
 		Spec: AppProjectSpec{},
 	}
-	assert.False(t, proj6.IsGroupKindPermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, false))
-	assert.True(t, proj6.IsGroupKindPermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, true))
+	assert.False(t, proj6.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "", false))
+	assert.True(t, proj6.IsGroupKindNamePermitted(schema.GroupKind{Group: "apps", Kind: "Action"}, "", true))
+
+	proj7 := AppProject{
+		Spec: AppProjectSpec{
+			ClusterResourceWhitelist: []ClusterResourceRestrictionItem{{Group: "", Kind: "Namespace", Name: "team1-*"}},
+		},
+	}
+	assert.False(t, proj7.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "other-namespace", false))
+	assert.True(t, proj7.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "team1-namespace", false))
+}
+
+func TestGlobMatch(t *testing.T) {
+	tests := []struct {
+		name          string
+		pattern       string
+		val           string
+		allowNegation bool
+		expected      bool
+	}{
+		{
+			name:          "exact match",
+			pattern:       "foo",
+			val:           "foo",
+			allowNegation: false,
+			expected:      true,
+		},
+		{
+			name:          "glob wildcard match",
+			pattern:       "foo*",
+			val:           "foobar",
+			allowNegation: false,
+			expected:      true,
+		},
+		{
+			name:          "glob wildcard no match",
+			pattern:       "foo*",
+			val:           "bar",
+			allowNegation: false,
+			expected:      false,
+		},
+		{
+			name:          "star matches everything",
+			pattern:       "*",
+			val:           "anything",
+			allowNegation: false,
+			expected:      true,
+		},
+		{
+			name:          "deny pattern with negation allowed - match",
+			pattern:       "!foo",
+			val:           "foo",
+			allowNegation: true,
+			expected:      false,
+		},
+		{
+			name:          "deny pattern with negation allowed - no match",
+			pattern:       "!foo",
+			val:           "bar",
+			allowNegation: true,
+			expected:      true,
+		},
+		{
+			name:          "deny pattern ignored when negation not allowed",
+			pattern:       "!foo",
+			val:           "foo",
+			allowNegation: false,
+			expected:      false, // treated as literal pattern "!foo"
+		},
+		{
+			name:          "deny pattern ignored when negation not allowed - no match",
+			pattern:       "!foo",
+			val:           "!foo",
+			allowNegation: false,
+			expected:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := globMatch(tt.pattern, tt.val, tt.allowNegation)
+			require.Equal(t, tt.expected, result)
+		})
+	}
 }
 
 func TestAppProject_GetRoleByName(t *testing.T) {
@@ -825,6 +906,29 @@ func TestAppProject_ValidateSyncWindowList(t *testing.T) {
 		err = p.ValidateProject()
 		require.NoError(t, err)
 	})
+
+	t.Run("HasDuplicateSyncWindow", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		require.NoError(t, err)
+		dup := *p.Spec.SyncWindows[0]
+		p.Spec.SyncWindows = append(p.Spec.SyncWindows, &dup)
+		err = p.ValidateProject()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "already exists")
+	})
+
+	t.Run("HasRequiredFields", func(t *testing.T) {
+		p := newTestProjectWithSyncWindows()
+		err := p.ValidateProject()
+		require.NoError(t, err)
+		p.Spec.SyncWindows[0].Applications = []string{}
+		p.Spec.SyncWindows[0].Namespaces = []string{}
+		p.Spec.SyncWindows[0].Clusters = []string{}
+		err = p.ValidateProject()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "requires one of application, cluster or namespace")
+	})
 }
 
 // TestInvalidPolicyRules checks various errors in policy rules
@@ -899,6 +1003,42 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 		p.Spec.Roles[0].Policies = []string{good}
 		err = p.ValidateProject()
 		require.NoError(t, err)
+	}
+}
+
+// TestRoleGroupExists tests if a group has been defined in the Project role
+func TestRoleGroupExists(t *testing.T) {
+	tests := []struct {
+		name     string
+		role     *ProjectRole
+		expected bool
+	}{
+		{
+			name: "Project role group exists",
+			role: &ProjectRole{
+				Name:        "custom-project-role",
+				Description: "The \"custom-project-role\" will be applied to the `some-user` group.",
+				Groups:      []string{"some-user"},
+				Policies:    []string{"roj:sample-test-project:custom-project-role, applications, *, *, allow"},
+			},
+			expected: true,
+		},
+		{
+			name: "Project role group doesn't exist",
+			role: &ProjectRole{
+				Name:        "custom-project-role",
+				Description: "The \"custom-project-role\" will be applied to the `some-user` group.",
+				Policies:    []string{"roj:sample-test-project:custom-project-role, applications, *, *, allow"},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := RoleGroupExists(tt.role)
+			assert.Equal(t, tt.expected, actual)
+		})
 	}
 }
 
@@ -3716,6 +3856,44 @@ func Test_validatePolicy_ValidResource(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestIsValidAction(t *testing.T) {
+	tests := []struct {
+		name   string
+		action string
+		want   bool
+	}{
+		// validActions direct matches
+		{"ValidGet", "get", true},
+		{"ValidCreate", "create", true},
+		{"ValidUpdate", "update", true},
+		{"ValidDelete", "delete", true},
+		{"ValidSync", "sync", true},
+		{"ValidOverride", "override", true},
+		{"ValidWildcard", "*", true},
+
+		// pattern matches
+		{"MatchActionPattern", "action/foo", true},
+		{"MatchUpdatePattern", "update/bar", true},
+		{"MatchDeletePattern", "delete/baz", true},
+
+		// near matches
+		{"NoMatchActionSuffix", "actionfoo", false},
+		{"NoMatchUpdateSuffix", "updatebar", false},
+		{"NoMatchDeleteSuffix", "deletebaz", false},
+
+		// invalid
+		{"RandomString", "random", false},
+		{"Empty", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isValidAction(tt.action)
+			assert.Equal(t, tt.want, got, "isValidAction(%q)", tt.action)
+		})
+	}
+}
+
 func TestEnvsubst(t *testing.T) {
 	env := Env{
 		&EnvEntry{"foo", "bar"},
@@ -4541,5 +4719,308 @@ func TestCluster_ParseProxyUrl(t *testing.T) {
 		} else {
 			require.ErrorContains(t, err, data.expectedErrMsg)
 		}
+	}
+}
+
+func TestSyncWindow_Hash(t *testing.T) {
+	tests := []struct {
+		name        string
+		window      *SyncWindow
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid sync window should hash successfully",
+			window: &SyncWindow{
+				Kind:           "allow",
+				Schedule:       "0 0 * * *",
+				Duration:       "1h",
+				TimeZone:       "UTC",
+				ManualSync:     true,
+				Applications:   []string{"app1", "app2"},
+				Namespaces:     []string{"ns1", "ns2"},
+				Clusters:       []string{"cluster1", "cluster2"},
+				UseAndOperator: false,
+				Description:    "test window",
+			},
+			expectError: false,
+		},
+		{
+			name: "empty sync window should hash successfully",
+			window: &SyncWindow{
+				Kind:     "deny",
+				Schedule: "0 0 * * *",
+				Duration: "30m",
+			},
+			expectError: false,
+		},
+		{
+			name: "sync window with nil should hash successfully",
+			window: &SyncWindow{
+				Kind:     "allow",
+				Schedule: "0 0 * * *",
+				Duration: "1h",
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hash, err := tt.window.HashIdentity()
+
+			if tt.expectError {
+				require.Error(t, err)
+				if tt.errorMsg != "" {
+					require.Contains(t, err.Error(), tt.errorMsg)
+				}
+			} else {
+				require.NoError(t, err)
+				require.NotZero(t, hash, "hash should not be zero for valid sync window")
+			}
+		})
+	}
+
+	// Test that different sync windows produce different hashes
+	t.Run("different sync windows should have different hashes", func(t *testing.T) {
+		window1 := &SyncWindow{
+			Kind:     "allow",
+			Schedule: "0 0 * * *",
+			Duration: "1h",
+		}
+		window2 := &SyncWindow{
+			Kind:     "deny",
+			Schedule: "0 0 * * *",
+			Duration: "1h",
+		}
+		window3 := &SyncWindow{
+			Kind:     "allow",
+			Schedule: "0 1 * * *",
+			Duration: "1h",
+		}
+
+		hash1, err1 := window1.HashIdentity()
+		hash2, err2 := window2.HashIdentity()
+		hash3, err3 := window3.HashIdentity()
+
+		require.NoError(t, err1)
+		require.NoError(t, err2)
+		require.NoError(t, err3)
+
+		require.NotEqual(t, hash1, hash2, "different kind should produce different hash")
+		require.NotEqual(t, hash1, hash3, "different schedule should produce different hash")
+		require.NotEqual(t, hash2, hash3, "different windows should produce different hashes")
+	})
+
+	// Test that identical sync windows produce the same hash
+	t.Run("identical sync windows should have same hash", func(t *testing.T) {
+		window1 := &SyncWindow{
+			Kind:     "allow",
+			Schedule: "0 0 * * *",
+			Duration: "1h",
+			TimeZone: "UTC",
+		}
+		window2 := &SyncWindow{
+			Kind:     "allow",
+			Schedule: "0 0 * * *",
+			Duration: "1h",
+			TimeZone: "UTC",
+		}
+
+		hash1, err1 := window1.HashIdentity()
+		hash2, err2 := window2.HashIdentity()
+
+		require.NoError(t, err1)
+		require.NoError(t, err2)
+		require.Equal(t, hash1, hash2, "identical windows should produce same hash")
+	})
+
+	// Test that windows with different ManualSync or Description but same core identity produce same hash
+	t.Run("windows with different metadata should have same identity hash", func(t *testing.T) {
+		window1 := &SyncWindow{
+			Kind:        "allow",
+			Schedule:    "0 0 * * *",
+			Duration:    "1h",
+			ManualSync:  false,
+			Description: "first window",
+		}
+		window2 := &SyncWindow{
+			Kind:        "allow",
+			Schedule:    "0 0 * * *",
+			Duration:    "1h",
+			ManualSync:  true,
+			Description: "second window with different description",
+		}
+
+		hash1, err1 := window1.HashIdentity()
+		hash2, err2 := window2.HashIdentity()
+
+		require.NoError(t, err1)
+		require.NoError(t, err2)
+		require.Equal(t, hash1, hash2, "windows with same core identity but different metadata should produce same hash")
+	})
+}
+
+func TestSanitized(t *testing.T) {
+	now := metav1.Now()
+	cluster := &Cluster{
+		ID:     "123",
+		Server: "https://example.com",
+		Name:   "example",
+		Info: ClusterInfo{
+			ConnectionState: ConnectionState{
+				Status:     ConnectionStatusSuccessful,
+				Message:    "Connection successful",
+				ModifiedAt: &now,
+			},
+			ServerVersion:     "v1.0.0",
+			CacheInfo:         ClusterCacheInfo{},
+			ApplicationsCount: 0,
+			APIVersions:       nil,
+		},
+		Namespaces: []string{"default", "kube-system"},
+		Project:    "default",
+		Labels: map[string]string{
+			"env": "production",
+		},
+		Annotations: map[string]string{
+			"annotation-key": "annotation-value",
+		},
+		Config: ClusterConfig{
+			Username:    "admin",
+			Password:    "password123",
+			BearerToken: "abc",
+			TLSClientConfig: TLSClientConfig{
+				Insecure:   true,
+				ServerName: "server",
+				CertData:   []byte("random bytes we don't want to show in the API response"),
+				KeyData:    []byte("random bytes we don't want to show in the API response"),
+				CAData:     []byte("random bytes we don't want to show in the API response"),
+			},
+			ExecProviderConfig: &ExecProviderConfig{
+				Command:    "this should be omitted in API",
+				Args:       []string{"this should be omitted in API"},
+				APIVersion: "this should be omitted in API",
+			},
+		},
+	}
+
+	assert.Equal(t, &Cluster{
+		ID:     "123",
+		Server: "https://example.com",
+		Name:   "example",
+		Info: ClusterInfo{
+			ConnectionState: ConnectionState{
+				Status:     ConnectionStatusSuccessful,
+				Message:    "Connection successful",
+				ModifiedAt: &now,
+			},
+			ServerVersion:     "v1.0.0",
+			CacheInfo:         ClusterCacheInfo{},
+			ApplicationsCount: 0,
+			APIVersions:       nil,
+		},
+		Namespaces:  []string{"default", "kube-system"},
+		Project:     "default",
+		Labels:      map[string]string{"env": "production"},
+		Annotations: map[string]string{"annotation-key": "annotation-value"},
+		Config: ClusterConfig{
+			TLSClientConfig: TLSClientConfig{
+				Insecure:   true,
+				ServerName: "server",
+			},
+		},
+	}, cluster.Sanitized())
+}
+
+func TestSourceHydrator_Equals(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		a        SourceHydrator
+		b        SourceHydrator
+		expected bool
+	}{
+		{"different SourceHydrators", SourceHydrator{}, SourceHydrator{DrySource: DrySource{Helm: &ApplicationSourceHelm{Namespace: "test"}}}, false},
+		{"equal SourceHydrators", SourceHydrator{DrySource: DrySource{Helm: &ApplicationSourceHelm{Namespace: "test"}}}, SourceHydrator{DrySource: DrySource{Helm: &ApplicationSourceHelm{Namespace: "test"}}}, true},
+	}
+
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, testCopy.expected, testCopy.a.DeepEquals(testCopy.b))
+		})
+	}
+}
+
+func TestIgnoreDifferences_Equals(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		a        IgnoreDifferences
+		b        IgnoreDifferences
+		expected bool
+	}{
+		{
+			name:     "nil and nil are equal",
+			a:        nil,
+			b:        nil,
+			expected: true,
+		},
+		{
+			name:     "nil and empty slice are equal",
+			a:        nil,
+			b:        IgnoreDifferences{},
+			expected: true,
+		},
+		{
+			name:     "empty slice and nil are equal",
+			a:        IgnoreDifferences{},
+			b:        nil,
+			expected: true,
+		},
+		{
+			name:     "empty slice and empty slice are equal",
+			a:        IgnoreDifferences{},
+			b:        IgnoreDifferences{},
+			expected: true,
+		},
+		{
+			name:     "non-empty slice and nil are not equal",
+			a:        IgnoreDifferences{{Kind: "Deployment"}},
+			b:        nil,
+			expected: false,
+		},
+		{
+			name:     "nil and non-empty slice are not equal",
+			a:        nil,
+			b:        IgnoreDifferences{{Kind: "Deployment"}},
+			expected: false,
+		},
+		{
+			name:     "equal non-empty slices are equal",
+			a:        IgnoreDifferences{{Kind: "Deployment", JSONPointers: []string{"/spec/replicas"}}},
+			b:        IgnoreDifferences{{Kind: "Deployment", JSONPointers: []string{"/spec/replicas"}}},
+			expected: true,
+		},
+		{
+			name:     "different non-empty slices are not equal",
+			a:        IgnoreDifferences{{Kind: "Deployment"}},
+			b:        IgnoreDifferences{{Kind: "Service"}},
+			expected: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
+		})
 	}
 }

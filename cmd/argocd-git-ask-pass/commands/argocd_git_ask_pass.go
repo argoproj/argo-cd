@@ -9,20 +9,16 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/askpass"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
-const (
-	// cliName is the name of the CLI
-	cliName = "argocd-git-ask-pass"
-)
-
 func NewCommand() *cobra.Command {
 	command := cobra.Command{
-		Use:               cliName,
+		Use:               common.CommandGitAskPass,
 		Short:             "Argo CD git credential helper",
 		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, _ []string) {
@@ -35,7 +31,7 @@ func NewCommand() *cobra.Command {
 			if nonce == "" {
 				errors.CheckError(fmt.Errorf("%s is not set", askpass.ASKPASS_NONCE_ENV))
 			}
-			conn, err := grpc_util.BlockingDial(ctx, "unix", askpass.SocketPath, nil, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			conn, err := grpc_util.BlockingNewClient(ctx, "unix", askpass.SocketPath, nil, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			errors.CheckError(err)
 			defer utilio.Close(conn)
 			client := askpass.NewAskPassServiceClient(conn)

@@ -7,13 +7,12 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/r3labs/diff/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -88,7 +87,7 @@ func getAPIResourceInfo(group, kind string, getAPIResourceInfo func() ([]kube.AP
 
 // FormatAppConditions returns string representation of give app condition list
 func FormatAppConditions(conditions []argoappv1.ApplicationCondition) string {
-	formattedConditions := make([]string, 0)
+	formattedConditions := []string{}
 	for _, condition := range conditions {
 		formattedConditions = append(formattedConditions, fmt.Sprintf("%s: %s", condition.Type, condition.Message))
 	}
@@ -104,8 +103,8 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 	for i := range projects {
 		projectsMap[projects[i]] = true
 	}
-	items := make([]argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []argoappv1.Application{}
+	for i := range apps {
 		a := apps[i]
 		if _, ok := projectsMap[a.Spec.GetProject()]; ok {
 			items = append(items, a)
@@ -123,8 +122,8 @@ func FilterByProjectsP(apps []*argoappv1.Application, projects []string) []*argo
 	for i := range projects {
 		projectsMap[projects[i]] = true
 	}
-	items := make([]*argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []*argoappv1.Application{}
+	for i := range apps {
 		a := apps[i]
 		if _, ok := projectsMap[a.Spec.GetProject()]; ok {
 			items = append(items, a)
@@ -142,8 +141,8 @@ func FilterAppSetsByProjects(appsets []argoappv1.ApplicationSet, projects []stri
 	for i := range projects {
 		projectsMap[projects[i]] = true
 	}
-	items := make([]argoappv1.ApplicationSet, 0)
-	for i := 0; i < len(appsets); i++ {
+	items := []argoappv1.ApplicationSet{}
+	for i := range appsets {
 		a := appsets[i]
 		if _, ok := projectsMap[a.Spec.Template.Spec.GetProject()]; ok {
 			items = append(items, a)
@@ -157,8 +156,8 @@ func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Applica
 	if repo == "" {
 		return apps
 	}
-	items := make([]argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []argoappv1.Application{}
+	for i := range apps {
 		if apps[i].Spec.GetSource().RepoURL == repo {
 			items = append(items, apps[i])
 		}
@@ -171,9 +170,23 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 	if repo == "" {
 		return apps
 	}
-	items := make([]*argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []*argoappv1.Application{}
+	for i := range apps {
 		if apps[i].Spec.GetSource().RepoURL == repo {
+			items = append(items, apps[i])
+		}
+	}
+	return items
+}
+
+// FilterByPath returns an application
+func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Application {
+	if path == "" {
+		return apps
+	}
+	items := []argoappv1.Application{}
+	for i := range apps {
+		if apps[i].Spec.GetSource().Path == path {
 			items = append(items, apps[i])
 		}
 	}
@@ -185,8 +198,8 @@ func FilterByCluster(apps []argoappv1.Application, cluster string) []argoappv1.A
 	if cluster == "" {
 		return apps
 	}
-	items := make([]argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []argoappv1.Application{}
+	for i := range apps {
 		if apps[i].Spec.Destination.Server == cluster || apps[i].Spec.Destination.Name == cluster {
 			items = append(items, apps[i])
 		}
@@ -199,8 +212,8 @@ func FilterByName(apps []argoappv1.Application, name string) ([]argoappv1.Applic
 	if name == "" {
 		return apps, nil
 	}
-	items := make([]argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []argoappv1.Application{}
+	for i := range apps {
 		if apps[i].Name == name {
 			items = append(items, apps[i])
 			return items, nil
@@ -215,8 +228,8 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 	if name == "" {
 		return apps
 	}
-	items := make([]*argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []*argoappv1.Application{}
+	for i := range apps {
 		if apps[i].Name == name {
 			items = append(items, apps[i])
 			return items
@@ -243,7 +256,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling metadata: %w", err)
 	}
-	for attempt := 0; attempt < 5; attempt++ {
+	for range 5 {
 		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err == nil {
 			log.Infof("Requested app '%s' refresh", name)
@@ -296,7 +309,7 @@ func ValidateRepo(
 ) ([]argoappv1.ApplicationCondition, error) {
 	spec := &app.Spec
 
-	conditions := make([]argoappv1.ApplicationCondition, 0)
+	conditions := []argoappv1.ApplicationCondition{}
 
 	// Test the repo
 	conn, repoClient, err := repoClientset.NewRepoServerClient()
@@ -355,8 +368,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
-	//nolint:staticcheck
-	destCluster.ServerVersion, err = kubectl.GetServerVersion(config)
+	destCluster.Info.ServerVersion, err = kubectl.GetServerVersion(config)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s server version: %w", err)
 	}
@@ -393,6 +405,29 @@ func ValidateRepo(
 	return conditions, nil
 }
 
+// ValidateManagedByURL validates the managed-by-url annotation on applications to ensure it contains a valid URL
+func ValidateManagedByURL(app *argoappv1.Application) []argoappv1.ApplicationCondition {
+	conditions := []argoappv1.ApplicationCondition{}
+
+	if app.Annotations == nil {
+		return conditions
+	}
+
+	managedByURL, exists := app.Annotations[argoappv1.AnnotationKeyManagedByURL]
+	if !exists || managedByURL == "" {
+		return conditions
+	}
+
+	if err := settings.ValidateExternalURL(managedByURL); err != nil {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("invalid managed-by URL: %v", err),
+		})
+	}
+
+	return conditions
+}
+
 func validateRepo(ctx context.Context,
 	app *argoappv1.Application,
 	db db.ArgoDB,
@@ -409,7 +444,7 @@ func validateRepo(ctx context.Context,
 	enabledSourceTypes map[string]bool,
 	settingsMgr *settings.SettingsManager,
 ) ([]argoappv1.ApplicationCondition, error) {
-	conditions := make([]argoappv1.ApplicationCondition, 0)
+	conditions := []argoappv1.ApplicationCondition{}
 	errMessage := ""
 
 	for _, source := range sources {
@@ -463,8 +498,7 @@ func validateRepo(ctx context.Context,
 		proj,
 		sources,
 		repoClient,
-		//nolint:staticcheck
-		cluster.ServerVersion,
+		cluster.Info.ServerVersion,
 		APIResourcesToStrings(apiGroups, true),
 		permittedHelmCredentials,
 		permittedOCICredentials,
@@ -473,6 +507,30 @@ func validateRepo(ctx context.Context,
 		refSources)...)
 
 	return conditions, nil
+}
+
+// GetSyncedRefSources creates a map of ref keys (the same as GetRefSources) based on syncRevisions from Application status
+func GetSyncedRefSources(refSources argoappv1.RefTargetRevisionMapping, sources argoappv1.ApplicationSources, syncRevisions []string) argoappv1.RefTargetRevisionMapping {
+	syncedRefSources := make(argoappv1.RefTargetRevisionMapping)
+	for i, source := range sources {
+		if source.Ref == "" {
+			continue
+		}
+
+		refKey := "$" + source.Ref
+
+		revision := ""
+		if i < len(syncRevisions) {
+			revision = syncRevisions[i]
+		}
+
+		syncedRefSources[refKey] = &argoappv1.RefTarget{
+			Repo:           refSources[refKey].Repo,
+			TargetRevision: revision,
+			Chart:          refSources[refKey].Chart,
+		}
+	}
+	return syncedRefSources
 }
 
 // GetRefSources creates a map of ref keys (from the sources' 'ref' fields) to information about the referenced source.
@@ -577,7 +635,7 @@ func validateSourceHydrator(hydrator *argoappv1.SourceHydrator) []argoappv1.Appl
 
 // ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
 func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
-	conditions := make([]argoappv1.ApplicationCondition, 0)
+	conditions := []argoappv1.ApplicationCondition{}
 
 	switch {
 	case spec.SourceHydrator != nil:
@@ -589,7 +647,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if !proj.IsSourcePermitted(spec.SourceHydrator.GetDrySource()) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, spec.Project),
+				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.SourceHydrator.GetDrySource().RepoURL, proj.Name),
 			})
 		}
 	case spec.HasMultipleSources():
@@ -603,7 +661,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			if !proj.IsSourcePermitted(source) {
 				conditions = append(conditions, argoappv1.ApplicationCondition{
 					Type:    argoappv1.ApplicationConditionInvalidSpecError,
-					Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", source.RepoURL, spec.Project),
+					Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", source.RepoURL, proj.Name),
 				})
 			}
 		}
@@ -616,7 +674,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		if !proj.IsSourcePermitted(spec.GetSource()) {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, spec.Project),
+				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.GetSource().RepoURL, proj.Name),
 			})
 		}
 	}
@@ -629,22 +687,21 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 		})
 		return conditions, nil
 	}
-
-	if destCluster.Server != "" {
-		permitted, err := proj.IsDestinationPermitted(destCluster, spec.Destination.Namespace, func(project string) ([]*argoappv1.Cluster, error) {
-			return db.GetProjectClusters(ctx, project)
+	permitted, err := proj.IsDestinationPermitted(destCluster, spec.Destination.Namespace, func(project string) ([]*argoappv1.Cluster, error) {
+		return db.GetProjectClusters(ctx, project)
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !permitted {
+		server := destCluster.Server
+		if spec.Destination.Name != "" {
+			server = destCluster.Name
+		}
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", server, spec.Destination.Namespace, proj.Name),
 		})
-		if err != nil {
-			return nil, err
-		}
-		if !permitted {
-			conditions = append(conditions, argoappv1.ApplicationCondition{
-				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("application destination server '%s' and namespace '%s' do not match any of the allowed destinations in project '%s'", spec.Destination.Server, spec.Destination.Namespace, spec.Project),
-			})
-		}
-	} else if destCluster.Server == "" {
-		conditions = append(conditions, argoappv1.ApplicationCondition{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: ErrDestinationMissing})
 	}
 	return conditions, nil
 }
@@ -663,9 +720,7 @@ func APIResourcesToStrings(resources []kube.APIResourceInfo, includeKinds bool) 
 	for k := range resMap {
 		res = append(res, k)
 	}
-	sort.Slice(res, func(i, j int) bool {
-		return res[i] < res[j]
-	})
+	slices.Sort(res)
 	return res
 }
 
@@ -730,7 +785,7 @@ func GetAppProject(ctx context.Context, app *argoappv1.Application, projLister a
 		return nil, err
 	}
 	if !proj.IsAppNamespacePermitted(app, ns) {
-		return nil, argoappv1.NewErrApplicationNotAllowedToUseProject(app.Name, app.Namespace, proj.Name)
+		return nil, NewErrApplicationNotAllowedToUseProject(app.Name, app.Namespace, proj.Name)
 	}
 	return proj, nil
 }
@@ -771,14 +826,6 @@ func verifyGenerateManifests(
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("Unable to get repository: %v", err),
-			})
-			continue
-		}
-		kustomizeOptions, err := kustomizeSettings.GetOptions(source)
-		if err != nil {
-			conditions = append(conditions, argoappv1.ApplicationCondition{
-				Type:    argoappv1.ApplicationConditionInvalidSpecError,
-				Message: fmt.Sprintf("Error getting Kustomize options: %v", err),
 			})
 			continue
 		}
@@ -841,7 +888,7 @@ func verifyGenerateManifests(
 			Namespace:                       app.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			AppLabelKey:                     appLabelKey,
-			KustomizeOptions:                kustomizeOptions,
+			KustomizeOptions:                kustomizeSettings,
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,
@@ -1058,7 +1105,7 @@ func GetDestinationCluster(ctx context.Context, destination argoappv1.Applicatio
 
 func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) []*argoappv1.AppProject {
 	gps, err := settingsManager.GetGlobalProjectsSettings()
-	globalProjects := make([]*argoappv1.AppProject, 0)
+	globalProjects := []*argoappv1.AppProject{}
 
 	if err != nil {
 		log.Warnf("Failed to get global project settings: %v", err)
@@ -1161,7 +1208,7 @@ func parseName(qualifiedName string, defaultNs string, delim string) (name strin
 		namespace = defaultNs
 		name = t[0]
 	}
-	return
+	return name, namespace
 }
 
 // ParseAppNamespacedName parses a namespaced name in the format namespace/name

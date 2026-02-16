@@ -35,10 +35,10 @@ func NewCommand() *cobra.Command {
 		metricsHost string
 	)
 	command := &cobra.Command{
-		Use:   "argocd-commit-server",
+		Use:   common.CommandCommitServer,
 		Short: "Run Argo CD Commit Server",
 		Long:  "Argo CD Commit Server is an internal service which commits and pushes hydrated manifests to git. This command runs Commit Server in the foreground.",
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			vers := common.GetVersion()
 			vers.LogStartupInfo(
 				"Argo CD Commit Server",
@@ -59,8 +59,10 @@ func NewCommand() *cobra.Command {
 
 			server := commitserver.NewServer(askPassServer, metricsServer)
 			grpc := server.CreateGRPC()
+			ctx := cmd.Context()
 
-			listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", listenHost, listenPort))
+			lc := &net.ListenConfig{}
+			listener, err := lc.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", listenHost, listenPort))
 			errors.CheckError(err)
 
 			healthz.ServeHealthCheck(http.DefaultServeMux, func(r *http.Request) error {
@@ -89,13 +91,11 @@ func NewCommand() *cobra.Command {
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 			wg := sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				s := <-sigCh
 				log.Printf("got signal %v, attempting graceful shutdown", s)
 				grpc.GracefulStop()
-				wg.Done()
-			}()
+			})
 
 			log.Println("starting grpc server")
 			err = grpc.Serve(listener)

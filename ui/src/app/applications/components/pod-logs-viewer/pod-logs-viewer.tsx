@@ -43,6 +43,7 @@ export interface PodLogsProps {
     containerGroups?: any[];
     onClickContainer?: (group: any, i: number, tab: string) => void;
     fullscreen?: boolean;
+    previous?: boolean;
 }
 
 export interface PodLogsQueryProps {
@@ -219,12 +220,12 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                 width,
                 height,
                 overflow: 'scroll',
-                minWidth: '100%'
+                minWidth: isWrapped ? 'fit-content' : '100%'
             }}>
             <div
                 style={{
                     width: '100%',
-                    minWidth: 'fit-content'
+                    minWidth: isWrapped ? 'fit-content' : '100%'
                 }}>
                 {logs.map((log, lineNum) => {
                     const {podNameContent, timestampContent, logContent} = renderLog(log, lineNum, prefs.appDetails.darkMode);
@@ -236,7 +237,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 lineHeight: '1.5rem',
                                 backgroundColor: selectedPod === log.podName ? getPodBackgroundColor(log.podName, prefs.appDetails.darkMode) : 'transparent',
                                 padding: '1px 8px',
-                                width: '100vw',
+                                width: '100%',
                                 marginLeft: '-8px',
                                 marginRight: '-8px'
                             }}
@@ -294,7 +295,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             <Spacer />
                             <span>
                                 <CopyLogsButton logs={logs} />
-                                <DownloadLogsButton {...props} />
+                                <DownloadLogsButton {...props} previous={previous} />
                                 <FullscreenButton
                                     {...props}
                                     viewPodNames={viewPodNames}

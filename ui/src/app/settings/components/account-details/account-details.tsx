@@ -39,7 +39,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                                     </div>
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-3'>CAPABILITIES</div>
-                                        <div className='columns small-9'>{account.capabilities.join(', ')}</div>
+                                        <div className='columns small-9'>{(account.capabilities || []).join(', ')}</div>
                                     </div>
                                 </div>
                             </div>
@@ -134,7 +134,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                                                                         }
                                                                     } catch (e) {
                                                                         ctx.notifications.show({
-                                                                            content: <ErrorNotification title='Unable to delete token token' e={e} />,
+                                                                            content: <ErrorNotification title='Unable to delete token' e={e} />,
                                                                             type: NotificationType.Error
                                                                         });
                                                                     }

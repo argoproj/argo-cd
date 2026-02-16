@@ -1,9 +1,10 @@
 mkdocs==1.6.1
+mkdocs-github-admonitions-plugin==0.1.1
 # Strict mode has been disabled in latest versions of mkdocs-material.
 # Thus pointing to the older version of mkdocs-material.
 mkdocs-material==7.1.8
 markdown_include==0.8.1
 pygments==2.19.2
 jinja2==3.1.6
-markdown==3.8.2
-pymdown-extensions==10.16
+markdown==3.10
+pymdown-extensions==10.17.1

@@ -39,6 +39,7 @@ nav:
     - operator-manual/user-management/onelogin.md
     - operator-manual/user-management/keycloak.md
     - operator-manual/user-management/openunison.md
+    - operator-manual/user-management/github-actions.md
     - operator-manual/user-management/google.md
     - operator-manual/user-management/zitadel.md
     - operator-manual/user-management/identity-center.md
@@ -63,6 +64,8 @@ nav:
   - operator-manual/web_based_terminal.md
   - operator-manual/config-management-plugins.md
   - operator-manual/deep_links.md
+  - operator-manual/git_configuration.md
+  - operator-manual/managed-by-url.md
   - Notifications:
     - Overview: operator-manual/notifications/index.md
     - operator-manual/notifications/triggers.md
@@ -83,6 +86,7 @@ nav:
       - operator-manual/notifications/services/googlechat.md
       - operator-manual/notifications/services/grafana.md
       - operator-manual/notifications/services/mattermost.md
+      - operator-manual/notifications/services/nats.md
       - operator-manual/notifications/services/newrelic.md
       - operator-manual/notifications/services/opsgenie.md
       - operator-manual/notifications/services/overview.md
@@ -91,6 +95,7 @@ nav:
       - operator-manual/notifications/services/pushover.md
       - operator-manual/notifications/services/rocketchat.md
       - operator-manual/notifications/services/slack.md
+      - operator-manual/notifications/services/teams-workflows.md
       - operator-manual/notifications/services/teams.md
       - operator-manual/notifications/services/telegram.md
       - operator-manual/notifications/services/webex.md
@@ -131,6 +136,9 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/3.3-3.4.md
+    - operator-manual/upgrading/3.2-3.3.md
+    - operator-manual/upgrading/3.1-3.2.md
     - operator-manual/upgrading/3.0-3.1.md
     - operator-manual/upgrading/2.14-3.0.md
     - operator-manual/upgrading/2.13-2.14.md
@@ -203,14 +211,19 @@ nav:
   - Application Specification Reference: user-guide/application-specification.md
 - Developer Guide:
   - developer-guide/index.md
+  - Development Environment: developer-guide/development-environment.md
+  - Development Cycle: developer-guide/development-cycle.md
+  - Submit Your PR: developer-guide/submit-your-pr.md
+  - Backport Your Fix: developer-guide/backporting-fixes.md
   - Architecture:
     - developer-guide/architecture/authz-authn.md
     - developer-guide/architecture/components.md
   - Code Contribution Guide: developer-guide/code-contributions.md
   - Toolchain Guide: developer-guide/toolchain-guide.md
-  - developer-guide/contributors-quickstart.md
+  - developer-guide/mac-users.md
   - developer-guide/release-process-and-cadence.md
   - developer-guide/running-locally.md
+  - developer-guide/debugging-locally.md
   - developer-guide/debugging-remote-environment.md
   - developer-guide/api-docs.md
   - developer-guide/test-e2e.md
@@ -224,12 +237,17 @@ nav:
     - developer-guide/extensions/proxy-extensions.md
   - developer-guide/faq.md
   - developer-guide/tilt.md
+  - developer-guide/custom-resource-icons.md
+  - developer-guide/maintaining-internal-argo-cd-forks.md
 - faq.md
 - security_considerations.md
 - Support: SUPPORT.md
 - roadmap.md
 - Releases ⧉: https://github.com/argoproj/argo-cd/releases
 - Blog ⧉: https://blog.argoproj.io/
+plugins:
+- search
+- gh-admonitions
 repo_url: https://github.com/argoproj/argo-cd
 site_name: Argo CD - Declarative GitOps CD for Kubernetes
 site_url: !ENV READTHEDOCS_CANONICAL_URL

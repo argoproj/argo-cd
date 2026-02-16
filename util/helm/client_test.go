@@ -308,8 +308,8 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 		return mockServerURL
 	}
 
-	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
+	workloadIdentityMock := &mocks.TokenProvider{}
+	workloadIdentityMock.EXPECT().GetToken("https://management.core.windows.net/.default").Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
 
 	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("called %s", r.URL.Path)
@@ -480,4 +480,228 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestGetTagsCaching(t *testing.T) {
+	requestCount := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		t.Logf("request %d called %s", requestCount, r.URL.Path)
+
+		responseTags := fakeTagsList{
+			Tags: []string{
+				"1.0.0",
+				"1.1.0",
+				"2.0.0_beta",
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+	}))
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	t.Run("should cache tags correctly", func(t *testing.T) {
+		cache := &fakeIndexCache{}
+		client := NewClient(serverURL.Host, HelmCreds{
+			InsecureSkipVerify: true,
+		}, true, "", "", WithIndexCache(cache))
+
+		tags1, err := client.GetTags("mychart", false)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags1, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 1, requestCount)
+
+		requestCount = 0
+
+		tags2, err := client.GetTags("mychart", false)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags2, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 0, requestCount)
+
+		assert.NotEmpty(t, cache.data)
+
+		type entriesStruct struct {
+			Tags []string
+		}
+		var entries entriesStruct
+		err = json.Unmarshal(cache.data, &entries)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, entries.Tags, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+	})
+
+	t.Run("should bypass cache when noCache is true", func(t *testing.T) {
+		cache := &fakeIndexCache{}
+		client := NewClient(serverURL.Host, HelmCreds{
+			InsecureSkipVerify: true,
+		}, true, "", "", WithIndexCache(cache))
+
+		requestCount = 0
+
+		tags1, err := client.GetTags("mychart", true)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags1, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 1, requestCount)
+
+		tags2, err := client.GetTags("mychart", true)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags2, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 2, requestCount)
+	})
+}
+
+func TestUserAgentIsSet(t *testing.T) {
+	t.Run("Default User-Agent for traditional Helm repo", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+
+			// Return a valid minimal index.yaml
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client and make a request
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		// Verify User-Agent was set and contains expected components
+		assert.NotEmpty(t, receivedUserAgent, "User-Agent header should be set")
+		assert.Contains(t, receivedUserAgent, "argocd-repo-server", "User-Agent should contain 'argocd-repo-server'")
+		t.Logf("User-Agent sent: %s", receivedUserAgent)
+	})
+
+	t.Run("Custom User-Agent via WithUserAgent option", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+
+			// Return a valid minimal index.yaml
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client with custom User-Agent
+		customUA := "my-custom-app/1.2.3 (contact@example.com)"
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "", WithUserAgent(customUA))
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		// Verify custom User-Agent was used
+		assert.Equal(t, customUA, receivedUserAgent, "Custom User-Agent should be used")
+		t.Logf("Custom User-Agent sent: %s", receivedUserAgent)
+	})
+}
+
+func TestUserAgentRequiredByServer(t *testing.T) {
+	t.Run("Server rejects requests without User-Agent", func(t *testing.T) {
+		// Create a test server that mimics Wikimedia's behavior
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userAgent := r.Header.Get("User-Agent")
+
+			t.Logf("Server received User-Agent: '%s'", userAgent)
+
+			if userAgent == "" {
+				// Mimic Wikimedia's rejection of empty User-Agent
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`authorization failed: Please set a user-agent and respect our robot policy`))
+				return
+			}
+
+			// Accept request with User-Agent
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client (should automatically set User-Agent)
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+		_, err := client.GetIndex(false, 10000)
+
+		// Should succeed because our implementation sets User-Agent
+		require.NoError(t, err, "Request should succeed with User-Agent set")
+		t.Logf("Success! Server accepted request with User-Agent")
+	})
+}
+
+func TestUserAgentPriority(t *testing.T) {
+	t.Run("Custom User-Agent set via WithUserAgent option", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Set custom User-Agent using WithUserAgent option
+		customUA := "CustomAgent/1.0 (test)"
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "", WithUserAgent(customUA))
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		// Verify custom User-Agent was used
+		assert.Equal(t, customUA, receivedUserAgent, "Custom User-Agent should be used when set")
+		t.Logf("Custom User-Agent sent: %s", receivedUserAgent)
+	})
+
+	t.Run("Default User-Agent used when no custom value provided", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client without custom User-Agent
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+		_, err := client.GetIndex(false, 10000)
+		require.NoError(t, err)
+
+		// Verify default User-Agent was used
+		assert.Contains(t, receivedUserAgent, "argocd-repo-server", "Should use default User-Agent format")
+		t.Logf("Default User-Agent sent: %s", receivedUserAgent)
+	})
 }

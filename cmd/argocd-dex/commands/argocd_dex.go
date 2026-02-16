@@ -25,13 +25,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/tls"
 )
 
-const (
-	cliName = "argocd-dex"
-)
-
 func NewCommand() *cobra.Command {
 	command := &cobra.Command{
-		Use:               cliName,
+		Use:               common.CommandDex,
 		Short:             "argocd-dex tools used by Argo CD",
 		Long:              "argocd-dex has internal utility tools used by Argo CD",
 		DisableAutoGenTag: true,
@@ -115,7 +111,7 @@ func NewRunDexCommand() *cobra.Command {
 					err = os.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0o644)
 					errors.CheckError(err)
 					log.Debug(redactor(string(dexCfgBytes)))
-					cmd = exec.Command("dex", "serve", "/tmp/dex.yaml")
+					cmd = exec.CommandContext(ctx, "dex", "serve", "/tmp/dex.yaml")
 					cmd.Stdout = os.Stdout
 					cmd.Stderr = os.Stderr
 					err = cmd.Start()

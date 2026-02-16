@@ -142,6 +142,90 @@ func TestParseDurationFromEnv(t *testing.T) {
 	}
 }
 
+func TestParseDurationFromEnvEdgeCases(t *testing.T) {
+	envKey := "SOME_ENV_KEY"
+	def := 3 * time.Minute
+	minimum := 1 * time.Second
+	maximum := 2160 * time.Hour // 3 months
+
+	testCases := []struct {
+		name     string
+		env      string
+		expected time.Duration
+	}{{
+		name:     "EnvNotSet",
+		expected: def,
+	}, {
+		name:     "Durations defined as days are valid",
+		env:      "12d",
+		expected: time.Hour * 24 * 12,
+	}, {
+		name:     "Negative durations should fail parsing and use the default value",
+		env:      "-1h",
+		expected: def,
+	}, {
+		name:     "Negative day durations should fail parsing and use the default value",
+		env:      "-12d",
+		expected: def,
+	}, {
+		name:     "Scientific notation should fail parsing and use the default value",
+		env:      "1e3s",
+		expected: def,
+	}, {
+		name:     "Durations with a leading zero are considered valid and parsed as decimal notation",
+		env:      "0755s",
+		expected: time.Second * 755,
+	}, {
+		name:     "Durations with many leading zeroes are considered valid and parsed as decimal notation",
+		env:      "000083m",
+		expected: time.Minute * 83,
+	}, {
+		name:     "Decimal Durations should not fail parsing",
+		env:      "30.5m",
+		expected: time.Minute*30 + time.Second*30,
+	}, {
+		name:     "Decimal Day Durations should fail parsing and use the default value",
+		env:      "30.5d",
+		expected: def,
+	}, {
+		name:     "Fraction Durations should fail parsing and use the default value",
+		env:      "1/2h",
+		expected: def,
+	}, {
+		name:     "Durations without a time unit should fail parsing and use the default value",
+		env:      "15",
+		expected: def,
+	}, {
+		name:     "Durations with a trailing symbol should fail parsing and use the default value",
+		env:      "+12d",
+		expected: def,
+	}, {
+		name:     "Leading space Duration should fail parsing use the default value",
+		env:      " 2h",
+		expected: def,
+	}, {
+		name:     "Trailing space Duration should fail parsing use the default value",
+		env:      "6m ",
+		expected: def,
+	}, {
+		name:     "Empty Duration should fail parsing use the default value",
+		env:      "",
+		expected: def,
+	}, {
+		name:     "Whitespace Duration should fail parsing and use the default value",
+		env:      "    ",
+		expected: def,
+	}}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv(envKey, tc.env)
+			val := ParseDurationFromEnv(envKey, def, minimum, maximum)
+			assert.Equal(t, tc.expected, val)
+		})
+	}
+}
+
 func Test_ParseBoolFromEnv(t *testing.T) {
 	envKey := "SOMEKEY"
 

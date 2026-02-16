@@ -208,6 +208,7 @@ spec:
       targetRevision: HEAD  # For Helm, this refers to the chart version.
       path: guestbook  # This has no meaning for Helm charts pulled directly from a Helm repo instead of git.
       ref: my-repo  # For Helm, acts as a reference to this source for fetching values files from this source. Has no meaning when under `source` field
+      name: 'guestbook' # Optional source name. Can be used instead of the source position in multi-source Applications CLI
 
   # Destination cluster and namespace to deploy the application
   destination:
@@ -226,7 +227,7 @@ spec:
   # Sync policy
   syncPolicy:
     automated: # automated sync by default retries failed attempts 5 times with following delays between attempts ( 5s, 10s, 20s, 40s, 80s ); retry controlled using `retry` field.
-      enable: true # Enables automated syncing of the application ( true by default ).
+      enabled: true # Enables automated syncing of the application ( true by default ).
       prune: true # Specifies if resources should be pruned during auto-syncing ( false by default ).
       selfHeal: true # Specifies if partial app sync should be executed when resources are changed only in target Kubernetes cluster and no git change detected ( false by default ).
       allowEmpty: false # Allows deleting all application resources during automatic syncing ( false by default ).
@@ -266,7 +267,8 @@ spec:
     - /spec/replicas
   - kind: ConfigMap
     jqPathExpressions:
-    - '.data["config.yaml"].auth'
+    # Example: Ignore changes to a specific key inside a ConfigMap
+    - '.data["config.yaml"]'
   # for the specified managedFields managers
   - group: "*"
     kind: "*"
@@ -281,3 +283,17 @@ spec:
   # circumstances. Setting to zero will store no history. This will reduce storage used. Increasing will increase the
   # space used to store the history, so we do not recommend increasing it.
   revisionHistoryLimit: 10
+
+  # sourceHydrator enables manifest hydration from a dry source to a sync source branch.
+  # The drySource.helm, drySource.kustomize, drySource.directory, and drySource.plugin fields
+  # are available and follow the same spec as the source field above.
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      path: guestbook
+      # helm, kustomize, directory, and plugin fields are available here.
+      # See the source.helm, source.kustomize, source.directory, and source.plugin sections above for details.
+    syncSource:
+      targetBranch: env/prod
+      path: guestbook-hydrated

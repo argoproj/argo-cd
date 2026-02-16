@@ -1,0 +1,33 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: upbound-provider-family-azure
+spec:
+  ignoreCrossplaneConstraints: false
+  package: xpkg.upbound.io/upbound/provider-family-azure:v2.2.0
+  packagePullPolicy: IfNotPresent
+  revisionActivationPolicy: Automatic
+  revisionHistoryLimit: 1
+  runtimeConfigRef:
+    apiVersion: pkg.crossplane.io/v1beta1
+    kind: DeploymentRuntimeConfig
+    name: default
+  skipDependencyResolution: false
+status:
+  conditions:
+  - lastTransitionTime: "2025-11-22T08:47:52Z"
+    message: 'Package runtime health is "False" with message: post establish xppkgruntime
+      hook failed for package: provider package deployment is unavailable with message:
+      Deployment does not have minimum availability.'
+    observedGeneration: 3
+    reason: UnhealthyPackageRevision
+    status: "False"
+    type: Healthy
+  - lastTransitionTime: "2025-11-22T08:45:44Z"
+    observedGeneration: 3
+    reason: ActivePackageRevision
+    status: "True"
+    type: Installed
+  currentIdentifier: xpkg.upbound.io/upbound/provider-family-azure:v2.2.0
+  currentRevision: upbound-provider-family-azure-04ba5ac3fc37
+  resolvedPackage: xpkg.upbound.io/upbound/provider-family-azure:v2.2.0

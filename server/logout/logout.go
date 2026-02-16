@@ -31,7 +31,7 @@ func NewHandler(settingsMrg *settings.SettingsManager, sessionMgr *session.Sessi
 type Handler struct {
 	settingsMgr *settings.SettingsManager
 	rootPath    string
-	verifyToken func(tokenString string) (jwt.Claims, string, error)
+	verifyToken func(ctx context.Context, tokenString string) (jwt.Claims, string, error)
 	revokeToken func(ctx context.Context, id string, expiringAt time.Duration) error
 	baseHRef    string
 }
@@ -54,7 +54,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	argoCDSettings, err := h.settingsMgr.GetSettings()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, "Failed to retrieve argoCD settings: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -74,9 +73,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	cookies := r.Cookies()
 	tokenString, err = httputil.JoinCookies(common.AuthCookieName, cookies)
-	if tokenString == "" || err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	// Build message safely: only include err when non-nil
+	if err != nil {
 		http.Error(w, "Failed to retrieve ArgoCD auth token: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if tokenString == "" {
+		http.Error(w, "Failed to retrieve ArgoCD auth token", http.StatusBadRequest)
 		return
 	}
 
@@ -94,7 +97,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Set-Cookie", argocdCookie.String())
 	}
 
-	claims, _, err := h.verifyToken(tokenString)
+	claims, _, err := h.verifyToken(r.Context(), tokenString)
 	if err != nil {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
 		return

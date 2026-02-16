@@ -3,6 +3,7 @@ package pull_request
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
@@ -107,7 +108,7 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 
 		if *pr.Repository.Name == a.repo {
 			pullRequests = append(pullRequests, &PullRequest{
-				Number:       *pr.PullRequestId,
+				Number:       int64(*pr.PullRequestId),
 				Title:        *pr.Title,
 				Branch:       strings.Replace(*pr.SourceRefName, "refs/heads/", "", 1),
 				TargetBranch: strings.Replace(*pr.TargetRefName, "refs/heads/", "", 1),
@@ -136,13 +137,7 @@ func convertLabels(tags *[]core.WebApiTagDefinition) []string {
 // containAzureDevOpsLabels returns true if gotLabels contains expectedLabels
 func containAzureDevOpsLabels(expectedLabels []string, gotLabels []string) bool {
 	for _, expected := range expectedLabels {
-		found := false
-		for _, got := range gotLabels {
-			if expected == got {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(gotLabels, expected)
 		if !found {
 			return false
 		}

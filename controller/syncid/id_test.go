@@ -18,9 +18,9 @@ func TestGenerate(t *testing.T) {
 	globalCount.Store(0)
 
 	// Run goroutines in parallel to test for race conditions
-	for g := 0; g < goroutines; g++ {
+	for range goroutines {
 		go func() {
-			for i := 0; i < idsPerGoroutine; i++ {
+			for range idsPerGoroutine {
 				id, err := Generate()
 				if err != nil {
 					errCh <- err
@@ -32,7 +32,7 @@ func TestGenerate(t *testing.T) {
 	}
 
 	ids := make(map[string]any)
-	for i := 0; i < goroutines*idsPerGoroutine; i++ {
+	for range goroutines * idsPerGoroutine {
 		select {
 		case err := <-errCh:
 			require.NoError(t, err)
