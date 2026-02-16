@@ -115,3 +115,6 @@ template.app-deployed: |
 - The `github.pullRequestComment.commentTag` parameter is used to identify the comment. If a comment with the specified tag is found, it will be updated (upserted). If no comment with the tag is found, a new comment will be created.
 - Reference is optional. When set, it will be used as the ref to deploy. If not set, the revision will be used as the ref to deploy.
 
+## Commit Statuses
+
+The [method for generating commit statuses](https://docs.github.com/en/rest/commits/statuses?apiVersion=2022-11-28#create-a-commit-status) allows a maximum of 1000 attempts using the same commit SHA and context. Once this limit is reached, the API returns validation errors (HTTP 422). The notification engine ignores these errors and marks the notification attempts as completed.

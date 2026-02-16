@@ -11,7 +11,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/errors"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 )
 
