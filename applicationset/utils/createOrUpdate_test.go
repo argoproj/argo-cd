@@ -12,6 +12,143 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
+func Test_filterIgnoreDifferences(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name          string
+		rules         v1alpha1.ApplicationSetIgnoreDifferences
+		appLabels     map[string]string
+		expectedCount int
+	}{
+		{
+			name:          "empty rules returns empty",
+			rules:         v1alpha1.ApplicationSetIgnoreDifferences{},
+			appLabels:     map[string]string{"env": "dev"},
+			expectedCount: 0,
+		},
+		{
+			name: "nil labelSelector includes rule",
+			rules: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JSONPointers: []string{"/spec/source"}},
+			},
+			appLabels:     map[string]string{"env": "dev"},
+			expectedCount: 1,
+		},
+		{
+			name: "matching matchLabels includes rule",
+			rules: v1alpha1.ApplicationSetIgnoreDifferences{
+				{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"env": "dev"},
+					},
+					JSONPointers: []string{"/spec/source"},
+				},
+			},
+			appLabels:     map[string]string{"env": "dev", "team": "platform"},
+			expectedCount: 1,
+		},
+		{
+			name: "non-matching matchLabels excludes rule",
+			rules: v1alpha1.ApplicationSetIgnoreDifferences{
+				{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"env": "prod"},
+					},
+					JSONPointers: []string{"/spec/source"},
+				},
+			},
+			appLabels:     map[string]string{"env": "dev"},
+			expectedCount: 0,
+		},
+		{
+			name: "matchExpressions In operator",
+			rules: v1alpha1.ApplicationSetIgnoreDifferences{
+				{
+					LabelSelector: &metav1.LabelSelector{
+						MatchExpressions: []metav1.LabelSelectorRequirement{
+							{
+								Key:      "env",
+								Operator: metav1.LabelSelectorOpIn,
+								Values:   []string{"dev", "staging"},
+							},
+						},
+					},
+					JSONPointers: []string{"/spec/source"},
+				},
+			},
+			appLabels:     map[string]string{"env": "dev"},
+			expectedCount: 1,
+		},
+		{
+			name: "matchExpressions NotIn operator excludes",
+			rules: v1alpha1.ApplicationSetIgnoreDifferences{
+				{
+					LabelSelector: &metav1.LabelSelector{
+						MatchExpressions: []metav1.LabelSelectorRequirement{
+							{
+								Key:      "env",
+								Operator: metav1.LabelSelectorOpNotIn,
+								Values:   []string{"dev", "staging"},
+							},
+						},
+					},
+					JSONPointers: []string{"/spec/source"},
+				},
+			},
+			appLabels:     map[string]string{"env": "dev"},
+			expectedCount: 0,
+		},
+		{
+			name: "mixed rules with different selectors",
+			rules: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JSONPointers: []string{"/spec/source"}},
+				{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"env": "dev"},
+					},
+					JSONPointers: []string{"/spec/destination"},
+				},
+				{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"env": "prod"},
+					},
+					JSONPointers: []string{"/spec/project"},
+				},
+			},
+			appLabels:     map[string]string{"env": "dev"},
+			expectedCount: 2,
+		},
+		{
+			name: "app with no labels matches only nil selector rules",
+			rules: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JSONPointers: []string{"/spec/source"}},
+				{
+					LabelSelector: &metav1.LabelSelector{
+						MatchLabels: map[string]string{"env": "dev"},
+					},
+					JSONPointers: []string{"/spec/destination"},
+				},
+			},
+			appLabels:     nil,
+			expectedCount: 1,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			app := &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: tc.appLabels,
+				},
+			}
+			filtered := filterIgnoreDifferences(tc.rules, app)
+			assert.Len(t, filtered, tc.expectedCount)
+		})
+	}
+}
+
 func Test_applyIgnoreDifferences(t *testing.T) {
 	t.Parallel()
 

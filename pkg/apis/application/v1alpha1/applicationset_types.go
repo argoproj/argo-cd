@@ -160,6 +160,9 @@ func (a ApplicationSetIgnoreDifferences) ToApplicationIgnoreDifferences() []Reso
 type ApplicationSetResourceIgnoreDifferences struct {
 	// Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.
 	Name string `json:"name,omitempty" protobuf:"bytes,1,name=name"`
+	// LabelSelector is used to filter applications based on their labels. If not specified, the rule applies to all applications.
+	// When both Name and LabelSelector are specified, both must match for the rule to apply.
+	LabelSelector *metav1.LabelSelector `json:"labelSelector,omitempty" protobuf:"bytes,4,name=labelSelector"`
 	// JSONPointers is a list of JSON pointers to fields to ignore differences for.
 	JSONPointers []string `json:"jsonPointers,omitempty" protobuf:"bytes,2,name=jsonPointers"`
 	// JQPathExpressions is a list of JQ path expressions to fields to ignore differences for.

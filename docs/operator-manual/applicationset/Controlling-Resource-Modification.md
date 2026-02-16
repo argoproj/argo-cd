@@ -107,8 +107,10 @@ the ApplicationSet should be ignored when comparing Applications.
 The field supports multiple ignore rules. Each ignore rule may specify a list of either `jsonPointers` or 
 `jqPathExpressions` to ignore.
 
-You may optionally also specify a `name` to apply the ignore rule to a specific Application, or omit the `name` to apply
-the ignore rule to all Applications.
+You may optionally also specify a `name` to apply the ignore rule to a specific Application, a `labelSelector` to apply
+the ignore rule to Applications matching certain labels, or omit both to apply the ignore rule to all Applications.
+
+When both `name` and `labelSelector` are specified, both conditions must match for the rule to apply.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -120,6 +122,11 @@ spec:
     - name: some-app
       jqPathExpressions:
         - .spec.source.helm.values
+    - labelSelector:
+        matchLabels:
+          env: dev
+      jsonPointers:
+        - /spec/syncPolicy
 ```
 
 ### Allow temporarily toggling auto-sync
