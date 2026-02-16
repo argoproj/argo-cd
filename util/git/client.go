@@ -623,11 +623,12 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 		log.Debugf("error string when doing ls remote: %s", err.Error())
 		log.Debugf("error type when doing ls remote: %T", err)
 		log.Debugf("is error context deadline exceeded type when doing ls remote: %s", strings.Contains(err.Error(), "context deadline exceeded"))
-		if strings.Contains(err.Error(), "context deadline exceeded") || apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
+		if strings.Contains(err.Error(), "context deadline exceeded") || errors.Is(err, context.DeadlineExceeded) || apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
 			apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err) {
 			// Formula: timeToWait = duration * factor^retry_number
 			// Note that timeToWait should equal to duration for the first retry attempt.
 			// When timeToWait is more than maxDuration retry should be performed at maxDuration.
+			log.Debugf("retryable error when doing ls remote, retrying...")
 			timeToWait := float64(retryDuration) * (math.Pow(float64(factor), float64(attempt)))
 			if maxRetryDuration > 0 {
 				timeToWait = math.Min(float64(maxRetryDuration), timeToWait)
