@@ -18,6 +18,17 @@ kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubuse
 
 This will create a new `argocd` namespace where all Argo CD services and application resources will reside. It will also install Argo CD by applying the official manifests from the stable branch. Using a pinned version (like `v3.2.0`) is recommended for production.
 
+### Verify Installation
+
+Wait for all Argo CD pods to become ready:
+
+```bash
+kubectl get pods -n argocd
+
+All pods should show STATUS: Running and READY: 1/1.
+
+If any pod is not ready, wait until initialization completes.
+
 > [!NOTE]
 > **Why `--server-side --force-conflicts`?**
 >
@@ -244,3 +255,10 @@ A panel will be opened and then, click on *Synchronize* button.
 You can see more details by clicking at the guestbook application:
 
 ![view app](assets/guestbook-tree.png)
+
+
+
+
+
+
+
