@@ -22,15 +22,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
 
-      # Some codegen commands require Go to be setup
-      - name: Setup Golang
-        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
-        with:
-          # renovate: datasource=golang-version packageName=golang
-          go-version: 1.26.0
-
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@44f24283a60f64273f1294932f16ba61193cccca #46.1.0
+        uses: renovatebot/github-action@d65ef9e20512193cc070238b49c3873a361cd50c #46.1.1
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'
