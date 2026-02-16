@@ -170,7 +170,7 @@ func GetScopesOrDefault(scopes []string) []string {
 func getDomainHint(settings *settings.ArgoCDSettings) string {
 	oidcConfig := settings.OIDCConfig()
 	if oidcConfig != nil {
-		return oidcConfig.DomainHint
+		return strings.TrimSpace(oidcConfig.DomainHint)
 	}
 	return ""
 }

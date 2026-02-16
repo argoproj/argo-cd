@@ -84,6 +84,28 @@ clientSecret: test-secret
 		domainHint := getDomainHint(settings)
 		assert.Empty(t, domainHint)
 	})
+
+	t.Run("Returns empty string when YAML is malformed", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: `{this is not valid yaml at all]`,
+		}
+		domainHint := getDomainHint(settings)
+		assert.Empty(t, domainHint)
+	})
+
+	t.Run("Trims whitespaces from domain hint", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: `
+name: Test OIDC
+issuer: https://example.com
+clientID: test-client
+clientSecret: test-secret
+domainHint: "  example.com  "
+`,
+		}
+		domainHint := getDomainHint(settings)
+		assert.Equal(t, "example.com", domainHint)
+	})
 }
 
 func TestInferGrantType(t *testing.T) {
