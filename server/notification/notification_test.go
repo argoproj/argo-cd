@@ -17,6 +17,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/notification/settings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/kubectl/pkg/scheme"
@@ -66,7 +68,8 @@ func TestNotificationServer(t *testing.T) {
 	}
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
 
-	argocdService, err := service.NewArgoCDService(kubeclientset, testNamespace, mockRepoClient)
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+	argocdService, err := service.NewArgoCDService(kubeclientset, dynamicClient, testNamespace, mockRepoClient)
 	require.NoError(t, err)
 	defer argocdService.Close()
 	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false), testNamespace, secretInformer, configMapInformer)

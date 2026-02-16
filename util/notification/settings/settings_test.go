@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
@@ -59,7 +61,8 @@ func TestInitGetVars(t *testing.T) {
 			Data: notificationsSecret.Data,
 		})
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
-	argocdService, err := service.NewArgoCDService(kubeclientset, testNamespace, mockRepoClient)
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+	argocdService, err := service.NewArgoCDService(kubeclientset, dynamicClient, testNamespace, mockRepoClient)
 	require.NoError(t, err)
 	defer argocdService.Close()
 	config := api.Config{}

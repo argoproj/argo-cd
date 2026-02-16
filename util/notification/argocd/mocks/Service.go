@@ -107,6 +107,80 @@ func (_c *Service_GetAppDetails_Call) RunAndReturn(run func(ctx context.Context,
 	return _c
 }
 
+// GetAppProject provides a mock function for the type Service
+func (_mock *Service) GetAppProject(ctx context.Context, projectName string, namespace string) (*v1alpha1.AppProject, error) {
+	ret := _mock.Called(ctx, projectName, namespace)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAppProject")
+	}
+
+	var r0 *v1alpha1.AppProject
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*v1alpha1.AppProject, error)); ok {
+		return returnFunc(ctx, projectName, namespace)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *v1alpha1.AppProject); ok {
+		r0 = returnFunc(ctx, projectName, namespace)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.AppProject)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, projectName, namespace)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Service_GetAppProject_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAppProject'
+type Service_GetAppProject_Call struct {
+	*mock.Call
+}
+
+// GetAppProject is a helper method to define mock.On call
+//   - ctx context.Context
+//   - projectName string
+//   - namespace string
+func (_e *Service_Expecter) GetAppProject(ctx interface{}, projectName interface{}, namespace interface{}) *Service_GetAppProject_Call {
+	return &Service_GetAppProject_Call{Call: _e.mock.On("GetAppProject", ctx, projectName, namespace)}
+}
+
+func (_c *Service_GetAppProject_Call) Run(run func(ctx context.Context, projectName string, namespace string)) *Service_GetAppProject_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Service_GetAppProject_Call) Return(appProject *v1alpha1.AppProject, err error) *Service_GetAppProject_Call {
+	_c.Call.Return(appProject, err)
+	return _c
+}
+
+func (_c *Service_GetAppProject_Call) RunAndReturn(run func(ctx context.Context, projectName string, namespace string) (*v1alpha1.AppProject, error)) *Service_GetAppProject_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetCommitMetadata provides a mock function for the type Service
 func (_mock *Service) GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error) {
 	ret := _mock.Called(ctx, repoURL, commitSHA, project)
