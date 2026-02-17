@@ -98,22 +98,12 @@ func (h *WebhookRegistryHandler) ProcessWebhook(r *http.Request) (*WebhookRegist
 // IsRegistryEvent reports whether the HTTP request corresponds to a supported
 // container registry event.
 //
-// The decision is based on registry-specific headers (e.g., GitHub package or
-// registry_package events). It returns true if the request should be handled
+// The decision is based on registry-specific headers (e.g., GitHub package).
+// It returns true if the request should be handled
 // by the registry webhook pipeline.
 func IsRegistryEvent(r *http.Request) bool {
-	event := false
-	switch {
-	case r.Header.Get("X-GitHub-Event") == "package":
-		event = true
-	case r.Header.Get("X-GitHub-Event") == "registry_package":
-		event = true
-	// TODO: add more supported registry events
-	default:
-		return event
-	}
-
-	return event
+	// TODO: add more supported oci-compliant registry type events
+	return r.Header.Get("X-GitHub-Event") == "package"
 }
 
 // HandleRegistryEvent processes a normalized registry event and refreshes
