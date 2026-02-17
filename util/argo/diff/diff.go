@@ -15,9 +15,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
@@ -353,7 +353,7 @@ func diffArrayCached(configArray []*unstructured.Unstructured, liveArray []*unst
 		Diffs: make([]diff.DiffResult, numItems),
 	}
 
-	for i := 0; i < numItems; i++ {
+	for i := range numItems {
 		config := configArray[i]
 		live := liveArray[i]
 		resourceVersion := ""

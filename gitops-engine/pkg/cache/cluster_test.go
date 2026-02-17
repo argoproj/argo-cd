@@ -33,8 +33,8 @@ import (
 	testcore "k8s.io/client-go/testing"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
 )
 
 func mustToUnstructured(obj any) *unstructured.Unstructured {

@@ -22,8 +22,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	textutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	gogit "github.com/go-git/go-git/v5"
@@ -1540,6 +1540,9 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			KubeVersion: kubeVersion,
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		})
+		if err != nil {
+			return nil, err
+		}
 	case v1alpha1.ApplicationSourceTypePlugin:
 		pluginName := ""
 		if q.ApplicationSource.Plugin != nil {
@@ -1548,7 +1551,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
 		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
 		if err != nil {
-			err = fmt.Errorf("CMP processing failed for application %q: %w", q.AppName, err)
+			return nil, fmt.Errorf("CMP processing failed for application %q: %w", q.AppName, err)
 		}
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory

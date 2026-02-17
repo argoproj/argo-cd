@@ -28,7 +28,7 @@ After your Notifications Engine PR has been merged, ArgoCD needs to be updated t
 
 - If your notifications engine PR included docs changes, run `make codegen` or `make codegen-local`.
 
-- Create an ArgoCD PR with a `refactor:` type in its title for the above file changes.
+- Create an ArgoCD PR with a `chore:` type in its title for the above file changes.
 
 ## Argo UI Components (`github.com/argoproj/argo-ui`)
 ### Contributing to Argo CD UI

@@ -107,10 +107,8 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 
 func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
 	compLog := log.WithField("component", "applicationset-webhook")
-	for i := 0; i < webhookParallelism; i++ {
-		h.Add(1)
-		go func() {
-			defer h.Done()
+	for range webhookParallelism {
+		h.Go(func() {
 			for {
 				payload, ok := <-h.queue
 				if !ok {
@@ -118,7 +116,7 @@ func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
 				}
 				guard.RecoverAndLog(func() { h.HandleEvent(payload) }, compLog, panicMsgAppSet)
 			}
-		}()
+		})
 	}
 }
 

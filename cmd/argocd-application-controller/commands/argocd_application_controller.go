@@ -41,8 +41,6 @@ import (
 )
 
 const (
-	// CLIName is the name of the CLI
-	cliName = common.ApplicationController
 	// Default time in seconds for application resync period
 	defaultAppResyncPeriod = 120
 	// Default time in seconds for application resync period jitter
@@ -99,7 +97,7 @@ func NewCommand() *cobra.Command {
 		hydratorEnabled bool
 	)
 	command := cobra.Command{
-		Use:               cliName,
+		Use:               common.CommandApplicationController,
 		Short:             "Run ArgoCD Application Controller",
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,

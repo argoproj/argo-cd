@@ -1,6 +1,6 @@
 import * as deepMerge from 'deepmerge';
 import {Observable} from 'rxjs';
-import {map, repeat, retry} from 'rxjs/operators';
+import {filter, map, repeat, retry} from 'rxjs/operators';
 
 import * as models from '../models';
 import {isValidURL} from '../utils';
@@ -294,9 +294,10 @@ export class ApplicationsService {
         namespace: string,
         podName: string,
         resource: {group: string; kind: string; name: string},
-        containerName: string
+        containerName: string,
+        previous: boolean
     ): string {
-        const search = this.getLogsQuery({namespace, appNamespace, podName, resource, containerName, follow: false});
+        const search = this.getLogsQuery({namespace, appNamespace, podName, resource, containerName, follow: false, previous});
         search.set('download', 'true');
         return `api/v1/applications/${applicationName}/logs?${search.toString()}`;
     }
@@ -318,7 +319,17 @@ export class ApplicationsService {
     }): Observable<models.LogEntry> {
         const {applicationName} = query;
         const search = this.getLogsQuery(query);
-        const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).pipe(map(data => JSON.parse(data).result as models.LogEntry));
+        const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).pipe(
+            map(data => {
+                try {
+                    const parsed = JSON.parse(data);
+                    return parsed && parsed.result ? (parsed.result as models.LogEntry) : null;
+                } catch (e) {
+                    return null;
+                }
+            }),
+            filter((result): result is models.LogEntry => !!result)
+        );
         let first = true;
         return new Observable(observer => {
             const subscription = entries.subscribe(

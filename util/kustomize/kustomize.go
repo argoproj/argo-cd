@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -18,7 +19,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/io"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -77,12 +78,7 @@ var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Ku
 
 // IsKustomization checks if the given file name matches any known kustomization file names.
 func IsKustomization(path string) bool {
-	for _, kustomization := range KustomizationNames {
-		if path == kustomization {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(KustomizationNames, path)
 }
 
 // findKustomizeFile looks for any known kustomization file in the path
