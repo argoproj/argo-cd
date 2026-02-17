@@ -1,0 +1,56 @@
+tests:
+  # Scenario 1: autosync enabled with prune+selfHeal -> disable and save config to annotation
+  - given:
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: test-app
+      spec:
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
+    when:
+      action: toggle-auto-sync
+    expect:
+      metadata:
+        annotations:
+          argocd.argoproj.io/autosync-saved-config: "prune=true,selfHeal=true"
+      spec:
+        syncPolicy: null
+
+  # Scenario 2: autosync disabled with saved annotation -> restore prune+selfHeal
+  - given:
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: test-app
+        annotations:
+          argocd.argoproj.io/autosync-saved-config: "prune=true,selfHeal=true"
+      spec:
+        syncPolicy: {}
+    when:
+      action: toggle-auto-sync
+    expect:
+      metadata:
+        annotations:
+          argocd.argoproj.io/autosync-saved-config: null
+      spec:
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
+
+  # Scenario 3: autosync disabled, no annotation -> enable with empty automated config
+  - given:
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: test-app
+      spec: {}
+    when:
+      action: toggle-auto-sync
+    expect:
+      spec:
+        syncPolicy:
+          automated: {}
