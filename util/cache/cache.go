@@ -349,15 +349,24 @@ func (c *Cache) SetItem(key string, item any, opts *CacheActionOpts) error {
 	}
 	fullKey := c.generateFullKey(key)
 	client := c.GetClient()
-	if opts.Delete {
-		return client.Delete(fullKey)
-	}
-	if opts.KeyPatternToDelete != "" {
-		if err := client.DeleteByPattern(opts.KeyPatternToDelete); err != nil {
-			return fmt.Errorf("failed to delete cache items by pattern %s: %w", opts.KeyPatternToDelete, err)
+	deleteByPattern := func() error {
+		if opts.KeyPatternToDelete != "" {
+			if err := client.DeleteByPattern(opts.KeyPatternToDelete); err != nil {
+				return fmt.Errorf("failed to delete cache items by pattern %s: %w", opts.KeyPatternToDelete, err)
+			}
 		}
+		return nil
 	}
-	return client.Set(&Item{Key: fullKey, Object: item, CacheActionOpts: *opts})
+	if opts.Delete {
+		if err := client.Delete(fullKey); err != nil {
+			return err
+		}
+		return deleteByPattern()
+	}
+	if err := client.Set(&Item{Key: fullKey, Object: item, CacheActionOpts: *opts}); err != nil {
+		return err
+	}
+	return deleteByPattern()
 }
 
 func (c *Cache) GetItem(key string, item any) error {
