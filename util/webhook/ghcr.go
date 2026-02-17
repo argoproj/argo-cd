@@ -10,16 +10,34 @@ import (
 	"strings"
 )
 
+// GHCRParser parses webhook payloads sent by GitHub Container Registry (GHCR).
+//
+// It extracts container image publication events from GitHub package webhooks
+// and converts them into a normalized WebhookRegistryEvent structure.
 type GHCRParser struct{}
 
+// NewGHCRParser creates a new GHCRParser instance.
+//
+// The parser supports GitHub package webhook events for container images
+// published to GitHub Container Registry (ghcr.io).
 func NewGHCRParser() *GHCRParser {
 	return &GHCRParser{}
 }
 
+// CanHandle reports whether the HTTP request corresponds to a GHCR webhook.
+//
+// It checks the GitHub event header and returns true for package-related
+// events that may contain container registry updates.
 func (p *GHCRParser) CanHandle(r *http.Request) bool {
 	return r.Header.Get("X-GitHub-Event") == "package" || r.Header.Get("X-GitHub-Event") == "registry_package"
 }
 
+// Parse extracts container publication details from a GHCR webhook payload.
+//
+// The method expects a GitHub package event with action "published" for a
+// container package. It returns a normalized WebhookRegistryEvent containing
+// the registry host, repository, tag, and digest. Non-container packages,
+// unsupported actions, or missing tags result in an error.
 func (p *GHCRParser) Parse(body []byte) (*WebhookRegistryEvent, error) {
 	fmt.Println("we are in parse")
 	var payload struct {
@@ -74,6 +92,12 @@ func (p *GHCRParser) Parse(body []byte) (*WebhookRegistryEvent, error) {
 	}, nil
 }
 
+// validateSignature verifies the webhook request signature using HMAC-SHA256.
+//
+// If a secret is configured, the method checks the X-Hub-Signature-256 header
+// against the computed signature of the request body. An error is returned if
+// the signature is missing or does not match. If no secret is configured,
+// validation is skipped.
 func (h *WebhookRegistryHandler) validateSignature(r *http.Request, body []byte) error {
 	if h.secret != "" {
 		signature := r.Header.Get("X-Hub-Signature-256")
