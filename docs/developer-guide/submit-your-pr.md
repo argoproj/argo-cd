@@ -49,6 +49,7 @@ Please use a meaningful and concise title for your PR. This will help us to pick
 
 We use [PR title checker](https://github.com/marketplace/actions/pr-title-checker) to categorize your PR into one of the following categories:
 
+* `ci` - Your PR updates or improves Continuous Integration workflows
 * `fix` - Your PR contains one or more code bug fixes
 * `feat` - Your PR contains a new feature
 * `test` - Your PR adds tests to the code base, or improves existing tests
