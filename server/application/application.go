@@ -2954,6 +2954,14 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 
 	// Build diff config like the CLI does, but with server-side diff enabled
 	ignoreAggregatedRoles := false
+
+	// If ServerSideApply is enabled, ensure ignoreAggregatedRoles respects aggregationRule preservation
+	if a.Spec.SyncPolicy != nil {
+		if slices.Contains(a.Spec.SyncPolicy.SyncOptions, "ServerSideApply=true") {
+			ignoreAggregatedRoles = true
+		}
+	}
+
 	diffConfig, err := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(a.Spec.IgnoreDifferences, overrides, ignoreAggregatedRoles, normalizers.IgnoreNormalizerOpts{}).
 		WithTracking(appLabelKey, argoSettings.TrackingMethod).
