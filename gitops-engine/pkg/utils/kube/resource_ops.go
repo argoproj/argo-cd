@@ -610,6 +610,16 @@ func (k *kubectlResourceOperations) authReconcile(ctx context.Context, obj *unst
 	// See: https://github.com/kubernetes/kubernetes/issues/71185. This is behavior which we do
 	// not want. We need to check if the namespace exists, before know if it is safe to run this
 	// command. Skip this for dryRuns.
+
+	// When an Argo CD Application specifies destination.namespace, that namespace
+	// may be propagated even for cluster-scoped resources. Passing a namespace in
+	// this case causes `kubectl auth reconcile` to fail with:
+	//   "namespaces <ns> not found"
+	// or may trigger unintended namespace handling behavior.
+	// Therefore, we skip namespace existence checks for cluster-scoped RBAC
+	// resources and allow reconcile to run without a namespace.
+	//
+	// https://github.com/argoproj/argo-cd/issues/24833
 	if dryRunStrategy == cmdutil.DryRunNone && obj.GetNamespace() != "" && !clusterScoped {
 		_, err = kubeClient.CoreV1().Namespaces().Get(ctx, obj.GetNamespace(), metav1.GetOptions{})
 		if err != nil {

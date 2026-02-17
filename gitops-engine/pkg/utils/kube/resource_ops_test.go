@@ -70,6 +70,6 @@ func TestAuthReconcileWithMissingNamespace(t *testing.T) {
 	clusterRoleBinding := testingutils.NewClusterRoleBinding()
 	clusterRoleBinding.SetNamespace(namespace)
 
-	_, err = k.authReconcile(context.Background(), clusterRole, "/dev/null", cmdutil.DryRunNone)
+	_, err = k.authReconcile(context.Background(), clusterRoleBinding, "/dev/null", cmdutil.DryRunNone)
 	assert.NoError(t, err)
 }
