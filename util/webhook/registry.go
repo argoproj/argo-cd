@@ -69,6 +69,22 @@ func (h *WebhookRegistryHandler) ProcessWebhook(r *http.Request) (*WebhookRegist
 	return nil, fmt.Errorf("unsupported registry webhook")
 }
 
+// IsRegistryEvent checks if the event is of registry type
+func IsRegistryEvent(r *http.Request) bool {
+	event := false
+	switch {
+	case r.Header.Get("X-GitHub-Event") == "package":
+		event = true
+	case r.Header.Get("X-GitHub-Event") == "registry_package":
+		event = true
+	// TODO: add more supported registry events
+	default:
+		return event
+	}
+
+	return event
+}
+
 func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *WebhookRegistryEvent) {
 	fmt.Println("time to refresh...")
 	// Construct full OCI repo URL used in Argo CD Applications

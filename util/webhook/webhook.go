@@ -642,21 +642,17 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
-	if a.registryHandler != nil {
+	if IsRegistryEvent(r) {
 		event, err := a.registryHandler.ProcessWebhook(r)
 		if err != nil {
 			log.Println("Error processing registry webhook:", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-
 		if event == nil {
-			log.Println("Registry webhook received but no event generated (ignored payload)")
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-
-		log.Println("Registry webhook event queued:", event)
 		a.queue <- event
 		w.WriteHeader(http.StatusOK)
 		return
