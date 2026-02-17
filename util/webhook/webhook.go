@@ -717,7 +717,6 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	if payload != nil {
 		select {
 		case a.queue <- payload:
-			log.Info("Webhook payload queued successfully")
 		default:
 			log.Info("Queue is full, discarding webhook payload")
 			http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
