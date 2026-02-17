@@ -120,7 +120,6 @@ func IsRegistryEvent(r *http.Request) bool {
 // for each matching Application. Namespace filters are applied according to the
 // handler configuration.
 func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *WebhookRegistryEvent) {
-	fmt.Println("time to refresh...")
 	// Construct full OCI repo URL used in Argo CD Applications
 	repoURL := fmt.Sprintf("oci://%s/%s",
 		event.RegistryURL,

@@ -31,6 +31,27 @@ func TestNormalizeOCI(t *testing.T) {
 	}
 }
 
+func TestIsRegistryEvent(t *testing.T) {
+	tests := []struct {
+		name     string
+		event    string
+		expected bool
+	}{
+		{"package event", "package", true},
+		{"registry package event", "registry_package", false},
+		{"push event", "push", false},
+		{"empty", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/", nil)
+			req.Header.Set("X-GitHub-Event", tt.event)
+			assert.Equal(t, tt.expected, IsRegistryEvent(req))
+		})
+	}
+}
+
 func TestRegistryPackageEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
