@@ -708,6 +708,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 		a.queue <- event
 		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Registry event received. Processing triggered."))
 		return
 	}
 
@@ -740,6 +741,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte("Webhook event received. Processing triggered."))
 }
 
 // processSCMWebhook processes an SCM webhook
