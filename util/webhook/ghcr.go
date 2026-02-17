@@ -29,7 +29,7 @@ func NewGHCRParser() *GHCRParser {
 // It checks the GitHub event header and returns true for package-related
 // events that may contain container registry updates.
 func (p *GHCRParser) CanHandle(r *http.Request) bool {
-	return r.Header.Get("X-GitHub-Event") == "package" || r.Header.Get("X-GitHub-Event") == "registry_package"
+	return r.Header.Get("X-GitHub-Event") == "package"
 }
 
 // Parse extracts container publication details from a GHCR webhook payload.

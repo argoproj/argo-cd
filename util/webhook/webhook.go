@@ -734,8 +734,8 @@ func (a *ArgoCDWebhookHandler) processSCMWebhook(r *http.Request, w http.Respons
 	default:
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
-		return nil, err
+		return nil, nil
 	}
 
-	return payload, nil
+	return payload, err
 }
