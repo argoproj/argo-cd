@@ -25,25 +25,26 @@ gcloud container clusters create hub \
   --location=${GCP_LOCATION} \
   --workload-pool=${GCP_PROJECT_ID}.svc.id.goog \
   --enable-fleet \
-  --labels=fleet-clusterinventory-management-cluster=true,fleet-clusterinventory-namespace=argocd,fleet-clusterinventory-access-provider-name=gcp
+  --labels=fleet-clusterinventory-management-cluster=true,fleet-clusterinventory-namespace=argocd,fleet-clusterinventory-access-provider-name=argo-cd-builtin-gcp
 ```
+
 Workload Identity allows Kubernetes service accounts to impersonate GCP service accounts.
-Enabling Fleet with the cluster labels has the [Fleet Cluster Profile Syncer](https://docs.cloud.google.com/kubernetes-engine/fleet-management/docs/generate-inventory-for-integrations) create Cluster Profiles automatically for all clusters in the Fleet within the management cluster (`fleet-clusterinventory-management-cluster=true`).
+Enabling Fleet with the cluster labels tells the [Fleet Cluster Profile Syncer](https://docs.cloud.google.com/kubernetes-engine/fleet-management/docs/generate-inventory-for-integrations) to automatically create Cluster Profiles for all clusters in the Fleet within the management cluster (`fleet-clusterinventory-management-cluster=true`). The `fleet-clusterinventory-access-provider-name=argo-cd-builtin-gcp` label tells the ClusterProfile to use the access provider name indicating that the ApplicationSet controller should use built-in GCP authentication.
 
 Create a standard GKE Fleet cluster to act as the `spoke`:
 ```bash
-gcloud container clusters create spoke --zone ${GCP_LOCATION} --enable-fleet \
-  --labels=fleet-clusterinventory-access-provider-name=gcp
+gcloud container clusters create spoke --location=${GCP_LOCATION} --enable-fleet \
+  --labels=fleet-clusterinventory-access-provider-name=argo-cd-builtin-gcp
 ```
 
-Get contexts for both clusters (note `namespace=argocd` for all future `hub` cluster commands):
+Get contexts for both clusters and set `namespace=argocd` for all future `hub` cluster commands:
 ```bash
-gcloud container clusters get-credentials hub --zone ${GCP_LOCATION}
+gcloud container clusters get-credentials hub --location=${GCP_LOCATION}
 kubectl config set-context --current --namespace=argocd
-gcloud container clusters get-credentials spoke --zone ${GCP_LOCATION}
+gcloud container clusters get-credentials spoke --location=${GCP_LOCATION}
 ```
 
-Create the namespace for the sample application:
+Create the namespace for the sample application in the spoke cluster:
 ```bash
 kubectl config use-context gke_${GCP_PROJECT_ID}_${GCP_LOCATION}_spoke
 kubectl create namespace guestbook
@@ -51,14 +52,18 @@ kubectl create namespace guestbook
 
 ## 3. Install Argo CD on Hub
 
-Switch to the hub cluster's context and install Argo CD:
+Install Argo CD in the hub cluster:
 ```bash
 kubectl config use-context gke_${GCP_PROJECT_ID}_${GCP_LOCATION}_hub
 kubectl create namespace argocd
-kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl create -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl set env deployment/argocd-applicationset-controller ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_CLUSTER_PROFILES="true"
 ```
 
-If doing local development in a fork of the argo-cd repo, instead build a local image and push it to GCP Artifact Registry:
+### \[Alternative\] Local Development
+
+For testing local changes in a fork of the argo-cd repository, instead build a local image and push it to GCP Artifact Registry:
+
 ```bash
 # Create an artifact registry repo
 gcloud services enable artifactregistry.googleapis.com
@@ -66,14 +71,25 @@ export REPO_NAME="argocd-repo"
 gcloud artifacts repositories create ${REPO_NAME} --repository-format=docker --location=${GCP_LOCATION}
 # Build and push the image
 kubectl config use-context gke_${GCP_PROJECT_ID}_${GCP_LOCATION}_hub
-kubectl create namespace argocd
 gcloud auth configure-docker ${GCP_LOCATION}-docker.pkg.dev
 export IMAGE_NAMESPACE=${GCP_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${REPO_NAME}
 export IMAGE_TAG=my-dev-v1
 export DOCKER_PUSH=true
 make image
 make manifests-local
-kubectl apply -f manifests/install.yaml
+# ApplicationSet definition is too large for `kubectl apply`.
+kubectl create -f manifests/install.yaml
+kubectl set env deployment/argocd-applicationset-controller ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_CLUSTER_PROFILES="true"
+```
+
+To update with new changes:
+
+```bash
+make image
+make manifests-local
+kubectl replace -f manifests/install.yaml
+kubectl set env deployment/argocd-applicationset-controller ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_CLUSTER_PROFILES="true"
+kubectl rollout restart deployment argocd-applicationset-controller
 ```
 
 ## 4. Configure Service Accounts and Permissions
@@ -87,75 +103,29 @@ GSA_NAME="argocd-application-gsa"
 gcloud iam service-accounts create ${GSA_NAME} --project=${GCP_PROJECT_ID} --display-name="Argo CD Controller GSA"
 ```
 
-Grant GSA permissions, if prompted select `condition=None`:
+Grant permissions to the GSA:
 ```bash
 GSA_EMAIL=${GSA_NAME}@${GCP_PROJECT_ID}.iam.gserviceaccount.com
-gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GSA_EMAIL}" --role="roles/container.developer"
-gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GSA_EMAIL}" --role="roles/gkehub.gatewayAdmin"
+gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GSA_EMAIL}" --role="roles/container.developer" --condition=None
+gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GSA_EMAIL}" --role="roles/container.clusterAdmin" --condition=None
+gcloud projects add-iam-policy-binding ${GCP_PROJECT_ID} --member="serviceAccount:${GSA_EMAIL}" --role="roles/gkehub.gatewayAdmin" --condition=None
 ```
 
-Allow Argo Application service account to impersonate GSA
+Allow the Argo Application Controller service account to impersonate the GSA and annotate this KSA with its GSA:
 ```bash
 gcloud iam service-accounts add-iam-policy-binding ${GSA_EMAIL} --project=${GCP_PROJECT_ID} --role="roles/iam.workloadIdentityUser" --member="serviceAccount:${GCP_PROJECT_ID}.svc.id.goog[argocd/argocd-application-controller]"
-```
-
-Annotate the Application controller KSA with its impersonated GSA:
-```bash
 kubectl annotate serviceaccount argocd-application-controller "iam.gke.io/gcp-service-account=${GSA_EMAIL}" --overwrite
 ```
 
-## 5. Create Access Providers Secret in Hub
-
-Create a secret in the `hub` cluster containing an `execConfig`. This config tells Argo CD to run `argocd-k8s-auth gcp` to obtain credentials for clusters. When this command runs from the ApplicationSet controller pod, it will automatically use the configured Workload Identity.
-
-```bash
-kubectl config use-context gke_${GCP_PROJECT_ID}_${GCP_LOCATION}_hub
-kubectl create secret generic cp-creds-secret \
-  --from-file=cp-creds.json=/dev/stdin <<EOF
-{
-  "providers": [
-    {
-      "name": "gcp",
-      "execConfig": {
-        "command": "argocd-k8s-auth",
-        "args": ["gcp"],
-        "apiVersion": "client.authentication.k8s.io/v1beta1"
-      }
-    }
-  ]
-}
-EOF
-```
-
-Mount the `cp-creds-secret` into the `argocd-applicationset-controller` and pass the file path as a command-line argument. This enables the ApplicationSet controller's Cluster Profile syncer.
-```bash
-kubectl patch deploy/argocd-applicationset-controller --type strategic --patch '
-spec:
-  template:
-    spec:
-      volumes:
-        - name: cp-creds-vol
-          secret:
-            secretName: cp-creds-secret
-      containers:
-        - name: argocd-applicationset-controller
-          volumeMounts:
-            - name: cp-creds-vol
-              mountPath: /app/cp-creds
-          args:
-            - "/usr/local/bin/argocd-applicationset-controller"
-            - "--cluster-profile-providers-file=/app/cp-creds/cp-creds.json"'
-```
-
-Restart the controller to ensure it uses the Workload Identity annotation and mounts the new secret.
+Restart the controllers:
 ```bash
 kubectl rollout restart deployment argocd-applicationset-controller
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-applicationset-controller --timeout=300s
+kubectl rollout restart statefulset argocd-application-controller
 ```
 
-## 9. Create ApplicationSet
+## 5. Create ApplicationSet
 
-At this point, the Cluster Profile and Secret should be generated.
+At this point, the Cluster Profile and Secret should be generated (you may verify with `kubectl get clusterprofiles` and `kubectl get secrets`). The ApplicationSet controller will use the built-in GCP provider to authenticate to the spoke cluster using Workload Identity.
 
 With the cluster connection configured, create an `ApplicationSet`:
 ```yaml
@@ -184,21 +154,39 @@ spec:
 EOF
 ```
 
-## 10. Verify
+## 6. Sync
 
-Verify that the `guestbook` application was deployed to the `spoke` cluster.
+Trigger the application to sync:
+```bash
+kubectl patch application guestbook-spoke-${GCP_LOCATION} -p '{"operation": {"sync": {"prune": true}}}' --type=merge
+```
+
+Verify that the `guestbook` application was deployed to the `spoke` cluster:
 ```bash
 kubectl config use-context gke_${GCP_PROJECT_ID}_${GCP_LOCATION}_spoke
 kubectl get pods -n guestbook
 ```
-You should see the `guestbook-ui` pod running.
 
-## 11. Cleanup
+If you should see a `guestbook-ui` pod running, congratulations on completing this guide! You now have an automatic flow which prepares any new cluster in the Fleet to be synced automatically through a Cluster Profile, secret, and application.
+
+If not, debug:
+```bash
+kubectl config use-context gke_${GCP_PROJECT_ID}_${GCP_LOCATION}_hub
+kubectl get secrets
+kubectl get applications
+kubectl logs argocd-application-controller-0
+```
+
+* If you see permission issues when connecting to the cluster, check that you didn't miss any of Step 4.
+* If you see server issues (`server.secretkey is missing`), restart the server (`kubectl rollout restart deploy/argocd-server`).
+* If everything looks correct, try triggering the sync in the Argo CD UI.
+
+## 7. Cleanup
 
 Delete the GKE clusters.
 ```bash
-gcloud container clusters delete hub --zone ${GCP_LOCATION} --quiet --async
-gcloud container clusters delete spoke --zone ${GCP_LOCATION} --quiet --async
+gcloud container clusters delete hub --location=${GCP_LOCATION} --quiet --async
+gcloud container clusters delete spoke --location=${GCP_LOCATION} --quiet --async
 ```
 
 Delete the GCP Service Account.

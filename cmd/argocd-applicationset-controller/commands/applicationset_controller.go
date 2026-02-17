@@ -81,6 +81,7 @@ func NewCommand() *cobra.Command {
 		tokenRefStrictMode           bool
 		maxResourcesStatusCount      int
 		cacheSyncPeriod              time.Duration
+		enableClusterProfiles        bool
 		clusterProfileProvidersFile  string
 	)
 	scheme := runtime.NewScheme()
@@ -266,7 +267,7 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			if clusterProfileProvidersFile != "" {
+			if enableClusterProfiles {
 				if err = (&controllers.ClusterProfileReconciler{
 					Client:                      mgr.GetClient(),
 					Scheme:                      mgr.GetScheme(),
@@ -319,6 +320,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableGitHubAPIMetrics, "enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
 	command.Flags().IntVar(&maxResourcesStatusCount, "max-resources-status-count", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT", 5000, 0, math.MaxInt), "Max number of resources stored in appset status.")
 	command.Flags().DurationVar(&cacheSyncPeriod, "cache-sync-period", env.ParseDurationFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CACHE_SYNC_PERIOD", time.Hour*10, 0, time.Hour*24), "Period at which the manager client cache is forcefully resynced with the Kubernetes API server. 0 disables periodic resync.")
+	command.Flags().BoolVar(&enableClusterProfiles, "enable-cluster-profiles", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_CLUSTER_PROFILES", false), "Whether to enable use of cluster profiles.")
 	command.Flags().StringVar(&clusterProfileProvidersFile, "cluster-profile-providers-file", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CLUSTER_PROFILE_PROVIDERS_FILE", ""), "The path to the cluster profile providers file.")
 
 	return &command

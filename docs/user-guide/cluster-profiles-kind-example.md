@@ -26,7 +26,8 @@ kubectl config use-context kind-hub
 kubectl config set-context --current --namespace=argocd
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=300s
+kubectl set env deployment/argocd-applicationset-controller -n argocd ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_CLUSTER_PROFILES="true"
+kubectl set env deployment/argocd-applicationset-controller -n argocd ARGOCD_APPLICATIONSET_CONTROLLER_CLUSTER_PROFILE_PROVIDERS_FILE="/app/cp-creds/cp-creds.json"
 ```
 
 If doing local development in a fork of the argo-cd repo, build the local image instead:
@@ -40,6 +41,8 @@ make image
 kind load docker-image ${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG} --name hub
 make manifests
 kubectl apply -n argocd -f manifests/install.yaml
+kubectl set env deployment/argocd-applicationset-controller -n argocd ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_CLUSTER_PROFILES="true"
+kubectl set env deployment/argocd-applicationset-controller -n argocd ARGOCD_APPLICATIONSET_CONTROLLER_CLUSTER_PROFILE_PROVIDERS_FILE="/app/cp-creds/cp-creds.json"
 ```
 
 Create argocd manager service account in `spoke`:
