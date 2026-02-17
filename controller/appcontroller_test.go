@@ -2330,7 +2330,7 @@ func TestProcessRequestedAppAutomatedOperation_Successful(t *testing.T) {
 			Automated: true,
 		},
 	}
-	ctrl := newFakeController(t.Context(), &fakeData{
+	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponses: []*apiclient.ManifestResponse{{
 			Manifests: []string{},
