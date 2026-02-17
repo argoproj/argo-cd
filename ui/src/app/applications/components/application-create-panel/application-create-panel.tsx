@@ -187,6 +187,10 @@ export const ApplicationCreatePanel = (props: {
             delete data.spec.destination.server;
         }
 
+        if (data.spec.sourceHydrator && !data.spec.sourceHydrator.hydrateTo?.targetBranch) {
+            delete data.spec.sourceHydrator.hydrateTo;
+        }
+
         props.createApp(data);
     };
 
@@ -222,20 +226,29 @@ export const ApplicationCreatePanel = (props: {
                             />
                         )) || (
                             <Form
-                                validateError={(a: models.Application) => ({
-                                    'metadata.name': !a.metadata.name && 'Application Name is required',
-                                    'spec.project': !a.spec.project && 'Project Name is required',
-                                    'spec.source.repoURL': !a.spec.source.repoURL && 'Repository URL is required',
-                                    'spec.source.targetRevision': !a.spec.source.targetRevision && a.spec.source.hasOwnProperty('chart') && 'Version is required',
-                                    'spec.source.path': !a.spec.source.path && !a.spec.source.chart && 'Path is required',
-                                    'spec.source.chart': !a.spec.source.path && !a.spec.source.chart && 'Chart is required',
-                                    // Verify cluster URL when there is no cluster name field or the name value is empty
-                                    'spec.destination.server':
-                                        !a.spec.destination.server && (!a.spec.destination.hasOwnProperty('name') || a.spec.destination.name === '') && 'Cluster URL is required',
-                                    // Verify cluster name when there is no cluster URL field or the URL value is empty
-                                    'spec.destination.name':
-                                        !a.spec.destination.name && (!a.spec.destination.hasOwnProperty('server') || a.spec.destination.server === '') && 'Cluster name is required'
-                                })}
+                                validateError={(a: models.Application) => {
+                                    const hasHydrator = !!a.spec.sourceHydrator;
+                                    const source = a.spec.source;
+
+                                    return {
+                                        'metadata.name': !a.metadata.name && 'Application Name is required',
+                                        'spec.project': !a.spec.project && 'Project Name is required',
+                                        'spec.source.repoURL': !hasHydrator && !source?.repoURL && 'Repository URL is required',
+                                        'spec.source.targetRevision': !hasHydrator && !source?.targetRevision && source?.hasOwnProperty('chart') && 'Version is required',
+                                        'spec.source.path': !hasHydrator && !source?.path && !source?.chart && 'Path is required',
+                                        'spec.source.chart': !hasHydrator && !source?.path && !source?.chart && 'Chart is required',
+                                        // Verify cluster URL when there is no cluster name field or the name value is empty
+                                        'spec.destination.server':
+                                            !a.spec.destination.server &&
+                                            (!a.spec.destination.hasOwnProperty('name') || a.spec.destination.name === '') &&
+                                            'Cluster URL is required',
+                                        // Verify cluster name when there is no cluster URL field or the URL value is empty
+                                        'spec.destination.name':
+                                            !a.spec.destination.name &&
+                                            (!a.spec.destination.hasOwnProperty('server') || a.spec.destination.server === '') &&
+                                            'Cluster name is required'
+                                    };
+                                }}
                                 defaultValues={app}
                                 formDidUpdate={state => debouncedOnAppChanged(state.values as any)}
                                 onSubmit={onCreateApp}
