@@ -2513,6 +2513,11 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
+		app.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   applicationType.Group,
+			Version: v1alpha1.SchemeGroupVersion.Version,
+			Kind:    applicationType.ApplicationKind,
+		})
 		err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbacRequest, app.RBACName(s.ns))
 		if err != nil {
 			return nil, nil, nil, nil, err
