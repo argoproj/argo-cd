@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -136,7 +137,35 @@ func (r *ClusterProfileReconciler) mutateSecret(secret *corev1.Secret, clusterPr
 	if len(clusterProfile.Status.AccessProviders) == 0 {
 		return fmt.Errorf("ClusterProfile %v field Status.AccessProviders is empty", clusterProfile.Name)
 	}
-	// Build the kubeconfig from the ClusterProfile's access providers.
+
+	// Check for supported cloud provider. For example, a Cluster Profile with an access provider named
+	// "argo-cd-builtin-gcp" will authenticate with cmd/argocd-k8s-auth/commands/gcp.go directly, without
+	// requiring an access providers file.
+	for _, provider := range clusterProfile.Status.AccessProviders {
+		if !strings.HasPrefix(provider.Name, "argo-cd-builtin-") {
+			continue
+		}
+		cloudProvider := strings.TrimPrefix(provider.Name, "argo-cd-builtin-")
+		apiConfig := v1alpha1.ClusterConfig{
+			ExecProviderConfig: &v1alpha1.ExecProviderConfig{
+				Command:    "argocd-k8s-auth",
+				Args:       []string{cloudProvider},
+				APIVersion: "client.authentication.k8s.io/v1beta1",
+			},
+		}
+		configBytes, err := json.Marshal(apiConfig)
+		if err != nil {
+			return fmt.Errorf("failed to marshal config: %w", err)
+		}
+		secret.StringData = map[string]string{
+			"name":   clusterProfile.Name,
+			"server": provider.Cluster.Server,
+			"config": string(configBytes),
+		}
+		return nil
+	}
+
+	// If using custom access providers, build the kubeconfig.
 	config, err := r.AccessProviders.BuildConfigFromCP(clusterProfile)
 	if err != nil {
 		return fmt.Errorf("failed to build config: %w", err)
@@ -208,6 +237,7 @@ func (r *ClusterProfileReconciler) loadClusterProfileProviders() error {
 }
 
 func (r *ClusterProfileReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// If using a supported cloud provider, this step will be skipped as no file is needed.
 	if err := r.loadClusterProfileProviders(); err != nil {
 		return err
 	}

@@ -27,6 +27,7 @@ argocd-applicationset-controller [flags]
       --debug                                   Print debug logs. Takes precedence over loglevel
       --disable-compression                     If true, opt-out of response compression for all requests to the server
       --dry-run                                 Enable dry run mode
+      --enable-cluster-profiles                 Whether to enable use of cluster profiles.
       --enable-github-api-metrics               Enable GitHub API metrics for generators that use the GitHub API
       --enable-leader-election                  Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.
       --enable-new-git-file-globbing            Enable new globbing in Git files generator.
