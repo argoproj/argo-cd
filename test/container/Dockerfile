@@ -14,7 +14,7 @@ FROM docker.io/library/registry:3.0@sha256:6c5666b861f3505b116bb9aa9b25175e71210
 
 FROM docker.io/bitnamilegacy/kubectl:1.32@sha256:9524faf8e3cefb47fa28244a5d15f95ec21a73d963273798e593e61f80712333 AS kubectl
 
-FROM docker.io/library/ubuntu:25.10@sha256:4a9232cc47bf99defcc8860ef6222c99773330367fcecbf21ba2edb0b810a31e
+FROM docker.io/library/ubuntu:26.04@sha256:4095ef613201918336b5d7d00be15d8b09c72ddb77c80bca249c255887a64d87
 
 ENV DEBIAN_FRONTEND=noninteractive
 
