@@ -79,8 +79,7 @@ type ArgoCDWebhookHandler struct {
 	registryHandler        *WebhookRegistryHandler
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int,
-	appClientset appclientset.Interface, appsLister alpha1.ApplicationLister,
+func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister,
 	set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache,
 	serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64,
 ) *ArgoCDWebhookHandler {

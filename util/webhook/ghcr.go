@@ -24,14 +24,6 @@ func NewGHCRParser() *GHCRParser {
 	return &GHCRParser{}
 }
 
-// CanHandle reports whether the HTTP request corresponds to a GHCR webhook.
-//
-// It checks the GitHub event header and returns true for package-related
-// events that may contain container registry updates.
-func (p *GHCRParser) CanHandle(r *http.Request) bool {
-	return r.Header.Get("X-GitHub-Event") == "package"
-}
-
 // Parse extracts container publication details from a GHCR webhook payload.
 //
 // The method expects a GitHub package event with action "published" for a
@@ -39,7 +31,6 @@ func (p *GHCRParser) CanHandle(r *http.Request) bool {
 // the registry host, repository, tag, and digest. Non-container packages,
 // unsupported actions, or missing tags result in an error.
 func (p *GHCRParser) Parse(body []byte) (*WebhookRegistryEvent, error) {
-	fmt.Println("we are in parse")
 	var payload struct {
 		Action  string `json:"action"`
 		Package struct {
@@ -53,9 +44,9 @@ func (p *GHCRParser) Parse(body []byte) (*WebhookRegistryEvent, error) {
 			PackageVersion struct {
 				ContainerMetadata struct {
 					Tag struct {
-						Name string `json:"name"`
+						Name   string `json:"name"`
+						Digest string `json:"digest"`
 					} `json:"tag"`
-					Digest string `json:"digest"`
 				} `json:"container_metadata"`
 			} `json:"package_version"`
 		} `json:"package"`
@@ -75,14 +66,11 @@ func (p *GHCRParser) Parse(body []byte) (*WebhookRegistryEvent, error) {
 
 	repository := payload.Package.Owner.Login + "/" + payload.Package.Name
 	tag := payload.Package.PackageVersion.ContainerMetadata.Tag.Name
-	fmt.Println("tag is", tag)
-	digest := payload.Package.PackageVersion.ContainerMetadata.Digest
+	digest := payload.Package.PackageVersion.ContainerMetadata.Tag.Digest
 
 	if tag == "" {
 		return nil, fmt.Errorf("missing tag")
 	}
-
-	fmt.Println("about to return from parse")
 
 	return &WebhookRegistryEvent{
 		RegistryURL: "ghcr.io",
