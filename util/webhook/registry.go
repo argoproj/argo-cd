@@ -13,6 +13,12 @@ import (
 	"strings"
 )
 
+// WebhookRegistryEvent represents a normalized container registry webhook event.
+//
+// It captures the essential information needed to identify an OCI artifact
+// update, including the registry host, repository name, tag, and optional
+// content digest. This structure is produced by registry-specific parsers
+// and consumed by the registry webhook handler to trigger application refreshes.
 type WebhookRegistryEvent struct {
 	// RegistryURL is the URL of the registry that sent the webhook
 	// eg. ghcr.io
@@ -27,17 +33,31 @@ type WebhookRegistryEvent struct {
 	Digest string `json:"digest,omitempty"`
 }
 
-// RegistryParser parses registry-specific webhook payloads
+// RegistryParser defines an interface for parsing registry-specific webhook payloads.
+//
+// Implementations detect whether they can handle an incoming HTTP request and,
+// if so, extract relevant event information into a WebhookRegistryEvent.
+// This allows the handler to support multiple container registries via pluggable parsers.
 type RegistryParser interface {
 	CanHandle(r *http.Request) bool
 	Parse(body []byte) (*WebhookRegistryEvent, error)
 }
 
+// WebhookRegistryHandler processes container registry webhook requests.
+//
+// It validates the webhook signature, selects an appropriate parser based on
+// the request, and converts the payload into a normalized WebhookRegistryEvent.
+// The handler supports multiple registry formats through a list of RegistryParsers.
 type WebhookRegistryHandler struct {
 	parsers []RegistryParser
 	secret  string
 }
 
+// NewWebhookRegistryHandler creates a new WebhookRegistryHandler.
+//
+// The provided secret is used to validate webhook signatures. The handler
+// is initialized with built-in registry parsers (e.g., GHCR) but can be
+// extended to support additional registries.
 func NewWebhookRegistryHandler(secret string) *WebhookRegistryHandler {
 	return &WebhookRegistryHandler{
 		parsers: []RegistryParser{
@@ -47,6 +67,12 @@ func NewWebhookRegistryHandler(secret string) *WebhookRegistryHandler {
 	}
 }
 
+// ProcessWebhook validates and parses an incoming registry webhook request.
+//
+// It reads the request body, verifies the webhook signature using the configured
+// secret, and delegates parsing to the first RegistryParser that reports it can
+// handle the request. On success, it returns a normalized WebhookRegistryEvent.
+// An error is returned if signature validation fails or no parser supports the event.
 func (h *WebhookRegistryHandler) ProcessWebhook(r *http.Request) (*WebhookRegistryEvent, error) {
 	fmt.Println("we are processing")
 	body, err := io.ReadAll(r.Body)
@@ -69,7 +95,12 @@ func (h *WebhookRegistryHandler) ProcessWebhook(r *http.Request) (*WebhookRegist
 	return nil, fmt.Errorf("unsupported registry webhook")
 }
 
-// IsRegistryEvent checks if the event is of registry type
+// IsRegistryEvent reports whether the HTTP request corresponds to a supported
+// container registry event.
+//
+// The decision is based on registry-specific headers (e.g., GitHub package or
+// registry_package events). It returns true if the request should be handled
+// by the registry webhook pipeline.
 func IsRegistryEvent(r *http.Request) bool {
 	event := false
 	switch {
@@ -85,6 +116,13 @@ func IsRegistryEvent(r *http.Request) bool {
 	return event
 }
 
+// HandleRegistryEvent processes a normalized registry event and refreshes
+// matching Argo CD Applications.
+//
+// It constructs the full OCI repository URL from the event, finds Applications
+// whose sources reference that repository and revision, and triggers a refresh
+// for each matching Application. Namespace filters are applied according to the
+// handler configuration.
 func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *WebhookRegistryEvent) {
 	fmt.Println("time to refresh...")
 	// Construct full OCI repo URL used in Argo CD Applications
@@ -157,6 +195,10 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *WebhookRegistryEvent) 
 	}
 }
 
+// normalizeOCI normalizes an OCI repository URL for comparison.
+//
+// It converts the URL to lowercase and removes any trailing slash to ensure
+// consistent matching between webhook events and Application source URLs.
 func normalizeOCI(url string) string {
 	return strings.ToLower(strings.TrimSuffix(url, "/"))
 }
