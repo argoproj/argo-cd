@@ -1286,13 +1286,13 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 
 	var settings ArgoCDSettings
 	var errs []error
-	updateSettingsFromConfigMap(&settings, argoCDCM)
 	if err := mgr.updateSettingsFromSecret(&settings, argoCDSecret, secrets); err != nil {
 		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
 		return &settings, errors.Join(errs...)
 	}
+	updateSettingsFromConfigMap(&settings, argoCDCM)
 
 	return &settings, nil
 }
