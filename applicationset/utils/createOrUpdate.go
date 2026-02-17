@@ -59,11 +59,11 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ign
 		return controllerutil.OperationResultNone, err
 	}
 
-	// Filter ignoreApplicationDifferences rules based on application labels.
-	filteredIgnoreDifferences := filterIgnoreDifferences(ignoreAppDifferences, obj)
+	// Filter ignoreApplicationDifferences rules to only those whose LabelSelector matches this Application.
+	filteredIgnoreDifferences := filterIgnoreDifferencesForApplication(ignoreAppDifferences, obj)
 
-	// Apply ignoreApplicationDifferences rules to remove ignored fields from both the live and the desired state. This
-	// prevents those differences from appearing in the diff and therefore in the patch.
+	// Apply the filtered rules to remove ignored fields from both the live and the desired state.
+	// This prevents those differences from appearing in the diff and therefore in the patch.
 	err := applyIgnoreDifferences(filteredIgnoreDifferences, normalizedLive, obj, ignoreNormalizerOpts)
 	if err != nil {
 		return controllerutil.OperationResultNone, fmt.Errorf("failed to apply ignore differences: %w", err)
@@ -137,9 +137,9 @@ func mutate(f controllerutil.MutateFn, key client.ObjectKey, obj client.Object) 
 	return nil
 }
 
-// filterIgnoreDifferences returns rules whose LabelSelector matches the application's labels.
+// filterIgnoreDifferencesForApplication returns rules whose LabelSelector matches the application's labels.
 // Rules with nil LabelSelector are always included. Name filtering is handled by the normalizer.
-func filterIgnoreDifferences(rules argov1alpha1.ApplicationSetIgnoreDifferences, app *argov1alpha1.Application) argov1alpha1.ApplicationSetIgnoreDifferences {
+func filterIgnoreDifferencesForApplication(rules argov1alpha1.ApplicationSetIgnoreDifferences, app *argov1alpha1.Application) argov1alpha1.ApplicationSetIgnoreDifferences {
 	if len(rules) == 0 {
 		return rules
 	}

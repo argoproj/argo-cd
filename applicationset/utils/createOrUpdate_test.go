@@ -12,7 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
-func Test_filterIgnoreDifferences(t *testing.T) {
+func Test_filterIgnoreDifferencesForApplication(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -143,7 +143,7 @@ func Test_filterIgnoreDifferences(t *testing.T) {
 					Labels: tc.appLabels,
 				},
 			}
-			filtered := filterIgnoreDifferences(tc.rules, app)
+			filtered := filterIgnoreDifferencesForApplication(tc.rules, app)
 			assert.Len(t, filtered, tc.expectedCount)
 		})
 	}
