@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -249,7 +250,16 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 			GetClientCertificate: clientCertFunc,
 		},
 		DisableKeepAlives:     true,
-		ResponseHeaderTimeout: gitClientTimeout,
+		ResponseHeaderTimeout: 15 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ForceAttemptHTTP2:     true,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
 	}
 	customHTTPClient.Transport = transport
 	if insecure {
@@ -622,8 +632,8 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 		log.Debugf("error when doing ls remote: %v", err)
 		log.Debugf("error string when doing ls remote: %s", err.Error())
 		log.Debugf("error type when doing ls remote: %T", err)
-		log.Debugf("is error context deadline exceeded type when doing ls remote: %s", strings.Contains(err.Error(), "context deadline exceeded"))
-		if strings.Contains(err.Error(), "context deadline exceeded") || errors.Is(err, context.DeadlineExceeded) || apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
+		log.Debugf("is error context deadline exceeded type when doing ls remote: %v", strings.Contains(err.Error(), "context deadline exceeded"))
+		if errors.Is(err, context.DeadlineExceeded) || apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
 			apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err) {
 			// Formula: timeToWait = duration * factor^retry_number
 			// Note that timeToWait should equal to duration for the first retry attempt.
