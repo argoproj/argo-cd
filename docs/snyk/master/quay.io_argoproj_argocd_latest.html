@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="16 known vulnerabilities found in 54 vulnerable dependency paths.">
+  <meta name="description" content="18 known vulnerabilities found in 57 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">January 18th 2026, 12:25:54 am (UTC+00:00)</p>
+                <p class="timestamp">February 8th 2026, 12:35:56 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -506,9 +506,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>16</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>54 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2318</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>18</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>57 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2324</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -516,6 +516,79 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Untrusted Search Path</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            go.opentelemetry.io/otel/sdk/resource
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and go.opentelemetry.io/otel/sdk/resource@v1.39.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/sdk/resource@v1.39.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Untrusted Search Path in resource detection code which executes <code>ioreg</code>, when the <code>PATH</code> environment variable is modified to include a malicious executable. An attacker can execute arbitrary code within the context of the application by placing a malicious binary earlier in the search path.</p>
+        <p><strong>Note:</strong> This vulnerability is only exploitable on MacOS/Darwin systems.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>go.opentelemetry.io/otel/sdk/resource</code> to version 1.40.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/open-telemetry/opentelemetry-go/commit/d45961bcda453fcbdb6469c22d6e88a1f9970a53">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOPENTELEMETRYIOOTELSDKRESOURCE-15182758">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Directory Traversal</h2>
             <div class="card__section">
@@ -1080,7 +1153,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        git-lfs@3.6.1-1
+                                        git-lfs@3.6.1-1ubuntu0.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.51.0-1ubuntu1
                                         
@@ -1110,85 +1183,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2510-GIT-14548189">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Link Following</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:25.10
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            git-lfs
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and git-lfs@3.6.1-1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git-lfs@3.6.1-1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>git-lfs</code> package and not the <code>git-lfs</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:25.10</code> relevant fixed versions and status.</em></p>
-        <p>Git LFS is a Git extension for versioning large files. In Git LFS versions 0.5.2 through 3.7.0, when populating a Git repository&#39;s working tree with the contents of Git LFS objects, certain Git LFS commands may write to files visible outside the current Git working tree if symbolic or hard links exist which collide with the paths of files tracked by Git LFS. The git lfs checkout and git lfs pull commands do not check for symbolic links before writing to files in the working tree, allowing an attacker to craft a repository containing symbolic or hard links that cause Git LFS to write to arbitrary file system locations accessible to the user running these commands. As well, when the git lfs checkout and git lfs pull commands are run in a bare repository, they could write to files visible outside the repository. The vulnerability is fixed in version 3.7.1. As a workaround, support for symlinks in Git may be disabled by setting the core.symlinks configuration option to false, after which further clones and fetches will not create symbolic links. However, any symbolic or hard links in existing repositories will still provide the opportunity for Git LFS to write to their targets.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>git-lfs</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-26625">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-26625</a></li>
-        <li><a href="https://github.com/git-lfs/git-lfs/commit/0cffe93176b870055c9dadbb3cc9a4a440e98396">https://github.com/git-lfs/git-lfs/commit/0cffe93176b870055c9dadbb3cc9a4a440e98396</a></li>
-        <li><a href="https://github.com/git-lfs/git-lfs/commit/5c11ffce9a4f095ff356bc781e2a031abb46c1a8">https://github.com/git-lfs/git-lfs/commit/5c11ffce9a4f095ff356bc781e2a031abb46c1a8</a></li>
-        <li><a href="https://github.com/git-lfs/git-lfs/commit/d02bd13f02ef76f6807581cd6b34709069cb3615">https://github.com/git-lfs/git-lfs/commit/d02bd13f02ef76f6807581cd6b34709069cb3615</a></li>
-        <li><a href="https://github.com/git-lfs/git-lfs/releases/tag/v3.7.1">https://github.com/git-lfs/git-lfs/releases/tag/v3.7.1</a></li>
-        <li><a href="https://github.com/git-lfs/git-lfs/security/advisories/GHSA-6pvw-g552-53c5">https://github.com/git-lfs/git-lfs/security/advisories/GHSA-6pvw-g552-53c5</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2510-GITLFS-13653090">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1566,6 +1560,165 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">Improper Neutralization of Null Byte or NUL Character</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:25.10
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssh/openssh-client
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@latest and openssh/openssh-client@1:10.0p1-5ubuntu5
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:10.0p1-5ubuntu5
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssh</code> package and not the <code>openssh</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:25.10</code> relevant fixed versions and status.</em></p>
+        <p>ssh in OpenSSH before 10.1 allows the &#39;\0&#39; character in an ssh:// URI, potentially leading to code execution when a ProxyCommand is used.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>openssh</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-61985">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-61985</a></li>
+        <li><a href="https://marc.info/?l=openssh-unix-dev&m=175974522032149&w=2">https://marc.info/?l=openssh-unix-dev&amp;m=175974522032149&amp;w=2</a></li>
+        <li><a href="https://www.openssh.com/releasenotes.html#10.1p1">https://www.openssh.com/releasenotes.html#10.1p1</a></li>
+        <li><a href="https://www.openwall.com/lists/oss-security/2025/10/06/1">https://www.openwall.com/lists/oss-security/2025/10/06/1</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2510-OPENSSH-15019525">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">Failure to Sanitize Special Element</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:25.10
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssh/openssh-client
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@latest and openssh/openssh-client@1:10.0p1-5ubuntu5
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:10.0p1-5ubuntu5
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssh</code> package and not the <code>openssh</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:25.10</code> relevant fixed versions and status.</em></p>
+        <p>ssh in OpenSSH before 10.1 allows control characters in usernames that originate from certain possibly untrusted sources, potentially leading to code execution when a ProxyCommand is used. The untrusted sources are the command line and %-sequence expansion of a configuration file. (A configuration file that provides a complete literal username is not categorized as an untrusted source.)</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>openssh</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-61984">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-61984</a></li>
+        <li><a href="https://marc.info/?l=openssh-unix-dev&m=175974522032149&w=2">https://marc.info/?l=openssh-unix-dev&amp;m=175974522032149&amp;w=2</a></li>
+        <li><a href="https://www.openssh.com/releasenotes.html#10.1p1">https://www.openssh.com/releasenotes.html#10.1p1</a></li>
+        <li><a href="https://www.openwall.com/lists/oss-security/2025/10/06/1">https://www.openwall.com/lists/oss-security/2025/10/06/1</a></li>
+        <li><a href="https://dgl.cx/2025/10/bash-a-newline-ssh-proxycommand-cve-2025-61984">https://dgl.cx/2025/10/bash-a-newline-ssh-proxycommand-cve-2025-61984</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2025/10/07/1">http://www.openwall.com/lists/oss-security/2025/10/07/1</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2025/10/12/1">http://www.openwall.com/lists/oss-security/2025/10/12/1</a></li>
+        <li><a href="https://www.vicarius.io/vsociety/posts/cve-2025-61984-detection-script-remote-code-execution-vulnerability-affecting-openssh">https://www.vicarius.io/vsociety/posts/cve-2025-61984-detection-script-remote-code-execution-vulnerability-affecting-openssh</a></li>
+        <li><a href="https://www.vicarius.io/vsociety/posts/cve-2025-61984-mitigation-script-remote-code-execution-vulnerability-affecting-openssh">https://www.vicarius.io/vsociety/posts/cve-2025-61984-mitigation-script-remote-code-execution-vulnerability-affecting-openssh</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2510-OPENSSH-15019527">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">Information Exposure</h2>
             <div class="card__section">
         
@@ -1825,7 +1978,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2025-9086</h2>
+            <h2 class="card__title">Out-of-bounds Read</h2>
             <div class="card__section">
         
                 <div class="card__labels">
@@ -2093,7 +2246,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2025-14524</h2>
+            <h2 class="card__title">Open Redirect</h2>
             <div class="card__section">
         
                 <div class="card__labels">
@@ -2219,6 +2372,17 @@
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        coreutils/gnu-coreutils@9.5-1ubuntu4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        tzdata@2025b-3ubuntu1.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils/gnu-coreutils@9.5-1ubuntu4
                                         

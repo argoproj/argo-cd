@@ -87,7 +87,7 @@ func getTLSCipherSuitesByString(cipherSuites string) ([]uint16, error) {
 		suiteMap[s.Name] = s.ID
 	}
 	allowedSuites := make([]uint16, 0)
-	for _, s := range strings.Split(cipherSuites, ":") {
+	for s := range strings.SplitSeq(cipherSuites, ":") {
 		id, ok := suiteMap[strings.TrimSpace(s)]
 		if !ok {
 			return nil, fmt.Errorf("invalid cipher suite specified: %s", s)

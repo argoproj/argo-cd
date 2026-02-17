@@ -179,7 +179,7 @@ func generateCommandsDocs(out io.Writer) error {
 					if err := doc.GenMarkdown(c, &cmdDesc); err != nil {
 						return fmt.Errorf("error generating Markdown for command: %v : %w", c, err)
 					}
-					for _, line := range strings.Split(cmdDesc.String(), "\n") {
+					for line := range strings.SplitSeq(cmdDesc.String(), "\n") {
 						if strings.HasPrefix(line, "### SEE ALSO") {
 							break
 						}

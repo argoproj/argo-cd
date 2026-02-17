@@ -9,7 +9,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 )
 
 func TestSimpleHydrator(t *testing.T) {

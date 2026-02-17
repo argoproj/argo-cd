@@ -26,12 +26,12 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/openapi"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/sync/hook"
-	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
-	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 )
 
 type reconciledResource struct {
@@ -422,9 +422,22 @@ func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) 
 	} else {
 		firstTask = resources[0]
 	}
+	nbAdditionalTask := tasks.Len() - 1
+
+	if !sc.pruneConfirmed {
+		tasksToPrune := tasks.Filter(func(task *syncTask) bool {
+			return task.isPrune() && resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm)
+		})
+
+		if len(tasksToPrune) > 0 {
+			reason = "pruning confirmation of"
+			firstTask = tasksToPrune[0]
+			nbAdditionalTask = len(tasksToPrune) - 1
+		}
+	}
 
 	message := fmt.Sprintf("waiting for %s %s/%s/%s", reason, firstTask.group(), firstTask.kind(), firstTask.name())
-	if nbAdditionalTask := len(tasks) - 1; nbAdditionalTask > 0 {
+	if nbAdditionalTask > 0 {
 		message = fmt.Sprintf("%s and %d more %s", message, nbAdditionalTask, taskType)
 	}
 	sc.setOperationPhase(common.OperationRunning, message)
@@ -1487,20 +1500,11 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 	// prune first
 	{
 		if !sc.pruneConfirmed {
-			var resources []string
 			for _, task := range pruneTasks {
 				if resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm) {
-					resources = append(resources, fmt.Sprintf("%s/%s/%s", task.obj().GetAPIVersion(), task.obj().GetKind(), task.name()))
+					sc.log.WithValues("task", task).Info("Prune requires confirmation")
+					return pending
 				}
-			}
-			if len(resources) > 0 {
-				sc.log.WithValues("resources", resources).Info("Prune requires confirmation")
-				andMessage := ""
-				if len(resources) > 1 {
-					andMessage = fmt.Sprintf(" and %d more resources", len(resources)-1)
-				}
-				sc.message = fmt.Sprintf("Waiting for pruning confirmation of %s%s", resources[0], andMessage)
-				return pending
 			}
 		}
 

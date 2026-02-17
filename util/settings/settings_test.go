@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"maps"
 	"net/http"
 	"os"
 	"sort"
@@ -135,7 +136,6 @@ func TestGetExtensionConfigs(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// When
 			output := getExtensionConfigs(tc.input)
@@ -545,9 +545,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 }
 
 func mergemaps(mapA map[string]string, mapB map[string]string) map[string]string {
-	for k, v := range mapA {
-		mapB[k] = v
-	}
+	maps.Copy(mapB, mapA)
 	return mapB
 }
 
@@ -1873,8 +1871,6 @@ rootCA: "invalid"`},
 	}
 
 	for _, testCase := range testCases {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			if testCase.expectNilTLSConfig {
 				assert.Nil(t, testCase.settings.OIDCTLSConfig())

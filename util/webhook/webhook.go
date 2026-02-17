@@ -131,10 +131,8 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 
 func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
 	compLog := log.WithField("component", "api-server-webhook")
-	for i := 0; i < webhookParallelism; i++ {
-		a.Add(1)
-		go func() {
-			defer a.Done()
+	for range webhookParallelism {
+		a.Go(func() {
 			for {
 				payload, ok := <-a.queue
 				if !ok {
@@ -142,7 +140,7 @@ func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
 				}
 				guard.RecoverAndLog(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
 			}
-		}()
+		})
 	}
 }
 
@@ -481,7 +479,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 
 	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
 
-	if err := a.repoCache.SetNewRevisionManifests(change.shaAfter, change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil, installationID); err != nil {
+	if err := a.repoCache.SetNewRevisionManifests(change.shaAfter, change.shaBefore, &source, refSources, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil, nil, installationID); err != nil {
 		return fmt.Errorf("error setting new revision manifests: %w", err)
 	}
 

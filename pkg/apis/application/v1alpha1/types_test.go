@@ -14,7 +14,7 @@ import (
 
 	argocdcommon "github.com/argoproj/argo-cd/v3/common"
 
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -226,7 +226,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 	}
 
 	for _, data := range testData {
-		data := data
 		t.Run(data.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -4892,10 +4891,16 @@ func TestSanitized(t *testing.T) {
 			Password:    "password123",
 			BearerToken: "abc",
 			TLSClientConfig: TLSClientConfig{
-				Insecure: true,
+				Insecure:   true,
+				ServerName: "server",
+				CertData:   []byte("random bytes we don't want to show in the API response"),
+				KeyData:    []byte("random bytes we don't want to show in the API response"),
+				CAData:     []byte("random bytes we don't want to show in the API response"),
 			},
 			ExecProviderConfig: &ExecProviderConfig{
-				Command: "test",
+				Command:    "this should be omitted in API",
+				Args:       []string{"this should be omitted in API"},
+				APIVersion: "this should be omitted in API",
 			},
 		},
 	}
@@ -4921,7 +4926,8 @@ func TestSanitized(t *testing.T) {
 		Annotations: map[string]string{"annotation-key": "annotation-value"},
 		Config: ClusterConfig{
 			TLSClientConfig: TLSClientConfig{
-				Insecure: true,
+				Insecure:   true,
+				ServerName: "server",
 			},
 		},
 	}, cluster.Sanitized())

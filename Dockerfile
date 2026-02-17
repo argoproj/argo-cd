@@ -1,10 +1,10 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:25.10@sha256:5922638447b1e3ba114332c896a2c7288c876bb94adec923d70d58a17d2fec5e
+ARG BASE_IMAGE=docker.io/library/ubuntu:25.10@sha256:4a9232cc47bf99defcc8860ef6222c99773330367fcecbf21ba2edb0b810a31e
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.25.6@sha256:ce63a16e0f7063787ebb4eb28e72d477b00b4726f79874b3205a965ffd797ab2 AS builder
+FROM docker.io/library/golang:1.26.0@sha256:c83e68f3ebb6943a2904fa66348867d108119890a2c6a2e6f07b38d0eb6c25c5 AS builder
 
 WORKDIR /tmp
 
@@ -79,6 +79,12 @@ RUN mkdir -p tls && \
 
 ENV USER=argocd
 
+# Disable gRPC service config lookups via DNS TXT records to prevent excessive
+# DNS queries for _grpc_config.<hostname> which can cause timeouts in dual-stack
+# environments. This can be overridden via argocd-cmd-params-cm ConfigMap.
+# See https://github.com/argoproj/argo-cd/issues/24991
+ENV GRPC_ENABLE_TXT_SERVICE_CONFIG=false
+
 USER $ARGOCD_USER_ID
 WORKDIR /home/argocd
 
@@ -103,7 +109,7 @@ RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OP
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.25.6@sha256:ce63a16e0f7063787ebb4eb28e72d477b00b4726f79874b3205a965ffd797ab2 AS argocd-build
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.26.0@sha256:c83e68f3ebb6943a2904fa66348867d108119890a2c6a2e6f07b38d0eb6c25c5 AS argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 

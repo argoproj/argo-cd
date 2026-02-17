@@ -570,7 +570,7 @@ func newAdapter(builtinPolicy, userDefinedPolicy, runtimePolicy string) *argocdA
 
 func (a *argocdAdapter) LoadPolicy(model model.Model) error {
 	for _, policyStr := range []string{a.builtinPolicy, a.userDefinedPolicy, a.runtimePolicy} {
-		for _, line := range strings.Split(policyStr, "\n") {
+		for line := range strings.SplitSeq(policyStr, "\n") {
 			if err := loadPolicyLine(strings.TrimSpace(line), model); err != nil {
 				return err
 			}

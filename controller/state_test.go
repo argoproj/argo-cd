@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"dario.cat/mergo"
-	cachemocks "github.com/argoproj/gitops-engine/pkg/cache/mocks"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	cachemocks "github.com/argoproj/argo-cd/gitops-engine/pkg/cache/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
 	"github.com/sirupsen/logrus"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -414,6 +414,92 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 	assert.Len(t, compRes.managedResources, 1)
 	assert.Empty(t, compRes.reconciliationResult.Hooks)
 	assert.Empty(t, app.Status.Conditions)
+}
+
+// TestCompareAppStateSyncHookSyncWave tests that Sync hooks display correct SyncWave
+// This is the specific case from issue #26208
+func TestCompareAppStateSyncHookSyncWave(t *testing.T) {
+	tests := []struct {
+		name             string
+		hookType         string
+		syncWave         string
+		expectedSyncWave int64
+	}{
+		{
+			name:             "Sync hook with wave 2",
+			hookType:         "Sync",
+			syncWave:         "2",
+			expectedSyncWave: 2,
+		},
+		{
+			name:             "PreSync hook with wave 1",
+			hookType:         "PreSync",
+			syncWave:         "1",
+			expectedSyncWave: 1,
+		},
+		{
+			name:             "PostSync hook with negative wave",
+			hookType:         "PostSync",
+			syncWave:         "-1",
+			expectedSyncWave: -1,
+		},
+		{
+			name:             "Sync hook without explicit wave",
+			hookType:         "Sync",
+			syncWave:         "",
+			expectedSyncWave: 0, // default
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+
+			// Create hook pod with annotations
+			hookPod := NewPod()
+			hookPod.SetNamespace(test.FakeDestNamespace)
+			annot := map[string]string{
+				synccommon.AnnotationKeyHook: tt.hookType,
+			}
+			if tt.syncWave != "" {
+				annot[synccommon.AnnotationSyncWave] = tt.syncWave
+			}
+			hookPod.SetAnnotations(annot)
+
+			// The hook exists in live state (already created by previous sync)
+			livePod := hookPod.DeepCopy()
+
+			data := fakeData{
+				apps: []runtime.Object{app},
+				manifestResponse: &apiclient.ManifestResponse{
+					Manifests: []string{toJSON(t, hookPod)},
+					Namespace: test.FakeDestNamespace,
+					Server:    test.FakeClusterURL,
+					Revision:  "abc123",
+				},
+				managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+					kube.GetResourceKey(livePod): livePod,
+				},
+			}
+
+			ctrl := newFakeController(t.Context(), &data, nil)
+			sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			revisions := []string{""}
+
+			compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
+			require.NoError(t, err)
+			require.NotNil(t, compRes)
+
+			// For hooks, they go into reconciliationResult.Hooks, not resources
+			// But we should also check resources if the hook appears there
+			for _, res := range compRes.resources {
+				if res.Hook {
+					assert.Equal(t, tt.expectedSyncWave, res.SyncWave,
+						"Hook SyncWave should be %d but got %d", tt.expectedSyncWave, res.SyncWave)
+				}
+			}
+		})
+	}
 }
 
 func TestCompareAppStateRequireDeletion(t *testing.T) {
@@ -1870,7 +1956,7 @@ func Test_normalizeClusterScopeTracking(t *testing.T) {
 	require.True(t, called, "normalization function should have called the callback function")
 }
 
-func TestCompareAppState_DoesNotCallUpdateRevisionForPaths_ForOCI(t *testing.T) {
+func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
 	app := newFakeApp()
 	// Enable the manifest-generate-paths annotation and set a synced revision
 	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
@@ -1886,14 +1972,70 @@ func TestCompareAppState_DoesNotCallUpdateRevisionForPaths_ForOCI(t *testing.T) 
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
 		},
+		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: false},
 	}
-	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, errors.New("this should not be called"))
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
 
 	source := app.Spec.GetSource()
 	source.RepoURL = "oci://example.com/argo/argo-cd"
 	sources := make([]v1alpha1.ApplicationSource, 0)
 	sources = append(sources, source)
 
-	_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false)
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false)
 	require.NoError(t, err)
+	require.False(t, revisionsMayHaveChanges)
+}
+
+func TestCompareAppState_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T) {
+	app := newFakeApp()
+	// Enable the manifest-generate-paths annotation and set a synced revision
+	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Revision:  "abc123",
+		Status:    v1alpha1.SyncStatusCodeSynced,
+		Revisions: []string{"0.0.1", "resolved-abc123", "resolved-main"},
+	}
+
+	app.Spec.Sources = v1alpha1.ApplicationSources{
+		{RepoURL: "oci://example.com/argo/argo-cd", TargetRevision: "0.0.1", Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/my-path"}}},
+		{Ref: "values", RepoURL: "https://git.test.com", TargetRevision: "abc123"},
+		{TargetRevision: "main", RepoURL: "https://git.test.com", Path: "path/to/chart"},
+	}
+
+	data := fakeData{
+		manifestResponses: []*apiclient.ManifestResponse{
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "0.0.1",
+			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "main",
+			},
+		},
+		updateRevisionForPathsResponses: []*apiclient.UpdateRevisionForPathsResponse{
+			{Changes: false, Revision: "0.0.1"},
+			{Changes: false, Revision: "resolved-main"},
+		},
+	}
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
+
+	revisions := make([]string, 0)
+	revisions = append(revisions, "0.0.1", "abc123", "main")
+
+	sources := app.Spec.Sources
+
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "0.0.1", revisions, false, false, false, &defaultProj, false)
+	require.NoError(t, err)
+	require.False(t, revisionsMayHaveChanges)
 }

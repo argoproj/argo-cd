@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"reflect"
 	"slices"
@@ -15,12 +16,12 @@ import (
 
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 
-	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	kubecache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
@@ -63,7 +64,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
 
 	applicationType "github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
@@ -990,7 +991,7 @@ func (s *Server) waitSync(app *v1alpha1.Application) {
 }
 
 func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newApp *v1alpha1.Application, merge bool) (*v1alpha1.Application, error) {
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		app.Spec = newApp.Spec
 		if merge {
 			app.Labels = collections.Merge(app.Labels, newApp.Labels)
@@ -2439,7 +2440,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		return nil, err
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		if a.Operation == nil || a.Status.OperationState == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
 		}
@@ -2917,9 +2918,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 
 	// Convert to map format expected by DiffConfigBuilder
 	overrides := make(map[string]v1alpha1.ResourceOverride)
-	for k, v := range resourceOverrides {
-		overrides[k] = v
-	}
+	maps.Copy(overrides, resourceOverrides)
 
 	// Get cluster connection for server-side dry run
 	cluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)

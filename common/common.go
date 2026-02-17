@@ -17,10 +17,19 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// Component names
+// Argo CD component names
 const (
-	ApplicationController    = "argocd-application-controller"
-	ApplicationSetController = "argocd-applicationset-controller"
+	CommandCLI                      = "argocd"
+	CommandApplicationController    = "argocd-application-controller"
+	CommandApplicationSetController = "argocd-applicationset-controller"
+	CommandServer                   = "argocd-server"
+	CommandCMPServer                = "argocd-cmp-server"
+	CommandCommitServer             = "argocd-commit-server"
+	CommandGitAskPass               = "argocd-git-ask-pass"
+	CommandNotifications            = "argocd-notifications"
+	CommandK8sAuth                  = "argocd-k8s-auth"
+	CommandDex                      = "argocd-dex"
+	CommandRepoServer               = "argocd-repo-server"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -108,7 +117,6 @@ const (
 
 // Argo CD application related constants
 const (
-
 	// ArgoCDAdminUsername is the username of the 'admin' user
 	ArgoCDAdminUsername = "admin"
 	// ArgoCDUserAgentName is the default user-agent name used by the gRPC API client library and grpc-gateway

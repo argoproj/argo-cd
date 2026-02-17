@@ -535,14 +535,14 @@ func SetAccounts(accounts map[string][]string) error {
 
 func SetPermissions(permissions []ACL, username string, roleName string) error {
 	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
-		var aclstr string
+		var aclstr strings.Builder
 
 		for _, permission := range permissions {
-			aclstr += fmt.Sprintf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
+			aclstr.WriteString(fmt.Sprintf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope))
 		}
 
-		aclstr += fmt.Sprintf("g, %s, role:%s", username, roleName)
-		cm.Data["policy.csv"] = aclstr
+		aclstr.WriteString(fmt.Sprintf("g, %s, role:%s", username, roleName))
+		cm.Data["policy.csv"] = aclstr.String()
 
 		return nil
 	})
@@ -987,7 +987,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 	var out string
 	var err error
-	for i := 0; i < maxRetries; i++ {
+	for range maxRetries {
 		out, err = RunCli(args...)
 		if err == nil {
 			break
