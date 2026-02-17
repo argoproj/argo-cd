@@ -67,6 +67,14 @@ func NewWebhookRegistryHandler(secret string) *WebhookRegistryHandler {
 	}
 }
 
+// CanHandle reports whether the HTTP request corresponds to a GHCR webhook.
+//
+// It checks the GitHub event header and returns true for package-related
+// events that may contain container registry updates.
+func (p *GHCRParser) CanHandle(r *http.Request) bool {
+	return r.Header.Get("X-GitHub-Event") == "package"
+}
+
 // ProcessWebhook validates and parses an incoming registry webhook request.
 //
 // It reads the request body, verifies the webhook signature using the configured
@@ -74,7 +82,6 @@ func NewWebhookRegistryHandler(secret string) *WebhookRegistryHandler {
 // handle the request. On success, it returns a normalized WebhookRegistryEvent.
 // An error is returned if signature validation fails or no parser supports the event.
 func (h *WebhookRegistryHandler) ProcessWebhook(r *http.Request) (*WebhookRegistryEvent, error) {
-	fmt.Println("we are processing")
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
@@ -85,7 +92,6 @@ func (h *WebhookRegistryHandler) ProcessWebhook(r *http.Request) (*WebhookRegist
 		return nil, err
 	}
 
-	fmt.Println("signature validated")
 	for _, p := range h.parsers {
 		if p.CanHandle(r) {
 			return p.Parse(body)
