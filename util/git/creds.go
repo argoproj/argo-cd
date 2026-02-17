@@ -478,7 +478,8 @@ func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error)
 // the token is then cached for re-use.
 func (g GitHubAppCreds) getAccessToken() (string, error) {
 	// Timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	log.Debugf("creating a context with timeout %d", gitClientTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
 	defer cancel()
 
 	itr, err := g.getInstallationTransport()

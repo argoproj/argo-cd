@@ -1,10 +1,12 @@
 package git
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -227,19 +229,21 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 		// If we aren't called with GenericHTTPSCreds, then we just return an empty cert
 		httpsCreds, ok := creds.(GenericHTTPSCreds)
 		if !ok {
+			log.Debug("Not GenericHTTPSCreds, skipping client certificate")
 			return &cert, nil
 		}
 
 		// If the creds contain client certificate data, we return a TLS.Certificate
 		// populated with the cert and its key.
 		if httpsCreds.HasClientCert() {
+			log.Debug("HTTPS Creds, has client certificate")
 			cert, err = tls.X509KeyPair([]byte(httpsCreds.GetClientCertData()), []byte(httpsCreds.GetClientCertKey()))
 			if err != nil {
 				log.Errorf("Could not load Client Certificate: %v", err)
 				return &cert, nil
 			}
 		}
-
+		log.Debug("HTTPS Creds found, but has no client certificate")
 		return &cert, nil
 	}
 	transport := &http.Transport{
@@ -247,13 +251,24 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 		TLSClientConfig: &tls.Config{
 			GetClientCertificate: clientCertFunc,
 		},
-		DisableKeepAlives: true,
+		DisableKeepAlives:     true,
+		ResponseHeaderTimeout: 15 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ForceAttemptHTTP2:     true,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
 	}
 	customHTTPClient.Transport = transport
 	if insecure {
 		transport.TLSClientConfig.InsecureSkipVerify = true
 		return customHTTPClient
 	}
+	log.Debugf("Created custom HTTP transport for git client %+v", transport)
 	parsedURL, err := url.Parse(repoURL)
 	if err != nil {
 		return customHTTPClient
@@ -613,12 +628,20 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
 		res, err = m.lsRemote(revision)
 		if err == nil {
+			log.Debugf("no error when doing ls remote")
 			return
-		} else if apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
+		}
+		log.Debugf("error when doing ls remote is context deadline?: %v", errors.Is(err, context.DeadlineExceeded))
+		log.Debugf("error when doing ls remote: %v", err)
+		log.Debugf("error string when doing ls remote: %s", err.Error())
+		log.Debugf("error type when doing ls remote: %T", err)
+		log.Debugf("is error context deadline exceeded type when doing ls remote: %v", strings.Contains(err.Error(), "context deadline exceeded"))
+		if errors.Is(err, context.DeadlineExceeded) || apierrors.IsInternalError(err) || apierrors.IsTimeout(err) || apierrors.IsServerTimeout(err) ||
 			apierrors.IsTooManyRequests(err) || utilnet.IsProbableEOF(err) || utilnet.IsConnectionReset(err) {
 			// Formula: timeToWait = duration * factor^retry_number
 			// Note that timeToWait should equal to duration for the first retry attempt.
 			// When timeToWait is more than maxDuration retry should be performed at maxDuration.
+			log.Debugf("retryable error when doing ls remote, retrying...")
 			timeToWait := float64(retryDuration) * (math.Pow(float64(factor), float64(attempt)))
 			if maxRetryDuration > 0 {
 				timeToWait = math.Min(float64(maxRetryDuration), timeToWait)
