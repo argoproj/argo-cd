@@ -159,9 +159,10 @@ func (r *redisCache) Delete(key string) error {
 
 func (r *redisCache) DeleteByPattern(key string) error {
 	// we are using go-redis/cache/v9 which doesn't support pattern-based deletion, so we need to do it ourselves
-	iter := r.client.Scan(context.TODO(), 0, r.getKeyPattern(key), 0).Iterator()
+	ctx := context.TODO()
+	iter := r.client.Scan(ctx, 0, r.getKeyPattern(key), 0).Iterator()
 	var keysToDelete []string
-	for iter.Next(context.TODO()) {
+	for iter.Next(ctx) {
 		keysToDelete = append(keysToDelete, iter.Val())
 	}
 	if err := iter.Err(); err != nil {
@@ -170,7 +171,7 @@ func (r *redisCache) DeleteByPattern(key string) error {
 	if len(keysToDelete) == 0 {
 		return nil
 	}
-	return r.client.Del(context.TODO(), keysToDelete...).Err()
+	return r.client.Unlink(ctx, keysToDelete...).Err()
 }
 
 func (r *redisCache) OnUpdated(ctx context.Context, key string, callback func() error) error {
