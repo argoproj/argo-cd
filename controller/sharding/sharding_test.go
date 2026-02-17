@@ -789,17 +789,13 @@ func Test_getOrUpdateShardNumberForController(t *testing.T) {
 }
 
 func TestGetClusterSharding(t *testing.T) {
-	IntPtr := func(i int32) *int32 {
-		return &i
-	}
-
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.DefaultApplicationControllerName,
 			Namespace: "argocd",
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: IntPtr(1),
+			Replicas: new(int32(1)),
 		},
 	}
 
@@ -809,7 +805,7 @@ func TestGetClusterSharding(t *testing.T) {
 			Namespace: "argocd",
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: IntPtr(3),
+			Replicas: new(int32(3)),
 		},
 	}
 
@@ -955,6 +951,19 @@ func TestGetClusterSharding(t *testing.T) {
 			expectedReplicas:   1,
 			expectedErr:        errors.New("(dynamic cluster distribution) failed to get app controller deployment: deployments.apps \"missing-deployment\" not found"),
 		},
+		{
+			name: "Static sharding with missing statefulset continues with warning",
+			envsSetter: func(t *testing.T) {
+				t.Helper()
+				t.Setenv(common.EnvControllerReplicas, "3")
+				t.Setenv(common.EnvAppControllerName, "missing-statefulset")
+			},
+			cleanup:            func() {},
+			useDynamicSharding: false,
+			expectedShard:      0,
+			expectedReplicas:   3,
+			expectedErr:        nil,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -1056,4 +1065,57 @@ spec:
 		panic(err)
 	}
 	return app
+}
+
+func TestGetActualControllerReplicas(t *testing.T) {
+	testCases := []struct {
+		name             string
+		objects          []runtime.Object
+		controllerName   string
+		expectedReplicas int
+		expectError      bool
+	}{
+		{
+			name: "StatefulSet exists",
+			objects: []runtime.Object{
+				&appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      common.DefaultApplicationControllerName,
+						Namespace: "argocd",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Replicas: new(int32(3)),
+					},
+				},
+			},
+			controllerName:   common.DefaultApplicationControllerName,
+			expectedReplicas: 3,
+			expectError:      false,
+		},
+		{
+			name:             "StatefulSet does not exist",
+			objects:          []runtime.Object{},
+			controllerName:   common.DefaultApplicationControllerName,
+			expectedReplicas: 0,
+			expectError:      true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv(common.EnvAppControllerName, tc.controllerName)
+
+			kubeclientset := kubefake.NewSimpleClientset(tc.objects...)
+			settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, "argocd")
+
+			replicas, err := getActualControllerReplicas(kubeclientset, settingsMgr)
+
+			if tc.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.expectedReplicas, replicas)
+			}
+		})
+	}
 }

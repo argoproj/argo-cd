@@ -470,6 +470,16 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 		replicasCount = int(*appControllerDeployment.Spec.Replicas)
 	} else {
 		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+		// Warn if ARGOCD_CONTROLLER_REPLICAS does not match actual replicas
+		if replicasCount > 0 {
+			actualReplicas, err := getActualControllerReplicas(kubeClient, settingsMgr)
+			if err != nil {
+				log.Warnf("Could not verify actual controller replicas: %v", err)
+			} else if replicasCount != actualReplicas {
+				log.Warnf("ARGOCD_CONTROLLER_REPLICAS (%d) does not match the actual replicas (%d). "+
+					"This may cause application processing issues.", replicasCount, actualReplicas)
+			}
+		}
 	}
 	shardNumber := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
 	if replicasCount > 1 {
@@ -508,4 +518,29 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 	}
 	db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
 	return NewClusterSharding(db, shardNumber, replicasCount, shardingAlgorithm), nil
+}
+
+// getActualControllerReplicas returns the actual number of replicas for the application controller
+// by checking the StatefulSet. This is used to warn users when ARGOCD_CONTROLLER_REPLICAS
+// does not match the actual replicas.
+// Note: This function is only called when enableDynamicClusterDistribution is false,
+// which assumes StatefulSet deployment.
+func getActualControllerReplicas(kubeClient kubernetes.Interface, settingsMgr *settings.SettingsManager) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+	namespace := settingsMgr.GetNamespace()
+
+	statefulSet, err := kubeClient.AppsV1().StatefulSets(namespace).Get(ctx, applicationControllerName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return 0, fmt.Errorf("controller statefulset %q not found", applicationControllerName)
+		}
+		return 0, fmt.Errorf("failed to get controller statefulset %q: %w", applicationControllerName, err)
+	}
+	if statefulSet.Spec.Replicas == nil {
+		return 0, fmt.Errorf("controller statefulset %q has no replicas specified", applicationControllerName)
+	}
+	return int(*statefulSet.Spec.Replicas), nil
 }
