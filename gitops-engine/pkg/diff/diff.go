@@ -1000,6 +1000,11 @@ func normalizeRole(un *unstructured.Unstructured, o options) {
 	if un == nil {
 		return
 	}
+
+	if o.serverSideDiff {
+		return
+	}
+	
 	gvk := un.GroupVersionKind()
 	if gvk.Group != "rbac.authorization.k8s.io" || (gvk.Kind != "Role" && gvk.Kind != "ClusterRole") {
 		return

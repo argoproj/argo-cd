@@ -419,6 +419,50 @@ func TestDiffOptionIgnoreAggregateRoles(t *testing.T) {
 	}
 }
 
+func TestDiffOptionIgnoreAggregateRolesServerSideDiff(t *testing.T) {
+	configUn := unmarshalFile("testdata/aggr-clusterrole-config.json")
+	liveUn := unmarshalFile("testdata/aggr-clusterrole-live.json")
+
+	gvkParser := buildGVKParser(t)
+	manager := "argocd-controller"
+	dryRunner := mocks.NewServerSideDryRunner(t)
+
+	liveUnWithManagedFields := liveUn.DeepCopy()
+	liveUnWithManagedFields.SetManagedFields([]metav1.ManagedFieldsEntry{
+		{
+			Manager:   manager,
+			Operation: metav1.ManagedFieldsOperationApply,
+			FieldsV1:  &metav1.FieldsV1{
+				Raw: []byte(`{
+					"f:metadata": {
+						"f:labels": {
+							".": {},
+							"f:rbac.authorization.k8s.io/aggregate-to-test1-admin": {}
+						}
+					}
+				}`)},
+		},
+	})
+
+	liveBytes, err := json.Marshal(liveUnWithManagedFields)
+	require.NoError(t, err)
+
+	dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+		Return(string(liveBytes), nil)
+
+	opts := []Option{
+		IgnoreAggregatedRoles(true),
+		WithGVKParser(gvkParser),
+		WithManager(manager),
+		WithServerSideDryRunner(dryRunner),
+		WithServerSideDiff(true),
+		WithIgnoreMutationWebhook(false),
+	}
+
+	dr := diff(t, configUn, liveUn, opts...)
+	assert.False(t, dr.Modified, "aggregationRule should be preserved in server-side diff")
+}
+
 func TestThreeWayDiffExample2(t *testing.T) {
 	configUn := unmarshalFile("testdata/elasticsearch-config.json")
 	liveUn := unmarshalFile("testdata/elasticsearch-live.json")
