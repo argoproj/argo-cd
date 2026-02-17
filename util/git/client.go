@@ -229,19 +229,21 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 		// If we aren't called with GenericHTTPSCreds, then we just return an empty cert
 		httpsCreds, ok := creds.(GenericHTTPSCreds)
 		if !ok {
+			log.Debug("Not GenericHTTPSCreds, skipping client certificate")
 			return &cert, nil
 		}
 
 		// If the creds contain client certificate data, we return a TLS.Certificate
 		// populated with the cert and its key.
 		if httpsCreds.HasClientCert() {
+			log.Debug("HTTPS Creds, has client certificate")
 			cert, err = tls.X509KeyPair([]byte(httpsCreds.GetClientCertData()), []byte(httpsCreds.GetClientCertKey()))
 			if err != nil {
 				log.Errorf("Could not load Client Certificate: %v", err)
 				return &cert, nil
 			}
 		}
-
+		log.Debug("HTTPS Creds found, but has no client certificate")
 		return &cert, nil
 	}
 	transport := &http.Transport{
@@ -266,6 +268,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 		transport.TLSClientConfig.InsecureSkipVerify = true
 		return customHTTPClient
 	}
+	log.Debugf("Created custom HTTP transport for git client %+v", transport)
 	parsedURL, err := url.Parse(repoURL)
 	if err != nil {
 		return customHTTPClient
