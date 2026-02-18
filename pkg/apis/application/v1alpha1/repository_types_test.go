@@ -151,3 +151,14 @@ func TestGetGitCreds_GitHubApp_OrgExtractionFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to extract organization")
 	assert.Contains(t, err.Error(), "invalid-url-format")
 }
+
+func TestRepository_HasOCIPrefix(t *testing.T) {
+	t.Run("returns true if repo has OCI Prefix", func(t *testing.T) {
+		repo := Repository{Repo: "oci://registry.io/namespace/image:tag"}
+		require.True(t, repo.HasOCIPrefix())
+	})
+	t.Run("returns false if repo doesn't have OCI Prefix", func(t *testing.T) {
+		repo := Repository{Repo: "registry.io/namespace/image:tag"}
+		require.False(t, repo.HasOCIPrefix())
+	})
+}
