@@ -318,9 +318,55 @@ spec:
                     required:
                     - policies
                     type: object
-                required:
-                - git
+                  helm:
+                    description: Helm - policies for Helm chart provenance verification
+                      (traditional repo only; OCI out of scope here)
+                    properties:
+                      policies:
+                        items:
+                          description: SourceIntegrityHelmPolicy applies to Helm repos
+                            matching Repos; GPG verifies .prov signature and allowed
+                            keys.
+                          properties:
+                            gpg:
+                              description: SourceIntegrityHelmPolicyGPG configures
+                                GPG verification of Helm chart provenance.
+                              properties:
+                                keys:
+                                  items:
+                                    type: string
+                                  type: array
+                                mode:
+                                  description: SourceIntegrityHelmPolicyGPGMode controls
+                                    provenance verification.
+                                  type: string
+                              required:
+                              - keys
+                              - mode
+                              type: object
+                            repos:
+                              items:
+                                description: SourceIntegrityHelmPolicyRepo restricts
+                                  which Helm repo URLs the policy applies to (glob).
+                                properties:
+                                  url:
+                                    type: string
+                                required:
+                                - url
+                                type: object
+                              type: array
+                          required:
+                          - gpg
+                          - repos
+                          type: object
+                        type: array
+                    required:
+                    - policies
+                    type: object
                 type: object
+                x-kubernetes-validations:
+                - message: sourceIntegrity must specify at least one of git or helm
+                  rule: self.git != null || self.helm != null
               sourceNamespaces:
                 description: SourceNamespaces defines the namespaces application resources
                   are allowed to be created in

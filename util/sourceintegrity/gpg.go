@@ -420,6 +420,96 @@ func DeletePGPKey(keyID string) error {
 	return nil
 }
 
+// verifyKeyIDFromStatus matches [GNUPG:] GOODSIG <keyID> <uid> from gpg --status-fd output.
+var verifyKeyIDFromStatus = regexp.MustCompile(`(?m)^\[GNUPG:\] GOODSIG ([0-9A-Fa-f]+)`)
+
+// gpgStatusSigRegex matches any signature status line.
+// Used to produce specific errors instead of a generic "did not report GOODSIG".
+var gpgStatusSigRegex = regexp.MustCompile(`(?m)^\[GNUPG:\] (GOODSIG|BADSIG|EXPSIG|EXPKEYSIG|REVKEYSIG|ERRSIG) ([0-9A-Fa-f]+)`)
+
+// VerifyCleartextSignedMessage verifies a PGP cleartext-signed message (e.g. Helm .prov file).
+// It returns the signer's key ID (long form) on success. Uses --status-fd for reliable parsing.
+// Parses the same GPG status-fd format as Git (GOODSIG, ERRSIG, BADSIG, etc.)
+func VerifyCleartextSignedMessage(clearsigned []byte) (signerKeyID string, err error) {
+	log.Infof("++++ GPG VerifyCleartextSignedMessage: verifying prov (%d bytes)", len(clearsigned))
+	f, err := os.CreateTemp("", "gpg-verify-")
+	if err != nil {
+		return "", err
+	}
+	defer os.Remove(f.Name())
+	defer f.Close()
+	if _, err := f.Write(clearsigned); err != nil {
+		return "", err
+	}
+	if err := f.Sync(); err != nil {
+		return "", err
+	}
+
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		return "", err
+	}
+	defer pr.Close()
+	defer pw.Close()
+
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, "gpg", "--no-permission-warning", "--verify", "--status-fd", "3", f.Name())
+	cmd.Env = getGPGEnviron()
+	cmd.ExtraFiles = []*os.File{pw}
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+
+	if err := cmd.Start(); err != nil {
+		return "", err
+	}
+	pw.Close()
+	var sb strings.Builder
+	buf := make([]byte, 512)
+	for {
+		n, err := pr.Read(buf)
+		if n > 0 {
+			sb.Write(buf[:n])
+		}
+		if err != nil {
+			break
+		}
+	}
+	_ = cmd.Wait()
+
+	status := sb.String()
+	if matches := verifyKeyIDFromStatus.FindStringSubmatch(status); len(matches) >= 2 {
+		log.Infof("++++ GPG VerifyCleartextSignedMessage: GOODSIG keyID=%s", matches[1])
+		return matches[1], nil
+	}
+	// Parse other status codes (same format as Git) for clearer errors.
+	for _, submatches := range gpgStatusSigRegex.FindAllStringSubmatch(status, -1) {
+		if len(submatches) < 3 {
+			continue
+		}
+		code, keyID := submatches[1], submatches[2]
+		switch code {
+		case "ERRSIG":
+			log.Warnf("++++ GPG VerifyCleartextSignedMessage: ERRSIG keyID=%s status=%s", keyID, status)
+			if strings.Contains(status, "[GNUPG:] NO_PUBKEY ") {
+				return "", fmt.Errorf("provenance signed with key not in keyring (key_id=%s)", keyID)
+			}
+			return "", fmt.Errorf("gpg verification failed for key %s (ERRSIG)", keyID)
+		case "BADSIG":
+			return "", fmt.Errorf("provenance signature invalid (key_id=%s)", keyID)
+		case "EXPSIG":
+			return "", fmt.Errorf("provenance signature expired (key_id=%s)", keyID)
+		case "EXPKEYSIG":
+			return "", fmt.Errorf("provenance signed with expired key (key_id=%s)", keyID)
+		case "REVKEYSIG":
+			return "", fmt.Errorf("provenance signed with revoked key (key_id=%s)", keyID)
+		default:
+			continue
+		}
+	}
+	log.Warnf("++++ GPG VerifyCleartextSignedMessage: no GOODSIG, status-fd=%q", status)
+	return "", fmt.Errorf("gpg verify did not report GOODSIG (status-fd output: %q)", status)
+}
+
 // IsSecretKey returns true if the keyID also has a private key in the keyring
 func IsSecretKey(keyID string) (bool, error) {
 	args := append([]string{}, "--no-permission-warning", "--list-secret-keys", keyID)
@@ -427,12 +517,28 @@ func IsSecretKey(keyID string) (bool, error) {
 	cmd.Env = getGPGEnviron()
 	out, err := executil.Run(cmd)
 	if err != nil {
-		return false, err
+		if isExecNotFound(err) {
+			// Fall back to gpg when gpg-wrapper.sh is not in PATH (e.g. in unit tests)
+			cmd = exec.CommandContext(context.Background(), "gpg", args...)
+			cmd.Env = getGPGEnviron()
+			out, err = executil.Run(cmd)
+		}
+		if err != nil {
+			// gpg exits 2 when the key has no secret key; treat as "not a secret key"
+			if strings.Contains(err.Error(), "No secret key") {
+				return false, nil
+			}
+			return false, err
+		}
 	}
 	if strings.HasPrefix(out, "gpg: error reading key: No secret key") {
 		return false, nil
 	}
 	return true, nil
+}
+
+func isExecNotFound(err error) bool {
+	return strings.Contains(err.Error(), "executable file not found") || strings.Contains(err.Error(), "no such file or directory")
 }
 
 // GetInstalledPGPKeys runs gpg to retrieve public keys from our keyring. If kids is non-empty, limit result to those key IDs
@@ -588,17 +694,22 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 		if err != nil {
 			return nil, nil, fmt.Errorf("error import PGP keys: %w", err)
 		}
-		if len(addedKey) != 1 {
-			return nil, nil, fmt.Errorf("invalid key found in %s", path.Join(basePath, key))
+		if len(addedKey) < 1 {
+			return nil, nil, fmt.Errorf("no key imported from %s", path.Join(basePath, key))
 		}
-		importedKey, err := GetInstalledPGPKeys([]string{addedKey[0].KeyID})
-		if err != nil {
-			return nil, nil, fmt.Errorf("error get installed PGP keys: %w", err)
-		} else if len(importedKey) != 1 {
-			return nil, nil, fmt.Errorf("could not get details of imported key ID %s", importedKey)
+		// A key file may contain primary+subkeys; gpg reports one line per key imported.
+		for _, k := range addedKey {
+			importedKey, err := GetInstalledPGPKeys([]string{k.KeyID})
+			if err != nil {
+				return nil, nil, fmt.Errorf("error get installed PGP keys: %w", err)
+			}
+			if len(importedKey) != 1 {
+				return nil, nil, fmt.Errorf("could not get details of imported key ID %s", k.KeyID)
+			}
+			fingerprints = append(fingerprints, importedKey[0].Fingerprint)
+			installed[k.KeyID] = importedKey[0]
 		}
 		newKeys = append(newKeys, key)
-		fingerprints = append(fingerprints, importedKey[0].Fingerprint)
 	}
 
 	// Delete all keys from the keyring that are not found in the configuration anymore.

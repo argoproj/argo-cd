@@ -5,9 +5,44 @@ import (
 	"fmt"
 )
 
+// +kubebuilder:validation:XValidation:rule="self.git != null || self.helm != null",message="sourceIntegrity must specify at least one of git or helm"
 type SourceIntegrity struct {
 	// Git - policies for git source verification
-	Git *SourceIntegrityGit `json:"git" protobuf:"bytes,1,name=git"` // A mandatory field until there are alternatives
+	Git *SourceIntegrityGit `json:"git,omitempty" protobuf:"bytes,1,name=git"`
+	// Helm - policies for Helm chart provenance verification (traditional repo only; OCI out of scope here)
+	Helm *SourceIntegrityHelm `json:"helm,omitempty" protobuf:"bytes,2,name=helm"`
+}
+
+// SourceIntegrityHelm holds policies for Helm chart provenance verification.
+type SourceIntegrityHelm struct {
+	Policies []*SourceIntegrityHelmPolicy `json:"policies" protobuf:"bytes,1,name=policies"`
+}
+
+// SourceIntegrityHelmPolicy applies to Helm repos matching Repos; GPG verifies .prov signature and allowed keys.
+type SourceIntegrityHelmPolicy struct {
+	Repos []SourceIntegrityHelmPolicyRepo `json:"repos" protobuf:"bytes,1,name=repos"`
+	GPG   *SourceIntegrityHelmPolicyGPG   `json:"gpg" protobuf:"bytes,2,name=gpg"`
+}
+
+// SourceIntegrityHelmPolicyRepo restricts which Helm repo URLs the policy applies to (glob).
+type SourceIntegrityHelmPolicyRepo struct {
+	URL string `json:"url" protobuf:"bytes,1,name=url"`
+}
+
+// SourceIntegrityHelmPolicyGPGMode controls provenance verification.
+type SourceIntegrityHelmPolicyGPGMode string
+
+const (
+	// SourceIntegrityHelmPolicyGPGModeNone skips verification (e.g. for exceptions).
+	SourceIntegrityHelmPolicyGPGModeNone SourceIntegrityHelmPolicyGPGMode = "none"
+	// SourceIntegrityHelmPolicyGPGModeProvenance requires a .prov file, valid GPG signature, and chart checksum match.
+	SourceIntegrityHelmPolicyGPGModeProvenance SourceIntegrityHelmPolicyGPGMode = "provenance"
+)
+
+// SourceIntegrityHelmPolicyGPG configures GPG verification of Helm chart provenance.
+type SourceIntegrityHelmPolicyGPG struct {
+	Mode SourceIntegrityHelmPolicyGPGMode `json:"mode" protobuf:"bytes,1,name=mode"`
+	Keys []string                         `json:"keys" protobuf:"bytes,2,name=keys"` // Allowed signer key IDs
 }
 
 type SourceIntegrityGit struct {

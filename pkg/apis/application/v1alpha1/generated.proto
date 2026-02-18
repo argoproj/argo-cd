@@ -2625,9 +2625,13 @@ message SourceHydratorStatus {
   optional HydrateOperation currentOperation = 2;
 }
 
+// +kubebuilder:validation:XValidation:rule="self.git != null || self.helm != null",message="sourceIntegrity must specify at least one of git or helm"
 message SourceIntegrity {
   // Git - policies for git source verification
   optional SourceIntegrityGit git = 1;
+
+  // Helm - policies for Helm chart provenance verification (traditional repo only; OCI out of scope here)
+  optional SourceIntegrityHelm helm = 2;
 }
 
 // SourceIntegrityCheckResult represents a conclusion of the SourceIntegrity evaluation.
@@ -2676,6 +2680,30 @@ message SourceIntegrityGitPolicyGPG {
 
 message SourceIntegrityGitPolicyRepo {
   // URL specifier, glob.
+  optional string url = 1;
+}
+
+// SourceIntegrityHelm holds policies for Helm chart provenance verification.
+message SourceIntegrityHelm {
+  repeated SourceIntegrityHelmPolicy policies = 1;
+}
+
+// SourceIntegrityHelmPolicy applies to Helm repos matching Repos; GPG verifies .prov signature and allowed keys.
+message SourceIntegrityHelmPolicy {
+  repeated SourceIntegrityHelmPolicyRepo repos = 1;
+
+  optional SourceIntegrityHelmPolicyGPG gpg = 2;
+}
+
+// SourceIntegrityHelmPolicyGPG configures GPG verification of Helm chart provenance.
+message SourceIntegrityHelmPolicyGPG {
+  optional string mode = 1;
+
+  repeated string keys = 2;
+}
+
+// SourceIntegrityHelmPolicyRepo restricts which Helm repo URLs the policy applies to (glob).
+message SourceIntegrityHelmPolicyRepo {
   optional string url = 1;
 }
 

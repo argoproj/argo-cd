@@ -10650,9 +10650,13 @@
     },
     "v1alpha1SourceIntegrity": {
       "type": "object",
+      "title": "+kubebuilder:validation:XValidation:rule=\"self.git != null || self.helm != null\",message=\"sourceIntegrity must specify at least one of git or helm\"",
       "properties": {
         "git": {
           "$ref": "#/definitions/v1alpha1SourceIntegrityGit"
+        },
+        "helm": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityHelm"
         }
       }
     },
@@ -10732,6 +10736,57 @@
       "properties": {
         "url": {
           "description": "URL specifier, glob.",
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityHelm": {
+      "description": "SourceIntegrityHelm holds policies for Helm chart provenance verification.",
+      "type": "object",
+      "properties": {
+        "policies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SourceIntegrityHelmPolicy"
+          }
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityHelmPolicy": {
+      "description": "SourceIntegrityHelmPolicy applies to Helm repos matching Repos; GPG verifies .prov signature and allowed keys.",
+      "type": "object",
+      "properties": {
+        "gpg": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityHelmPolicyGPG"
+        },
+        "repos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SourceIntegrityHelmPolicyRepo"
+          }
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityHelmPolicyGPG": {
+      "description": "SourceIntegrityHelmPolicyGPG configures GPG verification of Helm chart provenance.",
+      "type": "object",
+      "properties": {
+        "keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mode": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityHelmPolicyRepo": {
+      "description": "SourceIntegrityHelmPolicyRepo restricts which Helm repo URLs the policy applies to (glob).",
+      "type": "object",
+      "properties": {
+        "url": {
           "type": "string"
         }
       }
