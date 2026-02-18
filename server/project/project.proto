@@ -17,7 +17,7 @@ message ProjectCreateRequest {
   bool upsert = 2;
 }
 
-// ProjectTokenCreateRequest defines project token deletion parameters.
+// ProjectTokenDeleteRequest defines project token deletion parameters.
 message ProjectTokenDeleteRequest {
     string project = 1;
     string role = 2;
