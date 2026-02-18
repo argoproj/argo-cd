@@ -491,7 +491,7 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *corev1.Co
 // that matches the policy key name convention:
 //
 //	policy[.overlay].csv
-func PolicyCSV(data map[string]string) string {
+func PolicyCSV(data map[string]string, defaultNS string) string {
 	var strBuilder strings.Builder
 	// add the main policy first
 	if p, ok := data[ConfigMapPolicyCSVKey]; ok {
@@ -514,14 +514,80 @@ func PolicyCSV(data map[string]string) string {
 			strBuilder.WriteString(value)
 		}
 	}
-	return strBuilder.String()
+	return normalizePolicies(strBuilder.String(), defaultNS)
+}
+
+// normalizePolicies normalizes policy lines in PolicyCSV
+func normalizePolicies(policyLines, defaultNS string) string {
+	lines := strings.Split(policyLines, "\n")
+	var normalizedLines []string
+	seen := make(map[string]struct{})
+
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "#") {
+			normalizedLines = append(normalizedLines, trimmedLine)
+			continue
+		}
+
+		normalizedLine := NormalizePolicy(trimmedLine, defaultNS)
+		if _, ok := seen[normalizedLine]; !ok {
+			seen[normalizedLine] = struct{}{}
+			normalizedLines = append(normalizedLines, normalizedLine)
+		}
+	}
+
+	return strings.Join(normalizedLines, "\n")
+}
+
+// NormalizeSubresource normalizes the subresource field in a policy line
+// verify the resource type before normalizing the subresource
+// only run this for project scoped resources (Applications, Applicationsets, Logs, Exec)
+func NormalizeSubresource(subresource, defaultNS string) string {
+	subresource = strings.Trim(subresource, " ")
+	parts := strings.Split(subresource, "/")
+
+	if len(parts) == 2 {
+		// for backward compatibility, <proj>/<appName> and <proj>/<defaultNS>/<appName> are semantically the same
+		// we normalize them to <proj>/<defaultNS>/<appName> format, and check permissions by the normalized format
+		return fmt.Sprintf("%s/%s/%s", parts[0], defaultNS, parts[1])
+	}
+
+	return subresource
+}
+
+// NeedNormalization checks if the subresource should be normalized
+func NeedNormalization(resource string) bool {
+	resource = strings.Trim(resource, " ")
+	return resource == ResourceApplications || resource == ResourceApplicationSets || resource == ResourceLogs || resource == ResourceExec
+}
+
+// NormalizePolicy normalizes a policy line by trimming spaces and normalizing the subresource field
+func NormalizePolicy(policy, defaultNS string) string {
+	policyComponents := strings.Split(policy, ",")
+
+	if len(policyComponents) == 6 && policyComponents[0] == "p" && NeedNormalization(policyComponents[2]) {
+		policyComponents[4] = NormalizeSubresource(policyComponents[4], defaultNS)
+	}
+
+	normalizedPolicy := ""
+	for _, component := range policyComponents {
+		if normalizedPolicy == "" {
+			normalizedPolicy = component
+		} else {
+			normalizedPolicy = fmt.Sprintf("%s, %s", normalizedPolicy, strings.Trim(component, " "))
+		}
+	}
+	return normalizedPolicy
 }
 
 // syncUpdate updates the enforcer
 func (e *Enforcer) syncUpdate(cm *corev1.ConfigMap, onUpdated func(cm *corev1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
-	policyCSV := PolicyCSV(cm.Data)
+	// according to argocd documentation: All resources have to be installed in the Argo CD namespace (by default argocd)
+	// we assume the namespace of the configmap (argocd-rbac-cm) is also in the Argo CD namespace
+	policyCSV := PolicyCSV(cm.Data, cm.Namespace)
 	if err := onUpdated(cm); err != nil {
 		return err
 	}

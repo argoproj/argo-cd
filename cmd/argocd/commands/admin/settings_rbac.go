@@ -208,7 +208,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 				defaultRole = newDefaultRole
 			}
 
-			res := checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode, strict)
+			res := checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode, strict, namespace)
 			if res {
 				if !quiet {
 					fmt.Println("Yes")
@@ -361,7 +361,11 @@ func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string, string) {
 		defaultRole = ""
 	}
 
-	return rbac.PolicyCSV(cm.Data), defaultRole, cm.Data[rbac.ConfigMapMatchModeKey]
+	// according to argocd documentation: All resources have to be installed in the Argo CD namespace (by default argocd)
+	// we assume the namespace of the configmap (argocd-rbac-cm) is also in the Argo CD namespace
+	// if not so, "argocd admin settings rbac validate" and "argocd admin settings rbac can" commands can still work, but
+	// the CLI will refer to the user given namespace but not the Argo CD namespace
+	return rbac.PolicyCSV(cm.Data, cm.Namespace), defaultRole, cm.Data[rbac.ConfigMapMatchModeKey]
 }
 
 // getPolicyConfigMap fetches the RBAC config map from K8s cluster
@@ -375,8 +379,8 @@ func getPolicyConfigMap(ctx context.Context, client kubernetes.Interface, namesp
 
 // checkPolicy checks whether given subject is allowed to execute specified
 // action against specified resource
-func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode string, strict bool) bool {
-	enf := rbac.NewEnforcer(nil, "argocd", "argocd-rbac-cm", nil)
+func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode string, strict bool, namespace string) bool {
+	enf := rbac.NewEnforcer(nil, namespace, "argocd-rbac-cm", nil)
 	enf.SetDefaultRole(defaultRole)
 	enf.SetMatchMode(matchMode)
 	if builtinPolicy != "" {
@@ -411,13 +415,13 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 
 	// Some project scoped resources have a special notation - for simplicity's sake,
 	// if user gives no sub-resource (or specifies simple '*'), we construct
-	// the required notation by setting subresource to '*/*'.
+	// the required notation by setting subresource to '*/*/*'.
 	if rbac.ProjectScoped[realResource] {
 		if subResource == "*" || subResource == "" {
-			subResource = "*/*"
+			subResource = "*/*/*"
 		}
 	}
-	return enf.Enforce(subject, realResource, action, subResource)
+	return enf.Enforce(subject, realResource, action, rbac.NormalizeSubresource(subResource, namespace))
 }
 
 // resolveRBACResourceName resolves a user supplied value to a valid RBAC

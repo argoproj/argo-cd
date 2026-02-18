@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
@@ -93,7 +94,7 @@ func globMatch(pattern string, val string) bool {
 	return false
 }
 
-func getModification(modification string, resource string, scope string, permission string) (func(string, string) string, error) {
+func getModification(modification string, resource string, scope string, permission string, namespace string) (func(string, string) string, error) {
 	switch modification {
 	case "set":
 		if scope == "" {
@@ -103,7 +104,11 @@ func getModification(modification string, resource string, scope string, permiss
 			return nil, stderrors.New("flag --permission cannot be empty if permission should be set in role")
 		}
 		return func(proj string, action string) string {
-			return fmt.Sprintf("%s, %s, %s/%s, %s", resource, action, proj, scope, permission)
+			subresource := fmt.Sprintf("%s/%s", proj, scope)
+			if rbac.NeedNormalization(resource) {
+				subresource = rbac.NormalizeSubresource(subresource, namespace)
+			}
+			return fmt.Sprintf("%s, %s, %s, %s", resource, action, subresource, permission)
 		}, nil
 	case "remove":
 		return func(_ string, _ string) string {
@@ -181,7 +186,7 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 			errors.CheckError(err)
 			appclients := appclientset.NewForConfigOrDie(config)
 
-			modification, err := getModification(modificationType, resource, scope, permission)
+			modification, err := getModification(modificationType, resource, scope, permission, namespace)
 			errors.CheckError(err)
 			projIf := appclients.ArgoprojV1alpha1().AppProjects(namespace)
 
