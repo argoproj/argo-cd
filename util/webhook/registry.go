@@ -159,12 +159,14 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *WebhookRegistryEvent) 
 
 		for _, source := range sources {
 			if normalizeOCI(source.RepoURL) != normalizeOCI(repoURL) {
-				fmt.Println("skipping normalizing")
+				log.Info("Skipping normalizing since URLs doesn't match")
 				continue
 			}
 			if !compareRevisions(revision, source.TargetRevision) {
-				fmt.Println("revision not matching, skipping")
-				fmt.Println("revision", revision, "targetRevision", source.TargetRevision)
+				log.WithFields(log.Fields{
+					"revision":       revision,
+					"targetRevision": source.TargetRevision,
+				}).Info("revision and TargetRevision are not matching")
 				continue
 			}
 			log.Infof("Refreshing app '%s' due to OCI push %s:%s",
