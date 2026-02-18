@@ -528,7 +528,14 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			}
 			sources = appSpec.GetSources()
 		} else {
-			source := a.Spec.GetSource()
+			// For sourceHydrator applications, use the dry source to generate manifests
+			var source v1alpha1.ApplicationSource
+			if a.Spec.SourceHydrator != nil {
+				source = a.Spec.SourceHydrator.GetDrySource()
+			} else {
+				source = a.Spec.GetSource()
+			}
+
 			if q.GetRevision() != "" {
 				source.TargetRevision = q.GetRevision()
 			}

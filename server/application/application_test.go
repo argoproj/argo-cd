@@ -2721,6 +2721,39 @@ func TestGetManifests_WithNoCache(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestGetManifests_SourceHydrator(t *testing.T) {
+	testApp := newTestApp()
+	testApp.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://github.com/org/dry-repo",
+			Path:           "manifests/dry",
+			TargetRevision: "main",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			Path: "manifests/sync",
+		},
+	}
+
+	appServer := newTestAppServer(t, testApp)
+
+	mockRepoServiceClient := mocks.RepoServerServiceClient{}
+
+	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.MatchedBy(func(mr *apiclient.ManifestRequest) bool {
+		return mr.Repo.Repo == "https://github.com/org/dry-repo" &&
+			mr.ApplicationSource.Path == "manifests/dry" &&
+			mr.Revision == "some-revision"
+	})).Return(&apiclient.ManifestResponse{}, nil)
+
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+
+	_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
+		Name:     &testApp.Name,
+		Revision: ptr.To("some-revision"),
+	})
+	require.NoError(t, err)
+	mockRepoServiceClient.AssertExpectations(t)
+}
+
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
 	testApp.Status.History = []v1alpha1.RevisionHistory{{
