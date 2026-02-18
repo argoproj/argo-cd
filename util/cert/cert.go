@@ -271,6 +271,37 @@ func TokenizedDataToPublicKey(hostname string, subType string, rawKeyData string
 	return hostnames, keyData, nil
 }
 
+// GetHostKeyAlgorithmsFromPath reads a known_hosts file and returns the unique
+// host key algorithm types found. This is used to configure SSH client's
+// HostKeyAlgorithms to match the algorithms present in the known_hosts file,
+// which is required for go-git 5.16.0+ compatibility.
+func GetHostKeyAlgorithmsFromPath(path string) ([]string, error) {
+	entries, err := ParseSSHKnownHostsFromPath(path)
+	if err != nil {
+		return nil, err
+	}
+	return getHostKeyAlgorithmsFromEntries(entries), nil
+}
+
+// getHostKeyAlgorithmsFromEntries extracts unique key types from known_hosts entries
+func getHostKeyAlgorithmsFromEntries(entries []string) []string {
+	seen := make(map[string]struct{})
+	var algos []string
+
+	for _, entry := range entries {
+		_, keyType, _, err := TokenizeSSHKnownHostsEntry(entry)
+		if err != nil {
+			continue
+		}
+		if _, ok := seen[keyType]; !ok {
+			seen[keyType] = struct{}{}
+			algos = append(algos, keyType)
+		}
+	}
+
+	return algos
+}
+
 // Returns the requested pattern with all possible square brackets escaped
 func nonBracketedPattern(pattern string) string {
 	ret := strings.ReplaceAll(pattern, "[", `\[`)
