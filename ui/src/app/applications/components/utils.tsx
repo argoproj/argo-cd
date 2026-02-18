@@ -741,7 +741,7 @@ function getActionItems(
 
     const logsAction = isApp(application)
         ? services.accounts
-              .canI('logs', 'get', application.spec.project + '/' + application.metadata.name)
+              .canI('logs', 'get', getCanISubresource(application))
               .then(async allowed => {
                   if (allowed && (isPod || findChildPod(resource, tree as appModels.ApplicationTree))) {
                       return [
@@ -768,7 +768,7 @@ function getActionItems(
         ? services.authService
               .settings()
               .then(async settings => {
-                  const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+                  const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', getCanISubresource(application)));
                   if (isPod && execAllowed) {
                       return [
                           {
@@ -2036,4 +2036,14 @@ export function formatResourceInfo(name: string, value: string): {displayValue: 
         displayValue: value,
         tooltipValue: `${name}: ${value}`
     };
+}
+
+export function getCanISubresource(app: appModels.Application): string {
+    if (typeof app.metadata.namespace === 'undefined' || app.metadata.namespace === '') {
+        // we assume applications in this case would be under default namespace
+        // we can return <proj>/<app> here, and
+        // argocd server transforms <proj>/<app> to <proj>/<defaultNS>/<app> for backward compatibility
+        return `${app.spec.project}/${app.metadata.name}`;
+    }
+    return `${app.spec.project}/${app.metadata.namespace}/${app.metadata.name}`;
 }

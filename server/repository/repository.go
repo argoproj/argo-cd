@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -296,7 +297,7 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 	// This endpoint causes us to clone git repos & invoke config management tooling for the purposes
 	// of app discovery. Only allow this to happen if user has privileges to create or update the
 	// application which it wants to retrieve these details for.
-	appRBACresource := fmt.Sprintf("%s/%s", q.AppProject, q.AppName)
+	appRBACresource := security.RBACName(s.namespace, q.AppProject, s.namespace, q.AppName)
 	if !s.enf.Enforce(claims, rbac.ResourceApplications, rbac.ActionCreate, appRBACresource) &&
 		!s.enf.Enforce(claims, rbac.ResourceApplications, rbac.ActionUpdate, appRBACresource) {
 		return nil, common.PermissionDeniedAPIError
@@ -344,7 +345,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	}
 	appName, appNs := argo.ParseFromQualifiedName(q.AppName, s.settings.GetNamespace())
 	app, err := s.appLister.Applications(appNs).Get(appName)
-	appRBACObj := createRBACObject(q.AppProject, q.AppName)
+	appRBACObj := security.RBACName(s.namespace, q.AppProject, appNs, q.AppName)
 	// ensure caller has read privileges to app
 	if err := s.enf.EnforceErr(claims, rbac.ResourceApplications, rbac.ActionGet, appRBACObj); err != nil {
 		return nil, err
