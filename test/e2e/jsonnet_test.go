@@ -75,7 +75,8 @@ func TestJsonnetTlaParameterAppliedCorrectly(t *testing.T) {
 }
 
 func TestJsonnetTlaEnv(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("jsonnet-tla-cm").
 		When().
 		CreateApp("--jsonnet-tla-str", "foo=$ARGOCD_APP_NAME", "--jsonnet-tla-code", "bar='$ARGOCD_APP_NAME'").
@@ -84,13 +85,14 @@ func TestJsonnetTlaEnv(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			assert.Equal(t, Name(), errors.NewHandler(t).FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
-			assert.Equal(t, Name(), errors.NewHandler(t).FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.bar}")).(string))
+			assert.Equal(t, ctx.GetName(), errors.NewHandler(t).FailOnErr(Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
+			assert.Equal(t, ctx.GetName(), errors.NewHandler(t).FailOnErr(Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.bar}")).(string))
 		})
 }
 
 func TestJsonnetExtVarEnv(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("jsonnet-ext-var").
 		When().
 		CreateApp("--jsonnet-ext-var-str", "foo=$ARGOCD_APP_NAME", "--jsonnet-ext-var-code", "bar='$ARGOCD_APP_NAME'").
@@ -99,8 +101,8 @@ func TestJsonnetExtVarEnv(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(_ *Application) {
-			assert.Equal(t, Name(), errors.NewHandler(t).FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
-			assert.Equal(t, Name(), errors.NewHandler(t).FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.bar}")).(string))
+			assert.Equal(t, ctx.GetName(), errors.NewHandler(t).FailOnErr(Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string))
+			assert.Equal(t, ctx.GetName(), errors.NewHandler(t).FailOnErr(Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.bar}")).(string))
 		})
 }
 
