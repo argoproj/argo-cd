@@ -379,7 +379,8 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 					confirm, confirmAll = promptUtil.ConfirmBaseOnCount(messageForSingle, messageForAll, numOfApps)
 				}
 				if confirm || confirmAll {
-					// Start watching before delete if --wait is requested to avoid race condition
+					// Start watch before delete so we can wait for the Deleted event.
+					// Server sends synthetic Deleted when the AppSet is already deleted
 					var appEventCh chan *arogappsetv1.ApplicationSetWatchEvent
 					if wait {
 						appEventCh = acdClient.WatchApplicationSetWithRetry(ctx, appSetQualifiedName, "")
@@ -390,7 +391,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 					if wait {
 						for appEvent := range appEventCh {
-							if appEvent.Type == k8swatch.Deleted {
+							if appEvent != nil && appEvent.Type == k8swatch.Deleted {
 								break
 							}
 						}
