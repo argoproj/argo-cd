@@ -372,6 +372,18 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
+	// Update resources status after create/update/delete so it reflects the actual cluster state.
+	// Previously this ran before createOrUpdateInCluster, so on first creation currentApplications
+	// was empty and resources/resourcesCount were not populated until a subsequent reconcile.
+	currentApplications, err = r.getCurrentApplications(ctx, applicationSetInfo)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
+	}
+	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to update resources status for application set: %w", err)
+	}
+
 	if applicationSetInfo.RefreshRequired() {
 		delete(applicationSetInfo.Annotations, common.AnnotationApplicationSetRefresh)
 		err := r.Update(ctx, &applicationSetInfo)
