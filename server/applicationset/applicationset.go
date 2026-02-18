@@ -118,8 +118,22 @@ func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicatio
 		sort.Slice(appsets, func(i, j int) bool {
 			return appsets[i].QualifiedName() < appsets[j].QualifiedName()
 		})
+		found := false
 		for i := range appsets {
+			if appsets[i].Name == appsetName && (appsetNs == "" || appsets[i].Namespace == appsetNs) {
+				found = true
+			}
 			sendIfPermitted(*appsets[i], watch.Added)
+		}
+		if !found {
+			// Requested ApplicationSet not in cache; send Deleted so watchers get a definitive state.
+			_ = ws.Send(&v1alpha1.ApplicationSetWatchEvent{
+				Type: watch.Deleted,
+				ApplicationSet: v1alpha1.ApplicationSet{
+					ObjectMeta: metav1.ObjectMeta{Name: appsetName, Namespace: appsetNs},
+				},
+			})
+			return nil
 		}
 	}
 	unsubscribe := s.appSetBroadcaster.Subscribe(events)
