@@ -139,7 +139,7 @@ $ argocd app set guestbook --sync-option ApplyOutOfSyncOnly=true
 
 By default, extraneous resources get pruned using the foreground deletion policy. The propagation policy can be controlled
 using the `PrunePropagationPolicy` sync option. Supported policies are background, foreground, and orphan.
-More information about those policies can be found [here](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#controlling-how-the-garbage-collector-deletes-dependents).
+More information about those policies can be found in the Kubernetes [Garbage Collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) documentation.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -334,7 +334,7 @@ When client-side apply migration is enabled:
    - Move the 'last-applied-configuration' annotation to be managed by the specified manager
    - Perform the server-side apply, which will auto migrate all the fields under the manager that owns the 'last-applied-configuration' annotation.
 
-This feature is based on Kubernetes' [client-side apply migration KEP](https://github.com/alexzielenski/enhancements/blob/03df8820b9feca6d2cab78e303c99b2c9c0c4c5c/keps/sig-cli/3517-kubectl-client-side-apply-migration/README.md), which provides the auto migration from client-side to server-side apply.
+This feature is based on Kubernetes' [client-side to server-side apply migration](https://kubernetes.io/docs/reference/using-api/server-side-apply/#migration-between-client-side-and-server-side-apply).
 
 ## Fail the sync if a shared resource is found
 

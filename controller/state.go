@@ -11,17 +11,17 @@ import (
 	goSync "sync"
 	"time"
 
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync"
-	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
-	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/gitops-engine/pkg/sync/syncwaves"
-	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
+	hookutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/ignore"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/syncwaves"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -229,6 +229,11 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		return nil, nil, false, fmt.Errorf("failed to get ref sources: %w", err)
 	}
 
+	var syncedRefSources v1alpha1.RefTargetRevisionMapping
+	if app.Spec.HasMultipleSources() {
+		syncedRefSources = argo.GetSyncedRefSources(refSources, sources, app.Status.Sync.Revisions)
+	}
+
 	revisionsMayHaveChanges := false
 
 	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
@@ -255,9 +260,6 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 		appNamespace := app.Spec.Destination.Namespace
 		apiVersions := argo.APIResourcesToStrings(apiResources, true)
-		if !sendRuntimeState {
-			appNamespace = ""
-		}
 
 		updateRevisions := processManifestGeneratePathsEnabled &&
 			// updating revisions result is not required if automated sync is not enabled
@@ -266,14 +268,14 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			// just reading pre-generated manifests is comparable to updating revisions time-wise
 			app.Status.SourceType != v1alpha1.ApplicationSourceTypeDirectory
 
-		if updateRevisions && repo.Depth == 0 && !source.IsHelm() && !source.IsOCI() && syncedRevision != "" && syncedRevision != revision && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
+		if updateRevisions && repo.Depth == 0 && syncedRevision != "" && !source.IsRef() && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" && (syncedRevision != revision || app.Spec.HasMultipleSources()) {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
 			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 				Repo:               repo,
 				Revision:           revision,
 				SyncedRevision:     syncedRevision,
 				NoRevisionCache:    noRevisionCache,
-				Paths:              path.GetAppRefreshPaths(app),
+				Paths:              path.GetSourceRefreshPaths(app, source),
 				AppLabelKey:        appLabelKey,
 				AppName:            app.InstanceName(m.namespace),
 				Namespace:          appNamespace,
@@ -282,12 +284,14 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 				ApiVersions:        apiVersions,
 				TrackingMethod:     trackingMethod,
 				RefSources:         refSources,
+				SyncedRefSources:   syncedRefSources,
 				HasMultipleSources: app.Spec.HasMultipleSources(),
 				InstallationID:     installationID,
 			})
 			if err != nil {
 				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
 			}
+
 			if updateRevisionResult.Changes {
 				revisionsMayHaveChanges = true
 			}
@@ -296,7 +300,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			if updateRevisionResult.Revision != "" {
 				revision = updateRevisionResult.Revision
 			}
-		} else {
+		} else if !source.IsRef() {
 			// revisionsMayHaveChanges is set to true if at least one revision is not possible to be updated
 			revisionsMayHaveChanges = true
 		}
@@ -886,10 +890,19 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			Hook:            isHook(obj),
 			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
 			RequiresDeletionConfirmation: targetObj != nil && resourceutil.HasAnnotationOption(targetObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm) ||
-				liveObj != nil && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm),
+				liveObj != nil && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm) ||
+				targetObj != nil && resourceutil.HasAnnotationOption(targetObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionPruneRequireConfirm) ||
+				liveObj != nil && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionPruneRequireConfirm),
 		}
 		if targetObj != nil {
 			resState.SyncWave = int64(syncwaves.Wave(targetObj))
+		} else if resState.Hook {
+			for _, hookObj := range reconciliation.Hooks {
+				if hookObj.GetName() == liveObj.GetName() && hookObj.GetKind() == liveObj.GetKind() && hookObj.GetNamespace() == liveObj.GetNamespace() {
+					resState.SyncWave = int64(syncwaves.Wave(hookObj))
+					break
+				}
+			}
 		}
 
 		var diffResult diff.DiffResult

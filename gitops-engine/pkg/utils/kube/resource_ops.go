@@ -32,9 +32,9 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/openapi"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
 )
 
 // ResourceOperations provides methods to manage k8s resources
@@ -119,7 +119,7 @@ func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj 
 	defer io.DeleteFile(manifestFile.Name())
 
 	var out []string
-	// rbac resouces are first applied with auth reconcile kubectl feature.
+	// rbac resources are first applied with auth reconcile kubectl feature.
 	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
 		outReconcile, err := k.rbacReconcile(ctx, obj, manifestFile.Name(), dryRunStrategy)
 		if err != nil {

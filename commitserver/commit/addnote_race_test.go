@@ -35,7 +35,7 @@ func TestAddNoteConcurrentStaggered(t *testing.T) {
 
 	// Create separate clones for concurrent operations
 	cloneClients := make([]git.Client, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		cloneClients[i] = getClientForClone(t, remotePath)
 	}
 
@@ -43,7 +43,7 @@ func TestAddNoteConcurrentStaggered(t *testing.T) {
 	var wg sync.WaitGroup
 	errors := make([]error, 3)
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
@@ -81,7 +81,7 @@ func TestAddNoteConcurrentSimultaneous(t *testing.T) {
 
 	// Create separate clones for concurrent operations
 	cloneClients := make([]git.Client, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		cloneClients[i] = getClientForClone(t, remotePath)
 	}
 
@@ -89,7 +89,7 @@ func TestAddNoteConcurrentSimultaneous(t *testing.T) {
 	var wg sync.WaitGroup
 	startChan := make(chan struct{})
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()

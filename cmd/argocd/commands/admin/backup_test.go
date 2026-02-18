@@ -7,7 +7,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/security"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -295,7 +295,8 @@ spec:
     spec:
       destination: {}
       project: ""
-status: {}
+status:
+  health: {}
 ---
 `,
 		},
@@ -325,7 +326,8 @@ spec:
     spec:
       destination: {}
       project: ""
-status: {}
+status:
+  health: {}
 ---
 `,
 		},

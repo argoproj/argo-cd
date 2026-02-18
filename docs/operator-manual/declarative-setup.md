@@ -504,7 +504,7 @@ stringData:
   username: my-username
 ```
 
-A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not beeing respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
+A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not being respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
 
 ## Clusters
 
@@ -630,7 +630,7 @@ This setup requires:
 3. A role created for each cluster being added to Argo CD that is assumable by the Argo CD management role
 4. An [Access Entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) within each EKS cluster added to Argo CD that gives the cluster's role (from point 3) RBAC permissions
 to perform actions within the cluster
-    - Or, alternatively, an entry within the `aws-auth` ConfigMap within the cluster added to Argo CD ([depreciated by EKS](https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html))
+    - Or, alternatively, an entry within the `aws-auth` ConfigMap within the cluster added to Argo CD ([deprecated by EKS](https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html))
 
 #### Argo CD Management Role
 
@@ -725,7 +725,7 @@ The 3 service accounts need to be modified to include an annotation with the Arg
 Here's an example service account configurations for `argocd-application-controller`, `argocd-applicationset-controller`, and `argocd-server`.
 
 > [!WARNING]
-Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
+> Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
 
 **for IRSA:**   
 ```yaml
@@ -880,7 +880,7 @@ associated EKS cluster.
 
 **AWS Auth (Deprecated)**
 
-Instead of using Access Entries, you may need to use the depreciated `aws-auth`.
+Instead of using Access Entries, you may need to use the deprecated `aws-auth`.
 
 If so, the `roleARN` of each managed cluster needs to be added to each respective cluster's `aws-auth` config map (see
 [Enabling IAM principal access to your cluster](https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html)), as

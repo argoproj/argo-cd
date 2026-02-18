@@ -35,7 +35,7 @@ func NewCommand() *cobra.Command {
 		metricsHost string
 	)
 	command := &cobra.Command{
-		Use:   "argocd-commit-server",
+		Use:   common.CommandCommitServer,
 		Short: "Run Argo CD Commit Server",
 		Long:  "Argo CD Commit Server is an internal service which commits and pushes hydrated manifests to git. This command runs Commit Server in the foreground.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -91,13 +91,11 @@ func NewCommand() *cobra.Command {
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 			wg := sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				s := <-sigCh
 				log.Printf("got signal %v, attempting graceful shutdown", s)
 				grpc.GracefulStop()
-				wg.Done()
-			}()
+			})
 
 			log.Println("starting grpc server")
 			err = grpc.Serve(listener)
