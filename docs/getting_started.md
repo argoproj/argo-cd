@@ -84,7 +84,7 @@ kubectl get svc argocd-server -n argocd -o=jsonpath='{.status.loadBalancer.ingre
 Follow the [ingress documentation](operator-manual/ingress.md) on how to configure Argo CD with ingress.
 
 ### Port Forwarding
-kubectl port-forward can also be used to connect to the API server without exposing the service.
+`kubectl port-forward` can also be used to connect to the API server without exposing the service.
 
 ```bash
 kubectl port-forward svc/argocd-server -n argocd 8080:443
