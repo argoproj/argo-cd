@@ -85,7 +85,6 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var (
@@ -141,7 +140,6 @@ func Test_GetChangePasswordSSOTokenMaxAge(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.envValue != "" {
 				t.Setenv(EnvChangePasswordSSOTokenMaxAge, tc.envValue)
