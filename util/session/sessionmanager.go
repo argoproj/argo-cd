@@ -287,9 +287,12 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		return nil, "", fmt.Errorf("account %s does not have '%s' capability", subject, capability)
 	}
 
-	if id == "" || mgr.storage.IsTokenRevoked(id) {
+	switch {
+	case id == "":
+		return nil, "", errors.New("token does not have a unique identifier (jti claim) and cannot be validated")
+	case mgr.storage.IsTokenRevoked(id):
 		return nil, "", errors.New("token is revoked, please re-login")
-	} else if capability == settings.AccountCapabilityApiKey && account.TokenIndex(id) == -1 {
+	case capability == settings.AccountCapabilityApiKey && account.TokenIndex(id) == -1:
 		return nil, "", fmt.Errorf("account %s does not have token with id %s", subject, id)
 	}
 
@@ -303,10 +306,12 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		remainingDuration := time.Until(exp)
 
 		if remainingDuration < autoRegenerateTokenDuration && capability == settings.AccountCapabilityLogin {
-			if uniqueId, err := uuid.NewRandom(); err == nil {
-				if val, err := mgr.Create(fmt.Sprintf("%s:%s", subject, settings.AccountCapabilityLogin), int64(tokenExpDuration.Seconds()), uniqueId.String()); err == nil {
-					newToken = val
-				}
+			var uniqueId uuid.UUID
+			if uniqueId, err = uuid.NewRandom(); err != nil {
+				return nil, "", fmt.Errorf("could not create UUID for new JWT token: %w", err)
+			}
+			if newToken, err = mgr.Create(fmt.Sprintf("%s:%s", subject, settings.AccountCapabilityLogin), int64(tokenExpDuration.Seconds()), uniqueId.String()); err != nil {
+				return nil, "", fmt.Errorf("could not create new JWT token: %w", err)
 			}
 		}
 	}
@@ -594,6 +599,20 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 				return claims, "", common.ErrTokenVerification
 			}
 			return nil, "", common.ErrTokenVerification
+		}
+
+		id, ok := claims["jti"].(string)
+		if !ok {
+			log.Warnf("token does not have jti claim")
+			id = ""
+		}
+		// Workaround for Dex token, because does not have jti.
+		if id == "" {
+			id = idToken.AccessTokenHash
+		}
+
+		if mgr.storage.IsTokenRevoked(id) {
+			return nil, "", errors.New("token is revoked, please re-login")
 		}
 
 		var claims jwt.MapClaims

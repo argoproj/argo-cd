@@ -1029,6 +1029,44 @@ func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (st
 	return RunWithStdinWithRedactor(stdin, "", "../../dist/argocd", redactor, args...)
 }
 
+// RunCliWithToken executes an Argo CD CLI command using a specific auth token
+// instead of the global test token. This is useful for session/logout tests
+// that need to verify behavior with multiple or revoked tokens.
+func RunCliWithToken(authToken string, args ...string) (string, error) {
+	if plainText {
+		args = append(args, "--plaintext")
+	}
+
+	args = append(args, "--server", apiServerAddress, "--auth-token", authToken, "--insecure")
+
+	redactor := func(text string) string {
+		if authToken == "" {
+			return text
+		}
+		authTokenPattern := "--auth-token " + authToken
+		return strings.ReplaceAll(text, authTokenPattern, "--auth-token ******")
+	}
+
+	return RunWithStdinWithRedactor("", "", "../../dist/argocd", redactor, args...)
+}
+
+// RunCliWithConfigFile executes an Argo CD CLI command using a custom config file
+// instead of the global test config. This is used by session/logout tests to
+// isolate per-token state across login/logout cycles.
+func RunCliWithConfigFile(configPath string, args ...string) (string, error) {
+	if plainText {
+		args = append(args, "--plaintext")
+	}
+
+	args = append(args, "--server", apiServerAddress, "--config", configPath, "--insecure")
+
+	redactor := func(text string) string {
+		return text
+	}
+
+	return RunWithStdinWithRedactor("", "", "../../dist/argocd", redactor, args...)
+}
+
 // RunPluginCli executes an Argo CD CLI plugin with optional stdin input.
 func RunPluginCli(stdin string, args ...string) (string, error) {
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
