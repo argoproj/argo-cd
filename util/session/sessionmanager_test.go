@@ -236,10 +236,6 @@ func (tm *tokenVerifierMock) VerifyToken(_ context.Context, _ string) (jwt.Claim
 	return tm.claims, "", tm.err
 }
 
-func strPointer(str string) *string {
-	return &str
-}
-
 func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	handlerFunc := func() func(http.ResponseWriter, *http.Request) {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -289,7 +285,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			verifyTokenErr:       nil,
 			userInfoCacheClaims:  nil,
 			expectedStatusCode:   http.StatusOK,
-			expectedResponseBody: strPointer("{}"),
+			expectedResponseBody: new("{}"),
 		},
 		{
 			name:                 "will be noop if auth is disabled",
@@ -300,7 +296,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			verifyTokenErr:       nil,
 			userInfoCacheClaims:  nil,
 			expectedStatusCode:   http.StatusOK,
-			expectedResponseBody: strPointer("Ok"),
+			expectedResponseBody: new("Ok"),
 		},
 		{
 			name:                 "will return 400 if no cookie header",
@@ -333,7 +329,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			verifyTokenErr:       nil,
 			userInfoCacheClaims:  nil,
 			expectedStatusCode:   http.StatusOK,
-			expectedResponseBody: strPointer("null"),
+			expectedResponseBody: new("null"),
 		},
 		{
 			name:                 "will return 401 if sso is enabled but userinfo response not working",
@@ -344,7 +340,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			verifyTokenErr:       nil,
 			userInfoCacheClaims:  nil, // indicates that the userinfo response will not work since cache is empty and userinfo endpoint not rechable
 			expectedStatusCode:   http.StatusUnauthorized,
-			expectedResponseBody: strPointer("Invalid session"),
+			expectedResponseBody: new("Invalid session"),
 		},
 		{
 			name:                 "will return 200 if sso is enabled and userinfo response from cache is valid",
@@ -355,7 +351,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			verifyTokenErr:       nil,
 			userInfoCacheClaims:  &jwt.MapClaims{"sub": "randomUser", "groups": []string{"superusers"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			expectedStatusCode:   http.StatusOK,
-			expectedResponseBody: strPointer("\"groups\":[\"superusers\"]"),
+			expectedResponseBody: new("\"groups\":[\"superusers\"]"),
 		},
 	}
 	for _, tc := range cases {

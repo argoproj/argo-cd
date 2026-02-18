@@ -15,26 +15,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/mocks"
 )
 
-func createBoolPtr(x bool) *bool {
-	return &x
-}
-
-func createStringPtr(x string) *string {
-	return &x
-}
-
-func createIntPtr(x int) *int {
-	return &x
-}
-
-func createLabelsPtr(x []core.WebApiTagDefinition) *[]core.WebApiTagDefinition {
-	return &x
-}
-
-func createUniqueNamePtr(x string) *string {
-	return &x
-}
-
 func TestListPullRequest(t *testing.T) {
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
@@ -46,19 +26,19 @@ func TestListPullRequest(t *testing.T) {
 
 	pullRequestMock := []git.GitPullRequest{
 		{
-			PullRequestId: createIntPtr(prID),
-			Title:         createStringPtr(prTitle),
-			SourceRefName: createStringPtr("refs/heads/feature-branch"),
-			TargetRefName: createStringPtr("refs/heads/main"),
+			PullRequestId: new(prID),
+			Title:         new(prTitle),
+			SourceRefName: new("refs/heads/feature-branch"),
+			TargetRefName: new("refs/heads/main"),
 			LastMergeSourceCommit: &git.GitCommitRef{
-				CommitId: createStringPtr(prHeadSha),
+				CommitId: new(prHeadSha),
 			},
 			Labels: &[]core.WebApiTagDefinition{},
 			Repository: &git.GitRepository{
-				Name: createStringPtr(repoName),
+				Name: new(repoName),
 			},
 			CreatedBy: &webapi.IdentityRef{
-				UniqueName: createUniqueNamePtr(uniqueName + "@example.com"),
+				UniqueName: new(uniqueName + "@example.com"),
 			},
 		},
 	}
@@ -99,26 +79,26 @@ func TestConvertLabes(t *testing.T) {
 	}{
 		{
 			name:           "empty labels",
-			gotLabels:      createLabelsPtr([]core.WebApiTagDefinition{}),
+			gotLabels:      new([]core.WebApiTagDefinition{}),
 			expectedLabels: []string{},
 		},
 		{
 			name:           "nil labels",
-			gotLabels:      createLabelsPtr(nil),
+			gotLabels:      (*[]core.WebApiTagDefinition)(nil),
 			expectedLabels: []string{},
 		},
 		{
 			name: "one label",
-			gotLabels: createLabelsPtr([]core.WebApiTagDefinition{
-				{Name: createStringPtr("label1"), Active: createBoolPtr(true)},
+			gotLabels: new([]core.WebApiTagDefinition{
+				{Name: new("label1"), Active: new(true)},
 			}),
 			expectedLabels: []string{"label1"},
 		},
 		{
 			name: "two label",
-			gotLabels: createLabelsPtr([]core.WebApiTagDefinition{
-				{Name: createStringPtr("label1"), Active: createBoolPtr(true)},
-				{Name: createStringPtr("label2"), Active: createBoolPtr(true)},
+			gotLabels: new([]core.WebApiTagDefinition{
+				{Name: new("label1"), Active: new(true)},
+				{Name: new("label2"), Active: new(true)},
 			}),
 			expectedLabels: []string{"label1", "label2"},
 		},
@@ -216,7 +196,7 @@ func TestBuildURL(t *testing.T) {
 
 func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
 	args := git.GetPullRequestsByProjectArgs{
-		Project:        createStringPtr("nonexistent"),
+		Project:        new("nonexistent"),
 		SearchCriteria: &git.GitPullRequestSearchCriteria{},
 	}
 

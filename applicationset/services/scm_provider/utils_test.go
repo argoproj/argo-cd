@@ -10,10 +10,6 @@ import (
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-func strp(s string) *string {
-	return &s
-}
-
 func TestFilterRepoMatch(t *testing.T) {
 	provider := &MockProvider{
 		Repos: []*Repository{
@@ -33,7 +29,7 @@ func TestFilterRepoMatch(t *testing.T) {
 	}
 	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
 		{
-			RepositoryMatch: strp("n|hr"),
+			RepositoryMatch: new("n|hr"),
 		},
 	}
 	repos, err := ListRepos(t.Context(), provider, filters, "")
@@ -62,7 +58,7 @@ func TestFilterLabelMatch(t *testing.T) {
 	}
 	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
 		{
-			LabelMatch: strp("^prod-.*$"),
+			LabelMatch: new("^prod-.*$"),
 		},
 	}
 	repos, err := ListRepos(t.Context(), provider, filters, "")
@@ -131,7 +127,7 @@ func TestFilterRepoMatchBadRegexp(t *testing.T) {
 	}
 	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
 		{
-			RepositoryMatch: strp("("),
+			RepositoryMatch: new("("),
 		},
 	}
 	_, err := ListRepos(t.Context(), provider, filters, "")
@@ -148,7 +144,7 @@ func TestFilterLabelMatchBadRegexp(t *testing.T) {
 	}
 	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
 		{
-			LabelMatch: strp("("),
+			LabelMatch: new("("),
 		},
 	}
 	_, err := ListRepos(t.Context(), provider, filters, "")
@@ -182,7 +178,7 @@ func TestFilterBranchMatch(t *testing.T) {
 	}
 	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
 		{
-			BranchMatch: strp("w"),
+			BranchMatch: new("w"),
 		},
 	}
 	repos, err := ListRepos(t.Context(), provider, filters, "")
@@ -213,8 +209,8 @@ func TestMultiFilterAnd(t *testing.T) {
 	}
 	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
 		{
-			RepositoryMatch: strp("w"),
-			LabelMatch:      strp("^prod-.*$"),
+			RepositoryMatch: new("w"),
+			LabelMatch:      new("^prod-.*$"),
 		},
 	}
 	repos, err := ListRepos(t.Context(), provider, filters, "")
@@ -242,10 +238,10 @@ func TestMultiFilterOr(t *testing.T) {
 	}
 	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
 		{
-			RepositoryMatch: strp("e"),
+			RepositoryMatch: new("e"),
 		},
 		{
-			LabelMatch: strp("^prod-.*$"),
+			LabelMatch: new("^prod-.*$"),
 		},
 	}
 	repos, err := ListRepos(t.Context(), provider, filters, "")

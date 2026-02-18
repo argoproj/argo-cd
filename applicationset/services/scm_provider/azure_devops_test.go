@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
 	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
@@ -19,7 +18,7 @@ import (
 )
 
 func s(input string) *string {
-	return ptr.To(input)
+	return new(input)
 }
 
 func TestAzureDevopsRepoHasPath(t *testing.T) {
