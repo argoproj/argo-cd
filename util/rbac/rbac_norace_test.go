@@ -24,7 +24,7 @@ func TestPolicyInformer(t *testing.T) {
 	// access here, but in the mean time I have disabled data race testing of this test.
 
 	cm := fakeConfigMap()
-	cm.Data[ConfigMapPolicyCSVKey] = "p, admin, applications, delete, */*, allow"
+	cm.Data[ConfigMapPolicyCSVKey] = "p, admin, applications, delete, */*/*, allow"
 	kubeclientset := fake.NewClientset(cm)
 	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
 
@@ -37,7 +37,7 @@ func TestPolicyInformer(t *testing.T) {
 
 	loaded := false
 	for i := 1; i <= 20; i++ {
-		if enf.Enforce("admin", "applications", "delete", "foo/bar") {
+		if enf.Enforce("admin", "applications", "delete", "foo/bar/baz") {
 			loaded = true
 			break
 		}
@@ -49,7 +49,7 @@ func TestPolicyInformer(t *testing.T) {
 	delete(cm.Data, ConfigMapPolicyCSVKey)
 	err := enf.syncUpdate(cm, noOpUpdate)
 	require.NoError(t, err)
-	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
+	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar/baz"))
 }
 
 // TestResourceActionWildcards verifies the ability to use wildcards in resources and actions

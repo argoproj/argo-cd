@@ -64,13 +64,13 @@ func TestApplicationSetRBACName(t *testing.T) {
 		namespace := "argocd"
 		a := newTestAppSet("test-appset", namespace, testRepo)
 		a.Spec.Template.Spec.Project = "test"
-		assert.Equal(t, "test/test-appset", a.RBACName("argocd"))
+		assert.Equal(t, "test/argocd/test-appset", a.RBACName("argocd"))
 	})
 
 	t.Run("Test RBAC no ns", func(t *testing.T) {
 		a := newTestAppSet("test-appset", "", testRepo)
 		a.Spec.Template.Spec.Project = "test"
-		assert.Equal(t, "test/test-appset", a.RBACName("argocd"))
+		assert.Equal(t, "test/argocd/test-appset", a.RBACName("argocd"))
 	})
 }
 

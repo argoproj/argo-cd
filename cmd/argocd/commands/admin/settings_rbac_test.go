@@ -131,7 +131,7 @@ func Test_PolicyFromYAML(t *testing.T) {
 	require.Equal(t, "role:unknown", dRole)
 	require.Empty(t, matchMode)
 	require.True(t, checkPolicy("my-org:team-qa", "update", "project", "foo",
-		"", uPol, dRole, matchMode, true))
+		"", uPol, dRole, matchMode, true, "argocd"))
 }
 
 func Test_PolicyFromK8s(t *testing.T) {
@@ -139,79 +139,80 @@ func Test_PolicyFromK8s(t *testing.T) {
 	ctx := t.Context()
 
 	require.NoError(t, err)
+	namespace := "argocd"
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-rbac-cm",
-			Namespace: "argocd",
+			Namespace: namespace,
 		},
 		Data: map[string]string{
 			"policy.csv":     string(data),
 			"policy.default": "role:unknown",
 		},
 	})
-	uPol, dRole, matchMode := getPolicy(ctx, "", kubeclientset, "argocd")
+	uPol, dRole, matchMode := getPolicy(ctx, "", kubeclientset, namespace)
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
 	require.Empty(t, matchMode)
 
 	t.Run("get applications", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "applications", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:user", "get", "applications", "*/*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("get clusters", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "clusters", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:user", "get", "clusters", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("get certificates", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:user", "get", "certificates", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, namespace)
 		require.False(t, ok)
 	})
 	t.Run("get certificates by default role", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", "*", assets.BuiltinPolicyCSV, uPol, "role:readonly", "glob", true)
+		ok := checkPolicy("role:user", "get", "certificates", "*", assets.BuiltinPolicyCSV, uPol, "role:readonly", "glob", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("get certificates by default role without builtin policy", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", "*", "", uPol, "role:readonly", "glob", true)
+		ok := checkPolicy("role:user", "get", "certificates", "*", "", uPol, "role:readonly", "glob", true, namespace)
 		require.False(t, ok)
 	})
 	t.Run("use regex match mode instead of glob", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".*", assets.BuiltinPolicyCSV, uPol, "role:readonly", "regex", true)
+		ok := checkPolicy("role:user", "get", "certificates", ".*", assets.BuiltinPolicyCSV, uPol, "role:readonly", "regex", true, namespace)
 		require.False(t, ok)
 	})
 	t.Run("get logs", func(t *testing.T) {
-		ok := checkPolicy("role:test", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:test", "get", "logs", "*/*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("no-such-user get logs", func(t *testing.T) {
-		ok := checkPolicy("no-such-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("no-such-user", "get", "logs", "*/*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, namespace)
 		require.False(t, ok)
 	})
 	t.Run("log-deny-user get logs", func(t *testing.T) {
-		ok := checkPolicy("log-deny-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("log-deny-user", "get", "logs", "*/*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, namespace)
 		require.False(t, ok)
 	})
 	t.Run("log-allow-user get logs", func(t *testing.T) {
-		ok := checkPolicy("log-allow-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("log-allow-user", "get", "logs", "*/*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("get logs", func(t *testing.T) {
-		ok := checkPolicy("role:test", "get", "logs", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:test", "get", "logs", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("get logs", func(t *testing.T) {
-		ok := checkPolicy("role:test", "get", "logs", "", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:test", "get", "logs", "", assets.BuiltinPolicyCSV, uPol, dRole, "", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("create exec", func(t *testing.T) {
-		ok := checkPolicy("role:test", "create", "exec", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:test", "create", "exec", "*/*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("create applicationsets", func(t *testing.T) {
-		ok := checkPolicy("role:user", "create", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:user", "create", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("delete applicationsets", func(t *testing.T) {
-		ok := checkPolicy("role:user", "delete", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:user", "delete", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true, namespace)
 		require.True(t, ok)
 	})
 }
@@ -223,17 +224,18 @@ func Test_PolicyFromK8sUsingRegex(t *testing.T) {
 p, role:user, clusters, get, .+, allow
 p, role:user, clusters, get, https://kubernetes.*, deny
 p, role:user, applications, get, .*, allow
-p, role:user, applications, create, .*/.*, allow
+p, role:user, applications, create, .*/.*/.*, allow
 p, role:user, applicationsets, create, .*/.*, allow
 p, role:user, applicationsets, delete, .*/.*, allow
-p, role:user, logs, get, .*/.*, allow
-p, role:user, exec, create, .*/.*, allow
+p, role:user, logs, get, .*/.*/.*, allow
+p, role:user, exec, create, .*/.*/.*, allow
 `
 
+	namespace := "argocd"
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-rbac-cm",
-			Namespace: "argocd",
+			Namespace: namespace,
 		},
 		Data: map[string]string{
 			"policy.csv":       policy,
@@ -241,7 +243,7 @@ p, role:user, exec, create, .*/.*, allow
 			"policy.matchMode": "regex",
 		},
 	})
-	uPol, dRole, matchMode := getPolicy(ctx, "", kubeclientset, "argocd")
+	uPol, dRole, matchMode := getPolicy(ctx, "", kubeclientset, namespace)
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
 	require.Equal(t, "regex", matchMode)
@@ -251,43 +253,43 @@ p, role:readonly, certificates, get, .*, allow
 p, role:, certificates, get, .*, allow`
 
 	t.Run("get applications", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "applications", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
+		ok := checkPolicy("role:user", "get", "applications", ".*/.*/.*", builtInPolicy, uPol, dRole, "regex", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("get clusters", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "clusters", ".*", builtInPolicy, uPol, dRole, "regex", true)
+		ok := checkPolicy("role:user", "get", "clusters", ".*", builtInPolicy, uPol, dRole, "regex", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("get certificates", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".*", builtInPolicy, uPol, dRole, "regex", true)
+		ok := checkPolicy("role:user", "get", "certificates", ".*", builtInPolicy, uPol, dRole, "regex", true, namespace)
 		require.False(t, ok)
 	})
 	t.Run("get certificates by default role", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".*", builtInPolicy, uPol, "role:readonly", "regex", true)
+		ok := checkPolicy("role:user", "get", "certificates", ".*", builtInPolicy, uPol, "role:readonly", "regex", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("get certificates by default role without builtin policy", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".*", "", uPol, "role:readonly", "regex", true)
+		ok := checkPolicy("role:user", "get", "certificates", ".*", "", uPol, "role:readonly", "regex", true, namespace)
 		require.False(t, ok)
 	})
 	t.Run("use glob match mode instead of regex", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".+", builtInPolicy, uPol, dRole, "glob", true)
+		ok := checkPolicy("role:user", "get", "certificates", ".+", builtInPolicy, uPol, dRole, "glob", true, namespace)
 		require.False(t, ok)
 	})
 	t.Run("get logs via glob match mode", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "logs", ".*/.*", builtInPolicy, uPol, dRole, "glob", true)
+		ok := checkPolicy("role:user", "get", "logs", ".*/.*/.*", builtInPolicy, uPol, dRole, "glob", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("create exec", func(t *testing.T) {
-		ok := checkPolicy("role:user", "create", "exec", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
+		ok := checkPolicy("role:user", "create", "exec", ".*/.*/.*", builtInPolicy, uPol, dRole, "regex", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("create applicationsets", func(t *testing.T) {
-		ok := checkPolicy("role:user", "create", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
+		ok := checkPolicy("role:user", "create", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", true, namespace)
 		require.True(t, ok)
 	})
 	t.Run("delete applicationsets", func(t *testing.T) {
-		ok := checkPolicy("role:user", "delete", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
+		ok := checkPolicy("role:user", "delete", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", true, namespace)
 		require.True(t, ok)
 	})
 }
