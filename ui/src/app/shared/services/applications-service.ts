@@ -1,6 +1,6 @@
 import * as deepMerge from 'deepmerge';
-import {Observable, timer} from 'rxjs';
-import {filter, map, repeat, retry, switchMap} from 'rxjs/operators';
+import {Observable} from 'rxjs';
+import {filter, map, repeat, retry} from 'rxjs/operators';
 
 import * as models from '../models';
 import {isValidURL} from '../utils';
@@ -125,19 +125,10 @@ export class ApplicationsService {
 
     public watchResourceTree(name: string, appNamespace: string, objectListKind: string): Observable<models.ApplicationTree> {
         const isApplication = objectListKind === 'application';
-        if (isApplication) {
-            // Applications support server-sent events for real-time updates
-            return requests
-                .loadEventSource(`/stream/applications/${name}/resource-tree?appNamespace=${appNamespace}`)
-                .pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
-        } else {
-            // ApplicationSets don't have a streaming endpoint, so we poll every 5 seconds
-            return timer(0, 5000).pipe(
-                switchMap(() =>
-                    this.resourceTree(name, appNamespace, objectListKind).then(tree => tree as models.ApplicationTree)
-                )
-            );
-        }
+        const endpoint = isApplication ? 'applications' : 'applicationsets';
+        return requests
+            .loadEventSource(`/stream/${endpoint}/${name}/resource-tree?appNamespace=${appNamespace}`)
+            .pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
     }
 
     public managedResources(name: string, appNamespace: string, options: {id?: models.ResourceID; fields?: string[]} = {}): Promise<models.ResourceDiff[]> {
@@ -631,14 +622,6 @@ export class ApplicationsService {
 
     public async listApplicationSets(): Promise<models.ApplicationSetList> {
         return requests.get(`/applicationsets`).then(res => res.body as models.ApplicationSetList);
-    }
-
-    public updateAppSetSpec(name: string, appNamespace: string, spec: models.ApplicationSetSpec): Promise<models.ApplicationSetSpec> {
-        return requests
-            .put(`/applicationsets/${name}/spec`)
-            .query({appNamespace})
-            .send(spec)
-            .then(res => res.body as models.ApplicationSetSpec);
     }
 
     public appSetEvents(name: string, appNamespace: string): Promise<models.Event[]> {

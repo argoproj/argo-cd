@@ -36,30 +36,45 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                             <div className='white-box__details'>
                                 <p>{appSet.metadata.name.toLocaleUpperCase()}</p>
                                 <SummaryItem title='NAMESPACE'>{appSet.metadata.namespace}</SummaryItem>
-                                <SummaryItem title='CREATED AT'>
-                                    {appSet.metadata.creationTimestamp && <Timestamp date={appSet.metadata.creationTimestamp} />}
-                                </SummaryItem>
+                                <SummaryItem title='CREATED AT'>{appSet.metadata.creationTimestamp && <Timestamp date={appSet.metadata.creationTimestamp} />}</SummaryItem>
                                 <SummaryItem title='HEALTH'>
                                     <HealthStatusIcon state={{status: healthStatus, message: ''}} /> {healthStatus}
                                 </SummaryItem>
                                 {conditions.length > 0 && (
                                     <SummaryItem title='CONDITIONS'>
                                         <a onClick={() => appContext.navigation.goto('.', {conditions: 'true'}, {replace: true})}>
-                                            {conditionCounts.error > 0 && <span>{conditionCounts.error} Error{conditionCounts.error !== 1 && 's'}</span>}
-                                            {conditionCounts.warning > 0 && <span> {conditionCounts.warning} Warning{conditionCounts.warning !== 1 && 's'}</span>}
+                                            {conditionCounts.error > 0 && (
+                                                <span>
+                                                    {conditionCounts.error} Error{conditionCounts.error !== 1 && 's'}
+                                                </span>
+                                            )}
+                                            {conditionCounts.warning > 0 && (
+                                                <span>
+                                                    {' '}
+                                                    {conditionCounts.warning} Warning{conditionCounts.warning !== 1 && 's'}
+                                                </span>
+                                            )}
                                             {conditionCounts.info > 0 && <span> {conditionCounts.info} Info</span>}
-                                            {conditionCounts.error === 0 && conditionCounts.warning === 0 && conditionCounts.info === 0 && <span>{conditions.length} Condition{conditions.length !== 1 && 's'}</span>}
+                                            {conditionCounts.error === 0 && conditionCounts.warning === 0 && conditionCounts.info === 0 && (
+                                                <span>
+                                                    {conditions.length} Condition{conditions.length !== 1 && 's'}
+                                                </span>
+                                            )}
                                         </a>
                                     </SummaryItem>
                                 )}
                                 <SummaryItem title='LABELS'>
                                     {Object.keys(appSet.metadata.labels || {}).length > 0
-                                        ? Object.entries(appSet.metadata.labels).map(([k, v]) => `${k}=${v}`).join(' ')
+                                        ? Object.entries(appSet.metadata.labels)
+                                              .map(([k, v]) => `${k}=${v}`)
+                                              .join(' ')
                                         : ''}
                                 </SummaryItem>
                                 <SummaryItem title='ANNOTATIONS'>
                                     {Object.keys(appSet.metadata.annotations || {}).length > 0
-                                        ? Object.entries(appSet.metadata.annotations).map(([k, v]) => `${k}=${v}`).join(' ')
+                                        ? Object.entries(appSet.metadata.annotations)
+                                              .map(([k, v]) => `${k}=${v}`)
+                                              .join(' ')
                                         : ''}
                                 </SummaryItem>
                             </div>
@@ -69,12 +84,8 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                             <div className='white-box'>
                                 <div className='white-box__details'>
                                     <p>SYNC POLICY</p>
-                                    <SummaryItem title='APPLICATIONS SYNC'>
-                                        {spec.syncPolicy.applicationsSync || 'sync (default)'}
-                                    </SummaryItem>
-                                    <SummaryItem title='PRESERVE RESOURCES ON DELETION'>
-                                        {spec.syncPolicy.preserveResourcesOnDeletion ? 'true' : 'false'}
-                                    </SummaryItem>
+                                    <SummaryItem title='APPLICATIONS SYNC'>{spec.syncPolicy.applicationsSync || 'sync (default)'}</SummaryItem>
+                                    <SummaryItem title='PRESERVE RESOURCES ON DELETION'>{spec.syncPolicy.preserveResourcesOnDeletion ? 'true' : 'false'}</SummaryItem>
                                 </div>
                             </div>
                         )}
@@ -112,9 +123,7 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                                             <SummaryItem title='DESTINATION SERVER'>
                                                 {spec.template.spec.destination.server || spec.template.spec.destination.name || 'N/A'}
                                             </SummaryItem>
-                                            <SummaryItem title='DESTINATION NAMESPACE'>
-                                                {spec.template.spec.destination.namespace || 'N/A'}
-                                            </SummaryItem>
+                                            <SummaryItem title='DESTINATION NAMESPACE'>{spec.template.spec.destination.namespace || 'N/A'}</SummaryItem>
                                         </>
                                     )}
                                     {spec.template.spec?.source && (
@@ -122,16 +131,16 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                                             <SummaryItem title='REPO URL'>{spec.template.spec.source.repoURL || 'N/A'}</SummaryItem>
                                             <SummaryItem title='TARGET REVISION'>{spec.template.spec.source.targetRevision || 'HEAD'}</SummaryItem>
                                             <SummaryItem title='PATH'>{spec.template.spec.source.path || 'N/A'}</SummaryItem>
-                                            {spec.template.spec.source.chart && (
-                                                <SummaryItem title='CHART'>{spec.template.spec.source.chart}</SummaryItem>
-                                            )}
+                                            {spec.template.spec.source.chart && <SummaryItem title='CHART'>{spec.template.spec.source.chart}</SummaryItem>}
                                         </>
                                     )}
                                     {spec.template.spec?.sources && spec.template.spec.sources.length > 0 && (
                                         <SummaryItem title='SOURCES'>
                                             {spec.template.spec.sources.map((src: any, i: number) => (
                                                 <div key={i} style={{marginBottom: '8px'}}>
-                                                    <div><strong>Source {i + 1}:</strong> {src.repoURL}</div>
+                                                    <div>
+                                                        <strong>Source {i + 1}:</strong> {src.repoURL}
+                                                    </div>
                                                     {src.targetRevision && <div style={{marginLeft: '16px'}}>Revision: {src.targetRevision}</div>}
                                                     {src.path && <div style={{marginLeft: '16px'}}>Path: {src.path}</div>}
                                                     {src.chart && <div style={{marginLeft: '16px'}}>Chart: {src.chart}</div>}
@@ -148,13 +157,7 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
             {
                 title: 'MANIFEST',
                 key: 'manifest',
-                content: (
-                    <YamlEditor
-                        minHeight={800}
-                        input={appSet.spec}
-                        hideModeButtons={true}
-                    />
-                )
+                content: <YamlEditor minHeight={800} input={appSet.spec} hideModeButtons={true} />
             },
             {
                 title: 'EVENTS',
@@ -191,12 +194,7 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                 <h1>{appSet.metadata.name}</h1>
                 <HealthStatusIcon state={{status: healthStatus, message: ''}} />
             </div>
-            <Tabs
-                navTransparent={true}
-                tabs={getTabs()}
-                selectedTabKey={tab}
-                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
-            />
+            <Tabs navTransparent={true} tabs={getTabs()} selectedTabKey={tab} onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})} />
         </div>
     );
 };
