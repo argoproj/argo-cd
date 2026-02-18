@@ -9,17 +9,15 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/util/config"
-
 	"github.com/stretchr/testify/require"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/argoproj/argo-cd/v3/util/config"
 )
 
 func TestGetUsername(t *testing.T) {
-	assert.Equal(t, "admin", GetUsername("admin:login"))
-	assert.Equal(t, "admin", GetUsername("admin"))
-	assert.Empty(t, GetUsername(""))
+	require.Equal(t, "admin", GetUsername("admin:login"))
+	require.Equal(t, "admin", GetUsername("admin"))
+	require.Empty(t, GetUsername(""))
 }
 
 func TestFilePermission(t *testing.T) {
@@ -76,7 +74,7 @@ func TestFilePermission(t *testing.T) {
 			f, err := os.Create(filePath)
 			require.NoError(t, err, "Could not write  create config file: %v", err)
 			defer func() {
-				assert.NoError(t, f.Close())
+				require.NoError(t, f.Close())
 			}()
 
 			err = f.Chmod(c.perm)
@@ -86,7 +84,7 @@ func TestFilePermission(t *testing.T) {
 			require.NoError(t, err, "Could not access the fileinfo: %v", err)
 
 			if err := getFilePermission(fi); err != nil {
-				assert.EqualError(t, err, c.expectedError.Error())
+				require.EqualError(t, err, c.expectedError.Error())
 			} else {
 				require.NoError(t, c.expectedError)
 			}
@@ -120,12 +118,16 @@ users:
 - auth-token: vErrYS3c3tReFRe$hToken
   name: localhost:8080`
 
-const testConfigFilePath = "./testdata/local.config"
+const (
+	testConfigFilePath = "./testdata/local.config"
+	testConfigFileName = "local.config"
+	testWriteFileName  = "write-local.config"
+)
 
 func loadOpts(t *testing.T, opts string) {
 	t.Helper()
 	t.Setenv("ARGOCD_OPTS", opts)
-	assert.NoError(t, config.LoadFlags())
+	require.NoError(t, config.LoadFlags())
 }
 
 func TestGetPromptsEnabled_useCLIOpts_false_localConfigPromptsEnabled_true(t *testing.T) {
@@ -140,7 +142,7 @@ func TestGetPromptsEnabled_useCLIOpts_false_localConfigPromptsEnabled_true(t *te
 
 	loadOpts(t, "--config "+testConfigFilePath)
 
-	assert.True(t, GetPromptsEnabled(false))
+	require.True(t, GetPromptsEnabled(false))
 }
 
 func TestGetPromptsEnabled_useCLIOpts_false_localConfigPromptsEnabled_false(t *testing.T) {
@@ -155,7 +157,7 @@ func TestGetPromptsEnabled_useCLIOpts_false_localConfigPromptsEnabled_false(t *t
 
 	loadOpts(t, "--config "+testConfigFilePath)
 
-	assert.False(t, GetPromptsEnabled(false))
+	require.False(t, GetPromptsEnabled(false))
 }
 
 func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_default(t *testing.T) {
@@ -170,7 +172,7 @@ func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_default(t *testin
 
 	loadOpts(t, "--config "+testConfigFilePath+" --prompts-enabled")
 
-	assert.True(t, GetPromptsEnabled(true))
+	require.True(t, GetPromptsEnabled(true))
 }
 
 func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_true(t *testing.T) {
@@ -185,7 +187,7 @@ func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_true(t *testing.T
 
 	loadOpts(t, "--config "+testConfigFilePath+" --prompts-enabled=true")
 
-	assert.True(t, GetPromptsEnabled(true))
+	require.True(t, GetPromptsEnabled(true))
 }
 
 func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_false(t *testing.T) {
@@ -200,5 +202,127 @@ func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_false(t *testing.
 
 	loadOpts(t, "--config "+testConfigFilePath+" --prompts-enabled=false")
 
-	assert.False(t, GetPromptsEnabled(true))
+	require.False(t, GetPromptsEnabled(true))
+}
+
+func TestGetToken_Exist(t *testing.T) {
+	testFilePath := filepath.Join(t.TempDir(), testConfigFileName)
+	err := os.WriteFile(testFilePath, []byte(testConfig), os.ModePerm)
+	require.NoError(t, err)
+
+	err = os.Chmod(testFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+	localConfig, err := ReadLocalConfig(testFilePath)
+	require.NoError(t, err)
+
+	token := localConfig.GetToken(localConfig.CurrentContext)
+
+	require.Equal(t, "vErrYS3c3tReFRe$hToken", token)
+}
+
+func TestGetToken_Not_Exist(t *testing.T) {
+	testFilePath := filepath.Join(t.TempDir(), testConfigFileName)
+	err := os.WriteFile(testFilePath, []byte(testConfig), os.ModePerm)
+	require.NoError(t, err)
+
+	err = os.Chmod(testFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+	localConfig, err := ReadLocalConfig(testFilePath)
+	require.NoError(t, err)
+
+	// serverName does exist in TestConfig
+	token := localConfig.GetToken("localhost")
+
+	require.Empty(t, token)
+}
+
+func TestRemoveToken_Exist(t *testing.T) {
+	testFilePath := filepath.Join(t.TempDir(), testConfigFileName)
+	err := os.WriteFile(testFilePath, []byte(testConfig), os.ModePerm)
+	require.NoError(t, err)
+
+	err = os.Chmod(testFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+	localConfig, err := ReadLocalConfig(testFilePath)
+	require.NoError(t, err)
+
+	removed := localConfig.RemoveToken(localConfig.CurrentContext)
+
+	require.True(t, removed)
+}
+
+func TestRemoveToken_ClearsBothTokens(t *testing.T) {
+	testFilePath := filepath.Join(t.TempDir(), testConfigFileName)
+	err := os.WriteFile(testFilePath, []byte(testConfig), os.ModePerm)
+	require.NoError(t, err)
+
+	err = os.Chmod(testFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+	localConfig, err := ReadLocalConfig(testFilePath)
+	require.NoError(t, err)
+
+	// Verify tokens exist before removal (use argocd1 which has both auth-token and refresh-token)
+	serverName := "argocd1.example.com:443"
+	require.Equal(t, "vErrYS3c3tReFRe$hToken", localConfig.GetToken(serverName))
+
+	removed := localConfig.RemoveToken(serverName)
+	require.True(t, removed)
+
+	// Verify both AuthToken and RefreshToken are cleared
+	require.Empty(t, localConfig.GetToken(serverName))
+	for _, u := range localConfig.Users {
+		if u.Name == serverName {
+			require.Empty(t, u.AuthToken, "AuthToken should be cleared after RemoveToken")
+			require.Empty(t, u.RefreshToken, "RefreshToken should be cleared after RemoveToken")
+			return
+		}
+	}
+	t.Fatal("user entry should still exist after RemoveToken")
+}
+
+func TestRemoveToken_Not_Exist(t *testing.T) {
+	testFilePath := filepath.Join(t.TempDir(), testConfigFileName)
+	err := os.WriteFile(testFilePath, []byte(testConfig), os.ModePerm)
+	require.NoError(t, err)
+
+	err = os.Chmod(testFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+	localConfig, err := ReadLocalConfig(testFilePath)
+	require.NoError(t, err)
+
+	// serverName does exist in TestConfig
+	removed := localConfig.RemoveToken("localhost")
+
+	require.False(t, removed)
+}
+
+func TestValidateLocalConfig(t *testing.T) {
+	testFilePath := filepath.Join(t.TempDir(), testConfigFileName)
+	err := os.WriteFile(testFilePath, []byte(testConfig), os.ModePerm)
+	require.NoError(t, err)
+
+	err = os.Chmod(testFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+	localConfig, err := ReadLocalConfig(testFilePath)
+	require.NoError(t, err)
+
+	err = ValidateLocalConfig(*localConfig)
+
+	require.NoError(t, err)
+}
+
+func TestWriteLocalConfig(t *testing.T) {
+	testFilePath := filepath.Join(t.TempDir(), testConfigFileName)
+	err := os.WriteFile(testFilePath, []byte(testConfig), os.ModePerm)
+	require.NoError(t, err)
+
+	err = os.Chmod(testFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+	localConfig, err := ReadLocalConfig(testFilePath)
+	require.NoError(t, err)
+
+	testWriteFilePath := filepath.Join(t.TempDir(), testWriteFileName)
+	err = WriteLocalConfig(*localConfig, testWriteFilePath)
+
+	require.NoError(t, err)
 }

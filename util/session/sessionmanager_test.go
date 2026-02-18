@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util"
 	"github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/crypto"
+	"github.com/argoproj/argo-cd/v3/util/dex"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/oidc"
 	"github.com/argoproj/argo-cd/v3/util/password"
@@ -143,21 +144,80 @@ func TestSessionManager_AdminToken_Revoked(t *testing.T) {
 
 	mgr := newSessionManager(settingsMgr, getProjLister(), storage)
 
-	token, err := mgr.Create("admin:login", 0, "123")
+	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds()*2), "123")
 	require.NoError(t, err)
 
-	err = storage.RevokeToken(t.Context(), "123", time.Hour)
+	err = storage.RevokeToken(t.Context(), "123", autoRegenerateTokenDuration*2)
 	require.NoError(t, err)
 
 	_, _, err = mgr.Parse(token)
-	assert.EqualError(t, err, "token is revoked, please re-login")
+	assert.Equal(t, "token is revoked, please re-login", err.Error())
+}
+
+func TestSessionManager_AdminToken_EmptyJti(t *testing.T) {
+	redisClient, closer := test.NewInMemoryRedis()
+	defer closer()
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", true), "argocd")
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
+
+	// Create a token with an empty jti
+	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds()*2), "")
+	require.NoError(t, err)
+
+	_, _, err = mgr.Parse(token)
+	require.Error(t, err)
+	assert.Equal(t, "token does not have a unique identifier (jti claim) and cannot be validated", err.Error())
+}
+
+func TestSessionManager_AdminToken_NoExpirationTime(t *testing.T) {
+	redisClient, closer := test.NewInMemoryRedis()
+	defer closer()
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", true), "argocd")
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
+
+	token, err := mgr.Create("admin:login", 0, "123")
+	if err != nil {
+		t.Errorf("Could not create token: %v", err)
+	}
+
+	claims, newToken, err := mgr.Parse(token)
+	require.NoError(t, err)
+	assert.Empty(t, newToken)
+
+	mapClaims, err := jwtutil.MapClaims(claims)
+	require.NoError(t, err)
+
+	sub, err := mapClaims.GetSubject()
+	require.NoError(t, err)
+	require.Equal(t, "admin", sub)
+}
+
+func TestSessionManager_AdminToken_Expired(t *testing.T) {
+	redisClient, closer := test.NewInMemoryRedis()
+	defer closer()
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", true), "argocd")
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
+
+	token, err := mgr.Create("admin:login", 2, "123")
+	if err != nil {
+		t.Errorf("Could not create token: %v", err)
+	}
+
+	time.Sleep(3 * time.Second)
+
+	_, _, err = mgr.Parse(token)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "token is expired")
 }
 
 func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", false), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
-	token, err := mgr.Create("admin:login", 0, "abc")
+	token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds()*2), "abc")
 	require.NoError(t, err, "Could not create token")
 
 	_, _, err = mgr.Parse(token)
@@ -168,7 +228,7 @@ func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", true, settings.AccountCapabilityLogin), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
-	token, err := mgr.Create("admin", 0, "abc")
+	token, err := mgr.Create("admin", int64(autoRegenerateTokenDuration.Seconds()*2), "abc")
 	require.NoError(t, err, "Could not create token")
 
 	_, _, err = mgr.Parse(token)
@@ -202,7 +262,7 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 		mapClaims, err := jwtutil.MapClaims(claims)
 		require.NoError(t, err)
 
-		assert.Equal(t, "proj:default:test", mapClaims["sub"])
+		require.Equal(t, "proj:default:test", mapClaims["sub"])
 	})
 
 	t.Run("Token Revoked", func(t *testing.T) {
@@ -1291,6 +1351,184 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
+
+	t.Run("OIDC provider is external, token is revoked", func(t *testing.T) {
+		tokenID := "123"
+		redisClient, closer := test.NewInMemoryRedis()
+		defer closer()
+
+		storage := NewUserStateStorage(redisClient)
+		err := storage.RevokeToken(t.Context(), tokenID, autoRegenerateTokenDuration*2)
+		require.NoError(t, err)
+
+		config := map[string]string{
+			"url": "",
+			"oidc.config": fmt.Sprintf(`
+ name: Test
+ issuer: %s
+ clientID: xxx
+ clientSecret: yyy
+ requestedScopes: ["oidc"]`, oidcTestServer.URL),
+			"oidc.tls.insecure.skip.verify": "true", // This isn't what we're testing.
+		}
+
+		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
+		// must be set to test VerifyToken's behavior when Argo CD is configured with TLS enabled.
+		secretConfig := map[string][]byte{
+			"tls.crt": utiltest.Cert,
+			"tls.key": utiltest.PrivateKey,
+		}
+
+		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, storage)
+		mgr.verificationDelayNoiseEnabled = false
+
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"xxx"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims.Issuer = oidcTestServer.URL
+		claims.ID = tokenID
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
+		require.Error(t, err)
+		assert.Equal(t, "token is revoked, please re-login", err.Error())
+	})
+
+	t.Run("OIDC provider is Dex, token is revoked", func(t *testing.T) {
+		tokenID := "123"
+		redisClient, closer := test.NewInMemoryRedis()
+		defer closer()
+
+		storage := NewUserStateStorage(redisClient)
+		err := storage.RevokeToken(t.Context(), tokenID, autoRegenerateTokenDuration*2)
+		require.NoError(t, err)
+
+		config := map[string]string{
+			"url": dexTestServer.URL,
+			"dex.config": `connectors:
+ - type: github
+   name: GitHub
+   config:
+     clientID: aabbccddeeff00112233
+     clientSecret: aabbccddeeff00112233`,
+		}
+
+		// This is not actually used in the test. The test only calls the OIDC test server. But a valid cert/key pair
+		// must be set to test VerifyToken's behavior when Argo CD is configured with TLS enabled.
+		secretConfig := map[string][]byte{
+			"tls.crt": utiltest.Cert,
+			"tls.key": utiltest.PrivateKey,
+		}
+
+		settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, storage)
+		mgr.verificationDelayNoiseEnabled = false
+
+		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"argo-cd-cli"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
+		claims.Issuer = dexTestServer.URL + "/api/dex"
+		claims.ID = tokenID
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
+		require.Error(t, err)
+		assert.Equal(t, "token is revoked, please re-login", err.Error())
+	})
+}
+
+func TestSessionManager_RevokeToken(t *testing.T) {
+	redisClient, closer := test.NewInMemoryRedis()
+	defer closer()
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "pass", true), "argocd")
+	storage := NewUserStateStorage(redisClient)
+	mgr := newSessionManager(settingsMgr, getProjLister(), storage)
+
+	t.Run("Revoke and verify", func(t *testing.T) {
+		tokenID := "revoke-test-id"
+		assert.False(t, storage.IsTokenRevoked(tokenID), "token should not be revoked initially")
+
+		err := mgr.RevokeToken(t.Context(), tokenID, time.Hour)
+		require.NoError(t, err)
+
+		assert.True(t, storage.IsTokenRevoked(tokenID), "token should be revoked after RevokeToken")
+	})
+
+	t.Run("Revoked token rejected by Parse", func(t *testing.T) {
+		tokenID := "parse-revoke-id"
+		token, err := mgr.Create("admin:login", int64(autoRegenerateTokenDuration.Seconds()*2), tokenID)
+		require.NoError(t, err)
+
+		// Token should parse fine before revocation
+		_, _, err = mgr.Parse(token)
+		require.NoError(t, err)
+
+		// Revoke and verify Parse rejects it
+		err = mgr.RevokeToken(t.Context(), tokenID, autoRegenerateTokenDuration*2)
+		require.NoError(t, err)
+
+		_, _, err = mgr.Parse(token)
+		require.Error(t, err)
+		assert.Equal(t, "token is revoked, please re-login", err.Error())
+	})
+}
+
+func TestSessionManager_VerifyToken_DexTokenRevokedByAccessTokenHash(t *testing.T) {
+	dexTestServer := utiltest.GetDexTestServer(t)
+	t.Cleanup(dexTestServer.Close)
+
+	accessTokenHash := "dex-access-token-hash-xyz"
+	redisClient, closer := test.NewInMemoryRedis()
+	defer closer()
+
+	storage := NewUserStateStorage(redisClient)
+	// Revoke using the access token hash (the fallback ID for Dex tokens without jti)
+	err := storage.RevokeToken(t.Context(), accessTokenHash, autoRegenerateTokenDuration*2)
+	require.NoError(t, err)
+
+	config := map[string]string{
+		"url": dexTestServer.URL,
+		"dex.config": `connectors:
+ - type: github
+   name: GitHub
+   config:
+     clientID: aabbccddeeff00112233
+     clientSecret: aabbccddeeff00112233`,
+	}
+
+	secretConfig := map[string][]byte{
+		"tls.crt": utiltest.Cert,
+		"tls.key": utiltest.PrivateKey,
+	}
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(config, secretConfig), "argocd")
+	mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, storage)
+	mgr.verificationDelayNoiseEnabled = false
+
+	// Create a Dex token WITHOUT jti — the at_hash field in the OIDC ID token should be used as fallback
+	claims := jwt.MapClaims{
+		"aud":     []string{"argo-cd-cli"},
+		"sub":     "admin",
+		"exp":     jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
+		"iss":     dexTestServer.URL + "/api/dex",
+		"at_hash": accessTokenHash,
+		// Deliberately no "jti" claim
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+	key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
+	require.NoError(t, err)
+	tokenString, err := token.SignedString(key)
+	require.NoError(t, err)
+
+	_, _, err = mgr.VerifyToken(t.Context(), tokenString)
+	require.Error(t, err)
+	assert.Equal(t, "token is revoked, please re-login", err.Error())
 }
 
 func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
