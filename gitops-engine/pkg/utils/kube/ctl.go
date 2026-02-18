@@ -355,6 +355,9 @@ func (k *KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to parse server version: %w", err)
 	}
+	// ParseGeneric removes the leading "v" and any vendor-specific suffix (e.g. "-gke.100", "-eks-123", "+k3s1").
+	// Helm expects a semver-like Kubernetes version with a "v" prefix for capability checks, so we normalize the
+	// version to "v<major>.<minor>.<patch>".
 	return "v" + ver.String(), nil
 }
 
