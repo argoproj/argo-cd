@@ -13,7 +13,7 @@ func getCredentialType(repo *v1alpha1.Repository) string {
 	if repo.SSHPrivateKey != "" {
 		return "ssh"
 	}
-	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 { // Promoter MVP: remove github-app-installation-id check since it is no longer a required field
+	if repo.GithubAppPrivateKey != "" && repo.GithubAppID != 0 { // Promoter MVP: remove github-app-installation-id check since it is no longer a required field
 		return "github-app"
 	}
 	if repo.GCPServiceAccountKey != "" {

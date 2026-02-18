@@ -1826,10 +1826,10 @@ message RepoCreds {
   // GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app
   optional string githubAppPrivateKey = 7;
 
-  // GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication
+  // GithubAppID specifies the Github App ID of the app used to access the repo for GitHub app authentication
   optional int64 githubAppID = 8;
 
-  // GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication
+  // GithubAppInstallationID specifies the ID of the installed GitHub App for GitHub app authentication
   optional int64 githubAppInstallationID = 9;
 
   // GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com
@@ -1918,10 +1918,10 @@ message Repository {
   // Github App Private Key PEM data
   optional string githubAppPrivateKey = 15;
 
-  // GithubAppId specifies the ID of the GitHub app used to access the repo
+  // GithubAppID specifies the ID of the GitHub app used to access the repo
   optional int64 githubAppID = 16;
 
-  // GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo
+  // GithubAppInstallationID specifies the installation ID of the GitHub App used to access the repo
   optional int64 githubAppInstallationID = 17;
 
   // GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com

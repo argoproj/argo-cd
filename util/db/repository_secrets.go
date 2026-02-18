@@ -381,13 +381,13 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	if err != nil {
 		return repository, err
 	}
-	repository.GithubAppId = githubAppID
+	repository.GithubAppID = githubAppID
 
 	githubAppInstallationID, err := intOrZero(secretCopy, "githubAppInstallationID")
 	if err != nil {
 		return repository, err
 	}
-	repository.GithubAppInstallationId = githubAppInstallationID
+	repository.GithubAppInstallationID = githubAppInstallationID
 
 	forceBasicAuth, err := boolOrFalse(secretCopy, "forceHttpBasicAuth")
 	if err != nil {
@@ -432,8 +432,8 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretString(secretCopy, "tlsClientCertKey", repository.TLSClientCertKey)
 	updateSecretString(secretCopy, "type", repository.Type)
 	updateSecretString(secretCopy, "githubAppPrivateKey", repository.GithubAppPrivateKey)
-	updateSecretInt(secretCopy, "githubAppID", repository.GithubAppId)
-	updateSecretInt(secretCopy, "githubAppInstallationID", repository.GithubAppInstallationId)
+	updateSecretInt(secretCopy, "githubAppID", repository.GithubAppID)
+	updateSecretInt(secretCopy, "githubAppInstallationID", repository.GithubAppInstallationID)
 	updateSecretString(secretCopy, "githubAppEnterpriseBaseUrl", repository.GitHubAppEnterpriseBaseURL)
 	updateSecretBool(secretCopy, "insecureIgnoreHostKey", repository.InsecureIgnoreHostKey)
 	updateSecretBool(secretCopy, "insecure", repository.Insecure)
@@ -484,13 +484,13 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	if err != nil {
 		return repository, err
 	}
-	repository.GithubAppId = githubAppID
+	repository.GithubAppID = githubAppID
 
 	githubAppInstallationID, err := intOrZero(secretCopy, "githubAppInstallationID")
 	if err != nil {
 		return repository, err
 	}
-	repository.GithubAppInstallationId = githubAppInstallationID
+	repository.GithubAppInstallationID = githubAppInstallationID
 
 	forceBasicAuth, err := boolOrFalse(secretCopy, "forceHttpBasicAuth")
 	if err != nil {
@@ -525,8 +525,8 @@ func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds
 	updateSecretString(secretCopy, "tlsClientCertKey", repoCreds.TLSClientCertKey)
 	updateSecretString(secretCopy, "type", repoCreds.Type)
 	updateSecretString(secretCopy, "githubAppPrivateKey", repoCreds.GithubAppPrivateKey)
-	updateSecretInt(secretCopy, "githubAppID", repoCreds.GithubAppId)
-	updateSecretInt(secretCopy, "githubAppInstallationID", repoCreds.GithubAppInstallationId)
+	updateSecretInt(secretCopy, "githubAppID", repoCreds.GithubAppID)
+	updateSecretInt(secretCopy, "githubAppInstallationID", repoCreds.GithubAppInstallationID)
 	updateSecretString(secretCopy, "githubAppEnterpriseBaseUrl", repoCreds.GitHubAppEnterpriseBaseURL)
 	updateSecretString(secretCopy, "gcpServiceAccountKey", repoCreds.GCPServiceAccountKey)
 	updateSecretString(secretCopy, "proxy", repoCreds.Proxy)

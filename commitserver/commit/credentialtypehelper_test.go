@@ -40,8 +40,8 @@ func TestRepository_GetCredentialType(t *testing.T) {
 			repo: &v1alpha1.Repository{
 				Repo:                    "foo",
 				GithubAppPrivateKey:     "some-key",
-				GithubAppId:             1,
-				GithubAppInstallationId: 1,
+				GithubAppID:             1,
+				GithubAppInstallationID: 1,
 			},
 			want: "github-app",
 		},

@@ -75,8 +75,8 @@ func TestGetGitCreds(t *testing.T) {
 			repo: &Repository{
 				Repo:                    "https://github.com/argoproj/argo-cd",
 				GithubAppPrivateKey:     "github-key",
-				GithubAppId:             123,
-				GithubAppInstallationId: 456,
+				GithubAppID:             123,
+				GithubAppInstallationID: 456,
 			},
 			expected: git.NewGitHubAppCreds(123, 456, "github-key", "", "", "", false, "", "", nil, "https://github.com/argoproj/argo-cd"),
 		},
@@ -109,8 +109,8 @@ func TestGetGitCreds_GitHubApp_InstallationNotFound(t *testing.T) {
 	repo := &Repository{
 		Repo:                "https://github.com/nonexistent-org-12345/repo.git",
 		GithubAppPrivateKey: "github-key",
-		GithubAppId:         123,
-		// GithubAppInstallationId is 0 (not set), triggering auto-discovery
+		GithubAppID:         123,
+		// GithubAppInstallationID is 0 (not set), triggering auto-discovery
 	}
 
 	creds := repo.GetGitCreds(nil)
@@ -134,8 +134,8 @@ func TestGetGitCreds_GitHubApp_OrgExtractionFails(t *testing.T) {
 	repo := &Repository{
 		Repo:                "invalid-url-format",
 		GithubAppPrivateKey: "github-key",
-		GithubAppId:         123,
-		// GithubAppInstallationId is 0 (not set), triggering auto-discovery
+		GithubAppID:         123,
+		// GithubAppInstallationID is 0 (not set), triggering auto-discovery
 	}
 
 	creds := repo.GetGitCreds(nil)

@@ -23,8 +23,8 @@ export interface SSHCreds {
 export interface GitHubAppCreds {
     url: string;
     githubAppPrivateKey: string;
-    githubAppId: bigint;
-    githubAppInstallationId: bigint;
+    githubAppID: bigint;
+    githubAppInstallationID: bigint;
     githubAppEnterpriseBaseURL: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;

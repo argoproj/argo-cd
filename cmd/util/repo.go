@@ -18,8 +18,8 @@ type RepoOptions struct {
 	TlsClientCertKeyPath           string //nolint:revive //FIXME(var-naming)
 	EnableLfs                      bool
 	EnableOci                      bool
-	GithubAppId                    int64
-	GithubAppInstallationId        int64
+	GithubAppID                    int64
+	GithubAppInstallationID        int64
 	GithubAppPrivateKeyPath        string
 	GitHubAppEnterpriseBaseURL     string
 	Proxy                          string
@@ -44,8 +44,8 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().BoolVar(&opts.InsecureSkipServerVerification, "insecure-skip-server-verification", false, "disables server certificate and host key checks")
 	command.Flags().BoolVar(&opts.EnableLfs, "enable-lfs", false, "enable git-lfs (Large File Support) on this repository")
 	command.Flags().BoolVar(&opts.EnableOci, "enable-oci", false, "enable helm-oci (Helm OCI-Based Repository) (only valid for helm type repositories)")
-	command.Flags().Int64Var(&opts.GithubAppId, "github-app-id", 0, "id of the GitHub Application")
-	command.Flags().Int64Var(&opts.GithubAppInstallationId, "github-app-installation-id", 0, "installation id of the GitHub Application (optional, will be auto-discovered if not provided)")
+	command.Flags().Int64Var(&opts.GithubAppID, "github-app-id", 0, "id of the GitHub Application")
+	command.Flags().Int64Var(&opts.GithubAppInstallationID, "github-app-installation-id", 0, "installation id of the GitHub Application (optional, will be auto-discovered if not provided)")
 	command.Flags().StringVar(&opts.GithubAppPrivateKeyPath, "github-app-private-key-path", "", "private key of the GitHub Application")
 	command.Flags().StringVar(&opts.GitHubAppEnterpriseBaseURL, "github-app-enterprise-base-url", "", "base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3")
 	command.Flags().StringVar(&opts.Proxy, "proxy", "", "use proxy to access repository")
