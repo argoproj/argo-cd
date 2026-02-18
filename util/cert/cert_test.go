@@ -309,6 +309,20 @@ func TestSSHKnownHostsDataTokenize(t *testing.T) {
 	}
 }
 
+func TestGetHostKeyAlgorithmsFromPath(t *testing.T) {
+	algos, err := GetHostKeyAlgorithmsFromPath("../../test/certificates/ssh_known_hosts")
+	require.NoError(t, err)
+	assert.Len(t, algos, 3)
+	assert.Contains(t, algos, "ssh-rsa")
+	assert.Contains(t, algos, "ecdsa-sha2-nistp256")
+	assert.Contains(t, algos, "ssh-ed25519")
+}
+
+func TestGetHostKeyAlgorithmsFromPathNonExistent(t *testing.T) {
+	_, err := GetHostKeyAlgorithmsFromPath("../../test/certificates/nonexistent")
+	require.Error(t, err)
+}
+
 func TestMatchHostName(t *testing.T) {
 	matchHostName := "foo.example.com"
 	assert.True(t, MatchHostName(matchHostName, "*"))
