@@ -1967,6 +1967,65 @@ func TestReplaceStringSecret(t *testing.T) {
 	assert.Equal(t, "my-value", result)
 }
 
+func TestReplaceStringSecretFromFile(t *testing.T) {
+	secretValues := map[string]string{"my-secret-key": "my-secret-value"}
+
+	t.Run("reads secret from file", func(t *testing.T) {
+		tmpFile := t.TempDir() + "/client-secret"
+		err := os.WriteFile(tmpFile, []byte("file-secret-value"), 0o600)
+		require.NoError(t, err)
+
+		result := ReplaceStringSecret("$file:"+tmpFile, secretValues)
+		assert.Equal(t, "file-secret-value", result)
+	})
+
+	t.Run("trims whitespace and trailing newline", func(t *testing.T) {
+		tmpFile := t.TempDir() + "/client-secret"
+		err := os.WriteFile(tmpFile, []byte("  file-secret-value\n"), 0o600)
+		require.NoError(t, err)
+
+		result := ReplaceStringSecret("$file:"+tmpFile, secretValues)
+		assert.Equal(t, "file-secret-value", result)
+	})
+
+	t.Run("returns original value when file does not exist", func(t *testing.T) {
+		ref := "$file:/nonexistent/path/secret"
+		result := ReplaceStringSecret(ref, secretValues)
+		assert.Equal(t, ref, result)
+	})
+
+	t.Run("returns empty string for empty file", func(t *testing.T) {
+		tmpFile := t.TempDir() + "/empty-secret"
+		err := os.WriteFile(tmpFile, []byte(""), 0o600)
+		require.NoError(t, err)
+
+		result := ReplaceStringSecret("$file:"+tmpFile, secretValues)
+		assert.Empty(t, result)
+	})
+
+	t.Run("file reference takes precedence over secret key", func(t *testing.T) {
+		// Even if a secret key named "file:/some/path" existed, $file: should
+		// be treated as a file reference, not a secret key lookup.
+		tmpFile := t.TempDir() + "/secret"
+		err := os.WriteFile(tmpFile, []byte("from-file"), 0o600)
+		require.NoError(t, err)
+
+		vals := map[string]string{"file:" + tmpFile: "from-secret-map"}
+		result := ReplaceStringSecret("$file:"+tmpFile, vals)
+		assert.Equal(t, "from-file", result)
+	})
+
+	t.Run("existing secret key references still work", func(t *testing.T) {
+		result := ReplaceStringSecret("$my-secret-key", secretValues)
+		assert.Equal(t, "my-secret-value", result)
+	})
+
+	t.Run("literal string without $ prefix unchanged", func(t *testing.T) {
+		result := ReplaceStringSecret("file:/some/path", secretValues)
+		assert.Equal(t, "file:/some/path", result)
+	})
+}
+
 func TestRedirectURLForRequest(t *testing.T) {
 	testCases := []struct {
 		Name        string
