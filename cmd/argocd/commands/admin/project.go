@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
@@ -102,6 +103,9 @@ func getModification(modification string, resource string, scope string, permiss
 		if permission == "" {
 			return nil, stderrors.New("flag --permission cannot be empty if permission should be set in role")
 		}
+		if !rbac.ProjectScoped[resource] {
+			return nil, stderrors.New("flag --resource should be project scoped resource, e.g. 'applications, logs, exec, etc.'")
+		}
 		return func(proj string, action string) string {
 			return fmt.Sprintf("%s, %s, %s/%s, %s", resource, action, proj, scope, permission)
 		}, nil
@@ -185,11 +189,11 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 			errors.CheckError(err)
 			projIf := appclients.ArgoprojV1alpha1().AppProjects(namespace)
 
-			err = updateProjects(ctx, projIf, projectGlob, rolePattern, action, modification, dryRun)
+			err = updateProjects(ctx, projIf, projectGlob, rolePattern, action, resource, modification, dryRun)
 			errors.CheckError(err)
 		},
 	}
-	command.Flags().StringVar(&resource, "resource", "", "Resource e.g. 'applications'")
+	command.Flags().StringVar(&resource, "resource", "applications", "Resource e.g. 'applications'")
 	command.Flags().StringVar(&scope, "scope", "", "Resource scope e.g. '*'")
 	command.Flags().StringVar(&rolePattern, "role", "*", "Role name pattern e.g. '*deployer*'")
 	command.Flags().StringVar(&permission, "permission", "", "Action permission")
@@ -198,7 +202,7 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 	return command
 }
 
-func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, projectGlob string, rolePattern string, action string, modification func(string, string) string, dryRun bool) error {
+func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, projectGlob string, rolePattern string, action string, resource string, modification func(string, string) string, dryRun bool) error {
 	projects, err := projIf.List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing the projects: %w", err)
@@ -216,7 +220,7 @@ func updateProjects(ctx context.Context, projIf appclient.AppProjectInterface, p
 			actionPolicyIndex := -1
 			for i := range role.Policies {
 				parts := split(role.Policies[i], ",")
-				if len(parts) != 6 || parts[3] != action {
+				if len(parts) != 6 || parts[3] != action || parts[2] != resource {
 					continue
 				}
 				actionPolicyIndex = i

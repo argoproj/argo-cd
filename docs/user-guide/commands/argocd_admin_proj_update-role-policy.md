@@ -40,7 +40,7 @@ argocd admin proj update-role-policy PROJECT_GLOB MODIFICATION ACTION [flags]
       --permission string              Action permission
       --proxy-url string               If provided, this URL will be used to connect via proxy
       --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --resource string                Resource e.g. 'applications'
+      --resource string                Resource e.g. 'applications' (default "applications")
       --role string                    Role name pattern e.g. '*deployer*' (default "*")
       --scope string                   Resource scope e.g. '*'
       --server string                  The address and port of the Kubernetes API server
