@@ -202,7 +202,7 @@ spec:
 
 ## Template JSON Patch
 
-The `templateJsonPatch` feature enables advanced templating with support for `json+patch` using RFC 6902.  This feature has all of the limitations of templatePatch and is applied after `templatePatch` so both features can be used together.  It's big advantage over templatePatch is it's ability to target elements inside arrays which works well with `sources` and any arrays inside `valuesObject`
+The `templateJSONPatch` feature enables advanced templating with support for `json+patch` using RFC 6902.  This feature has all of the limitations of templatePatch and is applied after `templatePatch` so both features can be used together.  It's big advantage over templatePatch is it's ability to target elements inside arrays which works well with `sources` and any arrays inside `valuesObject`
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
