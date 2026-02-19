@@ -52,24 +52,11 @@ and choose which branch you would like to work from.
 
 When the action is completed a pull request will be generated that contains the updated manifest and `Version` file.
 
-5. Merge the pull request and proceed to step 2.
+5. Merge the pull request.
 
 ### Step 2 - Tag Release Branch
 
-The steps below need to be executed by someone with write access in Argo CD upstream repo.
-
-1. Checkout the release branch. Example: `git fetch upstream && git
-   checkout release-2.7`
-2. Run the script found at `hack/trigger-release.sh` as follows:
-
-```shell
-./hack/trigger-release.sh <version> <remote name>
-```
-
-Example: 
-```shell
-./hack/trigger-release.sh v2.7.2 upstream
-```
+After the pull request from Step 1 is merged, the `Tag Release After PR Merge` action will automatically run. This action checks out the release branch, creates a new release tag based on `VERSION` file, and pushes the tag to the repository.
 
 The script will ask for confirmation, type `y` to proceed. If no confirmation is received within 30 seconds, the script will abort.
 
@@ -78,7 +65,7 @@ The script will ask for confirmation, type `y` to proceed. If no confirmation is
 > * GA: `v<MAJOR>.<MINOR>.<PATCH>`<br>
 > * Pre-release: `v<MAJOR>.<MINOR>.<PATCH>-rc<RC#>`
 
-Once the script is executed successfully, a GitHub workflow will start
+Once Step 2 is completed successfully, a GitHub workflow will start
 execution. You can follow its progress under the [Actions](https://github.com/argoproj/argo-cd/actions/workflows/release.yaml) tab, the name of the action is `Publish ArgoCD Release`. 
 
 > [!WARNING]
@@ -115,5 +102,5 @@ The release process does not allow a manual release process. Image signatures an
 |goreleaser.yaml                     |Config to build CLI binaries, checksums, release-notes  |
 |.github/workflows/image-reuse.yaml  |Reusable workflow used to generate container images     |
 |.github/workflows/init-release.yaml |Used to generate manifest and `VERSION` file            |
-|.github/workflows/release.yaml      |Build image, CLI binaries, provenances, sbom, post jobs |
-|./hack/trigger-release.sh           |Ensures all pre-requistes are met and pushes the tag    |  
+|.github/workflows/tag-release.yaml  |Pushes the tag based on `VERSION` file            | 
+|.github/workflows/release.yaml      |Build image, CLI binaries, provenances, sbom, post jobs | 

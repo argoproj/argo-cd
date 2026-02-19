@@ -1,0 +1,36 @@
+name: Tag Release After PR Merge
+
+on:
+  push:
+    branches:
+      - 'release-*'
+    paths:
+      - 'VERSION'
+
+jobs:
+  trigger-release:
+    permissions:
+      contents: write
+    name: Automatically Tag Release ${{ github.ref_name }} Branch
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.ref }}
+
+      - name: Setup Git author information
+        run: |
+          git config --global user.email 'ci@argoproj.com'
+          git config --global user.name 'CI'
+
+      - name: Determine Version
+        run: |
+          VERSION=$(cat VERSION)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Trigger Release Script
+        run: |
+          bash hack/trigger-release.sh v${{ env.VERSION }} origin
