@@ -12,7 +12,6 @@ import './resource-details.scss';
 
 interface AppSetResourceDetailsProps {
     appSet: models.ApplicationSet;
-    tab?: string;
 }
 
 export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
@@ -86,45 +85,6 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                                     <p>SYNC POLICY</p>
                                     <SummaryItem title='APPLICATIONS SYNC'>{spec.syncPolicy.applicationsSync || 'sync (default)'}</SummaryItem>
                                     <SummaryItem title='PRESERVE RESOURCES ON DELETION'>{spec.syncPolicy.preserveResourcesOnDeletion ? 'true' : 'false'}</SummaryItem>
-                                </div>
-                            </div>
-                        )}
-
-                        {spec?.template && (
-                            <div className='white-box'>
-                                <div className='white-box__details'>
-                                    <p>TEMPLATE</p>
-                                    <SummaryItem title='PROJECT'>{spec.template.spec?.project || 'default'}</SummaryItem>
-                                    {spec.template.spec?.destination && (
-                                        <>
-                                            <SummaryItem title='DESTINATION SERVER'>
-                                                {spec.template.spec.destination.server || spec.template.spec.destination.name || 'N/A'}
-                                            </SummaryItem>
-                                            <SummaryItem title='DESTINATION NAMESPACE'>{spec.template.spec.destination.namespace || 'N/A'}</SummaryItem>
-                                        </>
-                                    )}
-                                    {spec.template.spec?.source && (
-                                        <>
-                                            <SummaryItem title='REPO URL'>{spec.template.spec.source.repoURL || 'N/A'}</SummaryItem>
-                                            <SummaryItem title='TARGET REVISION'>{spec.template.spec.source.targetRevision || 'HEAD'}</SummaryItem>
-                                            <SummaryItem title='PATH'>{spec.template.spec.source.path || 'N/A'}</SummaryItem>
-                                            {spec.template.spec.source.chart && <SummaryItem title='CHART'>{spec.template.spec.source.chart}</SummaryItem>}
-                                        </>
-                                    )}
-                                    {spec.template.spec?.sources && spec.template.spec.sources.length > 0 && (
-                                        <SummaryItem title='SOURCES'>
-                                            {spec.template.spec.sources.map((src: any, i: number) => (
-                                                <div key={i} style={{marginBottom: '8px'}}>
-                                                    <div>
-                                                        <strong>Source {i + 1}:</strong> {src.repoURL}
-                                                    </div>
-                                                    {src.targetRevision && <div style={{marginLeft: '16px'}}>Revision: {src.targetRevision}</div>}
-                                                    {src.path && <div style={{marginLeft: '16px'}}>Path: {src.path}</div>}
-                                                    {src.chart && <div style={{marginLeft: '16px'}}>Chart: {src.chart}</div>}
-                                                </div>
-                                            ))}
-                                        </SummaryItem>
-                                    )}
                                 </div>
                             </div>
                         )}

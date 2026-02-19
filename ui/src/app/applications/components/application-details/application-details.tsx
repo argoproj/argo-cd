@@ -680,7 +680,6 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             const hydrateOperationState = isApplication ? (application as appModels.Application).status.sourceHydrator?.currentOperation : undefined;
                             const conditions = application.status?.conditions || [];
                             const syncResourceKey = new URLSearchParams(props.history.location.search).get('deploy');
-                            const tab = new URLSearchParams(props.history.location.search).get('tab');
                             const source = isApplication ? getAppDefaultSource(application as appModels.Application) : undefined;
                             const showToolTip = pref?.userHelpTipMsgs.find(usrMsg => usrMsg.appName === application.metadata.name);
                             const resourceNodes = (): any[] => {
@@ -1162,13 +1161,12 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     updateApp={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
                                                     selectedNode={selectedNode}
                                                     appCxt={{...appContext, apis: appContext} as unknown as AppContext}
-                                                    tab={tab}
                                                 />
                                             </SlidingPanel>
                                         )}
                                         {!isApplication && (
                                             <SlidingPanel isShown={isAppSelected} onClose={() => selectNode('')}>
-                                                <AppSetResourceDetails appSet={application as appModels.ApplicationSet} tab={tab} />
+                                                <AppSetResourceDetails appSet={application as appModels.ApplicationSet} />
                                             </SlidingPanel>
                                         )}
                                         {isApplication && (
