@@ -1,0 +1,19 @@
+apiVersion: jetstream.nats.io/v1beta2
+kind: Consumer
+metadata:
+  name: consumer-name
+spec:
+  streamName: mystream
+  durableName: my-pull-consumer
+  deliverPolicy: all
+  filterSubject: orders.received
+  maxDeliver: 20
+  ackPolicy: explicit
+status:
+  conditions:
+    - lastTransitionTime: '2025-05-14T14:22:01.962295009Z'
+      message: Consumer successfully created
+      reason: Created
+      status: 'True'
+      type: Ready
+  observedGeneration: 1

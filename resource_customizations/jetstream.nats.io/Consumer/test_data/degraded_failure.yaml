@@ -1,0 +1,20 @@
+apiVersion: jetstream.nats.io/v1beta2
+kind: Consumer
+metadata:
+  name: consumer-name
+spec:
+  streamName: mystream
+  durableName: my-pull-consumer
+  deliverPolicy: all
+  filterSubject: orders.received
+  maxDeliver: 20
+  ackPolicy: explicit
+status:
+  conditions:
+    - lastTransitionTime: '2025-05-14T14:25:20.89689315Z'
+      message: >-
+        failed to create consumer
+      reason: Errored
+      status: 'False'
+      type: Ready
+  observedGeneration: 0
