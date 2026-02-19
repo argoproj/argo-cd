@@ -65,7 +65,7 @@ func hasHelmProvenanceCriteriaForSource(si *v1alpha1.SourceIntegrity, source v1a
 	}
 	policies := findMatchingHelmPolicies(si.Helm, source.RepoURL)
 	for _, p := range policies {
-		if p.GPG != nil && p.GPG.Mode == v1alpha1.SourceIntegrityHelmPolicyGPGModeProvenance {
+		if p.Provenance != nil && p.Provenance.Mode == v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance {
 			return true
 		}
 	}
@@ -295,7 +295,7 @@ func VerifyHelm(si *v1alpha1.SourceIntegrity, repoURL string, chartContent []byt
 		log.Infof("++++ VerifyHelm: policy=nil (no matching policy or mode none), returning nil")
 		return nil, nil
 	}
-	log.Infof("++++ VerifyHelm: policy matched, mode=%v, allowedKeys=%v", policy.GPG.Mode, policy.GPG.Keys)
+	log.Infof("++++ VerifyHelm: policy matched, mode=%v, allowedKeys=%v", policy.Provenance.Mode, policy.Provenance.Keys)
 	if !IsGPGEnabled() {
 		log.Warnf("++++ VerifyHelm: ARGOCD_GPG_ENABLED=false, skipping verification")
 		return helmProvenanceResult(nil), nil
@@ -332,11 +332,11 @@ func resolveHelmProvenancePolicy(si *v1alpha1.SourceIntegrity, repoURL string) (
 		return nil, helmProvenanceResult([]string{msg})
 	}
 	policy := policies[0]
-	if policy.GPG == nil || policy.GPG.Mode == v1alpha1.SourceIntegrityHelmPolicyGPGModeNone {
+	if policy.Provenance == nil || policy.Provenance.Mode == v1alpha1.SourceIntegrityHelmPolicyProvenanceModeNone {
 		return nil, nil
 	}
-	if policy.GPG.Mode != v1alpha1.SourceIntegrityHelmPolicyGPGModeProvenance {
-		return nil, helmProvenanceResult([]string{fmt.Sprintf("unknown Helm source integrity GPG mode %q", policy.GPG.Mode)})
+	if policy.Provenance.Mode != v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance {
+		return nil, helmProvenanceResult([]string{fmt.Sprintf("unknown Helm source integrity provenance mode %q", policy.Provenance.Mode)})
 	}
 	return policy, nil
 }
@@ -357,8 +357,8 @@ func verifyHelmProvenanceContent(policy *v1alpha1.SourceIntegrityHelmPolicy, cha
 		log.Warnf("++++ verifyHelmProvenanceContent: step 1 FAILED - GPG verification error: %v", err)
 		return []string{"provenance signature verification failed: " + err.Error()}
 	}
-	log.Infof("++++ verifyHelmProvenanceContent: step 1 OK - signerKeyID=%q, allowedKeys=%v", signerKeyID, policy.GPG.Keys)
-	if !isKeyInAllowedList(policy.GPG.Keys, signerKeyID) {
+	log.Infof("++++ verifyHelmProvenanceContent: step 1 OK - signerKeyID=%q, allowedKeys=%v", signerKeyID, policy.Provenance.Keys)
+	if !isKeyInAllowedList(policy.Provenance.Keys, signerKeyID) {
 		signerShort := signerKeyID
 		if s, e := KeyID(signerKeyID); e == nil {
 			signerShort = s
@@ -412,14 +412,14 @@ func findMatchingHelmPolicies(si *v1alpha1.SourceIntegrityHelm, repoURL string) 
 	return policies
 }
 
-// lookupHelm returns non-nil if there is exactly one matching Helm policy that has verification (GPG provenance).
+// lookupHelm returns non-nil if there is exactly one matching Helm policy that has verification (provenance).
 func lookupHelm(si *v1alpha1.SourceIntegrity, repoURL string) *v1alpha1.SourceIntegrityHelmPolicy {
 	policies := findMatchingHelmPolicies(si.Helm, repoURL)
 	if len(policies) != 1 {
 		return nil
 	}
 	p := policies[0]
-	if p.GPG == nil || p.GPG.Mode == v1alpha1.SourceIntegrityHelmPolicyGPGModeNone {
+	if p.Provenance == nil || p.Provenance.Mode == v1alpha1.SourceIntegrityHelmPolicyProvenanceModeNone {
 		return nil
 	}
 	return p

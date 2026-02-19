@@ -455,10 +455,7 @@ func (s *Service) runRepoOperation(
 			var errVerify error
 			helmIntegrityRequired := sourceIntegrity != nil && sourceintegrity.HasCriteria(sourceIntegrity, *source)
 			if !helmIntegrityRequired && sourceIntegrity != nil {
-				sourceIntegrityResult = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
-					Name:     sourceintegrity.CheckNameHelmProvenance,
-					Problems: nil, // skipped: no policy applies
-				}}}
+				sourceIntegrityResult = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{}}
 				log.Infof("Helm chart %s@%s: no source integrity policy matches repo %q, skipping verification", source.Chart, revision, source.RepoURL)
 			}
 			if helmIntegrityRequired && source.IsHelmOci() {
@@ -585,12 +582,10 @@ func (s *Service) runRepoOperation(
 		if err != nil {
 			return nil, err
 		}
-		// No policy matches: VerifyGit returns nil; return skipped result so controller does not block.
+		// No policy matches: VerifyGit returns nil. Use result with empty Checks so controller does not block
 		if sourceIntegrityResult == nil && sourceIntegrity != nil {
-			sourceIntegrityResult = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
-				Name:     "GIT/GPG",
-				Problems: nil, // skipped: no policy applies
-			}}}
+			sourceIntegrityResult = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{}}
+			log.Infof("++++ Git source revision %s: no source integrity policy matches, skipping verification (result: empty Checks)", revision)
 		}
 
 		return &operationContext{appPath, sourceIntegrityResult}, nil

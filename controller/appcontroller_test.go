@@ -1852,8 +1852,8 @@ func TestSetOperationState_HelmProvenanceError_PatchesSyncAndConditions(t *testi
 				Helm: &v1alpha1.SourceIntegrityHelm{
 					Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
 						Repos: []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "*"}},
-						GPG: &v1alpha1.SourceIntegrityHelmPolicyGPG{
-							Mode: v1alpha1.SourceIntegrityHelmPolicyGPGModeProvenance,
+						Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{
+							Mode: v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance,
 							Keys: []string{"27252B168248743B"},
 						},
 					}},

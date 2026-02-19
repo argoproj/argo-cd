@@ -18,10 +18,10 @@ type SourceIntegrityHelm struct {
 	Policies []*SourceIntegrityHelmPolicy `json:"policies" protobuf:"bytes,1,name=policies"`
 }
 
-// SourceIntegrityHelmPolicy applies to Helm repos matching Repos; GPG verifies .prov signature and allowed keys.
+// SourceIntegrityHelmPolicy applies to Helm repos matching Repos; provenance verifies .prov signature and allowed keys.
 type SourceIntegrityHelmPolicy struct {
-	Repos []SourceIntegrityHelmPolicyRepo `json:"repos" protobuf:"bytes,1,name=repos"`
-	GPG   *SourceIntegrityHelmPolicyGPG   `json:"gpg" protobuf:"bytes,2,name=gpg"`
+	Repos      []SourceIntegrityHelmPolicyRepo      `json:"repos" protobuf:"bytes,1,name=repos"`
+	Provenance *SourceIntegrityHelmPolicyProvenance `json:"provenance" protobuf:"bytes,2,name=provenance"`
 }
 
 // SourceIntegrityHelmPolicyRepo restricts which Helm repo URLs the policy applies to (glob).
@@ -29,20 +29,20 @@ type SourceIntegrityHelmPolicyRepo struct {
 	URL string `json:"url" protobuf:"bytes,1,name=url"`
 }
 
-// SourceIntegrityHelmPolicyGPGMode controls provenance verification.
-type SourceIntegrityHelmPolicyGPGMode string
+// SourceIntegrityHelmPolicyProvenanceMode controls provenance verification.
+type SourceIntegrityHelmPolicyProvenanceMode string
 
 const (
-	// SourceIntegrityHelmPolicyGPGModeNone skips verification (e.g. for exceptions).
-	SourceIntegrityHelmPolicyGPGModeNone SourceIntegrityHelmPolicyGPGMode = "none"
-	// SourceIntegrityHelmPolicyGPGModeProvenance requires a .prov file, valid GPG signature, and chart checksum match.
-	SourceIntegrityHelmPolicyGPGModeProvenance SourceIntegrityHelmPolicyGPGMode = "provenance"
+	// SourceIntegrityHelmPolicyProvenanceModeNone skips verification (e.g. for exceptions).
+	SourceIntegrityHelmPolicyProvenanceModeNone SourceIntegrityHelmPolicyProvenanceMode = "none"
+	// SourceIntegrityHelmPolicyProvenanceModeProvenance requires a .prov file, valid signature, and chart checksum match.
+	SourceIntegrityHelmPolicyProvenanceModeProvenance SourceIntegrityHelmPolicyProvenanceMode = "provenance"
 )
 
-// SourceIntegrityHelmPolicyGPG configures GPG verification of Helm chart provenance.
-type SourceIntegrityHelmPolicyGPG struct {
-	Mode SourceIntegrityHelmPolicyGPGMode `json:"mode" protobuf:"bytes,1,name=mode"`
-	Keys []string                         `json:"keys" protobuf:"bytes,2,name=keys"` // Allowed signer key IDs
+// SourceIntegrityHelmPolicyProvenance configures verification of Helm chart provenance (.prov file and signature).
+type SourceIntegrityHelmPolicyProvenance struct {
+	Mode SourceIntegrityHelmPolicyProvenanceMode `json:"mode" protobuf:"bytes,1,name=mode"`
+	Keys []string                                `json:"keys" protobuf:"bytes,2,name=keys"` // Allowed signer key IDs
 }
 
 type SourceIntegrityGit struct {

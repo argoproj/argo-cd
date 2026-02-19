@@ -30524,20 +30524,21 @@ spec:
                       policies:
                         items:
                           description: SourceIntegrityHelmPolicy applies to Helm repos
-                            matching Repos; GPG verifies .prov signature and allowed
-                            keys.
+                            matching Repos; provenance verifies .prov signature and
+                            allowed keys.
                           properties:
-                            gpg:
-                              description: SourceIntegrityHelmPolicyGPG configures
-                                GPG verification of Helm chart provenance.
+                            provenance:
+                              description: SourceIntegrityHelmPolicyProvenance configures
+                                verification of Helm chart provenance (.prov file
+                                and signature).
                               properties:
                                 keys:
                                   items:
                                     type: string
                                   type: array
                                 mode:
-                                  description: SourceIntegrityHelmPolicyGPGMode controls
-                                    provenance verification.
+                                  description: SourceIntegrityHelmPolicyProvenanceMode
+                                    controls provenance verification.
                                   type: string
                               required:
                               - keys
@@ -30555,7 +30556,7 @@ spec:
                                 type: object
                               type: array
                           required:
-                          - gpg
+                          - provenance
                           - repos
                           type: object
                         type: array

@@ -10753,11 +10753,11 @@
       }
     },
     "v1alpha1SourceIntegrityHelmPolicy": {
-      "description": "SourceIntegrityHelmPolicy applies to Helm repos matching Repos; GPG verifies .prov signature and allowed keys.",
+      "description": "SourceIntegrityHelmPolicy applies to Helm repos matching Repos; provenance verifies .prov signature and allowed keys.",
       "type": "object",
       "properties": {
-        "gpg": {
-          "$ref": "#/definitions/v1alpha1SourceIntegrityHelmPolicyGPG"
+        "provenance": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityHelmPolicyProvenance"
         },
         "repos": {
           "type": "array",
@@ -10767,8 +10767,8 @@
         }
       }
     },
-    "v1alpha1SourceIntegrityHelmPolicyGPG": {
-      "description": "SourceIntegrityHelmPolicyGPG configures GPG verification of Helm chart provenance.",
+    "v1alpha1SourceIntegrityHelmPolicyProvenance": {
+      "description": "SourceIntegrityHelmPolicyProvenance configures verification of Helm chart provenance (.prov file and signature).",
       "type": "object",
       "properties": {
         "keys": {

@@ -20,6 +20,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/gpg"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 )
 
@@ -420,13 +421,6 @@ func DeletePGPKey(keyID string) error {
 	return nil
 }
 
-// verifyKeyIDFromStatus matches [GNUPG:] GOODSIG <keyID> <uid> from gpg --status-fd output.
-var verifyKeyIDFromStatus = regexp.MustCompile(`(?m)^\[GNUPG:\] GOODSIG ([0-9A-Fa-f]+)`)
-
-// gpgStatusSigRegex matches any signature status line.
-// Used to produce specific errors instead of a generic "did not report GOODSIG".
-var gpgStatusSigRegex = regexp.MustCompile(`(?m)^\[GNUPG:\] (GOODSIG|BADSIG|EXPSIG|EXPKEYSIG|REVKEYSIG|ERRSIG) ([0-9A-Fa-f]+)`)
-
 // VerifyCleartextSignedMessage verifies a PGP cleartext-signed message (e.g. Helm .prov file).
 // It returns the signer's key ID (long form) on success. Uses --status-fd for reliable parsing.
 // Parses the same GPG status-fd format as Git (GOODSIG, ERRSIG, BADSIG, etc.)
@@ -477,37 +471,20 @@ func VerifyCleartextSignedMessage(clearsigned []byte) (signerKeyID string, err e
 	_ = cmd.Wait()
 
 	status := sb.String()
-	if matches := verifyKeyIDFromStatus.FindStringSubmatch(status); len(matches) >= 2 {
-		log.Infof("++++ GPG VerifyCleartextSignedMessage: GOODSIG keyID=%s", matches[1])
-		return matches[1], nil
-	}
-	// Parse other status codes (same format as Git) for clearer errors.
-	for _, submatches := range gpgStatusSigRegex.FindAllStringSubmatch(status, -1) {
-		if len(submatches) < 3 {
-			continue
+	code, keyID, err := gpg.ParseStatusOutputStrict(status)
+	if err != nil {
+		if errors.Is(err, gpg.ErrNoStatusFound) {
+			log.Warnf("++++ GPG VerifyCleartextSignedMessage: no GOODSIG, status-fd=%q", status)
+			return "", fmt.Errorf("gpg verify did not report GOODSIG (status-fd output: %q)", status)
 		}
-		code, keyID := submatches[1], submatches[2]
-		switch code {
-		case "ERRSIG":
-			log.Warnf("++++ GPG VerifyCleartextSignedMessage: ERRSIG keyID=%s status=%s", keyID, status)
-			if strings.Contains(status, "[GNUPG:] NO_PUBKEY ") {
-				return "", fmt.Errorf("provenance signed with key not in keyring (key_id=%s)", keyID)
-			}
-			return "", fmt.Errorf("gpg verification failed for key %s (ERRSIG)", keyID)
-		case "BADSIG":
-			return "", fmt.Errorf("provenance signature invalid (key_id=%s)", keyID)
-		case "EXPSIG":
-			return "", fmt.Errorf("provenance signature expired (key_id=%s)", keyID)
-		case "EXPKEYSIG":
-			return "", fmt.Errorf("provenance signed with expired key (key_id=%s)", keyID)
-		case "REVKEYSIG":
-			return "", fmt.Errorf("provenance signed with revoked key (key_id=%s)", keyID)
-		default:
-			continue
-		}
+		return "", err
 	}
-	log.Warnf("++++ GPG VerifyCleartextSignedMessage: no GOODSIG, status-fd=%q", status)
-	return "", fmt.Errorf("gpg verify did not report GOODSIG (status-fd output: %q)", status)
+	if code == "GOODSIG" {
+		log.Infof("++++ GPG VerifyCleartextSignedMessage: GOODSIG keyID=%s", keyID)
+		return keyID, nil
+	}
+	log.Warnf("++++ GPG VerifyCleartextSignedMessage: %s keyID=%s status=%s", code, keyID, status)
+	return "", fmt.Errorf("%s", gpg.VerificationFailureMessage(code, keyID))
 }
 
 // IsSecretKey returns true if the keyID also has a private key in the keyring

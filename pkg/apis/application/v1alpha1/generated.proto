@@ -2688,15 +2688,15 @@ message SourceIntegrityHelm {
   repeated SourceIntegrityHelmPolicy policies = 1;
 }
 
-// SourceIntegrityHelmPolicy applies to Helm repos matching Repos; GPG verifies .prov signature and allowed keys.
+// SourceIntegrityHelmPolicy applies to Helm repos matching Repos; provenance verifies .prov signature and allowed keys.
 message SourceIntegrityHelmPolicy {
   repeated SourceIntegrityHelmPolicyRepo repos = 1;
 
-  optional SourceIntegrityHelmPolicyGPG gpg = 2;
+  optional SourceIntegrityHelmPolicyProvenance provenance = 2;
 }
 
-// SourceIntegrityHelmPolicyGPG configures GPG verification of Helm chart provenance.
-message SourceIntegrityHelmPolicyGPG {
+// SourceIntegrityHelmPolicyProvenance configures verification of Helm chart provenance (.prov file and signature).
+message SourceIntegrityHelmPolicyProvenance {
   optional string mode = 1;
 
   repeated string keys = 2;

@@ -53,7 +53,6 @@ import (
 	iomocks "github.com/argoproj/argo-cd/v3/util/io/mocks"
 	ocimocks "github.com/argoproj/argo-cd/v3/util/oci/mocks"
 	"github.com/argoproj/argo-cd/v3/util/settings"
-	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 )
 
 var sourceIntegrityReqStrict = &v1alpha1.SourceIntegrity{
@@ -111,8 +110,8 @@ var sourceIntegrityHelmProvenance = &v1alpha1.SourceIntegrity{
 	Helm: &v1alpha1.SourceIntegrityHelm{
 		Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
 			Repos: []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "*"}},
-			GPG: &v1alpha1.SourceIntegrityHelmPolicyGPG{
-				Mode: v1alpha1.SourceIntegrityHelmPolicyGPGModeProvenance,
+			Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{
+				Mode: v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance,
 				Keys: []string{"27252B168248743B"},
 			},
 		}},
@@ -124,8 +123,8 @@ var sourceIntegrityHelmNoMatch = &v1alpha1.SourceIntegrity{
 	Helm: &v1alpha1.SourceIntegrityHelm{
 		Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
 			Repos: []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://other.com/*"}},
-			GPG: &v1alpha1.SourceIntegrityHelmPolicyGPG{
-				Mode: v1alpha1.SourceIntegrityHelmPolicyGPGModeProvenance,
+			Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{
+				Mode: v1alpha1.SourceIntegrityHelmPolicyProvenanceModeProvenance,
 				Keys: []string{"abc"},
 			},
 		}},
@@ -1996,13 +1995,34 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 		assert.Nil(t, res.SourceIntegrityResult)
 		gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything)
 	}
+	// Helm-only policy; no Git policy
+	{
+		service, gitClient, _ := newServiceWithMocks(t, "../../manifests/base")
+
+		src := v1alpha1.ApplicationSource{Path: "."}
+		q := apiclient.ManifestRequest{
+			Repo:               &v1alpha1.Repository{},
+			ApplicationSource:  &src,
+			SourceIntegrity:    sourceIntegrityHelmProvenance,
+			ProjectName:        "something",
+			ProjectSourceRepos: []string{"*"},
+		}
+
+		res, err := service.GenerateManifest(t.Context(), &q)
+		require.NoError(t, err)
+		require.NotNil(t, res.SourceIntegrityResult)
+		assert.Empty(t, res.SourceIntegrityResult.Checks, "no Git policy applies, result should have empty Checks (no checks performed)")
+		assert.True(t, res.SourceIntegrityResult.IsValid())
+		require.NoError(t, res.SourceIntegrityResult.AsError())
+		gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything)
+	}
 }
 
 func TestHelmSourceIntegrity_NoSourceIntegrity_ReturnsNil(t *testing.T) {
 	service := newService(t, ".")
 	source := &v1alpha1.ApplicationSource{Chart: "my-chart", TargetRevision: ">= 1.0.0", RepoURL: "https://helm.example.com"}
 	request := &apiclient.ManifestRequest{
-		Repo: &v1alpha1.Repository{Repo: "https://helm.example.com"},
+		Repo:              &v1alpha1.Repository{Repo: "https://helm.example.com"},
 		ApplicationSource: source, NoCache: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 		SourceIntegrity:    nil,
@@ -2017,7 +2037,7 @@ func TestHelmSourceIntegrity_SkippedWhenNoPolicyMatches(t *testing.T) {
 	service := newService(t, ".")
 	source := &v1alpha1.ApplicationSource{Chart: "my-chart", TargetRevision: ">= 1.0.0", RepoURL: "https://helm.example.com"}
 	request := &apiclient.ManifestRequest{
-		Repo: &v1alpha1.Repository{Repo: "https://helm.example.com"},
+		Repo:              &v1alpha1.Repository{Repo: "https://helm.example.com"},
 		ApplicationSource: source, NoCache: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 		SourceIntegrity:    sourceIntegrityHelmNoMatch,
@@ -2025,10 +2045,9 @@ func TestHelmSourceIntegrity_SkippedWhenNoPolicyMatches(t *testing.T) {
 	res, err := service.GenerateManifest(t.Context(), request)
 	require.NoError(t, err)
 	require.NotNil(t, res.SourceIntegrityResult)
+	assert.Empty(t, res.SourceIntegrityResult.Checks, "no Helm policy matches this repo; no checks should be performed")
 	assert.True(t, res.SourceIntegrityResult.IsValid())
 	require.NoError(t, res.SourceIntegrityResult.AsError())
-	assert.Equal(t, sourceintegrity.CheckNameHelmProvenance, res.SourceIntegrityResult.Checks[0].Name)
-	assert.Empty(t, res.SourceIntegrityResult.Checks[0].Problems)
 }
 
 func TestHelmSourceIntegrity_OciNotSupported(t *testing.T) {
@@ -2050,7 +2069,7 @@ func TestHelmSourceIntegrity_OciNotSupported(t *testing.T) {
 	// OCI repo (no https scheme) triggers "not yet supported" in provenance block
 	source := &v1alpha1.ApplicationSource{Chart: "my-chart", TargetRevision: ">= 1.0.0", RepoURL: "demo.goharbor.io"}
 	request := &apiclient.ManifestRequest{
-		Repo: &v1alpha1.Repository{Repo: "demo.goharbor.io", EnableOCI: true},
+		Repo:              &v1alpha1.Repository{Repo: "demo.goharbor.io", EnableOCI: true},
 		ApplicationSource: source, NoCache: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 		SourceIntegrity:    sourceIntegrityHelmProvenance,
@@ -2081,7 +2100,7 @@ func TestHelmSourceIntegrity_ChartTgzPathFails(t *testing.T) {
 	}, root)
 	source := &v1alpha1.ApplicationSource{Chart: "my-chart", TargetRevision: ">= 1.0.0", RepoURL: "https://helm.example.com"}
 	request := &apiclient.ManifestRequest{
-		Repo: &v1alpha1.Repository{Repo: "https://helm.example.com"},
+		Repo:              &v1alpha1.Repository{Repo: "https://helm.example.com"},
 		ApplicationSource: source, NoCache: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 		SourceIntegrity:    sourceIntegrityHelmProvenance,
