@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/go-openapi/loads"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/util/assets"
@@ -25,7 +26,7 @@ func TestSwaggerUI(t *testing.T) {
 		c <- listener.Addr().String()
 
 		mux := http.NewServeMux()
-		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", "")
+		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", "", "", "")
 		panic(http.Serve(listener, mux))
 	}
 
@@ -52,4 +53,46 @@ func TestSwaggerUI(t *testing.T) {
 	require.NoError(t, err)
 	require.Equalf(t, http.StatusOK, resp.StatusCode, "Was expecting status code 200 from swagger-ui, but got %d instead", resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
+}
+
+func TestSwaggerUISecurityHeaders(t *testing.T) {
+	lc := &net.ListenConfig{}
+	serve := func(c chan<- string, xFrameOptions, csp string) {
+		listener, err := lc.Listen(t.Context(), "tcp", ":0")
+		if err != nil {
+			panic(err)
+		}
+		c <- listener.Addr().String()
+		mux := http.NewServeMux()
+		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", "", xFrameOptions, csp)
+		panic(http.Serve(listener, mux))
+	}
+
+	t.Run("security headers are set on swagger.json", func(t *testing.T) {
+		c := make(chan string, 1)
+		go serve(c, "DENY", "frame-ancestors 'none'")
+		address := <-c
+
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+address+"/swagger.json", http.NoBody)
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
+		assert.Equal(t, "frame-ancestors 'none'", resp.Header.Get("Content-Security-Policy"))
+	})
+
+	t.Run("empty security headers are not set", func(t *testing.T) {
+		c := make(chan string, 1)
+		go serve(c, "", "")
+		address := <-c
+
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+address+"/swagger.json", http.NoBody)
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		assert.Empty(t, resp.Header.Get("X-Frame-Options"))
+		assert.Empty(t, resp.Header.Get("Content-Security-Policy"))
+	})
 }

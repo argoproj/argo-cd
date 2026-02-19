@@ -1243,7 +1243,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	mustRegisterGWHandler(ctx, gpgkeypkg.RegisterGPGKeyServiceHandler, gwmux, conn)
 
 	// Swagger UI
-	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", server.RootPath)
+	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", server.RootPath, server.XFrameOptions, server.ContentSecurityPolicy)
 	healthz.ServeHealthCheck(mux, server.healthCheck)
 
 	// Dex reverse proxy and OAuth2 login/callback
