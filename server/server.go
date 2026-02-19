@@ -1284,7 +1284,7 @@ func enforceContentTypes(handler http.Handler, types []string) http.Handler {
 		allowedTypes[strings.ToLower(t)] = true
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet || allowedTypes[strings.ToLower(r.Header.Get("Content-Type"))] {
+		if r.Method == http.MethodGet || r.Method == http.MethodDelete || r.Method == http.MethodHead || allowedTypes[strings.ToLower(r.Header.Get("Content-Type"))] {
 			handler.ServeHTTP(w, r)
 		} else {
 			http.Error(w, "Invalid content type", http.StatusUnsupportedMediaType)
