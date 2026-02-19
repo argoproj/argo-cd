@@ -1,6 +1,6 @@
 import {MockupList, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
-import {DataLoader, EventsList, YamlEditor} from '../../../shared/components';
+import {DataLoader, EventsList, Expandable, YamlEditor} from '../../../shared/components';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -70,11 +70,15 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                                         : ''}
                                 </SummaryItem>
                                 <SummaryItem title='ANNOTATIONS'>
-                                    {Object.keys(appSet.metadata.annotations || {}).length > 0
-                                        ? Object.entries(appSet.metadata.annotations)
-                                              .map(([k, v]) => `${k}=${v}`)
-                                              .join(' ')
-                                        : ''}
+                                    {Object.keys(appSet.metadata.annotations || {}).length > 0 ? (
+                                        <Expandable height={48}>
+                                            {Object.entries(appSet.metadata.annotations || {})
+                                                .map(([k, v]) => `${k}=${v}`)
+                                                .join(' ')}
+                                        </Expandable>
+                                    ) : (
+                                        ''
+                                    )}
                                 </SummaryItem>
                             </div>
                         </div>
