@@ -1,4 +1,0 @@
-apiVersion: nmstate.io/v1
-kind: NodeNetworkConfigurationEnactment
-metadata:
-  name: node1.test-policy
