@@ -76,7 +76,8 @@ ARGOCD_E2E_REDIS_PORT?=6379
 ARGOCD_E2E_DEX_PORT?=5556
 ARGOCD_E2E_YARN_HOST?=localhost
 ARGOCD_E2E_DISABLE_AUTH?=
-ARGOCD_E2E_DIR?=/tmp/argo-e2e
+# platform aware default, since in macOS Docker doesn't share /tmp with the host
+ARGOCD_E2E_DIR?=$(shell [ "$$(uname)" = "Darwin" ] && echo "$(HOME)/argo-e2e" || echo "/tmp/argo-e2e")
 
 ARGOCD_E2E_TEST_TIMEOUT?=90m
 ARGOCD_E2E_RERUN_FAILS?=5
@@ -579,6 +580,7 @@ start-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
 	BIN_MODE=$(ARGOCD_BIN_MODE) \
 	ARGOCD_E2E_TEST=false \
+	ARGOCD_E2E_DIR=$(ARGOCD_E2E_DIR)
 	ARGOCD_APPLICATION_NAMESPACES=$(ARGOCD_APPLICATION_NAMESPACES) \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 
