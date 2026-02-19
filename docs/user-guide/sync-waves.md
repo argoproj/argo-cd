@@ -156,7 +156,7 @@ Hooks and resources are assigned to wave zero by default. The wave can be negati
 
 ### Send message to Slack when sync completes
 
-The following example uses the Slack API to send a a Slack message when sync completes:
+The following example uses the Slack API to send a Slack message when sync completes:
 
 ```yaml
 apiVersion: batch/v1
@@ -185,7 +185,8 @@ spec:
   backoffLimit: 2
 ```
 
-The following example runs a db migration command before the main sync operation (also in wave -1):
+### Initialize or migrate a database
+The following example runs a db initialization/migration command before the main sync operation (also in wave -1):
 ```yaml
 apiVersion: batch/v1
 kind: Job

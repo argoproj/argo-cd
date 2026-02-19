@@ -155,7 +155,7 @@ In this example, when applications are deleted:
 
 This deletion order is useful for scenarios where you need to tear down dependent services in the correct sequence, such as deleting frontend services before backend dependencies.
 
-#### Example
+### Example
 
 The following example illustrates how to stage a progressive sync over Applications with explicitly configured environment labels.
 

@@ -217,7 +217,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 return {
                     url: (!githubAppValues.url && 'Repository URL is required') || (credsTemplate && !isHTTPOrHTTPSUrl(githubAppValues.url) && 'Not a valid HTTP/HTTPS URL'),
                     githubAppId: !githubAppValues.githubAppId && 'GitHub App ID is required',
-                    githubAppInstallationId: !githubAppValues.githubAppInstallationId && 'GitHub App installation ID is required',
                     githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required'
                 };
             case ConnectionMethod.GOOGLECLOUD:
@@ -855,8 +854,17 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                     </div>
                                 )) || (
                                     <EmptyState icon='argo-icon-git'>
-                                        <h4>No repositories connected</h4>
-                                        <h5>Connect your repo to deploy apps.</h5>
+                                        {repos.length > 0 ? (
+                                            <>
+                                                <h4>No repositories matched your filters</h4>
+                                                <h5>Try adjusting Type/Project/Status or your search.</h5>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <h4>No repositories connected</h4>
+                                                <h5>Connect your repo to deploy apps.</h5>
+                                            </>
+                                        )}
                                     </EmptyState>
                                 )
                             );

@@ -9,7 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 )
 
 // Resource holds the information about Kubernetes resource, ownership references and optional information
@@ -91,9 +91,9 @@ func (r *Resource) iterateChildrenV2(graph map[kube.ResourceKey]map[types.UID]*R
 	if !ok || children == nil {
 		return
 	}
-	for _, c := range children {
-		childKey := c.ResourceKey()
-		child := ns[childKey]
+	for _, child := range children {
+		childKey := child.ResourceKey()
+		// For cross-namespace relationships, child might not be in ns, so use it directly from graph
 		switch visited[childKey] {
 		case 1:
 			// Since we encountered a node that we're currently processing, we know we have a circular dependency.

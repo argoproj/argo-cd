@@ -388,8 +388,7 @@ func invalidGenerators(applicationSetInfo *argoappsv1.ApplicationSet) (bool, map
 	for index, generator := range applicationSetInfo.Spec.Generators {
 		v := reflect.Indirect(reflect.ValueOf(generator))
 		found := false
-		for i := 0; i < v.NumField(); i++ {
-			field := v.Field(i)
+		for _, field := range v.Fields() {
 			if !field.CanInterface() {
 				continue
 			}

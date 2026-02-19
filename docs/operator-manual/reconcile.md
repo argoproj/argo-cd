@@ -126,7 +126,7 @@ data:
 
 ## Ignoring updates for untracked resources
 
-ArgoCD will only apply `ignoreResourceUpdates` configuration to tracked resources of an application. This means dependant resources, such as a `ReplicaSet` and `Pod` created by a `Deployment`, will not ignore any updates and trigger a reconcile of the application for any changes.
+ArgoCD will only apply `ignoreResourceUpdates` configuration to tracked resources of an application. This means dependent resources, such as a `ReplicaSet` and `Pod` created by a `Deployment`, will not ignore any updates and trigger a reconcile of the application for any changes.
 
 If you want to apply the `ignoreResourceUpdates` configuration to an untracked resource, you can add the
 `argocd.argoproj.io/ignore-resource-updates=true` annotation in the dependent resources manifest.

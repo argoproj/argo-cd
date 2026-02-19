@@ -2265,6 +2265,44 @@
         }
       }
     },
+    "/api/v1/applicationsets/{name}/events": {
+      "get": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "ListResourceEvents returns a list of event resources",
+        "operationId": "ApplicationSetService_ListResourceEvents",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the applicationsets's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1EventList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applicationsets/{name}/resource-tree": {
       "get": {
         "tags": [
@@ -7261,7 +7299,7 @@
       "type": "object",
       "properties": {
         "applyNestedSelectors": {
-          "description": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators\nDeprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future\nversion of the ApplicationSet CRD.",
+          "description": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators.\n\nDeprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future\nversion of the ApplicationSet CRD.",
           "type": "boolean"
         },
         "generators": {
@@ -7321,6 +7359,9 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationSetCondition"
           }
+        },
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus"
         },
         "resources": {
           "description": "Resources is a list of Applications resources managed by this application set.",
@@ -9718,7 +9759,7 @@
       "type": "object",
       "properties": {
         "diff": {
-          "description": "Diff contains the JSON patch representing the difference between the live and target resource.\nDeprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.",
+          "description": "Diff contains the JSON patch representing the difference between the live and target resource.\n\nDeprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.",
           "type": "string"
         },
         "group": {

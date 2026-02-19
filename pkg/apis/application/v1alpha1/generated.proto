@@ -355,7 +355,8 @@ message ApplicationSetSpec {
 
   repeated string goTemplateOptions = 7;
 
-  // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+  // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators.
+  //
   // Deprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future
   // version of the ApplicationSet CRD.
   optional bool applyNestedSelectors = 8;
@@ -381,6 +382,9 @@ message ApplicationSetStatus {
   // ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when
   // the number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).
   optional int64 resourcesCount = 4;
+
+  // Health contains information about the applicationset's current health status based on the applicationset conditions
+  optional HealthStatus health = 5;
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
@@ -712,6 +716,7 @@ message ApplicationStatus {
   optional OperationState operationState = 7;
 
   // ObservedAt indicates when the application state was updated without querying latest git state
+  //
   // Deprecated: controller no longer updates ObservedAt field
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
@@ -2057,6 +2062,7 @@ message ResourceDiff {
   optional string liveState = 6;
 
   // Diff contains the JSON patch representing the difference between the live and target resource.
+  //
   // Deprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.
   optional string diff = 7;
 

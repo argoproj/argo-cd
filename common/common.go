@@ -17,10 +17,19 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// Component names
+// Argo CD component names
 const (
-	ApplicationController    = "argocd-application-controller"
-	ApplicationSetController = "argocd-applicationset-controller"
+	CommandCLI                      = "argocd"
+	CommandApplicationController    = "argocd-application-controller"
+	CommandApplicationSetController = "argocd-applicationset-controller"
+	CommandServer                   = "argocd-server"
+	CommandCMPServer                = "argocd-cmp-server"
+	CommandCommitServer             = "argocd-commit-server"
+	CommandGitAskPass               = "argocd-git-ask-pass"
+	CommandNotifications            = "argocd-notifications"
+	CommandK8sAuth                  = "argocd-k8s-auth"
+	CommandDex                      = "argocd-dex"
+	CommandRepoServer               = "argocd-repo-server"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -108,7 +117,6 @@ const (
 
 // Argo CD application related constants
 const (
-
 	// ArgoCDAdminUsername is the username of the 'admin' user
 	ArgoCDAdminUsername = "admin"
 	// ArgoCDUserAgentName is the default user-agent name used by the gRPC API client library and grpc-gateway
@@ -260,6 +268,8 @@ const (
 	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
 	// EnvGitSubmoduleEnabled overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
+	// EnvHelmUserAgent specifies the User-Agent header for Helm repository requests
+	EnvHelmUserAgent = "ARGOCD_HELM_USER_AGENT"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
 	// EnvWatchAPIBufferSize is the buffer size used to transfer K8S watch events to watch API consumer

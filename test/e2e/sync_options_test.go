@@ -5,8 +5,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -119,7 +119,8 @@ func TestSyncOptionsValidateTrue(t *testing.T) {
 }
 
 func TestSyncWithStatusIgnored(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path(guestbookPath).
 		When().
 		And(func() {
@@ -143,7 +144,7 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		// app should remain synced if k8s change detected
 		When().
 		And(func() {
-			errors.NewHandler(t).FailOnErr(KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Patch(t.Context(),
+			errors.NewHandler(t).FailOnErr(KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Patch(t.Context(),
 				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/status/observedGeneration", "value": 2 }]`), metav1.PatchOptions{}))
 		}).
 		Then().
@@ -199,7 +200,14 @@ func TestSyncWithSkipHook(t *testing.T) {
 }
 
 func TestSyncWithForceReplace(t *testing.T) {
-	Given(t).
+	ctx := Given(t)
+	t.Cleanup(func() {
+		// remove finalizer to ensure easy cleanup
+		_, err := Run("", "kubectl", "patch", "deployment", "guestbook-ui", "-n", ctx.DeploymentNamespace(), "-p", `{"metadata":{"finalizers":[]}}`, "--type=merge")
+		require.NoError(t, err)
+	})
+
+	ctx.
 		Path(guestbookPath).
 		When().
 		CreateApp().
@@ -207,14 +215,18 @@ func TestSyncWithForceReplace(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		// app having `Replace=true` and `Force=true` annotation should sync succeed if change in immutable field
+		// The finalizers allow us to validate that the existing resource (no finalizers) is just deleted once
+		// and does not get stuck in terminating state
 		When().
+		PatchFile("guestbook-ui-deployment.yaml", fmt.Sprintf(`[{ "op": "add", "path": "/metadata/finalizers", "value": [%q]}]`, TestFinalizer)).
 		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/metadata/annotations", "value": { "argocd.argoproj.io/sync-options": "Force=true,Replace=true" }}]`).
 		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/spec/selector/matchLabels/env", "value": "e2e" }, { "op": "add", "path": "/spec/template/metadata/labels/env", "value": "e2e" }]`).
-		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 2 }]`).
 		Refresh(RefreshTypeNormal).
 		Sync().
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
 // Given application is set with --sync-option CreateNamespace=true and --sync-option ServerSideApply=true
