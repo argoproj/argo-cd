@@ -850,6 +850,33 @@ func TestDoNotPrunePruneFalse(t *testing.T) {
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
 }
 
+func TestPruneConfirm(t *testing.T) {
+	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
+	pod := testingutils.NewPod()
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=confirm"})
+	pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{pod},
+		Target: []*unstructured.Unstructured{nil},
+	})
+
+	syncCtx.Sync()
+	phase, msg, resources := syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Empty(t, resources)
+	assert.Equal(t, "waiting for pruning confirmation of /Pod/my-pod", msg)
+
+	syncCtx.pruneConfirmed = true
+	syncCtx.Sync()
+
+	phase, _, resources = syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationSucceeded, phase)
+	assert.Len(t, resources, 1)
+	assert.Equal(t, synccommon.ResultCodePruned, resources[0].Status)
+	assert.Equal(t, "pruned", resources[0].Message)
+}
+
 // // make sure Validate=false means we don't validate
 func TestSyncOptionValidate(t *testing.T) {
 	tests := []struct {
@@ -2574,6 +2601,21 @@ func TestNeedsClientSideApplyMigration(t *testing.T) {
 			}(),
 			expected: true,
 		},
+		{
+			name: "CSA manager with Apply operation should not need migration",
+			liveObj: func() *unstructured.Unstructured {
+				obj := testingutils.NewPod()
+				obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+					{
+						Manager:   "kubectl-client-side-apply",
+						Operation: metav1.ManagedFieldsOperationApply,
+						FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:metadata":{"f:labels":{}}}`)},
+					},
+				})
+				return obj
+			}(),
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2582,6 +2624,129 @@ func TestNeedsClientSideApplyMigration(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestPerformCSAUpgradeMigration_NoMigrationNeeded(t *testing.T) {
+	// Create a fake dynamic client with a Pod scheme
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	// Object with only SSA manager (operation: Apply), no CSA manager (operation: Update)
+	obj := testingutils.NewPod()
+	obj.SetNamespace(testingutils.FakeArgoCDNamespace)
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+		{
+			Manager:   "argocd-controller",
+			Operation: metav1.ManagedFieldsOperationApply,
+			FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:spec":{"f:containers":{}}}`)},
+		},
+	})
+
+	// Create fake dynamic client with the object
+	dynamicClient := fake.NewSimpleDynamicClient(scheme, obj)
+
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.serverSideApplyManager = "argocd-controller"
+	syncCtx.dynamicIf = dynamicClient
+	syncCtx.disco = &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources},
+	}
+
+	// Should return nil (no error) because there's no CSA manager to migrate
+	err := syncCtx.performCSAUpgradeMigration(obj, "kubectl-client-side-apply")
+	assert.NoError(t, err)
+}
+
+func TestPerformCSAUpgradeMigration_WithCSAManager(t *testing.T) {
+	// Create a fake dynamic client with a Pod scheme
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	// Create the live object with a CSA manager (operation: Update)
+	obj := testingutils.NewPod()
+	obj.SetNamespace(testingutils.FakeArgoCDNamespace)
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+		{
+			Manager:   "kubectl-client-side-apply",
+			Operation: metav1.ManagedFieldsOperationUpdate,
+			FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:metadata":{"f:labels":{"f:app":{}}}}`)},
+		},
+	})
+
+	// Create fake dynamic client with the object
+	dynamicClient := fake.NewSimpleDynamicClient(scheme, obj)
+
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.serverSideApplyManager = "argocd-controller"
+	syncCtx.dynamicIf = dynamicClient
+	syncCtx.disco = &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources},
+	}
+
+	// Perform the migration
+	err := syncCtx.performCSAUpgradeMigration(obj, "kubectl-client-side-apply")
+	assert.NoError(t, err)
+
+	// Get the updated object from the fake client
+	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
+	updatedObj, err := dynamicClient.Resource(gvr).Namespace(obj.GetNamespace()).Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+	require.NoError(t, err)
+
+	// Verify the CSA manager (operation: Update) no longer exists
+	managedFields := updatedObj.GetManagedFields()
+	for _, mf := range managedFields {
+		if mf.Manager == "kubectl-client-side-apply" && mf.Operation == metav1.ManagedFieldsOperationUpdate {
+			t.Errorf("CSA manager 'kubectl-client-side-apply' with operation Update should have been removed, but still exists")
+		}
+	}
+}
+
+func TestPerformCSAUpgradeMigration_ConflictRetry(t *testing.T) {
+	// This test verifies that when a 409 Conflict occurs on the patch because
+	// another actor modified the object between Get and Patch, changing the resourceVersion,
+	// the retry.RetryOnConflict loop retries and eventually succeeds.
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	obj := testingutils.NewPod()
+	obj.SetNamespace(testingutils.FakeArgoCDNamespace)
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+		{
+			Manager:   "kubectl-client-side-apply",
+			Operation: metav1.ManagedFieldsOperationUpdate,
+			FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:metadata":{"f:labels":{"f:app":{}}}}`)},
+		},
+	})
+
+	dynamicClient := fake.NewSimpleDynamicClient(scheme, obj)
+
+	// Simulate a conflict on the first patch attempt where another
+	// controller modified the object between our Get and Patch, bumping resourceVersion).
+	// The second attempt should succeed.
+	patchAttempt := 0
+	dynamicClient.PrependReactor("patch", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+		patchAttempt++
+		if patchAttempt == 1 {
+			// First attempt: simulate 409 Conflict (resourceVersion mismatch)
+			return true, nil, apierrors.NewConflict(
+				schema.GroupResource{Group: "", Resource: "pods"},
+				obj.GetName(),
+				errors.New("the object has been modified; please apply your changes to the latest version"),
+			)
+		}
+		return false, nil, nil
+	})
+
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.serverSideApplyManager = "argocd-controller"
+	syncCtx.dynamicIf = dynamicClient
+	syncCtx.disco = &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources},
+	}
+
+	err := syncCtx.performCSAUpgradeMigration(obj, "kubectl-client-side-apply")
+	assert.NoError(t, err, "Migration should succeed after retrying on conflict")
+	assert.Equal(t, 2, patchAttempt, "Expected exactly 2 patch attempts (1 conflict + 1 success)")
 }
 
 func diffResultListClusterResource() *diff.DiffResultList {

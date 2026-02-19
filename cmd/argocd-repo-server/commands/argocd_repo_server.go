@@ -39,11 +39,6 @@ import (
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 )
 
-const (
-	// CLIName is the name of the CLI
-	cliName = "argocd-repo-server"
-)
-
 var (
 	gnuPGSourcePath                              = env.StringFromEnv(common.EnvGPGDataPath, "/app/config/gpg/source")
 	pauseGenerationAfterFailedGenerationAttempts = env.ParseNumFromEnv(common.EnvPauseGenerationAfterFailedAttempts, 3, 0, math.MaxInt32)
@@ -85,7 +80,7 @@ func NewCommand() *cobra.Command {
 		enableBuiltinGitConfig             bool
 	)
 	command := cobra.Command{
-		Use:               cliName,
+		Use:               common.CommandRepoServer,
 		Short:             "Run ArgoCD Repository Server",
 		Long:              "ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,

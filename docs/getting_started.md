@@ -84,7 +84,7 @@ kubectl get svc argocd-server -n argocd -o=jsonpath='{.status.loadBalancer.ingre
 Follow the [ingress documentation](operator-manual/ingress.md) on how to configure Argo CD with ingress.
 
 ### Port Forwarding
-Kubectl port-forwarding can also be used to connect to the API server without exposing the service.
+`kubectl port-forward` can also be used to connect to the API server without exposing the service.
 
 ```bash
 kubectl port-forward svc/argocd-server -n argocd 8080:443
@@ -93,7 +93,7 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 The API server can then be accessed using https://localhost:8080
 
 
-## 4. Login Using The CLI
+## 4. Log in Using The CLI
 
 The initial password for the `admin` account is auto-generated and stored as
 clear text in the field `password` in a secret named `argocd-initial-admin-secret`
@@ -111,7 +111,7 @@ argocd admin initial-password -n argocd
 > safely be deleted at any time. It will be re-created on demand by Argo CD
 > if a new admin password must be re-generated.
 
-Using the username `admin` and the password from above, login to Argo CD's IP or hostname:
+Using the username `admin` and the password from above, log in to Argo CD's IP or hostname:
 
 ```bash
 argocd login <ARGOCD_SERVER>
@@ -126,7 +126,7 @@ Change the password using the command:
 argocd account update-password
 ```
 
-## 5. Register A Cluster To Deploy Apps To (Optional)
+## 5. Register a Cluster to Deploy Apps To (Optional)
 
 This step registers a cluster's credentials to Argo CD, and is only necessary when deploying to
 an external cluster. When deploying internally (to the same cluster that Argo CD is running in),
@@ -161,7 +161,7 @@ An example repository containing a guestbook application is available at
 
 ### Creating Apps Via CLI
 
-First we need to set the current namespace to argocd running the following command:
+First, set the current namespace to argocd by running the following command:
 
 ```bash
 kubectl config set-context --current --namespace=argocd
