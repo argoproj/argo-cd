@@ -1,3 +1,30 @@
+-- NodeNetworkConfigurationEnactment (NNCE) is a cluster-scoped, per-node resource
+-- that tracks the application of a NodeNetworkConfigurationPolicy on a single node.
+-- NNCEs are named <node>.<policy> and have no spec; all state is in status.
+--
+-- Documentation:
+--   User guide (configuration & conditions): https://github.com/nmstate/kubernetes-nmstate/blob/main/docs/user-guide/102-configuration.md
+--   Troubleshooting (failure states):        https://github.com/nmstate/kubernetes-nmstate/blob/main/docs/user-guide/103-troubleshooting.md
+--
+-- Condition types and reasons are defined in:
+--   https://github.com/nmstate/kubernetes-nmstate/blob/main/api/shared/nodenetworkconfigurationenactment_types.go
+--
+-- NNCE exposes five condition types:
+--   Progressing (True)                     - Actively applying desired state (ConfigurationProgressing)
+--   Failing     (True) + Progressing(True) - Failed at least once, still retrying (Retrying)
+--   Failing     (True) + Progressing(False)- Terminal failure, no more retries (FailedToConfigure)
+--   Pending     (True)                     - Blocked by maxUnavailable limit (MaxUnavailableLimitReached)
+--   Aborted     (True)                     - Skipped because another node in the rollout failed (ConfigurationAborted)
+--   Available   (True)                     - Successfully configured (SuccessfullyConfigured)
+--
+-- ArgoCD health mapping:
+--   Progressing=True                           => Progressing
+--   Failing=True + Progressing=True (retry)    => Progressing
+--   Failing=True + Progressing=False (terminal)=> Degraded
+--   Pending=True                               => Progressing
+--   Aborted=True                               => Suspended
+--   Available=True                             => Healthy
+--   No status yet                              => Progressing
 local hs = {}
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
