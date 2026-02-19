@@ -24,7 +24,7 @@ func withFrameOptions(h http.Handler) http.Handler {
 func ServeSwaggerUI(mux *http.ServeMux, swaggerJSON string, uiPath string, rootPath string) {
 	prefix := path.Dir(uiPath)
 	swaggerPath := path.Join(prefix, "swagger.json")
-	mux.HandleFunc(swaggerPath, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc(swaggerPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Content-Security-Policy", "frame-ancestors 'none'")
 		_, _ = fmt.Fprint(w, swaggerJSON)
