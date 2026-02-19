@@ -79,7 +79,7 @@ Verify your configuration on the next screen and click **Create** to create the 
 
 After clicking **Create** you will be shown the `ClientId` and the `ClientSecret` for your application. Make sure to copy the ClientSecret as you will not be able to retrieve it after closing this window.  
 For our example, the following values are used:
-- ClientId: `227060711795262483@argocd-project`
+- ClientId: `227060711795262483`
 - ClientSecret: `UGvTjXVFAQ8EkMv2x4GbPcrEwrJGWZ0sR2KbwHRNfYxeLsDurCiVEpa5bkgW0pl0`
 
 ![Zitadel Application Secrets](../../assets/zitadel-application-secrets.png "Zitadel Application Secrets")
@@ -149,9 +149,27 @@ Next, we will configure two ArgoCD configmaps:
 
 Configure your configmaps as follows while making sure to replace the relevant values such as `url`, `issuer`, `clientID`, `clientSecret` and `logoutURL` with ones matching your setup.
 
+### argocd-secret.yaml
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-secret
+    app.kubernetes.io/part-of: argocd
+type: Opaque
+data:
+  ...
+  # The secret value must be base64 encoded **once** 
+  # this value corresponds to: `printf "hello-world" | base64`
+  oidc.zitadel.clientSecret: "VUd2VGpYVkZBUThFa012Mng0R2JQY3JFd3JKR1daMHNSMktid0hSTmZZeGVMc0R1ckNpVkVwYTVia2dXMHBsMA=="
+  ...
+```
+
 ### argocd-cm.yaml
 ```yaml
----
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -165,8 +183,8 @@ data:
   oidc.config: |
     name: Zitadel
     issuer: https://auth.example.com
-    clientID: 227060711795262483@argocd-project
-    clientSecret: UGvTjXVFAQ8EkMv2x4GbPcrEwrJGWZ0sR2KbwHRNfYxeLsDurCiVEpa5bkgW0pl0
+    clientID: "227060711795262483"
+    clientSecret: $oidc.zitadel.clientSecret
     requestedScopes:
       - openid
       - profile
@@ -208,3 +226,5 @@ Go to your ArgoCD instance. You should now see the **LOG IN WITH ZITADEL** butto
 After logging in with your Zitadel user go to **User Info**. If everything is set up correctly you should now see the group `argocd_administrators` as shown below.
 
 ![Zitadel ArgoCD User Info](../../assets/zitadel-argocd-user-info.png "Zitadel ArgoCD User Info")
+
+*note: you can also define use PKCE flow by selecting it in zitadel and then use enablePKCEAuthentication option in argocd-cm.yaml*
