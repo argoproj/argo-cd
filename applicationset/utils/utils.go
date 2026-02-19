@@ -311,6 +311,27 @@ func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, 
 	return replacedGen, nil
 }
 
+func (r *Render) RenderNestedGeneratorParams(gen *argoappsv1.ApplicationSetNestedGenerator, params map[string]any, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.ApplicationSetNestedGenerator, error) {
+	if gen == nil {
+		return nil, errors.New("generator is empty")
+	}
+
+	if len(params) == 0 {
+		return gen, nil
+	}
+
+	original := reflect.ValueOf(gen)
+	copy := reflect.New(original.Type()).Elem()
+
+	if err := r.deeplyReplace(copy, original, params, useGoTemplate, goTemplateOptions); err != nil {
+		return nil, fmt.Errorf("failed to replace parameters in generator: %w", err)
+	}
+
+	replacedGen := copy.Interface().(*argoappsv1.ApplicationSetNestedGenerator)
+
+	return replacedGen, nil
+}
+
 var isTemplatedRegex = regexp.MustCompile(".*{{.*}}.*")
 
 // Replace executes basic string substitution of a template with replacement values.
