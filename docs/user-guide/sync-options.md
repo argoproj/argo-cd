@@ -330,9 +330,10 @@ This is useful when you have other operators managing resources that are no long
 When client-side apply migration is enabled:
 1. Argo CD will use the specified field manager (or default if not specified) to perform migration
 2. During a server-side apply sync operation, it will:
-   - Perform a client-side-apply with the specified field manager
-   - Move the 'last-applied-configuration' annotation to be managed by the specified manager
-   - Perform the server-side apply, which will auto migrate all the fields under the manager that owns the 'last-applied-configuration' annotation.
+   - Check if the specified field manager exists in the resource's `managedFields` with `operation: Update` (indicating client-side apply)
+   - Patch the `managedFields`, transferring field ownership from the client-side apply manager to Argo CD's server-side apply manager (`argocd-controller`)
+   - Remove the client-side apply manager entry from `managedFields`
+   - Perform the server-side apply with the migrated field ownership
 
 This feature is based on Kubernetes' [client-side apply migration KEP](https://github.com/alexzielenski/enhancements/blob/03df8820b9feca6d2cab78e303c99b2c9c0c4c5c/keps/sig-cli/3517-kubectl-client-side-apply-migration/README.md), which provides the auto migration from client-side to server-side apply.
 
