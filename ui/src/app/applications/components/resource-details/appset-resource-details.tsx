@@ -31,7 +31,7 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                 title: 'SUMMARY',
                 key: 'summary',
                 content: (
-                    <div className='application-summary'>
+                    <div className='applicationset-summary'>
                         <div className='white-box'>
                             <div className='white-box__details'>
                                 <p>{appSet.metadata.name.toLocaleUpperCase()}</p>
@@ -86,29 +86,6 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                                     <p>SYNC POLICY</p>
                                     <SummaryItem title='APPLICATIONS SYNC'>{spec.syncPolicy.applicationsSync || 'sync (default)'}</SummaryItem>
                                     <SummaryItem title='PRESERVE RESOURCES ON DELETION'>{spec.syncPolicy.preserveResourcesOnDeletion ? 'true' : 'false'}</SummaryItem>
-                                </div>
-                            </div>
-                        )}
-
-                        {spec?.strategy && (
-                            <div className='white-box'>
-                                <div className='white-box__details'>
-                                    <p>STRATEGY</p>
-                                    <SummaryItem title='TYPE'>{spec.strategy.type || 'AllAtOnce'}</SummaryItem>
-                                    {spec.strategy.rollingSync?.steps && (
-                                        <SummaryItem title='ROLLING SYNC STEPS'>
-                                            {spec.strategy.rollingSync.steps.map((step: any, i: number) => (
-                                                <div key={i} style={{marginBottom: '4px'}}>
-                                                    Step {i + 1}: maxUpdate={step.maxUpdate != null ? String(step.maxUpdate) : 'N/A'}
-                                                    {step.matchExpressions?.map((expr: any, j: number) => (
-                                                        <div key={j} style={{marginLeft: '16px', fontSize: '12px'}}>
-                                                            {expr.key} {expr.operator} [{expr.values?.join(', ')}]
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ))}
-                                        </SummaryItem>
-                                    )}
                                 </div>
                             </div>
                         )}
