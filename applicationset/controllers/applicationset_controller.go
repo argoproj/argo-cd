@@ -244,11 +244,6 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
 	}
 
-	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get update resources status for application set: %w", err)
-	}
-
 	// appSyncMap tracks which apps will be synced during this reconciliation.
 	appSyncMap := map[string]bool{}
 
