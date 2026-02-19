@@ -590,7 +590,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if idTokenRAW != "" {
-		err = httputil.SetTokenCookie(idTokenRAW, a.baseHRef, a.secureCookie, w)
+		err = httputil.SetTokenCookie(sid, a.baseHRef, a.secureCookie, w)
 		if err != nil {
 			claimsJSON, _ := json.Marshal(claims)
 			http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
