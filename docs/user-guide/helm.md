@@ -34,9 +34,9 @@ metadata:
 spec:
   project: default
   source:
-    chart: nginx
-    repoURL: registry-1.docker.io/bitnamicharts  # note: the oci:// syntax is not included.
-    targetRevision: 15.9.0
+    path: .
+    repoURL: oci://registry-1.docker.io/bitnamicharts/nginx 
+    targetRevision: 1.16.1
   destination:
     name: "in-cluster"
     namespace: nginx

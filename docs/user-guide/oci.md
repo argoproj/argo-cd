@@ -35,7 +35,7 @@ spec:
   source:
     path: .
     repoURL: oci://registry-1.docker.io/bitnamicharts/nginx 
-    targetRevision: 15.9.0
+    targetRevision: 1.16.1
     helm:
       valuesObject:
         some-value: foo
