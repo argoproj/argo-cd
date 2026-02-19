@@ -4808,3 +4808,149 @@ func TestGenerateManifest_OCISourceSkipsGitClient(t *testing.T) {
 	// verify that newGitClient was never invoked
 	assert.False(t, gitCalled, "GenerateManifest should not invoke Git for OCI sources")
 }
+
+func TestFlattenValues(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    map[string]any
+		expected map[string]string
+	}{
+		{
+			name:     "simple values",
+			input:    map[string]any{"replicaCount": 3, "debug": true},
+			expected: map[string]string{"replicaCount": "3", "debug": "true"},
+		},
+		{
+			name:     "nested values",
+			input:    map[string]any{"image": map[string]any{"tag": "1.0", "pullPolicy": "Always"}},
+			expected: map[string]string{"image.tag": "1.0", "image.pullPolicy": "Always"},
+		},
+		{
+			name:     "deeply nested",
+			input:    map[string]any{"a": map[string]any{"b": map[string]any{"c": "value"}}},
+			expected: map[string]string{"a.b.c": "value"},
+		},
+		{
+			name:     "array values",
+			input:    map[string]any{"hosts": []any{"host1", "host2"}},
+			expected: map[string]string{"hosts[0]": "host1", "hosts[1]": "host2"},
+		},
+		{
+			name:     "empty map",
+			input:    map[string]any{},
+			expected: map[string]string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := make(map[string]string)
+			flattenValues(tt.input, output, "")
+			assert.Equal(t, tt.expected, output)
+		})
+	}
+}
+
+func Test_populateHelmAppDetails_WithInlineValues(t *testing.T) {
+	emptyTempPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	res := apiclient.RepoAppDetailsResponse{}
+	q := apiclient.RepoServerAppDetailsQuery{
+		Repo: &v1alpha1.Repository{},
+		Source: &v1alpha1.ApplicationSource{
+			Helm: &v1alpha1.ApplicationSourceHelm{
+				Values: "replicaCount: 5\nimage:\n  tag: \"1.25.0\"",
+			},
+		},
+	}
+	appPath, err := filepath.Abs("./testdata/values-files/")
+	require.NoError(t, err)
+	err = populateHelmAppDetails(&res, appPath, appPath, &q, emptyTempPaths)
+	require.NoError(t, err)
+
+	// Check that inline values are merged into parameters
+	paramMap := make(map[string]string)
+	for _, p := range res.Helm.Parameters {
+		paramMap[p.Name] = p.Value
+	}
+	assert.Equal(t, "5", paramMap["replicaCount"])
+	assert.Equal(t, "1.25.0", paramMap["image.tag"])
+}
+
+func Test_populateHelmAppDetails_WithParameterOverrides(t *testing.T) {
+	emptyTempPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	res := apiclient.RepoAppDetailsResponse{}
+	q := apiclient.RepoServerAppDetailsQuery{
+		Repo: &v1alpha1.Repository{},
+		Source: &v1alpha1.ApplicationSource{
+			Helm: &v1alpha1.ApplicationSourceHelm{
+				Values: "replicaCount: 5",
+				Parameters: []v1alpha1.HelmParameter{
+					{Name: "replicaCount", Value: "10"},
+					{Name: "image.tag", Value: "2.0.0"},
+				},
+			},
+		},
+	}
+	appPath, err := filepath.Abs("./testdata/values-files/")
+	require.NoError(t, err)
+	err = populateHelmAppDetails(&res, appPath, appPath, &q, emptyTempPaths)
+	require.NoError(t, err)
+
+	// Check that --set parameters override inline values
+	paramMap := make(map[string]string)
+	for _, p := range res.Helm.Parameters {
+		paramMap[p.Name] = p.Value
+	}
+	// Parameters should override inline values
+	assert.Equal(t, "10", paramMap["replicaCount"])
+	assert.Equal(t, "2.0.0", paramMap["image.tag"])
+}
+
+func Test_populateHelmAppDetails_WithInvalidValues(t *testing.T) {
+	emptyTempPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	appPath, err := filepath.Abs("./testdata/values-files/")
+	require.NoError(t, err)
+
+	t.Run("top-level array should not panic", func(t *testing.T) {
+		res := apiclient.RepoAppDetailsResponse{}
+		q := apiclient.RepoServerAppDetailsQuery{
+			Repo: &v1alpha1.Repository{},
+			Source: &v1alpha1.ApplicationSource{
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					Values: "- item1\n- item2",
+				},
+			},
+		}
+		// Should not panic, just skip the invalid values
+		err := populateHelmAppDetails(&res, appPath, appPath, &q, emptyTempPaths)
+		require.NoError(t, err)
+	})
+
+	t.Run("scalar value should not panic", func(t *testing.T) {
+		res := apiclient.RepoAppDetailsResponse{}
+		q := apiclient.RepoServerAppDetailsQuery{
+			Repo: &v1alpha1.Repository{},
+			Source: &v1alpha1.ApplicationSource{
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					Values: "just a string",
+				},
+			},
+		}
+		err := populateHelmAppDetails(&res, appPath, appPath, &q, emptyTempPaths)
+		require.NoError(t, err)
+	})
+
+	t.Run("malformed yaml should not panic", func(t *testing.T) {
+		res := apiclient.RepoAppDetailsResponse{}
+		q := apiclient.RepoServerAppDetailsQuery{
+			Repo: &v1alpha1.Repository{},
+			Source: &v1alpha1.ApplicationSource{
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					Values: "key: [invalid yaml",
+				},
+			},
+		}
+		err := populateHelmAppDetails(&res, appPath, appPath, &q, emptyTempPaths)
+		require.NoError(t, err)
+	})
+}
