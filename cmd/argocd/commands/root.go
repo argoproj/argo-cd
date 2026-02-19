@@ -86,7 +86,7 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().StringSliceVarP(&clientOpts.Headers, "header", "H", config.GetStringSliceFlag("header", []string{}), "Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)")
 	command.PersistentFlags().BoolVar(&clientOpts.PortForward, "port-forward", config.GetBoolFlag("port-forward"), "Connect to a random argocd-server port using port forwarding")
 	command.PersistentFlags().StringVar(&clientOpts.PortForwardNamespace, "port-forward-namespace", config.GetFlag("port-forward-namespace", ""), "Namespace name which should be used for port forwarding")
-	command.PersistentFlags().IntVar(&clientOpts.HttpRetryMax, "http-retry-max", config.GetIntFlag("http-retry-max", 0), "Maximum number of retries to establish http connection to Argo CD server")
+	command.PersistentFlags().IntVar(&clientOpts.HttpRetryMax, "http-retry-max", config.GetIntFlag("http-retry-max", 0), "Maximum number of attempts for retryable network issues and status codes")
 	command.PersistentFlags().BoolVar(&clientOpts.Core, "core", config.GetBoolFlag("core"), "If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server")
 	command.PersistentFlags().StringVar(&clientOpts.Context, "argocd-context", "", "The name of the Argo-CD server context to use")
 	command.PersistentFlags().StringVar(&clientOpts.ServerName, "server-name", env.StringFromEnv(common.EnvServerName, common.DefaultServerName), fmt.Sprintf("Name of the Argo CD API server; set this or the %s environment variable when the server's name label differs from the default, for example when installing via the Helm chart", common.EnvServerName))
