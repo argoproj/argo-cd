@@ -1,0 +1,205 @@
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: cluster-qf-mathieu
+  namespace: cluster-qf-mathieu
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+        - 10.20.10.0/19
+    services:
+      cidrBlocks:
+        - 10.10.10.0/19
+  controlPlaneEndpoint:
+    host: 10.20.30.40
+    port: 6443
+  controlPlaneRef:
+    apiVersion: controlplane.cluster.x-k8s.io/v1beta2
+    kind: KubeadmControlPlane
+    name: cluster-qf-mathieu-cp-qj7zf
+    namespace: cluster-qf-mathieu
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+    kind: VSphereCluster
+    name: cluster-qf-mathieu-s7gqr
+    namespace: cluster-qf-mathieu
+  topology:
+    class: vsphere-v1.1.0
+    controlPlane:
+      metadata: {}
+      replicas: 3
+    version: v1.34.2
+    workers:
+      machineDeployments:
+        - class: default-md-class
+          metadata: {}
+          name: md-0
+          replicas: 3
+status:
+  conditions:
+    - lastTransitionTime: '2025-10-21T12:33:41Z'
+      status: 'True'
+      type: Ready
+    - lastTransitionTime: '2025-07-24T14:07:21Z'
+      status: 'True'
+      type: ControlPlaneInitialized
+    - lastTransitionTime: '2025-08-29T15:08:50Z'
+      status: 'True'
+      type: ControlPlaneReady
+    - lastTransitionTime: '2025-10-21T12:33:41Z'
+      status: 'True'
+      type: InfrastructureReady
+    - lastTransitionTime: '2025-12-09T11:26:49Z'
+      message: >-
+        MachineDeployment(s) cluster-qf-mathieu-md-0-45wmj rollout and upgrade
+        to version v1.34.2 on hold. Control plane is upgrading to version
+        v1.34.2
+      reason: MachineDeploymentsUpgradePending
+      severity: Info
+      status: 'False'
+      type: TopologyReconciled
+  controlPlaneReady: true
+  infrastructureReady: true
+  observedGeneration: 19
+  phase: Provisioned
+  v1beta2:
+    conditions:
+      - lastTransitionTime: '2025-12-09T06:50:10Z'
+        message: >-
+          * TopologyReconciled: MachineDeployment(s)
+          cluster-qf-mathieu-md-0-45wmj rollout and upgrade to version v1.34.2
+          on hold. Control plane is upgrading to version v1.34.2
+        observedGeneration: 19
+        reason: Available
+        status: 'True'
+        type: Available
+      - lastTransitionTime: '2025-09-18T08:32:45Z'
+        message: ''
+        observedGeneration: 19
+        reason: ProbeSucceeded
+        status: 'True'
+        type: RemoteConnectionProbe
+      - lastTransitionTime: '2025-10-21T12:34:01Z'
+        message: ''
+        observedGeneration: 19
+        reason: Ready
+        status: 'True'
+        type: InfrastructureReady
+      - lastTransitionTime: '2025-07-24T14:07:21Z'
+        message: ''
+        observedGeneration: 3
+        reason: Initialized
+        status: 'True'
+        type: ControlPlaneInitialized
+      - lastTransitionTime: '2025-12-09T03:38:34Z'
+        message: ''
+        observedGeneration: 19
+        reason: Available
+        status: 'True'
+        type: ControlPlaneAvailable
+      - lastTransitionTime: '2025-08-18T12:23:15Z'
+        message: ''
+        observedGeneration: 19
+        reason: Available
+        status: 'True'
+        type: WorkersAvailable
+      - lastTransitionTime: '2025-12-09T11:26:48Z'
+        message: >-
+          MachineDeployment(s) cluster-qf-mathieu-md-0-45wmj rollout and upgrade
+          to version v1.34.2 on hold. Control plane is upgrading to version
+          v1.34.2
+        observedGeneration: 19
+        reason: MachineDeploymentsUpgradePending
+        status: 'False'
+        type: TopologyReconciled
+      - lastTransitionTime: '2025-12-09T11:27:03Z'
+        message: |-
+          * KubeadmControlPlane cluster-qf-mathieu-cp-qj7zf:
+            * Rolling out 3 not up-to-date replicas
+              * Version v1.33.6, v1.34.2 required
+              * KubeadmConfig is not up-to-date
+        observedGeneration: 19
+        reason: RollingOut
+        status: 'True'
+        type: RollingOut
+      - lastTransitionTime: '2025-11-26T14:19:31Z'
+        message: ''
+        observedGeneration: 19
+        reason: NotRemediating
+        status: 'False'
+        type: Remediating
+      - lastTransitionTime: '2025-12-09T11:27:04Z'
+        message: |-
+          * KubeadmControlPlane cluster-qf-mathieu-cp-qj7zf:
+            * Scaling down from 4 to 3 replicas is blocked because:
+              * waiting for control plane components to become healthy
+              * waiting for etcd cluster to become healthy
+        observedGeneration: 19
+        reason: ScalingDown
+        status: 'True'
+        type: ScalingDown
+      - lastTransitionTime: '2025-07-24T14:11:28Z'
+        message: ''
+        observedGeneration: 19
+        reason: NotScalingUp
+        status: 'False'
+        type: ScalingUp
+      - lastTransitionTime: '2025-12-09T11:27:05Z'
+        message: |-
+          * Machine cluster-qf-mathieu-cp-qj7zf-hz6pj:
+            * InfrastructureReady:
+              * VirtualMachineProvisioned: NotProvisioned
+            * NodeHealthy: Waiting for VSphereMachine to report spec.providerID
+            * Control plane components: Waiting for VSphereMachine to report spec.providerID
+            * EtcdMemberHealthy: Waiting for VSphereMachine to report spec.providerID
+        observedGeneration: 19
+        reason: NotReady
+        status: 'False'
+        type: ControlPlaneMachinesReady
+      - lastTransitionTime: '2025-12-05T17:18:47Z'
+        message: ''
+        observedGeneration: 19
+        reason: Ready
+        status: 'True'
+        type: WorkerMachinesReady
+      - lastTransitionTime: '2025-12-09T11:27:03Z'
+        message: >-
+          * Machines cluster-qf-mathieu-cp-qj7zf-59t7b,
+          cluster-qf-mathieu-cp-qj7zf-kh5v5, cluster-qf-mathieu-cp-qj7zf-n4vfz:
+            * Version v1.33.6, v1.34.2 required
+            * KubeadmConfig is not up-to-date
+        observedGeneration: 19
+        reason: NotUpToDate
+        status: 'False'
+        type: ControlPlaneMachinesUpToDate
+      - lastTransitionTime: '2025-12-05T17:18:47Z'
+        message: ''
+        observedGeneration: 19
+        reason: UpToDate
+        status: 'True'
+        type: WorkerMachinesUpToDate
+      - lastTransitionTime: '2025-07-24T14:03:20Z'
+        message: ''
+        observedGeneration: 19
+        reason: NotPaused
+        status: 'False'
+        type: Paused
+      - lastTransitionTime: '2025-07-24T14:03:20Z'
+        message: ''
+        observedGeneration: 19
+        reason: NotDeleting
+        status: 'False'
+        type: Deleting
+    controlPlane:
+      availableReplicas: 3
+      desiredReplicas: 3
+      readyReplicas: 3
+      replicas: 4
+      upToDateReplicas: 1
+    workers:
+      availableReplicas: 3
+      desiredReplicas: 3
+      readyReplicas: 3
+      replicas: 3
+      upToDateReplicas: 3
