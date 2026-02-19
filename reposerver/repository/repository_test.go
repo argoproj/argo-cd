@@ -2984,7 +2984,7 @@ func TestTestRepoHelmOCI(t *testing.T) {
 			EnableOCI: true,
 		},
 	})
-	assert.ErrorContains(t, err, "OCI Helm repository URL should include hostname and port only")
+	require.ErrorContains(t, err, "OCI Helm repository URL should include hostname and port only")
 
 	t.Run("OCI repository with oci:// prefix and EnableOCI false", func(t *testing.T) {
 		_, err := service.TestRepository(t.Context(), &apiclient.TestRepositoryRequest{
@@ -2994,9 +2994,7 @@ func TestTestRepoHelmOCI(t *testing.T) {
 				EnableOCI: false,
 			},
 		})
-		if err != nil {
-			assert.NotContains(t, err.Error(), "unsupported protocol scheme \"oci\"")
-		}
+		require.NoError(t, err)
 	})
 }
 
