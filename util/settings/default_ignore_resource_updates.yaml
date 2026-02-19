@@ -1,0 +1,49 @@
+### Default configuration for ignoreResourceUpdates.
+# The ignoreResourceUpdates list contains K8s resource's properties that are known to be frequently updated
+# by controllers and operators. These resources, when watched by argo, will cause many unnecessary updates.
+# Ignoring status for all resources. An update will still be sent if the status update causes the health to change.
+resource.customizations.ignoreResourceUpdates.all: |
+  jsonPointers:
+    - /status
+# Some Application fields are generated and not related to the application updates itself
+# The Application itself is already watched by the controller lister, but this configuration is applied for apps of apps
+resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
+  jqPathExpressions:
+    - '.metadata.annotations."notified.notifications.argoproj.io"'
+    - '.metadata.annotations."argocd.argoproj.io/refresh"'
+    - '.metadata.annotations."argocd.argoproj.io/hydrate"'
+    - '.operation'
+resource.customizations.ignoreResourceUpdates.argoproj.io_Rollout: |
+  jqPathExpressions:
+    - '.metadata.annotations."notified.notifications.argoproj.io"'
+# Legacy annotations used on HPA autoscaling/v1
+resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler: |
+  jqPathExpressions:
+    - '.metadata.annotations."autoscaling.alpha.kubernetes.io/behavior"'
+    - '.metadata.annotations."autoscaling.alpha.kubernetes.io/conditions"'
+    - '.metadata.annotations."autoscaling.alpha.kubernetes.io/metrics"'
+    - '.metadata.annotations."autoscaling.alpha.kubernetes.io/current-metrics"'
+# Ignore the cluster-autoscaler status
+resource.customizations.ignoreResourceUpdates.ConfigMap: |
+  jqPathExpressions:
+    # Ignore the cluster-autoscaler status
+    - '.metadata.annotations."cluster-autoscaler.kubernetes.io/last-updated"'
+    # Ignore the annotation of the legacy Leases election
+    - '.metadata.annotations."control-plane.alpha.kubernetes.io/leader"'
+# Ignore the common scaling annotations
+resource.customizations.ignoreResourceUpdates.apps_ReplicaSet: |
+  jqPathExpressions:
+    - '.metadata.annotations."deployment.kubernetes.io/desired-replicas"'
+    - '.metadata.annotations."deployment.kubernetes.io/max-replicas"'
+    - '.metadata.annotations."rollout.argoproj.io/desired-replicas"'
+# Ignores update if EndpointSlice is not excluded globally
+resource.customizations.ignoreResourceUpdates.discovery.k8s.io_EndpointSlice: |
+  jsonPointers:
+    - /metadata
+    - /endpoints
+    - /ports
+# Ignores update if Endpoints is not excluded globally
+resource.customizations.ignoreResourceUpdates.Endpoints: |
+  jsonPointers:
+    - /metadata
+    - /subsets
