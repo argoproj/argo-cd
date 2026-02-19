@@ -347,7 +347,7 @@ func toAbsolutePath(path string) string {
 }
 
 // createAWSDiscoveryClients creates AWS clients
-func createAWSDiscoveryClients(_ context.Context, role string, region string) (*resourcegroupstaggingapi.Client, *codecommit.Client, error) {
+func createAWSDiscoveryClients(ctx context.Context, role string, region string) (*resourcegroupstaggingapi.Client, *codecommit.Client, error) {
 	var configOpts []func(*config.LoadOptions) error
 	if region != "" {
 		log.Debugf("region %s is provided for AWS CodeCommit discovery", region)
@@ -356,7 +356,7 @@ func createAWSDiscoveryClients(_ context.Context, role string, region string) (*
 		log.Debugf("region is not provided for AWS CodeCommit discovery, using pod region")
 	}
 	// Load the default config based on config options
-	cfg, err := config.LoadDefaultConfig(context.TODO(), configOpts...)
+	cfg, err := config.LoadDefaultConfig(ctx, configOpts...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error loading default config: %w", err)
 	}

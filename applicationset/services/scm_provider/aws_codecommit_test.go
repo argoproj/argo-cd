@@ -10,7 +10,6 @@ import (
 	codecommittypes "github.com/aws/aws-sdk-go-v2/service/codecommit/types"
 	"github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi"
 	rgsatypes "github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi/types"
-	"github.com/aws/smithy-go/document"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
@@ -490,7 +489,6 @@ func equalIgnoringTagFilterOrder(expected *resourcegroupstaggingapi.GetResources
 		return cmp.Equal(expected, actual,
 			cmpopts.IgnoreUnexported(
 				rgsatypes.TagFilter{},
-				document.NoSerde{},
 				resourcegroupstaggingapi.GetResourcesInput{},
 			),
 		)
