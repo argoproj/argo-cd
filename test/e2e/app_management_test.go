@@ -1757,11 +1757,61 @@ func TestPermissionDeniedWithNegatedServer(t *testing.T) {
 
 // make sure that if we deleted a resource from the app, it is not pruned if annotated with Prune=false
 func TestSyncOptionPruneFalse(t *testing.T) {
+	// Resource level
 	Given(t).
 		Path("two-nice-pods").
 		When().
 		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
 		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		DeleteFile("pod-1.yaml").
+		Refresh(RefreshTypeHard).
+		IgnoreErrors().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeOutOfSync))
+
+	// App level
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		CreateApp().
+		PatchApp(`[{
+			"op": "add",
+			"path": "/spec/syncPolicy",
+			"value": { "syncOptions": ["Prune=false"] }
+			}]`).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		DeleteFile("pod-1.yaml").
+		Refresh(RefreshTypeHard).
+		IgnoreErrors().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeOutOfSync))
+
+	// Also check that another setting on a resource level correctly override app level
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		CreateApp().
+		PatchApp(`[{
+			"op": "add",
+			"path": "/spec/syncPolicy",
+			"value": { "syncOptions": ["Prune=true"] }
+			}]`).
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=false"}}]`).
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
@@ -3108,6 +3158,42 @@ func TestDeletionConfirmation(t *testing.T) {
 		Then().Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().Delete(true).
+		Then().
+		ExpectConsistently(App(func(app *Application) bool {
+			return app.DeletionTimestamp != nil
+		}), time.Second, 5*time.Second).
+		When().ConfirmDeletion().
+		Then().Expect(DoesNotExist())
+}
+
+func TestDeletionConfirmationAppLevel(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		And(func() {
+			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Create(
+				t.Context(), &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-configmap",
+						Labels: map[string]string{
+							common.LabelKeyAppInstance: ctx.AppName(),
+						},
+					},
+				}, metav1.CreateOptions{})
+			require.NoError(t, err)
+		}).
+		Path(guestbookPath).
+		Async(true).
+		When().
+		CreateApp().Then().When().
+		PatchApp(`[{
+			"op": "add",
+			"path": "/spec/syncPolicy",
+			"value": { "syncOptions": ["Delete=confirm", "Prune=confirm"] }
+			}]`).Sync().
+		Then().ExpectConsistently(OperationPhaseIs(OperationRunning), time.Second, 5*time.Second).
+		When().ConfirmDeletion().
+		Then().Expect(OperationPhaseIs(OperationSucceeded)).
 		When().Delete(true).
 		Then().
 		ExpectConsistently(App(func(app *Application) bool {

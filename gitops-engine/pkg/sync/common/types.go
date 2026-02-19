@@ -20,8 +20,6 @@ const (
 
 	// Sync option that disables dry run in resource is missing in the cluster
 	SyncOptionSkipDryRunOnMissingResource = "SkipDryRunOnMissingResource=true"
-	// Sync option that disables resource pruning
-	SyncOptionDisablePrune = "Prune=false"
 	// Sync option that disables resource validation
 	SyncOptionsDisableValidation = "Validate=false"
 	// Sync option that enables pruneLast
@@ -36,16 +34,18 @@ const (
 	SyncOptionServerSideApply = "ServerSideApply=true"
 	// Sync option that disables use of --server-side flag instead of client-side
 	SyncOptionDisableServerSideApply = "ServerSideApply=false"
-	// Sync option that disables resource deletion
-	SyncOptionDisableDeletion = "Delete=false"
 	// Sync option that sync only out of sync resources
 	SyncOptionApplyOutOfSyncOnly = "ApplyOutOfSyncOnly=true"
 	// Sync option that disables sync only out of sync resources
 	SyncOptionDisableApplyOutOfSyncOnly = "ApplyOutOfSyncOnly=false"
-	// Sync option that requires confirmation before deleting the resource
-	SyncOptionDeleteRequireConfirm = "Delete=confirm"
-	// Sync option that requires confirmation before deleting the resource
-	SyncOptionPruneRequireConfirm = "Prune=confirm"
+	// Sync option that controls resource deletion
+	SyncOptionDelete = "Delete"
+	// Sync option that controls resource pruning
+	SyncOptionPrune = "Prune"
+	// Sync value to confirm a delete or prune operation
+	SyncValueConfirm = "confirm"
+	// Sync value to disable a delete or prune operation
+	SyncValueFalse = "false"
 	// Sync option that enables client-side apply migration
 	SyncOptionClientSideApplyMigration = "ClientSideApplyMigration=true"
 	// Sync option that disables client-side apply migration

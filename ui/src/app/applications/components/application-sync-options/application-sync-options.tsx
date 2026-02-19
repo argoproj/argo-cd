@@ -139,6 +139,10 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
                 {render(props)}
             </div>
         ))}
+        <div className='small-12' style={optionStyle}>
+            {selectOption('Prune', 'Prune', 'true', ['true', 'false', 'confirm'], props)}
+            {selectOption('Delete', 'Delete', 'true', ['true', 'false', 'confirm'], props)}
+        </div>
         <DataLoader
             load={async () => {
                 const settings = await services.authService.settings();
