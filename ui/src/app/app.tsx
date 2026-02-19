@@ -11,11 +11,12 @@ import login from './login';
 import settings from './settings';
 import {Layout, ThemeWrapper} from './shared/components/layout/layout';
 import {Page} from './shared/components/page/page';
+import {ProtectedRoute} from './shared/components';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {AuthSettingsCtx, Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
-import {hashCode} from './shared/utils';
+import {hashCode, isSSOConfigured} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
@@ -76,15 +77,12 @@ const versionLoader = services.version.version();
 
 async function isExpiredSSO() {
     try {
-        const {iss} = await services.users.get();
+        const userInfo = await services.users.get();
         const authSettings = await services.authService.settings();
-        if (iss && iss !== 'argocd') {
-            return ((authSettings.dexConfig && authSettings.dexConfig.connectors) || []).length > 0 || authSettings.oidcConfig;
-        }
+        return isSSOConfigured(userInfo, authSettings);
     } catch {
         return false;
     }
-    return false;
 }
 
 export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; authSettings: AuthSettings}> {
@@ -194,27 +192,25 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                                     <Redirect exact={true} path='/' to='/applications' />
                                     {Object.keys(this.routes).map(path => {
                                         const route = this.routes[path];
+                                        // Login route doesn't need protection - render directly
+                                        if (route.noLayout) {
+                                            return <Route key={path} path={path} render={routeProps => <route.component {...routeProps} />} />;
+                                        }
+                                        // All other routes need authentication check before rendering Layout
                                         return (
-                                            <Route
+                                            <ProtectedRoute
                                                 key={path}
                                                 path={path}
-                                                render={routeProps =>
-                                                    route.noLayout ? (
-                                                        <div>
-                                                            <route.component {...routeProps} />
-                                                        </div>
-                                                    ) : (
-                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                            {pref => (
-                                                                <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
-                                                                    <Banner>
-                                                                        <route.component {...routeProps} />
-                                                                    </Banner>
-                                                                </Layout>
-                                                            )}
-                                                        </DataLoader>
-                                                    )
-                                                }
+                                                component={route.component}
+                                                renderWithLayout={component => (
+                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                        {pref => (
+                                                            <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
+                                                                <Banner>{component}</Banner>
+                                                            </Layout>
+                                                        )}
+                                                    </DataLoader>
+                                                )}
                                             />
                                         );
                                     })}
