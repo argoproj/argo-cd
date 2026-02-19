@@ -38,45 +38,147 @@ func TestCreateAndUseAccount(t *testing.T) {
 		})
 }
 
-func TestCanIGetLogsAllow(t *testing.T) {
-	ctx := accountFixture.Given(t)
-	ctx.
-		Name("test").
-		Project(ProjectName).
-		When().
-		Create().
-		Login().
-		SetPermissions([]ACL{
-			{
-				Resource: "logs",
-				Action:   "get",
-				Scope:    ProjectName + "/*",
+func TestCanIGetLogs(t *testing.T) {
+	tests := []struct {
+		name         string
+		policies     []ACL
+		queryScope   string
+		expectedResp string
+	}{
+		{
+			name: "Policies and query without namespace",
+			policies: []ACL{
+				{Resource: "logs", Action: "get", Scope: ProjectName + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + "/*"},
 			},
-			{
-				Resource: "apps",
-				Action:   "get",
-				Scope:    ProjectName + "/*",
+			queryScope:   ProjectName + "/*",
+			expectedResp: "yes",
+		},
+		{
+			name: "Query without namespace",
+			policies: []ACL{
+				{Resource: "logs", Action: "get", Scope: ProjectName + TestNamespace() + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + TestNamespace() + "/*"},
 			},
-		}, "log-viewer").
-		CanIGetLogs().
-		Then().
-		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, output, "yes")
-		})
-}
+			queryScope:   ProjectName + "/*",
+			expectedResp: "yes",
+		},
+		{
+			name: "Policies without namespace",
+			policies: []ACL{
+				{Resource: "logs", Action: "get", Scope: ProjectName + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + "/*"},
+			},
+			queryScope:   ProjectName + TestNamespace() + "/*",
+			expectedResp: "yes",
+		},
+		{
+			name: "Both policies and query with namespace",
+			policies: []ACL{
+				{Resource: "logs", Action: "get", Scope: ProjectName + TestNamespace() + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + TestNamespace() + "/*"},
+			},
+			queryScope:   ProjectName + TestNamespace() + "/*",
+			expectedResp: "yes",
+		},
+		{
+			name: "Both policies and query with other namespace",
+			policies: []ACL{
+				{Resource: "logs", Action: "get", Scope: ProjectName + AppNamespace() + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + AppNamespace() + "/*"},
+			},
+			queryScope:   ProjectName + AppNamespace() + "/*",
+			expectedResp: "yes",
+		},
+		{
+			name: "Policies with wildcard and query without namespace",
+			policies: []ACL{
+				{Resource: "logs", Action: "get", Scope: ProjectName + "/*/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + "/*/*"},
+			},
+			queryScope:   ProjectName + "/*",
+			expectedResp: "yes",
+		},
+		{
+			name: "Policies with wildcard and query with other namespace",
+			policies: []ACL{
+				{Resource: "logs", Action: "get", Scope: ProjectName + "/*/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + "/*/*"},
+			},
+			queryScope:   ProjectName + AppNamespace() + "/*",
+			expectedResp: "yes",
+		},
+		{
+			name: "Policies with wildcard and query with namespace",
+			policies: []ACL{
+				{Resource: "logs", Action: "get", Scope: ProjectName + "/*/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + "/*/*"},
+			},
+			queryScope:   ProjectName + TestNamespace() + "/*",
+			expectedResp: "yes",
+		},
+		{
+			name:         "No policies",
+			policies:     []ACL{},
+			queryScope:   ProjectName + "/*",
+			expectedResp: "no",
+		},
+		{
+			name: "Policies with other namespace and query without namespace",
+			policies: []ACL{
+				{Resource: "logs", Action: "get", Scope: ProjectName + AppNamespace() + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + AppNamespace() + "/*"},
+			},
+			queryScope:   ProjectName + "/*",
+			expectedResp: "no",
+		},
+		{
+			name: "Policies with default namespace and query with other namespace",
+			policies: []ACL{
+				{Resource: "logs", Action: "get", Scope: ProjectName + AppNamespace() + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + AppNamespace() + "/*"},
+			},
+			queryScope:   ProjectName + TestNamespace() + "/*",
+			expectedResp: "no",
+		},
+		{
+			name: "Policies with other namespace and query with default namespace",
+			policies: []ACL{
+				{Resource: "logs", Action: "get", Scope: ProjectName + TestNamespace() + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + TestNamespace() + "/*"},
+			},
+			queryScope:   ProjectName + AppNamespace() + "/*",
+			expectedResp: "no",
+		},
+		{
+			name: "Policies without namespace and query with other namespace",
+			policies: []ACL{
+				{Resource: "logs", Action: "get", Scope: ProjectName + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + "/*"},
+			},
+			queryScope:   ProjectName + AppNamespace() + "/*",
+			expectedResp: "no",
+		},
+	}
 
-func TestCanIGetLogsDeny(t *testing.T) {
-	ctx := accountFixture.Given(t)
-	ctx.
-		Name("test").
-		When().
-		Create().
-		Login().
-		CanIGetLogs().
-		Then().
-		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, output, "no")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := accountFixture.Given(t)
+			ctx.
+				Name("test").
+				Project(ProjectName)
+			ctx.
+				When().
+				Create().
+				Login().
+				SetPermissions(tt.policies, "log-viewer").
+				CanIGetLogs(tt.queryScope).
+				Then().
+				AndCLIOutput(func(output string, _ error) {
+					assert.Contains(t, output, tt.expectedResp)
+				})
 		})
+	}
 }
 
 func TestCreateAndUseAccountCLI(t *testing.T) {
