@@ -316,7 +316,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 					return m.db.GetProjectClusters(context.TODO(), project)
 				})
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to check if destination cluster %s and namespace %s are permitted in project %s: %w", destCluster, un.GetNamespace(), project.Name, err)
 				}
 
 				if !permitted {
