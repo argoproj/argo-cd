@@ -57,8 +57,8 @@ func TestCanIGetLogs(t *testing.T) {
 		{
 			name: "Query without namespace",
 			policies: []ACL{
-				{Resource: "logs", Action: "get", Scope: ProjectName + TestNamespace() + "/*"},
-				{Resource: "apps", Action: "get", Scope: ProjectName + TestNamespace() + "/*"},
+				{Resource: "logs", Action: "get", Scope: ProjectName + "/" + TestNamespace() + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + "/" + TestNamespace() + "/*"},
 			},
 			queryScope:   ProjectName + "/*",
 			expectedResp: "yes",
@@ -69,25 +69,25 @@ func TestCanIGetLogs(t *testing.T) {
 				{Resource: "logs", Action: "get", Scope: ProjectName + "/*"},
 				{Resource: "apps", Action: "get", Scope: ProjectName + "/*"},
 			},
-			queryScope:   ProjectName + TestNamespace() + "/*",
+			queryScope:   ProjectName + "/" + TestNamespace() + "/*",
 			expectedResp: "yes",
 		},
 		{
 			name: "Both policies and query with namespace",
 			policies: []ACL{
-				{Resource: "logs", Action: "get", Scope: ProjectName + TestNamespace() + "/*"},
-				{Resource: "apps", Action: "get", Scope: ProjectName + TestNamespace() + "/*"},
+				{Resource: "logs", Action: "get", Scope: ProjectName + "/" + TestNamespace() + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + "/" + TestNamespace() + "/*"},
 			},
-			queryScope:   ProjectName + TestNamespace() + "/*",
+			queryScope:   ProjectName + "/" + TestNamespace() + "/*",
 			expectedResp: "yes",
 		},
 		{
 			name: "Both policies and query with other namespace",
 			policies: []ACL{
-				{Resource: "logs", Action: "get", Scope: ProjectName + AppNamespace() + "/*"},
-				{Resource: "apps", Action: "get", Scope: ProjectName + AppNamespace() + "/*"},
+				{Resource: "logs", Action: "get", Scope: ProjectName + "/" + AppNamespace() + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + "/" + AppNamespace() + "/*"},
 			},
-			queryScope:   ProjectName + AppNamespace() + "/*",
+			queryScope:   ProjectName + "/" + AppNamespace() + "/*",
 			expectedResp: "yes",
 		},
 		{
@@ -105,7 +105,7 @@ func TestCanIGetLogs(t *testing.T) {
 				{Resource: "logs", Action: "get", Scope: ProjectName + "/*/*"},
 				{Resource: "apps", Action: "get", Scope: ProjectName + "/*/*"},
 			},
-			queryScope:   ProjectName + AppNamespace() + "/*",
+			queryScope:   ProjectName + "/" + AppNamespace() + "/*",
 			expectedResp: "yes",
 		},
 		{
@@ -114,7 +114,7 @@ func TestCanIGetLogs(t *testing.T) {
 				{Resource: "logs", Action: "get", Scope: ProjectName + "/*/*"},
 				{Resource: "apps", Action: "get", Scope: ProjectName + "/*/*"},
 			},
-			queryScope:   ProjectName + TestNamespace() + "/*",
+			queryScope:   ProjectName + "/" + TestNamespace() + "/*",
 			expectedResp: "yes",
 		},
 		{
@@ -126,8 +126,8 @@ func TestCanIGetLogs(t *testing.T) {
 		{
 			name: "Policies with other namespace and query without namespace",
 			policies: []ACL{
-				{Resource: "logs", Action: "get", Scope: ProjectName + AppNamespace() + "/*"},
-				{Resource: "apps", Action: "get", Scope: ProjectName + AppNamespace() + "/*"},
+				{Resource: "logs", Action: "get", Scope: ProjectName + "/" + AppNamespace() + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + "/" + AppNamespace() + "/*"},
 			},
 			queryScope:   ProjectName + "/*",
 			expectedResp: "no",
@@ -135,19 +135,19 @@ func TestCanIGetLogs(t *testing.T) {
 		{
 			name: "Policies with default namespace and query with other namespace",
 			policies: []ACL{
-				{Resource: "logs", Action: "get", Scope: ProjectName + AppNamespace() + "/*"},
-				{Resource: "apps", Action: "get", Scope: ProjectName + AppNamespace() + "/*"},
+				{Resource: "logs", Action: "get", Scope: ProjectName + "/" + AppNamespace() + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + "/" + AppNamespace() + "/*"},
 			},
-			queryScope:   ProjectName + TestNamespace() + "/*",
+			queryScope:   ProjectName + "/" + TestNamespace() + "/*",
 			expectedResp: "no",
 		},
 		{
 			name: "Policies with other namespace and query with default namespace",
 			policies: []ACL{
-				{Resource: "logs", Action: "get", Scope: ProjectName + TestNamespace() + "/*"},
-				{Resource: "apps", Action: "get", Scope: ProjectName + TestNamespace() + "/*"},
+				{Resource: "logs", Action: "get", Scope: ProjectName + "/" + TestNamespace() + "/*"},
+				{Resource: "apps", Action: "get", Scope: ProjectName + "/" + TestNamespace() + "/*"},
 			},
-			queryScope:   ProjectName + AppNamespace() + "/*",
+			queryScope:   ProjectName + "/" + AppNamespace() + "/*",
 			expectedResp: "no",
 		},
 		{
@@ -156,7 +156,7 @@ func TestCanIGetLogs(t *testing.T) {
 				{Resource: "logs", Action: "get", Scope: ProjectName + "/*"},
 				{Resource: "apps", Action: "get", Scope: ProjectName + "/*"},
 			},
-			queryScope:   ProjectName + AppNamespace() + "/*",
+			queryScope:   ProjectName + "/" + AppNamespace() + "/*",
 			expectedResp: "no",
 		},
 	}
