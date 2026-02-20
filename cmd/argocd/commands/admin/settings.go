@@ -7,12 +7,13 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
 
-	healthutil "github.com/argoproj/gitops-engine/pkg/health"
+	healthutil "github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
@@ -271,9 +272,7 @@ func NewValidateSettingsCommand(cmdCtx commandContext) *cobra.Command {
 	for k := range validatorsByGroup {
 		allGroups = append(allGroups, k)
 	}
-	sort.Slice(allGroups, func(i, j int) bool {
-		return allGroups[i] < allGroups[j]
-	})
+	slices.Sort(allGroups)
 
 	command := &cobra.Command{
 		Use:   "validate",

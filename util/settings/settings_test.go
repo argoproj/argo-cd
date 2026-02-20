@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"maps"
 	"net/http"
 	"os"
 	"sort"
@@ -135,7 +136,6 @@ func TestGetExtensionConfigs(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// When
 			output := getExtensionConfigs(tc.input)
@@ -545,9 +545,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 }
 
 func mergemaps(mapA map[string]string, mapB map[string]string) map[string]string {
-	for k, v := range mapA {
-		mapB[k] = v
-	}
+	maps.Copy(mapB, mapA)
 	return mapB
 }
 
@@ -1492,7 +1490,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		// should have internal cert at this point
 		assert.NotNil(t, settings.Certificate)
 		assert.False(t, settings.CertificateIsExternal)
-		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
+		assert.Equal(t, "argocd-e2e-server", getCNFromCertificate(settings.Certificate))
 
 		externalTLSSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1575,7 +1573,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		// should now have an internal cert
 		assert.NotNil(t, settings.Certificate)
 		assert.False(t, settings.CertificateIsExternal)
-		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
+		assert.Equal(t, "argocd-e2e-server", getCNFromCertificate(settings.Certificate))
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
@@ -1612,7 +1610,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, settings.CertificateIsExternal)
 		assert.NotNil(t, settings.Certificate)
-		assert.Contains(t, getCNFromCertificate(settings.Certificate), "Argo CD E2E")
+		assert.Contains(t, getCNFromCertificate(settings.Certificate), "argocd-e2e-server")
 	})
 }
 
@@ -1873,8 +1871,6 @@ rootCA: "invalid"`},
 	}
 
 	for _, testCase := range testCases {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			if testCase.expectNilTLSConfig {
 				assert.Nil(t, testCase.settings.OIDCTLSConfig())
@@ -2132,7 +2128,7 @@ func TestIsImpersonationEnabled(t *testing.T) {
 	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	featureFlag, err := settingsManager.IsImpersonationEnabled()
 	require.False(t, featureFlag,
-		"with no argocd-cm config map, IsImpersonationEnabled() must return return false (default value)")
+		"with no argocd-cm config map, IsImpersonationEnabled() must return false (default value)")
 	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
 		"with no argocd-cm config map, IsImpersonationEnabled() must return an error")
 
@@ -2175,7 +2171,7 @@ func TestRequireOverridePrivilegeForRevisionSyncNoConfigMap(t *testing.T) {
 	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
 	require.False(t, featureFlag,
-		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return return false (default value)")
+		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
 	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
 		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return an error")
 }

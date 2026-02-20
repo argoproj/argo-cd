@@ -1091,7 +1091,7 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 	var wg sync.WaitGroup
 	callLsFiles := func(client Client, expectedFile string) {
 		defer wg.Done()
-		for i := 0; i < 100; i++ {
+		for range 100 {
 			files, err := client.LsFiles("*", true)
 			require.NoError(t, err)
 			require.Contains(t, files, expectedFile)
@@ -1270,12 +1270,191 @@ func Test_GitNoDetachedMaintenance(t *testing.T) {
 	output, err := native.runCmdOutput(cmd, runOpts{CaptureStderr: true})
 	require.NoError(t, err)
 
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(output, "\n")
+	for line := range lines {
 		if strings.Contains(line, "git maintenance run") {
 			assert.NotContains(t, output, "--detach", "Unexpected --detach when running git maintenance")
 			return
 		}
 	}
 	assert.Fail(t, "Expected to see `git maintenance` run after `git fetch`")
+}
+
+func Test_nativeGitClient_GetCommitNote(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	// Allow pushing to the same local repo (non-bare)
+	err = runCmd(ctx, tempDir, "git", "config", "--local", "receive.denyCurrentBranch", "updateInstead")
+	require.NoError(t, err)
+
+	// Get the current branch name
+	gitCurrentBranch, err := outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	require.NoError(t, err)
+	branch := strings.TrimSpace(string(gitCurrentBranch))
+
+	// Initialize client that uses this same repo as origin
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	out, err := client.SetAuthor("test", "test@example.com")
+	require.NoError(t, err, "error output: ", out)
+
+	err = client.Fetch(branch, 0)
+	require.NoError(t, err)
+
+	out, err = client.Checkout(branch, false)
+	require.NoError(t, err, "error output: ", out)
+
+	// Create and commit a test file
+	err = os.WriteFile(filepath.Join(client.Root(), "README.md"), []byte("content"), 0o644)
+	require.NoError(t, err)
+	out, err = client.CommitAndPush(branch, "initial commit")
+	require.NoError(t, err, "error output: %s", out)
+
+	// Get the latest commit SHA
+	sha, err := client.CommitSHA()
+	require.NoError(t, err)
+	require.NotEmpty(t, sha)
+
+	// No note found, should return ErrNoNoteFound
+	got, err := client.GetCommitNote(sha, "")
+	require.Empty(t, got)
+	unwrappedError := errors.Unwrap(err)
+	require.ErrorIs(t, unwrappedError, ErrNoNoteFound)
+
+	// Add a git note for this commit manually
+	noteMsg := "this is a test note"
+	err = runCmd(ctx, client.Root(), "git", "notes", "--ref=commit", "add", "-m", noteMsg, sha)
+	require.NoError(t, err)
+
+	// Call the method under test
+	got, err = client.GetCommitNote(sha, "")
+	require.NoError(t, err)
+	require.Equal(t, noteMsg, got)
+}
+
+func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	// Allow pushing to the same local repo (non-bare)
+	err = runCmd(ctx, tempDir, "git", "config", "--local", "receive.denyCurrentBranch", "updateInstead")
+	require.NoError(t, err)
+
+	// Get the current branch name
+	gitCurrentBranch, err := outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	require.NoError(t, err)
+	branch := strings.TrimSpace(string(gitCurrentBranch))
+
+	// Initialize client that uses this same repo as origin
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	out, err := client.SetAuthor("test", "test@example.com")
+	require.NoError(t, err, "error output: ", out)
+
+	err = client.Fetch(branch, 0)
+	require.NoError(t, err)
+
+	out, err = client.Checkout(branch, false)
+	require.NoError(t, err, "error output: ", out)
+
+	// Create and commit a test file
+	err = os.WriteFile(filepath.Join(client.Root(), "README.md"), []byte("content"), 0o644)
+	require.NoError(t, err)
+	out, err = client.CommitAndPush(branch, "initial commit")
+	require.NoError(t, err, "error output: %s", out)
+
+	// Get current commit SHA
+	sha, err := client.CommitSHA()
+	require.NoError(t, err)
+	require.NotEmpty(t, sha)
+
+	// Add and push a note (to the same repo acting as its own origin)
+	note := "this is a test note"
+	err = client.AddAndPushNote(sha, "", note)
+	require.NoError(t, err)
+
+	// Verify the note exists
+	outBytes, err := outputCmd(ctx, client.Root(), "git", "notes", "--ref=commit", "show", sha)
+	require.NoError(t, err)
+	require.Equal(t, note, strings.TrimSpace(string(outBytes)))
+
+	// test with a custom namespace too
+	t.Run("custom namespace", func(t *testing.T) {
+		customNS := "source-hydrator"
+		customNote := "custom namespace note"
+		err = client.AddAndPushNote(sha, customNS, customNote)
+		require.NoError(t, err)
+
+		outBytes, err := outputCmd(ctx, client.Root(), "git", "notes", "--ref="+customNS, "show", sha)
+		require.NoError(t, err)
+		require.Equal(t, customNote, strings.TrimSpace(string(outBytes)))
+	})
+}
+
+func Test_nativeGitClient_HasFileChanged(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	// Allow pushing to the same local repo (non-bare)
+	err = runCmd(ctx, tempDir, "git", "config", "--local", "receive.denyCurrentBranch", "updateInstead")
+	require.NoError(t, err)
+
+	// Get the current branch name
+	gitCurrentBranch, err := outputCmd(ctx, tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	require.NoError(t, err)
+	branch := strings.TrimSpace(string(gitCurrentBranch))
+
+	// Initialize client that uses this same repo as origin
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	out, err := client.SetAuthor("test", "test@example.com")
+	require.NoError(t, err, "error output: ", out)
+
+	err = client.Fetch(branch, 0)
+	require.NoError(t, err)
+
+	out, err = client.Checkout(branch, false)
+	require.NoError(t, err, "error output: ", out)
+
+	// Create the file inside repo root
+	fileName := "sample.txt"
+	filePath := filepath.Join(client.Root(), fileName)
+
+	err = os.WriteFile(filePath, []byte("first version"), 0o644)
+	require.NoError(t, err)
+
+	// Untracked file, should be reported as changed
+	changed, err := client.HasFileChanged(filePath)
+	require.NoError(t, err)
+	require.True(t, changed, "expected untracked file to be reported as changed")
+
+	// After commit, should NOT be changed
+	out, err = client.CommitAndPush(branch, "add sample.txt")
+	require.NoError(t, err, "error output: %s", out)
+	changed, err = client.HasFileChanged(filePath)
+	require.NoError(t, err)
+	require.False(t, changed, "expected committed file to not be changed")
+
+	// Modify the file should be reported as changed
+	err = os.WriteFile(filePath, []byte("modified content"), 0o644)
+	require.NoError(t, err)
+	changed, err = client.HasFileChanged(filePath)
+	require.NoError(t, err)
+	require.True(t, changed, "expected modified file to be reported as changed")
 }

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -57,8 +57,8 @@ func TestSelectiveSyncWithoutNamespace(t *testing.T) {
 			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
 		}
 	}()
-	Given(t).
-		Prune(true).
+	ctx := Given(t)
+	ctx.Prune(true).
 		Path("guestbook-with-namespace").
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "create", "namespace", selectedResourceNamespace))
@@ -74,9 +74,9 @@ func TestSelectiveSyncWithoutNamespace(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", selectedResourceNamespace, health.HealthStatusHealthy)).
-		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", fixture.DeploymentNamespace(), health.HealthStatusHealthy)).
+		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", ctx.DeploymentNamespace(), health.HealthStatusHealthy)).
 		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", selectedResourceNamespace, SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", fixture.DeploymentNamespace(), SyncStatusCodeSynced))
+		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", ctx.DeploymentNamespace(), SyncStatusCodeSynced))
 }
 
 // In selectedResource to sync, namespace is provided
@@ -87,8 +87,8 @@ func TestSelectiveSyncWithNamespace(t *testing.T) {
 			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "delete", "namespace", selectedResourceNamespace))
 		}
 	}()
-	Given(t).
-		Prune(true).
+	ctx := Given(t)
+	ctx.Prune(true).
 		Path("guestbook-with-namespace").
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "create", "namespace", selectedResourceNamespace))
@@ -104,9 +104,9 @@ func TestSelectiveSyncWithNamespace(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", selectedResourceNamespace, health.HealthStatusHealthy)).
-		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", fixture.DeploymentNamespace(), health.HealthStatusMissing)).
+		Expect(ResourceHealthWithNamespaceIs("Deployment", "guestbook-ui", ctx.DeploymentNamespace(), health.HealthStatusMissing)).
 		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", selectedResourceNamespace, SyncStatusCodeSynced)).
-		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", fixture.DeploymentNamespace(), SyncStatusCodeOutOfSync))
+		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", ctx.DeploymentNamespace(), SyncStatusCodeOutOfSync))
 }
 
 func getNewNamespace(t *testing.T) string {

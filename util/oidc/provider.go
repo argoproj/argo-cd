@@ -7,6 +7,10 @@ import (
 	"net/http"
 	"strings"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -103,8 +107,12 @@ func (p *providerImpl) Verify(ctx context.Context, tokenString string, argoSetti
 	//
 	// At this point, we have not verified that the token has not been altered. All code paths below MUST VERIFY
 	// THE TOKEN SIGNATURE to confirm that an attacker did not maliciously remove the "aud" claim.
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "oidc.providerImpl.Verify")
+	defer span.End()
 	unverifiedHasAudClaim, err := security.UnverifiedHasAudClaim(tokenString)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("failed to determine whether the token has an aud claim: %w", err)
 	}
 
@@ -113,7 +121,9 @@ func (p *providerImpl) Verify(ctx context.Context, tokenString string, argoSetti
 		idToken, err = p.verify(ctx, "", tokenString, argoSettings.SkipAudienceCheckWhenTokenHasNoAudience())
 	} else {
 		allowedAudiences := argoSettings.OAuth2AllowedAudiences()
+		span.SetAttributes(attribute.StringSlice("allowedAudiences", allowedAudiences))
 		if len(allowedAudiences) == 0 {
+			span.SetStatus(codes.Error, "token has an audience claim, but no allowed audiences are configured")
 			return nil, errors.New("token has an audience claim, but no allowed audiences are configured")
 		}
 		tokenVerificationErrors := make(map[string]error)
@@ -143,6 +153,7 @@ func (p *providerImpl) Verify(ctx context.Context, tokenString string, argoSetti
 	}
 
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("failed to verify provider token: %w", err)
 	}
 
@@ -150,8 +161,12 @@ func (p *providerImpl) Verify(ctx context.Context, tokenString string, argoSetti
 }
 
 func (p *providerImpl) verify(ctx context.Context, clientID, tokenString string, skipClientIDCheck bool) (*gooidc.IDToken, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "oidc.providerImpl.verify")
+	defer span.End()
 	prov, err := p.provider()
 	if err != nil {
+		span.SetStatus(codes.Error, fmt.Sprintf("failed to query provider: %v", err))
 		return nil, err
 	}
 	config := &gooidc.Config{ClientID: clientID, SkipClientIDCheck: skipClientIDCheck}
@@ -166,16 +181,19 @@ func (p *providerImpl) verify(ctx context.Context, clientID, tokenString string,
 		// 3. re-attempting token verification
 		// NOTE: the error message is sensitive to implementation of verifier.Verify()
 		if !strings.Contains(err.Error(), "failed to verify signature") {
+			span.SetStatus(codes.Error, fmt.Sprintf("error verifying token: %v", err))
 			return nil, err
 		}
 		newProvider, retryErr := p.newGoOIDCProvider()
 		if retryErr != nil {
+			span.SetStatus(codes.Error, fmt.Sprintf("hack: error verifying token on retry: %v", err))
 			// return original error if we fail to re-initialize OIDC
 			return nil, err
 		}
 		verifier = newProvider.Verifier(config)
 		idToken, err = verifier.Verify(ctx, tokenString)
 		if err != nil {
+			span.SetStatus(codes.Error, fmt.Sprintf("hack: error verifying token: %v", err))
 			return nil, err
 		}
 		// If we get here, we successfully re-initialized OIDC and after re-initialization,

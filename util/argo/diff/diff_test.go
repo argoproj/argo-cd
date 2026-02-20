@@ -125,7 +125,6 @@ func TestStateDiff(t *testing.T) {
 		},
 	}
 	for _, tc := range testcases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			dc := diffConfig(t, tc.params())

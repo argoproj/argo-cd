@@ -96,15 +96,9 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	var shortSHALength int
 	var shortSHALength7 int
 	for _, pull := range pulls {
-		shortSHALength = 8
-		if len(pull.HeadSHA) < 8 {
-			shortSHALength = len(pull.HeadSHA)
-		}
+		shortSHALength = min(len(pull.HeadSHA), 8)
 
-		shortSHALength7 = 7
-		if len(pull.HeadSHA) < 7 {
-			shortSHALength7 = len(pull.HeadSHA)
-		}
+		shortSHALength7 = min(len(pull.HeadSHA), 7)
 
 		paramMap := map[string]any{
 			"number":             strconv.FormatInt(pull.Number, 10),
@@ -243,9 +237,9 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 		}
 
 		if g.enableGitHubAPIMetrics {
-			return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
+			return pullrequest.NewGithubAppService(ctx, *auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
 		}
-		return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
+		return pullrequest.NewGithubAppService(ctx, *auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
 	}
 
 	// always default to token, even if not set (public access)

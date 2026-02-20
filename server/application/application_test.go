@@ -14,10 +14,10 @@ import (
 
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -29,6 +29,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	k8sbatchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -1003,7 +1004,7 @@ func TestNoAppEnumeration(t *testing.T) {
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
 
-	//nolint:staticcheck,SA1019 // RunResourceAction is deprecated, but we still need to support it for backward compatibility.
+	//nolint:staticcheck // SA1019: RunResourceAction is deprecated, but we still need to support it for backward compatibility.
 	t.Run("RunResourceAction", func(t *testing.T) {
 		_, err := appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: ptr.To("test"), ResourceName: ptr.To("test"), Group: ptr.To("apps"), Kind: ptr.To("Deployment"), Namespace: ptr.To("test"), Action: ptr.To("restart")})
 		require.NoError(t, err)
@@ -1326,14 +1327,14 @@ func TestCoupleAppsListApps(t *testing.T) {
 	ctx := t.Context()
 
 	var groups []string
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		groups = append(groups, fmt.Sprintf("group-%d", i))
 	}
 	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", &jwt.MapClaims{"groups": groups})
-	for projectId := 0; projectId < 100; projectId++ {
+	for projectId := range 100 {
 		projectName := fmt.Sprintf("proj-%d", projectId)
-		for appId := 0; appId < 100; appId++ {
+		for appId := range 100 {
 			objects = append(objects, newTestApp(func(app *v1alpha1.Application) {
 				app.Name = fmt.Sprintf("app-%d-%d", projectId, appId)
 				app.Spec.Project = projectName
@@ -1366,7 +1367,7 @@ g, group-49, role:test3
 
 func generateTestApp(num int) []*v1alpha1.Application {
 	apps := []*v1alpha1.Application{}
-	for i := 0; i < num; i++ {
+	for i := range num {
 		apps = append(apps, newTestApp(func(app *v1alpha1.Application) {
 			app.Name = fmt.Sprintf("test-app%.6d", i)
 		}))
@@ -1384,8 +1385,7 @@ func BenchmarkListMuchApps(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, err := appServer.List(b.Context(), &application.ApplicationQuery{})
 		if err != nil {
 			break
@@ -1402,8 +1402,7 @@ func BenchmarkListSomeApps(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, err := appServer.List(b.Context(), &application.ApplicationQuery{})
 		if err != nil {
 			break
@@ -1420,8 +1419,7 @@ func BenchmarkListFewApps(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		_, err := appServer.List(b.Context(), &application.ApplicationQuery{})
 		if err != nil {
 			break
@@ -1442,8 +1440,7 @@ func BenchmarkListMuchAppsWithName(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		app := &application.ApplicationQuery{Name: strToPtr("test-app000099")}
 		_, err := appServer.List(b.Context(), app)
 		if err != nil {
@@ -1463,8 +1460,7 @@ func BenchmarkListMuchAppsWithProjects(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		app := &application.ApplicationQuery{Project: []string{"test-project1", "test-project2"}}
 		_, err := appServer.List(b.Context(), app)
 		if err != nil {
@@ -1483,8 +1479,7 @@ func BenchmarkListMuchAppsWithRepo(b *testing.B) {
 	}
 	appServer := newTestAppServerWithBenchmark(b, obj...)
 
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		app := &application.ApplicationQuery{Repo: strToPtr("https://some-fake-source")}
 		_, err := appServer.List(b.Context(), app)
 		if err != nil {
@@ -3132,7 +3127,7 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 	runtimeObjects := make([]runtime.Object, podNumber+1)
 	resources := make([]v1alpha1.ResourceStatus, podNumber)
 
-	for i := 0; i < podNumber; i++ {
+	for i := range podNumber {
 		pod := corev1.Pod{
 			TypeMeta: metav1.TypeMeta{
 				APIVersion: "v1",
@@ -4581,4 +4576,76 @@ func TestServerSideDiff(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "application")
 	})
+}
+
+// TestTerminateOperationWithConflicts tests that TerminateOperation properly handles
+// concurrent update conflicts by retrying with the fresh application object.
+//
+// This test reproduces a bug where the retry loop discards the fresh app object
+// fetched from Get(), causing all retries to fail with stale resource versions.
+func TestTerminateOperationWithConflicts(t *testing.T) {
+	testApp := newTestApp()
+	testApp.ResourceVersion = "1"
+	testApp.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}
+	testApp.Status.OperationState = &v1alpha1.OperationState{
+		Operation: *testApp.Operation,
+		Phase:     synccommon.OperationRunning,
+	}
+
+	appServer := newTestAppServer(t, testApp)
+	ctx := context.Background()
+
+	// Get the fake clientset from the deepCopy wrapper
+	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+
+	getCallCount := 0
+	updateCallCount := 0
+
+	// Remove default reactors and add our custom ones
+	fakeAppCs.ReactionChain = nil
+
+	// Mock Get to return original version first, then fresh version
+	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		getCallCount++
+		freshApp := testApp.DeepCopy()
+		if getCallCount == 1 {
+			// First Get (for initialization) returns original version
+			freshApp.ResourceVersion = "1"
+		} else {
+			// Subsequent Gets (during retry) return fresh version
+			freshApp.ResourceVersion = "2"
+		}
+		return true, freshApp, nil
+	})
+
+	// Mock Update to return conflict on first call, success on second
+	fakeAppCs.AddReactor("update", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		updateCallCount++
+		updateAction := action.(kubetesting.UpdateAction)
+		app := updateAction.GetObject().(*v1alpha1.Application)
+
+		// First call (with original resource version): return conflict
+		if app.ResourceVersion == "1" {
+			return true, nil, apierrors.NewConflict(
+				schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
+				app.Name,
+				stderrors.New("the object has been modified"),
+			)
+		}
+
+		// Second call (with refreshed resource version from Get): return success
+		updatedApp := app.DeepCopy()
+		return true, updatedApp, nil
+	})
+
+	// Attempt to terminate the operation
+	_, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{
+		Name: ptr.To(testApp.Name),
+	})
+
+	// Should succeed after retrying with the fresh app
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, updateCallCount, 2, "Update should be called at least twice (once with conflict, once with success)")
 }
