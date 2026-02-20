@@ -774,7 +774,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
-						Source:  &v1alpha1.ApplicationSource{
+						Source: &v1alpha1.ApplicationSource{
 							// Directory and jsonnet block are removed
 						},
 					},
@@ -7706,6 +7706,860 @@ func TestReconcileProgressiveSyncDisabled(t *testing.T) {
 	}
 }
 
+func TestGetEarliestWaitingTransitionTimeNeedingReconciliation(t *testing.T) {
+	now := metav1.Now()
+	earlierTime := metav1.NewTime(now.Add(-5 * time.Minute))
+	laterTime := metav1.NewTime(now.Add(-2 * time.Minute))
+	afterTransition := metav1.NewTime(laterTime.Add(1 * time.Minute))
+
+	tests := []struct {
+		name         string
+		appset       *v1alpha1.ApplicationSet
+		applications []v1alpha1.Application
+		expected     *metav1.Time
+	}{
+		{
+			name: "no applications in waiting state",
+			appset: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Status:             v1alpha1.ProgressiveSyncHealthy,
+							LastTransitionTime: &now,
+							Message:            "Application resource became Healthy",
+						},
+					},
+				},
+			},
+			applications: []v1alpha1.Application{},
+			expected:     nil,
+		},
+		{
+			name: "brand new application in waiting state (no pending changes message) returns nil",
+			appset: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &now,
+							Message:            "No Application status found, defaulting status to Waiting",
+						},
+					},
+				},
+			},
+			applications: []v1alpha1.Application{},
+			expected:     nil,
+		},
+		{
+			name: "application with pending changes needs reconciliation",
+			appset: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &now,
+							Message:            "Application has pending changes, setting status to Waiting",
+							TargetRevisions:    []string{"new-revision"},
+						},
+					},
+				},
+			},
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &earlierTime, // Reconciled before transition
+						Sync: v1alpha1.SyncStatus{
+							Revision: "old-revision",
+						},
+					},
+				},
+			},
+			expected: &now,
+		},
+		{
+			name: "multiple applications with pending changes returns earliest needing reconciliation",
+			appset: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &laterTime,
+							Message:            "Application has pending changes, setting status to Waiting",
+							TargetRevisions:    []string{"new-rev"},
+						},
+						{
+							Application:        "app2",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &earlierTime,
+							Message:            "Application has pending changes, setting status to Waiting",
+							TargetRevisions:    []string{"new-rev"},
+						},
+						{
+							Application:        "app3",
+							Status:             v1alpha1.ProgressiveSyncHealthy,
+							LastTransitionTime: &now,
+							Message:            "Healthy",
+						},
+					},
+				},
+			},
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &earlierTime,
+						Sync:         v1alpha1.SyncStatus{Revision: "old-rev"},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app2"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &earlierTime,
+						Sync:         v1alpha1.SyncStatus{Revision: "old-rev"},
+					},
+				},
+			},
+			expected: &earlierTime,
+		},
+		{
+			name: "application already reconciled with correct revision is skipped",
+			appset: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &earlierTime,
+							Message:            "Application has pending changes, setting status to Waiting",
+							TargetRevisions:    []string{"new-rev"},
+						},
+						{
+							Application:        "app2",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &laterTime,
+							Message:            "Application has pending changes, setting status to Waiting",
+							TargetRevisions:    []string{"new-rev"},
+						},
+					},
+				},
+			},
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &afterTransition,                         // Reconciled after transition
+						Sync:         v1alpha1.SyncStatus{Revision: "new-rev"}, // Correct revision
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app2"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &earlierTime, // Not reconciled yet
+						Sync:         v1alpha1.SyncStatus{Revision: "old-rev"},
+					},
+				},
+			},
+			expected: &laterTime, // Only app2 needs reconciliation
+		},
+		{
+			name: "all applications reconciled after transition time, returns nil",
+			appset: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &earlierTime,
+							Message:            "Application has pending changes, setting status to Waiting",
+							TargetRevisions:    []string{"new-rev"},
+						},
+						{
+							Application:        "app2",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &laterTime,
+							Message:            "Application has pending changes, setting status to Waiting",
+							TargetRevisions:    []string{"new-rev"},
+						},
+					},
+				},
+			},
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &afterTransition,                         // Reconciled after transition
+						Sync:         v1alpha1.SyncStatus{Revision: "new-rev"}, // Correct revision
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app2"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &afterTransition,                         // Reconciled after transition
+						Sync:         v1alpha1.SyncStatus{Revision: "new-rev"}, // Correct revision
+					},
+				},
+			},
+			expected: nil, // No applications needs reconcile
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getEarliestWaitingTransitionTimeOfAppset(tt.appset, tt.applications)
+			if tt.expected == nil {
+				assert.Nil(t, result)
+			} else {
+				assert.NotNil(t, result)
+				assert.Equal(t, tt.expected.Time, result.Time)
+			}
+		})
+	}
+}
+
+func TestCheckAllApplicationsReconciled(t *testing.T) {
+	now := metav1.Now()
+	before := metav1.NewTime(now.Add(-5 * time.Minute))
+	after := metav1.NewTime(now.Add(5 * time.Minute))
+
+	tests := []struct {
+		name         string
+		applications []v1alpha1.Application
+		appset       *v1alpha1.ApplicationSet
+		sinceTime    *metav1.Time
+		expected     bool
+	}{
+		{
+			name:         "nil sinceTime returns true",
+			applications: []v1alpha1.Application{},
+			appset:       &v1alpha1.ApplicationSet{},
+			sinceTime:    nil,
+			expected:     true,
+		},
+		{
+			name: "all applications reconciled after sinceTime with matching revisions",
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &after,
+						Sync: v1alpha1.SyncStatus{
+							Revision: "abc123",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app2"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &after,
+						Sync: v1alpha1.SyncStatus{
+							Revision: "def456",
+						},
+					},
+				},
+			},
+			appset: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:     "app1",
+							TargetRevisions: []string{"abc123"},
+						},
+						{
+							Application:     "app2",
+							TargetRevisions: []string{"def456"},
+						},
+					},
+				},
+			},
+			sinceTime: &now,
+			expected:  true,
+		},
+		{
+			name: "application with refresh annotation not reconciled",
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+						Annotations: map[string]string{
+							v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
+						},
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &after,
+					},
+				},
+			},
+			appset:    &v1alpha1.ApplicationSet{},
+			sinceTime: &now,
+			expected:  false,
+		},
+		{
+			name: "application without ReconciledAt not reconciled",
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: nil,
+					},
+				},
+			},
+			appset:    &v1alpha1.ApplicationSet{},
+			sinceTime: &now,
+			expected:  false,
+		},
+		{
+			name: "application reconciled before sinceTime not reconciled",
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &before,
+					},
+				},
+			},
+			appset:    &v1alpha1.ApplicationSet{},
+			sinceTime: &now,
+			expected:  false,
+		},
+		{
+			name: "mixed reconciliation states returns false",
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &after,
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app2"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &before,
+					},
+				},
+			},
+			appset:    &v1alpha1.ApplicationSet{},
+			sinceTime: &now,
+			expected:  false,
+		},
+		{
+			name: "application reconciled but wrong revision returns false",
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &after,
+						Sync: v1alpha1.SyncStatus{
+							Revision: "old-revision",
+						},
+					},
+				},
+			},
+			appset: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:     "app1",
+							TargetRevisions: []string{"new-revision"},
+						},
+					},
+				},
+			},
+			sinceTime: &now,
+			expected:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := checkAllApplicationsReconciled(tt.applications, log.NewEntry(log.StandardLogger()), tt.appset, tt.sinceTime)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestAddRefreshAnnotationToApplications(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name         string
+		applications []v1alpha1.Application
+		expectError  bool
+	}{
+		{
+			name: "adds annotation to application without annotations",
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "adds annotation to application with existing annotations",
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+						Annotations: map[string]string{
+							"other-annotation": "value",
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "skips application that already has refresh annotation",
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+						Annotations: map[string]string{
+							v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
+		{
+			name: "adds annotation to multiple applications",
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app2",
+						Namespace: "argocd",
+					},
+				},
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			appset := v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+			}
+
+			initObjs := []crtclient.Object{&appset}
+			for i := range tt.applications {
+				initObjs = append(initObjs, &tt.applications[i])
+			}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+			r := ApplicationSetReconciler{
+				Client: client,
+				Scheme: scheme,
+			}
+
+			err := r.addRefreshAnnotationToApplications(
+				t.Context(),
+				log.NewEntry(log.StandardLogger()),
+				appset,
+				tt.applications,
+			)
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+
+				// Verify annotations were added (except for apps that already had them)
+				for _, app := range tt.applications {
+					var retrievedApp v1alpha1.Application
+					err := client.Get(t.Context(), crtclient.ObjectKey{
+						Name:      app.Name,
+						Namespace: app.Namespace,
+					}, &retrievedApp)
+					require.NoError(t, err)
+
+					// Should have the refresh annotation
+					assert.NotNil(t, retrievedApp.Annotations)
+					assert.Equal(t, string(v1alpha1.RefreshTypeNormal), retrievedApp.Annotations[v1alpha1.AnnotationKeyRefresh])
+				}
+			}
+		})
+	}
+}
+
+func TestEnsureApplicationsReconciled(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	now := metav1.Now()
+	before := metav1.NewTime(now.Add(-5 * time.Minute))
+	after := metav1.NewTime(now.Add(5 * time.Minute))
+
+	tests := []struct {
+		name               string
+		appset             v1alpha1.ApplicationSet
+		applications       []v1alpha1.Application
+		expectedReconciled bool
+		expectError        bool
+	}{
+		{
+			name: "no applications in waiting state returns true",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Status:             v1alpha1.ProgressiveSyncHealthy,
+							LastTransitionTime: &now,
+						},
+					},
+				},
+			},
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &after,
+					},
+				},
+			},
+			expectedReconciled: true,
+			expectError:        false,
+		},
+		{
+			name: "applications in waiting but all reconciled returns true",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &before,
+							Message:            "pending changes",
+						},
+					},
+				},
+			},
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+						Annotations: map[string]string{
+							v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
+						},
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &after,
+					},
+				},
+			},
+			expectedReconciled: false,
+			expectError:        false,
+		},
+		{
+			name: "applications in waiting and not reconciled adds annotations",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &now,
+							Message:            "pending changes",
+						},
+					},
+				},
+			},
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &before,
+					},
+				},
+			},
+			expectedReconciled: false,
+			expectError:        false,
+		},
+		{
+			name: "applications without ReconciledAt adds annotations and returns false",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &now,
+							Message:            "pending changes",
+						},
+					},
+				},
+			},
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: nil,
+					},
+				},
+			},
+			expectedReconciled: false,
+			expectError:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			initObjs := []crtclient.Object{&tt.appset}
+			for i := range tt.applications {
+				initObjs = append(initObjs, &tt.applications[i])
+			}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+			r := ApplicationSetReconciler{
+				Client: client,
+				Scheme: scheme,
+			}
+
+			reconciled, err := r.ensureApplicationsReconciled(
+				t.Context(),
+				log.NewEntry(log.StandardLogger()),
+				&tt.appset,
+				tt.applications,
+			)
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedReconciled, reconciled)
+			}
+		})
+	}
+}
+
+func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	now := metav1.Now()
+	before := metav1.NewTime(now.Add(-5 * time.Minute))
+	after := metav1.NewTime(now.Add(5 * time.Minute))
+
+	tests := []struct {
+		name                string
+		appset              v1alpha1.ApplicationSet
+		applications        []v1alpha1.Application
+		desiredApplications []v1alpha1.Application
+		expectedSyncMap     map[string]bool
+	}{
+		{
+			name: "blocks sync when applications not reconciled",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values:   []string{"dev"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &now,
+							TargetRevisions:    []string{"revision1"},
+						},
+					},
+				},
+			},
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+						Labels: map[string]string{
+							"env": "dev",
+						},
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &before,
+						Sync: v1alpha1.SyncStatus{
+							Revision: "revision1",
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+						Labels: map[string]string{
+							"env": "dev",
+						},
+					},
+				},
+			},
+			expectedSyncMap: map[string]bool{},
+		},
+		{
+			name: "allows sync when all applications reconciled",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-appset",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values:   []string{"dev"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{},
+				},
+			},
+			applications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+						Labels: map[string]string{
+							"env": "dev",
+						},
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &after,
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status:   v1alpha1.SyncStatusCodeSynced,
+							Revision: "revision1",
+						},
+					},
+				},
+			},
+			desiredApplications: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "argocd",
+						Labels: map[string]string{
+							"env": "dev",
+						},
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Revision: "revision1",
+						},
+					},
+				},
+			},
+			expectedSyncMap: map[string]bool{"app1": true},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			initObjs := []crtclient.Object{&tt.appset}
+			for i := range tt.applications {
+				initObjs = append(initObjs, &tt.applications[i])
+			}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+			r := ApplicationSetReconciler{
+				Client:                 client,
+				Scheme:                 scheme,
+				EnableProgressiveSyncs: true,
+			}
+
+			syncMap, err := r.performProgressiveSyncs(
+				t.Context(),
+				log.NewEntry(log.StandardLogger()),
+				tt.appset,
+				tt.applications,
+				tt.desiredApplications,
+			)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedSyncMap, syncMap)
+		})
+	}
 func startAndSyncInformer(t *testing.T, informer cache.SharedIndexInformer) context.CancelFunc {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
