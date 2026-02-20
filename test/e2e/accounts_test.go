@@ -3,13 +3,11 @@ package e2e
 import (
 	"testing"
 
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -102,17 +100,12 @@ test   true     login, apiKey`, output)
 	token, err := RunCli("account", "generate-token", "--account", "test")
 	errors.CheckError(err)
 
-	clientOpts := ArgoCDClientset.ClientOptions()
-	clientOpts.AuthToken = token
-	testAccountClientset := headless.NewClientOrDie(&clientOpts, &cobra.Command{})
+	assert.NotEmpty(t, token)
 
-	closer, client := testAccountClientset.NewSessionClientOrDie()
-	defer utilio.Close(closer)
+	name, err := RunCli("account", "get", "--account", "test", "--output", "name")
+	errors.CheckError(err)
 
-	info, err := client.GetUserInfo(t.Context(), &session.GetUserInfoRequest{})
-	require.NoError(t, err)
-
-	assert.Equal(t, "test", info.Username)
+	assert.Equal(t, "test", name)
 }
 
 func TestLoginBadCredentials(t *testing.T) {
