@@ -538,10 +538,10 @@ func SetPermissions(permissions []ACL, username string, roleName string) error {
 		var aclstr strings.Builder
 
 		for _, permission := range permissions {
-			fmt.Printf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
+			_, _ = fmt.Fprintf(&aclstr, "p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
 		}
 
-		fmt.Printf("g, %s, role:%s", username, roleName)
+		_, _ = fmt.Fprintf(&aclstr, "g, %s, role:%s", username, roleName)
 		cm.Data["policy.csv"] = aclstr.String()
 
 		return nil
