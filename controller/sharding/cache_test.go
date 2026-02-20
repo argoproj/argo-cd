@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 )
@@ -320,6 +321,28 @@ func TestClusterSharding_IsManagedCluster(t *testing.T) {
 		ID:     "2",
 		Server: "https://127.0.0.1:6443",
 	}))
+}
+
+func TestIsManagedCluster_SkipReconcileAnnotation(t *testing.T) {
+	sharding := setupTestSharding(0, 1)
+	sharding.Init(
+		&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{{ID: "1", Server: "https://cluster1"}}},
+		&v1alpha1.ApplicationList{},
+	)
+
+	assert.True(t, sharding.IsManagedCluster(&v1alpha1.Cluster{Server: "https://cluster1"}))
+
+	assert.False(t, sharding.IsManagedCluster(&v1alpha1.Cluster{
+		Server:      "https://cluster1",
+		Annotations: map[string]string{common.AnnotationKeyAppSkipReconcile: "true"},
+	}))
+
+	assert.True(t, sharding.IsManagedCluster(&v1alpha1.Cluster{
+		Server:      "https://cluster1",
+		Annotations: map[string]string{common.AnnotationKeyAppSkipReconcile: "false"},
+	}))
+
+	assert.True(t, sharding.IsManagedCluster(nil))
 }
 
 func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) {
