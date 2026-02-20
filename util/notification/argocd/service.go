@@ -7,7 +7,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
@@ -21,7 +21,7 @@ import (
 type Service interface {
 	GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error)
 	GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error)
-	GetAppProject(ctx context.Context, projectName string, namespace string) (*v1alpha1.AppProject, error)
+	GetAppProject(ctx context.Context, projectName string, namespace string) (*unstructured.Unstructured, error)
 }
 
 func NewArgoCDService(clientset kubernetes.Interface, dynamicClient dynamic.Interface, namespace string, repoClientset apiclient.Clientset) (*argoCDService, error) {
@@ -124,7 +124,7 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 	}, nil
 }
 
-func (svc *argoCDService) GetAppProject(ctx context.Context, projectName string, namespace string) (*v1alpha1.AppProject, error) {
+func (svc *argoCDService) GetAppProject(ctx context.Context, projectName string, namespace string) (*unstructured.Unstructured, error) {
 	if projectName == "" {
 		projectName = "default"
 	}
@@ -135,12 +135,7 @@ func (svc *argoCDService) GetAppProject(ctx context.Context, projectName string,
 		return nil, err
 	}
 
-	var appProject v1alpha1.AppProject
-	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &appProject); err != nil {
-		return nil, err
-	}
-
-	return &appProject, nil
+	return obj, nil
 }
 
 func (svc *argoCDService) Close() {

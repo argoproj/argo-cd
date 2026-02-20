@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/notification/expression/shared"
 	mock "github.com/stretchr/testify/mock"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // NewService creates a new instance of Service. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -108,23 +109,23 @@ func (_c *Service_GetAppDetails_Call) RunAndReturn(run func(ctx context.Context,
 }
 
 // GetAppProject provides a mock function for the type Service
-func (_mock *Service) GetAppProject(ctx context.Context, projectName string, namespace string) (*v1alpha1.AppProject, error) {
+func (_mock *Service) GetAppProject(ctx context.Context, projectName string, namespace string) (*unstructured.Unstructured, error) {
 	ret := _mock.Called(ctx, projectName, namespace)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetAppProject")
 	}
 
-	var r0 *v1alpha1.AppProject
+	var r0 *unstructured.Unstructured
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*v1alpha1.AppProject, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*unstructured.Unstructured, error)); ok {
 		return returnFunc(ctx, projectName, namespace)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *v1alpha1.AppProject); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *unstructured.Unstructured); ok {
 		r0 = returnFunc(ctx, projectName, namespace)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*v1alpha1.AppProject)
+			r0 = ret.Get(0).(*unstructured.Unstructured)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
@@ -171,12 +172,12 @@ func (_c *Service_GetAppProject_Call) Run(run func(ctx context.Context, projectN
 	return _c
 }
 
-func (_c *Service_GetAppProject_Call) Return(appProject *v1alpha1.AppProject, err error) *Service_GetAppProject_Call {
-	_c.Call.Return(appProject, err)
+func (_c *Service_GetAppProject_Call) Return(unstructured1 *unstructured.Unstructured, err error) *Service_GetAppProject_Call {
+	_c.Call.Return(unstructured1, err)
 	return _c
 }
 
-func (_c *Service_GetAppProject_Call) RunAndReturn(run func(ctx context.Context, projectName string, namespace string) (*v1alpha1.AppProject, error)) *Service_GetAppProject_Call {
+func (_c *Service_GetAppProject_Call) RunAndReturn(run func(ctx context.Context, projectName string, namespace string) (*unstructured.Unstructured, error)) *Service_GetAppProject_Call {
 	_c.Call.Return(run)
 	return _c
 }

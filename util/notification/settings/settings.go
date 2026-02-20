@@ -3,13 +3,13 @@ package settings
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/services"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/notification/expression"
@@ -74,9 +74,11 @@ func initGetVarsWithoutSecret(argocdService service.Service, cfg *api.Config, co
 			"context": injectLegacyVar(context, dest.Service),
 		}
 
-		// Add AppProject to template variables
+		// Add AppProject to template variables (defaults to empty map if unavailable)
 		if appProject := getAppProjectForTemplate(argocdService, obj); appProject != nil {
 			vars["appProject"] = appProject
+		} else {
+			vars["appProject"] = map[string]any{}
 		}
 
 		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, vars)
@@ -96,9 +98,11 @@ func initGetVars(argocdService service.Service, cfg *api.Config, configMap *core
 			"secrets": secret.Data,
 		}
 
-		// Add AppProject to template variables
+		// Add AppProject to template variables (defaults to empty map if unavailable)
 		if appProject := getAppProjectForTemplate(argocdService, obj); appProject != nil {
 			vars["appProject"] = appProject
+		} else {
+			vars["appProject"] = map[string]any{}
 		}
 
 		return expression.Spawn(&unstructured.Unstructured{Object: obj}, argocdService, vars)
@@ -108,7 +112,8 @@ func initGetVars(argocdService service.Service, cfg *api.Config, configMap *core
 // getAppProjectForTemplate retrieves the AppProject for an Application object
 // Returns nil if the project cannot be found or an error occurs
 func getAppProjectForTemplate(argocdService service.Service, obj map[string]any) map[string]any {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	// Extract project name from app.spec.project
 	spec, ok := obj["spec"].(map[string]any)
@@ -135,8 +140,8 @@ func getAppProjectForTemplate(argocdService service.Service, obj map[string]any)
 	// Extract app name for logging context
 	appName, _ := metadata["name"].(string)
 
-	// Fetch the AppProject
-	appProject, err := argocdService.GetAppProject(ctx, projectName, namespace)
+	// Fetch the AppProject through service
+	appProjectObj, err := argocdService.GetAppProject(ctx, projectName, namespace)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"app":       appName,
@@ -146,16 +151,5 @@ func getAppProjectForTemplate(argocdService service.Service, obj map[string]any)
 		return nil
 	}
 
-	// Convert AppProject to unstructured for template access
-	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(appProject)
-	if err != nil {
-		log.WithFields(log.Fields{
-			"app":       appName,
-			"project":   projectName,
-			"namespace": namespace,
-		}).Warnf("Failed to convert AppProject to unstructured: %v", err)
-		return nil
-	}
-
-	return unstructuredObj
+	return appProjectObj.Object
 }
