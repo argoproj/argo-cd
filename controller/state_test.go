@@ -25,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
@@ -1661,7 +1660,7 @@ func TestUseDiffCache(t *testing.T) {
 				Namespace: namespace,
 			},
 			Spec: v1alpha1.ApplicationSpec{
-				Source: ptr.To(source()),
+				Source: new(source()),
 				Destination: v1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: "httpbin",

@@ -11,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
@@ -95,11 +94,11 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			availActionsForResource, err := appIf.ListResourceActions(ctx, &applicationpkg.ApplicationResourceRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(obj.GetName()),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Version:      ptr.To(gvk.Version),
+				Namespace:    new(obj.GetNamespace()),
+				ResourceName: new(obj.GetName()),
+				Group:        new(gvk.Group),
+				Kind:         new(gvk.Kind),
+				Version:      new(gvk.Version),
 			})
 			errors.CheckError(err)
 			for _, action := range availActionsForResource.Actions {
@@ -195,12 +194,12 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			_, err := appIf.RunResourceActionV2(ctx, &applicationpkg.ResourceActionRunRequestV2{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(objResourceName),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Version:      ptr.To(gvk.GroupVersion().Version),
-				Action:       ptr.To(actionName),
+				Namespace:    new(obj.GetNamespace()),
+				ResourceName: new(objResourceName),
+				Group:        new(gvk.Group),
+				Kind:         new(gvk.Kind),
+				Version:      new(gvk.GroupVersion().Version),
+				Action:       new(actionName),
 				// TODO: add support for parameters
 			})
 			if err == nil {
@@ -214,12 +213,12 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			_, err = appIf.RunResourceAction(ctx, &applicationpkg.ResourceActionRunRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(objResourceName),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Version:      ptr.To(gvk.GroupVersion().Version),
-				Action:       ptr.To(actionName),
+				Namespace:    new(obj.GetNamespace()),
+				ResourceName: new(objResourceName),
+				Group:        new(gvk.Group),
+				Kind:         new(gvk.Kind),
+				Version:      new(gvk.GroupVersion().Version),
+				Action:       new(actionName),
 			})
 			errors.CheckError(err)
 		}

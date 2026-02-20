@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -109,7 +108,7 @@ func TestAutoSyncRetryAndRefreshEnabled(t *testing.T) {
 					Refresh: true,
 					Backoff: &Backoff{
 						Duration:    time.Second.String(),
-						Factor:      ptr.To(int64(1)),
+						Factor:      new(int64(1)),
 						MaxDuration: time.Second.String(),
 					},
 				},
@@ -149,7 +148,7 @@ func TestAutoSyncRetryAndRefreshEnabledChangedSource(t *testing.T) {
 					Refresh: true,
 					Backoff: &Backoff{
 						Duration:    time.Second.String(),
-						Factor:      ptr.To(int64(1)),
+						Factor:      new(int64(1)),
 						MaxDuration: time.Second.String(),
 					},
 				},
