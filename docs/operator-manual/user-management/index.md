@@ -325,10 +325,12 @@ data:
     # Optional list of allowed aud claims. If omitted or empty, defaults to the clientID value above (and the 
     # cliClientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must 
     # explicitly include it in the list.
+    # You may also specify a reference to a secret containing the audience value. 
     # Token verification will pass if any of the token's audiences matches any of the audiences in this list.
     allowedAudiences:
     - aaaabbbbccccddddeee
     - qqqqwwwweeeerrrrttt
+    - $<some_K8S_secret>:<field_name>
 
     # Optional. If false, tokens without an audience will always fail validation. If true, tokens without an audience 
     # will always pass validation.
