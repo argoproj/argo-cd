@@ -17,7 +17,7 @@ if obj.status ~= nil then
         end
         health_status.status = 'Test'
     end
-    if numTrue == numIngressRules then
+    if numTrue >= numIngressRules then
       health_status.status = "Healthy"
       health_status.message = "Route is healthy"
       return health_status
