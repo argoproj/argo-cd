@@ -138,8 +138,6 @@ metadata:
     argocd.argoproj.io/hook: PreSync
 ```
 
-[Read more about hooks](resource_hooks.md).
-
 ## How Do I Configure Waves?
 
 Specify the wave using the following annotation:
