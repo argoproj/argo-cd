@@ -592,6 +592,7 @@ export interface Plugin {
 
 export interface AuthSettings {
     url: string;
+    appLabelKey: string;
     statusBadgeEnabled: boolean;
     statusBadgeRootUrl: string;
     googleAnalytics: {
