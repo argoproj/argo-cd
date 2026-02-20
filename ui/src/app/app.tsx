@@ -1,7 +1,6 @@
 import {DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
-import * as PropTypes from 'prop-types';
-import * as React from 'react';
+import React, {useState, useRef, useCallback, useEffect, Component, ReactNode, FC, ComponentType, ComponentProps} from 'react';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
 import {Subscription} from 'rxjs';
@@ -27,7 +26,7 @@ const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 requests.setBaseHRef(base);
 
-type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
+type Routes = {[path: string]: {component: ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
 
 const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
@@ -87,85 +86,32 @@ async function isExpiredSSO() {
     return false;
 }
 
-export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; authSettings: AuthSettings}> {
-    public static childContextTypes = {
-        history: PropTypes.object,
-        apis: PropTypes.object
-    };
+interface ErrorBoundaryProps {
+    children: ReactNode;
+}
 
-    public static getDerivedStateFromError(error: Error) {
-        return {error};
-    }
+interface ErrorBoundaryState {
+    hasError: boolean;
+    error: Error | null;
+}
 
-    private popupManager: PopupManager;
-    private notificationsManager: NotificationsManager;
-    private navigationManager: NavigationManager;
-    private navItems: NavItem[];
-    private routes: Routes;
-    private popupPropsSubscription: Subscription;
-    private unauthorizedSubscription: Subscription;
-
-    constructor(props: {}) {
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+    constructor(props: ErrorBoundaryProps) {
         super(props);
-        this.state = {popupProps: null, error: null, showVersionPanel: false, navItems: [], routes: null, authSettings: null};
-        this.popupManager = new PopupManager();
-        this.notificationsManager = new NotificationsManager();
-        this.navigationManager = new NavigationManager(history);
-        this.navItems = navItems;
-        this.routes = routes;
-        this.popupPropsSubscription = null;
-        this.unauthorizedSubscription = null;
-        services.extensions.addEventListener('systemLevel', this.onAddSystemLevelExtension.bind(this));
+        this.state = {hasError: false, error: null};
     }
 
-    public async componentDidMount() {
-        this.popupPropsSubscription = this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
-        this.subscribeUnauthorized().then(subscription => {
-            this.unauthorizedSubscription = subscription;
-        });
-        const authSettings = await services.authService.settings();
-        const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
-        const {loggedIn, username} = await services.users.get();
-        if (trackingID) {
-            const ga = await import('react-ga');
-            ga.initialize(trackingID);
-            const trackPageView = () => {
-                if (loggedIn && username) {
-                    const userId = !anonymizeUsers ? username : hashCode(username).toString();
-                    ga.set({userId});
-                }
-                ga.pageview(location.pathname + location.search);
-            };
-            trackPageView();
-            history.listen(trackPageView);
-        }
-        if (authSettings.uiCssURL) {
-            const link = document.createElement('link');
-            link.href = authSettings.uiCssURL;
-            link.rel = 'stylesheet';
-            link.type = 'text/css';
-            document.head.appendChild(link);
-        }
-
-        this.setState({...this.state, navItems: this.navItems, routes: this.routes, authSettings});
+    static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+        return {hasError: true, error};
     }
 
-    public componentWillUnmount() {
-        if (this.popupPropsSubscription) {
-            this.popupPropsSubscription.unsubscribe();
-        }
-        if (this.unauthorizedSubscription) {
-            this.unauthorizedSubscription.unsubscribe();
-        }
-    }
-
-    public render() {
-        if (this.state.error != null) {
-            const stack = this.state.error.stack;
+    render() {
+        if (this.state.hasError) {
+            const stack = this.state.error?.stack;
             const url = 'https://github.com/argoproj/argo-cd/issues/new?labels=bug&template=bug_report.md';
 
             return (
-                <React.Fragment>
+                <>
                     <p>Something went wrong!</p>
                     <p>
                         Consider submitting an issue <a href={url}>here</a>.
@@ -173,67 +119,26 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                     <br />
                     <p>Stacktrace:</p>
                     <pre>{stack}</pre>
-                </React.Fragment>
+                </>
             );
         }
 
-        return (
-            <React.Fragment>
-                <Helmet>
-                    <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-32x32.png`} sizes='32x32' />
-                    <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-16x16.png`} sizes='16x16' />
-                </Helmet>
-                <PageContext.Provider value={{title: 'Argo CD'}}>
-                    <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
-                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                            {pref => <ThemeWrapper theme={pref.theme}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</ThemeWrapper>}
-                        </DataLoader>
-                        <AuthSettingsCtx.Provider value={this.state.authSettings}>
-                            <Router history={history}>
-                                <Switch>
-                                    <Redirect exact={true} path='/' to='/applications' />
-                                    {Object.keys(this.routes).map(path => {
-                                        const route = this.routes[path];
-                                        return (
-                                            <Route
-                                                key={path}
-                                                path={path}
-                                                render={routeProps =>
-                                                    route.noLayout ? (
-                                                        <div>
-                                                            <route.component {...routeProps} />
-                                                        </div>
-                                                    ) : (
-                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                            {pref => (
-                                                                <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
-                                                                    <Banner>
-                                                                        <route.component {...routeProps} />
-                                                                    </Banner>
-                                                                </Layout>
-                                                            )}
-                                                        </DataLoader>
-                                                    )
-                                                }
-                                            />
-                                        );
-                                    })}
-                                </Switch>
-                            </Router>
-                        </AuthSettingsCtx.Provider>
-                    </Provider>
-                </PageContext.Provider>
-                <Notifications notifications={this.notificationsManager.notifications} />
-                <VersionPanel version={versionLoader} isShown={this.state.showVersionPanel} onClose={() => this.setState({showVersionPanel: false})} />
-            </React.Fragment>
-        );
+        return this.props.children;
     }
+}
 
-    public getChildContext() {
-        return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}};
-    }
+const AppContent: FC = () => {
+    const [popupProps, setPopupProps] = useState<PopupProps>(null);
+    const [showVersionPanel, setShowVersionPanel] = useState(false);
+    const [navItemsState, setNavItemsState] = useState<NavItem[]>(navItems);
+    const [routesState, setRoutesState] = useState<Routes>(routes);
+    const [authSettings, setAuthSettings] = useState<AuthSettings>(null);
 
-    private async subscribeUnauthorized() {
+    const popupManager = useRef(new PopupManager());
+    const notificationsManager = useRef(new NotificationsManager());
+    const navigationManager = useRef(new NavigationManager(history));
+
+    const subscribeUnauthorized = useCallback(async () => {
         return requests.onError.subscribe(async err => {
             if (err.status === 401) {
                 if (history.location.pathname.startsWith('/login')) {
@@ -255,29 +160,154 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                 }
             }
         });
-    }
+    }, []);
 
-    private onAddSystemLevelExtension(extension: SystemLevelExtension) {
-        const extendedNavItems = this.navItems;
-        const extendedRoutes = this.routes;
-        extendedNavItems.push({
-            title: extension.title,
-            path: extension.path,
-            iconClassName: `fa ${extension.icon}`
+    const onAddSystemLevelExtension = useCallback((extension: SystemLevelExtension) => {
+        setNavItemsState(prev => {
+            const extendedNavItems = [...prev];
+            extendedNavItems.push({
+                title: extension.title,
+                path: extension.path,
+                iconClassName: `fa ${extension.icon}`
+            });
+            return extendedNavItems;
         });
-        const component = () => (
-            <>
-                <Helmet>
-                    <title>{extension.title} - Argo CD</title>
-                </Helmet>
-                <Page title={extension.title}>
-                    <extension.component />
-                </Page>
-            </>
-        );
-        extendedRoutes[extension.path] = {
-            component: component as React.ComponentType<React.ComponentProps<any>>
+
+        setRoutesState(prev => {
+            const extendedRoutes = {...prev};
+            const component = () => (
+                <>
+                    <Helmet>
+                        <title>{extension.title} - Argo CD</title>
+                    </Helmet>
+                    <Page title={extension.title}>
+                        <extension.component />
+                    </Page>
+                </>
+            );
+            extendedRoutes[extension.path] = {
+                component: component as ComponentType<ComponentProps<any>>
+            };
+            return extendedRoutes;
+        });
+    }, []);
+
+    useEffect(() => {
+        services.extensions.addEventListener('systemLevel', onAddSystemLevelExtension);
+
+        return () => {
+            // Note: services.extensions might not have removeEventListener method
+            // If it does, uncomment the following line:
+            // services.extensions.removeEventListener('systemLevel', onAddSystemLevelExtension);
         };
-        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes});
-    }
-}
+    }, [onAddSystemLevelExtension]);
+
+    useEffect(() => {
+        const popupPropsSubscription = popupManager.current.popupProps.subscribe(setPopupProps);
+        let unauthorizedSubscription: Subscription;
+
+        subscribeUnauthorized().then(subscription => {
+            unauthorizedSubscription = subscription;
+        });
+
+        const initializeApp = async () => {
+            const authSettingsData = await services.authService.settings();
+            const {trackingID, anonymizeUsers} = authSettingsData.googleAnalytics || {trackingID: '', anonymizeUsers: true};
+            const {loggedIn, username} = await services.users.get();
+
+            if (trackingID) {
+                const ga = await import('react-ga');
+                ga.initialize(trackingID);
+                const trackPageView = () => {
+                    if (loggedIn && username) {
+                        const userId = !anonymizeUsers ? username : hashCode(username).toString();
+                        ga.set({userId});
+                    }
+                    ga.pageview(location.pathname + location.search);
+                };
+                trackPageView();
+                history.listen(trackPageView);
+            }
+
+            if (authSettingsData.uiCssURL) {
+                const link = document.createElement('link');
+                link.href = authSettingsData.uiCssURL;
+                link.rel = 'stylesheet';
+                link.type = 'text/css';
+                document.head.appendChild(link);
+            }
+
+            setAuthSettings(authSettingsData);
+        };
+
+        initializeApp();
+
+        return () => {
+            if (popupPropsSubscription) {
+                popupPropsSubscription.unsubscribe();
+            }
+            if (unauthorizedSubscription) {
+                unauthorizedSubscription.unsubscribe();
+            }
+        };
+    }, [subscribeUnauthorized]);
+
+    return (
+        <>
+            <Helmet>
+                <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-32x32.png`} sizes='32x32' />
+                <link rel='icon' type='image/png' href={`${base}assets/favicon/favicon-16x16.png`} sizes='16x16' />
+            </Helmet>
+            <PageContext.Provider value={{title: 'Argo CD'}}>
+                <Provider value={{history, popup: popupManager.current, notifications: notificationsManager.current, navigation: navigationManager.current, baseHref: base}}>
+                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                        {pref => <ThemeWrapper theme={pref.theme}>{popupProps && <Popup {...popupProps} />}</ThemeWrapper>}
+                    </DataLoader>
+                    <AuthSettingsCtx.Provider value={authSettings}>
+                        <Router history={history}>
+                            <Switch>
+                                <Redirect exact={true} path='/' to='/applications' />
+                                {Object.keys(routesState).map(path => {
+                                    const route = routesState[path];
+                                    return (
+                                        <Route
+                                            key={path}
+                                            path={path}
+                                            render={routeProps =>
+                                                route.noLayout ? (
+                                                    <div>
+                                                        <route.component {...routeProps} />
+                                                    </div>
+                                                ) : (
+                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                        {pref => (
+                                                            <Layout onVersionClick={() => setShowVersionPanel(true)} navItems={navItemsState} pref={pref}>
+                                                                <Banner>
+                                                                    <route.component {...routeProps} />
+                                                                </Banner>
+                                                            </Layout>
+                                                        )}
+                                                    </DataLoader>
+                                                )
+                                            }
+                                        />
+                                    );
+                                })}
+                            </Switch>
+                        </Router>
+                    </AuthSettingsCtx.Provider>
+                </Provider>
+            </PageContext.Provider>
+            <Notifications notifications={notificationsManager.current.notifications} />
+            <VersionPanel version={versionLoader} isShown={showVersionPanel} onClose={() => setShowVersionPanel(false)} />
+        </>
+    );
+};
+
+export const App: FC = () => {
+    return (
+        <ErrorBoundary>
+            <AppContent />
+        </ErrorBoundary>
+    );
+};
