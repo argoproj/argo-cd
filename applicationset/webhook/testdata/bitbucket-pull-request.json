@@ -1,0 +1,120 @@
+{
+    "actor": {
+        "nickname": "john_doe",
+        "display_name": "John Doe",
+        "account_id": "5a7b32f7c1d2e3f4",
+        "links": {
+          "self": {
+            "href": "https://bitbucket.org/john_doe/"
+          }
+        }
+      },
+    "pullrequest": {
+        "id": 1,
+        "title": "Title of pull request",
+        "description": "Description of pull request",
+        "state": "OPEN",
+        "author": {
+            "username": "john_doe",
+            "display_name": "John Doe",
+            "account_id": "5a7b32f7c1d2e3f4",
+            "links": {
+                "self": {
+                    "href": "https://bitbucket.org/john_doe/"
+                }
+            }
+        },
+        "source": {
+            "branch": {
+                "name": "branch2"
+            },
+            "commit": {
+                "hash": "d3022fc0ca3d"
+            },
+            "repository": {
+                "full_name": "john_doe/my-repo",
+                "name": "my-repo",
+                "links": {
+                    "self": {
+                        "href": "https://bitbucket.org/john_doe/my-repo"
+                    }
+                }
+            }
+        },
+        "destination": {
+            "branch": {
+                "name": "main"
+            },
+            "commit": {
+                "hash": "ce5965ddd289"
+            },
+            "repository": {
+                "full_name": "john_doe/my-repo",
+                "name": "my-repo",
+                "links": {
+                    "self": {
+                        "href": "https://bitbucket.org/john_doe/my-repo"
+                    }
+                }
+            }
+        },
+        "merge_commit": {
+            "hash": "764413d85e29"
+        },
+        "participants": [
+            {
+                "username": "john_doe",
+                "display_name": "John Doe",
+                "account_id": "5a7b32f7c1d2e3f4",
+                "links": {
+                    "self": {
+                        "href": "https://bitbucket.org/john_doe/"
+                    }
+                }
+            }
+        ],
+        "reviewers": [
+            {
+                "username": "john_doe",
+                "display_name": "John Doe",
+                "account_id": "5a7b32f7c1d2e3f4",
+                "links": {
+                    "self": {
+                        "href": "https://bitbucket.org/john_doe/"
+                    }
+                }
+            }
+        ],
+        "close_source_branch": true,
+        "closed_by": {
+            "username": "john_doe",
+            "display_name": "John Doe",
+            "account_id": "5a7b32f7c1d2e3f4",
+            "links": {
+                "self": {
+                    "href": "https://bitbucket.org/john_doe/"
+                }
+            }
+        },
+        "reason": "reason for declining the PR (if applicable)",
+        "created_on": "2015-04-06T15:23:38.179678+00:00",
+        "updated_on": "2015-04-06T15:23:38.205705+00:00",
+        "links": {
+            "self": {
+                "href": "https://api.bitbucket.org/api/2.0/pullrequests/pullrequest_id"
+            },
+            "html": {
+                "href": "https://api.bitbucket.org/pullrequest_id"
+            }
+        }
+    },
+    "repository": {
+        "full_name": "john_doe/my-repo",
+        "name": "my-repo",
+        "links": {
+            "self": {
+                "href": "https://bitbucket.org/john_doe/my-repo"
+            }
+        }
+    }
+}
