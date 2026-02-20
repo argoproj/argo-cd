@@ -294,9 +294,10 @@ Projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inh
 * namespaceResourceWhitelist
 * clusterResourceBlacklist
 * clusterResourceWhitelist
-* SyncWindows
-* SourceRepos
-* Destinations
+* syncWindows
+* sourceRepos
+* destinations
+* destinationServiceAccounts
 
 Configure global projects in `argocd-cm` ConfigMap:
 ```yaml
