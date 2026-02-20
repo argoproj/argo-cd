@@ -1120,6 +1120,20 @@ message ExecProviderConfig {
 
   // This text is shown to the user when the executable doesn't seem to be present
   optional string installHint = 5;
+
+  // ProvideClusterInfo determines whether or not to provide cluster information,
+  // which could potentially contain very large CA data, to this exec plugin as a
+  // part of the KUBERNETES_EXEC_INFO environment variable.
+  optional bool provideClusterInfo = 6;
+
+  // Config holds cluster-specific configuration data that will be passed to the exec plugin
+  // via ExecCredential.Spec.Cluster.Config. This is typically used to pass information like
+  // the cluster name to credential plugins that need it for multi-cluster authentication.
+  //
+  // This data is sourced from the kubeconfig cluster's extensions field with the reserved key
+  // "client.authentication.k8s.io/exec", as defined by the Kubernetes client authentication API.
+  // Reference: https://kubernetes.io/docs/reference/config-api/kubeconfig.v1/#ExecConfig
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension config = 7;
 }
 
 message GitDirectoryGeneratorItem {

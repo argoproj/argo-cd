@@ -2411,6 +2411,20 @@ type ExecProviderConfig struct {
 
 	// This text is shown to the user when the executable doesn't seem to be present
 	InstallHint string `json:"installHint,omitempty" protobuf:"bytes,5,opt,name=installHint"`
+
+	// ProvideClusterInfo determines whether or not to provide cluster information,
+	// which could potentially contain very large CA data, to this exec plugin as a
+	// part of the KUBERNETES_EXEC_INFO environment variable.
+	ProvideClusterInfo bool `json:"provideClusterInfo,omitempty" protobuf:"bytes,6,opt,name=provideClusterInfo"`
+
+	// Config holds cluster-specific configuration data that will be passed to the exec plugin
+	// via ExecCredential.Spec.Cluster.Config. This is typically used to pass information like
+	// the cluster name to credential plugins that need it for multi-cluster authentication.
+	//
+	// This data is sourced from the kubeconfig cluster's extensions field with the reserved key
+	// "client.authentication.k8s.io/exec", as defined by the Kubernetes client authentication API.
+	// Reference: https://kubernetes.io/docs/reference/config-api/kubeconfig.v1/#ExecConfig
+	Config *runtime.RawExtension `json:"config,omitempty" protobuf:"bytes,7,opt,name=config"`
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
@@ -3765,17 +3779,28 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 					})
 				}
 			}
+			execConfig := &api.ExecConfig{
+				APIVersion:         c.Config.ExecProviderConfig.APIVersion,
+				Command:            c.Config.ExecProviderConfig.Command,
+				Args:               c.Config.ExecProviderConfig.Args,
+				Env:                env,
+				InstallHint:        c.Config.ExecProviderConfig.InstallHint,
+				ProvideClusterInfo: c.Config.ExecProviderConfig.ProvideClusterInfo,
+				InteractiveMode:    api.NeverExecInteractiveMode,
+			}
+			// If Config is set, pass cluster-specific data (like clusterName) to the exec plugin.
+			// This data flows through to ExecCredential.Spec.Cluster.Config when ProvideClusterInfo is true.
+			// Reference: https://kubernetes.io/docs/reference/config-api/kubeconfig.v1/#ExecConfig
+			if c.Config.ExecProviderConfig.Config != nil && len(c.Config.ExecProviderConfig.Config.Raw) > 0 {
+				execConfig.Config = &runtime.Unknown{
+					Raw:         c.Config.ExecProviderConfig.Config.Raw,
+					ContentType: runtime.ContentTypeJSON,
+				}
+			}
 			config = &rest.Config{
 				Host:            c.Server,
 				TLSClientConfig: tlsClientConfig,
-				ExecProvider: &api.ExecConfig{
-					APIVersion:      c.Config.ExecProviderConfig.APIVersion,
-					Command:         c.Config.ExecProviderConfig.Command,
-					Args:            c.Config.ExecProviderConfig.Args,
-					Env:             env,
-					InstallHint:     c.Config.ExecProviderConfig.InstallHint,
-					InteractiveMode: api.NeverExecInteractiveMode,
-				},
+				ExecProvider:    execConfig,
 			}
 		default:
 			config = &rest.Config{

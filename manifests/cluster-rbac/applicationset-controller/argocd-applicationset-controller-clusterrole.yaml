@@ -56,6 +56,20 @@ rules:
       - get
       - list
       - watch
+      - create
+      - delete
+      - patch
+      - update
+  - apiGroups:
+      - multicluster.x-k8s.io
+    resources:
+      - clusterprofiles
+    verbs:
+      - get
+      - list
+      - patch
+      - update
+      - watch
   # argocd-applicationset-controller leader election rules
   # Create with resourceNames fails, so use a separate rule for the lease creation
   - apiGroups:
