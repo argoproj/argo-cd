@@ -72,7 +72,7 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 	for _, clusterSecret := range clusterSecrets {
 		cluster, err := SecretToCluster(clusterSecret)
 		if err != nil {
-			log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
+			log.Errorf("could not unmarshal cluster secret %s: %v", clusterSecret.Name, err)
 			continue
 		}
 		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
