@@ -74,7 +74,7 @@ func initGetVarsWithoutSecret(argocdService service.Service, cfg *api.Config, co
 			"context": injectLegacyVar(context, dest.Service),
 		}
 
-		// Add AppProject to template variables (defaults to empty map if unavailable)
+		// Add AppProject to template variables
 		if appProject := getAppProjectForTemplate(argocdService, obj); appProject != nil {
 			vars["appProject"] = appProject
 		} else {
@@ -98,7 +98,7 @@ func initGetVars(argocdService service.Service, cfg *api.Config, configMap *core
 			"secrets": secret.Data,
 		}
 
-		// Add AppProject to template variables (defaults to empty map if unavailable)
+		// Add AppProject to template variables
 		if appProject := getAppProjectForTemplate(argocdService, obj); appProject != nil {
 			vars["appProject"] = appProject
 		} else {
@@ -109,7 +109,7 @@ func initGetVars(argocdService service.Service, cfg *api.Config, configMap *core
 	}, nil
 }
 
-// getAppProjectForTemplate retrieves the AppProject for an Application object
+// getAppProjectForTemplate retrieves the AppProject as an unstructured object for an Application object
 // Returns nil if the project cannot be found or an error occurs
 func getAppProjectForTemplate(argocdService service.Service, obj map[string]any) map[string]any {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -140,7 +140,7 @@ func getAppProjectForTemplate(argocdService service.Service, obj map[string]any)
 	// Extract app name for logging context
 	appName, _ := metadata["name"].(string)
 
-	// Fetch the AppProject through service
+	// Fetch the AppProject 
 	appProjectObj, err := argocdService.GetAppProject(ctx, projectName, namespace)
 	if err != nil {
 		log.WithFields(log.Fields{
