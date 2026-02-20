@@ -1,0 +1,9 @@
+tests:
+  - healthStatus:
+      status: Degraded
+      message: 'unable to cluster-log-forwarder'
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: 'cluster-log-forwarder validated'
+    inputPath: testdata/healthy.yaml
