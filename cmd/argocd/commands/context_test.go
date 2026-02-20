@@ -38,7 +38,7 @@ users:
 
 const testConfigFilePath = "./testdata/local.config"
 
-func TestContextDelete(t *testing.T) {
+func Test_deleteContext(t *testing.T) {
 	// Write the test config file
 	err := os.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
 	require.NoError(t, err)
