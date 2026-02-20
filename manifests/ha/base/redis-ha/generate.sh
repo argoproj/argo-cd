@@ -1,6 +1,6 @@
 #!/bin/sh -xe
 
-helm dependency update ./chart
+helm repo update argocd
 
 AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
 echo "${AUTOGENMSG}" > ./chart/upstream.yaml
