@@ -2282,27 +2282,22 @@ func (s *Service) populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, 
 				continue
 			}
 			log.Debugf("Checking out repos for ref source %s  -> %s [%s]", refName, refSource.Repo.Repo, refSource.TargetRevision)
-			gitClient, err := s.newClient(&refSource.Repo)
+			gitClient, refSHA, err := s.newClientResolveRevision(&refSource.Repo, refSource.TargetRevision)
+			// gitClient, err := s.newClient(&refSource.Repo)
 			if err != nil {
-				return fmt.Errorf("Failed to get git client for repo %s: %v", refSource.Repo.Repo, err)
-			}
-			refSHA, err := gitClient.LsRemote(refSource.TargetRevision)
-			if err != nil {
-				return fmt.Errorf("Failed to resolve %s revision %q: %w",
-					refSource.Repo.Repo, refSource.TargetRevision, err)
+				return fmt.Errorf("error setting up git client for %s and resolving revision %s: %w", refSource.Repo.Repo, refSource.TargetRevision, err)
 			}
 			if mainRepoURL == git.NormalizeGitURL(refSource.Repo.Repo) && refSHA != commitSHA {
 				return fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refName, refSource.TargetRevision, refSHA, revision, commitSHA)
 			}
-
 			closer, err := s.repoLock.Lock(gitClient.Root(), refSHA, true, func() (goio.Closer, error) {
 				return s.checkoutRevision(gitClient, refSHA, s.initConstants.SubmoduleEnabled, refSource.Repo.Depth)
 			})
 			if err != nil {
-				return fmt.Errorf("failed to acquire lock for referenced source %s: %v", refSource.Repo.Repo, err)
+				return fmt.Errorf("failed to acquire lock for referenced source %s: %w", refSource.Repo.Repo, err)
 			}
 			defer utilio.Close(closer)
-			log.Info("Checked out referenced repo %s")
+			log.Debugf("Checked out referenced repo %s", refSource.Repo.Repo)
 		}
 	}
 	if resolvedValuesPath, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
