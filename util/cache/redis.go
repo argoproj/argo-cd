@@ -36,7 +36,7 @@ func CompressionTypeFromString(s string) (RedisCompressionType, error) {
 	return "", fmt.Errorf("unknown compression type: %s", s)
 }
 
-func NewRedisCache(client *redis.Client, expiration time.Duration, compressionType RedisCompressionType) CacheClient {
+func NewRedisCache(client redis.UniversalClient, expiration time.Duration, compressionType RedisCompressionType) CacheClient {
 	return &redisCache{
 		client:               client,
 		expiration:           expiration,
@@ -50,7 +50,7 @@ var _ CacheClient = &redisCache{}
 
 type redisCache struct {
 	expiration           time.Duration
-	client               *redis.Client
+	client               redis.UniversalClient
 	cache                *rediscache.Cache
 	redisCompressionType RedisCompressionType
 }
@@ -225,7 +225,7 @@ func (redisHook) ProcessPipelineHook(_ redis.ProcessPipelineHook) redis.ProcessP
 
 // CollectMetrics add transport wrapper that pushes metrics into the specified metrics registry
 // Lock should be shared between functions that can add/process a Redis hook.
-func CollectMetrics(client *redis.Client, registry MetricsRegistry, lock *sync.RWMutex) {
+func CollectMetrics(client redis.UniversalClient, registry MetricsRegistry, lock *sync.RWMutex) {
 	if lock != nil {
 		lock.Lock()
 		defer lock.Unlock()

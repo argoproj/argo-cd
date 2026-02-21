@@ -54,7 +54,7 @@ var (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		redisClient              *redis.Client
+		redisClient              redis.UniversalClient
 		insecure                 bool
 		listenHost               string
 		listenPort               int
@@ -339,7 +339,7 @@ func NewCommand() *cobra.Command {
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
-		OnClientCreated: func(client *redis.Client) {
+		OnClientCreated: func(client redis.UniversalClient) {
 			redisClient = client
 		},
 	})
