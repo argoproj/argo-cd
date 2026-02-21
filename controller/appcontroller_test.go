@@ -1653,9 +1653,8 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 func TestSetOperationStateLogRetries(t *testing.T) {
 	hook := utilTest.LogHook{}
 	logrus.AddHook(&hook)
-	t.Cleanup(func() {
-		logrus.StandardLogger().ReplaceHooks(logrus.LevelHooks{})
-	})
+	t.Cleanup(hook.CleanupHook)
+
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{}}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	fakeAppCs.ReactionChain = nil

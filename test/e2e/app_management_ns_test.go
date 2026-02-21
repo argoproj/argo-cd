@@ -155,60 +155,6 @@ func TestNamespacedGetLogsAllowNS(t *testing.T) {
 		})
 }
 
-func TestNamespacedSyncToUnsignedCommit(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	GivenWithNamespace(t, fixture.AppNamespace()).
-		SetTrackingMethod("annotation").
-		Project("gpg").
-		Path(guestbookPath).
-		When().
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestNamespacedSyncToSignedCommitWKK(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		SetAppNamespace(fixture.AppNamespace()).
-		SetTrackingMethod("annotation").
-		Project("gpg").
-		Path(guestbookPath).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestNamespacedSyncToSignedCommitKWKK(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		SetAppNamespace(fixture.AppNamespace()).
-		SetTrackingMethod("annotation").
-		Project("gpg").
-		Path(guestbookPath).
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy))
-}
-
 func TestNamespacedAppCreation(t *testing.T) {
 	ctx := Given(t)
 	ctx.

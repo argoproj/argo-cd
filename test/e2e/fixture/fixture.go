@@ -536,7 +536,6 @@ func SetAccounts(accounts map[string][]string) error {
 func SetPermissions(permissions []ACL, username string, roleName string) error {
 	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
 		var aclstr strings.Builder
-
 		for _, permission := range permissions {
 			aclstr.WriteString(fmt.Sprintf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope))
 		}

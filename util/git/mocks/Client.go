@@ -718,8 +718,8 @@ func (_c *Client_Init_Call) RunAndReturn(run func() error) *Client_Init_Call {
 }
 
 // IsAnnotatedTag provides a mock function for the type Client
-func (_mock *Client) IsAnnotatedTag(s string) bool {
-	ret := _mock.Called(s)
+func (_mock *Client) IsAnnotatedTag(revision string) bool {
+	ret := _mock.Called(revision)
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsAnnotatedTag")
@@ -727,7 +727,7 @@ func (_mock *Client) IsAnnotatedTag(s string) bool {
 
 	var r0 bool
 	if returnFunc, ok := ret.Get(0).(func(string) bool); ok {
-		r0 = returnFunc(s)
+		r0 = returnFunc(revision)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
@@ -740,12 +740,12 @@ type Client_IsAnnotatedTag_Call struct {
 }
 
 // IsAnnotatedTag is a helper method to define mock.On call
-//   - s string
-func (_e *Client_Expecter) IsAnnotatedTag(s interface{}) *Client_IsAnnotatedTag_Call {
-	return &Client_IsAnnotatedTag_Call{Call: _e.mock.On("IsAnnotatedTag", s)}
+//   - revision string
+func (_e *Client_Expecter) IsAnnotatedTag(revision interface{}) *Client_IsAnnotatedTag_Call {
+	return &Client_IsAnnotatedTag_Call{Call: _e.mock.On("IsAnnotatedTag", revision)}
 }
 
-func (_c *Client_IsAnnotatedTag_Call) Run(run func(s string)) *Client_IsAnnotatedTag_Call {
+func (_c *Client_IsAnnotatedTag_Call) Run(run func(revision string)) *Client_IsAnnotatedTag_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -763,7 +763,7 @@ func (_c *Client_IsAnnotatedTag_Call) Return(b bool) *Client_IsAnnotatedTag_Call
 	return _c
 }
 
-func (_c *Client_IsAnnotatedTag_Call) RunAndReturn(run func(s string) bool) *Client_IsAnnotatedTag_Call {
+func (_c *Client_IsAnnotatedTag_Call) RunAndReturn(run func(revision string) bool) *Client_IsAnnotatedTag_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1057,6 +1057,74 @@ func (_c *Client_LsRemote_Call) RunAndReturn(run func(revision string) (string, 
 	return _c
 }
 
+// LsSignatures provides a mock function for the type Client
+func (_mock *Client) LsSignatures(revision string, deep bool) ([]git.RevisionSignatureInfo, error) {
+	ret := _mock.Called(revision, deep)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LsSignatures")
+	}
+
+	var r0 []git.RevisionSignatureInfo
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, bool) ([]git.RevisionSignatureInfo, error)); ok {
+		return returnFunc(revision, deep)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, bool) []git.RevisionSignatureInfo); ok {
+		r0 = returnFunc(revision, deep)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]git.RevisionSignatureInfo)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, bool) error); ok {
+		r1 = returnFunc(revision, deep)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Client_LsSignatures_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LsSignatures'
+type Client_LsSignatures_Call struct {
+	*mock.Call
+}
+
+// LsSignatures is a helper method to define mock.On call
+//   - revision string
+//   - deep bool
+func (_e *Client_Expecter) LsSignatures(revision interface{}, deep interface{}) *Client_LsSignatures_Call {
+	return &Client_LsSignatures_Call{Call: _e.mock.On("LsSignatures", revision, deep)}
+}
+
+func (_c *Client_LsSignatures_Call) Run(run func(revision string, deep bool)) *Client_LsSignatures_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 bool
+		if args[1] != nil {
+			arg1 = args[1].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_LsSignatures_Call) Return(revisionSignatureInfos []git.RevisionSignatureInfo, err error) *Client_LsSignatures_Call {
+	_c.Call.Return(revisionSignatureInfos, err)
+	return _c
+}
+
+func (_c *Client_LsSignatures_Call) RunAndReturn(run func(revision string, deep bool) ([]git.RevisionSignatureInfo, error)) *Client_LsSignatures_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RemoveContents provides a mock function for the type Client
 func (_mock *Client) RemoveContents(paths []string) (string, error) {
 	ret := _mock.Called(paths)
@@ -1113,6 +1181,50 @@ func (_c *Client_RemoveContents_Call) Return(s string, err error) *Client_Remove
 }
 
 func (_c *Client_RemoveContents_Call) RunAndReturn(run func(paths []string) (string, error)) *Client_RemoveContents_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RepoURL provides a mock function for the type Client
+func (_mock *Client) RepoURL() string {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for RepoURL")
+	}
+
+	var r0 string
+	if returnFunc, ok := ret.Get(0).(func() string); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	return r0
+}
+
+// Client_RepoURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RepoURL'
+type Client_RepoURL_Call struct {
+	*mock.Call
+}
+
+// RepoURL is a helper method to define mock.On call
+func (_e *Client_Expecter) RepoURL() *Client_RepoURL_Call {
+	return &Client_RepoURL_Call{Call: _e.mock.On("RepoURL")}
+}
+
+func (_c *Client_RepoURL_Call) Run(run func()) *Client_RepoURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Client_RepoURL_Call) Return(s string) *Client_RepoURL_Call {
+	_c.Call.Return(s)
+	return _c
+}
+
+func (_c *Client_RepoURL_Call) RunAndReturn(run func() string) *Client_RepoURL_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1329,66 +1441,6 @@ func (_c *Client_Submodule_Call) Return(err error) *Client_Submodule_Call {
 }
 
 func (_c *Client_Submodule_Call) RunAndReturn(run func() error) *Client_Submodule_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// VerifyCommitSignature provides a mock function for the type Client
-func (_mock *Client) VerifyCommitSignature(s string) (string, error) {
-	ret := _mock.Called(s)
-
-	if len(ret) == 0 {
-		panic("no return value specified for VerifyCommitSignature")
-	}
-
-	var r0 string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (string, error)); ok {
-		return returnFunc(s)
-	}
-	if returnFunc, ok := ret.Get(0).(func(string) string); ok {
-		r0 = returnFunc(s)
-	} else {
-		r0 = ret.Get(0).(string)
-	}
-	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
-		r1 = returnFunc(s)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// Client_VerifyCommitSignature_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyCommitSignature'
-type Client_VerifyCommitSignature_Call struct {
-	*mock.Call
-}
-
-// VerifyCommitSignature is a helper method to define mock.On call
-//   - s string
-func (_e *Client_Expecter) VerifyCommitSignature(s interface{}) *Client_VerifyCommitSignature_Call {
-	return &Client_VerifyCommitSignature_Call{Call: _e.mock.On("VerifyCommitSignature", s)}
-}
-
-func (_c *Client_VerifyCommitSignature_Call) Run(run func(s string)) *Client_VerifyCommitSignature_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
-		if args[0] != nil {
-			arg0 = args[0].(string)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *Client_VerifyCommitSignature_Call) Return(s1 string, err error) *Client_VerifyCommitSignature_Call {
-	_c.Call.Return(s1, err)
-	return _c
-}
-
-func (_c *Client_VerifyCommitSignature_Call) RunAndReturn(run func(s string) (string, error)) *Client_VerifyCommitSignature_Call {
 	_c.Call.Return(run)
 	return _c
 }

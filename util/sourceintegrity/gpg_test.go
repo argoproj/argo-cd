@@ -1,4 +1,4 @@
-package gpg
+package sourceintegrity
 
 import (
 	"fmt"
@@ -44,23 +44,6 @@ func initTempDir(t *testing.T) string {
 		}
 	})
 	return p
-}
-
-func Test_IsGPGEnabled(t *testing.T) {
-	t.Run("true", func(t *testing.T) {
-		t.Setenv("ARGOCD_GPG_ENABLED", "true")
-		assert.True(t, IsGPGEnabled())
-	})
-
-	t.Run("false", func(t *testing.T) {
-		t.Setenv("ARGOCD_GPG_ENABLED", "false")
-		assert.False(t, IsGPGEnabled())
-	})
-
-	t.Run("empty", func(t *testing.T) {
-		t.Setenv("ARGOCD_GPG_ENABLED", "")
-		assert.True(t, IsGPGEnabled())
-	})
 }
 
 func Test_GPG_InitializeGnuPG(t *testing.T) {
@@ -296,161 +279,6 @@ func Test_ValidateGPGKeys(t *testing.T) {
 	}
 }
 
-func Test_GPG_ParseGitCommitVerification(t *testing.T) {
-	initTempDir(t)
-
-	err := InitializeGnuPG()
-	require.NoError(t, err)
-
-	keys, err := ImportPGPKeys("testdata/github.asc")
-	require.NoError(t, err)
-	assert.Len(t, keys, 1)
-
-	// Good case
-	{
-		c, err := os.ReadFile("testdata/good_signature.txt")
-		if err != nil {
-			panic(err.Error())
-		}
-		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
-		assert.Equal(t, "RSA", res.Cipher)
-		assert.Equal(t, "ultimate", res.Trust)
-		assert.Equal(t, "Wed Feb 26 23:22:34 2020 CET", res.Date)
-		assert.Equal(t, VerifyResultGood, res.Result)
-	}
-
-	// Signature with unknown key - considered invalid
-	{
-		c, err := os.ReadFile("testdata/unknown_signature1.txt")
-		if err != nil {
-			panic(err.Error())
-		}
-		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
-		assert.Equal(t, "RSA", res.Cipher)
-		assert.Equal(t, TrustUnknown, res.Trust)
-		assert.Equal(t, "Mon Aug 26 20:59:48 2019 CEST", res.Date)
-		assert.Equal(t, VerifyResultInvalid, res.Result)
-	}
-
-	// Signature with unknown key and additional fields - considered invalid
-	{
-		c, err := os.ReadFile("testdata/unknown_signature2.txt")
-		if err != nil {
-			panic(err.Error())
-		}
-		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
-		assert.Equal(t, "RSA", res.Cipher)
-		assert.Equal(t, TrustUnknown, res.Trust)
-		assert.Equal(t, "Mon Aug 26 20:59:48 2019 CEST", res.Date)
-		assert.Equal(t, VerifyResultInvalid, res.Result)
-	}
-
-	// Bad signature with known key
-	{
-		c, err := os.ReadFile("testdata/bad_signature_bad.txt")
-		if err != nil {
-			panic(err.Error())
-		}
-		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, "4AEE18F83AFDEB23", res.KeyID)
-		assert.Equal(t, "RSA", res.Cipher)
-		assert.Equal(t, "ultimate", res.Trust)
-		assert.Equal(t, "Wed Feb 26 23:22:34 2020 CET", res.Date)
-		assert.Equal(t, VerifyResultBad, res.Result)
-	}
-
-	// Bad case: Manipulated/invalid clear text signature
-	{
-		c, err := os.ReadFile("testdata/bad_signature_manipulated.txt")
-		if err != nil {
-			panic(err.Error())
-		}
-		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
-		assert.Contains(t, res.Message, "Could not parse output")
-	}
-
-	// Bad case: Incomplete signature data #1
-	{
-		c, err := os.ReadFile("testdata/bad_signature_preeof1.txt")
-		if err != nil {
-			panic(err.Error())
-		}
-		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
-		assert.Contains(t, res.Message, "end-of-file")
-	}
-
-	// Bad case: Incomplete signature data #2
-	{
-		c, err := os.ReadFile("testdata/bad_signature_preeof2.txt")
-		if err != nil {
-			panic(err.Error())
-		}
-		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
-		assert.Contains(t, res.Message, "end-of-file")
-	}
-
-	// Bad case: No signature data #1
-	{
-		c, err := os.ReadFile("testdata/bad_signature_nodata.txt")
-		if err != nil {
-			panic(err.Error())
-		}
-		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
-		assert.Contains(t, res.Message, "no verification data found")
-	}
-
-	// Bad case: Malformed signature data #1
-	{
-		c, err := os.ReadFile("testdata/bad_signature_malformed1.txt")
-		if err != nil {
-			panic(err.Error())
-		}
-		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
-		assert.Contains(t, res.Message, "no verification data found")
-	}
-
-	// Bad case: Malformed signature data #2
-	{
-		c, err := os.ReadFile("testdata/bad_signature_malformed2.txt")
-		if err != nil {
-			panic(err.Error())
-		}
-		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
-		assert.Contains(t, res.Message, "Could not parse key ID")
-	}
-
-	// Bad case: Malformed signature data #3
-	{
-		c, err := os.ReadFile("testdata/bad_signature_malformed3.txt")
-		if err != nil {
-			panic(err.Error())
-		}
-		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
-		assert.Contains(t, res.Message, "Could not parse result of verify")
-	}
-
-	// Bad case: Invalid key ID in signature
-	{
-		c, err := os.ReadFile("testdata/bad_signature_badkeyid.txt")
-		if err != nil {
-			panic(err.Error())
-		}
-		res := ParseGitCommitVerification(string(c))
-		assert.Equal(t, VerifyResultUnknown, res.Result)
-		assert.Contains(t, res.Message, "Invalid PGP key ID")
-	}
-}
-
 func Test_GetGnuPGHomePath(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		t.Setenv(common.EnvGnuPGHome, "")
@@ -468,30 +296,35 @@ func Test_GetGnuPGHomePath(t *testing.T) {
 func Test_KeyID(t *testing.T) {
 	// Good case - long key ID (aka fingerprint) to short key ID
 	{
-		res := KeyID(longKeyID)
+		res, err := KeyID(longKeyID)
+		require.NoError(t, err)
 		assert.Equal(t, shortKeyID, res)
 	}
 	// Good case - short key ID remains same
 	{
-		res := KeyID(shortKeyID)
+		res, err := KeyID(shortKeyID)
+		require.NoError(t, err)
 		assert.Equal(t, shortKeyID, res)
 	}
 	// Bad case - key ID too short
 	{
 		keyID := "AEE18F83AFDEB23"
-		res := KeyID(keyID)
+		res, err := KeyID(keyID)
+		require.Error(t, err)
 		assert.Empty(t, res)
 	}
 	// Bad case - key ID too long
 	{
 		keyID := "5DE3E0509C47EA3CF04A42D34AEE18F83AFDEB2323"
-		res := KeyID(keyID)
+		res, err := KeyID(keyID)
+		require.Error(t, err)
 		assert.Empty(t, res)
 	}
 	// Bad case - right length, but not hex string
 	{
 		keyID := "abcdefghijklmn"
-		res := KeyID(keyID)
+		res, err := KeyID(keyID)
+		require.Error(t, err)
 		assert.Empty(t, res)
 	}
 }

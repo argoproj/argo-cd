@@ -3,7 +3,6 @@ package controller
 import (
 	"encoding/json"
 	"errors"
-	"os"
 	"testing"
 	"time"
 
@@ -1095,17 +1094,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	assert.Empty(t, app.Status.History)
 }
 
-// helper function to read contents of a file to string
-// panics on error
-func mustReadFile(path string) string {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		panic(err.Error())
-	}
-	return string(b)
-}
-
-var signedProj = v1alpha1.AppProject{
+var projWithSourceIntegrity = v1alpha1.AppProject{
 	ObjectMeta: metav1.ObjectMeta{
 		Name:      "default",
 		Namespace: test.FakeArgoCDNamespace,
@@ -1118,54 +1107,31 @@ var signedProj = v1alpha1.AppProject{
 				Namespace: "*",
 			},
 		},
-		SignatureKeys: []v1alpha1.SignatureKey{
-			{
-				KeyID: "4AEE18F83AFDEB23",
+		SourceIntegrity: &v1alpha1.SourceIntegrity{
+			Git: &v1alpha1.SourceIntegrityGit{
+				Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+					GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+						Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+						Keys: []string{"4AEE18F83AFDEB23"},
+					},
+				}},
 			},
 		},
 	},
 }
 
-func TestSignedResponseNoSignatureRequired(t *testing.T) {
+func TestNoSourceIntegrity(t *testing.T) {
 	t.Setenv("ARGOCD_GPG_ENABLED", "true")
 
-	// We have a good signature response, but project does not require signed commits
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Empty(t, app.Status.Conditions)
-	}
-	// We have a bad signature response, but project does not require signed commits
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
+				Manifests:             []string{},
+				Namespace:             test.FakeDestNamespace,
+				Server:                test.FakeClusterURL,
+				Revision:              "abc123",
+				SourceIntegrityResult: nil, // No verification requested
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -1185,19 +1151,22 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 	}
 }
 
-func TestSignedResponseSignatureRequired(t *testing.T) {
+func TestValidSourceIntegrity(t *testing.T) {
 	t.Setenv("ARGOCD_GPG_ENABLED", "true")
 
-	// We have a good signature response, valid key, and signing is required - sync!
+	// Source integrity required, and it is valid - sync!
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+				SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "Some/check",
+					Problems: []string{}, // Valid
+				}}},
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -1206,7 +1175,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(app, &projWithSourceIntegrity, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1215,16 +1184,19 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		assert.Empty(t, compRes.managedResources)
 		assert.Empty(t, app.Status.Conditions)
 	}
-	// We have a bad signature response and signing is required - do not sync
+	// Source integrity required, not valid - do not sync
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+				SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "Some/check",
+					Problems: []string{"The thing have failed to validate!"},
+				}}},
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -1233,170 +1205,64 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(app, &projWithSourceIntegrity, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 		assert.Empty(t, compRes.resources)
 		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
-	}
-	// We have a malformed signature response and signing is required - do not sync
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_malformed1.txt"),
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
-	}
-	// We have no signature response (no signature made) and signing is required - do not sync
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: "",
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
+		require.Len(t, app.Status.Conditions, 1)
+		assert.Contains(t, app.Status.Conditions[0].Message, "Some/check: The thing have failed to validate!")
 	}
 
-	// We have a good signature and signing is required, but key is not allowed - do not sync
+	// Source integrity required, unknown key - do not sync
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/good_signature.txt"),
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+				SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "Some/check",
+					Problems: []string{"The thing have failed to validate!"},
+				}}},
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
 		ctrl := newFakeController(t.Context(), &data, nil)
-		testProj := signedProj
-		testProj.Spec.SignatureKeys[0].KeyID = "4AEE18F83AFDEB24"
 		sources := make([]v1alpha1.ApplicationSource, 0)
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &testProj, revisions, sources, false, false, nil, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(app, &projWithSourceIntegrity, revisions, sources, false, false, nil, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 		assert.Empty(t, compRes.resources)
 		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
-		assert.Contains(t, app.Status.Conditions[0].Message, "key is not allowed")
-	}
-	// Signature required and local manifests supplied - do not sync
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: "",
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		// it doesn't matter for our test whether local manifests are valid
-		localManifests := []string{"foobar"}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Len(t, app.Status.Conditions, 1)
-		assert.Contains(t, app.Status.Conditions[0].Message, "Cannot use local manifests")
+		require.Len(t, app.Status.Conditions, 1)
+		assert.Contains(t, app.Status.Conditions[0].Message, "The thing have failed to validate!")
 	}
 
 	t.Setenv("ARGOCD_GPG_ENABLED", "false")
-	// We have a bad signature response and signing would be required, but GPG subsystem is disabled - sync
-	{
-		app := newFakeApp()
-		data := fakeData{
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: mustReadFile("../util/gpg/testdata/bad_signature_bad.txt"),
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		ctrl := newFakeController(t.Context(), &data, nil)
-		sources := make([]v1alpha1.ApplicationSource, 0)
-		sources = append(sources, app.Spec.GetSource())
-		revisions := make([]string, 0)
-		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false)
-		require.NoError(t, err)
-		assert.NotNil(t, compRes)
-		assert.NotNil(t, compRes.syncStatus)
-		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
-		assert.Empty(t, compRes.resources)
-		assert.Empty(t, compRes.managedResources)
-		assert.Empty(t, app.Status.Conditions)
-	}
 
 	// Signature required and local manifests supplied and GPG subsystem is disabled - sync
 	{
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
-				Namespace:    test.FakeDestNamespace,
-				Server:       test.FakeClusterURL,
-				Revision:     "abc123",
-				VerifyResult: "",
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+				SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     "Some/check",
+					Problems: []string{"The thing have failed to validate!"},
+				}}},
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -1407,7 +1273,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		sources = append(sources, app.Spec.GetSource())
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
-		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false)
+		compRes, err := ctrl.appStateManager.CompareAppState(app, &projWithSourceIntegrity, revisions, sources, false, false, localManifests, false)
 		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
@@ -1635,11 +1501,10 @@ func TestUseDiffCache(t *testing.T) {
 					"{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-svc\",\"namespace\":\"httpbin\"},\"spec\":{\"ports\":[{\"name\":\"http-port\",\"port\":7777,\"targetPort\":80},{\"name\":\"test\",\"port\":333}],\"selector\":{\"app\":\"httpbin\"}}}",
 					"{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-deployment\",\"namespace\":\"httpbin\"},\"spec\":{\"replicas\":2,\"selector\":{\"matchLabels\":{\"app\":\"httpbin\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"httpbin\"}},\"spec\":{\"containers\":[{\"image\":\"kennethreitz/httpbin\",\"imagePullPolicy\":\"Always\",\"name\":\"httpbin\",\"ports\":[{\"containerPort\":80}]}]}}}}",
 				},
-				Namespace:    "",
-				Server:       "",
-				Revision:     revision,
-				SourceType:   "Kustomize",
-				VerifyResult: "",
+				Namespace:  "",
+				Server:     "",
+				Revision:   revision,
+				SourceType: "Kustomize",
 			},
 		}
 	}
@@ -1981,7 +1846,7 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
 	sources := make([]v1alpha1.ApplicationSource, 0)
 	sources = append(sources, source)
 
-	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, false, &defaultProj, false)
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
 	require.NoError(t, err)
 	require.False(t, revisionsMayHaveChanges)
 }
@@ -2035,7 +1900,7 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T)
 
 	sources := app.Spec.Sources
 
-	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "0.0.1", revisions, false, false, false, &defaultProj, false)
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "0.0.1", revisions, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
 	require.NoError(t, err)
 	require.False(t, revisionsMayHaveChanges)
 }

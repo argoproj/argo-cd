@@ -230,6 +230,19 @@ func (a *Actions) Create(appSet v1alpha1.ApplicationSet) *Actions {
 	// AppSet name is not configurable and should always be unique, based on the context name
 	appSet.Name = a.context.GetName()
 
+	// Tests running in short succession using the same dummy generator URL, can cause repo-server to pull revisions
+	// from gitRefCache effectively using the repo from a previous test when used before the cache expiry. This prevents
+	// using the reference cache on appset creation to avoid that.
+	for _, generator := range appSet.Spec.Generators {
+		if generator.Git != nil {
+			if appSet.Annotations == nil {
+				appSet.Annotations = map[string]string{}
+			}
+			appSet.Annotations[common.AnnotationApplicationSetRefresh] = "true"
+			break
+		}
+	}
+
 	newResource, err := appSetClientSet.Create(context.Background(), utils.MustToUnstructured(&appSet), metav1.CreateOptions{})
 
 	if err == nil {
@@ -559,6 +572,12 @@ func (a *Actions) runCli(args ...string) {
 	a.context.T().Helper()
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
 	a.verifyAction()
+}
+
+func (a *Actions) AddFile(fileName, fileContents string) *Actions {
+	a.context.T().Helper()
+	fixture.AddFile(a.context.T(), a.context.path+"/"+fileName, fileContents)
+	return a
 }
 
 func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
