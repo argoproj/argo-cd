@@ -32,7 +32,7 @@ jobs:
       docs: ${{ steps.filter.outputs.docs_any_changed }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: tj-actions/changed-files@8cba46e29c11878d930bca7870bb54394d3e8b21 # v47.0.2
+      - uses: tj-actions/changed-files@7dee1b0c1557f278e5c7dc244927139d78c0e22a # v47.0.4
         id: filter
         with:
           # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file
@@ -502,7 +502,7 @@ jobs:
           git config --global user.email "john.doe@example.com"
       - name: Pull Docker image required for tests
         run: |
-          docker pull ghcr.io/dexidp/dex:v2.43.0
+          docker pull ghcr.io/dexidp/dex:v2.44.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           docker pull redis:8.2.3-alpine
       - name: Create target directory for binaries in the build-process

@@ -206,7 +206,7 @@ func NewApplicationController(
 		statusRefreshJitter:               appResyncJitter,
 		refreshRequestedApps:              make(map[string]CompareWith),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
-		auditLogger:                       argo.NewAuditLogger(kubeClientset, common.ApplicationController, enableK8sEvent),
+		auditLogger:                       argo.NewAuditLogger(kubeClientset, common.CommandApplicationController, enableK8sEvent),
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
 		selfHealBackoff:                   selfHealBackoff,
