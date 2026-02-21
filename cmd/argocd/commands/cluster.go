@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -88,6 +89,8 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 		skipConfirmation bool
 		labels           []string
 		annotations      []string
+		useTokenRequest  bool
+		audience         string
 	)
 	command := &cobra.Command{
 		Use:   "add CONTEXT",
@@ -104,6 +107,12 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 
 			if clusterOpts.InCluster && clusterOpts.ClusterEndpoint != "" {
 				log.Fatal("Can only use one of --in-cluster or --cluster-endpoint")
+				return
+			}
+
+			// Validate that --token-audience is only used with --use-token-request
+			if audience != "" && !useTokenRequest {
+				log.Fatal("--token-audience can only be used together with --use-token-request")
 				return
 			}
 
@@ -138,7 +147,22 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			default:
 				// Install RBAC resources for managing the cluster
 				if clusterOpts.ServiceAccount != "" {
-					managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(clientset, clusterOpts.SystemNamespace, clusterOpts.ServiceAccount, common.BearerTokenTimeout)
+					if useTokenRequest {
+						managerBearerToken, err = clusterauth.RequestServiceAccountToken(
+							clientset,
+							clusterOpts.SystemNamespace,
+							clusterOpts.ServiceAccount,
+							audience,
+							common.BearerTokenTimeout,
+						)
+					} else {
+						managerBearerToken, err = clusterauth.GetServiceAccountBearerToken(
+							clientset,
+							clusterOpts.SystemNamespace,
+							clusterOpts.ServiceAccount,
+							common.BearerTokenTimeout,
+						)
+					}
 				} else {
 					isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 					if isTerminal && !skipConfirmation {
@@ -151,7 +175,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 							os.Exit(1)
 						}
 					}
-					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces, common.BearerTokenTimeout)
+					managerBearerToken, err = clusterauth.InstallClusterManagerRBAC(clientset, clusterOpts.SystemNamespace, clusterOpts.Namespaces, useTokenRequest, audience, 3600*time.Second)
 				}
 				errors.CheckError(err)
 			}
@@ -203,6 +227,8 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
 	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	command.Flags().StringVar(&clusterOpts.ProxyUrl, "proxy-url", "", "use proxy to connect cluster")
+	command.Flags().StringVar(&audience, "token-audience", "", "set the audience field in the service account token (only valid with --use-token-request)")
+	command.Flags().BoolVar(&useTokenRequest, "use-token-request", false, "Use Kubernetes TokenRequest API to issue a short-lived service account token")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }
