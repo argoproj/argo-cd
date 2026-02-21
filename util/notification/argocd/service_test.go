@@ -65,7 +65,7 @@ func TestGetAppProject(t *testing.T) {
 	t.Run("returns error when AppProject not found", func(t *testing.T) {
 		svc, _ := newTestService(t)
 		result, err := svc.GetAppProject(context.Background(), "nonexistent", "default")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 	})
 }

@@ -140,7 +140,7 @@ func getAppProjectForTemplate(argocdService service.Service, obj map[string]any)
 	// Extract app name for logging context
 	appName, _ := metadata["name"].(string)
 
-	// Fetch the AppProject 
+	// Fetch the AppProject
 	appProjectObj, err := argocdService.GetAppProject(ctx, projectName, namespace)
 	if err != nil {
 		log.WithFields(log.Fields{
