@@ -171,6 +171,61 @@ connectors:
     - name: your-github-org
 `
 
+var goodDexConfigWithStorage = `
+storage:
+  type: kubernetes
+  config:
+    inCluster: true
+    namespace: argo-cd
+connectors:
+# GitHub example
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: $dex.github.clientSecret
+    orgs:
+    - name: your-github-org
+
+# GitHub enterprise example
+- type: github
+  id: acme-github
+  name: Acme GitHub
+  config:
+    hostName: github.acme.example.com
+    clientID: abcdefghijklmnopqrst
+    clientSecret: $dex.acme.clientSecret
+    orgs:
+    - name: your-github-org
+`
+
+var goodDexConfigWithMissingConfig = `
+storage:
+  type: kubernetes
+connectors:
+# GitHub example
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: $dex.github.clientSecret
+    orgs:
+    - name: your-github-org
+
+# GitHub enterprise example
+- type: github
+  id: acme-github
+  name: Acme GitHub
+  config:
+    hostName: github.acme.example.com
+    clientID: abcdefghijklmnopqrst
+    clientSecret: $dex.acme.clientSecret
+    orgs:
+    - name: your-github-org
+`
+
 var goodSecrets = map[string]string{
 	"dex.github.clientSecret": "foobar",
 	"dex.acme.clientSecret":   "barfoo",
@@ -458,6 +513,52 @@ func Test_GenerateDexConfig(t *testing.T) {
 		skipApprScr, ok := oauth2Config["skipApprovalScreen"].(bool)
 		assert.True(t, ok)
 		assert.False(t, skipApprScr)
+	})
+	t.Run("Storage overrides with valid configuration", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithStorage,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		require.NoError(t, err)
+
+		storageConfig, ok := dexCfg["storage"].(map[string]any)
+		assert.True(t, ok)
+		assert.Equal(t, "kubernetes", storageConfig["type"])
+
+		configDetails, ok := storageConfig["config"].(map[string]any)
+		assert.True(t, ok)
+		assert.Equal(t, true, configDetails["inCluster"])
+		assert.Equal(t, "argo-cd", configDetails["namespace"])
+	})
+	t.Run("Storage type set to memory", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfig,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		require.NoError(t, err)
+
+		storageConfig, ok := dexCfg["storage"].(map[string]any)
+		assert.True(t, ok)
+		assert.Equal(t, "memory", storageConfig["type"])
+	})
+	t.Run("Storage overrides with missing configuration", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithMissingConfig,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.Error(t, err)
+		assert.Nil(t, config)
 	})
 }
 
