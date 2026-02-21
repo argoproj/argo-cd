@@ -15,6 +15,9 @@ if obj.status then
           hs.status = "Healthy"
           hs.message = obj.status.description
           return hs
+       elseif obj.spec.includes ~= nil and cond.status == "False" then
+          hs.status = "Healthy"
+          hs.message = "HTTPProxy inclusions cannot be health checked" -- Parent/child pairs depend on each other circularly. This means that, without this check here, we block deployments. Either we flag orphans as valid/unknown, risking a successful deploy followed by subsequent failures once adopted, or we mark proxies with inclusions (parents) as healthy.
         elseif cond.type == "Valid" and cond.status == "False" then
           hs.status = "Degraded"
           hs.message = obj.status.description
