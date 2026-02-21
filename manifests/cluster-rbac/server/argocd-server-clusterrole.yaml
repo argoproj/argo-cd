@@ -15,12 +15,14 @@ rules:
   - delete  # supports deletion a live object in UI
   - get     # supports viewing live object manifest in UI
   - patch   # supports `argocd app patch`
+  - update  # supports server-side diff with server-side apply
 - apiGroups:
   - ""
   resources:
   - events
   verbs:
   - list    # supports listing events in UI
+  - update  # required for server-side apply operations
 - apiGroups:
   - ""
   resources:
@@ -28,6 +30,45 @@ rules:
   - pods/log
   verbs:
   - get     # supports viewing pod logs from UI
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - list    # required for server-side apply operations
+  - watch   # required for server-side apply operations
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  - validatingwebhookconfigurations
+  verbs:
+  - list    # required for server-side apply operations
+  - watch   # required for server-side apply operations
+  - update  # required for server-side apply operations
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - list    # required for server-side apply operations
+  - watch   # required for server-side apply operations
+  - update  # required for server-side apply operations
+- apiGroups:
+  - apiregistration.k8s.io
+  resources:
+  - apiservices
+  verbs:
+  - list    # required for server-side apply operations
+  - watch   # required for server-side apply operations
+  - update  # required for server-side apply operations
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificates
+  verbs:
+  - list    # required for server-side apply operations
+  - watch   # required for server-side apply operations
 - apiGroups:
   - "argoproj.io"
   resources:
