@@ -1,0 +1,11 @@
+{
+  "branches": [
+    {
+      "name": "bugfix-auth",
+      "commit": {
+        "hash": "def456abc123789012345678901234567890defg"
+      }
+    }
+  ],
+  "next_page_token": ""
+}

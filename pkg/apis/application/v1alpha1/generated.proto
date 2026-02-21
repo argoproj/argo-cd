@@ -1652,6 +1652,8 @@ message PullRequestGenerator {
 
   // ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
   optional bool continueOnRepoNotFoundError = 11;
+
+  optional PullRequestGeneratorSourceCraft sourceCraft = 12;
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
@@ -1793,6 +1795,24 @@ message PullRequestGeneratorGithub {
 
   // Labels is used to filter the PRs that you want to target
   repeated string labels = 6;
+}
+
+// PullRequestGeneratorSourceCraft defines connection info specific to SourceCraft.
+message PullRequestGeneratorSourceCraft {
+  // SourceCraft organization slug to scan. Required.
+  optional string organization = 1;
+
+  // SourceCraft repo slug to scan. Required.
+  optional string repo = 2;
+
+  // The SourceCraft API URL to talk to. Required
+  optional string api = 3;
+
+  // Authentication token reference.
+  optional SecretRef tokenRef = 4;
+
+  // Allow insecure tls, for self-signed certificates; default: false.
+  optional bool insecure = 5;
 }
 
 message RefTarget {
@@ -2362,6 +2382,8 @@ message SCMProviderGenerator {
   map<string, string> values = 11;
 
   optional SCMProviderGeneratorAWSCodeCommit awsCodeCommit = 12;
+
+  optional SCMProviderGeneratorSourceCraft sourceCraft = 13;
 }
 
 // SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.
@@ -2522,6 +2544,24 @@ message SCMProviderGeneratorGitlab {
 
   // ConfigMap key holding the trusted certificates
   optional ConfigMapKeyRef caRef = 9;
+}
+
+// SCMProviderGeneratorSourceCraft defines a connection info specific to SourceCraft.
+message SCMProviderGeneratorSourceCraft {
+  // SourceCraft organization slug to scan. Required.
+  optional string organization = 1;
+
+  // The SourceCraft URL to talk to. For example https://api.sourcecraft.tech.
+  optional string api = 2;
+
+  // Authentication token reference.
+  optional SecretRef tokenRef = 3;
+
+  // Scan all branches instead of just the default branch.
+  optional bool allBranches = 4;
+
+  // Allow self-signed TLS / Certificates; default: false
+  optional bool insecure = 5;
 }
 
 // SecretRef struct for a reference to a secret key.

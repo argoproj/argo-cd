@@ -336,6 +336,43 @@ spec:
 * `tokenRef`: A `Secret` name and key containing the Azure DevOps access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
 
+
+## SourceCraft
+
+Specify the repository from which to fetch the SourceCraft Pull requests.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+  - pullRequest:
+      sourceCraft:
+        # The SourceCraft organization.
+        organization: myorg
+        # The SourceCraft repository
+        repo: myrepository
+        # The SourceCraft api url to use
+        api: https://api.sourcecraft.tech/
+        # Reference to a Secret containing an access token. (optional)
+        tokenRef:
+          secretName: sourcecraft-token
+          key: token
+        # many gitea deployments use TLS, but many are self-hosted and self-signed certificates
+        insecure: true
+  requeueAfterSeconds: 1800
+  template:
+  # ...
+```
+
+* `organization`: Required name of the SourceCraft organization.
+* `repo`: Required name of the SourceCraft repositry.
+* `api`: The url of the SourceCraft instance.
+* `tokenRef`: A `Secret` name and key containing the SourceCraft access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
+* `insecure`: `Allow for self-signed certificates, primarily for testing.`
+
 ## Filters
 
 Filters allow selecting which pull requests to generate for. Each filter can declare one or more conditions, all of which must pass. If multiple filters are present, any can match for a repository to be included. If no filters are specified, all pull requests will be processed.

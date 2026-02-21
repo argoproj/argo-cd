@@ -1,0 +1,73 @@
+{
+  "header": {
+    "id": "ad10e924-f066-43e1-a454-0208006329c6",
+    "type": "pull_request.merge",
+    "occurred_at": "2026-02-03T15:28:36.586472321Z",
+    "aggregate_id": "019c2400-baf0-72a7-9592-c6a03b3f2da8",
+    "aggregate_type": "pull_request",
+    "organization_id": "019711c4-14ec-746f-abd4-5968016b9f8v",
+    "repository_id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+    "triggered_by": {
+      "id": "019711c3-fd2a-7729-8460-de195bc4ebf8",
+      "slug": "user"
+    }
+  },
+  "repository": {
+    "id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+    "name": "test_repo",
+    "default_branch": "master",
+    "organization": {
+      "id": "019711c4-14ec-746f-abd4-5968016b9f8v",
+      "slug": "test-org"
+    },
+    "slug": "test_repo",
+    "template_type": "not_a_template",
+    "visibility": "public",
+    "clone_url": {
+      "https": "https://git@git.domain.net/org/test-rep.git",
+      "ssh": "ssh://ssh.domain.net/org/test-rep.git"
+    },
+    "web_url": "https://domain.net/org/test-rep",
+    "counters": {
+      "forks": "3",
+      "pull_requests": "3",
+      "branches": "4"
+    },
+    "last_updated": "2026-02-03T14:55:49.672167Z"
+  },
+  "pull_request": {
+    "id": "019c2400-baf0-72a7-9592-c6a03b3f2da8",
+    "slug": "4",
+    "author": {
+      "id": "019711c3-fd2a-7729-8460-de195bc4ebf8",
+      "slug": "user"
+    },
+    "updated_by": {
+      "id": "019711c3-fd2a-7729-8460-de195bc4ebf8",
+      "slug": "user"
+    },
+    "title": "Test",
+    "description": "Test description",
+    "repository": {
+      "id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+      "slug": "test_repo"
+    },
+    "merge_info": {
+      "merger": {
+        "id": "019711c3-fd2a-7729-8460-de195bc4ebf8",
+        "slug": "user"
+      },
+      "merge_parameters": {
+        "rebase": false,
+        "squash": false,
+        "delete_branch": false
+      }
+    },
+    "source_branch": "b2",
+    "target_branch": "master",
+    "status": "merging",
+    "created_at": "2026-02-03T14:55:53.584174Z",
+    "updated_at": "2026-02-03T15:28:31.904570Z"
+  },
+  "merge_hash": "d7ca93f381caf7c7026f2a15a08efcb0d85fa8ab"
+}

@@ -1,0 +1,21 @@
+{
+  "header": {
+    "id": "d6829630-764e-4de9-b3f0-6b337e9dfc3e",
+    "type": "webhook.ping",
+    "occurred_at": "2026-02-03T15:02:11.000087321Z",
+    "aggregate_id": "wh1",
+    "aggregate_type": "webhook",
+    "organization_id": "019711c4-14ec-746f-abd4-5968016b9f8v",
+    "repository_id": "01989dab-806f-7b1b-9186-f437bb2cf241"
+  },
+  "repository": {
+      "id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+      "slug": "test_repo"
+  },
+  "webhook_slug": "wh1",
+  "pinged_at": "2026-02-03T15:02:11.000087321Z",
+  "organization": {
+    "id": "019711c4-14ec-746f-abd4-5968016b9f8v",
+    "slug": "test-org"
+  }
+}

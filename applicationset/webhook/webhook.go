@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/sourcecraft"
 	"github.com/argoproj/argo-cd/v3/util/webhook"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
@@ -39,6 +40,7 @@ type WebhookHandler struct {
 	github         *github.Webhook
 	gitlab         *gitlab.Webhook
 	azuredevops    *azuredevops.Webhook
+	sourcecraft    *sourcecraft.Webhook
 	client         client.Client
 	generators     map[string]generators.Generator
 	queue          chan any
@@ -54,6 +56,7 @@ type prGeneratorInfo struct {
 	Azuredevops *prGeneratorAzuredevopsInfo
 	Github      *prGeneratorGithubInfo
 	Gitlab      *prGeneratorGitlabInfo
+	SourceCraft *prGeneratorSourceCraftInfo
 }
 
 type prGeneratorAzuredevopsInfo struct {
@@ -70,6 +73,11 @@ type prGeneratorGithubInfo struct {
 type prGeneratorGitlabInfo struct {
 	Project     string
 	APIHostname string
+}
+
+type prGeneratorSourceCraftInfo struct {
+	OrganizationSlug string
+	RepoSlug         string
 }
 
 func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
@@ -90,11 +98,16 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 	if err != nil {
 		return nil, fmt.Errorf("unable to init Azure DevOps webhook: %w", err)
 	}
+	sourcecraft, err := sourcecraft.New(sourcecraft.Options.Secret(argocdSettings.GetWebhookSourceCraftSecret()))
+	if err != nil {
+		return nil, fmt.Errorf("unable to init SourceCraft webhook: %w", err)
+	}
 
 	webhookHandler := &WebhookHandler{
 		github:      githubHandler,
 		gitlab:      gitlabHandler,
 		azuredevops: azuredevopsHandler,
+		sourcecraft: sourcecraft,
 		client:      client,
 		generators:  generators,
 		queue:       make(chan any, payloadQueueSize),
@@ -169,6 +182,8 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents)
 	case r.Header.Get("X-Vss-Activityid") != "":
 		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
+	case r.Header.Get("X-Src-Event") != "":
+		payload, err = h.sourcecraft.Parse(r, sourcecraft.PushEvent, sourcecraft.PingEvent, sourcecraft.PullRequestAggregate)
 	default:
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
@@ -214,6 +229,10 @@ func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 		revision = webhook.ParseRevision(payload.Resource.RefUpdates[0].Name)
 		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
 		// unfortunately, Azure DevOps doesn't provide a list of changed files
+	case sourcecraft.PushEventPayload:
+		webURL = payload.Repository.WebURL
+		revision = webhook.ParseRevision(payload.RefUpdate.Ref)
+		touchedHead = payload.IsDefaultBranchUpdated
 	default:
 		return nil
 	}
@@ -279,6 +298,20 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 			Repo:    repo,
 			Project: project,
 		}
+
+	case sourcecraft.PullRequestEventPayload:
+		if !slices.Contains(sourceCraftAllowedPullRequestActions, string(payload.GetEventType())) {
+			return nil
+		}
+		repository := payload.GetRepository()
+		if repository == nil {
+			return nil
+		}
+		info.SourceCraft = &prGeneratorSourceCraftInfo{
+			OrganizationSlug: repository.Organization.Slug,
+			RepoSlug:         repository.Slug,
+		}
+
 	default:
 		return nil
 	}
@@ -311,6 +344,16 @@ var azuredevopsAllowedPullRequestActions = []string{
 	"git.pullrequest.created",
 	"git.pullrequest.merged",
 	"git.pullrequest.updated",
+}
+
+// sourceCraftAllowedPullRequestActions is a list of SourceCraft actions that allow refresh
+var sourceCraftAllowedPullRequestActions = []string{
+	"pull_request.create",
+	"pull_request.update",
+	"pull_request.publish",
+	"pull_request.refresh",
+	"pull_request.new_iteration",
+	"pull_request.merge",
 }
 
 func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInfo) bool {
@@ -405,6 +448,16 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 			return false
 		}
 		if gen.AzureDevOps.Repo != info.Azuredevops.Repo {
+			return false
+		}
+		return true
+	}
+
+	if gen.SourceCraft != nil && info.SourceCraft != nil {
+		if gen.SourceCraft.Organization != info.SourceCraft.OrganizationSlug {
+			return false
+		}
+		if gen.SourceCraft.Repo != info.SourceCraft.RepoSlug {
 			return false
 		}
 		return true

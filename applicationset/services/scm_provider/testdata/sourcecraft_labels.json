@@ -1,0 +1,15 @@
+{
+  "items": [
+    {
+      "id": "label-1",
+      "name": "backend",
+      "color": "#ff0000"
+    },
+    {
+      "id": "label-2",
+      "name": "frontend",
+      "color": "#00ff00"
+    }
+  ],
+  "next_page_token": ""
+}

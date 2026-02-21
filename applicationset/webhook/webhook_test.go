@@ -192,6 +192,42 @@ func TestWebhookHandler(t *testing.T) {
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
+		{
+			desc:               "WebHook from a SourceCraft repository via Commit",
+			headerKey:          "X-Src-Event",
+			headerValue:        "repository.push",
+			payloadFile:        "sourcecraft-commit-event.json",
+			effectedAppSets:    []string{"git-sourcecraft", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a SourceCraft repository via Ping",
+			headerKey:          "X-Src-Event",
+			headerValue:        "webhook.ping",
+			payloadFile:        "sourcecraft-ping-event.json",
+			effectedAppSets:    []string{"git-sourcecraft", "plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    false,
+		},
+		{
+			desc:               "WebHook from a SourceCraft repository via pull request created event",
+			headerKey:          "X-Src-Event",
+			headerValue:        "pull_request.create",
+			payloadFile:        "sourcecraft-pull-request-create-event.json",
+			effectedAppSets:    []string{"pull-request-sourcecraft", "matrix-pull-request-sourcecraft", "merge-pull-request-sourcecraft", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a SourceCraft repository via pull request updated event",
+			headerKey:          "X-Src-Event",
+			headerValue:        "pull_request.update",
+			payloadFile:        "sourcecraft-pull-request-update-event.json",
+			effectedAppSets:    []string{"pull-request-sourcecraft", "matrix-pull-request-sourcecraft", "merge-pull-request-sourcecraft", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
 	}
 
 	namespace := "test"
@@ -214,19 +250,23 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithGitGenerator("git-gitlab-ssh", namespace, "ssh://git@gitlab.com/group/name"),
 				fakeAppWithGitGenerator("git-gitlab-alt-ssh", namespace, "ssh://git@altssh.gitlab.com:443/group/name"),
 				fakeAppWithGitGenerator("git-azure-devops", namespace, "https://dev.azure.com/fabrikam-fiber-inc/DefaultCollection/_git/Fabrikam-Fiber-Git"),
+				fakeAppWithGitSourceCraftGenerator("git-sourcecraft", namespace, "https://sourcecraft.dev/org/r1"),
 				fakeAppWithGitGeneratorWithRevision("github-shorthand", namespace, "https://github.com/org/repo", "env/dev"),
 				fakeAppWithGithubPullRequestGenerator("pull-request-github", namespace, "CodErTOcat", "Hello-World"),
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "100500"),
 				fakeAppWithAzureDevOpsPullRequestGenerator("pull-request-azure-devops", namespace, "DefaultCollection", "Fabrikam"),
+				fakeAppWithSourceCraftPullRequestGenerator("pull-request-sourcecraft", namespace, "test-org", "test_repo"),
 				fakeAppWithPluginGenerator("plugin", namespace),
 				fakeAppWithMatrixAndGitGenerator("matrix-git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithMatrixAndPullRequestGenerator("matrix-pull-request-github", namespace, "Codertocat", "Hello-World"),
+				fakeAppWithMatrixAndSourceCraftPullRequestGenerator("matrix-pull-request-sourcecraft", namespace, "test-org", "test_repo"),
 				fakeAppWithMatrixAndScmWithGitGenerator("matrix-scm-git-github", namespace, "org"),
 				fakeAppWithMatrixAndScmWithPullRequestGenerator("matrix-scm-pull-request-github", namespace, "Codertocat"),
 				fakeAppWithMatrixAndNestedGitGenerator("matrix-nested-git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator("matrix-pull-request-github-plugin", namespace, "coDErtoCat", "HeLLO-WorLD", "plugin-cm"),
 				fakeAppWithMergeAndGitGenerator("merge-git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithMergeAndPullRequestGenerator("merge-pull-request-github", namespace, "Codertocat", "Hello-World"),
+				fakeAppWithMergeAndSourceCraftPullRequestGenerator("merge-pull-request-sourcecraft", namespace, "test-org", "test_repo"),
 				fakeAppWithMergeAndNestedGitGenerator("merge-nested-git-github", namespace, "https://github.com/org/repo"),
 			).Build()
 			set := argosettings.NewSettingsManager(t.Context(), fakeClient, namespace)
@@ -773,6 +813,105 @@ func fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator(name, namespace
 								Plugin: &v1alpha1.PluginGenerator{
 									ConfigMapRef: v1alpha1.PluginConfigMapRef{
 										Name: configmapName,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithSourceCraftPullRequestGenerator(name, namespace, organization, repo string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					PullRequest: &v1alpha1.PullRequestGenerator{
+						SourceCraft: &v1alpha1.PullRequestGeneratorSourceCraft{
+							Organization: organization,
+							Repo:         repo,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithGitSourceCraftGenerator(name, namespace, repoURL string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					Git: &v1alpha1.GitGenerator{
+						RepoURL: repoURL,
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithMatrixAndSourceCraftPullRequestGenerator(name, namespace, organization, repo string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					Matrix: &v1alpha1.MatrixGenerator{
+						Generators: []v1alpha1.ApplicationSetNestedGenerator{
+							{
+								List: &v1alpha1.ListGenerator{},
+							},
+							{
+								PullRequest: &v1alpha1.PullRequestGenerator{
+									SourceCraft: &v1alpha1.PullRequestGeneratorSourceCraft{
+										Organization: organization,
+										Repo:         repo,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithMergeAndSourceCraftPullRequestGenerator(name, namespace, organization, repo string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					Merge: &v1alpha1.MergeGenerator{
+						Generators: []v1alpha1.ApplicationSetNestedGenerator{
+							{
+								List: &v1alpha1.ListGenerator{},
+							},
+							{
+								PullRequest: &v1alpha1.PullRequestGenerator{
+									SourceCraft: &v1alpha1.PullRequestGeneratorSourceCraft{
+										Organization: organization,
+										Repo:         repo,
 									},
 								},
 							},
