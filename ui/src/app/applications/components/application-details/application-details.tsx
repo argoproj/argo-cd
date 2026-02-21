@@ -22,6 +22,7 @@ import {ApplicationSetStatusPanel} from '../application-status-panel/appset-stat
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {isApp} from '../utils';
 import {ResourceDetails} from '../resource-details/resource-details';
+import {AppSetResourceDetails} from '../resource-details/appset-resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters, FiltersProps} from './application-resource-filter';
@@ -660,6 +661,18 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             const clearFilter = () => setFilter([]);
                             const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
                             const appNodesByName = isApplication ? groupAppNodesByKey(application as appModels.Application, tree) : new Map();
+                            // For ApplicationSets, add the appset itself to the map
+                            if (!isApplication) {
+                                const appSetKey = AppUtils.nodeKey({
+                                    group: 'argoproj.io',
+                                    kind: application.kind,
+                                    name: application.metadata.name,
+                                    namespace: application.metadata.namespace
+                                });
+                                appNodesByName.set(appSetKey, application);
+                                // Also add tree nodes for ApplicationSets
+                                tree.nodes.forEach(node => appNodesByName.set(AppUtils.nodeKey(node), node));
+                            }
                             const selectedItem = (selectedNodeKey && appNodesByName.get(selectedNodeKey)) || null;
                             const isAppSelected = selectedItem === application;
                             const selectedNode = !isAppSelected && (selectedItem as appModels.ResourceNode);
@@ -667,7 +680,6 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             const hydrateOperationState = isApplication ? (application as appModels.Application).status.sourceHydrator?.currentOperation : undefined;
                             const conditions = application.status?.conditions || [];
                             const syncResourceKey = new URLSearchParams(props.history.location.search).get('deploy');
-                            const tab = new URLSearchParams(props.history.location.search).get('tab');
                             const source = isApplication ? getAppDefaultSource(application as appModels.Application) : undefined;
                             const showToolTip = pref?.userHelpTipMsgs.find(usrMsg => usrMsg.appName === application.metadata.name);
                             const resourceNodes = (): any[] => {
@@ -1149,8 +1161,12 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     updateApp={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
                                                     selectedNode={selectedNode}
                                                     appCxt={{...appContext, apis: appContext} as unknown as AppContext}
-                                                    tab={tab}
                                                 />
+                                            </SlidingPanel>
+                                        )}
+                                        {!isApplication && (
+                                            <SlidingPanel isShown={isAppSelected} onClose={() => selectNode('')}>
+                                                <AppSetResourceDetails appSet={application as appModels.ApplicationSet} />
                                             </SlidingPanel>
                                         )}
                                         {isApplication && (

@@ -244,11 +244,6 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
 	}
 
-	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get update resources status for application set: %w", err)
-	}
-
 	// appSyncMap tracks which apps will be synced during this reconciliation.
 	appSyncMap := map[string]bool{}
 
@@ -370,6 +365,16 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			)
 			return ctrl.Result{}, err
 		}
+	}
+
+	// Update resources status after create/update/delete so it reflects the actual cluster state.
+	currentApplications, err = r.getCurrentApplications(ctx, applicationSetInfo)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
+	}
+	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to update resources status for application set: %w", err)
 	}
 
 	if applicationSetInfo.RefreshRequired() {
