@@ -255,14 +255,21 @@ Metrics about the Repo Server. The gRPC metrics are not exposed by default.  Met
 Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 
 
-| Metric                                  |   Type    | Description                                                               |
-| --------------------------------------- | :-------: | ------------------------------------------------------------------------- |
-| `argocd_git_request_duration_seconds`   | histogram | Git requests duration seconds.                                            |
-| `argocd_git_request_total`              |  counter  | Number of git requests performed by repo server                           |
-| `argocd_git_fetch_fail_total`           |  counter  | Number of git fetch requests failures by repo server                      |
-| `argocd_redis_request_duration_seconds` | histogram | Redis requests duration seconds.                                          |
-| `argocd_redis_request_total`            |  counter  | Number of Kubernetes requests executed during application reconciliation. |
-| `argocd_repo_pending_request_total`     |   gauge   | Number of pending requests requiring repository lock                      |
+| Metric                                   |    Type    | Description                                                               |
+|------------------------------------------|:----------:|---------------------------------------------------------------------------|
+| `argocd_git_request_duration_seconds`    | histogram  | Git requests duration seconds.                                            |
+| `argocd_git_request_total`               |  counter   | Number of git requests performed by repo server                           |
+| `argocd_git_fetch_fail_total`            |  counter   | Number of git fetch requests failures by repo server                      |
+| `argocd_redis_request_duration_seconds`  | histogram  | Redis requests duration seconds.                                          |
+| `argocd_redis_request_total`             |  counter   | Number of Kubernetes requests executed during application reconciliation. |
+| `argocd_repo_pending_request_total`      |   gauge    | Number of pending requests requiring repository lock                      |
+| `argocd_oci_request_total`               |  counter   | Number of OCI requests performed by repo server                           |
+| `argocd_oci_request_duration_seconds`    | histogram  | Duration of OCI requests performed by the repo server.                      |
+| `argocd_oci_test_repo_fail_total`        |  counter   | Number of OCI test repo requests failures by repo server                  |
+| `argocd_oci_get_tags_fail_total`         |  counter   | Number of OCI get tags requests failures by repo server                   |
+| `argocd_oci_digest_metadata_fail_total`  |  counter   | Number of OCI digest metadata failures by repo server                     |
+| `argocd_oci_resolve_revision_fail_total` |  counter   | Number of OCI resolve revision failures by repo server                   |
+| `argocd_oci_extract_fail_total`          |  counter   | Number of OCI extract requests failures by repo server                    |
 
 ## Commit Server Metrics
 
@@ -409,7 +416,7 @@ spec:
 
 ## Dashboards
 
-You can find an example Grafana dashboard [here](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json) or check demo instance
+You can find an [example Grafana dashboard](https://github.com/argoproj/argo-cd/blob/master/examples/dashboard.json) or check the demo instance
 [dashboard](https://grafana.apps.argoproj.io).
 
 ![dashboard](../assets/dashboard.jpg)

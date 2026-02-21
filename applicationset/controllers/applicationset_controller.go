@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -47,7 +48,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/controllers/template"
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
@@ -57,6 +58,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
@@ -75,9 +77,15 @@ const (
 	AllAtOnceDeletionOrder            = "AllAtOnce"
 )
 
+var defaultPreservedFinalizers = []string{
+	argov1alpha1.PreDeleteFinalizerName,
+	argov1alpha1.PostDeleteFinalizerName,
+}
+
 var defaultPreservedAnnotations = []string{
 	NotifiedAnnotationKey,
 	argov1alpha1.AnnotationKeyRefresh,
+	argov1alpha1.AnnotationKeyHydrate,
 }
 
 type deleteInOrder struct {
@@ -104,6 +112,7 @@ type ApplicationSetReconciler struct {
 	GlobalPreservedLabels      []string
 	Metrics                    *metrics.ApplicationsetMetrics
 	MaxResourcesStatusCount    int
+	ClusterInformer            *settings.ClusterInformer
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -176,6 +185,16 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, err
 	}
 
+	// ensure finalizer exists if deletionOrder is set as Reverse
+	if r.EnableProgressiveSyncs && isProgressiveSyncDeletionOrderReversed(&applicationSetInfo) {
+		if !controllerutil.ContainsFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName) {
+			controllerutil.AddFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
+			if err := r.Update(ctx, &applicationSetInfo); err != nil {
+				return ctrl.Result{}, err
+			}
+		}
+	}
+
 	// Log a warning if there are unrecognized generators
 	_ = utils.CheckInvalidGenerators(&applicationSetInfo)
 	// desiredApplications is the main list of all expected Applications from all generators in this appset.
@@ -223,11 +242,6 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	currentApplications, err := r.getCurrentApplications(ctx, applicationSetInfo)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
-	}
-
-	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get update resources status for application set: %w", err)
 	}
 
 	// appSyncMap tracks which apps will be synced during this reconciliation.
@@ -351,6 +365,16 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			)
 			return ctrl.Result{}, err
 		}
+	}
+
+	// Update resources status after create/update/delete so it reflects the actual cluster state.
+	currentApplications, err = r.getCurrentApplications(ctx, applicationSetInfo)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
+	}
+	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to update resources status for application set: %w", err)
 	}
 
 	if applicationSetInfo.RefreshRequired() {
@@ -653,8 +677,9 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 		Watches(
 			&corev1.Secret{},
 			&clusterSecretEventHandler{
-				Client: mgr.GetClient(),
-				Log:    log.WithField("type", "createSecretEventHandler"),
+				Client:                   mgr.GetClient(),
+				Log:                      log.WithField("type", "createSecretEventHandler"),
+				ApplicationSetNamespaces: r.ApplicationSetNamespaces,
 			}).
 		Complete(r)
 }
@@ -731,21 +756,19 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 				}
 			}
 
-			// Preserve post-delete finalizers:
-			//   https://github.com/argoproj/argo-cd/issues/17181
-			for _, finalizer := range found.Finalizers {
-				if strings.HasPrefix(finalizer, argov1alpha1.PostDeleteFinalizerName) {
-					if generatedApp.Finalizers == nil {
-						generatedApp.Finalizers = []string{}
+			// Preserve deleting finalizers and avoid diff conflicts
+			for _, finalizer := range defaultPreservedFinalizers {
+				for _, f := range found.Finalizers {
+					// For finalizers, use prefix matching in case it contains "/" stages
+					if strings.HasPrefix(f, finalizer) {
+						generatedApp.Finalizers = append(generatedApp.Finalizers, f)
 					}
-					generatedApp.Finalizers = append(generatedApp.Finalizers, finalizer)
 				}
 			}
 
 			found.Annotations = generatedApp.Annotations
-
-			found.Finalizers = generatedApp.Finalizers
 			found.Labels = generatedApp.Labels
+			found.Finalizers = generatedApp.Finalizers
 
 			return controllerutil.SetControllerReference(&applicationSet, found, r.Scheme)
 		})
@@ -810,7 +833,7 @@ func (r *ApplicationSetReconciler) getCurrentApplications(ctx context.Context, a
 // deleteInCluster will delete Applications that are currently on the cluster, but not in appList.
 // The function must be called after all generators had been called and generated applications
 func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *log.Entry, applicationSet argov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
-	clusterList, err := utils.ListClusters(ctx, r.KubeClientset, r.ArgoCDNamespace)
+	clusterList, err := utils.ListClusters(r.ClusterInformer)
 	if err != nil {
 		return fmt.Errorf("error listing clusters: %w", err)
 	}
@@ -876,16 +899,14 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 		// Detect if the destination's server field does not match an existing cluster
 		matchingCluster := false
 		for _, cluster := range clusterList {
-			if destCluster.Server != cluster.Server {
-				continue
+			// A cluster matches if either the server matches OR the name matches
+			// This handles cases where:
+			// 1. The cluster is the in-cluster (server=https://kubernetes.default.svc, name=in-cluster)
+			// 2. A custom cluster has the same server as in-cluster but a different name
+			if destCluster.Server == cluster.Server || (destCluster.Name != "" && cluster.Name != "" && destCluster.Name == cluster.Name) {
+				matchingCluster = true
+				break
 			}
-
-			if destCluster.Name != cluster.Name {
-				continue
-			}
-
-			matchingCluster = true
-			break
 		}
 
 		if !matchingCluster {
@@ -1031,12 +1052,10 @@ func labelMatchedExpression(logCtx *log.Entry, val string, matchExpression argov
 	// if operator == NotIn, default to true
 	valueMatched := matchExpression.Operator == "NotIn"
 
-	for _, value := range matchExpression.Values {
-		if val == value {
-			// first "In" match returns true
-			// first "NotIn" match returns false
-			return matchExpression.Operator == "In"
-		}
+	if slices.Contains(matchExpression.Values, val) {
+		// first "In" match returns true
+		// first "NotIn" match returns false
+		return matchExpression.Operator == "In"
 	}
 	return valueMatched
 }

@@ -27,8 +27,8 @@ import (
 	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/gitops-engine/pkg/diff/mocks"
-	"github.com/argoproj/gitops-engine/pkg/diff/testdata"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/testdata"
 )
 
 func printDiff(ctx context.Context, result *DiffResult) (string, error) {
@@ -704,7 +704,7 @@ func TestNullSecretData(t *testing.T) {
 }
 
 // TestRedactedSecretData tests we are able to perform diff on redacted secret data, which has
-// invalid characters (*) for the the data byte array field.
+// invalid characters (*) for the data byte array field.
 func TestRedactedSecretData(t *testing.T) {
 	configUn := unmarshalFile("testdata/wordpress-config.json")
 	liveUn := unmarshalFile("testdata/wordpress-live.json")
@@ -1164,6 +1164,48 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Empty(t, predictedDeploy.Annotations[AnnotationLastAppliedConfig])
 		assert.Empty(t, liveDeploy.Annotations[AnnotationLastAppliedConfig])
 	})
+
+	t.Run("will detect ConfigMap data key removal", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ConfigMapLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ConfigMapConfigYAMLSSD)
+		opts := buildOpts(testdata.ConfigMapPredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified, "Diff should detect key removal as a modification")
+
+		// Parse the results
+		var predictedCM map[string]any
+		err = json.Unmarshal(result.PredictedLive, &predictedCM)
+		require.NoError(t, err)
+
+		var liveCM map[string]any
+		err = json.Unmarshal(result.NormalizedLive, &liveCM)
+		require.NoError(t, err)
+
+		// Verify predicted live has only key1 and key2 (key3 removed)
+		predictedData, ok := predictedCM["data"].(map[string]any)
+		require.True(t, ok, "Predicted ConfigMap should have data field")
+		assert.Len(t, predictedData, 2, "Predicted data should have 2 keys")
+		assert.Contains(t, predictedData, "key1")
+		assert.Contains(t, predictedData, "key2")
+		assert.NotContains(t, predictedData, "key3", "key3 should be removed from predicted live")
+
+		// Verify live still has all 3 keys
+		liveData, ok := liveCM["data"].(map[string]any)
+		require.True(t, ok, "Live ConfigMap should have data field")
+		assert.Len(t, liveData, 3, "Live data should still have 3 keys")
+		assert.Contains(t, liveData, "key1")
+		assert.Contains(t, liveData, "key2")
+		assert.Contains(t, liveData, "key3", "key3 should still be in live state")
+	})
+
 }
 
 // testIgnoreDifferencesNormalizer implements a simple normalizer that removes specified fields
@@ -1605,6 +1647,68 @@ metadata:
 	metadata := newUn.Object["metadata"].(map[string]any)
 	_, ok = metadata["creationTimestamp"]
 	assert.False(t, ok)
+}
+
+func TestRemarshalStatefulSetCreationTimestamp(t *testing.T) {
+	manifest := []byte(`
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: test-sts
+  creationTimestamp: "2025-11-06T19:35:31Z"
+spec:
+  serviceName: test
+  selector:
+    matchLabels:
+      app: test
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: test
+    spec:
+      containers:
+      - name: test
+        image: nginx
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      creationTimestamp: null
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
+`)
+	var un unstructured.Unstructured
+	require.NoError(t, yaml.Unmarshal(manifest, &un))
+
+	// Verify creationTimestamp exists in nested metadata before remarshal
+	spec := un.Object["spec"].(map[string]any)
+	templateMetadata := spec["template"].(map[string]any)["metadata"].(map[string]any)
+	_, ok := templateMetadata["creationTimestamp"]
+	assert.True(t, ok, "creationTimestamp should exist in template.metadata before remarshal")
+
+	volumeClaimTemplates := spec["volumeClaimTemplates"].([]any)
+	vctMetadata := volumeClaimTemplates[0].(map[string]any)["metadata"].(map[string]any)
+	_, ok = vctMetadata["creationTimestamp"]
+	assert.True(t, ok, "creationTimestamp should exist in volumeClaimTemplates[0].metadata before remarshal")
+
+	// Remarshal
+	newUn := remarshal(&un, applyOptions(diffOptionsForTest()))
+
+	// Verify creationTimestamp is removed from nested metadata after remarshal
+	// (top-level metadata.creationTimestamp is preserved as it's part of the resource identity)
+	spec = newUn.Object["spec"].(map[string]any)
+	templateMetadata = spec["template"].(map[string]any)["metadata"].(map[string]any)
+	_, ok = templateMetadata["creationTimestamp"]
+	assert.False(t, ok, "creationTimestamp should be removed from template.metadata after remarshal")
+
+	volumeClaimTemplates = spec["volumeClaimTemplates"].([]any)
+	vctMetadata = volumeClaimTemplates[0].(map[string]any)["metadata"].(map[string]any)
+	_, ok = vctMetadata["creationTimestamp"]
+	assert.False(t, ok, "creationTimestamp should be removed from volumeClaimTemplates[0].metadata after remarshal")
 }
 
 func TestRemarshalResources(t *testing.T) {

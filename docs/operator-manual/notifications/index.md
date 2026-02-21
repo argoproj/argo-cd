@@ -11,7 +11,7 @@ So you can just use them instead of reinventing new ones.
 * Install Triggers and Templates from the catalog
 
     ```bash
-    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
+    kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
     ```
 
 * Add email username and password token to the `argocd-notifications-secret` secret
@@ -112,4 +112,4 @@ metadata:
 > When the same notification service and trigger are defined in controller level configuration and application level configuration,
 > both notifications will be sent according to its own configuration.
 
-[Defining and using secrets within notification templates](templates/#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.
+[Defining and using secrets within notification templates](templates.md#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.

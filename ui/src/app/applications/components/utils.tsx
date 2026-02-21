@@ -399,7 +399,7 @@ export function findChildResources(node: appModels.ResourceNode, tree: appModels
     return children;
 }
 
-const deletePodAction = async (ctx: ContextApis, pod: appModels.ResourceNode, app: appModels.Application) => {
+const deletePodAction = async (ctx: ContextApis, pod: appModels.ResourceNode, app: appModels.AbstractApplication) => {
     ctx.popup.prompt(
         'Delete pod',
         () => (
@@ -485,20 +485,21 @@ const isChildApplication = (application: appModels.Application): boolean => {
 export const deletePopup = async (
     ctx: ContextApis,
     resource: ResourceTreeNode,
-    application: appModels.Application,
+    application: appModels.AbstractApplication,
     isManaged: boolean,
     childResources: appModels.ResourceNode[],
-    appChanged?: BehaviorSubject<appModels.Application>
+    appChanged?: BehaviorSubject<appModels.AbstractApplication>
 ) => {
     // Detect if this is an Application resource
     const isApplication = isApplicationResource(resource);
 
+    const hasApplicationContext = isApp(application);
     // Check if we're in a parent-child context (used for both Application and non-Application resources)
-    const isInParentContext = isChildApplication(application);
+    const isInParentContext = hasApplicationContext ? isChildApplication(application) : false;
 
     // For Application resources, use the deleteApplication function with resource tree context
     if (isApplication) {
-        return deleteApplication(resource.name, resource.namespace || '', ctx, application);
+        return deleteApplication(resource.name, resource.namespace || '', ctx, hasApplicationContext ? application : undefined);
     }
 
     const deleteOptions = {
@@ -605,7 +606,8 @@ export const deletePopup = async (
                 try {
                     await services.applications.deleteResource(application.metadata.name, application.metadata.namespace, resource, !!force, !!orphan);
                     if (appChanged) {
-                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace));
+                        const objectListKind = isApp(application) ? 'application' : 'applicationset';
+                        appChanged.next(await services.applications.get(application.metadata.name, application.metadata.namespace, objectListKind));
                     }
                     close();
                 } catch (e) {
@@ -693,20 +695,23 @@ export async function getResourceActionsMenuItems(resource: ResourceTreeNode, me
 
 function getActionItems(
     resource: ResourceTreeNode,
-    application: appModels.Application,
-    tree: appModels.ApplicationTree,
+    application: appModels.AbstractApplication,
+    tree: appModels.AbstractApplicationTree,
     apis: ContextApis,
-    appChanged: BehaviorSubject<appModels.Application>,
+    appChanged: BehaviorSubject<appModels.AbstractApplication>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
-    function isTopLevelResource(res: ResourceTreeNode, app: appModels.Application): boolean {
+    function isTopLevelResource(res: ResourceTreeNode, app: appModels.AbstractApplication): boolean {
         const uniqRes = `/${res.namespace}/${res.group}/${res.kind}/${res.name}`;
-        return app.status.resources.some(resStatus => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes);
+        return (
+            app.status?.resources?.some((resStatus: appModels.ResourceStatus) => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes) ||
+            false
+        );
     }
 
     const isPod = resource.kind === 'Pod';
     const isManaged = isTopLevelResource(resource, application);
-    const childResources = findChildResources(resource, tree);
+    const childResources = isApp(application) ? findChildResources(resource, tree as appModels.ApplicationTree) : [];
 
     const items: MenuItem[] = [
         ...((isManaged && [
@@ -734,21 +739,23 @@ function getActionItems(
         });
     }
 
-    const logsAction = services.accounts
-        .canI('logs', 'get', application.spec.project + '/' + application.metadata.name)
-        .then(async allowed => {
-            if (allowed && (isPod || findChildPod(resource, tree))) {
-                return [
-                    {
-                        title: 'Logs',
-                        iconClassName: 'fa fa-fw fa-align-left',
-                        action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
-                    } as MenuItem
-                ];
-            }
-            return [] as MenuItem[];
-        })
-        .catch(() => [] as MenuItem[]);
+    const logsAction = isApp(application)
+        ? services.accounts
+              .canI('logs', 'get', application.spec.project + '/' + application.metadata.name)
+              .then(async allowed => {
+                  if (allowed && (isPod || findChildPod(resource, tree as appModels.ApplicationTree))) {
+                      return [
+                          {
+                              title: 'Logs',
+                              iconClassName: 'fa fa-fw fa-align-left',
+                              action: () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'logs'}, {replace: true})
+                          } as MenuItem
+                      ];
+                  }
+                  return [] as MenuItem[];
+              })
+              .catch(() => [] as MenuItem[])
+        : Promise.resolve([] as MenuItem[]);
 
     if (isQuickStart) {
         return combineLatest(
@@ -757,22 +764,24 @@ function getActionItems(
         ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
     }
 
-    const execAction = services.authService
-        .settings()
-        .then(async settings => {
-            const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
-            if (isPod && execAllowed) {
-                return [
-                    {
-                        title: 'Exec',
-                        iconClassName: 'fa fa-fw fa-terminal',
-                        action: async () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
-                    } as MenuItem
-                ];
-            }
-            return [] as MenuItem[];
-        })
-        .catch(() => [] as MenuItem[]);
+    const execAction = isApp(application)
+        ? services.authService
+              .settings()
+              .then(async settings => {
+                  const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+                  if (isPod && execAllowed) {
+                      return [
+                          {
+                              title: 'Exec',
+                              iconClassName: 'fa fa-fw fa-terminal',
+                              action: async () => apis.navigation.goto('.', {node: nodeKey(resource), tab: 'exec'}, {replace: true})
+                          } as MenuItem
+                      ];
+                  }
+                  return [] as MenuItem[];
+              })
+              .catch(() => [] as MenuItem[])
+        : Promise.resolve([] as MenuItem[]);
 
     const resourceActions = getResourceActionsMenuItems(resource, application.metadata, apis);
 
@@ -804,10 +813,10 @@ function getActionItems(
 
 export function renderResourceMenu(
     resource: ResourceTreeNode,
-    application: appModels.Application,
-    tree: appModels.ApplicationTree,
+    application: appModels.AbstractApplication,
+    tree: appModels.AbstractApplicationTree,
     apis: ContextApis,
-    appChanged: BehaviorSubject<appModels.Application>,
+    appChanged: BehaviorSubject<appModels.AbstractApplication>,
     getApplicationActionMenu: () => any
 ): React.ReactNode {
     let menuItems: Observable<ActionMenuItem[]>;
@@ -884,10 +893,10 @@ export function renderResourceActionMenu(menuItems: ActionMenuItem[]): React.Rea
 
 export function renderResourceButtons(
     resource: ResourceTreeNode,
-    application: appModels.Application,
-    tree: appModels.ApplicationTree,
+    application: appModels.AbstractApplication,
+    tree: appModels.AbstractApplicationTree,
     apis: ContextApis,
-    appChanged: BehaviorSubject<appModels.Application>
+    appChanged: BehaviorSubject<appModels.AbstractApplication>
 ): React.ReactNode {
     const menuItems: Observable<ActionMenuItem[]> = getActionItems(resource, application, tree, apis, appChanged, true);
     return (
@@ -1203,7 +1212,7 @@ export function getOperationType(application: appModels.Application) {
     return 'Unknown';
 }
 
-const getOperationStateTitle = (app: appModels.Application) => {
+export const getOperationStateTitle = (app: appModels.Application): appModels.OperationStateTitle => {
     const appOperationState = getAppOperationState(app);
     const operationType = getOperationType(app);
     switch (operationType) {
@@ -1416,11 +1425,31 @@ export function getConditionCategory(condition: appModels.ApplicationCondition):
     }
 }
 
+export function getAppSetConditionCategory(condition: appModels.ApplicationSetCondition): 'error' | 'warning' | 'info' {
+    const status = condition.status?.toLowerCase();
+    const type = condition.type;
+
+    // ErrorOccurred with status True = error
+    if (type === 'ErrorOccurred' && status === 'true') {
+        return 'error';
+    }
+    // ParametersGenerated or ResourcesUpToDate with status False = error (indicates failure)
+    if ((type === 'ParametersGenerated' || type === 'ResourcesUpToDate') && status === 'false') {
+        return 'error';
+    }
+    // Otherwise it's informational
+    return 'info';
+}
+
 export function isAppNode(node: appModels.ResourceNode) {
     return node.kind === 'Application' && node.group === 'argoproj.io';
 }
 
-export function getAppOverridesCount(app: appModels.Application) {
+export function getAppOverridesCount(app: appModels.AbstractApplication) {
+    // ApplicationSets don't have overrides
+    if (!isApp(app)) {
+        return 0;
+    }
     const source = getAppDefaultSource(app);
     if (source?.kustomize?.images) {
         return source.kustomize.images.length;
@@ -1438,6 +1467,16 @@ export function getAppDefaultSource(app?: appModels.Application) {
         return null;
     }
     return getAppSpecDefaultSource(app.spec);
+}
+
+// getAppDrySource gets the dry source from the source hydrator
+export function getAppDrySource(app?: appModels.Application): appModels.ApplicationSource | null {
+    if (!app) {
+        return null;
+    }
+    const {path, targetRevision, repoURL} = app.spec.sourceHydrator?.drySource || app.spec.source;
+
+    return {repoURL, targetRevision, path};
 }
 
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
@@ -1699,11 +1738,50 @@ export const urlPattern = new RegExp(
     )
 );
 
-export function appQualifiedName(app: appModels.Application, nsEnabled: boolean): string {
+// This function determines whether an AbstractApp is an Application or an AppSet (by looking at it's kind).
+// If an Application, it returns it casted to Application.
+export function isApp(abstractApp: appModels.AbstractApplication): abstractApp is appModels.Application {
+    return abstractApp.kind === 'Application';
+}
+
+export function getRootPathByApp(abstractApp: appModels.AbstractApplication) {
+    return isApp(abstractApp) ? '/applications' : '/applicationsets';
+}
+
+// Get ApplicationSet health status from its conditions
+// Priority: ErrorOccurred=True → Degraded, RolloutProgressing=True → Progressing, ResourcesUpToDate=True → Healthy, else Unknown
+export function getAppSetHealthStatus(appSet: appModels.ApplicationSet): appModels.HealthStatusCode {
+    const conditions = appSet.status?.conditions;
+    if (!conditions || conditions.length === 0) {
+        return 'Unknown';
+    }
+
+    // Check for errors first (indicates degraded state)
+    const errorCondition = conditions.find(c => c.type === 'ErrorOccurred' && c.status === 'True');
+    if (errorCondition) {
+        return 'Degraded';
+    }
+
+    // Check if rollout is progressing
+    const progressingCondition = conditions.find(c => c.type === 'RolloutProgressing' && c.status === 'True');
+    if (progressingCondition) {
+        return 'Progressing';
+    }
+
+    // Check if resources are up to date (healthy state)
+    const upToDateCondition = conditions.find(c => c.type === 'ResourcesUpToDate' && c.status === 'True');
+    if (upToDateCondition) {
+        return 'Healthy';
+    }
+
+    return 'Unknown';
+}
+
+export function appQualifiedName(app: appModels.AbstractApplication, nsEnabled: boolean): string {
     return (nsEnabled ? app.metadata.namespace + '/' : '') + app.metadata.name;
 }
 
-export function appInstanceName(app: appModels.Application): string {
+export function appInstanceName(app: appModels.AbstractApplication): string {
     return app.metadata.namespace + '_' + app.metadata.name;
 }
 
@@ -1772,11 +1850,12 @@ export const userMsgsList: {[key: string]: string} = {
                  If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`
 };
 
-export function getAppUrl(app: appModels.Application): string {
+export function getAppUrl(app: appModels.AbstractApplication): string {
+    const basePath = isApp(app) ? 'applications' : 'applicationsets';
     if (typeof app.metadata.namespace === 'undefined') {
-        return `applications/${app.metadata.name}`;
+        return `${basePath}/${app.metadata.name}`;
     }
-    return `applications/${app.metadata.namespace}/${app.metadata.name}`;
+    return `${basePath}/${app.metadata.namespace}/${app.metadata.name}`;
 }
 
 export const getProgressiveSyncStatusIcon = ({status, isButton}: {status: string; isButton?: boolean}) => {

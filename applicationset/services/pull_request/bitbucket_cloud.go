@@ -81,7 +81,10 @@ func NewBitbucketCloudServiceBasicAuth(baseURL, username, password, owner, repos
 		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseURL, owner, repositorySlug, err)
 	}
 
-	bitbucketClient := bitbucket.NewBasicAuth(username, password)
+	bitbucketClient, err := bitbucket.NewBasicAuth(username, password)
+	if err != nil {
+		return nil, fmt.Errorf("error creating BitBucket Cloud client with basic auth: %w", err)
+	}
 	bitbucketClient.SetApiBaseURL(*url)
 
 	return &BitbucketCloudService{
@@ -97,14 +100,13 @@ func NewBitbucketCloudServiceBearerToken(baseURL, bearerToken, owner, repository
 		return nil, fmt.Errorf("error parsing base url of %s for %s/%s: %w", baseURL, owner, repositorySlug, err)
 	}
 
-	bitbucketClient := bitbucket.NewOAuthbearerToken(bearerToken)
+	bitbucketClient, err := bitbucket.NewOAuthbearerToken(bearerToken)
+	if err != nil {
+		return nil, fmt.Errorf("error creating BitBucket Cloud client with oauth bearer token: %w", err)
+	}
 	bitbucketClient.SetApiBaseURL(*url)
 
-	return &BitbucketCloudService{
-		client:         bitbucketClient,
-		owner:          owner,
-		repositorySlug: repositorySlug,
-	}, nil
+	return &BitbucketCloudService{client: bitbucketClient, owner: owner, repositorySlug: repositorySlug}, nil
 }
 
 func NewBitbucketCloudServiceNoAuth(baseURL, owner, repositorySlug string) (PullRequestService, error) {
@@ -154,7 +156,7 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 
 	for _, pull := range pulls {
 		pullRequests = append(pullRequests, &PullRequest{
-			Number:       pull.ID,
+			Number:       int64(pull.ID),
 			Title:        pull.Title,
 			Branch:       pull.Source.Branch.Name,
 			TargetBranch: pull.Destination.Branch.Name,

@@ -444,6 +444,8 @@ func TestGracefulShutdown(t *testing.T) {
 	defer appInformerCancel()
 	appsetInformerCancel := test.StartInformer(s.appsetInformer)
 	defer appsetInformerCancel()
+	clusterInformerCancel := test.StartInformer(s.clusterInformer)
+	defer clusterInformerCancel()
 
 	lns, err := s.Listen()
 	require.NoError(t, err)
@@ -1224,7 +1226,7 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 	assert.Equal(t, v1alpha1.AppProjectSpec{
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-		ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+		ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
 	}, proj.Spec)
 }
 

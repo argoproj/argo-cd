@@ -7,6 +7,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -228,7 +229,7 @@ type tokenVerifierMock struct {
 	err    error
 }
 
-func (tm *tokenVerifierMock) VerifyToken(_ string) (jwt.Claims, string, error) {
+func (tm *tokenVerifierMock) VerifyToken(_ context.Context, _ string) (jwt.Claims, string, error) {
 	if tm.claims == nil {
 		return nil, "", tm.err
 	}
@@ -255,7 +256,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 					}
 				}
 				jsonClaims, err := json.Marshal(gotClaims)
-				require.NoError(t, err, "erorr marshalling claims set by AuthMiddleware")
+				require.NoError(t, err, "error marshalling claims set by AuthMiddleware")
 				w.Header().Set("Content-Type", "application/json")
 				_, err = w.Write(jsonClaims)
 				require.NoError(t, err, "error writing response: %s", err)
@@ -358,7 +359,6 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			mux := http.NewServeMux()
@@ -616,13 +616,13 @@ func TestLoginRateLimiter(t *testing.T) {
 }
 
 func TestMaxUsernameLength(t *testing.T) {
-	username := ""
-	for i := 0; i < maxUsernameLength+1; i++ {
-		username += "a"
+	var username strings.Builder
+	for range maxUsernameLength + 1 {
+		username.WriteString("a")
 	}
 	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
-	err := mgr.VerifyUsernamePassword(username, "password")
+	err := mgr.VerifyUsernamePassword(username.String(), "password")
 	assert.ErrorContains(t, err, fmt.Sprintf(usernameTooLongError, maxUsernameLength))
 }
 
@@ -666,9 +666,7 @@ func getKubeClientWithConfig(config map[string]string, secretConfig map[string][
 	mergedSecretConfig := map[string][]byte{
 		"server.secretkey": []byte("Hello, world!"),
 	}
-	for key, value := range secretConfig {
-		mergedSecretConfig[key] = value
-	}
+	maps.Copy(mergedSecretConfig, secretConfig)
 
 	return fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -720,7 +718,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		assert.NotContains(t, err.Error(), "oidc: id token signed with unsupported algorithm")
 	})
 
@@ -752,7 +750,7 @@ rootCA: |
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		// If the root CA is being respected, we won't get this error. The error message is environment-dependent, so
 		// we check for either of the error messages associated with a failed cert check.
 		assert.NotContains(t, err.Error(), "certificate is not trusted")
@@ -789,7 +787,7 @@ rootCA: |
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -824,7 +822,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -859,7 +857,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -895,7 +893,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		assert.NotContains(t, err.Error(), "certificate is not trusted")
 		assert.NotContains(t, err.Error(), "certificate signed by unknown authority")
 	})
@@ -924,7 +922,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		// This is the error thrown when the test server's certificate _is_ being verified.
 		assert.NotContains(t, err.Error(), "certificate is not trusted")
 		assert.NotContains(t, err.Error(), "certificate signed by unknown authority")
@@ -961,7 +959,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 	})
 
@@ -997,7 +995,7 @@ skipAudienceCheckWhenTokenHasNoAudience: true`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.NoError(t, err)
 	})
 
@@ -1033,7 +1031,7 @@ skipAudienceCheckWhenTokenHasNoAudience: false`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -1069,7 +1067,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.NoError(t, err)
 	})
 
@@ -1106,7 +1104,7 @@ allowedAudiences:
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.NoError(t, err)
 	})
 
@@ -1143,7 +1141,7 @@ allowedAudiences:
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -1179,7 +1177,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -1216,7 +1214,7 @@ allowedAudiences: []`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -1254,7 +1252,7 @@ allowedAudiences: ["aud-a", "aud-b"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.NoError(t, err)
 	})
 
@@ -1289,7 +1287,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		tokenString, err := token.SignedString(key)
 		require.NoError(t, err)
 
-		_, _, err = mgr.VerifyToken(tokenString)
+		_, _, err = mgr.VerifyToken(t.Context(), tokenString)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, common.ErrTokenVerification)
 	})
@@ -1307,7 +1305,7 @@ func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
 		}
 
 		// inside pickRandomNonAdminLoginFailure, it uses random, so we need to test it multiple times
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			user := pickRandomNonAdminLoginFailure(failures, "test")
 			assert.Equal(t, "test2", *user)
 		}
@@ -1327,7 +1325,7 @@ func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
 		}
 
 		// inside pickRandomNonAdminLoginFailure, it uses random, so we need to test it multiple times
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			user := pickRandomNonAdminLoginFailure(failures, "test")
 			assert.Equal(t, "test2", *user)
 		}

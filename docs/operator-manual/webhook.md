@@ -7,6 +7,8 @@ this delay from polling, the API server can be configured to receive webhook eve
 Git webhook notifications from GitHub, GitLab, Bitbucket, Bitbucket Server, Azure DevOps and Gogs. The following explains how to configure
 a Git webhook for GitHub, but the same process should be applicable to other providers.
 
+Application Sets use a separate webhook configuration for generating applications. [Webhook support for the Git Generator can be found here](applicationset/Generators-Git.md#webhook-configuration).
+
 > [!NOTE]
 > The webhook handler does not differentiate between branch events and tag events where the branch and tag names are
 > the same. A hook event for a push to branch `x` will trigger a refresh for an app pointing at the same repo with
@@ -106,7 +108,8 @@ If you want to store webhook data in **another** Kubernetes `Secret`, instead of
 
 Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
 
-> NOTE: Secret must have label `app.kubernetes.io/part-of: argocd`
+> [!NOTE]
+> Secret must have label `app.kubernetes.io/part-of: argocd`
 
 For more information refer to the corresponding section in the [User Management Documentation](user-management/index.md#alternative).
 

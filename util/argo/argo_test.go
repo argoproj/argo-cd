@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -21,7 +21,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
@@ -1237,10 +1237,10 @@ func TestGetGlobalProjects(t *testing.T) {
 		defaultX := &argoappv1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "default-x", Namespace: namespace},
 			Spec: argoappv1.AppProjectSpec{
-				ClusterResourceWhitelist: []metav1.GroupKind{
+				ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{
 					{Group: "*", Kind: "*"},
 				},
-				ClusterResourceBlacklist: []metav1.GroupKind{
+				ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
 					{Kind: "Volume"},
 				},
 			},
@@ -1249,7 +1249,7 @@ func TestGetGlobalProjects(t *testing.T) {
 		defaultNonX := &argoappv1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "default-non-x", Namespace: namespace},
 			Spec: argoappv1.AppProjectSpec{
-				ClusterResourceBlacklist: []metav1.GroupKind{
+				ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
 					{Group: "*", Kind: "*"},
 				},
 			},
@@ -1999,6 +1999,117 @@ func TestValidateManagedByURL(t *testing.T) {
 			} else {
 				assert.Empty(t, conditions, "Expected no validation conditions for valid URL")
 			}
+		})
+	}
+}
+
+func Test_GetSyncedRefSources(t *testing.T) {
+	tests := []struct {
+		name            string
+		refSources      argoappv1.RefTargetRevisionMapping
+		sources         argoappv1.ApplicationSources
+		syncedRevisions []string
+		result          argoappv1.RefTargetRevisionMapping
+	}{
+		{
+			name: "multi ref sources",
+			refSources: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "main-1",
+					Chart:          "chart",
+				},
+				"$values_1": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd-1"},
+					TargetRevision: "main-2",
+					Chart:          "chart",
+				},
+			},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://helm.registry", TargetRevision: "0.0.1", Chart: "my-chart", Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"$values/path"}}},
+				{RepoURL: "https://github.com/argocd", TargetRevision: "main-1", Ref: "values"},
+				{RepoURL: "https://github.com/argocd-1", TargetRevision: "main-2", Ref: "values_1"},
+			},
+			syncedRevisions: []string{"0.0.1", "resolved-main-1", "resolved-main-2"},
+			result: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "resolved-main-1",
+					Chart:          "chart",
+				},
+				"$values_1": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd-1"},
+					TargetRevision: "resolved-main-2",
+					Chart:          "chart",
+				},
+			},
+		},
+		{
+			name: "ref source",
+			refSources: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "main-1",
+					Chart:          "chart",
+				},
+			},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://helm.registry", TargetRevision: "0.0.1", Chart: "my-chart", Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"$values/path"}}},
+				{RepoURL: "https://github.com/argocd", TargetRevision: "main-1", Ref: "values"},
+			},
+			syncedRevisions: []string{"0.0.1", "resolved-main-1"},
+			result: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "resolved-main-1",
+					Chart:          "chart",
+				},
+			},
+		},
+		{
+			name:       "empty ref source",
+			refSources: argoappv1.RefTargetRevisionMapping{},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://helm.registry", TargetRevision: "0.0.1", Chart: "my-chart"},
+			},
+			syncedRevisions: []string{"0.0.1"},
+			result:          argoappv1.RefTargetRevisionMapping{},
+		},
+		{
+			name:            "empty sources",
+			refSources:      argoappv1.RefTargetRevisionMapping{},
+			sources:         argoappv1.ApplicationSources{},
+			syncedRevisions: []string{},
+			result:          argoappv1.RefTargetRevisionMapping{},
+		},
+		{
+			name: "no synced revisions",
+			refSources: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "main-1",
+					Chart:          "chart",
+				},
+			},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://helm.registry", TargetRevision: "0.0.1", Chart: "my-chart", Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"$values/path"}}},
+				{RepoURL: "https://github.com/argocd", TargetRevision: "main-1", Ref: "values"},
+			},
+			syncedRevisions: []string{},
+			result: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "",
+					Chart:          "chart",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			syncedRefSources := GetSyncedRefSources(tt.refSources, tt.sources, tt.syncedRevisions)
+			assert.Equal(t, tt.result, syncedRefSources)
 		})
 	}
 }

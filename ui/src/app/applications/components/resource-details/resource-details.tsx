@@ -30,7 +30,6 @@ interface ResourceDetailsProps {
     application: Application;
     isAppSelected: boolean;
     tree: ApplicationTree;
-    tab?: string;
     appCxt: AppContext;
 }
 
@@ -353,7 +352,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     data.execAllowed,
                                     data.logsAllowed
                                 )}
-                                selectedTabKey={props.tab}
+                                selectedTabKey={tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
                             />
                         </React.Fragment>

@@ -26,11 +26,11 @@ import (
 	"sigs.k8s.io/structured-merge-diff/v6/merge"
 	"sigs.k8s.io/structured-merge-diff/v6/typed"
 
-	"github.com/argoproj/gitops-engine/internal/kubernetes_vendor/pkg/api/v1/endpoints"
-	"github.com/argoproj/gitops-engine/pkg/diff/internal/fieldmanager"
-	"github.com/argoproj/gitops-engine/pkg/sync/resource"
-	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
-	gescheme "github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
+	"github.com/argoproj/argo-cd/gitops-engine/internal/kubernetes_vendor/pkg/api/v1/endpoints"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/internal/fieldmanager"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
+	jsonutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/json"
+	gescheme "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
 )
 
 const (
@@ -182,6 +182,9 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 			return nil, fmt.Errorf("error removing non config mutations for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 		}
 	}
+
+	// Remarshal predictedLive to ensure it receives the same normalization as live.
+	predictedLive = remarshal(predictedLive, o)
 
 	Normalize(predictedLive, opts...)
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")

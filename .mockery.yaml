@@ -1,5 +1,6 @@
 dir: '{{.InterfaceDir}}/mocks'
 filename: '{{.InterfaceName}}.go'
+include-auto-generated: true # Needed since mockery 3.6.1
 packages:
   github.com/argoproj/argo-cd/v3/applicationset/generators:
     interfaces:
@@ -31,6 +32,9 @@ packages:
   github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster:
     interfaces:
       ClusterServiceServer: {}
+  github.com/argoproj/argo-cd/v3/pkg/apiclient/project:
+    interfaces:
+      ProjectServiceClient: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/session:
     interfaces:
       SessionServiceClient: {}
@@ -75,10 +79,10 @@ packages:
   github.com/argoproj/argo-cd/v3/util/workloadidentity:
     interfaces:
       TokenProvider: {}
-  github.com/argoproj/gitops-engine/pkg/cache:
+  github.com/argoproj/argo-cd/gitops-engine/pkg/cache:
     interfaces:
       ClusterCache: {}
-  github.com/argoproj/gitops-engine/pkg/diff:
+  github.com/argoproj/argo-cd/gitops-engine/pkg/diff:
     interfaces:
       ServerSideDryRunner: {}
   github.com/microsoft/azure-devops-go-api/azuredevops/v7/git:

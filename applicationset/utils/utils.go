@@ -30,6 +30,10 @@ import (
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
 
+// baseTemplate is a pre-initialized template with all sprig functions loaded.
+// Cloning this is much faster than calling Funcs() on a new template each time.
+var baseTemplate *template.Template
+
 func init() {
 	// Avoid allowing the user to learn things about the environment.
 	delete(sprigFuncMap, "env")
@@ -40,6 +44,10 @@ func init() {
 	sprigFuncMap["toYaml"] = toYAML
 	sprigFuncMap["fromYaml"] = fromYAML
 	sprigFuncMap["fromYamlArray"] = fromYAMLArray
+
+	// Initialize the base template with sprig functions once at startup.
+	// This must be done after modifying sprigFuncMap above.
+	baseTemplate = template.New("base").Funcs(sprigFuncMap)
 }
 
 type Renderer interface {
@@ -309,16 +317,21 @@ var isTemplatedRegex = regexp.MustCompile(".*{{.*}}.*")
 // remaining in the substituted template.
 func (r *Render) Replace(tmpl string, replaceMap map[string]any, useGoTemplate bool, goTemplateOptions []string) (string, error) {
 	if useGoTemplate {
-		template, err := template.New("").Funcs(sprigFuncMap).Parse(tmpl)
+		// Clone the base template which has sprig funcs pre-loaded
+		cloned, err := baseTemplate.Clone()
+		if err != nil {
+			return "", fmt.Errorf("failed to clone base template: %w", err)
+		}
+		for _, option := range goTemplateOptions {
+			cloned = cloned.Option(option)
+		}
+		parsed, err := cloned.Parse(tmpl)
 		if err != nil {
 			return "", fmt.Errorf("failed to parse template %s: %w", tmpl, err)
 		}
-		for _, option := range goTemplateOptions {
-			template = template.Option(option)
-		}
 
 		var replacedTmplBuffer bytes.Buffer
-		if err = template.Execute(&replacedTmplBuffer, replaceMap); err != nil {
+		if err = parsed.Execute(&replacedTmplBuffer, replaceMap); err != nil {
 			return "", fmt.Errorf("failed to execute go template %s: %w", tmpl, err)
 		}
 
@@ -375,8 +388,7 @@ func invalidGenerators(applicationSetInfo *argoappsv1.ApplicationSet) (bool, map
 	for index, generator := range applicationSetInfo.Spec.Generators {
 		v := reflect.Indirect(reflect.ValueOf(generator))
 		found := false
-		for i := 0; i < v.NumField(); i++ {
-			field := v.Field(i)
+		for _, field := range v.Fields() {
 			if !field.CanInterface() {
 				continue
 			}

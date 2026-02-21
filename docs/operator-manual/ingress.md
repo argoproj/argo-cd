@@ -12,8 +12,8 @@ There are several ways how Ingress can be configured.
 
 The Ambassador Edge Stack can be used as a Kubernetes ingress controller with [automatic TLS termination](https://www.getambassador.io/docs/latest/topics/running/tls/#host) and routing capabilities for both the CLI and the UI.
 
-The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md). Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required. 
-Note: Disabling TLS in not required if you are using grpc-web
+The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md). Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required.
+Note: Disabling TLS is not required if you are using grpc-web
 
 ### Option 1: Mapping CRD for Host-based Routing
 ```yaml
@@ -415,7 +415,7 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    alb.ingress.kubernetes.io/backend-protocol-version: GRPC # This tells AWS to send traffic from the ALB using GRPC. Plain HTTP2 can be used, but the health checks wont be available because argo currently downgrade non-grpc calls to HTTP1
+    alb.ingress.kubernetes.io/backend-protocol-version: GRPC # This tells AWS to send traffic from the ALB using GRPC. Plain HTTP2 can be used, but the health checks won't be available because argo currently downgrades non-grpc calls to HTTP1
   labels:
     app: argogrpc
   name: argogrpc
@@ -494,7 +494,7 @@ resources:
 
 patches:
 - path: ./patch.yml
-``` 
+```
 
 And following lines as patch.yml
 
@@ -877,3 +877,207 @@ http {
     }
 }
 ```
+
+## Gateway API Example
+
+This section discusses using Gateway API to expose the Argo CD server in various TLS configurations,
+accommodating both HTTP and gRPC traffic, possibly using HTTP/2.
+
+### TLS termination at the Gateway
+
+Assume the following cluster-wide `Gateway` resource,
+that terminates the TLS connection with a certificate stored in a `Secret` in the same namespace:
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: cluster-gateway
+  namespace: gateway
+spec:
+  gatewayClassName: example
+  listeners:
+    - protocol: HTTPS
+      port: 443
+      name: https
+      hostname: "*.local.example.com"
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - name: cluster-gateway-tls
+            kind: Secret
+            group: ""
+```
+
+To automate certificate management, `cert-manager` supports [gateway annotations](https://cert-manager.io/docs/usage/gateway/).
+
+#### Securing traffic between Argo CD and the gateway
+
+If your security requirements allow it, the Argo CD API server can be run with TLS disabled: pass the `--insecure` flag to the `argocd-server` command,
+or set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
+
+It is also possible to keep TLS enabled, encrypting traffic between the gateway and the Argo CD API server, by using a [BackendTLSPolicy](https://gateway-api.sigs.k8s.io/api-types/backendtlspolicy/).
+Consult the [Upstream TLS](https://gateway-api.sigs.k8s.io/guides/tls/#upstream-tls) documentation for more details.
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: tls-upstream-auth
+  namespace: argocd
+spec:
+  targetRefs:
+    - kind: Service
+      name: argocd-server
+      group: ""
+  validation:
+    caCertificateRefs:
+      - kind: ConfigMap
+        name: argocd-server-ca-cert
+        group: ""
+    hostname: argocd-server.argocd.svc.cluster.local
+```
+
+
+#### Routing HTTP requests
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: argocd-http-route
+  namespace: argocd
+spec:
+  parentRefs:
+    - name: cluster-gateway
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - "argocd.local.example.com"
+  rules:
+    - backendRefs:
+        - name: argocd-server
+          port: 80
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+```
+
+#### Routing gRPC requests
+
+The `argocd` CLI operates at full capability when using gRPC over HTTP/2 to communicate with the API server, falling back to HTTP/1.1. (`--grpc-web` flag).
+
+gRPC can be configured using a `GRPCRoute`, and HTTP/2 requested as the application protocol on the `argocd-server` service:
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: argocd-grpc-route
+  namespace: argocd
+spec:
+  parentRefs:
+    - name: cluster-gateway
+      namespace: gateway
+      sectionName: https
+  hostnames:
+    - "grpc.argocd.local.example.com"
+  rules:
+    - backendRefs:
+        - name: argocd-server
+          port: 443
+```
+
+And in Argo CD's `values.yaml` (or [directly](https://kubernetes.io/docs/concepts/services-networking/service/#application-protocol) in the service manifest):
+```
+server:
+  service:
+    # Enable gRPC over HTTP/2
+    servicePortHttpsAppProtocol: kubernetes.io/h2c
+```
+
+##### Routing gRPC and HTTP through the same domain
+
+Although officially [discouraged](https://gateway-api.sigs.k8s.io/api-types/grpcroute/#cross-serving),
+attaching the `HTTPRoute` and `GRPCRoute` to the same domain may be supported by some implementations.
+Matching requests headers become necessary to disambiguate the destination, as shown below:
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: argocd-grpc-route
+  namespace: argocd
+spec:
+  parentRefs:
+    - name: cluster-gateway
+      namespace: gateway
+  hostnames:
+    - "grpc.argocd.local.example.com"
+  rules:
+    - backendRefs:
+        - name: argocd-server
+          port: 443
+      matches:
+        - headers:
+            - name: Content-Type
+              type: RegularExpression
+              value: "^application/grpc.*$"
+```
+
+### TLS passthrough
+
+TLS can also be configured to terminate at the Argo CD API server.
+
+This requires attaching a `TLSRoute` to the gateway,
+which is part of the [Experimental](https://gateway-api.sigs.k8s.io/reference/1.4/specx/) Gateway API CRDs.
+
+```yaml
+kind: Gateway
+metadata:
+  name: cluster-gateway
+  namespace: gateway
+spec:
+  gatewayClassName: example
+  listeners:
+  - name: tls
+    port: 443
+    protocol: TLS
+    hostname: "argocd.example.com"
+    allowedRoutes:
+      namespaces:
+        from: All
+      kinds:
+        - kind: TLSRoute
+    tls:
+      mode: Passthrough
+```
+
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TLSRoute
+metadata:
+  namespace: argocd
+  name: argocd-server-tlsroute
+spec:
+  parentRefs:
+  - name: cluster-gateway
+    namespace: gateway
+    sectionName: tls
+  hostnames:
+  - argocd.example.com
+  rules:
+  - backendRefs:
+    - name: argocd-server
+      port: 443
+```
+
+The TLS certificates are implicit here,
+and found by the Argo CD server in the `argocd-server-tls` secret.
+
+Note that `cert-manager` does not support generating certificates for passthrough gateway listeners.
