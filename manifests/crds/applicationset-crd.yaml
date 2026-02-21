@@ -23060,6 +23060,8 @@ spec:
                 - metadata
                 - spec
                 type: object
+              templateJSONPatch:
+                type: string
               templatePatch:
                 type: string
             required:

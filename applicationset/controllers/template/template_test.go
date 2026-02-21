@@ -150,6 +150,270 @@ func TestGenerateApplications(t *testing.T) {
 	}
 }
 
+func TestGenerateApplicationsWithPatches(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	// This test assumes only a single app is generated
+	params := []map[string]any{{"name": "test"}}
+
+	for _, c := range []struct {
+		name              string
+		template          v1alpha1.ApplicationSetTemplate
+		templatePatch     string
+		templateJSONPatch string
+		expectedApp       *v1alpha1.Application
+		expectErr         bool
+		expectedReason    v1alpha1.ApplicationSetReasonType
+	}{
+		{
+			name: "Generate one applications",
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{.name}}-name",
+					Namespace: "namespace",
+					Labels:    map[string]string{"label_name": "label_value"},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			templatePatch:     "",
+			templateJSONPatch: "",
+			expectedApp: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:       "test-name",
+					Namespace:  "namespace",
+					Labels:     map[string]string{"label_name": "label_value"},
+					Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+				},
+			},
+			expectErr:      false,
+			expectedReason: "",
+		},
+		{
+			name: "Basic templatePatch",
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{.name}}-name",
+					Namespace: "namespace",
+					Labels:    map[string]string{"label_name": "label_value"},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			templatePatch: `
+metadata:
+  annotations:
+    annotation-some-key: annotation-some-value`,
+			templateJSONPatch: "",
+			expectedApp: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "test-name",
+					Namespace:   "namespace",
+					Labels:      map[string]string{"label_name": "label_value"},
+					Annotations: map[string]string{"annotation-some-key": "annotation-some-value"},
+					Finalizers:  []string{v1alpha1.ResourcesFinalizerName},
+				},
+			},
+			expectErr:      false,
+			expectedReason: "",
+		},
+		{
+			name: "Bad templatePatch",
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{.name}}-name",
+					Namespace: "namespace",
+					Labels:    map[string]string{"label_name": "label_value"},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			templatePatch:     "bad patch",
+			templateJSONPatch: "",
+			expectErr:         true,
+			expectedReason:    v1alpha1.ApplicationSetReasonRenderTemplateParamsError,
+		},
+		{
+			name: "Basic templateJSONPatch",
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{.name}}-name",
+					Namespace: "namespace",
+					Labels:    map[string]string{"label_name": "label_value"},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			templatePatch: "",
+			templateJSONPatch: `
+- op: add
+  path: /metadata/annotations
+  value:
+    annotation-some-key: annotation-some-value`,
+			expectedApp: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "test-name",
+					Namespace:   "namespace",
+					Labels:      map[string]string{"label_name": "label_value"},
+					Annotations: map[string]string{"annotation-some-key": "annotation-some-value"},
+					Finalizers:  []string{v1alpha1.ResourcesFinalizerName},
+				},
+			},
+			expectErr:      false,
+			expectedReason: "",
+		},
+		{
+			name: "Bad templateJSONPatch",
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{.name}}-name",
+					Namespace: "namespace",
+					Labels:    map[string]string{"label_name": "label_value"},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			templatePatch:     "",
+			templateJSONPatch: "bad patch",
+			expectedApp:       nil,
+			expectErr:         true,
+			expectedReason:    v1alpha1.ApplicationSetReasonRenderTemplateParamsError,
+		},
+		{
+			name: "Bad templateJSONPatch missing parent",
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{.name}}-name",
+					Namespace: "namespace",
+					Labels:    map[string]string{"label_name": "label_value"},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			templatePatch: "",
+			templateJSONPatch: `
+		- op: add
+		  path: /spec/syncPolicy/automated/prune
+		  value: true`,
+			expectedApp:    nil,
+			expectErr:      true,
+			expectedReason: v1alpha1.ApplicationSetReasonRenderTemplateParamsError,
+		},
+		{
+			name: "templatePatch and templateJSONPatch",
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{.name}}-name",
+					Namespace: "namespace",
+					Labels:    map[string]string{"label_name": "label_value"},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			templatePatch: `
+metadata:
+  annotations:
+    annotation-some-key: annotation-some-value`,
+			templateJSONPatch: `
+- op: add
+  path: /metadata/annotations/annotation-another-key
+  value: annotation-another-value`,
+			expectedApp: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "test-name",
+					Namespace:   "namespace",
+					Labels:      map[string]string{"label_name": "label_value"},
+					Annotations: map[string]string{"annotation-another-key": "annotation-another-value", "annotation-some-key": "annotation-some-value"},
+					Finalizers:  []string{v1alpha1.ResourcesFinalizerName},
+				},
+			},
+			expectErr:      false,
+			expectedReason: "",
+		},
+		{
+			name: "templateJSONPatch overwrite templatePatch",
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{.name}}-name",
+					Namespace: "namespace",
+					Labels:    map[string]string{"label_name": "label_value"},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			templatePatch: `
+metadata:
+  annotations:
+    annotation-some-key: annotation-some-value`,
+			templateJSONPatch: `
+- op: add
+  path: /metadata/annotations
+  value: 
+    annotation-another-key: annotation-another-value`,
+			expectedApp: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "test-name",
+					Namespace:   "namespace",
+					Labels:      map[string]string{"label_name": "label_value"},
+					Annotations: map[string]string{"annotation-another-key": "annotation-another-value"},
+					Finalizers:  []string{v1alpha1.ResourcesFinalizerName},
+				},
+			},
+			expectErr:      false,
+			expectedReason: "",
+		},
+	} {
+		cc := c
+
+		t.Run(cc.name, func(t *testing.T) {
+			generatorMock := &genmock.Generator{}
+			generator := v1alpha1.ApplicationSetGenerator{
+				List: &v1alpha1.ListGenerator{},
+			}
+
+			generatorMock.EXPECT().GenerateParams(&generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+				Return(params, nil)
+
+			generatorMock.EXPECT().GetTemplate(&generator).
+				Return(&v1alpha1.ApplicationSetTemplate{})
+
+			var expectedApps []v1alpha1.Application
+
+			if cc.expectedApp != nil {
+				expectedApps = append(expectedApps, *cc.expectedApp)
+			}
+
+			generators := map[string]generators.Generator{
+				"List": generatorMock,
+			}
+
+			renderer := &utils.Render{}
+
+			got, reason, err := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators:        []v1alpha1.ApplicationSetGenerator{generator},
+					GoTemplate:        true,
+					Template:          cc.template,
+					TemplatePatch:     &cc.templatePatch,
+					TemplateJSONPatch: &cc.templateJSONPatch,
+				},
+			},
+				generators,
+				renderer,
+				nil,
+			)
+
+			if cc.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, expectedApps, got)
+			assert.Equal(t, cc.expectedReason, reason)
+		})
+	}
+}
+
 func TestMergeTemplateApplications(t *testing.T) {
 	for _, c := range []struct {
 		name             string
