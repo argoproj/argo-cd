@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util"
 	"github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/crypto"
+	"github.com/argoproj/argo-cd/v3/util/dex"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/oidc"
 	"github.com/argoproj/argo-cd/v3/util/password"
@@ -379,7 +380,7 @@ issuer: http://localhost:63231
 enableUserInfoGroups: true
 userInfoPath: /`,
 				}
-				clientApp, err = oidc.NewClientApp(cdSettings, "", nil, "/argo-cd", userInfoCache)
+				clientApp, err = oidc.NewClientApp(nil, cdSettings, "", nil, "/argo-cd", userInfoCache)
 				require.NoError(t, err, "failed creating clientapp")
 
 				// prepopulate the cache with claims to return for a userinfo call
@@ -1329,5 +1330,161 @@ func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
 			user := pickRandomNonAdminLoginFailure(failures, "test")
 			assert.Equal(t, "test2", *user)
 		}
+	})
+}
+
+// TestSessionManager_LazyTransportConfig verifies that the SessionManager
+// correctly configures its HTTP transport for dex even when DexConfig is not
+// present at construction time but arrives later via a settings update.
+// This reproduces https://github.com/argoproj/argo-cd/issues/26345.
+func TestSessionManager_LazyTransportConfig(t *testing.T) {
+	dexTestServer := utiltest.GetDexTestServer(t)
+	t.Cleanup(dexTestServer.Close)
+
+	dexAddr := dexTestServer.URL
+	dexTLSConfig := &dex.DexTLSConfig{
+		DisableTLS:       false,
+		StrictValidation: false,
+	}
+
+	t.Run("transport configured for dex when DexConfig arrives after construction", func(t *testing.T) {
+		// Phase 1: Create SessionManager with NO DexConfig (simulates first
+		// startup where argocd-cm hasn't been populated yet).
+		kubeClient := getKubeClientWithConfig(map[string]string{}, nil)
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), dexAddr, dexTLSConfig, NewUserStateStorage(nil))
+
+		// At this point the transport should NOT be configured for dex.
+		assert.Nil(t, mgr.transport.TLSClientConfig,
+			"transport TLS should not be configured at construction when DexConfig is empty")
+
+		// provider() should fail — SSO is not configured yet.
+		_, err := mgr.provider()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "SSO is not configured")
+		// Transport must still be nil — configureTransport was NOT called.
+		assert.Nil(t, mgr.transport.TLSClientConfig,
+			"transport TLS should remain nil when SSO is not configured")
+
+		// Phase 2: Update the configmap to include DexConfig and URL
+		// (simulates argocd-config delivering the full argocd-cm).
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd-cm",
+				Namespace: "argocd",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{
+				"url": dexTestServer.URL,
+				"dex.config": `connectors:
+- type: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: aabbccddeeff00112233`,
+			},
+		}
+		_, err = kubeClient.CoreV1().ConfigMaps("argocd").Update(t.Context(), cm, metav1.UpdateOptions{})
+		require.NoError(t, err)
+
+		// Invalidate settings cache so the manager re-reads the configmap.
+		err = settingsMgr.ResyncInformers()
+		require.NoError(t, err)
+
+		// Phase 3: Call provider() — SSO is now configured, so
+		// configureTransport runs via sync.Once before the provider is created.
+		// The provider itself may fail (test dex server doesn't serve OIDC
+		// discovery), but configureTransport must have executed.
+		_, _ = mgr.provider()
+
+		// Verify the transport was configured for dex:
+		// 1. TLS should have InsecureSkipVerify (non-strict dex mode)
+		require.NotNil(t, mgr.transport.TLSClientConfig,
+			"transport TLS should be configured after provider() triggers lazy init")
+		assert.True(t, mgr.transport.TLSClientConfig.InsecureSkipVerify,
+			"transport should have InsecureSkipVerify=true for non-strict dex")
+
+		// 2. The client transport should be a DexRewriteURLRoundTripper
+		_, isDexRewriter := mgr.client.Transport.(dex.DexRewriteURLRoundTripper)
+		assert.True(t, isDexRewriter,
+			"client transport should be DexRewriteURLRoundTripper when DexConfig is set")
+	})
+
+	t.Run("transport configured for external OIDC when no DexConfig", func(t *testing.T) {
+		// SessionManager with external OIDC (no dex).
+		kubeClient := getKubeClientWithConfig(map[string]string{
+			"url": "https://argocd.example.com",
+			"oidc.config": fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: xxx
+clientSecret: yyy`, dexTestServer.URL),
+		}, nil)
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), dexAddr, dexTLSConfig, NewUserStateStorage(nil))
+
+		// Call provider() to trigger lazy transport config.
+		_, _ = mgr.provider()
+
+		// Should NOT have InsecureSkipVerify (external OIDC mode)
+		require.NotNil(t, mgr.transport.TLSClientConfig)
+		assert.False(t, mgr.transport.TLSClientConfig.InsecureSkipVerify,
+			"transport should verify certs for external OIDC")
+
+		// Should NOT be a DexRewriteURLRoundTripper
+		_, isDexRewriter := mgr.client.Transport.(dex.DexRewriteURLRoundTripper)
+		assert.False(t, isDexRewriter,
+			"client transport should not be DexRewriteURLRoundTripper for external OIDC")
+	})
+
+	t.Run("transport not configured when SSO is never configured", func(t *testing.T) {
+		// SessionManager created with completely empty settings — no dex, no OIDC.
+		kubeClient := getKubeClientWithConfig(map[string]string{}, nil)
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), dexAddr, dexTLSConfig, NewUserStateStorage(nil))
+
+		// Transport should have no TLS config at construction.
+		assert.Nil(t, mgr.transport.TLSClientConfig)
+
+		// provider() should return error since SSO is not configured.
+		_, err := mgr.provider()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "SSO is not configured")
+
+		// Transport should still be unconfigured — configureTransport was not called
+		// because provider() returned before reaching the sync.Once.
+		assert.Nil(t, mgr.transport.TLSClientConfig,
+			"transport TLS should remain nil when SSO is never configured")
+	})
+
+	t.Run("transport configured for dex when DexConfig present at construction", func(t *testing.T) {
+		// Normal case: DexConfig is available at startup (no race).
+		kubeClient := getKubeClientWithConfig(map[string]string{
+			"url": dexTestServer.URL,
+			"dex.config": `connectors:
+- type: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: aabbccddeeff00112233`,
+		}, nil)
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, "argocd")
+		mgr := NewSessionManager(settingsMgr, getProjLister(), dexAddr, dexTLSConfig, NewUserStateStorage(nil))
+
+		// Transport not configured yet — lazy.
+		assert.Nil(t, mgr.transport.TLSClientConfig)
+
+		// Call provider() to trigger lazy config.
+		_, _ = mgr.provider()
+
+		// Should be configured for dex.
+		require.NotNil(t, mgr.transport.TLSClientConfig)
+		assert.True(t, mgr.transport.TLSClientConfig.InsecureSkipVerify,
+			"transport should have InsecureSkipVerify=true for dex")
+		_, isDexRewriter := mgr.client.Transport.(dex.DexRewriteURLRoundTripper)
+		assert.True(t, isDexRewriter,
+			"client transport should be DexRewriteURLRoundTripper")
 	})
 }
