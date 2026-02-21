@@ -518,3 +518,15 @@ Submodules are supported and will be picked up automatically. If the submodule r
 
 See [declarative setup](../operator-manual/declarative-setup.md#repositories)
 
+## Handling Initial Application Refresh Failures
+
+**Note:** This procedure applies only when Argo CD is deployed on Kubernetes and `kubectl` can access the cluster.
+
+When an Application points to a private Git repository, the first refresh may fail if Argo CD starts before the repository credentials are fully available. In this case, the Application may appear in an `Unknown` state until the global resync interval passes or a manual refresh is triggered.
+
+To resolve this, you can force a one-time refresh immediately after creating the Application by adding the following annotation:
+
+```bash
+kubectl -n <argocd-namespace> annotate application <app-name> \
+  argocd.argoproj.io/refresh=hard --overwrite
+```
