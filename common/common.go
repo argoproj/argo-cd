@@ -130,8 +130,10 @@ const (
 	// StateCookieMaxAge is the maximum age of the oauth state cookie
 	StateCookieMaxAge = time.Minute * 5
 
-	// ChangePasswordSSOTokenMaxAge is the max token age for password change operation
-	ChangePasswordSSOTokenMaxAge = time.Minute * 5
+	// DefaultChangePasswordSSOTokenMaxAge is the default max token age for password change operation
+	DefaultChangePasswordSSOTokenMaxAge = time.Minute * 5
+	// ChangePasswordSSOTokenMaxAgeLimit is the maximum allowed value for configurable SSO token max age
+	ChangePasswordSSOTokenMaxAgeLimit = time.Minute * 10
 	// GithubAppCredsExpirationDuration is the default time used to cache the GitHub app credentials
 	GithubAppCredsExpirationDuration = time.Minute * 60
 
@@ -337,6 +339,8 @@ const (
 	EnvServerSideDiff = "ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF"
 	// EnvGRPCMaxSizeMB is the environment variable to look for a max GRPC message size
 	EnvGRPCMaxSizeMB = "ARGOCD_GRPC_MAX_SIZE_MB"
+	// EnvChangePasswordSSOTokenMaxAge is the environment variable to configure the max age of SSO tokens for password changes
+	EnvChangePasswordSSOTokenMaxAge = "ARGOCD_SSO_TOKEN_MAX_AGE"
 )
 
 // Config Management Plugin related constants
@@ -501,4 +505,23 @@ func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kube
 	}
 	redisOptions.Password = string(secret.Data[RedisInitialCredentialsKey])
 	return nil
+}
+
+// GetChangePasswordSSOTokenMaxAge returns the maximum age for SSO tokens when changing passwords.
+// It checks the environment variable ARGOCD_SSO_TOKEN_MAX_AGE first,
+// and falls back to the default value of 5 minutes if not set or invalid.
+func GetChangePasswordSSOTokenMaxAge() time.Duration {
+	if val := os.Getenv(EnvChangePasswordSSOTokenMaxAge); val != "" {
+		duration, err := time.ParseDuration(val)
+		if err != nil {
+			logrus.Warnf("failed to parse SSO token max age configuration: %v, using default(5m)", err)
+			return DefaultChangePasswordSSOTokenMaxAge
+		}
+		// Cap at maximum limit to prevent extreme values
+		if duration > ChangePasswordSSOTokenMaxAgeLimit {
+			return ChangePasswordSSOTokenMaxAgeLimit
+		}
+		return duration
+	}
+	return DefaultChangePasswordSSOTokenMaxAge
 }
