@@ -33,10 +33,10 @@ type RepoCreds struct {
 	TLSClientCertKey string `json:"tlsClientCertKey,omitempty" protobuf:"bytes,6,opt,name=tlsClientCertKey"`
 	// GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app
 	GithubAppPrivateKey string `json:"githubAppPrivateKey,omitempty" protobuf:"bytes,7,opt,name=githubAppPrivateKey"`
-	// GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication
-	GithubAppId int64 `json:"githubAppID,omitempty" protobuf:"bytes,8,opt,name=githubAppID"`
-	// GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication
-	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,9,opt,name=githubAppInstallationID"`
+	// GithubAppID specifies the Github App ID of the app used to access the repo for GitHub app authentication
+	GithubAppID int64 `json:"githubAppID,omitempty" protobuf:"bytes,8,opt,name=githubAppID"`
+	// GithubAppInstallationID specifies the ID of the installed GitHub App for GitHub app authentication
+	GithubAppInstallationID int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,9,opt,name=githubAppInstallationID"`
 	// GithubAppEnterpriseBaseURL specifies the GitHub API URL for GitHub app authentication. If empty will default to https://api.github.com
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,10,opt,name=githubAppEnterpriseBaseUrl"`
 	// EnableOCI specifies whether helm-oci support should be enabled for this repo
@@ -92,10 +92,10 @@ type Repository struct {
 	EnableOCI bool `json:"enableOCI,omitempty" protobuf:"bytes,14,opt,name=enableOCI"`
 	// Github App Private Key PEM data
 	GithubAppPrivateKey string `json:"githubAppPrivateKey,omitempty" protobuf:"bytes,15,opt,name=githubAppPrivateKey"`
-	// GithubAppId specifies the ID of the GitHub app used to access the repo
-	GithubAppId int64 `json:"githubAppID,omitempty" protobuf:"bytes,16,opt,name=githubAppID"`
-	// GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo
-	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,17,opt,name=githubAppInstallationID"`
+	// GithubAppID specifies the ID of the GitHub app used to access the repo
+	GithubAppID int64 `json:"githubAppID,omitempty" protobuf:"bytes,16,opt,name=githubAppID"`
+	// GithubAppInstallationID specifies the installation ID of the GitHub App used to access the repo
+	GithubAppInstallationID int64 `json:"githubAppInstallationID,omitempty" protobuf:"bytes,17,opt,name=githubAppInstallationID"`
 	// GithubAppEnterpriseBaseURL specifies the base URL of GitHub Enterprise installation. If empty will default to https://api.github.com
 	GitHubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty" protobuf:"bytes,18,opt,name=githubAppEnterpriseBaseUrl"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
@@ -157,11 +157,11 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		if repo.GithubAppPrivateKey == "" {
 			repo.GithubAppPrivateKey = source.GithubAppPrivateKey
 		}
-		if repo.GithubAppId == 0 {
-			repo.GithubAppId = source.GithubAppId
+		if repo.GithubAppID == 0 {
+			repo.GithubAppID = source.GithubAppID
 		}
-		if repo.GithubAppInstallationId == 0 {
-			repo.GithubAppInstallationId = source.GithubAppInstallationId
+		if repo.GithubAppInstallationID == 0 {
+			repo.GithubAppInstallationID = source.GithubAppInstallationID
 		}
 		if repo.GitHubAppEnterpriseBaseURL == "" {
 			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
@@ -199,11 +199,11 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.GithubAppPrivateKey == "" {
 			repo.GithubAppPrivateKey = source.GithubAppPrivateKey
 		}
-		if repo.GithubAppId == 0 {
-			repo.GithubAppId = source.GithubAppId
+		if repo.GithubAppID == 0 {
+			repo.GithubAppID = source.GithubAppID
 		}
-		if repo.GithubAppInstallationId == 0 {
-			repo.GithubAppInstallationId = source.GithubAppInstallationId
+		if repo.GithubAppInstallationID == 0 {
+			repo.GithubAppInstallationID = source.GithubAppInstallationID
 		}
 		if repo.GitHubAppEnterpriseBaseURL == "" {
 			repo.GitHubAppEnterpriseBaseURL = source.GitHubAppEnterpriseBaseURL
@@ -239,8 +239,8 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	if repo.SSHPrivateKey != "" {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), repo.Proxy)
 	}
-	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 { // Promoter MVP: remove github-app-installation-id check since it is no longer a required field
-		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store, repo.Repo)
+	if repo.GithubAppPrivateKey != "" && repo.GithubAppID != 0 { // Promoter MVP: remove github-app-installation-id check since it is no longer a required field
+		return git.NewGitHubAppCreds(repo.GithubAppID, repo.GithubAppInstallationID, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store, repo.Repo)
 	}
 	if repo.GCPServiceAccountKey != "" {
 		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
@@ -358,8 +358,8 @@ func (repo *Repository) Sanitized() *Repository {
 		Project:                    repo.Project,
 		ForceHttpBasicAuth:         repo.ForceHttpBasicAuth,
 		InheritedCreds:             repo.InheritedCreds,
-		GithubAppId:                repo.GithubAppId,
-		GithubAppInstallationId:    repo.GithubAppInstallationId,
+		GithubAppID:                repo.GithubAppID,
+		GithubAppInstallationID:    repo.GithubAppInstallationID,
 		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
 		UseAzureWorkloadIdentity:   repo.UseAzureWorkloadIdentity,
 	}

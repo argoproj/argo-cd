@@ -351,9 +351,9 @@ type Repository struct {
 	// Github App Private Key PEM data
 	GithubAppPrivateKeySecret *corev1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
 	// Github App ID of the app used to access the repo
-	GithubAppId int64 `json:"githubAppID,omitempty"`
+	GithubAppID int64 `json:"githubAppID,omitempty"`
 	// Github App Installation ID of the installed GitHub App
-	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty"`
+	GithubAppInstallationID int64 `json:"githubAppInstallationID,omitempty"`
 	// Github App Enterprise base url if empty will default to https://api.github.com
 	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
@@ -385,9 +385,9 @@ type RepositoryCredentials struct {
 	// Github App Private Key PEM data
 	GithubAppPrivateKeySecret *corev1.SecretKeySelector `json:"githubAppPrivateKeySecret,omitempty"`
 	// Github App ID of the app used to access the repo
-	GithubAppId int64 `json:"githubAppID,omitempty"`
+	GithubAppID int64 `json:"githubAppID,omitempty"`
 	// Github App Installation ID of the installed GitHub App
-	GithubAppInstallationId int64 `json:"githubAppInstallationID,omitempty"`
+	GithubAppInstallationID int64 `json:"githubAppInstallationID,omitempty"`
 	// Github App Enterprise base url if empty will default to https://api.github.com
 	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 	// EnableOCI specifies whether helm-oci support should be enabled for this repo

@@ -375,7 +375,7 @@ func TestRepositoryServer(t *testing.T) {
 
 		url := "https://test"
 		db := &dbmocks.ArgoDB{}
-		db.EXPECT().ListRepositories(mock.Anything).Return([]*appsv1.Repository{{Repo: url, Username: "test", Password: "it's a secret", GitHubAppEnterpriseBaseURL: "https://ghe.example.com/api/v3", GithubAppId: 123456, GithubAppInstallationId: 789}}, nil)
+		db.EXPECT().ListRepositories(mock.Anything).Return([]*appsv1.Repository{{Repo: url, Username: "test", Password: "it's a secret", GitHubAppEnterpriseBaseURL: "https://ghe.example.com/api/v3", GithubAppID: 123456, GithubAppInstallationID: 789}}, nil)
 		db.EXPECT().GetRepository(mock.Anything, url, "").Return(&appsv1.Repository{Repo: url, Username: "test", Password: "it's a secret"}, nil)
 		db.EXPECT().RepositoryExists(mock.Anything, url, "").Return(true, nil)
 
@@ -386,8 +386,8 @@ func TestRepositoryServer(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "https://test", repo.Repo)
 		assert.Equal(t, "https://ghe.example.com/api/v3", repo.GitHubAppEnterpriseBaseURL)
-		assert.Equal(t, int64(123456), repo.GithubAppId)
-		assert.Equal(t, int64(789), repo.GithubAppInstallationId)
+		assert.Equal(t, int64(123456), repo.GithubAppID)
+		assert.Equal(t, int64(789), repo.GithubAppInstallationID)
 		assert.Empty(t, repo.Password)
 	})
 

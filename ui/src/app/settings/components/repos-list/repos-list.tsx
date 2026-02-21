@@ -52,8 +52,8 @@ interface NewGitHubAppRepoParams {
     name: string;
     url: string;
     githubAppPrivateKey: string;
-    githubAppId: bigint;
-    githubAppInstallationId: bigint;
+    githubAppID: bigint;
+    githubAppInstallationID: bigint;
     githubAppEnterpriseBaseURL: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
@@ -106,8 +106,8 @@ interface NewHTTPSRepoCredsParams {
 interface NewGitHubAppRepoCredsParams {
     url: string;
     githubAppPrivateKey: string;
-    githubAppId: bigint;
-    githubAppInstallationId: bigint;
+    githubAppID: bigint;
+    githubAppInstallationID: bigint;
     githubAppEnterpriseBaseURL: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
@@ -216,7 +216,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 const githubAppValues = params as NewGitHubAppRepoParams;
                 return {
                     url: (!githubAppValues.url && 'Repository URL is required') || (credsTemplate && !isHTTPOrHTTPSUrl(githubAppValues.url) && 'Not a valid HTTP/HTTPS URL'),
-                    githubAppId: !githubAppValues.githubAppId && 'GitHub App ID is required',
+                    githubAppID: !githubAppValues.githubAppID && 'GitHub App ID is required',
                     githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required'
                 };
             case ConnectionMethod.GOOGLECLOUD:
@@ -428,8 +428,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             createGitHubAppCreds({
                 url: params.url,
                 githubAppPrivateKey: params.githubAppPrivateKey,
-                githubAppId: params.githubAppId,
-                githubAppInstallationId: params.githubAppInstallationId,
+                githubAppID: params.githubAppID,
+                githubAppInstallationID: params.githubAppInstallationID,
                 githubAppEnterpriseBaseURL: params.githubAppEnterpriseBaseURL,
                 tlsClientCertData: params.tlsClientCertData,
                 tlsClientCertKey: params.tlsClientCertKey,
@@ -1244,10 +1244,10 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
                                                 </div>
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='GitHub App ID' field='githubAppId' component={NumberField} />
+                                                    <FormField formApi={formApi} label='GitHub App ID' field='githubAppID' component={NumberField} />
                                                 </div>
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='GitHub App Installation ID' field='githubAppInstallationId' component={NumberField} />
+                                                    <FormField formApi={formApi} label='GitHub App Installation ID' field='githubAppInstallationID' component={NumberField} />
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='GitHub App private key' field='githubAppPrivateKey' component={TextArea} />
