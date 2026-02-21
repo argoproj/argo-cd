@@ -102,7 +102,7 @@ func (c *clusterInfoUpdater) updateClusters() {
 	}
 	_ = kube.RunAllAsync(len(clustersFiltered), func(i int) error {
 		cluster := clustersFiltered[i]
-		clusterInfo := infoByServer[cluster.Server]
+		clusterInfo := infoByServer[cluster.Server+cluster.Name]
 		if err := c.updateClusterInfo(ctx, cluster, clusterInfo); err != nil {
 			log.Warnf("Failed to save cluster info: %v", err)
 		} else if err := updateClusterLabels(ctx, clusterInfo, cluster, c.db.UpdateCluster); err != nil {
@@ -120,7 +120,7 @@ func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv
 	}
 
 	updated := c.getUpdatedClusterInfo(ctx, apps, cluster, info, metav1.Now())
-	return c.cache.SetClusterInfo(cluster.Server, &updated)
+	return c.cache.SetClusterInfo(cluster.Server+cluster.Name, &updated)
 }
 
 func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*appv1.Application, cluster appv1.Cluster, info *cache.ClusterInfo, now metav1.Time) appv1.ClusterInfo {
@@ -136,7 +136,8 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 		if err != nil {
 			continue
 		}
-		if destCluster.Server == cluster.Server {
+		if (destCluster.Server == cluster.Server && destCluster.Name == cluster.Name) ||
+			(destCluster.Server == cluster.Server && destCluster.Name == "") {
 			appCount++
 		}
 	}

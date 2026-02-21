@@ -34,6 +34,8 @@ type ArgoDB interface {
 		handleDeleteEvent func(clusterServer string)) error
 	// GetCluster returns a cluster by given server url
 	GetCluster(ctx context.Context, server string) (*appv1.Cluster, error)
+	// GetClusterByServerAndName returns a cluster by given server url and name
+	GetClusterByServerAndName(ctx context.Context, server string, name string) (*appv1.Cluster, error)
 	// GetClusterServersByName returns a cluster server urls by given cluster name
 	GetClusterServersByName(ctx context.Context, name string) ([]string, error)
 	// GetProjectClusters return project scoped clusters by given project name
@@ -41,7 +43,7 @@ type ArgoDB interface {
 	// UpdateCluster updates a cluster
 	UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error)
 	// DeleteCluster deletes a cluster by name
-	DeleteCluster(ctx context.Context, server string) error
+	DeleteCluster(ctx context.Context, server string, name string) error
 
 	// ListRepositories lists repositories
 	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)

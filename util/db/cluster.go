@@ -101,7 +101,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 			return nil, status.Errorf(codes.InvalidArgument, "cannot register cluster: in-cluster has been disabled")
 		}
 	}
-	secName, err := URIToSecretName("cluster", c.Server)
+	secName, err := URIToSecretName("cluster", c.Server, c.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	clusterSecret, err = db.createSecret(ctx, clusterSecret)
 	if err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			return nil, status.Errorf(codes.AlreadyExists, "cluster %q already exists", c.Server)
+			return nil, status.Errorf(codes.AlreadyExists, "cluster %q with name %q already exists", c.Server, c.Name)
 		}
 		return nil, err
 	}
@@ -141,7 +141,7 @@ type ClusterEvent struct {
 func (db *db) WatchClusters(ctx context.Context,
 	handleAddEvent func(cluster *appv1.Cluster),
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
-	handleDeleteEvent func(clusterServer string),
+	handleDeleteEvent func(clusterServerName string),
 ) error {
 	argoSettings, err := db.settingsMgr.GetSettings()
 	if err != nil {
@@ -202,7 +202,7 @@ func (db *db) WatchClusters(ctx context.Context,
 				handleModEvent(localCls, newLocalCls)
 				localCls = newLocalCls
 			} else {
-				handleDeleteEvent(string(secret.Data["server"]))
+				handleDeleteEvent(string(secret.Data["server"]) + string(secret.Data["name"]))
 			}
 		},
 	)
@@ -210,18 +210,18 @@ func (db *db) WatchClusters(ctx context.Context,
 	return err
 }
 
-func (db *db) getClusterSecret(server string) (*corev1.Secret, error) {
+func (db *db) getClusterSecret(server string, name string) (*corev1.Secret, error) {
 	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
 	if err != nil {
 		return nil, err
 	}
 	srv := strings.TrimRight(server, "/")
 	for _, clusterSecret := range clusterSecrets {
-		if strings.TrimRight(string(clusterSecret.Data["server"]), "/") == srv {
+		if strings.TrimRight(string(clusterSecret.Data["server"]), "/") == srv && string(clusterSecret.Data["name"]) == name {
 			return clusterSecret, nil
 		}
 	}
-	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+	return nil, status.Errorf(codes.NotFound, "cluster %q with name %q not found", server, name)
 }
 
 // GetCluster returns a cluster from a query
@@ -250,6 +250,37 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 	cluster, err := informer.GetClusterByURL(server)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+	}
+
+	return cluster, nil
+}
+
+// GetClusterByServerAndName returns a cluster by server and name
+func (db *db) GetClusterByServerAndName(_ context.Context, server string, name string) (*appv1.Cluster, error) {
+	informer := db.settingsMgr.GetClusterInformer()
+	if server == appv1.KubernetesInternalAPIServerAddr {
+		argoSettings, err := db.settingsMgr.GetSettings()
+		if err != nil {
+			return nil, err
+		}
+		if !argoSettings.InClusterEnabled {
+			return nil, status.Errorf(codes.NotFound, "cluster %q is disabled", server)
+		}
+
+		// Check if there's a secret configured for the in-cluster address
+		// If so, use that instead of the hardcoded local cluster
+		cluster, err := informer.GetClusterByURLAndName(server, name)
+		if err == nil {
+			return cluster, nil
+		}
+
+		// Fall back to the hardcoded local cluster if no secret is configured
+		return db.getLocalCluster(), nil
+	}
+
+	cluster, err := informer.GetClusterByURLAndName(server, name)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "cluster %q with name %q not found", server, name)
 	}
 
 	return cluster, nil
@@ -309,7 +340,7 @@ func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string,
 
 // UpdateCluster updates a cluster
 func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
-	clusterSecret, err := db.getClusterSecret(c.Server)
+	clusterSecret, err := db.getClusterSecret(c.Server, c.Name)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			return db.CreateCluster(ctx, c)
@@ -333,8 +364,8 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 }
 
 // DeleteCluster deletes a cluster by name
-func (db *db) DeleteCluster(ctx context.Context, server string) error {
-	secret, err := db.getClusterSecret(server)
+func (db *db) DeleteCluster(ctx context.Context, server string, name string) error {
+	secret, err := db.getClusterSecret(server, name)
 	if err != nil {
 		return err
 	}

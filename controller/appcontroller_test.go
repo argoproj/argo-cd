@@ -388,7 +388,7 @@ spec:
     automated: {}
 `
 
-var fakeAppWithDestMismatch = `
+var fakeAppWithDestNotFound = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -574,8 +574,8 @@ func createFakeAppWithHealthAndTime(testApp string, status health.HealthStatusCo
 	return app
 }
 
-func newFakeAppWithDestMismatch() *v1alpha1.Application {
-	return createFakeApp(fakeAppWithDestMismatch)
+func newFakeAppWithDestNotFound() *v1alpha1.Application {
+	return createFakeApp(fakeAppWithDestNotFound)
 }
 
 func newFakeAppWithDestName() *v1alpha1.Application {
@@ -2425,7 +2425,7 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 }
 
 func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
-	app := newFakeAppWithDestMismatch()
+	app := newFakeAppWithDestNotFound()
 	app.Spec.Project = "test-project"
 	app.Operation = &v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
@@ -2452,7 +2452,7 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
 	assert.Equal(t, string(synccommon.OperationError), phase)
-	assert.Contains(t, message, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
+	assert.Contains(t, message, "cluster \"https://localhost:6443\" with name \"another-cluster\" not found")
 }
 
 func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {

@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"testing"
@@ -139,19 +140,19 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 	}{
 		{
 			name:    "allowed cluster URL in body, disallowed cluster URL in query",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "allowed-unscoped", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster name in query",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "allowed-unscoped", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster name in query, changing unscoped to scoped",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "allowed-unscoped", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster URL in query, changing unscoped to scoped",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "allowed-unscoped", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 	}
 
@@ -204,6 +205,16 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 			return nil, fmt.Errorf("cluster '%s' not found", server)
 		},
 	)
+	db.EXPECT().GetClusterByServerAndName(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+		func(_ context.Context, server string, name string) (*appv1.Cluster, error) {
+			for _, cluster := range clusters {
+				if server == cluster.Server && name == cluster.Name {
+					return &cluster, nil
+				}
+			}
+			return nil, fmt.Errorf("cluster '%s' with name '%s' not found", server, name)
+		},
+	)
 
 	enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	_ = enf.SetBuiltinPolicy(`p, role:test, clusters, *, https://127.0.0.1, allow
@@ -250,6 +261,217 @@ func TestGetCluster_UrlEncodedName(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "test/ing", localCluster.Name)
+}
+
+func TestGetCluster_UrlEncodedNameFailToUnescape(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := appv1.Cluster{
+		Name:       "testing",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockClusterList := appv1.ClusterList{
+		ListMeta: metav1.ListMeta{},
+		Items: []appv1.Cluster{
+			mockCluster,
+		},
+	}
+
+	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	_, err := server.Get(t.Context(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
+			Type:  "name_escaped",
+			Value: "testing%F%23rd",
+		},
+	})
+	require.Error(t, err)
+}
+
+func TestGetCluster_UrlEncodedNameClustersWithSameServer(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := appv1.Cluster{
+		Name:       "testing",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockCluster2nd := appv1.Cluster{
+		Name:       "testing2nd",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockCluster3rd := appv1.Cluster{
+		Name:       "testing3rd",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockCluster4th := appv1.Cluster{
+		Name:       "testing4th",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockClusterList := appv1.ClusterList{
+		ListMeta: metav1.ListMeta{},
+		Items: []appv1.Cluster{
+			mockCluster,
+			mockCluster2nd,
+			mockCluster3rd,
+			mockCluster4th,
+		},
+	}
+
+	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+	db.EXPECT().GetClusterByServerAndName(mock.Anything, mock.Anything, mock.Anything).Return(&mockCluster3rd, nil)
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	localCluster, err := server.Get(t.Context(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
+			Type:  "url_name_escaped",
+			Value: "https://127.0.0.1,testing3rd",
+		},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "https://127.0.0.1", localCluster.Server)
+	assert.Equal(t, "testing3rd", localCluster.Name)
+}
+
+func TestGetCluster_UrlNameEscapedTypeFailToGetCluster(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(nil, errors.New("failed to get clusters by server"))
+	db.EXPECT().GetClusterByServerAndName(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("failed to get cluster by server and name"))
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	_, err := server.Get(t.Context(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
+			Type:  "url_name_escaped",
+			Value: "https://127.0.0.1,my-test-cluster",
+		},
+	})
+	require.Error(t, err)
+}
+
+func TestGetCluster_UrlNameEscapedTypeFailToListCluster(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := appv1.Cluster{
+		Name:       "my-test-cluster",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+
+	db.EXPECT().ListClusters(mock.Anything).Return(nil, errors.New("failed to list clusters"))
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	_, err := server.Get(t.Context(), &cluster.ClusterQuery{
+		Name: "my-test-cluster",
+	})
+	require.Error(t, err)
+}
+
+func TestGetCluster_UrlNameEscapedTypeFailToParse(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := appv1.Cluster{
+		Name:       "my-test-cluster",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockClusterList := appv1.ClusterList{
+		ListMeta: metav1.ListMeta{},
+		Items: []appv1.Cluster{
+			mockCluster,
+		},
+	}
+
+	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	_, err := server.Get(t.Context(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
+			Type:  "url_name_escaped",
+			Value: "https://127.0.0.1my-test-cluster",
+		},
+	})
+	require.Error(t, err)
+}
+
+func TestGetCluster_UrlNameEscapedType(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := appv1.Cluster{
+		Name:       "my-test-cluster",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockClusterList := appv1.ClusterList{
+		ListMeta: metav1.ListMeta{},
+		Items: []appv1.Cluster{
+			mockCluster,
+		},
+	}
+
+	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+	db.EXPECT().GetClusterByServerAndName(mock.Anything, mock.Anything, mock.Anything).Return(&mockCluster, nil)
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	localCluster, err := server.Get(t.Context(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
+			Type:  "url_name_escaped",
+			Value: "https://127.0.0.1,my-test-cluster",
+		},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "https://127.0.0.1", localCluster.Server)
+	assert.Equal(t, "my-test-cluster", localCluster.Name)
+}
+
+func TestGetCluster_NameWithCommaCanBeIdentified(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+
+	mockCluster := appv1.Cluster{
+		Name:       ",test,clustername,",
+		Server:     "https://127.0.0.1",
+		Namespaces: []string{"default", "kube-system"},
+	}
+	mockClusterList := appv1.ClusterList{
+		ListMeta: metav1.ListMeta{},
+		Items: []appv1.Cluster{
+			mockCluster,
+		},
+	}
+
+	db.EXPECT().ListClusters(mock.Anything).Return(&mockClusterList, nil)
+	db.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(&mockCluster, nil)
+	db.EXPECT().GetClusterByServerAndName(mock.Anything, mock.Anything, mock.Anything).Return(&mockCluster, nil)
+
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	localCluster, err := server.Get(t.Context(), &cluster.ClusterQuery{
+		Id: &cluster.ClusterID{
+			Type:  "url_name_escaped",
+			Value: "https://127.0.0.1,,test,clustername,",
+		},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, ",test,clustername,", localCluster.Name)
 }
 
 func TestGetCluster_NameWithUrlEncodingButShouldNotBeUnescaped(t *testing.T) {
@@ -464,9 +686,10 @@ func TestDeleteClusterByName(t *testing.T) {
 		assert.EqualError(t, err, `failed to get cluster with permissions check: rpc error: code = PermissionDenied desc = permission denied`)
 	})
 
-	t.Run("Delete Succeeds When Deleting by Name", func(t *testing.T) {
+	t.Run("Delete Succeeds When Deleting by Name and Server", func(t *testing.T) {
 		_, err := server.Delete(t.Context(), &cluster.ClusterQuery{
-			Name: "my-cluster-name",
+			Name:   "my-cluster-name",
+			Server: "https://my-cluster-server",
 		})
 		require.NoError(t, err)
 

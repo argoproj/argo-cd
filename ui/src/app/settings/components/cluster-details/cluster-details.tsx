@@ -21,13 +21,17 @@ export const NamespacesEditor = ReactFormField((props: {fieldApi: FieldApi; clas
     return <input className={props.className} value={val} onChange={event => props.fieldApi.setValue(event.target.value.split(','))} />;
 });
 
-export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {objectListKind?: string}) => {
+export const ClusterDetails = (props: RouteComponentProps<{server: string; name: string}> & {objectListKind?: string}) => {
     const server = decodeURIComponent(props.match.params.server);
+    const name = decodeURIComponent(props.match.params.name);
     const loaderRef = React.useRef<DataLoader>();
     const [updating, setUpdating] = React.useState(false);
     const objectListKind = props.objectListKind || 'application';
     return (
-        <DataLoader ref={loaderRef} input={server} load={(url: string) => timer(0, 1000).pipe(mergeMap(() => from(services.clusters.get(url, ''))))}>
+        <DataLoader
+            ref={loaderRef}
+            input={{server, name}}
+            load={(input: {server: string; name: string}) => timer(0, 1000).pipe(mergeMap(() => from(services.clusters.get(input.server, input.name))))}>
             {(cluster: Cluster) => (
                 <Page
                     title='Clusters'
@@ -42,7 +46,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {o
                                     action: async () => {
                                         setUpdating(true);
                                         try {
-                                            const updated = await services.clusters.invalidateCache(props.match.params.server);
+                                            const updated = await services.clusters.invalidateCache(props.match.params.server, props.match.params.name);
                                             loaderRef.current.setData(updated);
                                         } finally {
                                             setUpdating(false);

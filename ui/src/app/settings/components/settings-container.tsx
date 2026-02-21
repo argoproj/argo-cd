@@ -20,7 +20,7 @@ export const SettingsContainer = (props: RouteComponentProps<any>) => (
         <Route exact={true} path={`${props.match.path}/certs`} component={CertsList} />
         <Route exact={true} path={`${props.match.path}/gpgkeys`} component={GpgKeysList} />
         <Route exact={true} path={`${props.match.path}/clusters`} component={ClustersList} />
-        <Route exact={true} path={`${props.match.path}/clusters/:server`} component={ClusterDetails} />
+        <Route exact={true} path={`${props.match.path}/clusters/:server/:name`} component={ClusterDetails} />
         <Route exact={true} path={`${props.match.path}/projects`} component={ProjectsList} />
         <Route exact={true} path={`${props.match.path}/projects/:name`} component={ProjectDetails} />
         <Route exact={true} path={`${props.match.path}/accounts`} component={AccountsList} />

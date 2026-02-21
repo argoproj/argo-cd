@@ -1066,23 +1066,28 @@ func GetPermittedRepos(proj *argoappv1.AppProject, repos []*argoappv1.Repository
 type ClusterGetter interface {
 	GetCluster(ctx context.Context, name string) (*argoappv1.Cluster, error)
 	GetClusterServersByName(ctx context.Context, server string) ([]string, error)
+	GetClusterByServerAndName(ctx context.Context, server string, name string) (*argoappv1.Cluster, error)
 }
 
-// GetDestinationCluster returns the cluster object based on the destination server or name. If both are provided or
-// both are empty, an error is returned. If the destination server is provided, the cluster is fetched by the server
-// URL. If the destination name is provided, the cluster is fetched by the name. If multiple clusters have the specified
-// name, an error is returned.
+// GetDestinationCluster returns the cluster object based on the destination server or name. If both are provided,the cluster
+// is fetched by the server URL and name. If both are empty, an error is returned. If the destination server is provided, the
+// cluster is fetched by the server URL. If the destination name is provided, the cluster is fetched by the name. If multiple
+// clusters have the specified name, an error is returned.
 func GetDestinationCluster(ctx context.Context, destination argoappv1.ApplicationDestination, db ClusterGetter) (*argoappv1.Cluster, error) {
-	if destination.Name != "" && destination.Server != "" {
-		return nil, fmt.Errorf("application destination can't have both name and server defined: %s %s", destination.Name, destination.Server)
-	}
-	if destination.Server != "" {
+	switch {
+	case destination.Server != "" && destination.Name != "":
+		cluster, err := db.GetClusterByServerAndName(ctx, destination.Server, destination.Name)
+		if err != nil {
+			return nil, fmt.Errorf("error getting cluster by server %q and name %q: %w", destination.Server, destination.Name, err)
+		}
+		return cluster, nil
+	case destination.Server != "":
 		cluster, err := db.GetCluster(ctx, destination.Server)
 		if err != nil {
 			return nil, fmt.Errorf("error getting cluster by server %q: %w", destination.Server, err)
 		}
 		return cluster, nil
-	} else if destination.Name != "" {
+	case destination.Name != "":
 		clusterURLs, err := db.GetClusterServersByName(ctx, destination.Name)
 		if err != nil {
 			return nil, fmt.Errorf("error getting cluster by name %q: %w", destination.Name, err)
@@ -1098,9 +1103,10 @@ func GetDestinationCluster(ctx context.Context, destination argoappv1.Applicatio
 			return nil, fmt.Errorf("error getting cluster by URL: %w", err)
 		}
 		return cluster, nil
+	default:
+		// nolint:staticcheck // Error constant is very old, shouldn't lowercase the first letter.
+		return nil, errors.New(ErrDestinationMissing)
 	}
-	// nolint:staticcheck // Error constant is very old, shouldn't lowercase the first letter.
-	return nil, errors.New(ErrDestinationMissing)
 }
 
 func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) []*argoappv1.AppProject {

@@ -24,6 +24,10 @@ func Test_getQueryBySelector(t *testing.T) {
 	query = getQueryBySelector("https://my-server")
 	assert.Empty(t, query.Name)
 	assert.Equal(t, "https://my-server", query.Server)
+
+	query = getQueryBySelector("https://my-server,my-cluster")
+	assert.Equal(t, "my-cluster", query.Name)
+	assert.Equal(t, "https://my-server", query.Server)
 }
 
 func Test_printClusterTable(_ *testing.T) {

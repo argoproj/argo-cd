@@ -70,7 +70,7 @@ export const ClustersList = () => {
                                                 <div
                                                     className='argo-table-list__row'
                                                     key={cluster.server}
-                                                    onClick={() => ctx.navigation.goto(`./${encodeURIComponent(cluster.server)}`)}>
+                                                    onClick={() => ctx.navigation.goto(`./${encodeURIComponent(cluster.server)}/${encodeURIComponent(cluster.name)}`)}>
                                                     <div className='row'>
                                                         <div className='columns small-3'>
                                                             <i className='icon argo-icon-hosts' />
@@ -102,7 +102,7 @@ export const ClustersList = () => {
                                                                             );
                                                                             if (confirmed) {
                                                                                 try {
-                                                                                    await services.clusters.delete(cluster.server).finally(() => {
+                                                                                    await services.clusters.delete(cluster.server, cluster.name).finally(() => {
                                                                                         ctx.navigation.goto('.', {new: null}, {replace: true});
                                                                                         if (clustersLoaderRef.current) {
                                                                                             clustersLoaderRef.current.reload();

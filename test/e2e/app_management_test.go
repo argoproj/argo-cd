@@ -705,7 +705,7 @@ func TestComparisonFailsIfDestinationClusterIsInvalid(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		And(func() {
-			clusterActions.DeleteByName()
+			clusterActions.DeleteByServerAndName()
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().

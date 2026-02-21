@@ -491,7 +491,7 @@ func isTransientNetworkErr(err error) bool {
 
 func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.ClusterCache, error) {
 	c.lock.RLock()
-	clusterCache, ok := c.clusters[cluster.Server]
+	clusterCache, ok := c.clusters[cluster.Server+cluster.Name]
 	cacheSettings := c.cacheSettings
 	c.lock.RUnlock()
 
@@ -502,7 +502,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	clusterCache, ok = c.clusters[cluster.Server]
+	clusterCache, ok = c.clusters[cluster.Server+cluster.Name]
 	if ok {
 		return clusterCache, nil
 	}
@@ -644,7 +644,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		c.metricsServer.ObserveResourceEventsProcessingDuration(cluster.Server, duration, processedEventsNumber)
 	})
 
-	c.clusters[cluster.Server] = clusterCache
+	c.clusters[cluster.Server+cluster.Name] = clusterCache
 
 	return clusterCache, nil
 }
@@ -828,7 +828,7 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 		return
 	}
 	c.lock.Lock()
-	_, ok := c.clusters[cluster.Server]
+	_, ok := c.clusters[cluster.Server+cluster.Name]
 	c.lock.Unlock()
 	if !ok {
 		log.Debugf("Checking if cache %v / cluster %v has appInformer %v", c, cluster, c.appInformer)
@@ -848,7 +848,7 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
 	c.clusterSharding.Update(oldCluster, newCluster)
 	c.lock.Lock()
-	cluster, ok := c.clusters[newCluster.Server]
+	cluster, ok := c.clusters[newCluster.Server+newCluster.Name]
 	c.lock.Unlock()
 	if ok {
 		if !c.canHandleCluster(newCluster) {
@@ -891,15 +891,15 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 	}
 }
 
-func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
+func (c *liveStateCache) handleDeleteEvent(clusterServerName string) {
 	c.lock.RLock()
-	c.clusterSharding.Delete(clusterServer)
-	cluster, ok := c.clusters[clusterServer]
+	c.clusterSharding.Delete(clusterServerName)
+	cluster, ok := c.clusters[clusterServerName]
 	c.lock.RUnlock()
 	if ok {
 		cluster.Invalidate()
 		c.lock.Lock()
-		delete(c.clusters, clusterServer)
+		delete(c.clusters, clusterServerName)
 		c.lock.Unlock()
 	}
 }

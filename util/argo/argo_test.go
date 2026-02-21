@@ -849,6 +849,39 @@ func TestValidatePermissions(t *testing.T) {
 		assert.Contains(t, conditions[0].Message, "Cluster does not exist")
 	})
 
+	t.Run("Destination cluster does not exist", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{
+				RepoURL:        "http://some/where",
+				Path:           "",
+				Chart:          "somechart",
+				TargetRevision: "1.4.1",
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    "https://127.0.0.1:6443",
+				Name:      "does-not-exist",
+				Namespace: "default",
+			},
+		}
+		proj := argoappv1.AppProject{
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "default",
+					},
+				},
+				SourceRepos: []string{"http://some/where"},
+			},
+		}
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetClusterByServerAndName(mock.Anything, spec.Destination.Server, spec.Destination.Name).Return(nil, status.Errorf(codes.NotFound, "Cluster does not exist")).Maybe()
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "Cluster does not exist")
+	})
+
 	t.Run("Destination cluster name does not exist", func(t *testing.T) {
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
@@ -944,6 +977,7 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		db.EXPECT().GetClusterServersByName(mock.Anything, "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil).Maybe()
 		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(&cluster, nil).Maybe()
+		db.EXPECT().GetClusterByServerAndName(mock.Anything, "https://127.0.0.1:6443", "does-exist").Return(&cluster, nil).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Empty(t, conditions)
@@ -1024,21 +1058,38 @@ func TestGetDestinationCluster(t *testing.T) {
 		db := &dbmocks.ArgoDB{}
 		db.EXPECT().GetClusterServersByName(mock.Anything, "minikube").Return([]string{"https://127.0.0.1:6443"}, nil).Maybe()
 		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(&argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "minikube"}, nil).Maybe()
+		db.EXPECT().GetClusterByServerAndName(mock.Anything, "https://127.0.0.1:6443", "minikube").Return(&argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "minikube"}, nil).Maybe()
 
 		destCluster, err := GetDestinationCluster(t.Context(), dest, db)
 		require.NoError(t, err)
 		assert.Equal(t, "https://127.0.0.1:6443", destCluster.Server)
 	})
 
-	t.Run("Error when having both server url and name", func(t *testing.T) {
+	t.Run("Accept when having both server url and name", func(t *testing.T) {
 		dest := argoappv1.ApplicationDestination{
 			Server:    "https://127.0.0.1:6443",
 			Name:      "minikube",
 			Namespace: "default",
 		}
 
-		_, err := GetDestinationCluster(t.Context(), dest, nil)
-		assert.EqualError(t, err, "application destination can't have both name and server defined: minikube https://127.0.0.1:6443")
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetClusterByServerAndName(mock.Anything, "https://127.0.0.1:6443", "minikube").Return(&argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "minikube"}, nil).Maybe()
+		_, err := GetDestinationCluster(t.Context(), dest, db)
+		assert.NoError(t, err)
+	})
+
+	t.Run("GetClusterByServerAndName fails", func(t *testing.T) {
+		dest := argoappv1.ApplicationDestination{
+			Server:    "https://127.0.0.1:6443",
+			Name:      "minikube",
+			Namespace: "default",
+		}
+
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetClusterByServerAndName(mock.Anything, "https://127.0.0.1:6443", "minikube").Return(nil, errors.New("an error occurred"))
+
+		_, err := GetDestinationCluster(t.Context(), dest, db)
+		require.ErrorContains(t, err, "error getting cluster")
 	})
 
 	t.Run("GetClusterServersByName fails", func(t *testing.T) {
@@ -1591,6 +1642,7 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 		}
 		db.EXPECT().GetClusterServersByName(mock.Anything, "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil).Maybe()
 		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(&cluster, nil).Maybe()
+		db.EXPECT().GetClusterByServerAndName(mock.Anything, "https://127.0.0.1:6443", "does-exist").Return(&cluster, nil).Maybe()
 		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
 		require.NoError(t, err)
 		assert.Empty(t, conditions)
