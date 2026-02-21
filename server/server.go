@@ -1402,6 +1402,10 @@ func newRedirectServer(port int, rootPath string) *http.Server {
 
 // registerDownloadHandlers registers HTTP handlers to support downloads directly from the API server
 // (e.g. argocd CLI)
+//
+// Deprecated: We have removed the primary consumer of this API from the UI to resolve asset hash diff per architecture.
+// We should remove this in the next major ArgoCD release (4.0).
+// For details, see https://github.com/argoproj/argo-cd/issues/11262.
 func registerDownloadHandlers(mux *http.ServeMux, base string) {
 	linuxPath, err := exec.LookPath("argocd")
 	if err != nil {
