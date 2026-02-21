@@ -11,6 +11,7 @@ import (
 	"time"
 
 	timeutil "github.com/argoproj/pkg/v2/time"
+	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -60,6 +61,7 @@ func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewAccountGenerateTokenCommand(clientOpts))
 	command.AddCommand(NewAccountGetCommand(clientOpts))
 	command.AddCommand(NewAccountDeleteTokenCommand(clientOpts))
+	command.AddCommand(NewAccountSessionTokenCommand(clientOpts))
 	command.AddCommand(NewBcryptCmd())
 	return command
 }
@@ -446,5 +448,87 @@ argocd account delete-token --account <account-name> ID`,
 		},
 	}
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")
+	return cmd
+}
+
+func NewAccountSessionTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var output string
+	cmd := &cobra.Command{
+		Use:   "session-token",
+		Short: "Display current session token",
+		Long: `Display the current session token for authentication.
+
+Automatically refreshes expired tokens using refresh token (SSO users).
+For local users: Shows current token (manual relogin needed if expired)`,
+		Example: `# Display current session token (automatically refreshes if needed)
+argocd account session-token
+
+# Show detailed token information
+argocd account session-token -o json
+
+# Use in scripts
+export ARGOCD_AUTH_TOKEN=$(argocd account session-token)
+curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applications`,
+		Run: func(c *cobra.Command, _ []string) {
+			// Create client first - this handles token refresh automatically
+			_, err := argocdclient.NewClient(clientOpts)
+			if err != nil {
+				if strings.Contains(err.Error(), "invalid_grant") && strings.Contains(err.Error(), "Invalid refresh_token") {
+					log.Fatal("Refresh token is invalid or expired. Please run 'argocd relogin' to re-authenticate")
+				}
+				log.Fatal(err)
+			}
+
+			// Read config after client creation to get potentially refreshed token
+			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
+			errors.CheckError(err)
+			if localCfg == nil {
+				log.Fatal("No configuration found. Please login first with 'argocd login'")
+			}
+
+			configCtx, err := localCfg.ResolveContext(clientOpts.Context)
+			errors.CheckError(err)
+			if configCtx == nil {
+				log.Fatal("No context found. Please login first with 'argocd login'")
+			}
+
+			if configCtx.User.AuthToken == "" {
+				log.Fatal("No authentication token found. Please login first with 'argocd login'")
+			}
+
+			// Get token claims and validate
+			claims, err := configCtx.User.Claims()
+			if err != nil {
+				log.Fatal("Invalid token format. Please run 'argocd relogin'")
+			}
+			validator := jwt.NewValidator()
+			if validator.Validate(*claims) != nil {
+				log.Fatal("Token has expired. Please run 'argocd relogin'")
+			}
+
+			switch output {
+			case "json":
+				tokenInfo := map[string]any{
+					"token":             configCtx.User.AuthToken,
+					"type":              "local",
+					"issuer":            claims.Issuer,
+					"subject":           claims.Subject,
+					"expires_at":        claims.ExpiresAt,
+					"issued_at":         claims.IssuedAt,
+					"has_refresh_token": configCtx.User.RefreshToken != "",
+				}
+				if claims.Issuer != sessionutil.SessionManagerClaimsIssuer {
+					tokenInfo["type"] = "sso"
+				}
+
+				jsonBytes, err := json.MarshalIndent(tokenInfo, "", "  ")
+				errors.CheckError(err)
+				fmt.Println(string(jsonBytes))
+			default:
+				fmt.Println(configCtx.User.AuthToken)
+			}
+		},
+	}
+	cmd.Flags().StringVarP(&output, "output", "o", "", "Output format (json)")
 	return cmd
 }
