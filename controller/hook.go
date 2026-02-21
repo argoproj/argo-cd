@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
@@ -43,8 +44,12 @@ func isHookOfType(obj *unstructured.Unstructured, hookType HookType) bool {
 	}
 
 	for k, v := range hookTypeAnnotations[hookType] {
-		if val, ok := obj.GetAnnotations()[k]; ok && val == v {
-			return true
+		if val, ok := obj.GetAnnotations()[k]; ok {
+			if slices.ContainsFunc(strings.Split(val, ","), func(item string) bool {
+				return strings.TrimSpace(item) == v
+			}) {
+				return true
+			}
 		}
 	}
 	return false

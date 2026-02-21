@@ -127,6 +127,16 @@ func TestIsPreDeleteHook(t *testing.T) {
 			annot:    map[string]string{"argocd.argoproj.io/hook": "PostDelete"},
 			expected: false,
 		},
+		{
+			name:     "Helm PreDelete & PreDelete hook",
+			annot:    map[string]string{"helm.sh/hook": "pre-delete,post-delete"},
+			expected: true,
+		},
+		{
+			name:     "ArgoCD PostDelete & PreDelete hook",
+			annot:    map[string]string{"argocd.argoproj.io/hook": "PostDelete,PreDelete"},
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -160,6 +170,16 @@ func TestIsPostDeleteHook(t *testing.T) {
 			annot:    map[string]string{"argocd.argoproj.io/hook": "PreDelete"},
 			expected: false,
 		},
+		{
+			name:     "ArgoCD PostDelete & PreDelete hook",
+			annot:    map[string]string{"argocd.argoproj.io/hook": "PostDelete,PreDelete"},
+			expected: true,
+		},
+		{
+			name:     "Helm PostDelete & PreDelete hook",
+			annot:    map[string]string{"helm.sh/hook": "post-delete,pre-delete"},
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -168,6 +188,41 @@ func TestIsPostDeleteHook(t *testing.T) {
 			obj.SetAnnotations(tt.annot)
 			result := isPostDeleteHook(obj)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestMultiHookOfType(t *testing.T) {
+	tests := []struct {
+		name     string
+		hookType []HookType
+		annot    map[string]string
+		expected bool
+	}{
+		{
+			name:     "helm PreDelete &  PostDelete hook",
+			hookType: []HookType{PreDeleteHookType, PostDeleteHookType},
+			annot:    map[string]string{"helm.sh/hook": "pre-delete,post-delete"},
+			expected: true,
+		},
+
+		{
+			name:     "ArgoCD PreDelete &  PostDelete hook",
+			hookType: []HookType{PreDeleteHookType, PostDeleteHookType},
+			annot:    map[string]string{"argocd.argoproj.io/hook": "PreDelete,PostDelete"},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := &unstructured.Unstructured{}
+			obj.SetAnnotations(tt.annot)
+
+			for _, hookType := range tt.hookType {
+				result := isHookOfType(obj, hookType)
+				assert.Equal(t, tt.expected, result)
+			}
 		})
 	}
 }
