@@ -450,6 +450,13 @@ var fakePreDeleteHook = `
 }
 `
 
+var fakeNamespace = `
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: app-namespace
+`
+
 var fakePostDeleteHook = `
 {
   "apiVersion": "batch/v1",
@@ -553,6 +560,17 @@ var fakeRoleBinding = `
 }
 `
 
+var fakeConfigMap = `
+{
+  "apiVersion": "v1",
+  "kind": "ConfigMap",
+  "metadata": {
+    "name": "test-cm",
+    "namespace": "default"
+  }
+}
+`
+
 func newFakeApp() *v1alpha1.Application {
 	return createFakeApp(fakeApp)
 }
@@ -643,6 +661,24 @@ func newFakeServiceAccount() map[string]any {
 		panic(err)
 	}
 	return serviceAccount
+}
+
+func newFakeConfigMap() map[string]any {
+	var configMap map[string]any
+	err := yaml.Unmarshal([]byte(fakeConfigMap), &configMap)
+	if err != nil {
+		panic(err)
+	}
+	return configMap
+}
+
+func newFakeNamespace() map[string]any {
+	var namespace map[string]any
+	err := yaml.Unmarshal([]byte(fakeNamespace), &namespace)
+	if err != nil {
+		panic(err)
+	}
+	return namespace
 }
 
 func TestAutoSync(t *testing.T) {
@@ -2909,17 +2945,217 @@ func Test_syncDeleteOption(t *testing.T) {
 	cm := newFakeCM()
 	t.Run("without delete option object is deleted", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
-		assert.True(t, ctrl.shouldBeDeleted(app, cmObj))
+		assert.True(t, ctrl.shouldBeDeleted(app, cmObj, nil))
 	})
 	t.Run("with delete set to false object is retained", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
 		cmObj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=false"})
-		assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
+		assert.False(t, ctrl.shouldBeDeleted(app, cmObj, nil))
 	})
 	t.Run("with delete set to false object is retained", func(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
 		cmObj.SetAnnotations(map[string]string{"helm.sh/resource-policy": "keep"})
-		assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
+		assert.False(t, ctrl.shouldBeDeleted(app, cmObj, nil))
+	})
+}
+
+func TestPostDeleteHookNamespaceDeletion(t *testing.T) {
+	defaultProj := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	}
+
+	t.Run("namespace deletion is deferred when PostDelete hooks exist", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		// Create a PostDelete hook in the same namespace using existing fake data
+		postDeleteHookData := newFakePostDeleteHook()
+		postDeleteHookData["metadata"].(map[string]any)["namespace"] = "app-namespace"
+		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
+
+		ctrl := newFakeController(context.Background(), &fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{string(postDeleteHookJSON)},
+			},
+		}, nil)
+
+		// Create a namespace object
+		namespaceObj := &unstructured.Unstructured{
+			Object: newFakeNamespace(),
+		}
+
+		// Get targets to pass to shouldBeDeleted
+		targets := ctrl.getAppTargets(app)
+		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj, targets)
+		assert.False(t, shouldDelete, "namespace should be deferred when PostDelete hooks exist")
+	})
+
+	t.Run("namespace deletion proceeds normally when no PostDelete hooks exist", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		ctrl := newFakeController(context.Background(), &fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{}, // No PostDelete hooks
+			},
+		}, nil)
+
+		// Create a namespace object
+		namespaceObj := &unstructured.Unstructured{
+			Object: newFakeNamespace(),
+		}
+
+		// Get targets to pass to shouldBeDeleted
+		targets := ctrl.getAppTargets(app)
+		shouldDelete := ctrl.shouldBeDeleted(app, namespaceObj, targets)
+		assert.True(t, shouldDelete, "namespace should be deleted when no PostDelete hooks exist")
+	})
+
+	t.Run("non-namespace resources are not affected by PostDelete hooks", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		// Create a PostDelete hook using existing fake data
+		postDeleteHookData := newFakePostDeleteHook()
+		postDeleteHookData["metadata"].(map[string]any)["namespace"] = "app-namespace"
+		postDeleteHookJSON, _ := json.Marshal(postDeleteHookData)
+
+		ctrl := newFakeController(context.Background(), &fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{string(postDeleteHookJSON)},
+			},
+		}, nil)
+
+		// Create a non-namespace object (ConfigMap)
+		configMapObj := &unstructured.Unstructured{
+			Object: newFakeConfigMap(),
+		}
+
+		// Get targets to pass to shouldBeDeleted
+		targets := ctrl.getAppTargets(app)
+		shouldDelete := ctrl.shouldBeDeleted(app, configMapObj, targets)
+		assert.True(t, shouldDelete, "non-namespace resources should not be affected by PostDelete hook logic")
+	})
+}
+
+func TestHasPostDeleteHooksForNamespace(t *testing.T) {
+	defaultProj := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	}
+
+	t.Run("handles single PostDelete hook correctly", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		// Single PostDelete hook using existing fake data
+		postDeleteHookData1 := newFakePostDeleteHook()
+		postDeleteHookData1["metadata"].(map[string]any)["namespace"] = "app-namespace"
+		postDeleteHookData1["metadata"].(map[string]any)["name"] = "post-delete-hook-1"
+		postDeleteHookJSON1, _ := json.Marshal(postDeleteHookData1)
+
+		ctrl := newFakeController(context.Background(), &fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{string(postDeleteHookJSON1)},
+			},
+		}, nil)
+
+		targets := ctrl.getAppTargets(app)
+		hasHooks := ctrl.hasPostDeleteHooksForNamespace("app-namespace", targets)
+		assert.True(t, hasHooks, "should return true when single PostDelete hook exists")
+	})
+
+	t.Run("handles multiple PostDelete hooks correctly", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Namespace = "app-namespace"
+
+		// Multiple PostDelete hooks using existing fake data
+		postDeleteHookData1 := newFakePostDeleteHook()
+		postDeleteHookData1["metadata"].(map[string]any)["namespace"] = "app-namespace"
+		postDeleteHookData1["metadata"].(map[string]any)["name"] = "post-delete-hook-1"
+		postDeleteHookJSON1, _ := json.Marshal(postDeleteHookData1)
+
+		postDeleteHookData2 := newFakePostDeleteHook()
+		delete(postDeleteHookData2["metadata"].(map[string]any), "namespace") // Empty namespace
+		postDeleteHookData2["metadata"].(map[string]any)["name"] = "post-delete-hook-2"
+		postDeleteHookJSON2, _ := json.Marshal(postDeleteHookData2)
+
+		ctrl := newFakeController(context.Background(), &fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{string(postDeleteHookJSON1), string(postDeleteHookJSON2)},
+			},
+		}, nil)
+
+		targets := ctrl.getAppTargets(app)
+		hasHooks := ctrl.hasPostDeleteHooksForNamespace("app-namespace", targets)
+		assert.True(t, hasHooks, "should return true when multiple PostDelete hooks exist")
+	})
+}
+
+func TestGetPropagationPolicy(t *testing.T) {
+	defaultProj := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	}
+
+	t.Run("returns foreground propagation policy by default", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(context.Background(), &fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+		}, nil)
+
+		policy := ctrl.getPropagationPolicy(app)
+		assert.Equal(t, metav1.DeletePropagationForeground, policy, "should return foreground propagation policy by default")
+	})
+
+	t.Run("returns background propagation policy when finalizer is set", func(t *testing.T) {
+		app := newFakeApp()
+		app.SetFinalizers([]string{v1alpha1.BackgroundPropagationPolicyFinalizer})
+		ctrl := newFakeController(context.Background(), &fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+		}, nil)
+
+		policy := ctrl.getPropagationPolicy(app)
+		assert.Equal(t, metav1.DeletePropagationBackground, policy, "should return background propagation policy when finalizer is set")
 	})
 }
 
