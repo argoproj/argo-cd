@@ -750,6 +750,83 @@ func TestGetClusterAndVerifyAccess(t *testing.T) {
 	})
 }
 
+func TestClusterRBACByName(t *testing.T) {
+	t.Parallel()
+
+	db := &dbmocks.ArgoDB{}
+
+	clusters := []appv1.Cluster{
+		{
+			Name:   "production-cluster",
+			Server: "https://192.168.1.100",
+		},
+		{
+			Name:   "staging-cluster",
+			Server: "https://192.168.1.101",
+		},
+		{
+			Name:    "dev-cluster",
+			Server:  "https://192.168.1.102",
+			Project: "dev-project",
+		},
+	}
+
+	clusterList := appv1.ClusterList{
+		ListMeta: metav1.ListMeta{},
+		Items:    clusters,
+	}
+
+	db.On("ListClusters", mock.Anything).Return(&clusterList, nil)
+	db.On("GetCluster", mock.Anything, "https://192.168.1.100").Return(&clusters[0], nil)
+	db.On("GetCluster", mock.Anything, "https://192.168.1.101").Return(&clusters[1], nil)
+	db.On("GetCluster", mock.Anything, "https://192.168.1.102").Return(&clusters[2], nil)
+
+	enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDRBACConfigMapName, nil)
+	err := enf.SetBuiltinPolicy(`
+p, role:test, clusters, get, production-cluster, allow
+p, role:test, clusters, get, staging-cluster, allow
+p, role:test, clusters, get, dev-project/dev-cluster, allow`)
+	require.NoError(t, err)
+	enf.SetDefaultRole("role:test")
+
+	server := NewServer(db, enf, newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	t.Run("Get cluster by server with name-based RBAC policy", func(t *testing.T) {
+		t.Parallel()
+		c, err := server.Get(t.Context(), &cluster.ClusterQuery{
+			Server: "https://192.168.1.100",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "production-cluster", c.Name)
+	})
+
+	t.Run("Get cluster by name with name-based RBAC policy", func(t *testing.T) {
+		t.Parallel()
+		c, err := server.Get(t.Context(), &cluster.ClusterQuery{
+			Name: "staging-cluster",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "staging-cluster", c.Name)
+	})
+
+	t.Run("Get project scoped cluster by name with name-based RBAC policy", func(t *testing.T) {
+		t.Parallel()
+		c, err := server.Get(t.Context(), &cluster.ClusterQuery{
+			Name: "dev-cluster",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "dev-cluster", c.Name)
+		assert.Equal(t, "dev-project", c.Project)
+	})
+
+	t.Run("List cluster with name-based RBAC policy", func(t *testing.T) {
+		t.Parallel()
+		list, err := server.List(t.Context(), &cluster.ClusterQuery{})
+		require.NoError(t, err)
+		assert.Len(t, list.Items, 3)
+	})
+}
+
 func TestNoClusterEnumeration(t *testing.T) {
 	db := &dbmocks.ArgoDB{}
 
