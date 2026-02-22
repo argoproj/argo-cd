@@ -13,6 +13,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/healthz"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/profile"
 	"github.com/argoproj/argo-cd/v3/util/tls"
@@ -310,6 +311,9 @@ func NewCommand() *cobra.Command {
 func startWebhookServer(webhookHandler *webhook.WebhookHandler, webhookAddr string) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/webhook", webhookHandler.Handler)
+	healthz.ServeHealthCheck(mux, func(_ *http.Request) error {
+		return nil
+	})
 	go func() {
 		log.Infof("Starting webhook server %s", webhookAddr)
 		err := http.ListenAndServe(webhookAddr, mux)
