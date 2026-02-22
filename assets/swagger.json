@@ -7263,6 +7263,9 @@
             "type": "string"
           }
         },
+        "labelSelector": {
+          "$ref": "#/definitions/v1LabelSelector"
+        },
         "name": {
           "description": "Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.",
           "type": "string"
