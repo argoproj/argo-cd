@@ -575,10 +575,10 @@ message ApplicationSourceJsonnet {
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 message ApplicationSourceKustomize {
-  // NamePrefix is a prefix appended to resources for Kustomize apps
+  // NamePrefix overrides the namePrefix in the kustomization.yaml for Kustomize apps
   optional string namePrefix = 1;
 
-  // NameSuffix is a suffix appended to resources for Kustomize apps
+  // NameSuffix overrides the nameSuffix in the kustomization.yaml for Kustomize apps
   optional string nameSuffix = 2;
 
   // Images is a list of Kustomize image override specifications
@@ -714,6 +714,7 @@ message ApplicationStatus {
   optional OperationState operationState = 7;
 
   // ObservedAt indicates when the application state was updated without querying latest git state
+  //
   // Deprecated: controller no longer updates ObservedAt field
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
@@ -2059,6 +2060,7 @@ message ResourceDiff {
   optional string liveState = 6;
 
   // Diff contains the JSON patch representing the difference between the live and target resource.
+  //
   // Deprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.
   optional string diff = 7;
 

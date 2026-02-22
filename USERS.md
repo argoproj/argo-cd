@@ -331,6 +331,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Salad Technologies](https://salad.com/)
 1. [Saloodo! GmbH](https://www.saloodo.com)
 1. [Sap Labs](http://sap.com)
+1. [SAP Signavio](https://www.signavio.com)
 1. [Sauce Labs](https://saucelabs.com/)
 1. [Schneider Electric](https://www.se.com)
 1. [Schwarz IT](https://jobs.schwarz/it-mission)

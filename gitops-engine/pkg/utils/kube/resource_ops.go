@@ -32,9 +32,9 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/openapi"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
 )
 
 // ResourceOperations provides methods to manage k8s resources
@@ -603,11 +603,24 @@ func (k *kubectlResourceOperations) authReconcile(ctx context.Context, obj *unst
 	if err != nil {
 		return "", fmt.Errorf("error creating kube client: %w", err)
 	}
+
+	clusterScoped := obj.GetKind() == "ClusterRole" || obj.GetKind() == "ClusterRoleBinding"
+
 	// `kubectl auth reconcile` has a side effect of auto-creating namespaces if it doesn't exist.
 	// See: https://github.com/kubernetes/kubernetes/issues/71185. This is behavior which we do
 	// not want. We need to check if the namespace exists, before know if it is safe to run this
 	// command. Skip this for dryRuns.
-	if dryRunStrategy == cmdutil.DryRunNone && obj.GetNamespace() != "" {
+
+	// When an Argo CD Application specifies destination.namespace, that namespace
+	// may be propagated even for cluster-scoped resources. Passing a namespace in
+	// this case causes `kubectl auth reconcile` to fail with:
+	//   "namespaces <ns> not found"
+	// or may trigger unintended namespace handling behavior.
+	// Therefore, we skip namespace existence checks for cluster-scoped RBAC
+	// resources and allow reconcile to run without a namespace.
+	//
+	// https://github.com/argoproj/argo-cd/issues/24833
+	if dryRunStrategy == cmdutil.DryRunNone && obj.GetNamespace() != "" && !clusterScoped {
 		_, err = kubeClient.CoreV1().Namespaces().Get(ctx, obj.GetNamespace(), metav1.GetOptions{})
 		if err != nil {
 			return "", fmt.Errorf("error getting namespace %s: %w", obj.GetNamespace(), err)

@@ -595,6 +595,49 @@ stringData:
     }
 ```
 
+### Skipping Cluster Reconciliation
+
+You can prevent the application controller from reconciling all apps targeting a cluster by annotating its
+secret with `argocd.argoproj.io/skip-reconcile: "true"`. This uses the same annotation as
+[Skip Application Reconcile](../user-guide/skip_reconcile.md), but applied at the cluster level.
+
+The cluster remains visible in API responses (`argocd cluster list`), but the controller treats it as unmanaged.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+type: Opaque
+stringData:
+  name: mycluster.example.com
+  server: https://mycluster.example.com
+  config: |
+    {
+      "bearerToken": "<authentication token>",
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }
+    }
+```
+
+To skip an existing cluster:
+
+```bash
+kubectl -n argocd annotate secret mycluster-secret argocd.argoproj.io/skip-reconcile=true
+```
+
+To resume reconciliation:
+
+```bash
+kubectl -n argocd annotate secret mycluster-secret argocd.argoproj.io/skip-reconcile-
+```
+
 ### EKS
 
 EKS cluster secret example using argocd-k8s-auth and [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) and [Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html):
@@ -725,7 +768,7 @@ The 3 service accounts need to be modified to include an annotation with the Arg
 Here's an example service account configurations for `argocd-application-controller`, `argocd-applicationset-controller`, and `argocd-server`.
 
 > [!WARNING]
-Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
+> Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
 
 **for IRSA:**   
 ```yaml
