@@ -171,15 +171,13 @@ func Test_GlobCachingConcurrent(t *testing.T) {
 	numGoroutines := 100
 	errChan := make(chan error, numGoroutines)
 
-	for i := 0; i < numGoroutines; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range numGoroutines {
+		wg.Go(func() {
 			result := matchWithCompiler(pattern, text, compiler)
 			if !result {
 				errChan <- errors.New("expected match to return true")
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -201,7 +199,7 @@ func Test_GlobCacheLRUEviction(t *testing.T) {
 	resetGlobCacheForTest()
 
 	// Fill cache beyond DefaultGlobCacheSize
-	for i := 0; i < DefaultGlobCacheSize+100; i++ {
+	for i := range DefaultGlobCacheSize + 100 {
 		pattern := fmt.Sprintf("pattern-%d-*", i)
 		Match(pattern, "pattern-0-test")
 	}
@@ -279,7 +277,7 @@ func BenchmarkGlobCompile(b *testing.B) {
 // 50 policies × 1 app = what happens per application in List
 func BenchmarkMatch_RBACSimulation(b *testing.B) {
 	patterns := make([]string, 50)
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		patterns[i] = fmt.Sprintf("proj:team-%d/*", i)
 	}
 	text := "proj:team-25/my-app"
