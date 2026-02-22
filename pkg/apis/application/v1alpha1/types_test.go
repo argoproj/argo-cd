@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 
 	argocdcommon "github.com/argoproj/argo-cd/v3/common"
 
@@ -3648,7 +3647,7 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	retry := RetryStrategy{
 		Backoff: &Backoff{
 			Duration:    "2s",
-			Factor:      ptr.To(int64(3)),
+			Factor:      new(int64(3)),
 			MaxDuration: "1m",
 		},
 	}
@@ -3757,10 +3756,10 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	settings := OrphanedResourcesMonitorSettings{}
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = ptr.To(false)
+	settings.Warn = new(false)
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = ptr.To(true)
+	settings.Warn = new(true)
 	assert.True(t, settings.IsWarn())
 }
 
@@ -4162,7 +4161,7 @@ func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "version",
-			String_: ptr.To("1.2.3"),
+			String_: new("1.2.3"),
 		},
 	}
 	environ, err := params.Environ()
@@ -4219,7 +4218,7 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "some-name",
-			String_: ptr.To("1.2.3"),
+			String_: new("1.2.3"),
 			OptionalArray: &OptionalArray{
 				Array: []string{"redis", "minio"},
 			},

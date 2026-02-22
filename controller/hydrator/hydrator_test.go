@@ -15,7 +15,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 
@@ -362,7 +361,7 @@ func setTestAppPhase(app *v1alpha1.Application, phase v1alpha1.HydrateOperationP
 		status = v1alpha1.SourceHydratorStatus{
 			CurrentOperation: &v1alpha1.HydrateOperation{
 				StartedAt:      metav1.Now(),
-				FinishedAt:     ptr.To(metav1.Now()),
+				FinishedAt:     new(metav1.Now()),
 				Phase:          phase,
 				Message:        "some error",
 				SourceHydrator: *app.Spec.SourceHydrator,
@@ -373,7 +372,7 @@ func setTestAppPhase(app *v1alpha1.Application, phase v1alpha1.HydrateOperationP
 		status = v1alpha1.SourceHydratorStatus{
 			CurrentOperation: &v1alpha1.HydrateOperation{
 				StartedAt:      metav1.Now(),
-				FinishedAt:     ptr.To(metav1.Now()),
+				FinishedAt:     new(metav1.Now()),
 				Phase:          phase,
 				DrySHA:         "12345",
 				HydratedSHA:    "67890",
