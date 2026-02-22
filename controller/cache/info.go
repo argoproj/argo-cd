@@ -3,9 +3,11 @@ package cache
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -67,6 +69,13 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 			populateIstioVirtualServiceInfo(un, res)
 		case "ServiceEntry":
 			populateIstioServiceEntryInfo(un, res)
+		}
+	case "gateway.networking.k8s.io":
+		switch gvk.Kind {
+		case "HTTPRoute", "GRPCRoute", "TCPRoute", "TLSRoute", "UDPRoute":
+			populateGatewayAPIRouteInfo(un, res)
+		case "Gateway":
+			populateGatewayInfo(un, res)
 		}
 	case "argoproj.io":
 		if gvk.Kind == "Application" {
@@ -306,6 +315,266 @@ func populateIstioServiceEntryInfo(un *unstructured.Unstructured, res *ResourceI
 		TargetRefs: []v1alpha1.ResourceRef{{
 			Kind: kube.PodKind,
 		}},
+	}
+}
+
+func getGatewayAddresses(un *unstructured.Unstructured) []corev1.LoadBalancerIngress {
+	addresses, ok, err := unstructured.NestedSlice(un.Object, "status", "addresses")
+	if !ok || err != nil {
+		if err != nil {
+			log.Warnf("Failed to get addresses for Gateway %s/%s: %v", un.GetNamespace(), un.GetName(), err)
+		}
+		return nil
+	}
+	res := make([]corev1.LoadBalancerIngress, 0)
+	for _, item := range addresses {
+		addr, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		addrType, _, errType := unstructured.NestedString(addr, "type")
+		if errType != nil {
+			log.Warnf("Failed to get address type for Gateway %s/%s: %v", un.GetNamespace(), un.GetName(), errType)
+		}
+		value, _, errValue := unstructured.NestedString(addr, "value")
+		if errValue != nil {
+			log.Warnf("Failed to get address value for Gateway %s/%s: %v", un.GetNamespace(), un.GetName(), errValue)
+		}
+		if value == "" {
+			continue
+		}
+		switch addrType {
+		case "Hostname":
+			res = append(res, corev1.LoadBalancerIngress{Hostname: value})
+		case "IPAddress", "":
+			// IPAddress is default per Gateway API spec
+			res = append(res, corev1.LoadBalancerIngress{IP: value})
+		}
+	}
+	return res
+}
+
+func generateGatewayURLs(un *unstructured.Unstructured, addresses []corev1.LoadBalancerIngress) []string {
+	urlsSet := make(map[string]bool)
+
+	listeners, ok, err := unstructured.NestedSlice(un.Object, "spec", "listeners")
+	if !ok || err != nil {
+		if err != nil {
+			log.Warnf("Failed to get listeners for Gateway %s/%s: %v", un.GetNamespace(), un.GetName(), err)
+		}
+		return nil
+	}
+
+	for _, listener := range listeners {
+		listenerMap, ok := listener.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		hostname, _, errHostname := unstructured.NestedString(listenerMap, "hostname")
+		if errHostname != nil {
+			log.Warnf("Failed to get hostname for Gateway %s/%s listener: %v", un.GetNamespace(), un.GetName(), errHostname)
+		}
+		protocol, _, errProtocol := unstructured.NestedString(listenerMap, "protocol")
+		if errProtocol != nil {
+			log.Warnf("Failed to get protocol for Gateway %s/%s listener: %v", un.GetNamespace(), un.GetName(), errProtocol)
+		}
+
+		// Port can come as int64 or float64 depending on parsing
+		var port int64
+		if portVal, exists := listenerMap["port"]; exists {
+			switch v := portVal.(type) {
+			case int64:
+				port = v
+			case float64:
+				port = int64(v)
+			case int:
+				port = int64(v)
+			default:
+				log.Warnf("Unsupported port type %T for Gateway %s/%s listener", portVal, un.GetNamespace(), un.GetName())
+			}
+		}
+
+		scheme := "http"
+		if protocol == "HTTPS" || protocol == "TLS" {
+			scheme = "https"
+		}
+
+		// Use listener hostname if specified, otherwise use addresses
+		hosts := []string{}
+		if hostname != "" && hostname != "*" {
+			hosts = append(hosts, hostname)
+		} else {
+			for _, addr := range addresses {
+				if addr.Hostname != "" {
+					hosts = append(hosts, addr.Hostname)
+				} else if addr.IP != "" {
+					hosts = append(hosts, addr.IP)
+				}
+			}
+		}
+
+		for _, host := range hosts {
+			urlStr := fmt.Sprintf("%s://%s", scheme, host)
+			// Add non-standard ports
+			if (scheme == "http" && port != 80) || (scheme == "https" && port != 443) {
+				urlStr = fmt.Sprintf("%s:%d", urlStr, port)
+			}
+			if _, err := url.Parse(urlStr); err != nil {
+				log.Warnf("Invalid URL generated for Gateway %s/%s: %s", un.GetNamespace(), un.GetName(), urlStr)
+				continue
+			}
+			urlsSet[urlStr] = true
+		}
+	}
+
+	urls := make([]string, 0, len(urlsSet))
+	for u := range urlsSet {
+		urls = append(urls, u)
+	}
+	return urls
+}
+
+func populateGatewayInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	ingress := getGatewayAddresses(un)
+
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
+
+	// Check for ignore default links annotation
+	enableDefaultExternalURLs := true
+	if ignoreVal, ok := un.GetAnnotations()[common.AnnotationKeyIgnoreDefaultLinks]; ok {
+		if ignoreDefaultLinks, err := strconv.ParseBool(ignoreVal); err == nil {
+			enableDefaultExternalURLs = !ignoreDefaultLinks
+		}
+	}
+
+	if enableDefaultExternalURLs {
+		generatedURLs := generateGatewayURLs(un, ingress)
+		urls = append(urls, generatedURLs...)
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{
+		Ingress:      ingress,
+		ExternalURLs: urls,
+	}
+}
+
+func populateGatewayAPIRouteInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	targetsMap := make(map[v1alpha1.ResourceRef]bool)
+
+	// Extract parent refs (Gateway references)
+	parentRefs, ok, err := unstructured.NestedSlice(un.Object, "spec", "parentRefs")
+	if err != nil {
+		log.Warnf("Failed to get parentRefs for %s %s/%s: %v", un.GetKind(), un.GetNamespace(), un.GetName(), err)
+	}
+	if ok && err == nil {
+		for _, parentRef := range parentRefs {
+			parent, ok := parentRef.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			name, _, errName := unstructured.NestedString(parent, "name")
+			if errName != nil {
+				log.Warnf("Failed to get parentRef name for %s %s/%s: %v", un.GetKind(), un.GetNamespace(), un.GetName(), errName)
+			}
+			if name == "" {
+				continue
+			}
+
+			// Namespace defaults to HTTPRoute's namespace
+			namespace, found, _ := unstructured.NestedString(parent, "namespace")
+			if !found || namespace == "" {
+				namespace = un.GetNamespace()
+			}
+
+			// Group defaults to "gateway.networking.k8s.io"
+			group, found, _ := unstructured.NestedString(parent, "group")
+			if !found || group == "" {
+				group = "gateway.networking.k8s.io"
+			}
+
+			// Kind defaults to "Gateway"
+			kind, found, _ := unstructured.NestedString(parent, "kind")
+			if !found || kind == "" {
+				kind = "Gateway"
+			}
+
+			targetsMap[v1alpha1.ResourceRef{
+				Group:     group,
+				Kind:      kind,
+				Namespace: namespace,
+				Name:      name,
+			}] = true
+		}
+	}
+
+	// Extract backend refs from all rules
+	rules, ok, err := unstructured.NestedSlice(un.Object, "spec", "rules")
+	if ok && err == nil {
+		for _, rule := range rules {
+			ruleMap, ok := rule.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			backendRefs, ok, err := unstructured.NestedSlice(ruleMap, "backendRefs")
+			if !ok || err != nil {
+				continue
+			}
+
+			for _, backendRef := range backendRefs {
+				backend, ok := backendRef.(map[string]any)
+				if !ok {
+					continue
+				}
+
+				name, _, _ := unstructured.NestedString(backend, "name")
+				if name == "" {
+					continue
+				}
+
+				// Namespace defaults to HTTPRoute's namespace if not specified
+				namespace, found, _ := unstructured.NestedString(backend, "namespace")
+				if !found || namespace == "" {
+					namespace = un.GetNamespace()
+				}
+
+				// Group defaults to "" (core API) if not specified
+				group, _, _ := unstructured.NestedString(backend, "group")
+
+				// Kind defaults to "Service" if not specified
+				kind, found, _ := unstructured.NestedString(backend, "kind")
+				if !found || kind == "" {
+					kind = kube.ServiceKind
+				}
+
+				targetsMap[v1alpha1.ResourceRef{
+					Group:     group,
+					Kind:      kind,
+					Namespace: namespace,
+					Name:      name,
+				}] = true
+			}
+		}
+	}
+
+	targets := make([]v1alpha1.ResourceRef, 0, len(targetsMap))
+	for target := range targetsMap {
+		targets = append(targets, target)
+	}
+
+	var urls []string
+	if res.NetworkingInfo != nil {
+		urls = res.NetworkingInfo.ExternalURLs
+	}
+
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{
+		TargetRefs:   targets,
+		ExternalURLs: urls,
 	}
 }
 
