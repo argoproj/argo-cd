@@ -37,8 +37,9 @@ type HealthOverride interface {
 
 // Holds health assessment results
 type HealthStatus struct {
-	Status  HealthStatusCode `json:"status,omitempty"`
-	Message string           `json:"message,omitempty"`
+	Status      HealthStatusCode `json:"status,omitempty"`
+	Message     string           `json:"message,omitempty"`
+	AggregateAs HealthStatusCode `json:"aggregateAs,omitempty"`
 }
 
 // healthOrder is a list of health codes in order of most healthy to least healthy
