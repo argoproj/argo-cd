@@ -74,7 +74,7 @@ func (p *AWSCodeCommitProvider) ListRepos(ctx context.Context, cloneProtocol str
 
 	for _, repoName := range repoNames {
 		repo, err := p.codeCommitClient.GetRepositoryWithContext(ctx, &codecommit.GetRepositoryInput{
-			RepositoryName: aws.String(repoName),
+			RepositoryName: new(repoName),
 		})
 		if err != nil {
 			// we don't want to skip at this point. It's a valid repo, we don't want to have flapping Application on an AWS outage.
@@ -138,9 +138,9 @@ func (p *AWSCodeCommitProvider) RepoHasPath(ctx context.Context, repo *Repositor
 	basePath := pathpkg.Base(path)
 
 	input := &codecommit.GetFolderInput{
-		CommitSpecifier: aws.String(repo.Branch),
-		FolderPath:      aws.String(parentPath),
-		RepositoryName:  aws.String(repo.Repository),
+		CommitSpecifier: new(repo.Branch),
+		FolderPath:      new(parentPath),
+		RepositoryName:  new(repo.Repository),
 	}
 	output, err := p.codeCommitClient.GetFolderWithContext(ctx, input)
 	if err != nil {
@@ -183,7 +183,7 @@ func (p *AWSCodeCommitProvider) GetBranches(ctx context.Context, repo *Repositor
 	repos := make([]*Repository, 0)
 	if !p.allBranches {
 		output, err := p.codeCommitClient.GetRepositoryWithContext(ctx, &codecommit.GetRepositoryInput{
-			RepositoryName: aws.String(repo.Repository),
+			RepositoryName: new(repo.Repository),
 		})
 		if err != nil {
 			return nil, err
@@ -201,7 +201,7 @@ func (p *AWSCodeCommitProvider) GetBranches(ctx context.Context, repo *Repositor
 		})
 	} else {
 		input := &codecommit.ListBranchesInput{
-			RepositoryName: aws.String(repo.Repository),
+			RepositoryName: new(repo.Repository),
 		}
 		for {
 			output, err := p.codeCommitClient.ListBranchesWithContext(ctx, input)
@@ -290,12 +290,12 @@ func (p *AWSCodeCommitProvider) getTagFilters() []*resourcegroupstaggingapi.TagF
 		filter, hasKey := filters[tagFilter.Key]
 		if !hasKey {
 			filter = &resourcegroupstaggingapi.TagFilter{
-				Key: aws.String(tagFilter.Key),
+				Key: new(tagFilter.Key),
 			}
 			filters[tagFilter.Key] = filter
 		}
 		if tagFilter.Value != "" {
-			filter.Values = append(filter.Values, aws.String(tagFilter.Value))
+			filter.Values = append(filter.Values, new(tagFilter.Value))
 		}
 	}
 	return slices.Collect(maps.Values(filters))
@@ -366,7 +366,7 @@ func createAWSDiscoveryClients(_ context.Context, role string, region string) (*
 	if region != "" {
 		log.Debugf("region %s is provided for AWS CodeCommit discovery", region)
 		discoverySession = discoverySession.Copy(&aws.Config{
-			Region: aws.String(region),
+			Region: new(region),
 		})
 	} else {
 		log.Debugf("region is not provided for AWS CodeCommit discovery, using pod region")

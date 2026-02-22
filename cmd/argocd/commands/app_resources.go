@@ -20,7 +20,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
@@ -337,14 +336,14 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			_, err = appIf.PatchResource(ctx, &applicationpkg.ApplicationResourcePatchRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(obj.GetName()),
-				Version:      ptr.To(gvk.Version),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Patch:        ptr.To(patch),
-				PatchType:    ptr.To(patchType),
-				Project:      ptr.To(project),
+				Namespace:    new(obj.GetNamespace()),
+				ResourceName: new(obj.GetName()),
+				Version:      new(gvk.Version),
+				Group:        new(gvk.Group),
+				Kind:         new(gvk.Kind),
+				Patch:        new(patch),
+				PatchType:    new(patchType),
+				Project:      new(project),
 			})
 			errors.CheckError(err)
 			log.Infof("Resource '%s' patched", obj.GetName())
@@ -410,14 +409,14 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 				_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
 					Name:         &appName,
 					AppNamespace: &appNs,
-					Namespace:    ptr.To(obj.GetNamespace()),
-					ResourceName: ptr.To(obj.GetName()),
-					Version:      ptr.To(gvk.Version),
-					Group:        ptr.To(gvk.Group),
-					Kind:         ptr.To(gvk.Kind),
+					Namespace:    new(obj.GetNamespace()),
+					ResourceName: new(obj.GetName()),
+					Version:      new(gvk.Version),
+					Group:        new(gvk.Group),
+					Kind:         new(gvk.Kind),
 					Force:        &force,
 					Orphan:       &orphan,
-					Project:      ptr.To(project),
+					Project:      new(project),
 				})
 				errors.CheckError(err)
 				log.Infof("Resource '%s' deleted", obj.GetName())

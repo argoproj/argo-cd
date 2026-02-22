@@ -14,7 +14,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/utils/ptr"
 )
 
 func Test_loadClusters(t *testing.T) {
@@ -74,7 +73,7 @@ func Test_loadClusters(t *testing.T) {
 				},
 				ServerVersion: ".",
 			},
-			Shard: ptr.To(int64(0)),
+			Shard: new(int64(0)),
 		},
 		Namespaces: []string{"test"},
 	}}

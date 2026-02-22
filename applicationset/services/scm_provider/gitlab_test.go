@@ -1100,7 +1100,7 @@ func TestGitlabListRepos(t *testing.T) {
 			url:   "git@gitlab.com:test-argocd-proton/argocd.git",
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
 				{
-					LabelMatch: strp("test-topic"),
+					LabelMatch: new("test-topic"),
 				},
 			},
 		},
