@@ -68,7 +68,7 @@ Upon opening a PR, the details will contain a checklist from a template. Please 
 After you have submitted your PR, and whenever you push new commits to that branch, GitHub will run a number of Continuous Integration checks against your code. It will execute the following actions, and each of them has to pass:
 
 * Build the Go code (`make build`)
-* Generate API glue code and manifests (`make codegen`)
+* Generate API glue code and manifests (`make codegen-local`)
 * Run a Go linter on the code (`make lint`)
 * Run the unit tests (`make test`)
 * Run the End-to-End tests (`make test-e2e`)
