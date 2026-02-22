@@ -64,6 +64,15 @@ func (r *redisCache) getKey(key string) string {
 	}
 }
 
+func (r *redisCache) getKeyPattern(key string) string {
+	switch r.redisCompressionType {
+	case RedisCompressionGZip:
+		return key + "*" + ".gz"
+	default:
+		return key + "*"
+	}
+}
+
 func (r *redisCache) marshal(obj any) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 	var w io.Writer = buf
@@ -146,6 +155,23 @@ func (r *redisCache) Get(key string, obj any) error {
 
 func (r *redisCache) Delete(key string) error {
 	return r.cache.Delete(context.TODO(), r.getKey(key))
+}
+
+func (r *redisCache) DeleteByPattern(key string) error {
+	// we are using go-redis/cache/v9 which doesn't support pattern-based deletion, so we need to do it ourselves
+	ctx := context.TODO()
+	iter := r.client.Scan(ctx, 0, r.getKeyPattern(key), 0).Iterator()
+	var keysToDelete []string
+	for iter.Next(ctx) {
+		keysToDelete = append(keysToDelete, iter.Val())
+	}
+	if err := iter.Err(); err != nil {
+		return err
+	}
+	if len(keysToDelete) == 0 {
+		return nil
+	}
+	return r.client.Unlink(ctx, keysToDelete...).Err()
 }
 
 func (r *redisCache) OnUpdated(ctx context.Context, key string, callback func() error) error {

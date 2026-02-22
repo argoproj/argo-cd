@@ -119,6 +119,8 @@ type gitRefCache interface {
 	SetGitReferences(repo string, references []*plumbing.Reference) error
 	GetOrLockGitReferences(repo string, lockId string, references *[]*plumbing.Reference) (string, error)
 	UnlockGitReferences(repo string, lockId string) error
+	SetResolvedGitReference(repo, revision, sha string) error
+	GetResolvedGitReference(repo, revision string) (string, error)
 }
 
 // Client is a generic git client interface
@@ -754,6 +756,19 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		return revision, nil
 	}
 
+	// Check if we already resolved this revision recently. This is particularly beneficial
+	// when many applications point to the same repository and sync within the same cache window,
+	// as it avoids loading the full ref list (which can be 500k+ refs) from Redis on every request.
+	if m.gitRefCache != nil && m.loadRefFromCache {
+		cachedSHA, err := m.gitRefCache.GetResolvedGitReference(m.repoURL, revision)
+		if err == nil && cachedSHA != "" {
+			log.Debugf("LsRemote resolved revision '%s' to cached SHA '%s'", revision, cachedSHA)
+			return cachedSHA, nil
+		} else if err != nil {
+			log.Debugf("Error getting resolved git reference from cache: %v", err)
+		}
+	}
+
 	refs, err := m.getRefs()
 	if err != nil {
 		return "", fmt.Errorf("failed to list refs: %w", err)
@@ -776,6 +791,15 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	// symbolic reference (like HEAD), in which case we will resolve it from the refToHash map
 	refToResolve := ""
 
+	// function that saves resolved revision to cache if caching is enabled
+	saveResolvedRevisionToCache := func(resolvedSHA string) {
+		if m.gitRefCache != nil {
+			if err := m.gitRefCache.SetResolvedGitReference(m.repoURL, revision, resolvedSHA); err != nil {
+				log.Warnf("Failed to store resolved git reference to cache: %v", err)
+			}
+		}
+	}
+
 	for _, ref := range refs {
 		refName := ref.Name().String()
 		hash := ref.Hash().String()
@@ -786,6 +810,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		if ref.Name().Short() == revision || refName == revision {
 			if ref.Type() == plumbing.HashReference {
 				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
+				saveResolvedRevisionToCache(hash)
 				return hash, nil
 			}
 			if ref.Type() == plumbing.SymbolicReference {
@@ -799,6 +824,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		// It should exist in our refToHash map
 		if hash, ok := refToHash[refToResolve]; ok {
 			log.Debugf("symbolic reference '%s' (%s) resolved to '%s'", revision, refToResolve, hash)
+			saveResolvedRevisionToCache(hash)
 			return hash, nil
 		}
 	}
@@ -806,6 +832,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	// We support the ability to use a truncated commit-SHA (e.g. first 7 characters of a SHA)
 	if IsTruncatedCommitSHA(revision) {
 		log.Debugf("revision '%s' assumed to be commit sha", revision)
+		saveResolvedRevisionToCache(revision)
 		return revision, nil
 	}
 

@@ -67,6 +67,14 @@ func (c *twoLevelClient) Delete(key string) error {
 	return c.externalCache.Delete(key)
 }
 
+func (c *twoLevelClient) DeleteByPattern(key string) error {
+	err := c.inMemoryCache.DeleteByPattern(key)
+	if err != nil {
+		return err
+	}
+	return c.externalCache.DeleteByPattern(key)
+}
+
 func (c *twoLevelClient) OnUpdated(ctx context.Context, key string, callback func() error) error {
 	return c.externalCache.OnUpdated(ctx, key, callback)
 }
