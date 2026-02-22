@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"reflect"
 	"strconv"
@@ -2275,11 +2276,29 @@ func replaceListSecrets(obj []any, secretValues map[string]string) []any {
 	return newObj
 }
 
-// ReplaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map
+// ReplaceStringSecret checks if given string is a secret key reference (starts with $) and returns
+// the corresponding value from the provided map.
+//
+// Supported reference formats:
+//   - $key                  - resolves from argocd-secret
+//   - $secretName:key       - resolves from a labeled Kubernetes Secret
+//   - $file:/path/to/file   - resolves from a file on disk (e.g., mounted via Secrets Store CSI Driver)
 func ReplaceStringSecret(val string, secretValues map[string]string) string {
 	if val == "" || !strings.HasPrefix(val, "$") {
 		return val
 	}
+
+	// File-based secret reference: $file:/path/to/secret
+	if strings.HasPrefix(val, "$file:") {
+		filePath := val[len("$file:"):]
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			log.Warnf("config referenced file '%s', but could not read: %v", filePath, err)
+			return val
+		}
+		return strings.TrimSpace(string(data))
+	}
+
 	secretKey := val[1:]
 	secretVal, ok := secretValues[secretKey]
 	if !ok {
