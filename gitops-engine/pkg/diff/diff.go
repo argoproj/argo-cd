@@ -1000,13 +1000,14 @@ func normalizeRole(un *unstructured.Unstructured, o options) {
 	if un == nil {
 		return
 	}
+
 	gvk := un.GroupVersionKind()
 	if gvk.Group != "rbac.authorization.k8s.io" || (gvk.Kind != "Role" && gvk.Kind != "ClusterRole") {
 		return
 	}
 
 	// Check whether the role we're checking is an aggregation role. If it is, we ignore any differences in rules.
-	if o.ignoreAggregatedRoles {
+	if o.ignoreAggregatedRoles && !o.serverSideDiff {
 		aggrIf, ok := un.Object["aggregationRule"]
 		if ok {
 			_, ok = aggrIf.(map[string]any)
