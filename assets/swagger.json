@@ -818,7 +818,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1EventList"
+              "$ref": "#/definitions/protobufStruct"
             }
           },
           "default": {
@@ -2291,7 +2291,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1EventList"
+              "$ref": "#/definitions/protobufStruct"
             }
           },
           "default": {
@@ -3126,7 +3126,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1EventList"
+              "$ref": "#/definitions/protobufStruct"
             }
           },
           "default": {
@@ -5923,6 +5923,11 @@
           "format": "byte"
         }
       }
+    },
+    "protobufStruct": {
+      "type": "object",
+      "description": "Struct represents a structured data value, consisting of fields which map to dynamically typed values.",
+      "additionalProperties": {}
     },
     "repocredsRepoCredsResponse": {
       "type": "object",

@@ -783,3 +783,196 @@ func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {
 	})
 	return enforcer
 }
+
+func TestListEvents(t *testing.T) {
+	existingProj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-project",
+			Namespace: testNamespace,
+			UID:       "test-project-uid",
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+
+	t.Run("ListEvents returns empty list for project without events", func(t *testing.T) {
+		kubeclientset := fake.NewClientset(&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "argocd-cm",
+				Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			},
+		}, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: testNamespace},
+			Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+		})
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, testNamespace)
+		enforcer := newEnforcer(kubeclientset)
+		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+		argoDB := db.NewDB(testNamespace, settingsMgr, kubeclientset)
+
+		projInformer := informer.NewSharedInformerFactory(apps.NewSimpleClientset(existingProj), 0).Argoproj().V1alpha1().AppProjects().Informer()
+		go projInformer.Run(t.Context().Done())
+		k8scache.WaitForCacheSync(t.Context().Done(), projInformer.HasSynced)
+
+		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+		res, err := projectServer.ListEvents(t.Context(), &project.ProjectQuery{Name: existingProj.Name})
+		require.NoError(t, err)
+		require.NotNil(t, res)
+
+		// Verify the Struct has the expected structure
+		// When there are no events, items may be null or an empty list depending on K8s response
+		itemsField := res.Fields["items"]
+		if itemsField != nil {
+			items := itemsField.GetListValue()
+			if items != nil {
+				assert.Empty(t, items.Values, "items should be empty when no events exist")
+			}
+		}
+
+		assert.NotNil(t, res.Fields["metadata"], "response should have metadata field")
+	})
+
+	t.Run("ListEvents returns events for project", func(t *testing.T) {
+		// Create events associated with the project
+		event1 := &corev1.Event{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-event-1",
+				Namespace: testNamespace,
+			},
+			InvolvedObject: corev1.ObjectReference{
+				Name:      existingProj.Name,
+				Namespace: existingProj.Namespace,
+				UID:       existingProj.UID,
+			},
+			Reason:  "ProjectCreated",
+			Message: "Project was created",
+			Type:    corev1.EventTypeNormal,
+		}
+		event2 := &corev1.Event{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-event-2",
+				Namespace: testNamespace,
+			},
+			InvolvedObject: corev1.ObjectReference{
+				Name:      existingProj.Name,
+				Namespace: existingProj.Namespace,
+				UID:       existingProj.UID,
+			},
+			Reason:  "ProjectUpdated",
+			Message: "Project was updated",
+			Type:    corev1.EventTypeNormal,
+		}
+
+		kubeclientset := fake.NewClientset(&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "argocd-cm",
+				Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			},
+		}, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: testNamespace},
+			Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+		}, event1, event2)
+
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, testNamespace)
+		enforcer := newEnforcer(kubeclientset)
+		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+		argoDB := db.NewDB(testNamespace, settingsMgr, kubeclientset)
+
+		projInformer := informer.NewSharedInformerFactory(apps.NewSimpleClientset(existingProj), 0).Argoproj().V1alpha1().AppProjects().Informer()
+		go projInformer.Run(t.Context().Done())
+		k8scache.WaitForCacheSync(t.Context().Done(), projInformer.HasSynced)
+
+		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+		res, err := projectServer.ListEvents(t.Context(), &project.ProjectQuery{Name: existingProj.Name})
+		require.NoError(t, err)
+		require.NotNil(t, res)
+
+		// Verify the Struct has the expected structure
+		items := res.Fields["items"].GetListValue()
+		require.NotNil(t, items, "items should be a list")
+		assert.Len(t, items.Values, 2, "should have 2 events")
+
+		// Verify event content is preserved in the Struct
+		var eventNames []string
+		for _, item := range items.Values {
+			itemStruct := item.GetStructValue()
+			require.NotNil(t, itemStruct, "each item should be a struct")
+
+			metadata := itemStruct.Fields["metadata"].GetStructValue()
+			require.NotNil(t, metadata, "event should have metadata")
+			eventNames = append(eventNames, metadata.Fields["name"].GetStringValue())
+
+			// Verify reason and message fields are present
+			assert.NotEmpty(t, itemStruct.Fields["reason"].GetStringValue())
+			assert.NotEmpty(t, itemStruct.Fields["message"].GetStringValue())
+		}
+		assert.Contains(t, eventNames, "test-event-1")
+		assert.Contains(t, eventNames, "test-event-2")
+	})
+
+	t.Run("ListEvents returns error for non-existent project", func(t *testing.T) {
+		kubeclientset := fake.NewClientset(&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "argocd-cm",
+				Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			},
+		}, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: testNamespace},
+			Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+		})
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, testNamespace)
+		enforcer := newEnforcer(kubeclientset)
+		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+		argoDB := db.NewDB(testNamespace, settingsMgr, kubeclientset)
+
+		projInformer := informer.NewSharedInformerFactory(apps.NewSimpleClientset(existingProj), 0).Argoproj().V1alpha1().AppProjects().Informer()
+		go projInformer.Run(t.Context().Done())
+		k8scache.WaitForCacheSync(t.Context().Done(), projInformer.HasSynced)
+
+		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+		_, err := projectServer.ListEvents(t.Context(), &project.ProjectQuery{Name: "non-existent"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("ListEvents denied without permission", func(t *testing.T) {
+		kubeclientset := fake.NewClientset(&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      "argocd-cm",
+				Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			},
+		}, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: testNamespace},
+			Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
+		})
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, testNamespace)
+		enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
+		_ = enforcer.SetBuiltinPolicy(`p, *, *, *, *, deny`)
+		enforcer.SetClaimsEnforcerFunc(nil)
+		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+		argoDB := db.NewDB(testNamespace, settingsMgr, kubeclientset)
+
+		projInformer := informer.NewSharedInformerFactory(apps.NewSimpleClientset(existingProj), 0).Argoproj().V1alpha1().AppProjects().Informer()
+		go projInformer.Run(t.Context().Done())
+		k8scache.WaitForCacheSync(t.Context().Done(), projInformer.HasSynced)
+
+		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+		//nolint:staticcheck
+		ctx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"groups": []string{"my-group"}})
+		_, err := projectServer.ListEvents(ctx, &project.ProjectQuery{Name: existingProj.Name})
+		require.Error(t, err)
+		statusErr, ok := status.FromError(err)
+		require.True(t, ok)
+		assert.Equal(t, codes.PermissionDenied, statusErr.Code())
+	})
+}
