@@ -46,6 +46,7 @@ export interface EditablePanelProps<T> {
     collapsible?: boolean;
     collapsed?: boolean;
     collapsedDescription?: string;
+    registered?: boolean;
 }
 
 function EditablePanel<T extends {} = {}>({
@@ -63,7 +64,8 @@ function EditablePanel<T extends {} = {}>({
     hasMultipleSources,
     collapsible,
     collapsed: collapsedProp = false,
-    collapsedDescription
+    collapsedDescription,
+    registered
 }: EditablePanelProps<T>) {
     const [isEditing, setIsEditing] = useState<boolean>(!!noReadonlyMode);
     const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -178,7 +180,7 @@ function EditablePanel<T extends {} = {}>({
                 <div className={classNames('white-box editable-panel', {'editable-panel--disabled': isSaving})}>
                     {floatingTitle && <div className='white-box--additional-top-space editable-panel__sticky-title'>{floatingTitle}</div>}
                     <div className='white-box__details'>
-                        {!noReadonlyMode && save && (
+                        {registered !== false && !noReadonlyMode && save && (
                             <div className='editable-panel__buttons' style={{right: collapsible ? '5em' : '3em'}}>
                                 {!isEditing && (
                                     <button

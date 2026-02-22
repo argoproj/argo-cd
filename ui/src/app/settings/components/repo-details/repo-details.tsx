@@ -6,9 +6,9 @@ import * as models from '../../../shared/models';
 import {NewHTTPSRepoParams} from '../repos-list/repos-list';
 import {AuthSettingsCtx} from '../../../shared/context';
 
-export const RepoDetails = (props: {repo: models.Repository; save?: (params: NewHTTPSRepoParams) => Promise<void>}) => {
+export const RepoDetails = (props: {repo: models.Repository; save?: (params: NewHTTPSRepoParams) => Promise<void>; registered?: boolean; applications?: models.Application[]}) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
-    const {repo, save} = props;
+    const {repo, save, registered = true, applications} = props;
     const write = false;
     const FormItems = (repository: models.Repository): EditablePanelItem[] => {
         const items: EditablePanelItem[] = [
@@ -40,6 +40,21 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
                 edit: (formApi: FormApi) => <FormField formApi={formApi} field='password' component={Text} componentProps={{type: 'password'}} />
             }
         ];
+
+        if (applications && applications.length > 0) {
+            items.push({
+                title: 'Applications',
+                view: (
+                    <div>
+                        {applications.map(app => (
+                            <div key={app.metadata.name}>
+                                <a href={`/applications/${app.metadata.name}`}>{app.metadata.name}</a>
+                            </div>
+                        ))}
+                    </div>
+                )
+            });
+        }
 
         if (repository.type === 'git') {
             items.push({
@@ -111,15 +126,19 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
                 password: !input.password && input.username && 'Password is required if username is given.',
                 bearerToken: input.password && input.bearerToken && 'Either the password or the bearer token must be set, but not both.'
             })}
-            save={async input => {
-                const params: NewHTTPSRepoParams = {...newRepo, write};
-                params.name = input.name || '';
-                params.username = input.username || '';
-                params.password = input.password || '';
-                params.bearerToken = input.bearerToken || '';
-                save(params);
-            }}
-            title='CONNECTED REPOSITORY'
+            save={
+                registered && save
+                    ? async input => {
+                          const params: NewHTTPSRepoParams = {...newRepo, write};
+                          params.name = input.name || '';
+                          params.username = input.username || '';
+                          params.password = input.password || '';
+                          params.bearerToken = input.bearerToken || '';
+                          save(params);
+                      }
+                    : undefined
+            }
+            title={registered ? 'CONNECTED REPOSITORY' : 'NOT REGISTERED REPOSITORY'}
             items={FormItems(repo)}
         />
     );

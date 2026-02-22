@@ -20,6 +20,10 @@ export const ConnectionStateIcon = (props: {state: models.ConnectionState}) => {
             className = 'fa fa-exclamation-circle';
             color = COLORS.connection_status.unknown;
             break;
+        case models.ConnectionStatuses.NotRegistered:
+            className = 'fa fa-exclamation-triangle';
+            color = COLORS.connection_status.notRegistered;
+            break;
     }
     return <i title={props.state.message || props.state.status} className={className} style={{color}} />;
 };
