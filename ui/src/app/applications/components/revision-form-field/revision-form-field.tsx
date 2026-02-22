@@ -11,6 +11,7 @@ interface RevisionFormFieldProps {
     formApi: FormApi;
     helpIconTop?: string;
     hideLabel?: boolean;
+    compact?: boolean;
     repoURL: string;
     fieldValue?: string;
     repoType?: string;
@@ -27,8 +28,13 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
     const selectedFilter = props.revisionType || filterType;
     const rowClass = props.hideLabel ? '' : ' argo-form-row';
     const rowPaddingRight = !props.revisionType ? '45px' : undefined;
+    const wrapperClassName = [props.compact ? '' : 'row' + rowClass, 'revision-form-field'].filter(Boolean).join(' ');
+    const wrapperStyle: React.CSSProperties = {
+        paddingRight: rowPaddingRight,
+        ...(props.compact ? {marginTop: 0, marginBottom: 0} : {})
+    };
     return (
-        <div className={'row' + rowClass + ' revision-form-field'} style={{paddingRight: rowPaddingRight}}>
+        <div className={wrapperClassName} style={wrapperStyle}>
             <div className='revision-form-field__main'>
                 <DataLoader
                     input={{repoURL: props.repoURL, filterType: selectedFilter}}
