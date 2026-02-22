@@ -3315,9 +3315,9 @@ func Test_populateHelmAppDetails(t *testing.T) {
 	assert.Len(t, res.Helm.ValueFiles, 5)
 }
 
-func Test_populateHelmAppDetailsWithRef2(t *testing.T) {
-	repoUrl := "https://github.com/foo/bar"
-	refRepoUrl := "https://github.com/foo/baz"
+func Test_populateHelmAppDetailsWithRef(t *testing.T) {
+	repoURL := "https://github.com/foo/bar"
+	refRepoURL := "https://github.com/foo/baz"
 	repoRoot := "./testdata/my-chart/"
 	refRoot := "./testdata/values-files/"
 	refName := "$values"
@@ -3331,8 +3331,8 @@ func Test_populateHelmAppDetailsWithRef2(t *testing.T) {
 		gitClient.EXPECT().Init().Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(refSha).Return(true)
 		gitClient.EXPECT().Checkout(refSha, mock.Anything).Return("", nil)
-		paths.EXPECT().GetPath(refRepoUrl).Return(refRoot, nil)
-		paths.EXPECT().GetPathIfExists(refRepoUrl).Return(refRoot)
+		paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+		paths.EXPECT().GetPathIfExists(refRepoURL).Return(refRoot)
 	}
 	refGitClient := &gitmocks.Client{}
 	refGitClient.EXPECT().LsRemote("main").Return(refSha, nil)
@@ -3348,17 +3348,17 @@ func Test_populateHelmAppDetailsWithRef2(t *testing.T) {
 	res := apiclient.RepoAppDetailsResponse{}
 	q := apiclient.RepoServerAppDetailsQuery{
 		Repo: &v1alpha1.Repository{
-			Repo: repoUrl,
+			Repo: repoURL,
 			Type: "git",
 		},
 		Source: &v1alpha1.ApplicationSource{
 			Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/dir/values.yaml"}},
 		},
 		RefSources: map[string]*v1alpha1.RefTarget{
-			refName: &v1alpha1.RefTarget{
+			refName: {
 				Repo: v1alpha1.Repository{
 					Type: "git",
-					Repo: refRepoUrl,
+					Repo: refRepoURL,
 				},
 				TargetRevision: refTargetRevision,
 			},
@@ -3368,16 +3368,16 @@ func Test_populateHelmAppDetailsWithRef2(t *testing.T) {
 	require.NoError(t, err)
 	err = service.populateHelmAppDetails(&res, appPath, appPath, sha, "main", &q, service.gitRepoPaths)
 	require.NoError(t, err)
-	assert.Equal(t, 1, len(res.Helm.Parameters))
+	assert.Len(t, res.Helm.Parameters, 1)
 	// The values must come from the referenced values file ./testdata/values-files/dir/values.yaml
 	for _, v := range res.Helm.Parameters {
 		require.NotNil(t, v)
-		assert.Equal(t, *v, v1alpha1.HelmParameter{Name: "values", Value: "yaml", ForceString: false})
+		assert.Equal(t, v1alpha1.HelmParameter{Name: "values", Value: "yaml", ForceString: false}, *v)
 	}
 }
 
 func Test_populateHelmAppDetailsWithRefSameRepoDiffRevision(t *testing.T) {
-	repoUrl := "https://github.com/foo/bar"
+	repoURL := "https://github.com/foo/bar"
 	repoRoot := "./testdata/my-chart/"
 	refName := "$values"
 	targetRevision := "main"
@@ -3394,16 +3394,16 @@ func Test_populateHelmAppDetailsWithRefSameRepoDiffRevision(t *testing.T) {
 	res := apiclient.RepoAppDetailsResponse{}
 	q := apiclient.RepoServerAppDetailsQuery{
 		Repo: &v1alpha1.Repository{
-			Repo: repoUrl,
+			Repo: repoURL,
 			Type: "git",
 		},
 		Source: &v1alpha1.ApplicationSource{
 			Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/my-chart-values.yaml"}},
 		},
 		RefSources: map[string]*v1alpha1.RefTarget{
-			"$values": &v1alpha1.RefTarget{
+			"$values": {
 				Repo: v1alpha1.Repository{
-					Repo: repoUrl,
+					Repo: repoURL,
 					Type: "git",
 				},
 				TargetRevision: "main",
@@ -3413,7 +3413,7 @@ func Test_populateHelmAppDetailsWithRefSameRepoDiffRevision(t *testing.T) {
 	appPath, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
 	err = service.populateHelmAppDetails(&res, appPath, appPath, sha, "main", &q, emptyTempPaths)
-	expMsg := fmt.Sprintf("cannot reference a different revision of the same repository (%s references \"%s\" which resolves to \"%s\" while the application references \"%s\" which resolves to \"%s\"", refName, refTargetRevision, refSha, targetRevision, sha)
+	expMsg := fmt.Sprintf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q", refName, refTargetRevision, refSha, targetRevision, sha)
 	require.ErrorContains(t, err, expMsg)
 }
 
