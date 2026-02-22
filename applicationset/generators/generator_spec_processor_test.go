@@ -556,3 +556,138 @@ func TestInterpolateGeneratorError(t *testing.T) {
 		})
 	}
 }
+
+func TestMergeGeneratorTemplate(t *testing.T) {
+	tests := []struct {
+		name                   string
+		generatorTemplate      argov1alpha1.ApplicationSetTemplate
+		applicationSetTemplate argov1alpha1.ApplicationSetTemplate
+		expected               argov1alpha1.ApplicationSetTemplate
+	}{
+		{
+			name: "empty generator template returns applicationSet template",
+			generatorTemplate: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{},
+				Spec:                       argov1alpha1.ApplicationSpec{},
+			},
+			applicationSetTemplate: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
+					Name: "app-{{number}}",
+					Labels: map[string]string{
+						"app": "test",
+					},
+				},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "default",
+					},
+				},
+			},
+			expected: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
+					Name: "app-{{number}}",
+					Labels: map[string]string{
+						"app": "test",
+					},
+				},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "default",
+					},
+				},
+			},
+		},
+		{
+			name: "generator template overrides applicationSet template",
+			generatorTemplate: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
+					Name: "pr-{{number}}",
+					Labels: map[string]string{
+						"type": "pr",
+					},
+				},
+				Spec: argov1alpha1.ApplicationSpec{},
+			},
+			applicationSetTemplate: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
+					Name: "app-{{number}}",
+					Labels: map[string]string{
+						"app": "test",
+					},
+				},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+				},
+			},
+			expected: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
+					Name: "pr-{{number}}",
+					Labels: map[string]string{
+						"app":  "test",
+						"type": "pr",
+					},
+				},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+				},
+			},
+		},
+		{
+			name: "generator template with spec merges with applicationSet template",
+			generatorTemplate: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "my-project",
+				},
+			},
+			applicationSetTemplate: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
+					Name: "app-{{number}}",
+				},
+				Spec: argov1alpha1.ApplicationSpec{
+					Destination: argov1alpha1.ApplicationDestination{
+						Server: "https://kubernetes.default.svc",
+					},
+				},
+			},
+			expected: argov1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
+					Name: "app-{{number}}",
+				},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "my-project",
+					Destination: argov1alpha1.ApplicationDestination{
+						Server: "https://kubernetes.default.svc",
+					},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Use PullRequestGenerator as it implements the Generator interface
+			gen := &PullRequestGenerator{}
+
+			// Create a ApplicationSetGenerator with the template
+			requestedGenerator := &argov1alpha1.ApplicationSetGenerator{
+				PullRequest: &argov1alpha1.PullRequestGenerator{
+					Template: tt.generatorTemplate,
+				},
+			}
+
+			result, err := mergeGeneratorTemplate(gen, requestedGenerator, tt.applicationSetTemplate)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected.Name, result.Name)
+			assert.Equal(t, tt.expected.Namespace, result.Namespace)
+			assert.Equal(t, tt.expected.Labels, result.Labels)
+			assert.Equal(t, tt.expected.Spec.Project, result.Spec.Project)
+			assert.Equal(t, tt.expected.Spec.Destination, result.Spec.Destination)
+		})
+	}
+}

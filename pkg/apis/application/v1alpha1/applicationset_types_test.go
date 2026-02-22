@@ -320,3 +320,109 @@ func TestSCMProviderGeneratorGitlab_WillIncludeSharedProjects(t *testing.T) {
 	settings.IncludeSharedProjects = ptr.To(true)
 	assert.True(t, settings.WillIncludeSharedProjects())
 }
+
+func TestApplicationSetTemplateMeta_IsEmpty(t *testing.T) {
+	tests := []struct {
+		name     string
+		meta     ApplicationSetTemplateMeta
+		expected bool
+	}{
+		{
+			name:     "empty meta returns true",
+			meta:     ApplicationSetTemplateMeta{},
+			expected: true,
+		},
+		{
+			name: "meta with labels returns false",
+			meta: ApplicationSetTemplateMeta{
+				Labels: map[string]string{"env": "prod"},
+			},
+			expected: false,
+		},
+		{
+			name: "meta with finalizers returns false",
+			meta: ApplicationSetTemplateMeta{
+				Finalizers: []string{"finalizer.argocd.io"},
+			},
+			expected: false,
+		},
+		{
+			name: "meta with all fields returns false",
+			meta: ApplicationSetTemplateMeta{
+				Name:        "test-app",
+				Namespace:   "default",
+				Labels:      map[string]string{"env": "prod"},
+				Annotations: map[string]string{"key": "value"},
+				Finalizers:  []string{"finalizer.argocd.io"},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.meta.IsEmpty()
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestApplicationSetTemplate_IsEmpty(t *testing.T) {
+	tests := []struct {
+		name     string
+		template ApplicationSetTemplate
+		expected bool
+	}{
+		{
+			name:     "empty template returns true",
+			template: ApplicationSetTemplate{},
+			expected: true,
+		},
+		{
+			name: "template with non-empty meta returns false",
+			template: ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: ApplicationSetTemplateMeta{
+					Name: "test-app",
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "template with non-empty spec returns false",
+			template: ApplicationSetTemplate{
+				Spec: ApplicationSpec{
+					Project: "default",
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "template with both meta and spec non-empty returns false",
+			template: ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: ApplicationSetTemplateMeta{
+					Name: "test-app",
+				},
+				Spec: ApplicationSpec{
+					Project: "default",
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "template with labels in meta returns false",
+			template: ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: ApplicationSetTemplateMeta{
+					Labels: map[string]string{"app": "test"},
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.template.IsEmpty()
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

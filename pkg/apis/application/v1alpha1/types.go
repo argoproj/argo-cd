@@ -102,6 +102,22 @@ type ApplicationSpec struct {
 	SourceHydrator *SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,9,opt,name=sourceHydrator"`
 }
 
+// IsEmpty returns true if the ApplicationSpec is considered empty
+func (spec *ApplicationSpec) IsEmpty() bool {
+	return spec == nil ||
+		(spec.Source.IsZero() &&
+			spec.Sources.IsZero() &&
+			spec.Destination.Server == "" &&
+			spec.Destination.Namespace == "" &&
+			spec.Destination.Name == "" &&
+			spec.Project == "" &&
+			spec.SyncPolicy.IsZero() &&
+			len(spec.IgnoreDifferences) == 0 &&
+			len(spec.Info) == 0 &&
+			spec.RevisionHistoryLimit == nil &&
+			spec.SourceHydrator == nil)
+}
+
 type IgnoreDifferences []ResourceIgnoreDifferences
 
 func (id IgnoreDifferences) Equals(other IgnoreDifferences) bool {
