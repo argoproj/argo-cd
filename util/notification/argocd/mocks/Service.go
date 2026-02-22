@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/notification/expression/shared"
 	mock "github.com/stretchr/testify/mock"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 // NewService creates a new instance of Service. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -103,6 +104,80 @@ func (_c *Service_GetAppDetails_Call) Return(appDetail *shared.AppDetail, err er
 }
 
 func (_c *Service_GetAppDetails_Call) RunAndReturn(run func(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error)) *Service_GetAppDetails_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAppProject provides a mock function for the type Service
+func (_mock *Service) GetAppProject(ctx context.Context, projectName string, namespace string) (*unstructured.Unstructured, error) {
+	ret := _mock.Called(ctx, projectName, namespace)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAppProject")
+	}
+
+	var r0 *unstructured.Unstructured
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*unstructured.Unstructured, error)); ok {
+		return returnFunc(ctx, projectName, namespace)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *unstructured.Unstructured); ok {
+		r0 = returnFunc(ctx, projectName, namespace)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*unstructured.Unstructured)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, projectName, namespace)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Service_GetAppProject_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAppProject'
+type Service_GetAppProject_Call struct {
+	*mock.Call
+}
+
+// GetAppProject is a helper method to define mock.On call
+//   - ctx context.Context
+//   - projectName string
+//   - namespace string
+func (_e *Service_Expecter) GetAppProject(ctx interface{}, projectName interface{}, namespace interface{}) *Service_GetAppProject_Call {
+	return &Service_GetAppProject_Call{Call: _e.mock.On("GetAppProject", ctx, projectName, namespace)}
+}
+
+func (_c *Service_GetAppProject_Call) Run(run func(ctx context.Context, projectName string, namespace string)) *Service_GetAppProject_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Service_GetAppProject_Call) Return(unstructured1 *unstructured.Unstructured, err error) *Service_GetAppProject_Call {
+	_c.Call.Return(unstructured1, err)
+	return _c
+}
+
+func (_c *Service_GetAppProject_Call) RunAndReturn(run func(ctx context.Context, projectName string, namespace string) (*unstructured.Unstructured, error)) *Service_GetAppProject_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -126,7 +126,7 @@ func NewCommand() *cobra.Command {
 				tlsConfig.Certificates = pool
 			}
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, 5, tlsConfig)
-			argocdService, err := service.NewArgoCDService(k8sClient, namespace, repoClientset)
+			argocdService, err := service.NewArgoCDService(k8sClient, dynamicClient, namespace, repoClientset)
 			if err != nil {
 				return fmt.Errorf("failed to initialize Argo CD service: %w", err)
 			}
