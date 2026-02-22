@@ -14,7 +14,7 @@ The Progressive Syncs feature set is intended to be light and flexible. The feat
 
 - Progressive Syncs watch for the managed Application resources to become "Healthy" before proceeding to the next stage.
 - Deployments, DaemonSets, StatefulSets, and [Argo Rollouts](https://argoproj.github.io/argo-rollouts/) are all supported, because the Application enters a "Progressing" state while pods are being rolled out. In fact, any resource with a health check that can report a "Progressing" status is supported.
-- [Argo CD Resource Hooks](../../user-guide/resource_hooks.md) are supported. We recommend this approach for users that need advanced functionality when an Argo Rollout cannot be used, such as smoke testing after a DaemonSet change.
+- [Argo CD Resource Hooks](../../user-guide/sync-waves.md) are supported. We recommend this approach for users that need advanced functionality when an Argo Rollout cannot be used, such as smoke testing after a DaemonSet change.
 
 ## Enabling Progressive Syncs
 
