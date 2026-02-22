@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"maps"
 	"math"
-	"math/rand"
 	"net/http"
 	"reflect"
 	"runtime/debug"
@@ -27,6 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -126,7 +126,6 @@ type ApplicationController struct {
 	stateCache                    statecache.LiveStateCache
 	statusRefreshTimeout          time.Duration
 	statusHardRefreshTimeout      time.Duration
-	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
 	selfHealBackoff               *wait.Backoff
 	syncTimeout                   time.Duration
@@ -203,7 +202,6 @@ func NewApplicationController(
 		db:                                db,
 		statusRefreshTimeout:              appResyncPeriod,
 		statusHardRefreshTimeout:          appHardResyncPeriod,
-		statusRefreshJitter:               appResyncJitter,
 		refreshRequestedApps:              make(map[string]CompareWith),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
 		auditLogger:                       argo.NewAuditLogger(kubeClientset, common.CommandApplicationController, enableK8sEvent),
@@ -1017,17 +1015,54 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		log.WithField("appkey", appKey).WithError(err).Error("Failed to get application from informer index")
 		return processNext
 	}
+
+	var app *appv1.Application
+	var logCtx *log.Entry
+
 	if !exists {
-		// This happens after app was deleted, but the work queue still had an entry for it.
-		return processNext
+		parts := strings.Split(appKey, "/")
+		if len(parts) != 2 {
+			log.WithField("appkey", appKey).Warn("Unexpected appKey format, expected namespace/name")
+			return processNext
+		}
+		appNamespace, appName := parts[0], parts[1]
+		freshApp, apiErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace).Get(context.Background(), appName, metav1.GetOptions{})
+		if apiErr != nil {
+			if apierrors.IsNotFound(apiErr) {
+				return processNext
+			}
+			log.WithField("appkey", appKey).WithError(apiErr).Error("Failed to retrieve application from API server")
+			return processNext
+		}
+		if freshApp.Operation == nil {
+			return processNext
+		}
+		app = freshApp
+		logCtx = log.WithFields(applog.GetAppLogFields(app))
+	} else {
+		origApp, ok := obj.(*appv1.Application)
+		if !ok {
+			log.WithField("appkey", appKey).Warn("Key in index is not an application")
+			return processNext
+		}
+		app = origApp.DeepCopy()
+		logCtx = log.WithFields(applog.GetAppLogFields(app))
+
+		if app.Operation != nil {
+			freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			if err != nil {
+				if !apierrors.IsNotFound(err) {
+					logCtx.WithError(err).Error("Failed to retrieve latest application state")
+				}
+				return processNext
+			}
+			if freshApp.Operation == nil {
+				return processNext
+			}
+			app = freshApp
+		}
 	}
-	origApp, ok := obj.(*appv1.Application)
-	if !ok {
-		log.WithField("appkey", appKey).Warn("Key in index is not an application")
-		return processNext
-	}
-	app := origApp.DeepCopy()
-	logCtx := log.WithFields(applog.GetAppLogFields(app))
+
 	ts := stats.NewTimingStats()
 	defer func() {
 		for k, v := range ts.Timings() {
@@ -1036,18 +1071,6 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 		logCtx.Debug("Finished processing app operation queue item")
 	}()
-
-	if app.Operation != nil {
-		// If we get here, we are about to process an operation, but we cannot rely on informer since it might have stale data.
-		// So always retrieve the latest version to ensure it is not stale to avoid unnecessary syncing.
-		// We cannot rely on informer since applications might be updated by both application controller and api server.
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-		if err != nil {
-			logCtx.WithError(err).Error("Failed to retrieve latest application state")
-			return processNext
-		}
-		app = freshApp
-	}
 	ts.AddCheckpoint("get_fresh_app_ms")
 
 	if app.Operation != nil {
@@ -2434,6 +2457,29 @@ func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 	return ctrl.clusterSharding.IsManagedCluster(destCluster)
 }
 
+func operationChanged(oldApp, newApp *appv1.Application) bool {
+	return (oldApp.Operation == nil && newApp.Operation != nil) ||
+		(oldApp.Operation != nil && newApp.Operation != nil && !equality.Semantic.DeepEqual(oldApp.Operation, newApp.Operation))
+}
+
+func deletionTimestampChanged(oldApp, newApp *appv1.Application) bool {
+	return (oldApp.DeletionTimestamp == nil && newApp.DeletionTimestamp != nil) ||
+		(oldApp.DeletionTimestamp != nil && newApp.DeletionTimestamp != nil && !oldApp.DeletionTimestamp.Equal(newApp.DeletionTimestamp))
+}
+
+func isStatusOnlyUpdate(oldApp, newApp *appv1.Application) bool {
+	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
+		return false
+	}
+	if operationChanged(oldApp, newApp) {
+		return false
+	}
+	if deletionTimestampChanged(oldApp, newApp) || newApp.DeletionTimestamp != nil {
+		return false
+	}
+	return true
+}
+
 func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
 	watchNamespace := ctrl.namespace
 	// If we have at least one additional namespace configured, we need to
@@ -2526,34 +2572,59 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 			},
 			UpdateFunc: func(old, new any) {
-				if !ctrl.canProcessApp(new) {
-					return
-				}
-
 				key, err := cache.MetaNamespaceKeyFunc(new)
 				if err != nil {
 					return
 				}
 
+				oldApp, oldOK := old.(*appv1.Application)
+				newApp, newOK := new.(*appv1.Application)
+
+				if !ctrl.canProcessApp(new) {
+					return
+				}
+
+				if newOK && newApp.Operation != nil {
+					ctrl.appOperationQueue.AddRateLimited(key)
+				}
+
 				var compareWith *CompareWith
 				var delay *time.Duration
 
-				oldApp, oldOK := old.(*appv1.Application)
-				newApp, newOK := new.(*appv1.Application)
 				if oldOK && newOK {
+					if oldApp.ResourceVersion == newApp.ResourceVersion {
+						if ctrl.hydrator != nil {
+							ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+						}
+						ctrl.clusterSharding.UpdateApp(newApp)
+						return
+					}
+
+					if isStatusOnlyUpdate(oldApp, newApp) {
+						oldAnnotations := oldApp.GetAnnotations()
+						newAnnotations := newApp.GetAnnotations()
+						refreshAdded := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyRefresh] == "") &&
+							(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyRefresh] != "")
+						hydrateAdded := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyHydrate] == "") &&
+							(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyHydrate] != "")
+
+						if !refreshAdded && !hydrateAdded {
+							if ctrl.hydrator != nil {
+								ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+							}
+							ctrl.clusterSharding.UpdateApp(newApp)
+							return
+						}
+					}
+
 					if automatedSyncEnabled(oldApp, newApp) {
 						log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
 						compareWith = CompareWithLatest.Pointer()
 					}
-					if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
-						// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-						jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
-						delay = &jitter
-					}
 				}
 
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-				if !newOK || (delay != nil && *delay != time.Duration(0)) {
+				if !newOK {
 					ctrl.appOperationQueue.AddRateLimited(key)
 				}
 				if ctrl.hydrator != nil {
@@ -2566,7 +2637,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					return
 				}
 				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-				// key function.
+				// Key function.
 				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 				if err == nil {
 					// for deletes, we immediately add to the refresh queue

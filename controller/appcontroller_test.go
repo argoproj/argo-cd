@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -1927,6 +1928,252 @@ func TestUnchangedManagedNamespaceMetadata(t *testing.T) {
 	assert.False(t, needRefresh)
 	assert.Equal(t, v1alpha1.RefreshTypeNormal, refreshType)
 	assert.Equal(t, CompareWithLatest, compareWith)
+}
+
+func TestApplicationInformerUpdateFunc(t *testing.T) {
+	// Test that UpdateFunc correctly handles:
+	// 1. Status-only updates (no annotation) - should NOT trigger refresh
+	// 2. Status-only updates WITH refresh annotation - should trigger refresh
+	// 3. Spec changes - should trigger refresh
+	// 4. Informer resync (same ResourceVersion) - should NOT trigger refresh
+
+	app := newFakeApp()
+	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+	app.Spec.Destination.Server = v1alpha1.KubernetesInternalAPIServerAddr
+	proj := defaultProj.DeepCopy()
+	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
+
+	simulateUpdateFunc := func(oldApp, newApp *v1alpha1.Application) {
+		if !ctrl.canProcessApp(newApp) {
+			return
+		}
+
+		key, err := cache.MetaNamespaceKeyFunc(newApp)
+		if err != nil {
+			return
+		}
+
+		var compareWith *CompareWith
+		var delay *time.Duration
+
+		oldOK := oldApp != nil
+		newOK := newApp != nil
+		if oldOK && newOK {
+			if oldApp.ResourceVersion == newApp.ResourceVersion {
+				if ctrl.hydrator != nil {
+					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+				}
+				ctrl.clusterSharding.UpdateApp(newApp)
+				return
+			}
+
+			// Check if operation was added or changed - always process operations
+			operationChanged := (oldApp.Operation == nil && newApp.Operation != nil) ||
+				(oldApp.Operation != nil && newApp.Operation != nil && !equality.Semantic.DeepEqual(oldApp.Operation, newApp.Operation))
+
+			deletionTimestampChanged := (oldApp.DeletionTimestamp == nil && newApp.DeletionTimestamp != nil) ||
+				(oldApp.DeletionTimestamp != nil && newApp.DeletionTimestamp != nil && !oldApp.DeletionTimestamp.Equal(newApp.DeletionTimestamp))
+			appBeingDeleted := newApp.DeletionTimestamp != nil
+
+			if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) && !operationChanged && !deletionTimestampChanged && !appBeingDeleted {
+				oldAnnotations := oldApp.GetAnnotations()
+				newAnnotations := newApp.GetAnnotations()
+				refreshAdded := (oldAnnotations == nil || oldAnnotations[v1alpha1.AnnotationKeyRefresh] == "") &&
+					(newAnnotations != nil && newAnnotations[v1alpha1.AnnotationKeyRefresh] != "")
+				hydrateAdded := (oldAnnotations == nil || oldAnnotations[v1alpha1.AnnotationKeyHydrate] == "") &&
+					(newAnnotations != nil && newAnnotations[v1alpha1.AnnotationKeyHydrate] != "")
+
+				if !refreshAdded && !hydrateAdded {
+					if ctrl.hydrator != nil {
+						ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+					}
+					ctrl.clusterSharding.UpdateApp(newApp)
+					return
+				}
+			}
+
+			if automatedSyncEnabled(oldApp, newApp) {
+				compareWith = CompareWithLatest.Pointer()
+			}
+			if compareWith == nil {
+				compareWith = CompareWithRecent.Pointer()
+			}
+		}
+
+		ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
+		if !newOK {
+			ctrl.appOperationQueue.AddRateLimited(key)
+		}
+		if ctrl.hydrator != nil {
+			ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+		}
+		ctrl.clusterSharding.UpdateApp(newApp)
+	}
+
+	checkRefreshRequested := func(appName string, shouldBeRequested bool, msg string) {
+		key := ctrl.toAppKey(appName)
+		ctrl.refreshRequestedAppsMutex.Lock()
+		_, isRequested := ctrl.refreshRequestedApps[key]
+		ctrl.refreshRequestedAppsMutex.Unlock()
+		assert.Equal(t, shouldBeRequested, isRequested, "%s: Refresh request state mismatch for app %s (key: %s)", msg, appName, key)
+	}
+
+	t.Run("Status-only update without annotation should NOT trigger refresh", func(_ *testing.T) {
+		ctrl.refreshRequestedAppsMutex.Lock()
+		ctrl.refreshRequestedApps = make(map[string]CompareWith)
+		ctrl.refreshRequestedAppsMutex.Unlock()
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "1"
+		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "2"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+
+		simulateUpdateFunc(oldApp, newApp)
+		checkRefreshRequested(app.QualifiedName(), false, "Status-only update without annotation")
+	})
+
+	t.Run("Status-only update WITH refresh annotation SHOULD trigger refresh", func(_ *testing.T) {
+		ctrl.refreshRequestedAppsMutex.Lock()
+		ctrl.refreshRequestedApps = make(map[string]CompareWith)
+		ctrl.refreshRequestedAppsMutex.Unlock()
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "3"
+		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "4"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+		if newApp.Annotations == nil {
+			newApp.Annotations = make(map[string]string)
+		}
+		newApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
+
+		simulateUpdateFunc(oldApp, newApp)
+		checkRefreshRequested(app.QualifiedName(), true, "Status-only update WITH refresh annotation")
+	})
+
+	t.Run("Status-only update WITH hydrate annotation SHOULD trigger refresh", func(_ *testing.T) {
+		ctrl.refreshRequestedAppsMutex.Lock()
+		ctrl.refreshRequestedApps = make(map[string]CompareWith)
+		ctrl.refreshRequestedAppsMutex.Unlock()
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "5"
+		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "6"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+		if newApp.Annotations == nil {
+			newApp.Annotations = make(map[string]string)
+		}
+		newApp.Annotations[v1alpha1.AnnotationKeyHydrate] = "true"
+
+		simulateUpdateFunc(oldApp, newApp)
+		checkRefreshRequested(app.QualifiedName(), true, "Status-only update WITH hydrate annotation")
+	})
+
+	t.Run("Status-only update WITH both refresh and hydrate annotations SHOULD trigger refresh", func(_ *testing.T) {
+		ctrl.refreshRequestedAppsMutex.Lock()
+		ctrl.refreshRequestedApps = make(map[string]CompareWith)
+		ctrl.refreshRequestedAppsMutex.Unlock()
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "7"
+		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "8"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+		if newApp.Annotations == nil {
+			newApp.Annotations = make(map[string]string)
+		}
+		newApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
+		newApp.Annotations[v1alpha1.AnnotationKeyHydrate] = "true"
+
+		simulateUpdateFunc(oldApp, newApp)
+		checkRefreshRequested(app.QualifiedName(), true, "Status-only update WITH both refresh and hydrate annotations")
+	})
+
+	t.Run("Status-only update with annotation REMOVAL should NOT trigger refresh", func(_ *testing.T) {
+		ctrl.refreshRequestedAppsMutex.Lock()
+		ctrl.refreshRequestedApps = make(map[string]CompareWith)
+		ctrl.refreshRequestedAppsMutex.Unlock()
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "9"
+		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
+		if oldApp.Annotations == nil {
+			oldApp.Annotations = make(map[string]string)
+		}
+		oldApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "10"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+		delete(newApp.Annotations, v1alpha1.AnnotationKeyRefresh)
+
+		simulateUpdateFunc(oldApp, newApp)
+		checkRefreshRequested(app.QualifiedName(), false, "Status-only update with annotation REMOVAL")
+	})
+
+	t.Run("Spec change SHOULD trigger refresh", func(_ *testing.T) {
+		ctrl.refreshRequestedAppsMutex.Lock()
+		ctrl.refreshRequestedApps = make(map[string]CompareWith)
+		ctrl.refreshRequestedAppsMutex.Unlock()
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "11"
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "12"
+		newApp.Spec.Destination.Namespace = "different-namespace"
+
+		simulateUpdateFunc(oldApp, newApp)
+		checkRefreshRequested(app.QualifiedName(), true, "Spec change")
+	})
+
+	t.Run("Informer resync (same ResourceVersion) should NOT trigger refresh", func(_ *testing.T) {
+		ctrl.refreshRequestedAppsMutex.Lock()
+		ctrl.refreshRequestedApps = make(map[string]CompareWith)
+		ctrl.refreshRequestedAppsMutex.Unlock()
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "13"
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "13"
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+
+		simulateUpdateFunc(oldApp, newApp)
+		checkRefreshRequested(app.QualifiedName(), false, "Informer resync")
+	})
+
+	t.Run("DeletionTimestamp added SHOULD trigger refresh", func(_ *testing.T) {
+		// Reset refresh state
+		ctrl.refreshRequestedAppsMutex.Lock()
+		ctrl.refreshRequestedApps = make(map[string]CompareWith)
+		ctrl.refreshRequestedAppsMutex.Unlock()
+
+		oldApp := app.DeepCopy()
+		oldApp.ResourceVersion = "14"
+		oldApp.DeletionTimestamp = nil
+
+		newApp := oldApp.DeepCopy()
+		newApp.ResourceVersion = "15"
+		newApp.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
+
+		simulateUpdateFunc(oldApp, newApp)
+
+		checkRefreshRequested(app.QualifiedName(), true, "DeletionTimestamp added")
+	})
 }
 
 func TestRefreshAppConditions(t *testing.T) {
