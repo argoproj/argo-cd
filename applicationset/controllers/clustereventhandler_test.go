@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -657,4 +658,330 @@ func TestNestedGeneratorHasClusterGenerator_NestedMergeGeneratorWithInvalidJSON(
 
 	require.Error(t, err)
 	assert.False(t, hasClusterGenerator)
+}
+
+func TestHasAFunctionalDiff(t *testing.T) {
+	tests := []struct {
+		name           string
+		newObject      client.Object
+		oldObject      client.Object
+		expectedResult bool
+	}{
+		{
+			name:           "new object is not a secret should return false",
+			newObject:      &corev1.ConfigMap{},
+			oldObject:      &corev1.Secret{},
+			expectedResult: false,
+		},
+		{
+			name:           "old object is not a secret should return false",
+			newObject:      &corev1.Secret{},
+			oldObject:      &corev1.ConfigMap{},
+			expectedResult: false,
+		},
+		{
+			name:      "new object doesn't have the cluster secret label should return false",
+			newObject: &corev1.Secret{},
+			oldObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+					},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "new and old objects are empty should return false",
+			newObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+					},
+				},
+			},
+			oldObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+					},
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "new and old objects are equal should return false",
+			newObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"mylabel":                     "mylabelvalue",
+					},
+					Annotations: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"myannotation":                "myannotationvalue",
+					},
+				},
+				Data: map[string][]byte{
+					"name":    []byte("mycluster"),
+					"server":  []byte("mycluster.url"),
+					"project": []byte("myproject"),
+				},
+			},
+			oldObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"mylabel":                     "mylabelvalue",
+					},
+					Annotations: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"myannotation":                "myannotationvalue",
+					},
+				},
+				Data: map[string][]byte{
+					"name":    []byte("mycluster"),
+					"server":  []byte("mycluster.url"),
+					"project": []byte("myproject"),
+				},
+			},
+			expectedResult: false,
+		},
+		{
+			name: "new and old objects have a label diff should return true",
+			newObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"mylabel":                     "mylabelvalue",
+					},
+					Annotations: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"myannotation":                "myannotationvalue",
+					},
+				},
+				Data: map[string][]byte{
+					"name":    []byte("mycluster"),
+					"server":  []byte("mycluster.url"),
+					"project": []byte("myproject"),
+				},
+			},
+			oldObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"mylabel":                     "myotherlabelvalue",
+					},
+					Annotations: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"myannotation":                "myannotationvalue",
+					},
+				},
+				Data: map[string][]byte{
+					"name":    []byte("mycluster"),
+					"server":  []byte("mycluster.url"),
+					"project": []byte("myproject"),
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			name: "new and old objects have an annotation diff should return true",
+			newObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"mylabel":                     "mylabelvalue",
+					},
+					Annotations: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"myannotation":                "myannotationvalue",
+					},
+				},
+				Data: map[string][]byte{
+					"name":    []byte("mycluster"),
+					"server":  []byte("mycluster.url"),
+					"project": []byte("myproject"),
+				},
+			},
+			oldObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"mylabel":                     "mylabelvalue",
+					},
+					Annotations: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"myannotation":                "myotherannotationvalue",
+					},
+				},
+				Data: map[string][]byte{
+					"name":    []byte("mycluster"),
+					"server":  []byte("mycluster.url"),
+					"project": []byte("myproject"),
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			name: "new and old objects have a project diff should return true",
+			newObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"mylabel":                     "mylabelvalue",
+					},
+					Annotations: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"myannotation":                "myannotationvalue",
+					},
+				},
+				Data: map[string][]byte{
+					"name":    []byte("mycluster"),
+					"server":  []byte("mycluster.url"),
+					"project": []byte("myproject"),
+				},
+			},
+			oldObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"mylabel":                     "mylabelvalue",
+					},
+					Annotations: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"myannotation":                "myannotationvalue",
+					},
+				},
+				Data: map[string][]byte{
+					"name":    []byte("mycluster"),
+					"server":  []byte("mycluster.url"),
+					"project": []byte("myotherproject"),
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			name: "new and old objects have a name diff should return true",
+			newObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"mylabel":                     "mylabelvalue",
+					},
+					Annotations: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"myannotation":                "myannotationvalue",
+					},
+				},
+				Data: map[string][]byte{
+					"name":    []byte("mycluster"),
+					"server":  []byte("mycluster.url"),
+					"project": []byte("myproject"),
+				},
+			},
+			oldObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"mylabel":                     "mylabelvalue",
+					},
+					Annotations: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"myannotation":                "myannotationvalue",
+					},
+				},
+				Data: map[string][]byte{
+					"name":    []byte("myothercluster"),
+					"server":  []byte("mycluster.url"),
+					"project": []byte("myproject"),
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			name: "new and old objects have a server diff should return true",
+			newObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"mylabel":                     "mylabelvalue",
+					},
+					Annotations: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"myannotation":                "myannotationvalue",
+					},
+				},
+				Data: map[string][]byte{
+					"name":    []byte("mycluster"),
+					"server":  []byte("mycluster.url"),
+					"project": []byte("myproject"),
+				},
+			},
+			oldObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"mylabel":                     "mylabelvalue",
+					},
+					Annotations: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"myannotation":                "myannotationvalue",
+					},
+				},
+				Data: map[string][]byte{
+					"name":    []byte("mycluster"),
+					"server":  []byte("mycluster.otherurl"),
+					"project": []byte("myproject"),
+				},
+			},
+			expectedResult: true,
+		},
+		{
+			name: "new and old objects have a tlsconfig diff should return false",
+			newObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"mylabel":                     "mylabelvalue",
+					},
+					Annotations: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"myannotation":                "myannotationvalue",
+					},
+				},
+				Data: map[string][]byte{
+					"name":      []byte("mycluster"),
+					"server":    []byte("mycluster.url"),
+					"project":   []byte("myproject"),
+					"tlsConfig": []byte("someconfig"),
+				},
+			},
+			oldObject: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"mylabel":                     "mylabelvalue",
+					},
+					Annotations: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+						"myannotation":                "myannotationvalue",
+					},
+				},
+				Data: map[string][]byte{
+					"name":      []byte("mycluster"),
+					"server":    []byte("mycluster.url"),
+					"project":   []byte("myproject"),
+					"tlsConfig": []byte("someotherconfig"),
+				},
+			},
+			expectedResult: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.Equal(t, test.expectedResult, hasAFunctionalDiff(test.newObject, test.oldObject))
+		})
+	}
 }
