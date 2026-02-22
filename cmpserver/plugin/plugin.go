@@ -1,10 +1,7 @@
 package plugin
 
 import (
-	"bytes"
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -62,16 +60,6 @@ func (s *Service) Init(workDir string) error {
 	return nil
 }
 
-const execIDLen = 5
-
-func randExecID() (string, error) {
-	execIDBytes := make([]byte, execIDLen/2+1) // we need one extra letter to discard
-	if _, err := rand.Read(execIDBytes); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(execIDBytes)[0:execIDLen], nil
-}
-
 func runCommand(ctx context.Context, command Command, path string, env []string) (string, error) {
 	if len(command.Command) == 0 {
 		return "", errors.New("Command is empty")
@@ -81,87 +69,37 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	cmd.Env = env
 	cmd.Dir = path
 
-	execId, err := randExecID()
-	if err != nil {
-		return "", err
-	}
-	logCtx := log.WithFields(log.Fields{"execID": execId})
-
-	argsToLog := argoexec.GetCommandArgsToLog(cmd)
-	logCtx.WithFields(log.Fields{"dir": cmd.Dir}).Info(argsToLog)
-
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	// Make sure the command is killed immediately on timeout. https://stackoverflow.com/a/38133948/684776
+	// Make sure the command is killed immediately on timeout by setting process group
+	// This maintains backward compatibility with the original plugin behavior
+	// https://stackoverflow.com/a/38133948/684776
 	cmd.SysProcAttr = newSysProcAttr(true)
 
-	start := time.Now()
-	err = cmd.Start()
-	if err != nil {
-		return "", err
+	// The argoexec package handles both context cancellation and its own timeout mechanisms
+	// Context timeout takes precedence when it exists, ARGOCD_EXEC_TIMEOUT is used as fallback
+	var timeout time.Duration
+	if deadline, ok := ctx.Deadline(); ok {
+		contextTimeout := time.Until(deadline)
+		// If context is already expired, return immediately
+		if contextTimeout <= 0 {
+			return "", ctx.Err()
+		}
+		// Use context timeout for argoexec - this ensures consistency with Git/Helm/Kustomize operations
+		timeout = contextTimeout
+	}
+	// If no context timeout, argoexec will use ARGOCD_EXEC_TIMEOUT (by setting timeout to 0)
+
+	cmdOpts := argoexec.CmdOpts{
+		// Use context timeout if present, otherwise argoexec will use ARGOCD_EXEC_TIMEOUT
+		Timeout: timeout,
+		// CaptureStderr is set to true to include stderr in the output for better error reporting
+		CaptureStderr: true,
+		// TimeoutBehavior maintains backward compatibility: send SIGTERM first, then wait for cleanup
+		TimeoutBehavior: argoexec.TimeoutBehavior{
+			Signal: syscall.SIGTERM, // Send SIGTERM first to allow cleanup
+		},
 	}
 
-	go func() {
-		<-ctx.Done()
-		// Kill by group ID to make sure child processes are killed. The - tells `kill` that it's a group ID.
-		// Since we didn't set Pgid in SysProcAttr, the group ID is the same as the process ID. https://pkg.go.dev/syscall#SysProcAttr
-
-		// Sending a TERM signal first to allow any potential cleanup if needed, and then sending a KILL signal
-		_ = sysCallTerm(-cmd.Process.Pid)
-
-		// modify cleanup timeout to allow process to cleanup
-		cleanupTimeout := 5 * time.Second
-		time.Sleep(cleanupTimeout)
-
-		_ = sysCallKill(-cmd.Process.Pid)
-	}()
-
-	err = cmd.Wait()
-
-	duration := time.Since(start)
-	output := stdout.String()
-
-	logCtx.WithFields(log.Fields{"duration": duration}).Debug(output)
-
-	if err != nil {
-		err := newCmdError(argsToLog, errors.New(err.Error()), strings.TrimSpace(stderr.String()))
-		logCtx.Error(err.Error())
-		return strings.TrimSuffix(output, "\n"), err
-	}
-
-	logCtx = logCtx.WithFields(log.Fields{
-		"stderr":  stderr.String(),
-		"command": command,
-	})
-	if output == "" {
-		logCtx.Warn("Plugin command returned zero output")
-	} else {
-		// Log stderr even on successful commands to help develop plugins
-		logCtx.Info("Plugin command successful")
-	}
-
-	return strings.TrimSuffix(output, "\n"), nil
-}
-
-type CmdError struct {
-	Args   string
-	Stderr string
-	Cause  error
-}
-
-func (ce *CmdError) Error() string {
-	res := fmt.Sprintf("`%v` failed %v", ce.Args, ce.Cause)
-	if ce.Stderr != "" {
-		res = fmt.Sprintf("%s: %s", res, ce.Stderr)
-	}
-	return res
-}
-
-func newCmdError(args string, cause error, stderr string) *CmdError {
-	return &CmdError{Args: args, Stderr: stderr, Cause: cause}
+	return argoexec.RunCommandExt(cmd, cmdOpts)
 }
 
 // Environ returns a list of environment variables in name=value format from a list of variables
