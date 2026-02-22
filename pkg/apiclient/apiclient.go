@@ -99,6 +99,7 @@ type Client interface {
 	NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error)
 	NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient)
 	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent
+	WatchApplicationSetWithRetry(ctx context.Context, appSetName, revision string) chan *v1alpha1.ApplicationSetWatchEvent
 }
 
 // ClientOptions hold address, security, and other settings for the API client.
@@ -800,6 +801,47 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, usrIf
+}
+
+func (c *client) WatchApplicationSetWithRetry(ctx context.Context, appSetName, _ string) chan *v1alpha1.ApplicationSetWatchEvent {
+	appSetEventCh := make(chan *v1alpha1.ApplicationSetWatchEvent)
+	cancelled := false
+	appSetName, appSetNs := argo.ParseFromQualifiedName(appSetName, "")
+	go func() {
+		defer close(appSetEventCh)
+		for !cancelled {
+			conn, appsetIf, err := c.NewApplicationSetClient()
+			if err == nil {
+				var wc applicationsetpkg.ApplicationSetService_WatchClient
+				wc, err = appsetIf.Watch(ctx, &applicationsetpkg.ApplicationSetWatchQuery{
+					Name:            appSetName,
+					AppSetNamespace: appSetNs,
+				})
+				if err == nil {
+					for {
+						var appSetEvent *v1alpha1.ApplicationSetWatchEvent
+						appSetEvent, err = wc.Recv()
+						if err != nil {
+							break
+						}
+						appSetEventCh <- appSetEvent
+					}
+				}
+			}
+			if err != nil {
+				if isCanceledContextErr(err) {
+					cancelled = true
+				} else {
+					time.Sleep(1 * time.Second)
+				}
+			}
+			if conn != nil {
+				_ = conn.Close()
+			}
+		}
+	}()
+
+	return appSetEventCh
 }
 
 // WatchApplicationWithRetry returns a channel of watch events for an application, retrying the

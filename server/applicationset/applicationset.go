@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -30,11 +31,14 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	appsetstatus "github.com/argoproj/argo-cd/v3/applicationset/status"
 	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
+	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/server/broadcast"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/collections"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -56,6 +60,7 @@ type Server struct {
 	appclientset             appclientset.Interface
 	appsetInformer           cache.SharedIndexInformer
 	appsetLister             applisters.ApplicationSetLister
+	appSetBroadcaster        broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent]
 	auditLogger              *argo.AuditLogger
 	projectLock              sync.KeyLock
 	enabledNamespaces        []string
@@ -66,6 +71,110 @@ type Server struct {
 	AllowedScmProviders      []string
 	EnableScmProviders       bool
 	EnableGitHubAPIMetrics   bool
+}
+
+func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicationset.ApplicationSetService_WatchServer) error {
+	appsetName := q.GetName()
+	appsetNs := q.GetAppSetNamespace()
+	logCtx := log.NewEntry(log.New())
+	if q.Name != "" {
+		logCtx = logCtx.WithField("applicationset", q.Name)
+	}
+	projects := map[string]bool{}
+	for _, project := range q.Projects {
+		projects[project] = true
+	}
+	claims := ws.Context().Value("claims")
+	selector, err := labels.Parse(q.GetSelector())
+	if err != nil {
+		return fmt.Errorf("error parsing labels with selectors: %w", err)
+	}
+	minVersion := 0
+	if q.GetResourceVersion() != "" {
+		if minVersion, err = strconv.Atoi(q.GetResourceVersion()); err != nil {
+			minVersion = 0
+		}
+	}
+	sendIfPermitted := func(a v1alpha1.ApplicationSet, eventType watch.EventType) {
+		permitted := s.isApplicationsetPermitted(selector, minVersion, claims, appsetName, appsetNs, projects, a)
+		if !permitted {
+			return
+		}
+		err := ws.Send(&v1alpha1.ApplicationSetWatchEvent{
+			Type:           eventType,
+			ApplicationSet: a,
+		})
+		if err != nil {
+			logCtx.Warnf("Unable to send stream message: %v", err)
+			return
+		}
+	}
+	events := make(chan *v1alpha1.ApplicationSetWatchEvent, argocommon.WatchAPIBufferSize)
+	if q.GetName() != "" {
+		appsets, err := s.appsetLister.List(selector)
+		if err != nil {
+			return fmt.Errorf("error listing appsets with selector: %w", err)
+		}
+		sort.Slice(appsets, func(i, j int) bool {
+			return appsets[i].QualifiedName() < appsets[j].QualifiedName()
+		})
+		found := false
+		for i := range appsets {
+			if appsets[i].Name == appsetName && (appsetNs == "" || appsets[i].Namespace == appsetNs) {
+				found = true
+			}
+			sendIfPermitted(*appsets[i], watch.Added)
+		}
+		if !found {
+			// Requested ApplicationSet not in cache; send Deleted so watchers get a definitive state.
+			_ = ws.Send(&v1alpha1.ApplicationSetWatchEvent{
+				Type: watch.Deleted,
+				ApplicationSet: v1alpha1.ApplicationSet{
+					ObjectMeta: metav1.ObjectMeta{Name: appsetName, Namespace: appsetNs},
+				},
+			})
+			return nil
+		}
+	}
+	unsubscribe := s.appSetBroadcaster.Subscribe(events)
+	defer unsubscribe()
+	for {
+		select {
+		case event := <-events:
+			sendIfPermitted(event.ApplicationSet, event.Type)
+		case <-ws.Context().Done():
+			return nil
+		}
+	}
+}
+
+// isApplicationsetPermitted checks if an appset is permitted
+func (s *Server) isApplicationsetPermitted(selector labels.Selector, minVersion int, claims any, appsetName, appsetNs string, projects map[string]bool, appset v1alpha1.ApplicationSet) bool {
+	if len(projects) > 0 && !projects[appset.Spec.Template.Spec.Project] {
+		return false
+	}
+
+	if appsetVersion, err := strconv.Atoi(appset.ResourceVersion); err == nil && appsetVersion < minVersion {
+		return false
+	}
+	// Match by name, and optionally by namespace if provided
+	nameMatches := appsetName == "" || appset.Name == appsetName
+	nsMatches := appsetNs == "" || appset.Namespace == appsetNs
+	matchedEvent := nameMatches && nsMatches && selector.Matches(labels.Set(appset.Labels))
+	if !matchedEvent {
+		return false
+	}
+	// Skip any applicationsets that is neither in the control plane's namespace
+	// nor in the list of enabled namespaces.
+	if !security.IsNamespaceEnabled(appset.Namespace, s.ns, s.enabledNamespaces) {
+		return false
+	}
+
+	if !s.enf.Enforce(claims, rbac.ResourceApplicationSets, rbac.ActionGet, appset.RBACName(s.ns)) {
+		return false
+	}
+
+	return true
 }
 
 // NewServer returns a new instance of the ApplicationSet service
@@ -79,6 +188,7 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appsetInformer cache.SharedIndexInformer,
 	appsetLister applisters.ApplicationSetLister,
+	appSetBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent],
 	namespace string,
 	projectLock sync.KeyLock,
 	enabledNamespaces []string,
@@ -91,6 +201,20 @@ func NewServer(
 	enableK8sEvent []string,
 	clusterInformer *settings.ClusterInformer,
 ) applicationset.ApplicationSetServiceServer {
+	if appSetBroadcaster == nil {
+		appSetBroadcaster = broadcast.NewHandler[v1alpha1.ApplicationSet, v1alpha1.ApplicationSetWatchEvent](
+			func(appset *v1alpha1.ApplicationSet, eventType watch.EventType) *v1alpha1.ApplicationSetWatchEvent {
+				return &v1alpha1.ApplicationSetWatchEvent{ApplicationSet: *appset, Type: eventType}
+			},
+			applog.GetAppSetLogFields,
+		)
+	}
+	// Register ApplicationSet level broadcaster to receive create/update/delete events
+	// and handle general applicationset event processing.
+	_, err := appsetInformer.AddEventHandler(appSetBroadcaster)
+	if err != nil {
+		log.Error(err)
+	}
 	s := &Server{
 		ns:                       namespace,
 		db:                       db,
@@ -102,6 +226,7 @@ func NewServer(
 		appclientset:             appclientset,
 		appsetInformer:           appsetInformer,
 		appsetLister:             appsetLister,
+		appSetBroadcaster:        appSetBroadcaster,
 		projectLock:              projectLock,
 		auditLogger:              argo.NewAuditLogger(kubeclientset, "argocd-server", enableK8sEvent),
 		enabledNamespaces:        enabledNamespaces,
@@ -141,7 +266,7 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 
 	newItems := make([]v1alpha1.ApplicationSet, 0)
 	for _, a := range appsets {
-		// Skip any application that is neither in the conrol plane's namespace
+		// Skip any applicationsets that is neither in the conrol plane's namespace
 		// nor in the list of enabled namespaces.
 		if !security.IsNamespaceEnabled(a.Namespace, s.ns, s.enabledNamespaces) {
 			continue

@@ -2386,3 +2386,7 @@ func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _
 	}()
 	return appEventsCh
 }
+
+func (c *fakeAcdClient) WatchApplicationSetWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationSetWatchEvent {
+	return make(chan *v1alpha1.ApplicationSetWatchEvent)
+}

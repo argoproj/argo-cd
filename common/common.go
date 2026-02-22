@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -15,6 +16,8 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 // Argo CD component names
@@ -473,6 +476,8 @@ const TokenVerificationError = "failed to verify the token"
 var ErrTokenVerification = errors.New(TokenVerificationError)
 
 var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
+
+var WatchAPIBufferSize = env.ParseNumFromEnv(EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 
 // Redis password consts
 const (

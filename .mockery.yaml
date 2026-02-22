@@ -46,7 +46,7 @@ packages:
     interfaces:
       RepoServerServiceClient: {}
       RepoServerService_GenerateManifestWithFilesClient: {}
-  github.com/argoproj/argo-cd/v3/server/application:
+  github.com/argoproj/argo-cd/v3/server/broadcast:
     interfaces:
       Broadcaster: {}
   github.com/argoproj/argo-cd/v3/server/extension:

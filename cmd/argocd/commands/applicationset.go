@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"text/tabwriter"
 
+	k8swatch "k8s.io/apimachinery/pkg/watch"
+
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
@@ -115,8 +117,10 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 // NewApplicationSetCreateCommand returns a new instance of an `argocd appset create` command
 func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var output string
-	var upsert, dryRun bool
+	var (
+		output         string
+		upsert, dryRun bool
+	)
 	command := &cobra.Command{
 		Use:   "create",
 		Short: "Create one or more ApplicationSets",
@@ -325,7 +329,10 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 
 // NewApplicationSetDeleteCommand returns a new instance of an `argocd appset delete` command
 func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var noPrompt bool
+	var (
+		noPrompt bool
+		wait     bool
+	)
 	command := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete one or more ApplicationSets",
@@ -340,7 +347,8 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
+			acdClient := headless.NewClientOrDie(clientOpts, c)
+			conn, appIf := acdClient.NewApplicationSetClientOrDie()
 			defer utilio.Close(conn)
 			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 			numOfApps := len(args)
@@ -371,8 +379,23 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 					confirm, confirmAll = promptUtil.ConfirmBaseOnCount(messageForSingle, messageForAll, numOfApps)
 				}
 				if confirm || confirmAll {
+					// Start watch before delete so we can wait for the Deleted event.
+					// Server sends synthetic Deleted when the AppSet is already deleted
+					var appEventCh chan *arogappsetv1.ApplicationSetWatchEvent
+					if wait {
+						appEventCh = acdClient.WatchApplicationSetWithRetry(ctx, appSetQualifiedName, "")
+					}
+
 					_, err := appIf.Delete(ctx, &appsetDeleteReq)
 					errors.CheckError(err)
+
+					if wait {
+						for appEvent := range appEventCh {
+							if appEvent != nil && appEvent.Type == k8swatch.Deleted {
+								break
+							}
+						}
+					}
 					fmt.Printf("applicationset '%s' deleted\n", appSetQualifiedName)
 				} else {
 					fmt.Println("The command to delete '" + appSetQualifiedName + "' was cancelled.")
@@ -381,6 +404,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 		},
 	}
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of Application resources")
+	command.Flags().BoolVar(&wait, "wait", false, "Wait until deletion of the applicationset(s) completes")
 	return command
 }
 
