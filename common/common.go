@@ -369,6 +369,12 @@ const (
 	BearerTokenTimeout = 30 * time.Second
 )
 
+// TokenRevocationTimeout is the maximum time allowed for a server-side token revocation call during logout.
+const TokenRevocationTimeout = 10 * time.Second
+
+// TokenRevocationClientTimeout is the maximum time the CLI waits for the server to complete token revocation.
+const TokenRevocationClientTimeout = 15 * time.Second
+
 const (
 	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
 	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s
