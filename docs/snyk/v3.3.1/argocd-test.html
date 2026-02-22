@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="17 known vulnerabilities found in 55 vulnerable dependency paths.">
+  <meta name="description" content="21 known vulnerabilities found in 67 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,22 +492,22 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">February 22nd 2026, 12:28:07 am (UTC+00:00)</p>
+                <p class="timestamp">February 22nd 2026, 12:31:18 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
                 <ul>
                   <li class="paths">/argo-cd/argoproj/argo-cd/v3/go.mod (gomodules)</li>
-                  <li class="paths">/argo-cd/argoproj/argo-cd/gitops-engine/gitops-engine/go.mod (gomodules)</li>
+                  <li class="paths">/argo-cd/argoproj/gitops-engine/gitops-engine/go.mod (gomodules)</li>
                   <li class="paths">/argo-cd/argoproj/argo-cd/get-previous-release/hack/get-previous-release/go.mod (gomodules)</li>
                   <li class="paths">/argo-cd/ui/yarn.lock (yarn)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>17</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>55 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2902</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>21</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>67 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2868</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -515,6 +515,101 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            qs
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, superagent@8.1.2 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        superagent@8.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        qs@6.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        superagent@8.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        formidable@2.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        qs@6.11.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.com/package/qs">qs</a> is a querystring parser that supports nesting and arrays, with a depth limit.</p>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling via improper enforcement of the <code>arrayLimit</code> option in bracket notation parsing. An attacker can exhaust server memory and cause application unavailability by submitting a large number of bracket notation parameters - like <code>a[]=1&amp;a[]=2</code> - in a single HTTP request.</p>
+        <h2 id="poc">PoC</h2>
+        <pre><code class="language-js">
+        const qs = require(&#39;qs&#39;);
+        const attack = &#39;a[]=&#39; + Array(10000).fill(&#39;x&#39;).join(&#39;&amp;a[]=&#39;);
+        const result = qs.parse(attack, { arrayLimit: 100 });
+        console.log(result.a.length);  // Output: 10000 (should be max 100)
+        </code></pre>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>qs</code> to version 6.14.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/ljharb/qs/commit/3086902ecf7f088d0d1803887643ac6c03d415b9">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-QS-14724253">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Regular Expression Denial of Service (ReDoS)</h2>
             <div class="card__section">
@@ -703,7 +798,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                github.com/argoproj/argo-cd/v3@0.0.0 and go.opentelemetry.io/otel/sdk/resource@1.39.0
+                                github.com/argoproj/argo-cd/v3@0.0.0 and go.opentelemetry.io/otel/sdk/resource@1.38.0
         
                     </li>
                 </ul>
@@ -718,7 +813,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/sdk/resource@1.39.0
+                                        go.opentelemetry.io/otel/sdk/resource@1.38.0
                                         
                                 </span>
         
@@ -727,9 +822,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/sdk/trace@1.39.0
+                                        go.opentelemetry.io/otel/sdk/trace@1.38.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/sdk/resource@1.39.0
+                                        go.opentelemetry.io/otel/sdk/resource@1.38.0
                                         
                                 </span>
         
@@ -738,15 +833,15 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@1.39.0
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@1.38.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal/otlpconfig@1.39.0
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal/otlpconfig@1.38.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace@1.39.0
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace@1.38.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/tracetransform@1.39.0
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/internal/tracetransform@1.38.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/sdk/resource@1.39.0
+                                        go.opentelemetry.io/otel/sdk/resource@1.38.0
                                         
                                 </span>
         
@@ -755,15 +850,15 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@1.39.0
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc@1.38.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal/otlpconfig@1.39.0
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc/internal/otlpconfig@1.38.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace@1.39.0
+                                        go.opentelemetry.io/otel/exporters/otlp/otlptrace@1.38.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/sdk/trace@1.39.0
+                                        go.opentelemetry.io/otel/sdk/trace@1.38.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/sdk/resource@1.39.0
+                                        go.opentelemetry.io/otel/sdk/resource@1.38.0
                                         
                                 </span>
         
@@ -1052,6 +1147,502 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            qs
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, superagent@8.1.2 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        superagent@8.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        qs@6.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        superagent@8.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        formidable@2.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        qs@6.11.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.com/package/qs">qs</a> is a querystring parser that supports nesting and arrays, with a depth limit.</p>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling via the <code>parseArrayValue</code> function when the <code>comma</code> option is in use. An attacker can exhaust system memory by submitting a parameter containing a large number of comma-separated values, resulting in the allocation of excessively large arrays.</p>
+        <p><strong>Note:</strong>
+        This is only exploitable if the <code>comma</code> option is explicitly set to true. <code>arrayLimit</code> is properly enforced for index and bracket notation.</p>
+        <h2 id="poc">PoC</h2>
+        <pre><code class="language-js">const qs = require(&#39;qs&#39;);
+        
+        const payload = &#39;a=&#39; + &#39;,&#39;.repeat(25);  // 26 elements after split (bypasses arrayLimit: 5)
+        const options = { comma: true, arrayLimit: 5, throwOnLimitExceeded: true };
+        
+        try {
+          const result = qs.parse(payload, options);
+          console.log(result.a.length);  // Outputs: 26 (bypass successful)
+        } catch (e) {
+          console.log(&#39;Limit enforced:&#39;, e.message);  // Not thrown
+        }
+        </code></pre>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>qs</code> to version 6.14.2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/ljharb/qs/commit/f6a7abff1f13d644db9b05fe4f2c98ada6bf8482">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-QS-15268416">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Prototype Pollution</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            lodash-es
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                argo-cd-ui@1.0.0 and lodash-es@4.17.21
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        lodash-es@4.17.21
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        react-form@2.16.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        redux@3.7.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        lodash-es@4.17.21
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        argo-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        react-form@2.16.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        redux@3.7.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        lodash-es@4.17.21
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Prototype Pollution via the <code>_.unset</code> and <code>_.omit</code> functions. An attacker can delete methods held in properties of global prototypes but cannot overwrite those properties.</p>
+        <h2 id="details">Details</h2>
+        <p>Prototype Pollution is a vulnerability affecting JavaScript. Prototype Pollution refers to the ability to inject properties into existing JavaScript language construct prototypes, such as objects. JavaScript allows all Object attributes to be altered, including their magical attributes such as <code>__proto__</code>, <code>constructor</code> and <code>prototype</code>. An attacker manipulates these attributes to overwrite, or pollute, a JavaScript application object prototype of the base object by injecting other values.  Properties on the <code>Object.prototype</code> are then inherited by all the JavaScript objects through the prototype chain. When that happens, this leads to either denial of service by triggering JavaScript exceptions, or it tampers with the application source code to force the code path that the attacker injects, thereby leading to remote code execution.</p>
+        <p>There are two main ways in which the pollution of prototypes occurs:</p>
+        <ul>
+        <li><p>Unsafe <code>Object</code> recursive merge</p>
+        </li>
+        <li><p>Property definition by path</p>
+        </li>
+        </ul>
+        <h3 id="unsafe-object-recursive-merge">Unsafe Object recursive merge</h3>
+        <p>The logic of a vulnerable recursive merge function follows the following high-level model:</p>
+        <pre><code>merge (target, source)
+        
+          foreach property of source
+        
+            if property exists and is an object on both the target and the source
+        
+              merge(target[property], source[property])
+        
+            else
+        
+              target[property] = source[property]
+        </code></pre>
+        <br>  
+        
+        <p>When the source object contains a property named <code>__proto__</code> defined with <code>Object.defineProperty()</code> , the condition that checks if the property exists and is an object on both the target and the source passes and the merge recurses with the target, being the prototype of <code>Object</code> and the source of <code>Object</code> as defined by the attacker. Properties are then copied on the <code>Object</code> prototype.</p>
+        <p>Clone operations are a special sub-class of unsafe recursive merges, which occur when a recursive merge is conducted on an empty object: <code>merge({},source)</code>.</p>
+        <p><code>lodash</code> and <code>Hoek</code> are examples of libraries susceptible to recursive merge attacks.</p>
+        <h3 id="property-definition-by-path">Property definition by path</h3>
+        <p>There are a few JavaScript libraries that use an API to define property values on an object based on a given path. The function that is generally affected contains this signature: <code>theFunction(object, path, value)</code></p>
+        <p>If the attacker can control the value of “path”, they can set this value to <code>__proto__.myValue</code>. <code>myValue</code> is then assigned to the prototype of the class of the object.</p>
+        <h2 id="types-of-attacks">Types of attacks</h2>
+        <p>There are a few methods by which Prototype Pollution can be manipulated:</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Origin</th>
+        <th>Short description</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><strong>Denial of service (DoS)</strong></td>
+        <td>Client</td>
+        <td>This is the most likely attack. <br>DoS occurs when <code>Object</code> holds generic functions that are implicitly called for various operations (for example, <code>toString</code> and <code>valueOf</code>). <br> The attacker pollutes <code>Object.prototype.someattr</code> and alters its state to an unexpected value such as <code>Int</code> or <code>Object</code>. In this case, the code fails and is likely to cause a denial of service.  <br><strong>For example:</strong> if an attacker pollutes <code>Object.prototype.toString</code> by defining it as an integer, if the codebase at any point was reliant on <code>someobject.toString()</code> it would fail.</td>
+        </tr>
+        <tr>
+        <td><strong>Remote Code Execution</strong></td>
+        <td>Client</td>
+        <td>Remote code execution is generally only possible in cases where the codebase evaluates a specific attribute of an object, and then executes that evaluation.<br><strong>For example:</strong> <code>eval(someobject.someattr)</code>. In this case, if the attacker pollutes <code>Object.prototype.someattr</code> they are likely to be able to leverage this in order to execute code.</td>
+        </tr>
+        <tr>
+        <td><strong>Property Injection</strong></td>
+        <td>Client</td>
+        <td>The attacker pollutes properties that the codebase relies on for their informative value, including security properties such as cookies or tokens.<br>  <strong>For example:</strong> if a codebase checks privileges for <code>someuser.isAdmin</code>, then when the attacker pollutes <code>Object.prototype.isAdmin</code> and sets it to equal <code>true</code>, they can then achieve admin privileges.</td>
+        </tr>
+        </tbody></table>
+        <h2 id="affected-environments">Affected environments</h2>
+        <p>The following environments are susceptible to a Prototype Pollution attack:</p>
+        <ul>
+        <li><p>Application server</p>
+        </li>
+        <li><p>Web server</p>
+        </li>
+        <li><p>Web browser</p>
+        </li>
+        </ul>
+        <h2 id="how-to-prevent">How to prevent</h2>
+        <ol>
+        <li><p>Freeze the prototype— use <code>Object.freeze (Object.prototype)</code>.</p>
+        </li>
+        <li><p>Require schema validation of JSON input.</p>
+        </li>
+        <li><p>Avoid using unsafe recursive merge functions.</p>
+        </li>
+        <li><p>Consider using objects without prototypes (for example, <code>Object.create(null)</code>), breaking the prototype chain and preventing pollution.</p>
+        </li>
+        <li><p>As a best practice use <code>Map</code> instead of <code>Object</code>.</p>
+        </li>
+        </ol>
+        <h3 id="for-more-information-on-this-vulnerability-type">For more information on this vulnerability type:</h3>
+        <p><a href="https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf">Arteau, Olivier. “JavaScript prototype pollution attack in NodeJS application.” GitHub, 26 May 2018</a></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>lodash-es</code> to version 4.17.23 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/lodash/lodash/commit/edadd452146f7e4bad4ea684e955708931d84d81">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-LODASHES-15053836">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Prototype Pollution</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            lodash
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, dagre@0.8.5 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dagre@0.8.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        lodash@4.17.21
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        react-form@2.16.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        redux@3.7.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        lodash@4.17.21
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dagre@0.8.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        graphlib@2.1.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        lodash@4.17.21
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        react-hot-loader@3.1.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        react-proxy@3.0.0-alpha.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        lodash@4.17.21
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        argo-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        react-form@2.16.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        redux@3.7.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        lodash@4.17.21
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.com/package/lodash">lodash</a> is a modern JavaScript utility library delivering modularity, performance, &amp; extras.</p>
+        <p>Affected versions of this package are vulnerable to Prototype Pollution via the <code>_.unset</code> and <code>_.omit</code> functions. An attacker can delete methods held in properties of global prototypes but cannot overwrite those properties.</p>
+        <h2 id="details">Details</h2>
+        <p>Prototype Pollution is a vulnerability affecting JavaScript. Prototype Pollution refers to the ability to inject properties into existing JavaScript language construct prototypes, such as objects. JavaScript allows all Object attributes to be altered, including their magical attributes such as <code>__proto__</code>, <code>constructor</code> and <code>prototype</code>. An attacker manipulates these attributes to overwrite, or pollute, a JavaScript application object prototype of the base object by injecting other values.  Properties on the <code>Object.prototype</code> are then inherited by all the JavaScript objects through the prototype chain. When that happens, this leads to either denial of service by triggering JavaScript exceptions, or it tampers with the application source code to force the code path that the attacker injects, thereby leading to remote code execution.</p>
+        <p>There are two main ways in which the pollution of prototypes occurs:</p>
+        <ul>
+        <li><p>Unsafe <code>Object</code> recursive merge</p>
+        </li>
+        <li><p>Property definition by path</p>
+        </li>
+        </ul>
+        <h3 id="unsafe-object-recursive-merge">Unsafe Object recursive merge</h3>
+        <p>The logic of a vulnerable recursive merge function follows the following high-level model:</p>
+        <pre><code>merge (target, source)
+        
+          foreach property of source
+        
+            if property exists and is an object on both the target and the source
+        
+              merge(target[property], source[property])
+        
+            else
+        
+              target[property] = source[property]
+        </code></pre>
+        <br>  
+        
+        <p>When the source object contains a property named <code>__proto__</code> defined with <code>Object.defineProperty()</code> , the condition that checks if the property exists and is an object on both the target and the source passes and the merge recurses with the target, being the prototype of <code>Object</code> and the source of <code>Object</code> as defined by the attacker. Properties are then copied on the <code>Object</code> prototype.</p>
+        <p>Clone operations are a special sub-class of unsafe recursive merges, which occur when a recursive merge is conducted on an empty object: <code>merge({},source)</code>.</p>
+        <p><code>lodash</code> and <code>Hoek</code> are examples of libraries susceptible to recursive merge attacks.</p>
+        <h3 id="property-definition-by-path">Property definition by path</h3>
+        <p>There are a few JavaScript libraries that use an API to define property values on an object based on a given path. The function that is generally affected contains this signature: <code>theFunction(object, path, value)</code></p>
+        <p>If the attacker can control the value of “path”, they can set this value to <code>__proto__.myValue</code>. <code>myValue</code> is then assigned to the prototype of the class of the object.</p>
+        <h2 id="types-of-attacks">Types of attacks</h2>
+        <p>There are a few methods by which Prototype Pollution can be manipulated:</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Origin</th>
+        <th>Short description</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><strong>Denial of service (DoS)</strong></td>
+        <td>Client</td>
+        <td>This is the most likely attack. <br>DoS occurs when <code>Object</code> holds generic functions that are implicitly called for various operations (for example, <code>toString</code> and <code>valueOf</code>). <br> The attacker pollutes <code>Object.prototype.someattr</code> and alters its state to an unexpected value such as <code>Int</code> or <code>Object</code>. In this case, the code fails and is likely to cause a denial of service.  <br><strong>For example:</strong> if an attacker pollutes <code>Object.prototype.toString</code> by defining it as an integer, if the codebase at any point was reliant on <code>someobject.toString()</code> it would fail.</td>
+        </tr>
+        <tr>
+        <td><strong>Remote Code Execution</strong></td>
+        <td>Client</td>
+        <td>Remote code execution is generally only possible in cases where the codebase evaluates a specific attribute of an object, and then executes that evaluation.<br><strong>For example:</strong> <code>eval(someobject.someattr)</code>. In this case, if the attacker pollutes <code>Object.prototype.someattr</code> they are likely to be able to leverage this in order to execute code.</td>
+        </tr>
+        <tr>
+        <td><strong>Property Injection</strong></td>
+        <td>Client</td>
+        <td>The attacker pollutes properties that the codebase relies on for their informative value, including security properties such as cookies or tokens.<br>  <strong>For example:</strong> if a codebase checks privileges for <code>someuser.isAdmin</code>, then when the attacker pollutes <code>Object.prototype.isAdmin</code> and sets it to equal <code>true</code>, they can then achieve admin privileges.</td>
+        </tr>
+        </tbody></table>
+        <h2 id="affected-environments">Affected environments</h2>
+        <p>The following environments are susceptible to a Prototype Pollution attack:</p>
+        <ul>
+        <li><p>Application server</p>
+        </li>
+        <li><p>Web server</p>
+        </li>
+        <li><p>Web browser</p>
+        </li>
+        </ul>
+        <h2 id="how-to-prevent">How to prevent</h2>
+        <ol>
+        <li><p>Freeze the prototype— use <code>Object.freeze (Object.prototype)</code>.</p>
+        </li>
+        <li><p>Require schema validation of JSON input.</p>
+        </li>
+        <li><p>Avoid using unsafe recursive merge functions.</p>
+        </li>
+        <li><p>Consider using objects without prototypes (for example, <code>Object.create(null)</code>), breaking the prototype chain and preventing pollution.</p>
+        </li>
+        <li><p>As a best practice use <code>Map</code> instead of <code>Object</code>.</p>
+        </li>
+        </ol>
+        <h3 id="for-more-information-on-this-vulnerability-type">For more information on this vulnerability type:</h3>
+        <p><a href="https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf">Arteau, Olivier. “JavaScript prototype pollution attack in NodeJS application.” GitHub, 26 May 2018</a></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>lodash</code> to version 4.17.23 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/lodash/lodash/commit/edadd452146f7e4bad4ea684e955708931d84d81">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-LODASH-15053838">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Inefficient Algorithmic Complexity</h2>
             <div class="card__section">
         
@@ -1068,7 +1659,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd/argoproj/argo-cd/gitops-engine <span class="list-paths__item__arrow">›</span> gitops-engine/go.mod
+                        Manifest file: /argo-cd/argoproj/gitops-engine <span class="list-paths__item__arrow">›</span> gitops-engine/go.mod
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -1082,7 +1673,7 @@
                     <li class="card__meta__item">Introduced through:
         
         
-                                    github.com/argoproj/argo-cd/gitops-engine@0.0.0, k8s.io/kubectl/pkg/cmd/auth@0.34.0 and others
+                                    github.com/argoproj/gitops-engine@0.0.0, k8s.io/kubectl/pkg/cmd/auth@0.34.0 and others
                     </li>
                 </ul>
         
@@ -1094,7 +1685,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                        github.com/argoproj/gitops-engine@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/cmd/auth@0.34.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1115,7 +1706,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                        github.com/argoproj/gitops-engine@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/cmd/create@0.34.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1136,7 +1727,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                        github.com/argoproj/gitops-engine@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/cmd/apply@0.34.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1159,7 +1750,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                        github.com/argoproj/gitops-engine@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/cmd/replace@0.34.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1182,7 +1773,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                        github.com/argoproj/gitops-engine@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/cmd/util@0.34.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1205,7 +1796,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                        github.com/argoproj/gitops-engine@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/cmd/delete@0.34.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1273,7 +1864,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: /argo-cd/argoproj/argo-cd/gitops-engine <span class="list-paths__item__arrow">›</span> gitops-engine/go.mod
+                        Manifest file: /argo-cd/argoproj/gitops-engine <span class="list-paths__item__arrow">›</span> gitops-engine/go.mod
                     </li>
                     <li class="card__meta__item">
                         Package Manager: golang
@@ -1287,7 +1878,7 @@
                     <li class="card__meta__item">Introduced through:
         
         
-                                    github.com/argoproj/argo-cd/gitops-engine@0.0.0, k8s.io/kubectl/pkg/cmd/auth@0.34.0 and others
+                                    github.com/argoproj/gitops-engine@0.0.0, k8s.io/kubectl/pkg/cmd/auth@0.34.0 and others
                     </li>
                 </ul>
         
@@ -1299,7 +1890,7 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                        github.com/argoproj/gitops-engine@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/cmd/auth@0.34.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1320,7 +1911,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                        github.com/argoproj/gitops-engine@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/cmd/create@0.34.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1341,7 +1932,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                        github.com/argoproj/gitops-engine@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/cmd/apply@0.34.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1364,7 +1955,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                        github.com/argoproj/gitops-engine@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/cmd/replace@0.34.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1387,7 +1978,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                        github.com/argoproj/gitops-engine@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/cmd/util@0.34.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1410,7 +2001,7 @@
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                        github.com/argoproj/gitops-engine@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
                                         k8s.io/kubectl/pkg/cmd/delete@0.34.0
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1551,7 +2142,7 @@
                     <li class="card__meta__item">Introduced through:
         
         
-                                    github.com/argoproj/argo-cd/v3@0.0.0, code.gitea.io/sdk/gitea@0.23.2 and others
+                                    github.com/argoproj/argo-cd/v3@0.0.0, code.gitea.io/sdk/gitea@0.22.1 and others
                     </li>
                 </ul>
         
@@ -1565,7 +2156,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        code.gitea.io/sdk/gitea@0.23.2
+                                        code.gitea.io/sdk/gitea@0.22.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-version@1.7.0
                                         
@@ -1638,7 +2229,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.8
                                         
@@ -1649,7 +2240,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gitlab.com/gitlab-org/api/client-go@1.39.0
+                                        gitlab.com/gitlab-org/api/client-go@1.8.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.8
                                         
@@ -1660,22 +2251,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.8
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#1dbe3de712f8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.8
                                         
@@ -1686,7 +2264,20 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#a23b5827d630
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-retryablehttp@0.7.8
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1699,26 +2290,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/api@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.8
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#1dbe3de712f8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#1dbe3de712f8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.8
                                         
@@ -1729,9 +2305,24 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/controller@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#a23b5827d630
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-retryablehttp@0.7.8
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#a23b5827d630
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1744,26 +2335,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.8
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#1dbe3de712f8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#1dbe3de712f8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1776,11 +2350,28 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/api@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-retryablehttp@0.7.8
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#a23b5827d630
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#a23b5827d630
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1857,7 +2448,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gitlab.com/gitlab-org/api/client-go@1.39.0
+                                        gitlab.com/gitlab-org/api/client-go@1.8.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-cleanhttp@0.5.2
                                         
@@ -1868,7 +2459,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        gitlab.com/gitlab-org/api/client-go@1.39.0
+                                        gitlab.com/gitlab-org/api/client-go@1.8.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/hashicorp/go-retryablehttp@0.7.8
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1881,7 +2472,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1896,26 +2487,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@0.7.8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-cleanhttp@0.5.2
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@0.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/cmd@#1dbe3de712f8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1930,11 +2504,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/api@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/cmd@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#1dbe3de712f8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1949,11 +2521,30 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v3@0.0.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/controller@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/api@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/argoproj/notifications-engine/pkg/services@#1dbe3de712f8
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-retryablehttp@0.7.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/go-cleanhttp@0.5.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/controller@#a23b5827d630
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/subscriptions@#a23b5827d630
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/notifications-engine/pkg/services@#a23b5827d630
                                          <span class="list-paths__item__arrow">›</span> 
                                         github.com/opsgenie/opsgenie-go-sdk-v2/client@1.2.23
                                          <span class="list-paths__item__arrow">›</span> 
