@@ -50,7 +50,10 @@ const (
 	SyncOptionClientSideApplyMigration = "ClientSideApplyMigration=true"
 	// Sync option that disables client-side apply migration
 	SyncOptionDisableClientSideApplyMigration = "ClientSideApplyMigration=false"
-
+	// SyncOptionIgnoreOwnerReferencesOnPrune allows pruning resources that have ownerReferences
+	// set by external Kubernetes operators or controllers, as long as the resource is tracked
+	// by Argo CD.
+	SyncOptionIgnoreOwnerReferencesOnPrune = "IgnoreOwnerReferencesOnPrune=true"
 	// Default field manager for client-side apply migration
 	DefaultClientSideApplyMigrationManager = "kubectl-client-side-apply"
 )
