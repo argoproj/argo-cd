@@ -19,9 +19,9 @@ argocd cluster set NAME [flags]
 ### Options
 
 ```
-      --annotation stringArray   Set metadata annotations (e.g. --annotation key=value)
+      --annotation stringArray   Set metadata annotations (e.g. --annotation key=value) or unset them (e.g. --annotation key-)
   -h, --help                     help for set
-      --label stringArray        Set metadata labels (e.g. --label key=value)
+      --label stringArray        Set metadata labels (e.g. --label key=value) or unset them (e.g. --label key-)
       --name string              Overwrite the cluster name
       --namespace stringArray    List of namespaces which are allowed to manage. Specify '*' to manage all namespaces
 ```
