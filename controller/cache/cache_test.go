@@ -952,3 +952,166 @@ func Test_asResourceNode_same_namespace_parent(t *testing.T) {
 	assert.Equal(t, "my-deployment", resNode.ParentRefs[0].Name)
 	assert.Equal(t, "my-namespace", resNode.ParentRefs[0].Namespace, "Deployment parent should have same namespace")
 }
+func TestGetManagedLiveObjs_OwnerRefsFiltering(t *testing.T) {
+	const testServer = "https://test-cluster"
+	const testApp = "my-app"
+
+	// Helper: creates a liveStateCache with the given cluster cache mock pre-populated.
+	setup := func(t *testing.T, clusterCacheMock *mocks.ClusterCache) *liveStateCache {
+		t.Helper()
+		fakeClient := fake.NewClientset()
+		settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "default")
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
+		return &liveStateCache{
+			clusters: map[string]cache.ClusterCache{
+				testServer: clusterCacheMock,
+			},
+			clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
+			settingsMgr:     settingsMgr,
+		}
+	}
+
+	// Helper: creates a test Application with optional sync options.
+	makeApp := func(syncOpts ...string) *appv1.Application {
+		app := &appv1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: testApp, Namespace: "default"},
+		}
+		if len(syncOpts) > 0 {
+			opts := make(appv1.SyncOptions, len(syncOpts))
+			for i, o := range syncOpts {
+				opts[i] = o
+			}
+			app.Spec.SyncPolicy = &appv1.SyncPolicy{SyncOptions: opts}
+		}
+		return app
+	}
+
+	destCluster := &appv1.Cluster{Server: testServer}
+
+	t.Run("ownerRefs_excluded_without_opt_in", func(t *testing.T) {
+		clusterCacheMock := &mocks.ClusterCache{}
+		clusterCacheMock.EXPECT().EnsureSynced().Return(nil)
+		clusterCacheMock.On("GetManagedLiveObjs", mock.Anything, mock.Anything).Return(
+			func(targetObjs []*unstructured.Unstructured, isManaged func(r *cache.Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+				res := &cache.Resource{
+					OwnerRefs: []metav1.OwnerReference{{Name: "parent", APIVersion: "v1", Kind: "Operator"}},
+					Info:      &ResourceInfo{AppName: testApp},
+					Resource:  nil,
+				}
+				result := map[kube.ResourceKey]*unstructured.Unstructured{}
+				if isManaged(res) {
+					result[kube.ResourceKey{Name: "test"}] = &unstructured.Unstructured{}
+				}
+				return result, nil
+			},
+		)
+		lsc := setup(t, clusterCacheMock)
+		objs, err := lsc.GetManagedLiveObjs(destCluster, makeApp(), nil)
+		require.NoError(t, err)
+		assert.Empty(t, objs, "resource with ownerRefs should be excluded without opt-in")
+	})
+
+	t.Run("ownerRefs_excluded_without_annotation", func(t *testing.T) {
+		clusterCacheMock := &mocks.ClusterCache{}
+		clusterCacheMock.EXPECT().EnsureSynced().Return(nil)
+		clusterCacheMock.On("GetManagedLiveObjs", mock.Anything, mock.Anything).Return(
+			func(targetObjs []*unstructured.Unstructured, isManaged func(r *cache.Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+				res := &cache.Resource{
+					OwnerRefs: []metav1.OwnerReference{{Name: "parent", APIVersion: "v1", Kind: "Operator"}},
+					Info:      &ResourceInfo{AppName: testApp},
+					Resource: &unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{"name": "test-resource"},
+						},
+					},
+				}
+				result := map[kube.ResourceKey]*unstructured.Unstructured{}
+				if isManaged(res) {
+					result[kube.ResourceKey{Name: "test"}] = res.Resource
+				}
+				return result, nil
+			},
+		)
+		lsc := setup(t, clusterCacheMock)
+		objs, err := lsc.GetManagedLiveObjs(destCluster, makeApp(), nil)
+		require.NoError(t, err)
+		assert.Empty(t, objs, "resource with ownerRefs but no annotation should be excluded")
+	})
+
+	t.Run("ownerRefs_included_with_app_level_opt_in", func(t *testing.T) {
+		clusterCacheMock := &mocks.ClusterCache{}
+		clusterCacheMock.EXPECT().EnsureSynced().Return(nil)
+		clusterCacheMock.On("GetManagedLiveObjs", mock.Anything, mock.Anything).Return(
+			func(targetObjs []*unstructured.Unstructured, isManaged func(r *cache.Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+				res := &cache.Resource{
+					OwnerRefs: []metav1.OwnerReference{{Name: "parent", APIVersion: "v1", Kind: "Operator"}},
+					Info:      &ResourceInfo{AppName: testApp},
+					Resource:  nil,
+				}
+				result := map[kube.ResourceKey]*unstructured.Unstructured{}
+				if isManaged(res) {
+					result[kube.ResourceKey{Name: "test"}] = &unstructured.Unstructured{}
+				}
+				return result, nil
+			},
+		)
+		lsc := setup(t, clusterCacheMock)
+		objs, err := lsc.GetManagedLiveObjs(destCluster, makeApp("IgnoreOwnerReferencesOnPrune=true"), nil)
+		require.NoError(t, err)
+		assert.Len(t, objs, 1, "resource with ownerRefs should be included when app-level opt-in is set")
+	})
+
+	t.Run("ownerRefs_included_with_resource_annotation", func(t *testing.T) {
+		clusterCacheMock := &mocks.ClusterCache{}
+		clusterCacheMock.EXPECT().EnsureSynced().Return(nil)
+		clusterCacheMock.On("GetManagedLiveObjs", mock.Anything, mock.Anything).Return(
+			func(targetObjs []*unstructured.Unstructured, isManaged func(r *cache.Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+				res := &cache.Resource{
+					OwnerRefs: []metav1.OwnerReference{{Name: "parent", APIVersion: "v1", Kind: "Operator"}},
+					Info:      &ResourceInfo{AppName: testApp},
+					Resource: &unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"name": "test-resource",
+								"annotations": map[string]any{
+									"argocd.argoproj.io/sync-options": "IgnoreOwnerReferencesOnPrune=true",
+								},
+							},
+						},
+					},
+				}
+				result := map[kube.ResourceKey]*unstructured.Unstructured{}
+				if isManaged(res) {
+					result[kube.ResourceKey{Name: "test"}] = res.Resource
+				}
+				return result, nil
+			},
+		)
+		lsc := setup(t, clusterCacheMock)
+		objs, err := lsc.GetManagedLiveObjs(destCluster, makeApp(), nil)
+		require.NoError(t, err)
+		assert.Len(t, objs, 1, "resource with ownerRefs should be included when resource has annotation")
+	})
+
+	t.Run("no_ownerRefs_always_included", func(t *testing.T) {
+		clusterCacheMock := &mocks.ClusterCache{}
+		clusterCacheMock.EXPECT().EnsureSynced().Return(nil)
+		clusterCacheMock.On("GetManagedLiveObjs", mock.Anything, mock.Anything).Return(
+			func(targetObjs []*unstructured.Unstructured, isManaged func(r *cache.Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+				res := &cache.Resource{
+					Info: &ResourceInfo{AppName: testApp},
+				}
+				result := map[kube.ResourceKey]*unstructured.Unstructured{}
+				if isManaged(res) {
+					result[kube.ResourceKey{Name: "test"}] = &unstructured.Unstructured{}
+				}
+				return result, nil
+			},
+		)
+		lsc := setup(t, clusterCacheMock)
+		objs, err := lsc.GetManagedLiveObjs(destCluster, makeApp(), nil)
+		require.NoError(t, err)
+		assert.Len(t, objs, 1, "resource without ownerRefs should always be included")
+	})
+}
