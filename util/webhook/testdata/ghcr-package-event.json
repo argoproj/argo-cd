@@ -1,0 +1,19 @@
+{
+  "action": "published",
+  "package": {
+    "name": "guestbook",
+    "namespace": "user",
+    "package_type": "CONTAINER",
+    "owner": {
+      "login": "nitishfy"
+    },
+    "package_version": {
+      "container_metadata": {
+        "tag": {
+          "name": "5.5.9",
+          "digest": "sha256:abc123"
+        }
+      }
+    }
+  }
+}
