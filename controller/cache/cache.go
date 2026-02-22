@@ -18,6 +18,8 @@ import (
 
 	clustercache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
@@ -731,9 +733,20 @@ func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cluster info for %q: %w", destCluster.Server, err)
 	}
+	ignoreOwnerRefs := a.Spec.SyncPolicy != nil &&
+		a.Spec.SyncPolicy.SyncOptions.HasOption(synccommon.SyncOptionIgnoreOwnerReferencesOnPrune)
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
-		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
+		if resInfo(r).AppName != a.InstanceName(c.settingsMgr.GetNamespace()) {
+			return false
+		}
+		if len(r.OwnerRefs) > 0 && !ignoreOwnerRefs {
+			if r.Resource == nil || !resourceutil.HasAnnotationOption(r.Resource, synccommon.AnnotationSyncOptions, synccommon.SyncOptionIgnoreOwnerReferencesOnPrune) {
+				return false
+			}
+		}
+		return true
 	})
+
 }
 
 func (c *liveStateCache) GetVersionsInfo(server *appv1.Cluster) (string, []kube.APIResourceInfo, error) {

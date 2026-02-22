@@ -208,10 +208,10 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		eventHandlers:           map[uint64]OnEventHandler{},
 		processEventsHandlers:   map[uint64]OnProcessEventsHandler{},
 		log:                     log,
-		listRetryLimit:      1,
-		listRetryUseBackoff: false,
-		listRetryFunc:       ListRetryFuncNever,
-		parentUIDToChildren: make(map[types.UID][]kube.ResourceKey),
+		listRetryLimit:          1,
+		listRetryUseBackoff:     false,
+		listRetryFunc:           ListRetryFuncNever,
+		parentUIDToChildren:     make(map[types.UID][]kube.ResourceKey),
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -520,7 +520,6 @@ func (c *clusterCache) rebuildParentToChildrenIndex() {
 		}
 	}
 }
-
 
 // addToParentUIDToChildren adds a child to the parent-to-children index
 func (c *clusterCache) addToParentUIDToChildren(parentUID types.UID, childKey kube.ResourceKey) {
@@ -1415,7 +1414,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 	managedObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
 	// iterate all objects in live state cache to find ones associated with app
 	for key, o := range c.resources {
-		if isManaged(o) && o.Resource != nil && len(o.OwnerRefs) == 0 {
+		if isManaged(o) && o.Resource != nil {
 			managedObjs[key] = o.Resource
 		}
 	}
