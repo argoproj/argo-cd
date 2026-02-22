@@ -14,7 +14,7 @@ import (
 )
 
 // NewLogoutCommand returns a new instance of `argocd logout` command
-func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewLogoutCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "logout CONTEXT",
 		Short: "Log out from Argo CD",
@@ -33,13 +33,13 @@ argocd logout cd.argoproj.io
 			}
 			context := args[0]
 
-			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
+			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 			if localCfg == nil {
 				log.Fatalf("Nothing to logout from")
 			}
 
-			promptUtil := utils.NewPrompt(globalClientOpts.PromptsEnabled)
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 
 			canLogout := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to log out from '%s'?", context))
 			if canLogout {
@@ -52,7 +52,7 @@ argocd logout cd.argoproj.io
 				if err != nil {
 					log.Fatalf("Error in logging out: %s", err)
 				}
-				err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
+				err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 				errors.CheckError(err)
 
 				fmt.Printf("Logged out from '%s'\n", context)
