@@ -264,7 +264,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						// Some resources' name is derived from the source object name, so the returned name is not actually equal to the testdata output name
 						// Considering the resource found in the testdata output if its name starts with source object name
 						// TODO: maybe this should use a normalizer function instead of hard-coding the resource specifics here
-						if (result.GetKind() == "Job" && sourceObj.GetKind() == "CronJob") || (result.GetKind() == "Workflow" && (sourceObj.GetKind() == "CronWorkflow" || sourceObj.GetKind() == "WorkflowTemplate")) {
+						if (result.GetKind() == "Job" && sourceObj.GetKind() == "CronJob") || (result.GetKind() == "Workflow" && (sourceObj.GetKind() == "CronWorkflow" || sourceObj.GetKind() == "WorkflowTemplate")) || (result.GetKind() == "Backup" && sourceObj.GetKind() == "ScheduledBackup") {
 							return u.GroupVersionKind() == result.GroupVersionKind() && strings.HasPrefix(u.GetName(), sourceObj.GetName()) && u.GetNamespace() == result.GetNamespace()
 						}
 						return u.GroupVersionKind() == result.GroupVersionKind() && u.GetName() == result.GetName() && u.GetNamespace() == result.GetNamespace()
@@ -281,7 +281,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						assert.Equal(t, sourceObj.GetNamespace(), result.GetNamespace())
 					case CreateOperation:
 						switch result.GetKind() {
-						case "Job", "Workflow":
+						case "Job", "Workflow", "Backup":
 							// The name of the created resource is derived from the source object name, so the returned name is not actually equal to the testdata output name
 							result.SetName(expectedObj.GetName())
 						}

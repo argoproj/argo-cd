@@ -69,6 +69,7 @@
 - [postgresql.cnpg.io/Cluster/restart](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/postgresql.cnpg.io/Cluster/actions/restart/action.lua)
 - [postgresql.cnpg.io/Cluster/resume](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/postgresql.cnpg.io/Cluster/actions/resume/action.lua)
 - [postgresql.cnpg.io/Cluster/suspend](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/postgresql.cnpg.io/Cluster/actions/suspend/action.lua)
+- [postgresql.cnpg.io/ScheduledBackup/create-backup](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/postgresql.cnpg.io/ScheduledBackup/actions/create-backup/action.lua)
 - [promoter.argoproj.io/PullRequest/merge](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/promoter.argoproj.io/PullRequest/actions/merge/action.lua)
 - [source.toolkit.fluxcd.io/Bucket/reconcile](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/source.toolkit.fluxcd.io/Bucket/actions/reconcile/action.lua)
 - [source.toolkit.fluxcd.io/Bucket/resume](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/source.toolkit.fluxcd.io/Bucket/actions/resume/action.lua)
