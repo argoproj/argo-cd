@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-git-config-cm
+  labels:
+    app.kubernetes.io/name: argocd-git-config-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  .gitconfig: ""
