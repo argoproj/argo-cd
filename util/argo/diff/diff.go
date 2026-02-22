@@ -397,15 +397,16 @@ func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDi
 		return false, nil
 	}
 	cachedDiff := make([]*v1alpha1.ResourceDiff, 0)
-	if c.stateCache != nil {
-		err := c.stateCache.GetAppManagedResources(appName, &cachedDiff)
-		if err != nil {
+	err := c.stateCache.GetAppManagedResources(appName, &cachedDiff)
+	if err != nil {
+		if errors.Is(err, appstatecache.ErrCacheMiss) {
+			log.Warnf("DiffFromCache warning: cannot get managed resources for app %s: %s", appName, err)
+		} else {
 			log.Errorf("DiffFromCache error: error getting managed resources for app %s: %s", appName, err)
-			return false, nil
 		}
-		return true, cachedDiff
+		return false, nil
 	}
-	return false, nil
+	return true, cachedDiff
 }
 
 // preDiffNormalize applies the normalization of live and target resources before invoking
