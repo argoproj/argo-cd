@@ -886,6 +886,24 @@ func TestSkipAutoSync(t *testing.T) {
 		require.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
+
+	t.Run("PruneRequestedOverridesAutomatedPruneDisabled", func(t *testing.T) {
+		app := newFakeApp()
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeOutOfSync,
+			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		}
+		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{
+			{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync, RequiresPruning: true, PruneRequested: true},
+		}, true)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, app.Operation)
+		require.NotNil(t, app.Operation.Sync)
+		assert.False(t, app.Operation.Sync.Prune)
+	})
 }
 
 // TestAutoSyncIndicateError verifies we skip auto-sync and return error condition if previous sync failed

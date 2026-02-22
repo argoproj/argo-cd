@@ -16,6 +16,18 @@ metadata:
 
 The sync-status panel shows that pruning was skipped, and why:
 
+## Force Prune Resources
+
+If pruning is disabled at the application or operation level (for example, by setting `spec.syncPolicy.automated.prune: false`), you can still allow specific resources to be pruned by using `Prune=true` on those resources:
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=true
+```
+
+This option is useful when pruning is generally disabled but you need a targeted opt-in for specific resources.
+
 ![sync option no prune](../assets/sync-option-no-prune-sync-status.png)
 
 The app will be out of sync if Argo CD expects a resource to be pruned. You may wish to use this along with [compare options](compare-options.md).

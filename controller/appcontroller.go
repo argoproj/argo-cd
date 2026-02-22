@@ -2204,13 +2204,19 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 	if !app.Spec.SyncPolicy.Automated.Prune {
 		requirePruneOnly := true
+		hasPruneRequested := false
 		for _, r := range resources {
-			if r.Status != appv1.SyncStatusCodeSynced && !r.RequiresPruning {
-				requirePruneOnly = false
-				break
+			if r.Status != appv1.SyncStatusCodeSynced {
+				if !r.RequiresPruning {
+					requirePruneOnly = false
+					break
+				}
+				if r.PruneRequested {
+					hasPruneRequested = true
+				}
 			}
 		}
-		if requirePruneOnly {
+		if requirePruneOnly && !hasPruneRequested {
 			logCtx.Infof("Skipping auto-sync: need to prune extra resources only but automated prune is disabled")
 			return nil, 0
 		}
