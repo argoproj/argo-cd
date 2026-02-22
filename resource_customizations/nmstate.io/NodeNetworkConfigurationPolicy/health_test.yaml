@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Waiting for policy to be applied
+  inputPath: testdata/progressing_noStatus.yaml
+- healthStatus:
+    status: Progressing
+    message: "ConfigurationProgressing: Policy is progressing 0/1 nodes finished"
+  inputPath: testdata/progressing_configuring.yaml
+- healthStatus:
+    status: Healthy
+    message: "SuccessfullyConfigured: 1/1 nodes successfully configured"
+  inputPath: testdata/healthy_configured.yaml
+- healthStatus:
+    status: Degraded
+    message: "FailedToConfigure: 1/1 nodes failed to configure"
+  inputPath: testdata/degraded_failedToConfigure.yaml
+- healthStatus:
+    status: Suspended
+    message: NoMatchingNode
+  inputPath: testdata/suspended_noMatchingNode.yaml
