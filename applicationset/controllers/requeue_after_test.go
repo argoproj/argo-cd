@@ -57,7 +57,7 @@ func TestRequeueAfter(t *testing.T) {
 		},
 	}
 	fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, duckType)
-	scmConfig := generators.NewSCMConfig("", []string{""}, true, true, nil, true)
+	scmConfig := generators.NewSCMConfig("", []string{""}, true, true, false, 100, nil, true)
 	clusterInformer, err := settings.NewClusterInformer(appClientset, "argocd")
 	require.NoError(t, err)
 

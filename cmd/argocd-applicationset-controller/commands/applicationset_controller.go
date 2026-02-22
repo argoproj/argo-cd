@@ -73,6 +73,8 @@ func NewCommand() *cobra.Command {
 		globalPreservedAnnotations   []string
 		globalPreservedLabels        []string
 		enableGitHubAPIMetrics       bool
+		enableGitHubCache            bool
+		githubCacheSize              int
 		metricsAplicationsetLabels   []string
 		enableScmProviders           bool
 		webhookParallelism           int
@@ -202,7 +204,7 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, enableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), tokenRefStrictMode)
+			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, enableGitHubAPIMetrics, enableGitHubCache, githubCacheSize, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), tokenRefStrictMode)
 
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
@@ -302,6 +304,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
 	command.Flags().StringSliceVar(&metricsAplicationsetLabels, "metrics-applicationset-labels", []string{}, "List of Application labels that will be added to the argocd_applicationset_labels metric")
 	command.Flags().BoolVar(&enableGitHubAPIMetrics, "enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
+	command.Flags().BoolVar(&enableGitHubCache, "enable-github-cache", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_CACHE", false), "Enable GitHub cache for generators that use the GitHub API")
+	command.Flags().IntVar(&githubCacheSize, "github-cache-size", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GITHUB_CACHE_SIZE", 2000, 1, math.MaxInt), "Size of the GitHub cache")
 	command.Flags().IntVar(&maxResourcesStatusCount, "max-resources-status-count", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT", 5000, 0, math.MaxInt), "Max number of resources stored in appset status.")
 
 	return &command
