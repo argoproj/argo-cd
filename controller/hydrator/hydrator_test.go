@@ -1110,10 +1110,14 @@ func TestHydrator_hydrate_DeDupe_Success(t *testing.T) {
 	app1 := newTestApp("app1")
 	app2 := newTestApp("app2")
 	lastSuccessfulOperation := &v1alpha1.SuccessfulHydrateOperation{
-		DrySHA:      "sha123",
-		HydratedSHA: "hydrated123",
+		DrySHA:         "sha123",
+		HydratedSHA:    "hydrated123",
+		SourceHydrator: *app1.Spec.SourceHydrator,
 	}
 	app1.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
+		LastSuccessfulOperation: lastSuccessfulOperation,
+	}
+	app2.Status.SourceHydrator = v1alpha1.SourceHydratorStatus{
 		LastSuccessfulOperation: lastSuccessfulOperation,
 	}
 
