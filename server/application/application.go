@@ -2930,6 +2930,11 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("error getting cluster raw REST config: %w", err)
 	}
 
+	// Impersonate the application-controller for server-side diff operations.
+	clusterConfig.Impersonate = rest.ImpersonationConfig{
+		UserName: fmt.Sprintf("system:serviceaccount:%s:argocd-application-controller", s.ns),
+	}
+
 	// Create server-side diff dry run applier
 	openAPISchema, gvkParser, err := s.kubectl.LoadOpenAPISchema(clusterConfig)
 	if err != nil {
