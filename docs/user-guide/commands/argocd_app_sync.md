@@ -74,6 +74,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --source-names stringArray                          List of source names. Default is an empty array.
       --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
       --strategy string                                   Sync strategy (one of: apply|hook)
+      --sync-option stringArray                           Add a sync option (e.g., --sync-option RunHooksOnPartialSync=true). This option may be specified repeatedly.
       --timeout uint                                      Time out after this many seconds
 ```
 

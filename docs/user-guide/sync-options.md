@@ -476,3 +476,35 @@ The resulting namespace will have its annotations set to
     foo: bar
     something: completely-different
 ```
+
+## Run Hooks on Partial Sync
+
+By default, when performing a partial sync (syncing only specific resources using the `--resource` flag), sync hooks are excluded. This behavior exists because hooks are typically intended to run as part of a full sync operation.
+
+However, there are cases where you may want hooks to execute even during a partial sync. For example, you might want a PreSync hook to perform database migrations or a PostSync hook to send notifications even when only updating specific resources.
+
+To enable hooks during partial syncs, use the `RunHooksOnPartialSync=true` sync option:
+
+```bash
+# Sync a specific resource while also running hooks
+argocd app sync my-app --resource :Deployment:guestbook-ui --sync-option RunHooksOnPartialSync=true
+```
+
+This option can also be set at the Application level:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - RunHooksOnPartialSync=true
+```
+
+When this option is enabled:
+- All PreSync, Sync, PostSync, and SyncFail hooks will be included in the sync operation
+- Hooks will execute in their normal order according to sync waves
+- Hook deletion policies are respected as usual
+
+> [!NOTE]
+> This option only affects partial syncs. During full syncs (when no specific resources are selected), hooks always run regardless of this setting.

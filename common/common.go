@@ -339,6 +339,13 @@ const (
 	EnvGRPCMaxSizeMB = "ARGOCD_GRPC_MAX_SIZE_MB"
 )
 
+// Sync options
+const (
+	// SyncOptionRunHooksOnPartialSync enables running sync hooks even during partial syncs
+	// (when only specific resources are being synced)
+	SyncOptionRunHooksOnPartialSync = "RunHooksOnPartialSync=true"
+)
+
 // Config Management Plugin related constants
 const (
 	// DefaultCMPChunkSize defines chunk size in bytes used when sending files to the cmp server
