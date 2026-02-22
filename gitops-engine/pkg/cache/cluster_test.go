@@ -22,10 +22,10 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -212,7 +212,6 @@ func Benchmark_sync_CrossNamespace(b *testing.B) {
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-
 			resources := []runtime.Object{}
 
 			// Create cluster-scoped parents (ClusterRoles)
@@ -669,6 +668,33 @@ metadata:
 	})
 	assert.Nil(t, managedObjs)
 	assert.EqualError(t, err, "namespace \"production\" for Deployment \"helm-guestbook\" is not managed")
+}
+
+func TestGetManagedLiveObjs_MissingNamespace(t *testing.T) {
+	cluster := newCluster(t)
+	cluster.namespacedResources = map[schema.GroupKind]bool{
+		{Group: "apps", Kind: "Deployment"}: true,
+	}
+	kubectl := cluster.kubectl.(*kubetest.MockKubectlCmd)
+	kubectl.WithGetResourceFunc(func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+		return nil, fmt.Errorf("forbidden")
+	})
+
+	targetDeploy := strToUnstructured(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helm-guestbook
+  namespace: missing-namespace
+  labels:
+    app: helm-guestbook`)
+
+	managedObjs, err := cluster.GetManagedLiveObjs([]*unstructured.Unstructured{targetDeploy}, func(r *Resource) bool {
+		return true
+	})
+
+	require.NoError(t, err)
+	assert.Empty(t, managedObjs)
 }
 
 func TestGetManagedLiveObjsFailedConversion(t *testing.T) {
@@ -1316,7 +1342,6 @@ func testClusterChild() *rbacv1.ClusterRole {
 	}
 }
 
-
 func TestIterateHierarchyV2_ClusterScopedParent_FindsAllChildren(t *testing.T) {
 	// Test that cluster-scoped parents automatically find all their children (both cluster-scoped and namespaced)
 	// This is the core behavior of the new implementation - cross-namespace relationships are always tracked
@@ -1349,7 +1374,6 @@ func TestIterateHierarchyV2_ClusterScopedParent_FindsAllChildren(t *testing.T) {
 	}
 	assert.ElementsMatch(t, expected, keys)
 }
-
 
 func TestIterateHierarchyV2_ClusterScopedParentOnly_InferredUID(t *testing.T) {
 	// Test that passing only a cluster-scoped parent finds children even with inferred UIDs.
@@ -1842,18 +1866,17 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 
 		// Secondary dimension: Within a namespace, % of resources that are cross-NS
 		// 5,000 total resources, 2% of namespaces (1/50) have cross-NS children
-		{"50NS_2pct_100perNS_10cross", 50, 100, 1, 10},  // 10% of namespace resources (10/100)
-		{"50NS_2pct_100perNS_25cross", 50, 100, 1, 25},  // 25% of namespace resources (25/100)
-		{"50NS_2pct_100perNS_50cross", 50, 100, 1, 50},  // 50% of namespace resources (50/100)
+		{"50NS_2pct_100perNS_10cross", 50, 100, 1, 10}, // 10% of namespace resources (10/100)
+		{"50NS_2pct_100perNS_25cross", 50, 100, 1, 25}, // 25% of namespace resources (25/100)
+		{"50NS_2pct_100perNS_50cross", 50, 100, 1, 50}, // 50% of namespace resources (50/100)
 
 		// Edge cases
-		{"100NS_1pct_100perNS_10cross", 100, 100, 1, 10},   // 1% of namespaces (1/100) - extreme clustering
-		{"50NS_100pct_100perNS_10cross", 50, 100, 50, 10},  // 100% of namespaces - worst case
+		{"100NS_1pct_100perNS_10cross", 100, 100, 1, 10},  // 1% of namespaces (1/100) - extreme clustering
+		{"50NS_100pct_100perNS_10cross", 50, 100, 50, 10}, // 100% of namespaces - worst case
 	}
 
 	for _, tc := range testCases {
 		b.Run(tc.name, func(b *testing.B) {
-
 			cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
 				GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
 				GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
@@ -1866,7 +1889,7 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 
 			// CRITICAL: Initialize namespacedResources so setNode will populate orphanedChildren index
 			cluster.namespacedResources = map[schema.GroupKind]bool{
-				{Group: "", Kind: "Pod"}:                                   true,
+				{Group: "", Kind: "Pod"}:                                  true,
 				{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}: false,
 			}
 
@@ -1911,7 +1934,6 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 		})
 	}
 }
-
 
 func TestIterateHierarchyV2_NoDuplicatesInSameNamespace(t *testing.T) {
 	// Create a parent-child relationship in the same namespace
