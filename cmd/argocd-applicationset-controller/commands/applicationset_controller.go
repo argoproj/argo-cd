@@ -68,6 +68,7 @@ func NewCommand() *cobra.Command {
 		repoServerStrictTLS          bool
 		repoServerTimeoutSeconds     int
 		maxConcurrentReconciliations int
+		maxMatrixChildren            int
 		scmRootCAPath                string
 		allowedScmProviders          []string
 		globalPreservedAnnotations   []string
@@ -209,6 +210,8 @@ func NewCommand() *cobra.Command {
 				StrictValidation: repoServerStrictTLS,
 			}
 
+			matrixConfig := generators.NewMatrixConfig(maxMatrixChildren)
+
 			if !repoServerPlaintext && repoServerStrictTLS {
 				pool, err := tls.LoadX509CertPool(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/tls.crt",
@@ -221,7 +224,7 @@ func NewCommand() *cobra.Command {
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
 			argoCDService := services.NewArgoCDService(argoCDDB, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 
-			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig, clusterInformer)
+			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig, clusterInformer, matrixConfig)
 
 			// start a webhook server that listens to incoming webhook payloads
 			webhookHandler, err := webhook.NewWebhookHandler(webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
@@ -296,6 +299,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&maxConcurrentReconciliations, "concurrent-reconciliations", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS", 10, 1, math.MaxInt), "Max concurrent reconciliations limit for the controller")
+	command.Flags().IntVar(&maxMatrixChildren, "max-matrix-children", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_MAX_MATRIX_CHILDREN", 2, 0, math.MaxInt), "Max number of child generators allowed in a matrix generator")
 	command.Flags().StringVar(&scmRootCAPath, "scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
 	command.Flags().StringSliceVar(&globalPreservedAnnotations, "preserved-annotations", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS", []string{}, ","), "Sets global preserved field values for annotations")
 	command.Flags().StringSliceVar(&globalPreservedLabels, "preserved-labels", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS", []string{}, ","), "Sets global preserved field values for labels")

@@ -333,6 +333,18 @@ data:
   applicationsetcontroller.enable.git.submodule: "true"
   # Enables use of the Progressive Syncs capability
   applicationsetcontroller.enable.progressive.syncs: "false"
+  # Enable new globbing in Git files generator.
+  applicationsetcontroller.enable.new.git.file.globbing: "false"
+  # Disable TLS on connections to repo server
+  applicationsetcontroller.repo.server.plaintext: "false"
+  # Whether to use strict validation of the TLS cert presented by the repo server
+  applicationsetcontroller.repo.server.strict.tls: "false"
+  # Repo server RPC call timeout seconds (default: 60)
+  applicationsetcontroller.repo.server.timeout.seconds: 60
+  # Max concurrent reconciliations limit for the controller (default: 10, min: 1, max: 100)
+  applicationsetcontroller.concurrent.reconciliations.max: 10
+  # Max number of child generators allowed in a matrix generator (default: 2, any value less than 1 means no limit)
+  applicationsetcontroller.matrix.children.max: 2
   # A list of glob patterns specifying where to look for ApplicationSet resources. (default is only the ns where the controller is installed)
   applicationsetcontroller.namespaces: "argocd,argocd-appsets-*"
   # Path of the self-signed TLS certificate for SCM/PR Gitlab Generator

@@ -37,6 +37,7 @@ argocd-applicationset-controller [flags]
       --kubeconfig string                       Path to a kube config. Only required if out-of-cluster
       --logformat string                        Set the logging format. One of: json|text (default "json")
       --loglevel string                         Set the logging level. One of: debug|info|warn|error (default "info")
+      --max-matrix-children int                 Max number of child generators allowed in a matrix generator (default 2)
       --max-resources-status-count int          Max number of resources stored in appset status. (default 5000)
       --metrics-addr string                     The address the metric endpoint binds to. (default ":8080")
       --metrics-applicationset-labels strings   List of Application labels that will be added to the argocd_applicationset_labels metric

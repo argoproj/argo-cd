@@ -31,6 +31,10 @@ func TestMatrixGenerate(t *testing.T) {
 		Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "Cluster","url": "Url", "templated": "test-{{path.basenameNormalized}}"}`)}},
 	}
 
+	listGenerator1 := &v1alpha1.ListGenerator{
+		Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"templated1": "test-{{path.basenameNormalized}}"}`)}},
+	}
+
 	testCases := []struct {
 		name           string
 		baseGenerators []v1alpha1.ApplicationSetNestedGenerator
@@ -46,10 +50,13 @@ func TestMatrixGenerate(t *testing.T) {
 				{
 					List: listGenerator,
 				},
+				{
+					List: listGenerator1,
+				},
 			},
 			expected: []map[string]any{
-				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "cluster": "Cluster", "url": "Url", "templated": "test-app1"},
-				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "cluster": "Cluster", "url": "Url", "templated": "test-app2"},
+				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "cluster": "Cluster", "url": "Url", "templated": "test-app1", "templated1": "test-app1"},
+				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "cluster": "Cluster", "url": "Url", "templated": "test-app2", "templated1": "test-app2"},
 			},
 		},
 		{
@@ -80,6 +87,45 @@ func TestMatrixGenerate(t *testing.T) {
 			},
 		},
 		{
+			name: "happy flow - generate params from three lists",
+			baseGenerators: []v1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"a": "1"}`)},
+							{Raw: []byte(`{"a": "2"}`)},
+						},
+					},
+				},
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"b": "1"}`)},
+							{Raw: []byte(`{"b": "2"}`)},
+						},
+					},
+				},
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"c": "1"}`)},
+							{Raw: []byte(`{"c": "2"}`)},
+						},
+					},
+				},
+			},
+			expected: []map[string]any{
+				{"a": "1", "b": "1", "c": "1"},
+				{"a": "1", "b": "1", "c": "2"},
+				{"a": "1", "b": "2", "c": "1"},
+				{"a": "1", "b": "2", "c": "2"},
+				{"a": "2", "b": "1", "c": "1"},
+				{"a": "2", "b": "1", "c": "2"},
+				{"a": "2", "b": "2", "c": "1"},
+				{"a": "2", "b": "2", "c": "2"},
+			},
+		},
+		{
 			name: "returns error if there is less than two base generators",
 			baseGenerators: []v1alpha1.ApplicationSetNestedGenerator{
 				{
@@ -87,21 +133,6 @@ func TestMatrixGenerate(t *testing.T) {
 				},
 			},
 			expectedErr: ErrLessThanTwoGenerators,
-		},
-		{
-			name: "returns error if there is more than two base generators",
-			baseGenerators: []v1alpha1.ApplicationSetNestedGenerator{
-				{
-					List: listGenerator,
-				},
-				{
-					List: listGenerator,
-				},
-				{
-					List: listGenerator,
-				},
-			},
-			expectedErr: ErrMoreThanTwoGenerators,
 		},
 		{
 			name: "returns error if there is more than one inner generator in the first base generator",
@@ -169,7 +200,7 @@ func TestMatrixGenerate(t *testing.T) {
 				map[string]Generator{
 					"Git":  genMock,
 					"List": &ListGenerator{},
-				},
+				}, NewMatrixConfig(0),
 			)
 
 			got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
@@ -200,6 +231,10 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 		Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "Cluster","url": "Url"}`)}},
 	}
 
+	listGenerator1 := &v1alpha1.ListGenerator{
+		Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"templated": "test-{{.path.basenameNormalized}}"}`)}},
+	}
+
 	testCases := []struct {
 		name           string
 		baseGenerators []v1alpha1.ApplicationSetNestedGenerator
@@ -215,6 +250,9 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 				{
 					List: listGenerator,
 				},
+				{
+					List: listGenerator1,
+				},
 			},
 			expected: []map[string]any{
 				{
@@ -223,8 +261,9 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 						"basename":           "app1",
 						"basenameNormalized": "app1",
 					},
-					"cluster": "Cluster",
-					"url":     "Url",
+					"cluster":   "Cluster",
+					"url":       "Url",
+					"templated": "test-app1",
 				},
 				{
 					"path": map[string]string{
@@ -232,8 +271,9 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 						"basename":           "app2",
 						"basenameNormalized": "app2",
 					},
-					"cluster": "Cluster",
-					"url":     "Url",
+					"cluster":   "Cluster",
+					"url":       "Url",
+					"templated": "test-app2",
 				},
 			},
 		},
@@ -262,6 +302,45 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 				{"a": "1", "b": "2"},
 				{"a": "2", "b": "1"},
 				{"a": "2", "b": "2"},
+			},
+		},
+		{
+			name: "happy flow - generate params from three lists",
+			baseGenerators: []v1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"a": "1"}`)},
+							{Raw: []byte(`{"a": "2"}`)},
+						},
+					},
+				},
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"b": "1"}`)},
+							{Raw: []byte(`{"b": "2"}`)},
+						},
+					},
+				},
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{
+							{Raw: []byte(`{"c": "1"}`)},
+							{Raw: []byte(`{"c": "2"}`)},
+						},
+					},
+				},
+			},
+			expected: []map[string]any{
+				{"a": "1", "b": "1", "c": "1"},
+				{"a": "1", "b": "1", "c": "2"},
+				{"a": "1", "b": "2", "c": "1"},
+				{"a": "1", "b": "2", "c": "2"},
+				{"a": "2", "b": "1", "c": "1"},
+				{"a": "2", "b": "1", "c": "2"},
+				{"a": "2", "b": "2", "c": "1"},
+				{"a": "2", "b": "2", "c": "2"},
 			},
 		},
 		{
@@ -294,21 +373,6 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 				},
 			},
 			expectedErr: ErrLessThanTwoGenerators,
-		},
-		{
-			name: "returns error if there is more than two base generators",
-			baseGenerators: []v1alpha1.ApplicationSetNestedGenerator{
-				{
-					List: listGenerator,
-				},
-				{
-					List: listGenerator,
-				},
-				{
-					List: listGenerator,
-				},
-			},
-			expectedErr: ErrMoreThanTwoGenerators,
 		},
 		{
 			name: "returns error if there is more than one inner generator in the first base generator",
@@ -382,7 +446,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 				map[string]Generator{
 					"Git":  genMock,
 					"List": &ListGenerator{},
-				},
+				}, NewMatrixConfig(0),
 			)
 
 			got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
@@ -526,7 +590,7 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 					"PullRequest":             &PullRequestGenerator{},
 					"SCMProvider":             &SCMProviderGenerator{},
 					"ClusterDecisionResource": &DuckTypeGenerator{},
-				},
+				}, NewMatrixConfig(0),
 			)
 
 			got := matrixGenerator.GetRequeueAfter(&v1alpha1.ApplicationSetGenerator{
@@ -662,7 +726,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 				map[string]Generator{
 					"Git":      genMock,
 					"Clusters": clusterGenerator,
-				},
+				}, NewMatrixConfig(0),
 			)
 
 			got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
@@ -843,7 +907,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 				map[string]Generator{
 					"Git":      genMock,
 					"Clusters": clusterGenerator,
-				},
+				}, NewMatrixConfig(0),
 			)
 
 			got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
@@ -861,6 +925,130 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestMatrixGenerateThreeChildrenTemplating covers 3-generator matrix behavior and templating in one test:
+// - Gen 2 is templated from gen 1 (elementsYaml uses .configs from Git).
+// - Gen 3 is templated from gen 1 only (fromGen1), from gen 2 only (fromGen2), and from both (target).
+// So the 3rd generator demonstrates using params from the 1st only, the 2nd only, and both.
+func TestMatrixGenerateThreeChildrenTemplating(t *testing.T) {
+	// Child 1: Git (mocked) returns path (path.basename) and configs.
+	// Child 2: List with elementsYaml "{{ .configs | toJson }}" — templated from gen 1; produces configName.
+	// Child 3: List with one element that has fromGen1 (gen 1 only), fromGen2 (gen 2 only), target (both).
+	gitGenerator := &v1alpha1.GitGenerator{
+		RepoURL:  "RepoURL",
+		Revision: "Revision",
+		Files:    []v1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
+	}
+	listFromConfigs := &v1alpha1.ListGenerator{
+		Elements:     []apiextensionsv1.JSON{},
+		ElementsYaml: "{{ .configs | toJson }}",
+	}
+	listThird := &v1alpha1.ListGenerator{
+		Elements:     []apiextensionsv1.JSON{},
+		ElementsYaml: "[{\"fromGen1\": \"{{.path.basename}}\", \"fromGen2\": \"{{.configName}}\", \"target\": \"{{.path.basename}}-{{.configName}}\"}]",
+	}
+
+	genMock := &generatorsMock.Generator{}
+	appSet := &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "set"},
+		Spec:       v1alpha1.ApplicationSetSpec{GoTemplate: true},
+	}
+
+	genMock.EXPECT().GenerateParams(mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), appSet, mock.Anything).Return([]map[string]any{
+		{
+			"path": map[string]string{"path": "argocd/app1/config.yaml", "basename": "app1", "basenameNormalized": "app1"},
+			"configs": []any{
+				map[string]any{"configName": "config1", "custom": "value1"},
+				map[string]any{"configName": "config2", "custom": "value2"},
+			},
+		},
+		{
+			"path": map[string]string{"path": "argocd/app2/config.yaml", "basename": "app2", "basenameNormalized": "app2"},
+			"configs": []any{
+				map[string]any{"configName": "config1", "custom": "value1"},
+				map[string]any{"configName": "config2", "custom": "value2"},
+			},
+		},
+	}, nil)
+	genMock.EXPECT().GetTemplate(mock.MatchedBy(func(g *v1alpha1.ApplicationSetGenerator) bool { return g.Git != nil })).
+		Return(&v1alpha1.ApplicationSetTemplate{})
+
+	matrixGenerator := NewMatrixGenerator(
+		map[string]Generator{
+			"Git":  genMock,
+			"List": &ListGenerator{},
+		}, NewMatrixConfig(0),
+	)
+
+	got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+		Matrix: &v1alpha1.MatrixGenerator{
+			Generators: []v1alpha1.ApplicationSetNestedGenerator{
+				{Git: gitGenerator},
+				{List: listFromConfigs},
+				{List: listThird},
+			},
+			Template: v1alpha1.ApplicationSetTemplate{},
+		},
+	}, appSet, nil)
+
+	require.NoError(t, err)
+	require.Len(t, got, 4, "expected 2 apps * 2 configs * 1 = 4 combinations")
+
+	seen := make(map[string]bool)
+	for _, p := range got {
+		pathBasename := ""
+		if path, ok := p["path"].(map[string]string); ok {
+			pathBasename = path["basename"]
+		}
+		configName, _ := p["configName"].(string)
+		fromGen1, _ := p["fromGen1"].(string)
+		fromGen2, _ := p["fromGen2"].(string)
+		target, _ := p["target"].(string)
+		key := pathBasename + "/" + configName
+		seen[key] = true
+
+		assert.Contains(t, p, "path", "path from generator 1")
+		assert.Contains(t, p, "configName", "configName from generator 2 (templated from gen 1)")
+		// 3rd generator: param from gen 1 only
+		assert.Equal(t, pathBasename, fromGen1, "fromGen1 must be templated from gen 1 (path.basename) only")
+		// 3rd generator: param from gen 2 only (configName is produced by gen 2, not by Git)
+		assert.Equal(t, configName, fromGen2, "fromGen2 must be templated from gen 2 (configName) only")
+		// 3rd generator: params from both
+		assert.Equal(t, pathBasename+"-"+configName, target, "target must be templated from both gen 1 and gen 2")
+	}
+	assert.Len(t, seen, 4, "all 4 combinations must be distinct")
+}
+
+// TestMatrixGenerateThreeChildrenParameterOverride verifies that when the same key appears in
+// multiple child generators, the first generator's value wins (doc: parameter override).
+func TestMatrixGenerateThreeChildrenParameterOverride(t *testing.T) {
+	appSet := &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "set"},
+		Spec:       v1alpha1.ApplicationSetSpec{GoTemplate: true},
+	}
+	matrixGenerator := NewMatrixGenerator(
+		map[string]Generator{"List": &ListGenerator{}},
+		NewMatrixConfig(0),
+	)
+
+	got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+		Matrix: &v1alpha1.MatrixGenerator{
+			Generators: []v1alpha1.ApplicationSetNestedGenerator{
+				{List: &v1alpha1.ListGenerator{Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"x": "1", "a": "A"}`)}}}},
+				{List: &v1alpha1.ListGenerator{Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"x": "2", "b": "B"}`)}}}},
+				{List: &v1alpha1.ListGenerator{Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"x": "3", "c": "C"}`)}}}},
+			},
+			Template: v1alpha1.ApplicationSetTemplate{},
+		},
+	}, appSet, nil)
+
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, "1", got[0]["x"], "first generator's value must win when same key in multiple generators")
+	assert.Equal(t, "A", got[0]["a"])
+	assert.Equal(t, "B", got[0]["b"])
+	assert.Equal(t, "C", got[0]["c"])
 }
 
 func TestMatrixGenerateListElementsYaml(t *testing.T) {
@@ -1004,7 +1192,109 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 				map[string]Generator{
 					"Git":  genMock,
 					"List": &ListGenerator{},
+				}, NewMatrixConfig(0),
+			)
+
+			got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+				Matrix: &v1alpha1.MatrixGenerator{
+					Generators: testCaseCopy.baseGenerators,
+					Template:   v1alpha1.ApplicationSetTemplate{},
 				},
+			}, appSet, nil)
+
+			if testCaseCopy.expectedErr != nil {
+				require.ErrorIs(t, err, testCaseCopy.expectedErr)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, testCaseCopy.expected, got)
+			}
+		})
+	}
+}
+
+func TestMatrixMaxGenerators(t *testing.T) {
+	testCases := []struct {
+		name           string
+		baseGenerators []v1alpha1.ApplicationSetNestedGenerator
+		maxChildren    int
+		expectedErr    error
+		expected       []map[string]any
+	}{
+		{
+			name: "happy flow - num generators is equal to max",
+			baseGenerators: []v1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &v1alpha1.ListGenerator{},
+				},
+				{
+					List: &v1alpha1.ListGenerator{},
+				},
+			},
+			maxChildren: 2,
+			expected:    []map[string]any{},
+		},
+		{
+			name: "happy flow - unlimited num generators",
+			baseGenerators: []v1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &v1alpha1.ListGenerator{},
+				},
+				{
+					List: &v1alpha1.ListGenerator{},
+				},
+				{
+					List: &v1alpha1.ListGenerator{},
+				},
+				{
+					List: &v1alpha1.ListGenerator{},
+				},
+				{
+					List: &v1alpha1.ListGenerator{},
+				},
+			},
+			maxChildren: 0,
+			expected:    []map[string]any{},
+		},
+		{
+			name: "returns error if num generators is greater than max",
+			baseGenerators: []v1alpha1.ApplicationSetNestedGenerator{
+				{
+					List: &v1alpha1.ListGenerator{},
+				},
+				{
+					List: &v1alpha1.ListGenerator{},
+				},
+				{
+					List: &v1alpha1.ListGenerator{},
+				},
+			},
+			maxChildren: 2,
+			expectedErr: ErrMoreThanMaxGenerators,
+		},
+		{
+			name:           "returns error if max num generators is equals to one",
+			baseGenerators: []v1alpha1.ApplicationSetNestedGenerator{},
+			maxChildren:    1,
+			expectedErr:    ErrMaxChildrenEqualsOne,
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCaseCopy := testCase // Since tests may run in parallel
+
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			appSet := &v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{},
+			}
+
+			matrixGenerator := NewMatrixGenerator(
+				map[string]Generator{
+					"List": &ListGenerator{},
+				},
+				NewMatrixConfig(testCaseCopy.maxChildren),
 			)
 
 			got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
@@ -1059,7 +1349,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	matrixGenerator := NewMatrixGenerator(map[string]Generator{
 		"List": listGeneratorMock,
 		"Git":  gitGenerator,
-	})
+	}, NewMatrixConfig(0))
 
 	matrixGeneratorSpec := &v1alpha1.MatrixGenerator{
 		Generators: []v1alpha1.ApplicationSetNestedGenerator{
