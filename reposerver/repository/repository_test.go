@@ -3315,6 +3315,108 @@ func Test_populateHelmAppDetails(t *testing.T) {
 	assert.Len(t, res.Helm.ValueFiles, 5)
 }
 
+func Test_populateHelmAppDetailsWithRef2(t *testing.T) {
+	repoUrl := "https://github.com/foo/bar"
+	refRepoUrl := "https://github.com/foo/baz"
+	repoRoot := "./testdata/my-chart/"
+	refRoot := "./testdata/values-files/"
+	refName := "$values"
+	targetRevision := "main"
+	sha := "888839659e542ed7de0c170a4fcc1c571b288888"
+	refTargetRevision := targetRevision
+	refSha := "999932039659e542ed7de0c170a4fcc1c5799999"
+	mockOpts := func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().LsRemote(mock.Anything).Return(refSha, nil)
+		gitClient.EXPECT().Root().Return(repoRoot)
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(refSha).Return(true)
+		gitClient.EXPECT().Checkout(refSha, mock.Anything).Return("", nil)
+		paths.EXPECT().GetPath(refRepoUrl).Return(refRoot, nil)
+		paths.EXPECT().GetPathIfExists(refRepoUrl).Return(refRoot)
+	}
+	refGitClient := &gitmocks.Client{}
+	refGitClient.EXPECT().LsRemote("main").Return(refSha, nil)
+	refGitClient.EXPECT().Root().Return(refRoot)
+	refGitClient.EXPECT().Init().Return(nil)
+	refGitClient.EXPECT().IsRevisionPresent(refSha).Return(true)
+	refGitClient.EXPECT().Checkout(refSha, false).Return("", nil)
+
+	service, _, _ := newServiceWithOpt(t, mockOpts, ".")
+	service.newGitClient = func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (client git.Client, e error) {
+		return refGitClient, nil
+	}
+	res := apiclient.RepoAppDetailsResponse{}
+	q := apiclient.RepoServerAppDetailsQuery{
+		Repo: &v1alpha1.Repository{
+			Repo: repoUrl,
+			Type: "git",
+		},
+		Source: &v1alpha1.ApplicationSource{
+			Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/dir/values.yaml"}},
+		},
+		RefSources: map[string]*v1alpha1.RefTarget{
+			refName: &v1alpha1.RefTarget{
+				Repo: v1alpha1.Repository{
+					Type: "git",
+					Repo: refRepoUrl,
+				},
+				TargetRevision: refTargetRevision,
+			},
+		},
+	}
+	appPath, err := filepath.Abs(repoRoot)
+	require.NoError(t, err)
+	err = service.populateHelmAppDetails(&res, appPath, appPath, sha, "main", &q, service.gitRepoPaths)
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(res.Helm.Parameters))
+	// The values must come from the referenced values file ./testdata/values-files/dir/values.yaml
+	for _, v := range res.Helm.Parameters {
+		require.NotNil(t, v)
+		assert.Equal(t, *v, v1alpha1.HelmParameter{Name: "values", Value: "yaml", ForceString: false})
+	}
+}
+
+func Test_populateHelmAppDetailsWithRefSameRepoDiffRevision(t *testing.T) {
+	repoUrl := "https://github.com/foo/bar"
+	repoRoot := "./testdata/my-chart/"
+	refName := "$values"
+	targetRevision := "main"
+	sha := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+	refTargetRevision := targetRevision
+	refSha := "632039659e542ed7de0c170a4fcc1c571b288fc1"
+	mockOpts := func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().LsRemote(mock.Anything).Return(refSha, nil)
+		gitClient.EXPECT().Root().Return(repoRoot)
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+	}
+	service, _, _ := newServiceWithOpt(t, mockOpts, ".")
+	emptyTempPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	res := apiclient.RepoAppDetailsResponse{}
+	q := apiclient.RepoServerAppDetailsQuery{
+		Repo: &v1alpha1.Repository{
+			Repo: repoUrl,
+			Type: "git",
+		},
+		Source: &v1alpha1.ApplicationSource{
+			Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/my-chart-values.yaml"}},
+		},
+		RefSources: map[string]*v1alpha1.RefTarget{
+			"$values": &v1alpha1.RefTarget{
+				Repo: v1alpha1.Repository{
+					Repo: repoUrl,
+					Type: "git",
+				},
+				TargetRevision: "main",
+			},
+		},
+	}
+	appPath, err := filepath.Abs(repoRoot)
+	require.NoError(t, err)
+	err = service.populateHelmAppDetails(&res, appPath, appPath, sha, "main", &q, emptyTempPaths)
+	expMsg := fmt.Sprintf("cannot reference a different revision of the same repository (%s references \"%s\" which resolves to \"%s\" while the application references \"%s\" which resolves to \"%s\"", refName, refTargetRevision, refSha, targetRevision, sha)
+	require.ErrorContains(t, err, expMsg)
+}
+
 func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	service := newService(t, ".")
 	sha := "632039659e542ed7de0c170a4fcc1c571b288fc0"
