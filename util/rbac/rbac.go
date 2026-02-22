@@ -72,6 +72,7 @@ const (
 
 	// please add new items to Actions
 	ActionGet      = "get"
+	ActionList     = "list"
 	ActionCreate   = "create"
 	ActionUpdate   = "update"
 	ActionDelete   = "delete"
@@ -99,6 +100,7 @@ var (
 	}
 	Actions = []string{
 		ActionGet,
+		ActionList,
 		ActionCreate,
 		ActionUpdate,
 		ActionDelete,
