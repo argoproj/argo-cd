@@ -1505,6 +1505,72 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
 
+	if app.Spec.SourceHydrator != nil && state.Operation.Sync != nil {
+		if app.Status.SourceHydrator.CurrentOperation != nil && app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating {
+			logCtx.Debug("Sync operation is waiting for an in-progress hydration to complete")
+			return
+		}
+
+		var lastHydrationTime time.Time
+		if app.Status.SourceHydrator.CurrentOperation != nil && app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrated && app.Status.SourceHydrator.CurrentOperation.FinishedAt != nil {
+			lastHydrationTime = app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time
+		}
+
+		if lastHydrationTime.Before(state.StartedAt.Time) {
+			logCtx.Infof("Triggering hydration before sync (last hydration: %v, sync started: %v)", lastHydrationTime, state.StartedAt)
+			patch := map[string]any{
+				"metadata": map[string]any{
+					"annotations": map[string]string{
+						appv1.AnnotationKeyHydrate: string(appv1.RefreshTypeNormal),
+					},
+				},
+			}
+			patchJSON, err := json.Marshal(patch)
+			if err != nil {
+				logCtx.WithError(err).Error("error marshaling json")
+				return
+			}
+			_, err = ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+			if err != nil {
+				logCtx.WithError(err).Error("Failed to patch app with hydrate annotation")
+			}
+			return
+		}
+
+		hydratedSHA := ""
+		if app.Status.SourceHydrator.CurrentOperation != nil {
+			hydratedSHA = app.Status.SourceHydrator.CurrentOperation.HydratedSHA
+		}
+
+		if hydratedSHA != "" && app.Status.Sync.Revision != hydratedSHA {
+			logCtx.Infof("Triggering refresh before sync to pick up hydrated commit %s (current sync revision: %s)", hydratedSHA, app.Status.Sync.Revision)
+			patch := map[string]any{
+				"metadata": map[string]any{
+					"annotations": map[string]string{
+						appv1.AnnotationKeyRefresh: string(appv1.RefreshTypeNormal),
+					},
+				},
+			}
+			patchJSON, err := json.Marshal(patch)
+			if err != nil {
+				logCtx.WithError(err).Error("error marshaling json")
+				return
+			}
+			_, err = ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+			if err != nil {
+				logCtx.WithError(err).Error("Failed to patch app with refresh annotation")
+			}
+			return
+		}
+
+		logCtx.Debugf("Proceeding with sync, hydration is not stale (last hydration: %v, sync started: %v)", lastHydrationTime, state.StartedAt)
+		if hydratedSHA != "" {
+			// Ensure we sync to the hydrated commit
+			state.Operation.Sync.Revision = hydratedSHA
+			state.Operation.Sync.Revisions = nil
+		}
+	}
+
 	terminating := state.Phase == synccommon.OperationTerminating
 	project, err := ctrl.getAppProj(app)
 	if err == nil {
