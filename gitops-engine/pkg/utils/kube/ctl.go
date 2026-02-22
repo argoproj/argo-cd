@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/managedfields"
+	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
@@ -349,7 +350,15 @@ func (k *KubectlCmd) GetServerVersion(config *rest.Config) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get server version: %w", err)
 	}
-	return fmt.Sprintf("%s.%s", v.Major, v.Minor), nil
+
+	ver, err := version.ParseGeneric(v.GitVersion)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse server version: %w", err)
+	}
+	// ParseGeneric removes the leading "v" and any vendor-specific suffix (e.g. "-gke.100", "-eks-123", "+k3s1").
+	// Helm expects a semver-like Kubernetes version with a "v" prefix for capability checks, so we normalize the
+	// version to "v<major>.<minor>.<patch>".
+	return "v" + ver.String(), nil
 }
 
 func (k *KubectlCmd) NewDynamicClient(config *rest.Config) (dynamic.Interface, error) {
