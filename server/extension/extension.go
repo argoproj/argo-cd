@@ -182,6 +182,11 @@ type ServiceConfig struct {
 	// Headers if provided, the headers list will be added on all
 	// outgoing requests for this service config.
 	Headers []Header `yaml:"headers"`
+
+	// PreservePath if true, will preserve the full original path when proxying
+	// requests instead of stripping the extension prefix. Default is false to
+	// maintain backward compatibility.
+	PreservePath bool `yaml:"preservePath,omitempty"`
 }
 
 // Header defines the header to be added in the proxy requests.
@@ -393,15 +398,21 @@ func NewManager(log *log.Entry, namespace string, sg SettingsGetter, ag Applicat
 // the Argo CD configmap.
 type ExtensionRegistry map[string]ProxyRegistry
 
+// Proxy extends httputil.ReverseProxy with additional configuration
+type Proxy struct {
+	*httputil.ReverseProxy
+	PreservePath bool
+}
+
 // ProxyRegistry is an in memory registry that contains all proxies for a
 // given extension. Different extensions will have independent proxy registries.
 // This is required to address the use case when one extension is configured with
 // multiple backend services in different clusters.
-type ProxyRegistry map[ProxyKey]*httputil.ReverseProxy
+type ProxyRegistry map[ProxyKey]*Proxy
 
 // NewProxyRegistry will instantiate a new in memory registry for proxies.
 func NewProxyRegistry() ProxyRegistry {
-	r := make(map[ProxyKey]*httputil.ReverseProxy)
+	r := make(map[ProxyKey]*Proxy)
 	return r
 }
 
@@ -521,12 +532,12 @@ func validateConfigs(configs *ExtensionConfigs) error {
 // NewProxy will instantiate a new reverse proxy based on the provided
 // targetURL and config. It will remove sensitive information from the
 // incoming request such as the Authorization and Cookie headers.
-func NewProxy(targetURL string, headers []Header, config ProxyConfig) (*httputil.ReverseProxy, error) {
+func NewProxy(targetURL string, headers []Header, config ProxyConfig, preservePath bool) (*Proxy, error) {
 	url, err := url.Parse(targetURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse proxy URL: %w", err)
 	}
-	proxy := &httputil.ReverseProxy{
+	reverseProxy := &httputil.ReverseProxy{
 		Transport: newTransport(config),
 		Director: func(req *http.Request) {
 			req.Host = url.Host
@@ -539,6 +550,10 @@ func NewProxy(targetURL string, headers []Header, config ProxyConfig) (*httputil
 				req.Header.Set(header.Name, header.Value)
 			}
 		},
+	}
+	proxy := &Proxy{
+		ReverseProxy: reverseProxy,
+		PreservePath: preservePath,
 	}
 	return proxy, nil
 }
@@ -606,7 +621,7 @@ func (m *Manager) UpdateExtensionRegistry(s *settings.ArgoCDSettings) error {
 		proxyReg := NewProxyRegistry()
 		singleBackend := len(ext.Backend.Services) == 1
 		for _, service := range ext.Backend.Services {
-			proxy, err := NewProxy(service.URL, service.Headers, ext.Backend.ProxyConfig)
+			proxy, err := NewProxy(service.URL, service.Headers, ext.Backend.ProxyConfig, service.PreservePath)
 			if err != nil {
 				return fmt.Errorf("error creating proxy: %w", err)
 			}
@@ -627,7 +642,7 @@ func (m *Manager) UpdateExtensionRegistry(s *settings.ArgoCDSettings) error {
 func appendProxy(registry ProxyRegistry,
 	extName string,
 	service ServiceConfig,
-	proxy *httputil.ReverseProxy,
+	proxy *Proxy,
 	singleBackend bool,
 ) error {
 	if singleBackend {
@@ -727,7 +742,7 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 
 // findProxy will search the given registry to find the correct proxy to use
 // based on the given extName and dest.
-func findProxy(registry ProxyRegistry, extName string, dest v1alpha1.ApplicationDestination) (*httputil.ReverseProxy, error) {
+func findProxy(registry ProxyRegistry, extName string, dest v1alpha1.ApplicationDestination) (*Proxy, error) {
 	// First try to find the proxy in the registry just by the extension name.
 	// This is the simple case for extensions with only one backend service.
 	key := proxyKey(extName, "", "")
@@ -796,7 +811,7 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 		userId := m.userGetter.GetUserId(r.Context())
 		username := m.userGetter.GetUsername(r.Context())
 		groups := m.userGetter.GetGroups(r.Context())
-		prepareRequest(r, m.namespace, extName, app, userId, username, groups)
+		prepareRequest(r, m.namespace, extName, app, userId, username, groups, proxy.PreservePath)
 		m.log.WithFields(log.Fields{
 			HeaderArgoCDUserId:          userId,
 			HeaderArgoCDUsername:        username,
@@ -831,8 +846,12 @@ func registerMetrics(extName string, metrics httpsnoop.Metrics, extensionMetrics
 //   - Cluster destination name
 //   - Cluster destination server
 //   - Argo CD authenticated username
-func prepareRequest(r *http.Request, namespace string, extName string, app *v1alpha1.Application, userId string, username string, groups []string) {
-	r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
+func prepareRequest(r *http.Request, namespace string, extName string, app *v1alpha1.Application, userId string, username string, groups []string, preservePath bool) {
+	if !preservePath {
+		// Default behavior: strip the extension prefix from the path
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
+	}
+
 	r.Header.Set(HeaderArgoCDNamespace, namespace)
 	if app.Spec.Destination.Name != "" {
 		r.Header.Set(HeaderArgoCDTargetClusterName, app.Spec.Destination.Name)
