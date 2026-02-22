@@ -78,7 +78,7 @@ the process) invoking the CLI needs to have access to the Argo CD
 namespace with the proper permission in the `Application` and
 `ApplicationSet` resources for executing a given command.
 
-To use [Argo CD CLI](https://argo-cd.readthedocs.io/en/stable/cli_installation) in core mode, it is required to pass the `--core`
+To use [Argo CD CLI](../cli_installation.md) in core mode, it is required to pass the `--core`
 flag with the `login` subcommand. The `--core` flag is responsible for spawning a local Argo CD API server
 process that handles CLI and Web UI requests.
 

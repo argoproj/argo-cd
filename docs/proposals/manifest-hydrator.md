@@ -296,7 +296,7 @@ The hydrator will not inject `metadata.namespace` into the hydrated manifests pu
 
 ### Build Environment Support
 
-For sources specified in `spec.source` or `spec.sources`, Argo CD [sets certain environment variables](https://argo-cd.readthedocs.io/en/stable/user-guide/build-environment/) before running the manifest hydration tool.
+For sources specified in `spec.source` or `spec.sources`, Argo CD [sets certain environment variables](../user-guide/build-environment.md) before running the manifest hydration tool.
 
 Some of these environment variables may change independently of the dry source and therefore break the reproducibility of manifest hydration (see the [Opinions](#opinions) section). Therefore, only some environment variables will be populated for the `spec.sourceHydrator` source.
 

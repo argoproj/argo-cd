@@ -241,8 +241,9 @@ spec:
       path: my-plugin-app-hydrated
 ```
 
-!!! note "Feature Parity"
-    The source hydrator supports the same configuration options as the regular Application source field. You can use any combination of these source types with their respective configuration options to match your application's needs.
+> [!NOTE] Feature Parity
+> The source hydrator supports the same configuration options as the regular Application source field. 
+> You can use any combination of these source types with their respective configuration options to match your application's needs.
 
 ## Pushing to a "Staging" Branch
 

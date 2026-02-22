@@ -26,7 +26,7 @@ last-updated: 2023-02-28
 ## Motivation
 Users of Argo CD are interested to know how to scale Argo CD, what configuration tweaks and deployment options they have, and how far they can push resources (in terms of the number of supported applications, Git repositories, managing clusters, etc.).
 
-While the Argo CD documentation [discusses options](https://argo-cd.readthedocs.io/en/stable/operator-manual/high_availability/#scaling-up) to scale up, the actual process is not clear and, as articulated [in this thread](https://github.com/argoproj/argo-cd/issues/9633), oftentimes a point of confusion for users.
+While the Argo CD documentation [discusses options](../operator-manual/high_availability.md#scaling-up) to scale up, the actual process is not clear and, as articulated [in this thread](https://github.com/argoproj/argo-cd/issues/9633), oftentimes a point of confusion for users.
 
 By running large-scale benchmarking, we aim at helping the Argo CD community with the following:
 

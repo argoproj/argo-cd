@@ -1,7 +1,7 @@
 # Add extra Application info
 
 You can add additional information to an Application on your Argo CD dashboard.
-If you wish to add clickable links, see [Add external URL](https://argo-cd.readthedocs.io/en/stable/user-guide/external-url/). 
+If you wish to add clickable links, see [Add external URL](external-url.md). 
 
 This is done by providing the 'info' field a key-value in your Application manifest.
 

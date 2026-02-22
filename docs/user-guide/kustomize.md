@@ -274,7 +274,7 @@ It's possible to [render Helm charts with Kustomize](https://github.com/kubernet
 Doing so requires that you pass the `--enable-helm` flag to the `kustomize build` command.
 This flag is not part of the Kustomize options within Argo CD.
 If you would like to render Helm charts through Kustomize in an Argo CD application, you have two options:
-You can either create a [custom plugin](https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/), or modify the `argocd-cm` ConfigMap to include the `--enable-helm` flag globally for all Kustomize applications:
+You can either create a [custom plugin](config-management-plugins.md), or modify the `argocd-cm` ConfigMap to include the `--enable-helm` flag globally for all Kustomize applications:
 
 ```yaml
 apiVersion: v1

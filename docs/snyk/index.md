@@ -3,9 +3,9 @@
 Every Sunday, Snyk scans are generated for Argo CD's `master` branch and the most recent patches of the three most
 recent minor releases.
 
-!!! note
-    For the most recent scans, view the [`latest` version of the docs](https://argo-cd.readthedocs.io/en/latest/snyk/).
-    You can return to your preferred version of the docs site using the dropdown selector at the top of the page.
+> [!NOTE]
+> For the most recent scans, view the [`latest` version of the docs](https://argo-cd.readthedocs.io/en/latest/snyk/).
+> You can return to your preferred version of the docs site using the dropdown selector at the top of the page.
 
 ## Scans
 
