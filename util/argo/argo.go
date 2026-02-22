@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -108,6 +109,54 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 		a := apps[i]
 		if _, ok := projectsMap[a.Spec.GetProject()]; ok {
 			items = append(items, a)
+		}
+	}
+	return items
+}
+
+// FilterByFile returns applications affected by files
+func FilterByFile(apps []argoappv1.Application, file []string) []argoappv1.Application {
+	// if no files  are provided, return all the apps
+	if len(file) == 0 {
+		return apps
+	}
+	items := make([]argoappv1.Application, 0)
+	existing := make([]bool, len(apps))
+	for i := 0; i < len(file); i++ {
+		filePath := filepath.Clean(file[i])
+		for j := 0; j < len(apps); j++ {
+			a := apps[j]
+			appPath := filepath.Clean(a.Spec.GetSource().Path)
+			annotations := strings.Split(a.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths), ";")
+			for _, annotation := range annotations {
+				annotation = strings.TrimSpace(annotation)
+				if annotation == "" {
+					// TODO: Call FilterByPath to match identical file and path args.
+					continue
+				}
+				var targetPath string
+
+				switch {
+				case annotation == ".":
+					targetPath = appPath
+				case annotation == "..":
+					targetPath = filepath.Dir(appPath)
+				case filepath.IsAbs(annotation):
+					targetPath = filepath.Clean(annotation)
+				default:
+					targetPath = filepath.Join(appPath, annotation)
+					targetPath = filepath.Clean(targetPath)
+				}
+				relativePath, err := filepath.Rel(targetPath, filePath)
+				if err != nil {
+					return nil
+				}
+				if !strings.HasPrefix(relativePath, "..") && !existing[j] {
+					items = append(items, a)
+					existing[j] = true
+					break
+				}
+			}
 		}
 	}
 	return items

@@ -521,6 +521,91 @@ func TestFilterByProjects(t *testing.T) {
 	})
 }
 
+func TestFilterByFile(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			// app1
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": ".;..",
+				},
+			},
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/apps/foo/chart",
+				},
+			},
+		},
+		{
+			// app2
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": ".",
+				},
+			},
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/apps/foo",
+				},
+			},
+		},
+		{
+			// app3
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/other",
+				},
+			},
+		},
+		{
+			// app4
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": ".",
+				},
+			},
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/other/chart",
+				},
+			},
+		},
+	}
+	t.Run("Single existent file argument that affects two apps", func(t *testing.T) {
+		res := FilterByFile(apps, []string{"example/apps/foo/chart/manifest.yaml"})
+		// Expected: app1 and app2 are returned
+		assert.Len(t, res, 2)
+	})
+	t.Run("Single existent file argument that affects one app", func(t *testing.T) {
+		res := FilterByFile(apps, []string{"example/other/chart/manifest.yaml"})
+		// Expected: app4 is returned
+		assert.Len(t, res, 1)
+	})
+	t.Run("Multiple existent file arguments that affects three apps", func(t *testing.T) {
+		res := FilterByFile(apps, []string{"example/other/chart/manifest.yaml", "example/apps/foo/chart/manifest.yaml"})
+		assert.Len(t, res, 3)
+	})
+	t.Run("Multiple file arguments that affects one app", func(t *testing.T) {
+		res := FilterByFile(apps, []string{"example/non-working/base.yaml", "example/other/chart/working/base.yaml"})
+		assert.Len(t, res, 1)
+	})
+	t.Run("Single non-existent file argument that affects zero apps", func(t *testing.T) {
+		res := FilterByFile(apps, []string{"example/non-working/base.yaml"})
+		// Expected: zero apps are returned
+		assert.Empty(t, res)
+	})
+	t.Run("Multiple non-existent file arguments that affects zero apps", func(t *testing.T) {
+		res := FilterByFile(apps, []string{"example/non-working/base.yaml", "example/other/non-working/base.yaml"})
+		// Expected: zero apps are returned
+		assert.Empty(t, res)
+	})
+	t.Run("Duplicate file arguments returns only two apps", func(t *testing.T) {
+		res := FilterByFile(apps, []string{"example/apps/foo/base.yaml", "example/apps/foo/chart/manifest.yaml"})
+		// Expected: app1, app2 only. no duplicates
+		assert.Len(t, res, 2)
+	})
+}
+
 func TestFilterByProjectsP(t *testing.T) {
 	apps := []*argoappv1.Application{
 		{
