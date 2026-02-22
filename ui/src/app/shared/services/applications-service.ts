@@ -1,6 +1,6 @@
 import * as deepMerge from 'deepmerge';
 import {Observable} from 'rxjs';
-import {map, repeat, retry} from 'rxjs/operators';
+import {filter, map, repeat, retry} from 'rxjs/operators';
 
 import * as models from '../models';
 import {isValidURL} from '../utils';
@@ -14,11 +14,18 @@ interface QueryOptions {
     appNamespace?: string;
 }
 
-function optionsToSearch(options?: QueryOptions) {
+function optionsToSearch(options?: QueryOptions): {fields?: string; selector: string; appNamespace: string} {
     if (options) {
-        return {fields: (options.exclude ? '-' : '') + options.fields.join(','), selector: options.selector || '', appNamespace: options.appNamespace || ''};
+        const result: {fields?: string; selector: string; appNamespace: string} = {
+            selector: options.selector || '',
+            appNamespace: options.appNamespace || ''
+        };
+        if (options.fields) {
+            result.fields = (options.exclude ? '-' : '') + options.fields.join(',');
+        }
+        return result;
     }
-    return {};
+    return {selector: '', appNamespace: ''};
 }
 
 function getQuery(projects: string[], isListOfApplications: boolean, options?: QueryOptions): any {
@@ -287,9 +294,10 @@ export class ApplicationsService {
         namespace: string,
         podName: string,
         resource: {group: string; kind: string; name: string},
-        containerName: string
+        containerName: string,
+        previous: boolean
     ): string {
-        const search = this.getLogsQuery({namespace, appNamespace, podName, resource, containerName, follow: false});
+        const search = this.getLogsQuery({namespace, appNamespace, podName, resource, containerName, follow: false, previous});
         search.set('download', 'true');
         return `api/v1/applications/${applicationName}/logs?${search.toString()}`;
     }
@@ -311,7 +319,17 @@ export class ApplicationsService {
     }): Observable<models.LogEntry> {
         const {applicationName} = query;
         const search = this.getLogsQuery(query);
-        const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).pipe(map(data => JSON.parse(data).result as models.LogEntry));
+        const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).pipe(
+            map(data => {
+                try {
+                    const parsed = JSON.parse(data);
+                    return parsed && parsed.result ? (parsed.result as models.LogEntry) : null;
+                } catch (e) {
+                    return null;
+                }
+            }),
+            filter((result): result is models.LogEntry => !!result)
+        );
         let first = true;
         return new Observable(observer => {
             const subscription = entries.subscribe(
@@ -604,5 +622,12 @@ export class ApplicationsService {
 
     public async listApplicationSets(): Promise<models.ApplicationSetList> {
         return requests.get(`/applicationsets`).then(res => res.body as models.ApplicationSetList);
+    }
+
+    public appSetEvents(name: string, appNamespace: string): Promise<models.Event[]> {
+        return requests
+            .get(`/applicationsets/${name}/events`)
+            .query({appsetNamespace: appNamespace})
+            .then(res => (res.body as models.EventList).items || []);
     }
 }

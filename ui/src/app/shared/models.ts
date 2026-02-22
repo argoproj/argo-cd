@@ -262,7 +262,11 @@ export interface SourceHydrator {
 export interface DrySource {
     repoURL: string;
     targetRevision: string;
-    path: string;
+    path?: string;
+    helm?: ApplicationSourceHelm;
+    kustomize?: ApplicationSourceKustomize;
+    plugin?: ApplicationSourcePlugin;
+    directory?: ApplicationSourceDirectory;
 }
 
 export interface SyncSource {
@@ -543,7 +547,9 @@ export interface HydrateOperation {
     finishedAt?: models.Time;
     phase: HydrateOperationPhase;
     message: string;
+    // drySHA is the sha of the DRY commit being hydrated. This will be empty if the operation is not successful.
     drySHA: string;
+    // hydratedSHA is the sha of the hydrated commit. This will be empty if the operation is not successful.
     hydratedSHA: string;
     sourceHydrator: SourceHydrator;
 }
@@ -1168,5 +1174,6 @@ export interface ApplicationSet extends AbstractApplication {
             targetRevisions?: string[];
         }>;
         resources?: ApplicationSetResource[];
+        resourcesCount?: number;
     };
 }

@@ -3,7 +3,7 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,7 +19,7 @@ func TestBackupExportImport(t *testing.T) {
 	var exportRawOutput string
 	ctx := Given(t)
 	// Create application in argocd namespace
-	appctx := appfixture.GivenWithSameState(t)
+	appctx := appfixture.GivenWithSameState(ctx)
 
 	var appTestNamespace Application
 	var appOtherNamespace Application

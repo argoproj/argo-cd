@@ -26,9 +26,11 @@ import (
 
 var (
 	localCluster = appv1.Cluster{
-		Name:            "in-cluster",
-		Server:          appv1.KubernetesInternalAPIServerAddr,
-		ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
+		Name:   "in-cluster",
+		Server: appv1.KubernetesInternalAPIServerAddr,
+		Info: appv1.ClusterInfo{
+			ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
+		},
 	}
 	initLocalCluster sync.Once
 )
@@ -37,13 +39,10 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	initLocalCluster.Do(func() {
 		info, err := db.kubeclientset.Discovery().ServerVersion()
 		if err == nil {
-			//nolint:staticcheck
-			localCluster.ServerVersion = fmt.Sprintf("%s.%s", info.Major, info.Minor)
-			//nolint:staticcheck
-			localCluster.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
+			localCluster.Info.ServerVersion = fmt.Sprintf("%s.%s", info.Major, info.Minor)
+			localCluster.Info.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 		} else {
-			//nolint:staticcheck
-			localCluster.ConnectionState = appv1.ConnectionState{
+			localCluster.Info.ConnectionState = appv1.ConnectionState{
 				Status:  appv1.ConnectionStatusFailed,
 				Message: err.Error(),
 			}
@@ -51,8 +50,7 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	})
 	cluster := localCluster.DeepCopy()
 	now := metav1.Now()
-	//nolint:staticcheck
-	cluster.ConnectionState.ModifiedAt = &now
+	cluster.Info.ConnectionState.ModifiedAt = &now
 	return cluster
 }
 
@@ -407,7 +405,7 @@ func SecretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 	}
 
 	var namespaces []string
-	for _, ns := range strings.Split(string(s.Data["namespaces"]), ",") {
+	for ns := range strings.SplitSeq(string(s.Data["namespaces"]), ",") {
 		if ns = strings.TrimSpace(ns); ns != "" {
 			namespaces = append(namespaces, ns)
 		}

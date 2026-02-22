@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"reflect"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -47,7 +48,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/controllers/template"
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
@@ -57,6 +58,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
@@ -110,6 +112,7 @@ type ApplicationSetReconciler struct {
 	GlobalPreservedLabels      []string
 	Metrics                    *metrics.ApplicationsetMetrics
 	MaxResourcesStatusCount    int
+	ClusterInformer            *settings.ClusterInformer
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -241,11 +244,6 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
 	}
 
-	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get update resources status for application set: %w", err)
-	}
-
 	// appSyncMap tracks which apps will be synced during this reconciliation.
 	appSyncMap := map[string]bool{}
 
@@ -367,6 +365,16 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			)
 			return ctrl.Result{}, err
 		}
+	}
+
+	// Update resources status after create/update/delete so it reflects the actual cluster state.
+	currentApplications, err = r.getCurrentApplications(ctx, applicationSetInfo)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
+	}
+	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to update resources status for application set: %w", err)
 	}
 
 	if applicationSetInfo.RefreshRequired() {
@@ -669,8 +677,9 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 		Watches(
 			&corev1.Secret{},
 			&clusterSecretEventHandler{
-				Client: mgr.GetClient(),
-				Log:    log.WithField("type", "createSecretEventHandler"),
+				Client:                   mgr.GetClient(),
+				Log:                      log.WithField("type", "createSecretEventHandler"),
+				ApplicationSetNamespaces: r.ApplicationSetNamespaces,
 			}).
 		Complete(r)
 }
@@ -824,7 +833,7 @@ func (r *ApplicationSetReconciler) getCurrentApplications(ctx context.Context, a
 // deleteInCluster will delete Applications that are currently on the cluster, but not in appList.
 // The function must be called after all generators had been called and generated applications
 func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *log.Entry, applicationSet argov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
-	clusterList, err := utils.ListClusters(ctx, r.KubeClientset, r.ArgoCDNamespace)
+	clusterList, err := utils.ListClusters(r.ClusterInformer)
 	if err != nil {
 		return fmt.Errorf("error listing clusters: %w", err)
 	}
@@ -1043,12 +1052,10 @@ func labelMatchedExpression(logCtx *log.Entry, val string, matchExpression argov
 	// if operator == NotIn, default to true
 	valueMatched := matchExpression.Operator == "NotIn"
 
-	for _, value := range matchExpression.Values {
-		if val == value {
-			// first "In" match returns true
-			// first "NotIn" match returns false
-			return matchExpression.Operator == "In"
-		}
+	if slices.Contains(matchExpression.Values, val) {
+		// first "In" match returns true
+		// first "NotIn" match returns false
+		return matchExpression.Operator == "In"
 	}
 	return valueMatched
 }
