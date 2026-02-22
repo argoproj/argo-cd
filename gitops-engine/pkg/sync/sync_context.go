@@ -730,7 +730,15 @@ func (sc *syncContext) getNamespaceCreationTask(tasks syncTasks) *syncTask {
 func (sc *syncContext) terminateHooksPreemptively(tasks syncTasks) bool {
 	terminateSuccessful := true
 	for _, task := range tasks {
-		if !task.isHook() || !task.running() {
+		if !task.isHook() {
+			continue
+		}
+
+		// If the task is not running, we generally skip it.
+		// HOWEVER, if it is stuck terminating (has deletion timestamp), we must process it
+		// to ensure finalizers are removed.
+		isTerminating := task.liveObj != nil && task.liveObj.GetDeletionTimestamp() != nil
+		if !task.running() && !isTerminating {
 			continue
 		}
 
@@ -935,7 +943,10 @@ func (sc *syncContext) getSyncTasks() (_ syncTasks, successful bool) {
 					targetObj.SetName(fmt.Sprintf("%s%s", generateName, postfix))
 				}
 				if !hook.HasHookFinalizer(targetObj) {
-					targetObj.SetFinalizers(append(targetObj.GetFinalizers(), hook.HookFinalizer))
+					liveObj := sc.liveObj(targetObj)
+					if liveObj == nil || liveObj.GetDeletionTimestamp() == nil {
+						targetObj.SetFinalizers(append(targetObj.GetFinalizers(), hook.HookFinalizer))
+					}
 				}
 				hookTasks = append(hookTasks, &syncTask{phase: phase, targetObj: targetObj})
 			}
