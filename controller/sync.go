@@ -559,10 +559,15 @@ func delayBetweenSyncWaves(_ common.SyncPhase, _ int, finalWave bool) error {
 func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject) (bool, error) {
 	window := proj.Spec.SyncWindows.Matches(app)
 	isManual := false
+	var operationStartTime *time.Time
 	if app.Status.OperationState != nil {
 		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
+		if !app.Status.OperationState.StartedAt.IsZero() {
+			t := app.Status.OperationState.StartedAt.Time
+			operationStartTime = &t
+		}
 	}
-	canSync, err := window.CanSync(isManual)
+	canSync, err := window.CanSync(isManual, operationStartTime)
 	if err != nil {
 		// prevents sync because sync window has an error
 		return true, err

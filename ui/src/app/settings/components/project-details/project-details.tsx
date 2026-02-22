@@ -259,6 +259,12 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                             {helpTip('If the window allows manual syncs')}
                                         </div>
                                         <div className='columns small-8-elements'>
+                                            SYNC OVERRUN
+                                            {helpTip(
+                                                'Allows syncs to continue: for deny windows, syncs that started before the window; for allow windows, syncs that started during the window'
+                                            )}
+                                        </div>
+                                        <div className='columns small-8-elements'>
                                             USE AND OPERATOR
                                             {helpTip('Use AND operator while selecting the apps that match the configured selectors')}
                                         </div>
@@ -283,6 +289,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                             <div className='columns small-8-elements'>{(window.namespaces || ['-']).join(',')}</div>
                                             <div className='columns small-8-elements'>{(window.clusters || ['-']).join(',')}</div>
                                             <div className='columns small-8-elements'>{window.manualSync ? 'Enabled' : 'Disabled'}</div>
+                                            <div className='columns small-8-elements'>{window.syncOverrun ? 'Enabled' : 'Disabled'}</div>
                                             <div className='columns small-8-elements'>{window.andOperator ? 'Enabled' : 'Disabled'}</div>
                                             <div className='columns small-8-elements'>{window.description || ''}</div>
                                         </div>

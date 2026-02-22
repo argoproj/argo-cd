@@ -1,34 +1,32 @@
-# `argocd proj windows` Command Reference
+# `argocd proj windows enable-sync-overrun` Command Reference
 
-## argocd proj windows
+## argocd proj windows enable-sync-overrun
 
-Manage a project's sync windows
+Enable sync overrun for a sync window
+
+### Synopsis
+
+Enable sync overrun for a sync window. When enabled on a deny window, syncs that started before the deny window will be allowed to continue. When enabled on an allow window, syncs that started during the allow window can continue after the window ends. Requires ID which can be found by running "argocd proj windows list PROJECT"
 
 ```
-argocd proj windows [flags]
+argocd proj windows enable-sync-overrun PROJECT ID [flags]
 ```
 
 ### Examples
 
 ```
 
-#Add a sync window to a project
-argocd proj windows add my-project \
---schedule "0 0 * * 1-5" \
---duration 3600 \
---prune
+#Enable sync overrun for a sync window
+argocd proj windows enable-sync-overrun PROJECT ID
 
-#Delete a sync window from a project
-argocd proj windows delete <project-name> <window-id>
-
-#List project sync windows
-argocd proj windows list <project-name>
+#Enabling sync overrun for a window set on the default project with Id 2
+argocd proj windows enable-sync-overrun default 2
 ```
 
 ### Options
 
 ```
-  -h, --help   help for windows
+  -h, --help   help for enable-sync-overrun
 ```
 
 ### Options inherited from parent commands
@@ -64,13 +62,5 @@ argocd proj windows list <project-name>
 
 ### SEE ALSO
 
-* [argocd proj](argocd_proj.md)	 - Manage projects
-* [argocd proj windows add](argocd_proj_windows_add.md)	 - Add a sync window to a project
-* [argocd proj windows delete](argocd_proj_windows_delete.md)	 - Delete a sync window from a project. Requires ID which can be found by running "argocd proj windows list PROJECT"
-* [argocd proj windows disable-manual-sync](argocd_proj_windows_disable-manual-sync.md)	 - Disable manual sync for a sync window
-* [argocd proj windows disable-sync-overrun](argocd_proj_windows_disable-sync-overrun.md)	 - Disable sync overrun for a sync window
-* [argocd proj windows enable-manual-sync](argocd_proj_windows_enable-manual-sync.md)	 - Enable manual sync for a sync window
-* [argocd proj windows enable-sync-overrun](argocd_proj_windows_enable-sync-overrun.md)	 - Enable sync overrun for a sync window
-* [argocd proj windows list](argocd_proj_windows_list.md)	 - List project sync windows
-* [argocd proj windows update](argocd_proj_windows_update.md)	 - Update a project sync window
+* [argocd proj windows](argocd_proj_windows.md)	 - Manage a project's sync windows
 
