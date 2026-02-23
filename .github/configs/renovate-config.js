@@ -3,7 +3,7 @@ module.exports = {
     gitAuthor: 'renovate[bot] <renovate[bot]@users.noreply.github.com>',
     autodiscover: false,
     allowPostUpgradeCommandTemplating: true,
-    allowedPostUpgradeCommands: ["make mockgen", "make codegen-local"],
+    allowedPostUpgradeCommands: ["make codegen-local"],
     binarySource: 'install',
     extends: [
         "github>argoproj/argo-cd//renovate-presets/commons.json5",
