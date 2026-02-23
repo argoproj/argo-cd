@@ -341,7 +341,15 @@ func resInfo(r *clustercache.Resource) *ResourceInfo {
 }
 
 func isRootAppNode(r *clustercache.Resource) bool {
-	return resInfo(r).AppName != "" && len(r.OwnerRefs) == 0
+	info := resInfo(r)
+	if len(r.OwnerRefs) == 0 {
+		return info.AppName != ""
+	}
+	// A resource that has a tracking annotation but later gained ownerRefs from a
+	// cluster controller is still considered an app root node so that changes to it
+	// trigger a CompareWithRecent reconciliation rather than the cheaper
+	// ComparisonWithNothing level.
+	return info.TrackingAppName != ""
 }
 
 func getApp(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource) string {
@@ -366,6 +374,13 @@ func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clusterc
 
 	if resInfo(r).AppName != "" {
 		return resInfo(r).AppName, true
+	}
+	// TrackingAppName is set when the resource carries a tracking annotation but has
+	// ownerRefs (e.g. a cluster controller added them after deployment). Return it
+	// before traversing the owner chain so the resource is correctly attributed to
+	// its app without requiring the owner to also be tracked by Argo CD.
+	if resInfo(r).TrackingAppName != "" {
+		return resInfo(r).TrackingAppName, true
 	}
 	for _, ownerRef := range r.OwnerRefs {
 		gv := ownerRefGV(ownerRef)
