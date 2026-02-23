@@ -575,10 +575,10 @@ message ApplicationSourceJsonnet {
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 message ApplicationSourceKustomize {
-  // NamePrefix is a prefix appended to resources for Kustomize apps
+  // NamePrefix overrides the namePrefix in the kustomization.yaml for Kustomize apps
   optional string namePrefix = 1;
 
-  // NameSuffix is a suffix appended to resources for Kustomize apps
+  // NameSuffix overrides the nameSuffix in the kustomization.yaml for Kustomize apps
   optional string nameSuffix = 2;
 
   // Images is a list of Kustomize image override specifications

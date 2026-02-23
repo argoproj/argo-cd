@@ -3326,7 +3326,6 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			default:
 				log.Fatalf("Unknown source type '%s'", source)
 			}
-
 			for _, obj := range unstructureds {
 				fmt.Println("---")
 				yamlBytes, err := yaml.Marshal(obj)

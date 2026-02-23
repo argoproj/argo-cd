@@ -685,9 +685,9 @@ func (images KustomizeImages) Find(image KustomizeImage) int {
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 type ApplicationSourceKustomize struct {
-	// NamePrefix is a prefix appended to resources for Kustomize apps
+	// NamePrefix overrides the namePrefix in the kustomization.yaml for Kustomize apps
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
-	// NameSuffix is a suffix appended to resources for Kustomize apps
+	// NameSuffix overrides the nameSuffix in the kustomization.yaml for Kustomize apps
 	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
 	// Images is a list of Kustomize image override specifications
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
