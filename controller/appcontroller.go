@@ -52,7 +52,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
-	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions/application/v1alpha1"
@@ -1521,19 +1520,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 	ts.AddCheckpoint("sync_app_state_ms")
 
-	// If sync reports Running/Succeeded but app has blocking conditions, treat as failed.
-	if err == nil && (state.Phase == synccommon.OperationRunning || state.Phase == synccommon.OperationSucceeded) {
-		if sourceintegrity.HasHelmProvenanceCriteria(project.EffectiveSourceIntegrity(), app.Spec.GetSources()...) {
-			if errConds := app.Status.GetConditions(map[appv1.ApplicationConditionType]bool{
-				appv1.ApplicationConditionComparisonError:  true,
-				appv1.ApplicationConditionInvalidSpecError: true,
-			}); len(errConds) > 0 {
-				state.Phase = synccommon.OperationError
-				state.Message = argo.FormatAppConditions(errConds)
-			}
-		}
-	}
-
 	switch state.Phase {
 	case synccommon.OperationRunning:
 		// It's possible for an app to be terminated while we were operating on it. We do not want
@@ -1607,24 +1593,10 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		now := metav1.Now()
 		state.FinishedAt = &now
 	}
-	statusPatch := map[string]any{
-		"operationState": state,
-	}
-	// Set Sync.Status to OutOfSync and persist conditions in the same patch to avoid sync status inconsistency.
-	if state.Phase == synccommon.OperationError {
-		if proj, projErr := ctrl.getAppProj(app); projErr == nil &&
-			sourceintegrity.HasHelmProvenanceCriteria(proj.EffectiveSourceIntegrity(), app.Spec.GetSources()...) {
-			if errConds := app.Status.GetConditions(map[appv1.ApplicationConditionType]bool{
-				appv1.ApplicationConditionComparisonError:  true,
-				appv1.ApplicationConditionInvalidSpecError: true,
-			}); len(errConds) > 0 {
-				statusPatch["sync"] = map[string]any{"status": string(appv1.SyncStatusCodeOutOfSync)}
-				statusPatch["conditions"] = app.Status.Conditions
-			}
-		}
-	}
 	patch := map[string]any{
-		"status": statusPatch,
+		"status": map[string]any{
+			"operationState": state,
+		},
 	}
 	if state.Phase.Completed() {
 		// If operation is completed, clear the operation field to indicate no operation is
@@ -1866,10 +1838,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		sources = append(sources, app.Spec.GetSource())
 	}
 
-	// When project requires Helm provenance, bypass manifest cache so we always get a fresh provenance
-	// result and avoid inconsistent sync status.
-	noCache := refreshType == appv1.RefreshTypeHard || sourceintegrity.HasHelmProvenanceCriteria(project.EffectiveSourceIntegrity(), sources...)
-	compareResult, err := ctrl.appStateManager.CompareAppState(app, project, revisions, sources, noCache, comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources)
+	compareResult, err := ctrl.appStateManager.CompareAppState(app, project, revisions, sources, refreshType == appv1.RefreshTypeHard, comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources)
 
 	ts.AddCheckpoint("compare_app_state_ms")
 

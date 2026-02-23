@@ -95,10 +95,6 @@ type comparisonResult struct {
 	hasPreDeleteHooks  bool
 	// revisionsMayHaveChanges indicates if there are any possibilities that the revisions contain changes
 	revisionsMayHaveChanges bool
-	// conditions: used by SyncAppState to block sync from the just-computed result (avoids race with app.Status persistence).
-	conditions []v1alpha1.ApplicationCondition
-	// manifestInfos: used by SyncAppState to block sync when SourceIntegrityResult indicates failure.
-	manifestInfos []*apiclient.ManifestResponse
 }
 
 func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
@@ -107,43 +103,6 @@ func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
 
 func (res *comparisonResult) GetHealthStatus() health.HealthStatusCode {
 	return res.healthStatus
-}
-
-// GetBlockingConditions returns ComparisonError and InvalidSpecError from the comparison result.
-func (res *comparisonResult) GetBlockingConditions() []v1alpha1.ApplicationCondition {
-	blocking := map[v1alpha1.ApplicationConditionType]bool{
-		v1alpha1.ApplicationConditionComparisonError:  true,
-		v1alpha1.ApplicationConditionInvalidSpecError: true,
-	}
-	var result []v1alpha1.ApplicationCondition
-	for _, c := range res.conditions {
-		if blocking[c.Type] {
-			result = append(result, c)
-		}
-	}
-	return result
-}
-
-// SourceIntegrityError returns an error if any manifest has a source integrity failure.
-func (res *comparisonResult) SourceIntegrityError(requireResult bool) error {
-	for idx, manifestInfo := range res.manifestInfos {
-		if manifestInfo == nil {
-			if requireResult {
-				return fmt.Errorf("manifest [%d]: source integrity required but manifest response missing", idx)
-			}
-			continue
-		}
-		if manifestInfo.SourceIntegrityResult == nil {
-			if requireResult {
-				return fmt.Errorf("manifest [%d]: source integrity required but no verification result (possible cache inconsistency); refresh or retry", idx)
-			}
-			continue
-		}
-		if err := manifestInfo.SourceIntegrityResult.AsError(); err != nil {
-			return fmt.Errorf("manifest [%d]: %w", idx, err)
-		}
-	}
-	return nil
 }
 
 // appStateManager allows to compare applications to git
@@ -1001,57 +960,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: "error setting app health: " + err.Error(), LastTransitionTime: &now})
 	}
 
-	// Reject nil manifest/SourceIntegrityResult when source integrity required (avoids syncing on stale cache).
-	if sourceintegrity.HasCriteria(project.EffectiveSourceIntegrity(), sources...) {
-		for idx, manifestInfo := range manifestInfos {
-			if manifestInfo == nil {
-				logCtx.Warnf("++++ source integrity required but manifest response [%d] is nil (possible cache inconsistency)", idx)
-				conditions = append(conditions, v1alpha1.ApplicationCondition{
-					Type:               v1alpha1.ApplicationConditionComparisonError,
-					Message:            "source integrity required but manifest response missing (possible cache inconsistency)",
-					LastTransitionTime: &now,
-				})
-				break
-			}
-			if manifestInfo.SourceIntegrityResult == nil {
-				logCtx.Warnf("source integrity required but manifest [%d] has nil SourceIntegrityResult (possible cache hit without provenance)", idx)
-				conditions = append(conditions, v1alpha1.ApplicationCondition{
-					Type:               v1alpha1.ApplicationConditionComparisonError,
-					Message:            "source integrity required but no verification result (possible cache inconsistency); refresh or retry",
-					LastTransitionTime: &now,
-				})
-				break
-			}
+	for _, manifestInfo := range manifestInfos {
+		if manifestInfo != nil {
 			if err = manifestInfo.SourceIntegrityResult.AsError(); err != nil {
-				logCtx.Debugf("source integrity check failed for manifest [%d]: %v", idx, err)
 				conditions = append(conditions, v1alpha1.ApplicationCondition{
 					Type:               v1alpha1.ApplicationConditionComparisonError,
 					Message:            err.Error(),
 					LastTransitionTime: &now,
 				})
-				break
-			}
-		}
-	} else {
-		for _, manifestInfo := range manifestInfos {
-			if manifestInfo != nil {
-				if err = manifestInfo.SourceIntegrityResult.AsError(); err != nil {
-					conditions = append(conditions, v1alpha1.ApplicationCondition{
-						Type:               v1alpha1.ApplicationConditionComparisonError,
-						Message:            err.Error(),
-						LastTransitionTime: &now,
-					})
-				}
-			}
-		}
-	}
-
-	// Keep OutOfSync when source integrity has ComparisonError.
-	if sourceintegrity.HasCriteria(project.EffectiveSourceIntegrity(), sources...) {
-		for i := range conditions {
-			if conditions[i].Type == v1alpha1.ApplicationConditionComparisonError {
-				syncStatus.Status = v1alpha1.SyncStatusCodeOutOfSync
-				break
 			}
 
 			// Can happen during migration when the legacy SignatureKeys are used AND the repo-server have not yet been
@@ -1083,8 +999,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		hasPostDeleteHooks:      hasPostDeleteHooks,
 		hasPreDeleteHooks:       hasPreDeleteHooks,
 		revisionsMayHaveChanges: revisionsMayHaveChanges,
-		conditions:              conditions,
-		manifestInfos:           manifestInfos,
 	}
 
 	if hasMultipleSources {
@@ -1098,35 +1012,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 	}
 
-
-
-	// Only clear ComparisonError when we have fresh provenance (full refresh with cache bypass).
-	evaluatedTypes := map[v1alpha1.ApplicationConditionType]bool{
+	app.Status.SetConditions(conditions, map[v1alpha1.ApplicationConditionType]bool{
+		v1alpha1.ApplicationConditionComparisonError:         true,
 		v1alpha1.ApplicationConditionSharedResourceWarning:   true,
 		v1alpha1.ApplicationConditionRepeatedResourceWarning: true,
 		v1alpha1.ApplicationConditionExcludedResourceWarning: true,
-	}
-	hasComparisonErrorInConditions := false
-	for i := range conditions {
-		if conditions[i].Type == v1alpha1.ApplicationConditionComparisonError {
-			hasComparisonErrorInConditions = true
-			break
-		}
-	}
-	projectRequiresSourceIntegrity := sourceintegrity.HasCriteria(project.EffectiveSourceIntegrity(), sources...)
-	allowUpdateComparisonError := hasComparisonErrorInConditions || noRevisionCache
-	if projectRequiresSourceIntegrity && !hasComparisonErrorInConditions && (!noRevisionCache || !noCache) {
-		allowUpdateComparisonError = false
-	}
-	if allowUpdateComparisonError {
-		evaluatedTypes[v1alpha1.ApplicationConditionComparisonError] = true
-	}
-	// SetConditions preserves conditions not in evaluatedTypes.
-	if !evaluatedTypes[v1alpha1.ApplicationConditionComparisonError] {
-		logCtx.Debugf("comparison used revision cache (noRevisionCache=false); not updating ComparisonError so existing condition is preserved")
-	}
-
-	app.Status.SetConditions(conditions, evaluatedTypes)
+	})
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()
 	return &compRes, nil
