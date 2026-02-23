@@ -159,14 +159,16 @@ export function PodView(props: PodViewProps) {
                                                 {group.type === 'node' ? (
                                                     <div>
                                                         <div className='pod-view__node__info--large'>
-                                                            {(group.info || []).map(item => (
-                                                                <Tooltip content={`${item.name}: ${item.value}`} key={item.name}>
-                                                                    <div className='pod-view__node__info--large__item'>
-                                                                        <div className='pod-view__node__info--large__item__name'>{item.name}:</div>
-                                                                        <div className='pod-view__node__info--large__item__value'>{item.value}</div>
-                                                                    </div>
-                                                                </Tooltip>
-                                                            ))}
+                                                            {(group.info || [])
+                                                                .filter(item => item.value !== 'N/A')
+                                                                .map(item => (
+                                                                    <Tooltip content={`${item.name}: ${item.value}`} key={item.name}>
+                                                                        <div className='pod-view__node__info--large__item'>
+                                                                            <div className='pod-view__node__info--large__item__name'>{item.name}:</div>
+                                                                            <div className='pod-view__node__info--large__item__value'>{item.value}</div>
+                                                                        </div>
+                                                                    </Tooltip>
+                                                                ))}
                                                         </div>
                                                         {group.hostLabels && Object.keys(group.hostLabels).length > 0 ? (
                                                             <div className='pod-view__node__info--large'>
@@ -392,10 +394,7 @@ function processTree(
                         kind: 'node',
                         name: 'Unschedulable',
                         pods: [p],
-                        info: [
-                            {name: 'Kernel Version', value: 'N/A'},
-                            {name: 'OS/Arch', value: 'N/A'}
-                        ],
+                        info: [],
                         hostResourcesInfo: [],
                         hostLabels: {}
                     };
