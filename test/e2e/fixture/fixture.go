@@ -1368,3 +1368,21 @@ func GetNotificationServerAddress() string {
 func GetToken() string {
 	return token
 }
+
+// SetParamInRBACConfigMap sets the parameter in argocd-rbac-cm config map
+func SetParamInRBACConfigMap(key, value string) error {
+	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data[key] = value
+		return nil
+	})
+}
+
+// SetOIDCConfig sets the oidc.config in argocd-cm config map
+func SetOIDCConfig(value string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["oidc.config"] = value
+		cm.Data["url"] = fmt.Sprintf("http://%s", GetApiServerAddress())
+		delete(cm.Data, "dex.config")
+		return nil
+	})
+}

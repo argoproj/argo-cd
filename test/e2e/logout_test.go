@@ -95,3 +95,78 @@ func TestLogoutRevokedTokenCannotAccessAPIs(t *testing.T) {
 			require.Contains(t, err.Error(), "token is revoked")
 		})
 }
+
+// TestLogoutRevokesOIDCToken verifies that token revocation works for tokens
+// issued directly by an external OIDC provider (bypassing Dex). This exercises
+// the IDP token verification and revocation code path in SessionManager.VerifyToken.
+func TestLogoutRevokesOIDCToken(t *testing.T) {
+	sessionFixture.Given(t).
+		When().
+		WithDirectOIDC().
+		LoginWithSSO("token1").
+		ListApplications("token1").
+		Then().
+		ActionShouldSucceed().
+		When().
+		Logout("token1").
+		ListApplications("token1").
+		Then().
+		ActionShouldFail(func(err error) {
+			require.Contains(t, err.Error(), "token is revoked")
+		})
+}
+
+// TestLogoutDoesNotAffectOtherOIDCSessions verifies that revoking one OIDC session
+// token does not invalidate a different OIDC session token.
+func TestLogoutDoesNotAffectOtherOIDCSessions(t *testing.T) {
+	sessionFixture.Given(t).
+		When().
+		WithDirectOIDC().
+		LoginWithSSO("token1").
+		LoginWithSSO("token2").
+		ListApplications("token1").
+		Then().
+		ActionShouldSucceed().
+		When().
+		Logout("token1").
+		ListApplications("token1").
+		Then().
+		ActionShouldFail(func(err error) {
+			require.Contains(t, err.Error(), "token is revoked")
+		}).
+		When().
+		ListApplications("token2").
+		Then().
+		ActionShouldSucceed()
+}
+
+// TestLogoutRevokedOIDCTokenCannotAccessAPIs verifies that a revoked OIDC token
+// is rejected across different API endpoints.
+func TestLogoutRevokedOIDCTokenCannotAccessAPIs(t *testing.T) {
+	sessionFixture.Given(t).
+		When().
+		WithDirectOIDC().
+		LoginWithSSO("token1").
+		GetUserInfo("token1").
+		Logout("token1").
+		GetUserInfo("token1").
+		ListApplications("token1").
+		Then().
+		ActionShouldFail(func(err error) {
+			require.Contains(t, err.Error(), "token is revoked")
+		}).
+		// Project API
+		When().
+		ListProjects("token1").
+		Then().
+		ActionShouldFail(func(err error) {
+			require.Contains(t, err.Error(), "token is revoked")
+		}).
+		// Repository API
+		When().
+		ListRepositories("token1").
+		Then().
+		ActionShouldFail(func(err error) {
+			require.Contains(t, err.Error(), "token is revoked")
+		})
+}
