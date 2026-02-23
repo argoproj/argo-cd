@@ -1381,7 +1381,7 @@ func SetParamInRBACConfigMap(key, value string) error {
 func SetOIDCConfig(value string) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data["oidc.config"] = value
-		cm.Data["url"] = fmt.Sprintf("http://%s", GetApiServerAddress())
+		cm.Data["url"] = "http://" + GetApiServerAddress()
 		delete(cm.Data, "dex.config")
 		return nil
 	})

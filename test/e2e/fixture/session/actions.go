@@ -1,6 +1,7 @@
 package session
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"fmt"
@@ -79,7 +80,10 @@ func (a *Actions) getSharedMockOIDCServer() *mockoidc.MockOIDC {
 		if oidcPort == "" {
 			oidcPort = "5556"
 		}
-		ln, err := net.Listen("tcp", "localhost:"+oidcPort)
+		lc := net.ListenConfig{}
+		ctx, cancelFunc := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancelFunc()
+		ln, err := lc.Listen(ctx, "tcp", "localhost:"+oidcPort)
 		require.NoError(t, err)
 		mockServer, err = mockoidc.NewServer(rsaKey)
 		require.NoError(t, err)
