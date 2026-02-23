@@ -287,6 +287,8 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	nonOidcTokenHeader["Cookie"] = []string{"argocd.token=" + nonOidcToken}
 	invalidHeader := make(map[string][]string)
 	invalidHeader["Cookie"] = []string{"argocd.token=" + invalidToken}
+	emptyHeader := make(map[string][]string)
+	emptyHeader["Cookie"] = []string{"argocd.token="}
 	ctx := t.Context()
 
 	oidcRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
@@ -302,6 +304,10 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	requestWithInvalidToken, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
 	require.NoError(t, err)
 	requestWithInvalidToken.Header = invalidHeader
+	requestWithEmptyToken, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
+	require.NoError(t, err)
+	requestWithEmptyToken.Header = emptyHeader
+
 	invalidRequest, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://localhost:4000/api/logout", http.NoBody)
 	require.NoError(t, err)
 
@@ -345,6 +351,14 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			responseRecorder:  httptest.NewRecorder(),
 			expectedLogoutURL: expectedNonOIDCLogoutURL,
 			wantErr:           false,
+		},
+		{
+			name:              "Case: Logout request with empty token",
+			handler:           nonoidcHandler,
+			request:           requestWithEmptyToken,
+			responseRecorder:  httptest.NewRecorder(),
+			expectedLogoutURL: expectedNonOIDCLogoutURL,
+			wantErr:           true,
 		},
 		{
 			name:              "Case: Logout request with missing token",

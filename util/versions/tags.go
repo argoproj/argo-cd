@@ -3,6 +3,7 @@ package versions
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	log "github.com/sirupsen/logrus"
 
@@ -29,10 +30,8 @@ func MaxVersion(revision string, tags []string) (string, error) {
 	if err != nil {
 		log.Debugf("Revision '%s' is not a valid semver constraint, resolving via basic string equality.", revision)
 		// If this is also an invalid constraint, we just iterate over available tags to determine if it is valid/invalid.
-		for _, tag := range tags {
-			if tag == revision {
-				return revision, nil
-			}
+		if slices.Contains(tags, revision) {
+			return revision, nil
 		}
 		return "", fmt.Errorf("failed to determine semver constraint: %w", err)
 	}

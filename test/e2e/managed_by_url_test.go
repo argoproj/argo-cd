@@ -23,15 +23,16 @@ const managedByURLTestPath = "guestbook"
 func TestManagedByURLWithAnnotation(t *testing.T) {
 	managedByURL := "https://argocd-instance-b.example.com"
 
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Project("default").
 		Path(managedByURLTestPath).
 		When().
 		CreateApp().
 		And(func() {
 			// Add managed-by-url annotation to the application with retry logic
-			for i := 0; i < 3; i++ {
-				appObj, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(t.Context(), fixture.Name(), metav1.GetOptions{})
+			for i := range 3 {
+				appObj, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(t.Context(), ctx.GetName(), metav1.GetOptions{})
 				require.NoError(t, err)
 
 				if appObj.Annotations == nil {

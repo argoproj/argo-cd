@@ -224,7 +224,7 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunctionWhenClusterNumber
 	// and for 4096 clusters, execution time was under 9s
 	// The other implementation was giving almost linear time of 400ms up to 10'000 clusters
 	clusterPointers := []*v1alpha1.Cluster{}
-	for i := 0; i < 2048; i++ {
+	for i := range 2048 {
 		cluster := createCluster(fmt.Sprintf("cluster-%d", i), strconv.Itoa(i))
 		clusterPointers = append(clusterPointers, &cluster)
 	}
@@ -282,7 +282,7 @@ func TestConsistentHashingWhenClusterIsAddedAndRemoved(t *testing.T) {
 	prefix := "cluster"
 
 	clusters := []v1alpha1.Cluster{}
-	for i := 0; i < clusterCount; i++ {
+	for i := range clusterCount {
 		id := fmt.Sprintf("%06d", i)
 		cluster := fmt.Sprintf("%s-%s", prefix, id)
 		clusters = append(clusters, createCluster(cluster, id))
@@ -298,7 +298,7 @@ func TestConsistentHashingWhenClusterIsAddedAndRemoved(t *testing.T) {
 	assert.Equal(t, 0, distributionFunction(nil))
 	distributionMap := map[int]int{}
 	assignementMap := map[string]int{}
-	for i := 0; i < clusterCount; i++ {
+	for i := range clusterCount {
 		assignedShard := distributionFunction(&clusters[i])
 		assignementMap[clusters[i].ID] = assignedShard
 		distributionMap[assignedShard]++
@@ -330,7 +330,7 @@ func TestConsistentHashingWhenClusterIsAddedAndRemoved(t *testing.T) {
 	replicasCount = 2
 	distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(getClusterAccessor(clusterList.Items), appAccessor, replicasCount)
 	removedCluster := clusterList.Items[len(clusterList.Items)-1]
-	for i := 0; i < clusterCount; i++ {
+	for i := range clusterCount {
 		c := &clusters[i]
 		assignedShard := distributionFunction(c)
 		prevıouslyAssignedShard := assignementMap[clusters[i].ID]

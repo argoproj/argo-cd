@@ -445,6 +445,8 @@ func TestGracefulShutdown(t *testing.T) {
 	defer appInformerCancel()
 	appsetInformerCancel := test.StartInformer(s.appsetInformer)
 	defer appsetInformerCancel()
+	clusterInformerCancel := test.StartInformer(s.clusterInformer)
+	defer clusterInformerCancel()
 
 	lns, err := s.Listen()
 	require.NoError(t, err)

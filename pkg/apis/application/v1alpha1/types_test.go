@@ -14,7 +14,7 @@ import (
 
 	argocdcommon "github.com/argoproj/argo-cd/v3/common"
 
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -226,7 +226,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 	}
 
 	for _, data := range testData {
-		data := data
 		t.Run(data.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -563,6 +562,80 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 	}
 	assert.False(t, proj7.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "other-namespace", false))
 	assert.True(t, proj7.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "team1-namespace", false))
+}
+
+func TestGlobMatch(t *testing.T) {
+	tests := []struct {
+		name          string
+		pattern       string
+		val           string
+		allowNegation bool
+		expected      bool
+	}{
+		{
+			name:          "exact match",
+			pattern:       "foo",
+			val:           "foo",
+			allowNegation: false,
+			expected:      true,
+		},
+		{
+			name:          "glob wildcard match",
+			pattern:       "foo*",
+			val:           "foobar",
+			allowNegation: false,
+			expected:      true,
+		},
+		{
+			name:          "glob wildcard no match",
+			pattern:       "foo*",
+			val:           "bar",
+			allowNegation: false,
+			expected:      false,
+		},
+		{
+			name:          "star matches everything",
+			pattern:       "*",
+			val:           "anything",
+			allowNegation: false,
+			expected:      true,
+		},
+		{
+			name:          "deny pattern with negation allowed - match",
+			pattern:       "!foo",
+			val:           "foo",
+			allowNegation: true,
+			expected:      false,
+		},
+		{
+			name:          "deny pattern with negation allowed - no match",
+			pattern:       "!foo",
+			val:           "bar",
+			allowNegation: true,
+			expected:      true,
+		},
+		{
+			name:          "deny pattern ignored when negation not allowed",
+			pattern:       "!foo",
+			val:           "foo",
+			allowNegation: false,
+			expected:      false, // treated as literal pattern "!foo"
+		},
+		{
+			name:          "deny pattern ignored when negation not allowed - no match",
+			pattern:       "!foo",
+			val:           "!foo",
+			allowNegation: false,
+			expected:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := globMatch(tt.pattern, tt.val, tt.allowNegation)
+			require.Equal(t, tt.expected, result)
+		})
+	}
 }
 
 func TestAppProject_GetRoleByName(t *testing.T) {
@@ -4791,53 +4864,70 @@ func TestSyncWindow_Hash(t *testing.T) {
 func TestSanitized(t *testing.T) {
 	now := metav1.Now()
 	cluster := &Cluster{
-		ID:            "123",
-		Server:        "https://example.com",
-		Name:          "example",
-		ServerVersion: "v1.0.0",
-		Namespaces:    []string{"default", "kube-system"},
-		Project:       "default",
+		ID:     "123",
+		Server: "https://example.com",
+		Name:   "example",
+		Info: ClusterInfo{
+			ConnectionState: ConnectionState{
+				Status:     ConnectionStatusSuccessful,
+				Message:    "Connection successful",
+				ModifiedAt: &now,
+			},
+			ServerVersion:     "v1.0.0",
+			CacheInfo:         ClusterCacheInfo{},
+			ApplicationsCount: 0,
+			APIVersions:       nil,
+		},
+		Namespaces: []string{"default", "kube-system"},
+		Project:    "default",
 		Labels: map[string]string{
 			"env": "production",
 		},
 		Annotations: map[string]string{
 			"annotation-key": "annotation-value",
 		},
-		ConnectionState: ConnectionState{
-			Status:     ConnectionStatusSuccessful,
-			Message:    "Connection successful",
-			ModifiedAt: &now,
-		},
 		Config: ClusterConfig{
 			Username:    "admin",
 			Password:    "password123",
 			BearerToken: "abc",
 			TLSClientConfig: TLSClientConfig{
-				Insecure: true,
+				Insecure:   true,
+				ServerName: "server",
+				CertData:   []byte("random bytes we don't want to show in the API response"),
+				KeyData:    []byte("random bytes we don't want to show in the API response"),
+				CAData:     []byte("random bytes we don't want to show in the API response"),
 			},
 			ExecProviderConfig: &ExecProviderConfig{
-				Command: "test",
+				Command:    "this should be omitted in API",
+				Args:       []string{"this should be omitted in API"},
+				APIVersion: "this should be omitted in API",
 			},
 		},
 	}
 
 	assert.Equal(t, &Cluster{
-		ID:            "123",
-		Server:        "https://example.com",
-		Name:          "example",
-		ServerVersion: "v1.0.0",
-		Namespaces:    []string{"default", "kube-system"},
-		Project:       "default",
-		Labels:        map[string]string{"env": "production"},
-		Annotations:   map[string]string{"annotation-key": "annotation-value"},
-		ConnectionState: ConnectionState{
-			Status:     ConnectionStatusSuccessful,
-			Message:    "Connection successful",
-			ModifiedAt: &now,
+		ID:     "123",
+		Server: "https://example.com",
+		Name:   "example",
+		Info: ClusterInfo{
+			ConnectionState: ConnectionState{
+				Status:     ConnectionStatusSuccessful,
+				Message:    "Connection successful",
+				ModifiedAt: &now,
+			},
+			ServerVersion:     "v1.0.0",
+			CacheInfo:         ClusterCacheInfo{},
+			ApplicationsCount: 0,
+			APIVersions:       nil,
 		},
+		Namespaces:  []string{"default", "kube-system"},
+		Project:     "default",
+		Labels:      map[string]string{"env": "production"},
+		Annotations: map[string]string{"annotation-key": "annotation-value"},
 		Config: ClusterConfig{
 			TLSClientConfig: TLSClientConfig{
-				Insecure: true,
+				Insecure:   true,
+				ServerName: "server",
 			},
 		},
 	}, cluster.Sanitized())
@@ -4862,6 +4952,75 @@ func TestSourceHydrator_Equals(t *testing.T) {
 			t.Parallel()
 
 			assert.Equal(t, testCopy.expected, testCopy.a.DeepEquals(testCopy.b))
+		})
+	}
+}
+
+func TestIgnoreDifferences_Equals(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		a        IgnoreDifferences
+		b        IgnoreDifferences
+		expected bool
+	}{
+		{
+			name:     "nil and nil are equal",
+			a:        nil,
+			b:        nil,
+			expected: true,
+		},
+		{
+			name:     "nil and empty slice are equal",
+			a:        nil,
+			b:        IgnoreDifferences{},
+			expected: true,
+		},
+		{
+			name:     "empty slice and nil are equal",
+			a:        IgnoreDifferences{},
+			b:        nil,
+			expected: true,
+		},
+		{
+			name:     "empty slice and empty slice are equal",
+			a:        IgnoreDifferences{},
+			b:        IgnoreDifferences{},
+			expected: true,
+		},
+		{
+			name:     "non-empty slice and nil are not equal",
+			a:        IgnoreDifferences{{Kind: "Deployment"}},
+			b:        nil,
+			expected: false,
+		},
+		{
+			name:     "nil and non-empty slice are not equal",
+			a:        nil,
+			b:        IgnoreDifferences{{Kind: "Deployment"}},
+			expected: false,
+		},
+		{
+			name:     "equal non-empty slices are equal",
+			a:        IgnoreDifferences{{Kind: "Deployment", JSONPointers: []string{"/spec/replicas"}}},
+			b:        IgnoreDifferences{{Kind: "Deployment", JSONPointers: []string{"/spec/replicas"}}},
+			expected: true,
+		},
+		{
+			name:     "different non-empty slices are not equal",
+			a:        IgnoreDifferences{{Kind: "Deployment"}},
+			b:        IgnoreDifferences{{Kind: "Service"}},
+			expected: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
 		})
 	}
 }

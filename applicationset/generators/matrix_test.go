@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -624,11 +623,6 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 			Type: corev1.SecretType("Opaque"),
 		},
 	}
-	// convert []client.Object to []runtime.Object, for use by kubefake package
-	runtimeClusters := []runtime.Object{}
-	for _, clientCluster := range clusters {
-		runtimeClusters = append(runtimeClusters, clientCluster)
-	}
 
 	for _, testCase := range testCases {
 		testCaseCopy := testCase // Since tests may run in parallel
@@ -637,13 +631,12 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 			genMock := &generatorsMock.Generator{}
 			appSet := &v1alpha1.ApplicationSet{}
 
-			appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
 			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
 			cl := &possiblyErroringFakeCtrlRuntimeClient{
 				fakeClient,
 				testCase.clientError,
 			}
-			clusterGenerator := NewClusterGenerator(t.Context(), cl, appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(cl, "namespace")
 
 			for _, g := range testCaseCopy.baseGenerators {
 				gitGeneratorSpec := v1alpha1.ApplicationSetGenerator{
@@ -803,11 +796,6 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 			Type: corev1.SecretType("Opaque"),
 		},
 	}
-	// convert []client.Object to []runtime.Object, for use by kubefake package
-	runtimeClusters := []runtime.Object{}
-	for _, clientCluster := range clusters {
-		runtimeClusters = append(runtimeClusters, clientCluster)
-	}
 
 	for _, testCase := range testCases {
 		testCaseCopy := testCase // Since tests may run in parallel
@@ -820,13 +808,12 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 				},
 			}
 
-			appClientset := kubefake.NewSimpleClientset(runtimeClusters...)
 			fakeClient := fake.NewClientBuilder().WithObjects(clusters...).Build()
 			cl := &possiblyErroringFakeCtrlRuntimeClient{
 				fakeClient,
 				testCase.clientError,
 			}
-			clusterGenerator := NewClusterGenerator(t.Context(), cl, appClientset, "namespace")
+			clusterGenerator := NewClusterGenerator(cl, "namespace")
 
 			for _, g := range testCaseCopy.baseGenerators {
 				gitGeneratorSpec := v1alpha1.ApplicationSetGenerator{

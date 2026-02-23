@@ -5,6 +5,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"os"
 	"strings"
@@ -12,7 +13,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -240,8 +241,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			}
 			for _, option := range appOpts.syncOptions {
 				// `!` means remove the option
-				if strings.HasPrefix(option, "!") {
-					option = strings.TrimPrefix(option, "!")
+				if after, ok := strings.CutPrefix(option, "!"); ok {
+					option = after
 					spec.SyncPolicy.SyncOptions = spec.SyncPolicy.SyncOptions.RemoveOption(option)
 				} else {
 					spec.SyncPolicy.SyncOptions = spec.SyncPolicy.SyncOptions.AddOption(option)
@@ -847,13 +848,9 @@ func mergeLabels(app *argoappv1.Application, labels []string) {
 
 	mergedLabels := make(map[string]string)
 
-	for name, value := range app.GetLabels() {
-		mergedLabels[name] = value
-	}
+	maps.Copy(mergedLabels, app.GetLabels())
 
-	for name, value := range mapLabels {
-		mergedLabels[name] = value
-	}
+	maps.Copy(mergedLabels, mapLabels)
 
 	app.SetLabels(mergedLabels)
 }

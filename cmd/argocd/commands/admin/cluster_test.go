@@ -60,8 +60,7 @@ func Test_loadClusters(t *testing.T) {
 	require.NoError(t, err)
 	for i := range clusters {
 		// This changes, nil it to avoid testing it.
-		//nolint:staticcheck
-		clusters[i].ConnectionState.ModifiedAt = nil
+		clusters[i].Info.ConnectionState.ModifiedAt = nil
 	}
 
 	expected := []ClusterWithInfo{{
@@ -69,11 +68,13 @@ func Test_loadClusters(t *testing.T) {
 			ID:     "",
 			Server: "https://kubernetes.default.svc",
 			Name:   "in-cluster",
-			ConnectionState: v1alpha1.ConnectionState{
-				Status: "Successful",
+			Info: v1alpha1.ClusterInfo{
+				ConnectionState: v1alpha1.ConnectionState{
+					Status: "Successful",
+				},
+				ServerVersion: ".",
 			},
-			ServerVersion: ".",
-			Shard:         ptr.To(int64(0)),
+			Shard: ptr.To(int64(0)),
 		},
 		Namespaces: []string{"test"},
 	}}

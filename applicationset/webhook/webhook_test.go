@@ -609,7 +609,7 @@ func fakeAppWithMatrixAndNestedGitGenerator(name, namespace, repo string) *v1alp
 							},
 							{
 								Matrix: &apiextensionsv1.JSON{
-									Raw: []byte(fmt.Sprintf(`{
+									Raw: fmt.Appendf(nil, `{
 										"Generators": [
 											{
 												"List": {
@@ -626,7 +626,7 @@ func fakeAppWithMatrixAndNestedGitGenerator(name, namespace, repo string) *v1alp
 												}
 											}
 										]
-									}`, repo)),
+									}`, repo),
 								},
 							},
 						},
@@ -707,7 +707,7 @@ func fakeAppWithMergeAndNestedGitGenerator(name, namespace, repo string) *v1alph
 							},
 							{
 								Merge: &apiextensionsv1.JSON{
-									Raw: []byte(fmt.Sprintf(`{
+									Raw: fmt.Appendf(nil, `{
 										"MergeKeys": ["server"],
 										"Generators": [
 											{
@@ -719,7 +719,7 @@ func fakeAppWithMergeAndNestedGitGenerator(name, namespace, repo string) *v1alph
 												}
 											}
 										]
-									}`, repo)),
+									}`, repo),
 								},
 							},
 						},

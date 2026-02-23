@@ -302,7 +302,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	}
 
 	tries := 5
-	for i := 0; i < tries; i++ {
+	for range tries {
 		err = testAPI(ctx, clientOpts)
 		if err == nil {
 			break

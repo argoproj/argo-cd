@@ -107,7 +107,7 @@ func TestPrintApplicationSetTable(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
-	expectation := "NAME               PROJECT  SYNCPOLICY  CONDITIONS\napp-name           default  nil         [{ResourcesUpToDate  <nil> True }]\nteam-two/app-name  default  nil         [{ResourcesUpToDate  <nil> True }]\n"
+	expectation := "NAME               PROJECT  SYNCPOLICY  HEALTH  CONDITIONS\napp-name           default  nil                 [{ResourcesUpToDate  <nil> True }]\nteam-two/app-name  default  nil                 [{ResourcesUpToDate  <nil> True }]\n"
 	assert.Equal(t, expectation, output)
 }
 
@@ -200,6 +200,7 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 Project:            default
 Server:             
 Namespace:          
+Health Status:      
 Source:
 - Repo:             
   Target:           
@@ -213,6 +214,7 @@ SyncPolicy:         <none>
 Project:            default
 Server:             
 Namespace:          
+Health Status:      
 Source:
 - Repo:             
   Target:           
@@ -226,6 +228,7 @@ SyncPolicy:         Automated
 Project:            default
 Server:             
 Namespace:          
+Health Status:      
 Source:
 - Repo:             
   Target:           
@@ -239,6 +242,7 @@ SyncPolicy:         Automated
 Project:            default
 Server:             
 Namespace:          
+Health Status:      
 Source:
 - Repo:             test1
   Target:           master1
@@ -253,6 +257,7 @@ SyncPolicy:         <none>
 Project:            default
 Server:             
 Namespace:          
+Health Status:      
 Sources:
 - Repo:             test1
   Target:           master1

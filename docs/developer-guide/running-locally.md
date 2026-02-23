@@ -130,10 +130,11 @@ export ARGOCD_OPTS="--plaintext --insecure"
 
 #### Docs Changes
 
-Modifying the docs auto-reloads the changes on the [documentation website](https://argo-cd.readthedocs.io/) that can be locally built using `make serve-docs-local` command. 
+The doc-site can be run in a container with `make serve-docs` or locally using `make serve-docs-local`. 
+When the doc-site process is run locally, modifying the docs will auto-reload changes in a preview of the [documentation website](https://argo-cd.readthedocs.io/). 
 Once running, you can view your locally built documentation on port 8000.
 
-Read more about this [here](https://argo-cd.readthedocs.io/en/latest/developer-guide/docs-site/).
+The developer guide has detailed information about the [doc-site process](https://argo-cd.readthedocs.io/en/latest/developer-guide/docs-site/).
 
 #### UI Changes
 
@@ -221,6 +222,18 @@ Then you can build & push the image in one step:
 ```bash
 DOCKER_PUSH=true make image
 ```
+
+To speed up building of images you may use the DEV_IMAGE option that builds the argocd binaries in the users desktop environment
+(instead of building everything in Docker) and copies them into the result image:
+
+```bash
+DEV_IMAGE=true DOCKER_PUSH=true make image
+```
+
+> [!NOTE]
+> The first run of this build task may take a long time because it needs first to build the base image first; however,
+> once it's done, the build process should be much faster than a regular full image build in Docker.
+
 
 #### Configure manifests for your image
 

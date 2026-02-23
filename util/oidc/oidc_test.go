@@ -627,7 +627,7 @@ func Test_azureApp_getFederatedServiceAccountToken(t *testing.T) {
 		var wg sync.WaitGroup
 		numGoroutines := 10
 		wg.Add(numGoroutines)
-		for i := 0; i < numGoroutines; i++ {
+		for range numGoroutines {
 			go func() {
 				defer wg.Done()
 				_, err := app.getFederatedServiceAccountToken(t.Context())
@@ -647,7 +647,7 @@ func Test_azureApp_getFederatedServiceAccountToken(t *testing.T) {
 		app.expires = time.Now()
 		numGoroutines := 10
 		wg.Add(numGoroutines)
-		for i := 0; i < numGoroutines; i++ {
+		for range numGoroutines {
 			go func() {
 				defer wg.Done()
 				_, err := app.getFederatedServiceAccountToken(t.Context())
@@ -1418,7 +1418,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			if tt.insertIntoCache {
 				oidcTokenCacheJSON, err := json.Marshal(tt.oidcTokenCache)
 				require.NoError(t, err)
-				require.NoError(t, app.SetValueInEncryptedCache(formatOidcTokenCacheKey(tt.subject, tt.session), oidcTokenCacheJSON, time.Minute))
+				require.NoError(t, app.SetValueInEncryptedCache(t.Context(), formatOidcTokenCacheKey(tt.subject, tt.session), oidcTokenCacheJSON, time.Minute))
 			}
 			token, err := app.GetUpdatedOidcTokenFromCache(t.Context(), tt.subject, tt.session)
 			if tt.expectErrorContains != "" {
@@ -1509,7 +1509,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL, tt.refreshTokenThreshold),
 			require.NotEmpty(t, sub)
 			sid := jwtutil.StringField(tt.groupClaims, "sid")
 			require.NotEmpty(t, sid)
-			require.NoError(t, app.SetValueInEncryptedCache(formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, time.Minute))
+			require.NoError(t, app.SetValueInEncryptedCache(t.Context(), formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, time.Minute))
 			token, err := app.CheckAndRefreshToken(t.Context(), tt.groupClaims, cdSettings.RefreshTokenThreshold())
 			if tt.expectErrorContains != "" {
 				require.ErrorContains(t, err, tt.expectErrorContains)

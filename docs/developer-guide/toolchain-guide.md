@@ -64,30 +64,28 @@ The configuration you will need for Argo CD virtualized toolchain:
 
 1. For most users, the following command works to find the host IP address.
 
-    * For Mac:
+    * If you have perl
 
-    ```
-    IP=`ifconfig en0 | grep inet | grep -v inet6 | awk '{print $2}'`
-    echo $IP
-    ```
+       ```pl
+       perl -e '
+       use strict;
+       use Socket;
 
-    * For Windows:
-    
-    Run the following command and look for the IP address of your active network adapter:
-    
-    ```
-    ipconfig
-    ```
+       my $target = sockaddr_in(53, inet_aton("8.8.8.8"));
+       socket(my $s, AF_INET, SOCK_DGRAM, getprotobyname("udp")) or die $!;
+       connect($s, $target) or die $!;
+       my $local_addr = getsockname($s) or die $!;
+       my (undef, $ip) = sockaddr_in($local_addr);
+       print "IP: ", inet_ntoa($ip), "\n";
+       '
+       ```
 
-    * For Linux:
+    * If you don't
 
-    ```
-    IP=$(hostname -I | awk '{print $1}')
-    echo $IP
-    ```
+      * Try `ip route get 8.8.8.8` on Linux
+      * Try `ifconfig`/`ipconfig` (and pick the ip address that feels right -- look for `192.168.x.x` or `10.x.x.x` addresses)
 
-    > Note:
-    > If you are using a VPN or running Docker, multiple IP addresses may be returned and the first address may not correspond to your primary network. In such cases, run `hostname -I` and select the IP associated with the network you want to expose.
+    Note that `8.8.8.8` is Google's Public DNS server, in most places it's likely to be accessible and thus is a good proxy for "which outbound address would my computer use", but you can replace it with a different IP address if necessary.
 
     Keep in mind that this IP is dynamically assigned by the router so if your router restarts for any reason, your IP might change.
 

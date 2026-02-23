@@ -22,7 +22,7 @@ import (
 	"hash"
 	"sort"
 
-	hashutil "github.com/argoproj/gitops-engine/internal/kubernetes_vendor/pkg/util/hash"
+	hashutil "github.com/argoproj/argo-cd/gitops-engine/internal/kubernetes_vendor/pkg/util/hash"
 	v1 "k8s.io/api/core/v1"
 )
 

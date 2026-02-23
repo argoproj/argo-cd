@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -352,8 +354,76 @@ func TestWriteGitAttributes(t *testing.T) {
 	gitAttributesPath := filepath.Join(root.Name(), ".gitattributes")
 	gitAttributesBytes, err := os.ReadFile(gitAttributesPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(gitAttributesBytes), "*/README.md linguist-generated=true")
-	assert.Contains(t, string(gitAttributesBytes), "*/hydrator.metadata linguist-generated=true")
+	assert.Contains(t, string(gitAttributesBytes), "README.md linguist-generated=true")
+	assert.Contains(t, string(gitAttributesBytes), "hydrator.metadata linguist-generated=true")
+}
+
+func TestWriteGitAttributes_MatchesAllDepths(t *testing.T) {
+	root := tempRoot(t)
+
+	err := writeGitAttributes(root)
+	require.NoError(t, err)
+
+	// The gitattributes pattern needs to match files at all depths:
+	// - hydrator.metadata (root level)
+	// - path1/hydrator.metadata (one level deep)
+	// - path1/nested/deep/hydrator.metadata (multiple levels deep)
+	// Same for README.md files
+	//
+	// The pattern "**/hydrator.metadata" matches at any depth including root
+	// The pattern "*/hydrator.metadata" only matches exactly one directory level deep
+
+	// Test actual Git behavior using git check-attr
+	// Initialize a git repo
+	ctx := t.Context()
+	repoPath := root.Name()
+	cmd := exec.CommandContext(ctx, "git", "init")
+	cmd.Dir = repoPath
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "Failed to init git repo: %s", string(output))
+
+	// Test files at different depths
+	testCases := []struct {
+		path        string
+		shouldMatch bool
+		description string
+	}{
+		{"hydrator.metadata", true, "root level hydrator.metadata"},
+		{"README.md", true, "root level README.md"},
+		{"path1/hydrator.metadata", true, "one level deep hydrator.metadata"},
+		{"path1/README.md", true, "one level deep README.md"},
+		{"path1/nested/hydrator.metadata", true, "two levels deep hydrator.metadata"},
+		{"path1/nested/README.md", true, "two levels deep README.md"},
+		{"path1/nested/deep/hydrator.metadata", true, "three levels deep hydrator.metadata"},
+		{"path1/nested/deep/README.md", true, "three levels deep README.md"},
+		{"manifest.yaml", false, "manifest.yaml should not match"},
+		{"path1/manifest.yaml", false, "nested manifest.yaml should not match"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			// Use git check-attr to verify if linguist-generated attribute is set
+			cmd := exec.CommandContext(ctx, "git", "check-attr", "linguist-generated", tc.path)
+			cmd.Dir = repoPath
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, "Failed to run git check-attr: %s", string(output))
+
+			// Output format: <path>: <attribute>: <value>
+			// Example: "hydrator.metadata: linguist-generated: true"
+			outputStr := strings.TrimSpace(string(output))
+
+			if tc.shouldMatch {
+				expectedOutput := tc.path + ": linguist-generated: true"
+				assert.Equal(t, expectedOutput, outputStr,
+					"File %s should have linguist-generated=true attribute", tc.path)
+			} else {
+				// Attribute should be unspecified
+				expectedOutput := tc.path + ": linguist-generated: unspecified"
+				assert.Equal(t, expectedOutput, outputStr,
+					"File %s should not have linguist-generated=true attribute", tc.path)
+			}
+		})
+	}
 }
 
 func TestIsHydrated(t *testing.T) {

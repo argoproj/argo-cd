@@ -1,11 +1,9 @@
 package v1alpha1
 
 import (
-	"context"
 	"fmt"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
 
@@ -242,32 +240,7 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), repo.Proxy)
 	}
 	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 { // Promoter MVP: remove github-app-installation-id check since it is no longer a required field
-		installationId := repo.GithubAppInstallationId
-
-		// Auto-discover installation ID if not provided
-		if installationId == 0 {
-			org, err := git.ExtractOrgFromRepoURL(repo.Repo)
-			if err != nil {
-				log.Warnf("Failed to extract organization from repository URL %s for GitHub App auto-discovery: %v", repo.Repo, err)
-				return git.NopCreds{}
-			}
-			if org != "" {
-				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-				defer cancel()
-
-				discoveredId, err := git.DiscoverGitHubAppInstallationID(ctx, repo.GithubAppId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, org)
-				if err != nil {
-					log.Warnf("Failed to auto-discover GitHub App installation ID for org %s: %v. Proceeding with installation ID 0.", org, err)
-				} else {
-					log.Infof("Auto-discovered GitHub App installation ID %d for org %s", discoveredId, org)
-					installationId = discoveredId
-				}
-			} else {
-				log.Warnf("Could not extract organization from repository URL %s for GitHub App auto-discovery", repo.Repo)
-			}
-		}
-
-		return git.NewGitHubAppCreds(repo.GithubAppId, installationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store)
+		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store, repo.Repo)
 	}
 	if repo.GCPServiceAccountKey != "" {
 		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
