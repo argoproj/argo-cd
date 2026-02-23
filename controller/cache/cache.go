@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
@@ -174,8 +175,11 @@ type NodeInfo struct {
 type ResourceInfo struct {
 	Info    []appv1.InfoItem
 	AppName string
-	Images  []string
-	Health  *health.HealthStatus
+	// TrackingAppName is always set when the tracking annotation is present, regardless of ownerRefs.
+	// AppName is only set for root resources (no ownerRefs); TrackingAppName covers owned resources too.
+	TrackingAppName string
+	Images          []string
+	Health          *health.HealthStatus
 	// NetworkingInfo are available only for known types involved into networking: Ingress, Service, Pod
 	NetworkingInfo *appv1.ResourceNetworkingInfo
 	// PodInfo is available for pods only
@@ -565,6 +569,9 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}
+			// Always record the direct tracking result so owned resources (those that gained
+			// ownerRefs after deployment) can still be found when ManageOwnedResources is set.
+			res.TrackingAppName = appName
 
 			gvk := un.GroupVersionKind()
 
@@ -578,8 +585,10 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 			}
 
 			// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
-			// want the full resource to be available in our cache (to diff), so we store all CRDs
-			return res, res.AppName != "" || gvk.Kind == kube.CustomResourceDefinitionKind
+			// want the full resource to be available in our cache (to diff), so we store all CRDs.
+			// Also keep the full manifest when TrackingAppName is set so that owned resources tracked
+			// via ManageOwnedResources do not require an API-server fetch on every sync cycle.
+			return res, res.AppName != "" || res.TrackingAppName != "" || gvk.Kind == kube.CustomResourceDefinitionKind
 		}),
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
@@ -731,8 +740,20 @@ func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cluster info for %q: %w", destCluster.Server, err)
 	}
+
+	appInstance := a.InstanceName(c.settingsMgr.GetNamespace())
+	manageOwned := a.Spec.SyncPolicy != nil &&
+		a.Spec.SyncPolicy.SyncOptions.HasOption(common.SyncOptionManageOwnedResources)
+
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
-		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
+		info := resInfo(r)
+		// Default path: only root-tracked resources (existing behavior).
+		if len(r.OwnerRefs) == 0 {
+			return info.AppName == appInstance
+		}
+		// ManageOwnedResources path: include directly-annotated resources even if they
+		// later gained ownerReferences from a cluster controller.
+		return manageOwned && info.TrackingAppName == appInstance
 	})
 }
 

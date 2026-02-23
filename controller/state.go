@@ -814,8 +814,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, serverSideDiff, logCtx)
 
+	ignoreDiffs := app.Spec.IgnoreDifferences
+	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption(common.SyncOptionManageOwnedResources) {
+		// When ManageOwnedResources is active, suppress diffs on controller-added ownerReferences
+		// so resources are not reported as OutOfSync due to ownerRefs Argo CD did not write.
+		ignoreDiffs = append([]v1alpha1.ResourceIgnoreDifferences{
+			{Group: "*", Kind: "*", JSONPointers: []string{"/metadata/ownerReferences"}},
+		}, ignoreDiffs...)
+	}
+
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, m.ignoreNormalizerOpts).
+		WithDiffSettings(ignoreDiffs, resourceOverrides, compareOptions.IgnoreAggregatedRoles, m.ignoreNormalizerOpts).
 		WithTracking(appLabelKey, string(trackingMethod))
 
 	if useDiffCache {
