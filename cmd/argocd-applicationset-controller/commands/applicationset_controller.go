@@ -28,6 +28,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -130,22 +131,36 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			// By default, watch all namespaces
-			var watchedNamespace string
-			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
-			if len(applicationSetNamespaces) == 1 {
-				watchedNamespace = (applicationSetNamespaces)[0]
-			} else if enableScmProviders && len(allowedScmProviders) == 0 {
+			if len(applicationSetNamespaces) > 1 && enableScmProviders && len(allowedScmProviders) == 0 {
 				log.Error("When enabling applicationset in any namespace using applicationset-namespaces, you must either set --enable-scm-providers=false or specify --allowed-scm-providers")
 				os.Exit(1)
 			}
 
-			cacheOpt := ctrlcache.Options{SyncPeriod: &cacheSyncPeriod}
-
-			if watchedNamespace != "" {
-				cacheOpt.DefaultNamespaces = map[string]ctrlcache.Config{
-					watchedNamespace: {},
+			// If the wildcard "*" is present we cannot restrict the Secret cache to specific
+			// namespaces — fall back to the previous cluster-wide cache behaviour so that
+			// controller-runtime does not attempt to watch a namespace literally named "*".
+			hasWildcard := false
+			for _, ns := range applicationSetNamespaces {
+				if ns == "*" {
+					hasWildcard = true
+					break
 				}
+			}
+
+			cacheOpt := ctrlcache.Options{SyncPeriod: &cacheSyncPeriod}
+			if !hasWildcard {
+				appSetNsConfig := make(map[string]ctrlcache.Config, len(applicationSetNamespaces))
+				for _, ns := range applicationSetNamespaces {
+					appSetNsConfig[ns] = ctrlcache.Config{}
+				}
+				cacheOpt.ByObject = map[ctrlclient.Object]ctrlcache.ByObject{
+					&corev1.Secret{}: {
+						Namespaces: appSetNsConfig,
+					},
+				}
+			} else {
+				log.Warn("applicationset-namespaces contains '*': Secret cache will be cluster-wide. " +
+					"Ensure the controller ServiceAccount has a ClusterRole with secrets list/watch permission.")
 			}
 
 			cfg := ctrl.GetConfigOrDie()
