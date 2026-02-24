@@ -333,6 +333,7 @@ export interface Automated {
     prune: boolean;
     selfHeal: boolean;
     enabled: boolean;
+    disableUntil?: models.Time;
 }
 
 export interface SyncPolicy {

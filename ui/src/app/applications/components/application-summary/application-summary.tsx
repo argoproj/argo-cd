@@ -14,7 +14,8 @@ import {
     NumberField,
     Repo,
     Revision,
-    RevisionHelpIcon
+    RevisionHelpIcon,
+    Spinner
 } from '../../../shared/components';
 import {BadgePanel} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
@@ -551,6 +552,65 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         }
     }
 
+    const temporaryDisableSyncOptions = {
+        option: '10m'
+    };
+
+    function handleStateChange(option: string) {
+        temporaryDisableSyncOptions.option = option;
+    }
+
+    async function disableAutoSyncTemporarily(ctx: ContextApis) {
+        const confirmed = await ctx.popup.confirm('Disable Auto-Sync temporarily', () => (
+            <div className='argo-form-row'>
+                {temporaryDisableSyncOptions.option}
+                <input
+                    type='radio'
+                    name='temporaryDisableOptions'
+                    value='10m'
+                    onChange={() => handleStateChange('10m')}
+                    defaultChecked={true}
+                    style={{marginRight: '5px'}}
+                    id='10m-radio'
+                />
+                <label htmlFor='10m-radio' style={{paddingRight: '30px'}}>
+                    10 minutes
+                </label>
+                <input type='radio' name='temporaryDisableOptions' value='30m' onChange={() => handleStateChange('30m')} style={{marginRight: '5px'}} id='30m-radio' />
+                <label htmlFor='30m-radio' style={{paddingRight: '30px'}}>
+                    30 minutes
+                </label>
+                <input type='radio' name='temporaryDisableOptions' value='1h' onChange={() => handleStateChange('1h')} style={{marginRight: '5px'}} id='1h-radio' />
+                <label htmlFor='1h-radio'>1 hour</label>
+            </div>
+        ));
+        if (confirmed) {
+            try {
+                setChangeSync(true);
+                const automated = app.spec.syncPolicy?.automated || {prune: false, enabled: false, selfHeal: false};
+                const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+
+                console.log(updatedApp);
+                if (!updatedApp.spec.syncPolicy) {
+                    updatedApp.spec.syncPolicy = {};
+                }
+
+                const disableUntil = new Date(Date.now() + (temporaryDisableSyncOptions.option === '10m' ? 10 : temporaryDisableSyncOptions.option === '30m' ? 30 : 60) * 60000);
+
+                updatedApp.spec.syncPolicy.automated = {prune: automated.prune, selfHeal: automated.selfHeal, enabled: automated.enabled, disableUntil: disableUntil.toISOString()};
+                console.log('Updated app spec for temporary disable:', updatedApp.spec.syncPolicy.automated);
+                await updateApp(updatedApp, {validate: false});
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title={`Unable to disable auto-sync temporarily`} e={e} />,
+                    type: NotificationType.Error
+                });
+            } finally {
+                setChangeSync(false);
+            }
+        }
+    }
+
     const items = app.spec.info || [];
     const [adjustedCount, setAdjustedCount] = React.useState(0);
 
@@ -681,6 +741,15 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                         />
                                         <label htmlFor='enable-auto-sync'>ENABLE AUTO-SYNC</label>
                                         <HelpIcon title='If checked, application will automatically sync when changes are detected' />
+
+                                        <button
+                                            key={'source_panel_save_button'}
+                                            className='argo-button argo-button--base '
+                                            disabled={false}
+                                            onClick={() => disableAutoSyncTemporarily(ctx)}>
+                                            <Spinner show={false} style={{marginRight: '5px'}} />
+                                            Disable temporarily
+                                        </button>
                                     </div>
                                 </div>
                             </div>
