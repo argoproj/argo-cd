@@ -261,7 +261,7 @@ func parseVaryHeaders(headers http.Header) ([]string, error) {
 		if val == "*" {
 			return []string{}, errors.New("cannot cache due to wildcard Vary header")
 		}
-		for _, field := range strings.Split(val, ",") {
+		for field := range strings.SplitSeq(val, ",") {
 			field = strings.TrimSpace(field)
 			if field != "" {
 				result = append(result, http.CanonicalHeaderKey(field))
