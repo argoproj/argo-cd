@@ -120,6 +120,9 @@ type ClientOptions struct {
 	PortForwardNamespace string
 	Headers              []string
 	HttpRetryMax         int //nolint:revive //FIXME(var-naming)
+	CertPEMData          []byte
+	ClientCertPEMData    []byte
+	ClientCertKeyPEMData []byte
 	KubeOverrides        *clientcmd.ConfigOverrides
 	AppControllerName    string
 	ServerName           string
@@ -231,7 +234,9 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.AuthToken = strings.TrimSpace(opts.AuthToken)
 	}
 	// Override certificate data if specified from CLI flag
-	if opts.CertFile != "" {
+	if opts.CertPEMData != nil {
+		c.CertPEMData = opts.CertPEMData
+	} else if opts.CertFile != "" {
 		b, err := os.ReadFile(opts.CertFile)
 		if err != nil {
 			return nil, err
@@ -239,7 +244,15 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.CertPEMData = b
 	}
 	// Override client certificate data if specified from CLI flag
-	if opts.ClientCertFile != "" && opts.ClientCertKeyFile != "" {
+	if opts.ClientCertPEMData != nil && opts.ClientCertKeyPEMData != nil {
+		clientCert, err := tls.X509KeyPair(opts.ClientCertPEMData, opts.ClientCertKeyPEMData)
+		if err != nil {
+			return nil, err
+		}
+		c.ClientCert = &clientCert
+	} else if opts.ClientCertPEMData != nil || opts.ClientCertKeyPEMData != nil {
+		return nil, errors.New("ClientCertPEMData and ClientCertKeyPEMData must always be specified together")
+	} else if opts.ClientCertFile != "" && opts.ClientCertKeyFile != "" {
 		clientCert, err := tls.LoadX509KeyPair(opts.ClientCertFile, opts.ClientCertKeyFile)
 		if err != nil {
 			return nil, err
