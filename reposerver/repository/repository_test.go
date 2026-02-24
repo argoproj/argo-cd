@@ -949,7 +949,7 @@ func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 		PauseGenerationOnFailureForRequests:          4,
 	}
 
-	for step := 0; step < 3; step++ {
+	for step := range 3 {
 		// step 1) Attempt to generate manifests against invalid helm chart (should return uncached error)
 		// step 2) Attempt to generate manifest against valid helm chart (should succeed and return valid response)
 		// step 3) Attempt to generate manifest against invalid helm chart (should return cached value from step 2)
@@ -1028,7 +1028,7 @@ func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
 			}
 
 			// 1) Put the cache into the failure state
-			for x := 0; x < 2; x++ {
+			for x := range 2 {
 				res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 					Repo:    &v1alpha1.Repository{},
 					AppName: "test",
@@ -1088,7 +1088,7 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 	}
 
 	// 1) Put the cache into the failure state
-	for x := 0; x < 2; x++ {
+	for x := range 2 {
 		res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
@@ -4337,10 +4337,8 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	var wg sync.WaitGroup
 	numberOfCallers := 10
-	for i := 0; i < numberOfCallers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range numberOfCallers {
+		wg.Go(func() {
 			client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
@@ -4348,7 +4346,7 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 			assert.NotNil(t, refs)
 			assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 			assert.NotEmpty(t, refs.Branches[0])
-		}()
+		})
 	}
 	wg.Wait()
 	// Unlock should not have been called
@@ -4393,10 +4391,8 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	var wg sync.WaitGroup
 	numberOfCallers := 10
-	for i := 0; i < numberOfCallers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range numberOfCallers {
+		wg.Go(func() {
 			client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
@@ -4404,7 +4400,7 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 			assert.NotNil(t, refs)
 			assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 			assert.NotEmpty(t, refs.Branches[0])
-		}()
+		})
 	}
 	wg.Wait()
 	// Unlock should not have been called

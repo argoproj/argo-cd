@@ -2,10 +2,12 @@ package sharding
 
 import (
 	"maps"
+	"strconv"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/db"
 )
@@ -60,6 +62,10 @@ func (sharding *ClusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
 	defer sharding.lock.RUnlock()
 	if c == nil { // nil cluster (in-cluster) is always managed by current clusterShard
 		return true
+	}
+	if skipReconcile, err := strconv.ParseBool(c.Annotations[common.AnnotationKeyAppSkipReconcile]); err == nil && skipReconcile {
+		log.Debugf("Cluster %s has %s annotation set, skipping", c.Server, common.AnnotationKeyAppSkipReconcile)
+		return false
 	}
 	clusterShard := 0
 	if shard, ok := sharding.Shards[c.Server]; ok {

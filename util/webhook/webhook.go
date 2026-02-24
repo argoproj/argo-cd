@@ -131,10 +131,8 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 
 func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
 	compLog := log.WithField("component", "api-server-webhook")
-	for i := 0; i < webhookParallelism; i++ {
-		a.Add(1)
-		go func() {
-			defer a.Done()
+	for range webhookParallelism {
+		a.Go(func() {
 			for {
 				payload, ok := <-a.queue
 				if !ok {
@@ -142,7 +140,7 @@ func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
 				}
 				guard.RecoverAndLog(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
 			}
-		}()
+		})
 	}
 }
 

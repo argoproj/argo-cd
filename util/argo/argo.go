@@ -7,13 +7,12 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/r3labs/diff/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -107,7 +106,7 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 		projectsMap[projects[i]] = true
 	}
 	items := []argoappv1.Application{}
-	for i := 0; i < len(apps); i++ {
+	for i := range apps {
 		a := apps[i]
 		if _, ok := projectsMap[a.Spec.GetProject()]; ok {
 			items = append(items, a)
@@ -126,7 +125,7 @@ func FilterByProjectsP(apps []*argoappv1.Application, projects []string) []*argo
 		projectsMap[projects[i]] = true
 	}
 	items := []*argoappv1.Application{}
-	for i := 0; i < len(apps); i++ {
+	for i := range apps {
 		a := apps[i]
 		if _, ok := projectsMap[a.Spec.GetProject()]; ok {
 			items = append(items, a)
@@ -145,7 +144,7 @@ func FilterAppSetsByProjects(appsets []argoappv1.ApplicationSet, projects []stri
 		projectsMap[projects[i]] = true
 	}
 	items := []argoappv1.ApplicationSet{}
-	for i := 0; i < len(appsets); i++ {
+	for i := range appsets {
 		a := appsets[i]
 		if _, ok := projectsMap[a.Spec.Template.Spec.GetProject()]; ok {
 			items = append(items, a)
@@ -160,7 +159,7 @@ func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Applica
 		return apps
 	}
 	items := []argoappv1.Application{}
-	for i := 0; i < len(apps); i++ {
+	for i := range apps {
 		if apps[i].Spec.GetSource().RepoURL == repo {
 			items = append(items, apps[i])
 		}
@@ -174,7 +173,7 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 		return apps
 	}
 	items := []*argoappv1.Application{}
-	for i := 0; i < len(apps); i++ {
+	for i := range apps {
 		if apps[i].Spec.GetSource().RepoURL == repo {
 			items = append(items, apps[i])
 		}
@@ -188,7 +187,7 @@ func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Applica
 		return apps
 	}
 	items := []argoappv1.Application{}
-	for i := 0; i < len(apps); i++ {
+	for i := range apps {
 		if apps[i].Spec.GetSource().Path == path {
 			items = append(items, apps[i])
 		}
@@ -202,7 +201,7 @@ func FilterByCluster(apps []argoappv1.Application, cluster string) []argoappv1.A
 		return apps
 	}
 	items := []argoappv1.Application{}
-	for i := 0; i < len(apps); i++ {
+	for i := range apps {
 		if apps[i].Spec.Destination.Server == cluster || apps[i].Spec.Destination.Name == cluster {
 			items = append(items, apps[i])
 		}
@@ -216,7 +215,7 @@ func FilterByName(apps []argoappv1.Application, name string) ([]argoappv1.Applic
 		return apps, nil
 	}
 	items := []argoappv1.Application{}
-	for i := 0; i < len(apps); i++ {
+	for i := range apps {
 		if apps[i].Name == name {
 			items = append(items, apps[i])
 			return items, nil
@@ -232,7 +231,7 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 		return apps
 	}
 	items := []*argoappv1.Application{}
-	for i := 0; i < len(apps); i++ {
+	for i := range apps {
 		if apps[i].Name == name {
 			items = append(items, apps[i])
 			return items
@@ -259,7 +258,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling metadata: %w", err)
 	}
-	for attempt := 0; attempt < 5; attempt++ {
+	for range 5 {
 		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err == nil {
 			log.Infof("Requested app '%s' refresh", name)
@@ -723,9 +722,7 @@ func APIResourcesToStrings(resources []kube.APIResourceInfo, includeKinds bool) 
 	for k := range resMap {
 		res = append(res, k)
 	}
-	sort.Slice(res, func(i, j int) bool {
-		return res[i] < res[j]
-	})
+	slices.Sort(res)
 	return res
 }
 

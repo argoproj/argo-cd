@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"hash/fnv"
 	"math"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/go-git/go-git/v5/plumbing"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -151,9 +151,7 @@ func clusterRuntimeInfoKey(info ClusterRuntimeInfo) uint32 {
 // check if info is nil, the caller must do that.
 func clusterRuntimeInfoKeyUnhashed(info ClusterRuntimeInfo) string {
 	apiVersions := info.GetApiVersions()
-	sort.Slice(apiVersions, func(i, j int) bool {
-		return apiVersions[i] < apiVersions[j]
-	})
+	slices.Sort(apiVersions)
 	return info.GetKubeVersion() + "|" + strings.Join(apiVersions, ",")
 }
 

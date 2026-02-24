@@ -14,7 +14,7 @@ import (
 
 	argocdcommon "github.com/argoproj/argo-cd/v3/common"
 
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -226,7 +226,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 	}
 
 	for _, data := range testData {
-		data := data
 		t.Run(data.name, func(t *testing.T) {
 			t.Parallel()
 

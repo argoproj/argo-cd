@@ -192,6 +192,43 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 			source:        v1alpha1.ApplicationSource{Path: "dry/path"},
 			expectedPaths: []string{"dry/path/deploy"},
 		},
+		{
+			name:   "annotation paths with spaces after semicolon",
+			app:    getApp(ptr.To(".; dev/deploy; other/path"), ptr.To("source/path")),
+			source: v1alpha1.ApplicationSource{Path: "source/path"},
+			expectedPaths: []string{
+				"source/path",
+				"source/path/dev/deploy",
+				"source/path/other/path",
+			},
+		},
+		{
+			name:   "annotation paths with spaces before semicolon",
+			app:    getApp(ptr.To(". ;dev/deploy ;other/path"), ptr.To("source/path")),
+			source: v1alpha1.ApplicationSource{Path: "source/path"},
+			expectedPaths: []string{
+				"source/path",
+				"source/path/dev/deploy",
+				"source/path/other/path",
+			},
+		},
+		{
+			name:   "annotation paths with spaces around absolute path",
+			app:    getApp(ptr.To(" /fullpath/deploy ; other/path "), ptr.To("source/path")),
+			source: v1alpha1.ApplicationSource{Path: "source/path"},
+			expectedPaths: []string{
+				"fullpath/deploy",
+				"source/path/other/path",
+			},
+		},
+		{
+			name:   "annotation paths only spaces and separators",
+			app:    getApp(ptr.To(" ; ; . ; "), ptr.To("source/path")),
+			source: v1alpha1.ApplicationSource{Path: "source/path"},
+			expectedPaths: []string{
+				"source/path",
+			},
+		},
 	}
 
 	for _, tt := range tests {

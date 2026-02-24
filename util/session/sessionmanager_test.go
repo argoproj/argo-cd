@@ -7,6 +7,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -358,7 +359,6 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			mux := http.NewServeMux()
@@ -616,13 +616,13 @@ func TestLoginRateLimiter(t *testing.T) {
 }
 
 func TestMaxUsernameLength(t *testing.T) {
-	username := ""
-	for i := 0; i < maxUsernameLength+1; i++ {
-		username += "a"
+	var username strings.Builder
+	for range maxUsernameLength + 1 {
+		username.WriteString("a")
 	}
 	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
-	err := mgr.VerifyUsernamePassword(username, "password")
+	err := mgr.VerifyUsernamePassword(username.String(), "password")
 	assert.ErrorContains(t, err, fmt.Sprintf(usernameTooLongError, maxUsernameLength))
 }
 
@@ -666,9 +666,7 @@ func getKubeClientWithConfig(config map[string]string, secretConfig map[string][
 	mergedSecretConfig := map[string][]byte{
 		"server.secretkey": []byte("Hello, world!"),
 	}
-	for key, value := range secretConfig {
-		mergedSecretConfig[key] = value
-	}
+	maps.Copy(mergedSecretConfig, secretConfig)
 
 	return fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1307,7 +1305,7 @@ func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
 		}
 
 		// inside pickRandomNonAdminLoginFailure, it uses random, so we need to test it multiple times
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			user := pickRandomNonAdminLoginFailure(failures, "test")
 			assert.Equal(t, "test2", *user)
 		}
@@ -1327,7 +1325,7 @@ func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
 		}
 
 		// inside pickRandomNonAdminLoginFailure, it uses random, so we need to test it multiple times
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			user := pickRandomNonAdminLoginFailure(failures, "test")
 			assert.Equal(t, "test2", *user)
 		}

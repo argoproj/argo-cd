@@ -1425,6 +1425,22 @@ export function getConditionCategory(condition: appModels.ApplicationCondition):
     }
 }
 
+export function getAppSetConditionCategory(condition: appModels.ApplicationSetCondition): 'error' | 'warning' | 'info' {
+    const status = condition.status?.toLowerCase();
+    const type = condition.type;
+
+    // ErrorOccurred with status True = error
+    if (type === 'ErrorOccurred' && status === 'true') {
+        return 'error';
+    }
+    // ParametersGenerated or ResourcesUpToDate with status False = error (indicates failure)
+    if ((type === 'ParametersGenerated' || type === 'ResourcesUpToDate') && status === 'false') {
+        return 'error';
+    }
+    // Otherwise it's informational
+    return 'info';
+}
+
 export function isAppNode(node: appModels.ResourceNode) {
     return node.kind === 'Application' && node.group === 'argoproj.io';
 }
@@ -1451,6 +1467,16 @@ export function getAppDefaultSource(app?: appModels.Application) {
         return null;
     }
     return getAppSpecDefaultSource(app.spec);
+}
+
+// getAppDrySource gets the dry source from the source hydrator
+export function getAppDrySource(app?: appModels.Application): appModels.ApplicationSource | null {
+    if (!app) {
+        return null;
+    }
+    const {path, targetRevision, repoURL} = app.spec.sourceHydrator?.drySource || app.spec.source;
+
+    return {repoURL, targetRevision, path};
 }
 
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
