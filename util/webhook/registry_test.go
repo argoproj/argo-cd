@@ -2,18 +2,22 @@ package webhook
 
 import (
 	"bytes"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/sirupsen/logrus/hooks/test"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	kubetesting "k8s.io/client-go/testing"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	kubetesting "k8s.io/client-go/testing"
 )
 
 func TestNormalizeOCI(t *testing.T) {
@@ -22,9 +26,11 @@ func TestNormalizeOCI(t *testing.T) {
 		url      string
 		expected string
 	}{
-		{"lowercase only", "OCI://GHCR.IO/USER/REPO", "oci://ghcr.io/user/repo"},
-		{"remove trailing slash", "oci://ghcr.io/user/repo/", "oci://ghcr.io/user/repo"},
-		{"already normalized", "oci://ghcr.io/user/repo", "oci://ghcr.io/user/repo"},
+		{"strips oci:// prefix and lowercases", "oci://GHCR.IO/USER/REPO", "ghcr.io/user/repo"},
+		{"strips oci:// prefix and trailing slash", "oci://ghcr.io/user/repo/", "ghcr.io/user/repo"},
+		{"already normalized with prefix", "oci://ghcr.io/user/repo", "ghcr.io/user/repo"},
+		{"without oci:// prefix", "ghcr.io/user/repo", "ghcr.io/user/repo"},
+		{"uppercase without prefix", "GHCR.IO/USER/REPO", "ghcr.io/user/repo"},
 		{"empty", "", ""},
 	}
 	for _, tt := range tests {
@@ -49,7 +55,7 @@ func TestIsRegistryEvent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/", nil)
+			req := httptest.NewRequest(http.MethodPost, "/", http.NoBody)
 			req.Header.Set("X-GitHub-Event", tt.event)
 			assert.Equal(t, tt.expected, IsRegistryEvent(req))
 		})
@@ -128,6 +134,7 @@ func TestHandleRegistryEvent_RefreshMatchingApp(t *testing.T) {
 }
 
 func TestHandleRegistryEvent_RepoMismatch(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
 	hook := test.NewGlobal()
 
 	h := NewMockHandler(nil, []string{},
@@ -154,10 +161,11 @@ func TestHandleRegistryEvent_RepoMismatch(t *testing.T) {
 	}
 
 	h.HandleRegistryEvent(event)
-	assert.Contains(t, hook.LastEntry().Message, "Skipping normalizing since URLs doesn't match")
+	assert.Contains(t, hook.LastEntry().Message, "Skipping app: OCI repository URLs do not match")
 }
 
 func TestHandleRegistryEvent_RevisionMismatch(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
 	hook := test.NewGlobal()
 
 	h := NewMockHandler(
@@ -186,7 +194,7 @@ func TestHandleRegistryEvent_RevisionMismatch(t *testing.T) {
 	}
 
 	h.HandleRegistryEvent(event)
-	assert.Contains(t, hook.LastEntry().Message, "revision and TargetRevision are not matching")
+	assert.Contains(t, hook.LastEntry().Message, "Skipping app: revision does not match targetRevision")
 }
 
 func TestHandleRegistryEvent_NamespaceFiltering(t *testing.T) {

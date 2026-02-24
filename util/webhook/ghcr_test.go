@@ -4,10 +4,11 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGHCRParser_Parse(t *testing.T) {
@@ -150,7 +151,7 @@ func TestValidateSignature(t *testing.T) {
 				secret: tt.secret,
 			}
 
-			req := httptest.NewRequest(http.MethodPost, "/", nil)
+			req := httptest.NewRequest(http.MethodPost, "/", http.NoBody)
 
 			if tt.headerSig != "" {
 				req.Header.Set("X-Hub-Signature-256", tt.headerSig)

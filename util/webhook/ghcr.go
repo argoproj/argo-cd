@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"net/http"
 	"strings"
 )
@@ -57,11 +57,11 @@ func (p *GHCRParser) Parse(body []byte) (*WebhookRegistryEvent, error) {
 	}
 
 	if payload.Action != "published" {
-		return nil, fmt.Errorf("ignoring action")
+		return nil, errors.New("ignoring action")
 	}
 
-	if strings.ToLower(payload.Package.PackageType) != "container" {
-		return nil, fmt.Errorf("not a container package")
+	if !strings.EqualFold(payload.Package.PackageType, "container") {
+		return nil, errors.New("not a container package")
 	}
 
 	repository := payload.Package.Owner.Login + "/" + payload.Package.Name
@@ -69,7 +69,7 @@ func (p *GHCRParser) Parse(body []byte) (*WebhookRegistryEvent, error) {
 	digest := payload.Package.PackageVersion.ContainerMetadata.Tag.Digest
 
 	if tag == "" {
-		return nil, fmt.Errorf("missing tag")
+		return nil, errors.New("missing tag")
 	}
 
 	return &WebhookRegistryEvent{
@@ -90,7 +90,7 @@ func (h *WebhookRegistryHandler) validateSignature(r *http.Request, body []byte)
 	if h.secret != "" {
 		signature := r.Header.Get("X-Hub-Signature-256")
 		if signature == "" {
-			return fmt.Errorf("missing signature")
+			return errors.New("missing signature")
 		}
 
 		mac := hmac.New(sha256.New, []byte(h.secret))
@@ -98,7 +98,7 @@ func (h *WebhookRegistryHandler) validateSignature(r *http.Request, body []byte)
 		expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
 
 		if !hmac.Equal([]byte(signature), []byte(expected)) {
-			return fmt.Errorf("invalid signature")
+			return errors.New("invalid signature")
 		}
 	}
 
