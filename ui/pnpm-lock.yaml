@@ -29,7 +29,7 @@ importers:
         version: 6.1.6(react-dom@16.14.0(react@16.14.0))(react@16.14.0)
       argo-ui:
         specifier: git+https://github.com/argoproj/argo-ui.git
-        version: https://codeload.github.com/argoproj/argo-ui/tar.gz/5cf36101733ce43eed57242a12389f2a7e40bd2b(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12)
+        version: https://codeload.github.com/argoproj/argo-ui/tar.gz/2bfda77cec418c4123fe61e35f22d09432af15b7(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12)
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
@@ -2073,8 +2073,8 @@ packages:
   arg@4.1.3:
     resolution: {integrity: sha512-58S9QDqG0Xx27YwPSt9fJxivjYl432YCwfDMfZ+71RAqUrZef7LrKQZ3LHLOwCS4FLNBplP533Zx895SeOCHvA==}
 
-  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/5cf36101733ce43eed57242a12389f2a7e40bd2b:
-    resolution: {tarball: https://codeload.github.com/argoproj/argo-ui/tar.gz/5cf36101733ce43eed57242a12389f2a7e40bd2b}
+  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/2bfda77cec418c4123fe61e35f22d09432af15b7:
+    resolution: {tarball: https://codeload.github.com/argoproj/argo-ui/tar.gz/2bfda77cec418c4123fe61e35f22d09432af15b7}
     version: 1.0.0
     peerDependencies:
       '@types/react': ^16.9.3
@@ -2200,6 +2200,10 @@ packages:
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
 
+  balanced-match@4.0.4:
+    resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
+    engines: {node: 18 || 20 || >=22}
+
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
@@ -2228,6 +2232,10 @@ packages:
 
   brace-expansion@2.0.2:
     resolution: {integrity: sha512-Jt0vHyM+jmUBqojB7E1NIYadt0vI0Qxjxd2TErW94wDz+E2LAm5vKMXXwg6ZZBTHPuUlDgQHKXvjGBdfcF1ZDQ==}
+
+  brace-expansion@5.0.3:
+    resolution: {integrity: sha512-fy6KJm2RawA5RcHkLa1z/ScpBeA762UF9KmZQxwIbDtRJrgLzM10depAiEQ+CXYcoiqW1/m96OAAoke2nE9EeA==}
+    engines: {node: 18 || 20 || >=22}
 
   braces@3.0.3:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
@@ -3975,8 +3983,12 @@ packages:
     resolution: {integrity: sha512-lKwV/1brpG6mBUFHtb7NUmtABCb2WZZmm2wNiOA5hAb8VdCS4B3dtMWyvcoViccwAW/COERjXLt0zP1zXUN26g==}
     engines: {node: '>=10'}
 
-  minimatch@9.0.5:
-    resolution: {integrity: sha512-G6T0ZX48xgozx7587koeX9Ys2NYy6Gmv//P89sEte9V9whIapMNF4idKxnW2QtCcLiTWlb/wfCabAtAFWhhBow==}
+  minimatch@5.1.7:
+    resolution: {integrity: sha512-FjiwU9HaHW6YB3H4a1sFudnv93lvydNjz2lmyUXR6IwKhGI+bgL3SOZrBGn6kvvX2pJvhEkGSGjyTHN47O4rqA==}
+    engines: {node: '>=10'}
+
+  minimatch@9.0.6:
+    resolution: {integrity: sha512-kQAVowdR33euIqeA0+VZTDqU+qo1IeVY+hrKYtZMio3Pg0P0vuh/kwRylLUddJhB6pf3q/botcOvRtx4IN1wqQ==}
     engines: {node: '>=16 || 14 >=14.17'}
 
   minimist@1.2.8:
@@ -7299,7 +7311,7 @@ snapshots:
       debug: 4.4.1
       globby: 11.1.0
       is-glob: 4.0.3
-      minimatch: 9.0.5
+      minimatch: 9.0.6
       semver: 7.7.2
       ts-api-utils: 1.4.3(typescript@4.9.5)
     optionalDependencies:
@@ -7532,7 +7544,7 @@ snapshots:
 
   arg@4.1.3: {}
 
-  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/5cf36101733ce43eed57242a12389f2a7e40bd2b(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12):
+  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/2bfda77cec418c4123fe61e35f22d09432af15b7(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12):
     dependencies:
       '@fortawesome/fontawesome-free': 6.7.2
       '@tippy.js/react': 3.1.1(react-dom@16.14.0(react@16.14.0))(react@16.14.0)
@@ -7541,6 +7553,7 @@ snapshots:
       core-js: 3.44.0
       foundation-sites: 6.9.0(jquery@3.7.1)(what-input@5.2.12)
       history: 4.10.1
+      minimatch: 5.1.6
       prop-types: 15.8.1
       react: 16.14.0
       react-autocomplete: 1.8.1(react-dom@16.14.0(react@16.14.0))(react@16.14.0)
@@ -7739,6 +7752,8 @@ snapshots:
 
   balanced-match@1.0.2: {}
 
+  balanced-match@4.0.4: {}
+
   base64-js@1.5.1: {}
 
   batch@0.6.1: {}
@@ -7779,6 +7794,10 @@ snapshots:
   brace-expansion@2.0.2:
     dependencies:
       balanced-match: 1.0.2
+
+  brace-expansion@5.0.3:
+    dependencies:
+      balanced-match: 4.0.4
 
   braces@3.0.3:
     dependencies:
@@ -8717,7 +8736,7 @@ snapshots:
 
   filelist@1.0.4:
     dependencies:
-      minimatch: 5.1.6
+      minimatch: 5.1.7
 
   fill-range@7.1.1:
     dependencies:
@@ -9919,9 +9938,13 @@ snapshots:
     dependencies:
       brace-expansion: 2.0.2
 
-  minimatch@9.0.5:
+  minimatch@5.1.7:
     dependencies:
       brace-expansion: 2.0.2
+
+  minimatch@9.0.6:
+    dependencies:
+      brace-expansion: 5.0.3
 
   minimist@1.2.8: {}
 
