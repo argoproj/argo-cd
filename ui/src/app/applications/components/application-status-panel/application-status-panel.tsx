@@ -88,9 +88,7 @@ const ApplicationSetPanel = ({application}: {application: models.Application}) =
                 )}
                 load={async () => {
                     const appSetList = await services.applications.listApplicationSets();
-                    const appSet = appSetList.items?.find(
-                        item => item.metadata.name === appSetRef.name && item.metadata.namespace === application.metadata.namespace
-                    );
+                    const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name && item.metadata.namespace === application.metadata.namespace);
                     return {appSet};
                 }}>
                 {({appSet}: {appSet: models.ApplicationSet}) => {
