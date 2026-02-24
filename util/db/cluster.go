@@ -17,7 +17,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -424,7 +423,7 @@ func SecretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 		if val, err := strconv.Atoi(string(shardStr)); err != nil {
 			log.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
 		} else {
-			shard = ptr.To(int64(val))
+			shard = new(int64(val))
 		}
 	}
 

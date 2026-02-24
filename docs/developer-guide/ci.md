@@ -29,9 +29,9 @@ If the build is failing at the `Build & cache Go code`, you need to make sure `m
 
 ### Why does the codegen step fail?
 
-If the codegen step fails with "Check nothing has changed...", chances are high that you did not run `make codegen`, or did not commit the changes it made. You should double-check by running `make codegen` followed by `git status` in the local working copy of your branch. Commit any changes and push them to your GH branch to have the CI check it again.
+If the codegen step fails with "Check nothing has changed...", chances are high that you did not run `make codegen-local`, or did not commit the changes it made. You should double-check by running `make codegen-local` followed by `git status` in the local working copy of your branch. Commit any changes and push them to your GH branch to have the CI check it again.
 
-A second common case for this is, when you modified any of the auto generated assets, as these will be overwritten upon `make codegen`.
+A second common case for this is, when you modified any of the auto generated assets, as these will be overwritten upon `make codegen-local`.
 
 Generally, this step runs `codegen` and compares the outcome against the Git branch it has checked out. If there are differences, the step will fail.
 
