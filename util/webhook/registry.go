@@ -2,15 +2,19 @@ package webhook
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
+
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/glob"
-	log "github.com/sirupsen/logrus"
-	"io"
+
 	"k8s.io/apimachinery/pkg/labels"
-	"net/http"
-	"strings"
 )
 
 // WebhookRegistryEvent represents a normalized container registry webhook event.
@@ -98,7 +102,7 @@ func (h *WebhookRegistryHandler) ProcessWebhook(r *http.Request) (*WebhookRegist
 		}
 	}
 
-	return nil, fmt.Errorf("unsupported registry webhook")
+	return nil, errors.New("unsupported registry webhook")
 }
 
 // IsRegistryEvent reports whether the HTTP request corresponds to a supported
@@ -151,6 +155,7 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *WebhookRegistryEvent) 
 		}
 	}
 
+	fmt.Println("we are hereeee")
 	for _, app := range filteredApps {
 		sources := app.Spec.GetSources()
 		if app.Spec.SourceHydrator != nil {
@@ -159,23 +164,25 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *WebhookRegistryEvent) 
 
 		for _, source := range sources {
 			if normalizeOCI(source.RepoURL) != normalizeOCI(repoURL) {
-				log.Info("Skipping normalizing since URLs doesn't match")
+				log.WithFields(log.Fields{
+					"sourceRepoURL": source.RepoURL,
+					"eventRepoURL":  repoURL,
+				}).Debug("Skipping app: OCI repository URLs do not match")
 				continue
 			}
 			if !compareRevisions(revision, source.TargetRevision) {
 				log.WithFields(log.Fields{
 					"revision":       revision,
 					"targetRevision": source.TargetRevision,
-				}).Info("revision and TargetRevision are not matching")
+				}).Debug("Skipping app: revision does not match targetRevision")
 				continue
 			}
 			log.Infof("Refreshing app '%s' due to OCI push %s:%s",
 				app.Name, repoURL, revision,
 			)
 
-			namespacedAppInterface :=
-				a.appClientset.ArgoprojV1alpha1().
-					Applications(app.Namespace)
+			namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().
+				Applications(app.Namespace)
 
 			if _, err := argo.RefreshApp(
 				namespacedAppInterface,
@@ -194,8 +201,11 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *WebhookRegistryEvent) 
 
 // normalizeOCI normalizes an OCI repository URL for comparison.
 //
-// It converts the URL to lowercase and removes any trailing slash to ensure
-// consistent matching between webhook events and Application source URLs.
+// It removes the oci:// prefix, converts to lowercase, and removes any
+// trailing slash to ensure consistent matching between webhook events
+// and Application source URLs.
 func normalizeOCI(url string) string {
-	return strings.ToLower(strings.TrimSuffix(url, "/"))
+	url = strings.TrimPrefix(url, "oci://")
+	url = strings.TrimSuffix(url, "/")
+	return strings.ToLower(url)
 }
