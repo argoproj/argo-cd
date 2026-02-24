@@ -117,6 +117,11 @@ func GetSourceRefreshPaths(app *v1alpha1.Application, source v1alpha1.Applicatio
 	var paths []string
 	if hasAnnotation && annotationPaths != "" {
 		for item := range strings.SplitSeq(annotationPaths, ";") {
+			// Trim whitespace because annotation values may contain spaces around
+			// separators (e.g. ".; /path"). Without trimming, paths like " /path"
+			// are not treated as absolute and empty/space-only entries may result
+			// in duplicate or incorrect refresh paths.
+			item = strings.TrimSpace(item)
 			// skip empty paths
 			if item == "" {
 				continue

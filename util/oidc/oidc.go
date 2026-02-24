@@ -19,6 +19,12 @@ import (
 	"sync"
 	"time"
 
+	"go.opentelemetry.io/otel/codes"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
+
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
@@ -37,6 +43,13 @@ import (
 )
 
 var ErrInvalidRedirectURL = errors.New("invalid return URL")
+
+// OpenTelemetry tracer for this package
+var tracer trace.Tracer
+
+func init() {
+	tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/util/oidc")
+}
 
 const (
 	GrantTypeAuthorizationCode  = "authorization_code"
@@ -147,6 +160,9 @@ func GetOidcTokenCacheFromJSON(jsonBytes []byte) (*OidcTokenCache, error) {
 // GetTokenSourceFromCache creates an oauth2 TokenSource from a cached oidc token.  The TokenSource will be configured
 // with an early expiration based on the refreshTokenThreshold.
 func (a *ClientApp) GetTokenSourceFromCache(ctx context.Context, oidcTokenCache *OidcTokenCache) (oauth2.TokenSource, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "oidc.ClientApp.GetTokenSourceFromCache")
+	defer span.End()
 	if oidcTokenCache == nil {
 		return nil, errors.New("oidcTokenCache is required")
 	}
@@ -198,10 +214,18 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).Dial,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			_, span := tracer.Start(ctx, "oidc.ClientApp.client")
+			defer span.End()
+			span.SetAttributes(
+				attribute.String("network", network),
+				attribute.String("addr", addr),
+			)
+			return (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial(network, addr)
+		},
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
@@ -541,7 +565,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	// save the accessToken in memory for later use
 	sub := jwtutil.StringField(claims, "sub")
-	err = a.SetValueInEncryptedCache(FormatAccessTokenCacheKey(sub), []byte(token.AccessToken), GetTokenExpiration(claims))
+	err = a.SetValueInEncryptedCache(ctx, FormatAccessTokenCacheKey(sub), []byte(token.AccessToken), GetTokenExpiration(claims))
 	if err != nil {
 		claimsJSON, _ := json.Marshal(claims)
 		log.Errorf("cannot cache encrypted accessToken: %v (claims=%s)", err, claimsJSON)
@@ -557,7 +581,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sid := jwtutil.StringField(claims, "sid")
-	err = a.SetValueInEncryptedCache(formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, GetTokenExpiration(claims))
+	err = a.SetValueInEncryptedCache(ctx, formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, GetTokenExpiration(claims))
 	if err != nil {
 		claimsJSON, _ := json.Marshal(claims)
 		log.Errorf("cannot cache encrypted oidc token: %v (claims=%s)", err, claimsJSON)
@@ -587,30 +611,48 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 // GetValueFromEncryptedCache is a convenience method for retreiving a value from cache and decrypting it.  If the cache
 // does not contain a value for the given key, a nil value is returned.  Return handling should check for error and then
 // check for nil.
-func (a *ClientApp) GetValueFromEncryptedCache(key string) (value []byte, err error) {
+func (a *ClientApp) GetValueFromEncryptedCache(ctx context.Context, key string) (value []byte, err error) {
+	_, span := tracer.Start(ctx, "oidc.ClientApp.GetValueFromEncryptedCache")
+	defer span.End()
 	var encryptedValue []byte
+	span.AddEvent("start cache read")
 	err = a.clientCache.Get(key, &encryptedValue)
+	span.AddEvent("end cache read")
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
+			span.SetAttributes(attribute.Bool("cache_hit", false))
 			// Return nil to signify a cache miss
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to get encrypted value from cache: %w", err)
+		err = fmt.Errorf("failed to get encrypted value from cache: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
+	span.SetAttributes(attribute.Bool("cache_hit", true))
 	value, err = crypto.Decrypt(encryptedValue, a.encryptionKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt value from cache: %w", err)
+		err = fmt.Errorf("failed to decrypt value from cache: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 	return value, err
 }
 
 // SetValueFromEncyrptedCache is a convenience method for encrypting a value and storing it in the cache at a given key.
 // Cache expiration is set based on input.
-func (a *ClientApp) SetValueInEncryptedCache(key string, value []byte, expiration time.Duration) error {
+func (a *ClientApp) SetValueInEncryptedCache(ctx context.Context, key string, value []byte, expiration time.Duration) error {
+	_, span := tracer.Start(ctx, "oidc.ClientApp.SetValueInEncryptedCache")
+	defer span.End()
 	encryptedValue, err := crypto.Encrypt(value, a.encryptionKey)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
+	span.SetAttributes(
+		attribute.String("key", key),
+		attribute.Int("value_length", len(value)),
+	)
+	span.AddEvent("start cache write")
 	err = a.clientCache.Set(&cache.Item{
 		Key:    key,
 		Object: encryptedValue,
@@ -618,25 +660,38 @@ func (a *ClientApp) SetValueInEncryptedCache(key string, value []byte, expiratio
 			Expiration: expiration,
 		},
 	})
+	span.AddEvent("end cache write")
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return err
 	}
 	return nil
 }
 
 func (a *ClientApp) CheckAndRefreshToken(ctx context.Context, groupClaims jwt.MapClaims, refreshTokenThreshold time.Duration) (string, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "oidc.ClientApp.CheckAndRefreshToken")
+	defer span.End()
+	iss := jwtutil.StringField(groupClaims, "iss")
 	sub := jwtutil.StringField(groupClaims, "sub")
 	sid := jwtutil.StringField(groupClaims, "sid")
+	span.SetAttributes(
+		attribute.String("iss", iss),
+		attribute.String("sub", sub),
+		attribute.String("sid", sid))
 	if GetTokenExpiration(groupClaims) < refreshTokenThreshold {
 		token, err := a.GetUpdatedOidcTokenFromCache(ctx, sub, sid)
 		if err != nil {
 			log.Errorf("Failed to get token from cache: %v", err)
+			span.SetStatus(codes.Error, err.Error())
 			return "", err
 		}
 		if token != nil {
 			idTokenRAW, ok := token.Extra("id_token").(string)
 			if !ok {
-				return "", errors.New("empty id_token")
+				err = errors.New("empty id_token")
+				span.SetStatus(codes.Error, err.Error())
+				return "", err
 			}
 			return idTokenRAW, nil
 		}
@@ -647,12 +702,21 @@ func (a *ClientApp) CheckAndRefreshToken(ctx context.Context, groupClaims jwt.Ma
 // GetUpdatedOidcTokenFromCache fetches a token from cache and refreshes it if under the threshold for expiration.
 // The cached token will also be updated if it is refreshed.  Returns latest token or an error if the process fails.
 func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject string, sessionId string) (*oauth2.Token, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "oidc.ClientApp.GetUpdatedOidcTokenFromCache")
+	defer span.End()
+
 	ctx = gooidc.ClientContext(ctx, a.client)
+	span.SetAttributes(
+		attribute.String("subject", subject),
+		attribute.String("sessionId", sessionId),
+	)
 
 	// Get oauth2 config
 	cacheKey := formatOidcTokenCacheKey(subject, sessionId)
-	oidcTokenCacheJSON, err := a.GetValueFromEncryptedCache(cacheKey)
+	oidcTokenCacheJSON, err := a.GetValueFromEncryptedCache(ctx, cacheKey)
 	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 	if oidcTokenCacheJSON == nil {
@@ -662,25 +726,35 @@ func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject st
 	oidcTokenCache, err := GetOidcTokenCacheFromJSON(oidcTokenCacheJSON)
 	if err != nil {
 		err = fmt.Errorf("failed to unmarshal cached oidc token: %w", err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
 	tokenSource, err := a.GetTokenSourceFromCache(ctx, oidcTokenCache)
 	if err != nil {
 		err = fmt.Errorf("failed to get token source from cached oidc token: %w", err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
+	span.AddEvent("starting tokenSource.Token()")
 	token, err := tokenSource.Token()
+	span.AddEvent("finished tokenSource.Token()")
 	if err != nil {
-		return nil, fmt.Errorf("failed to refresh token from source: %w", err)
+		err = fmt.Errorf("failed to refresh token from source: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
 	}
 	if token.AccessToken != oidcTokenCache.Token.AccessToken {
+		span.AddEvent("updating cache with latest token")
 		oidcTokenCache = NewOidcTokenCache(oidcTokenCache.RedirectURL, token)
 		oidcTokenCacheJSON, err = json.Marshal(oidcTokenCache)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal oidc oidcTokenCache refresher: %w", err)
+			err = fmt.Errorf("failed to marshal oidc oidcTokenCache refresher: %w", err)
+			span.SetStatus(codes.Error, err.Error())
+			return nil, err
 		}
-		err = a.SetValueInEncryptedCache(cacheKey, oidcTokenCacheJSON, time.Until(token.Expiry))
+		err = a.SetValueInEncryptedCache(ctx, cacheKey, oidcTokenCacheJSON, time.Until(token.Expiry))
 		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
 	}
@@ -827,6 +901,9 @@ func (a *ClientApp) SetGroupsFromUserInfo(ctx context.Context, claims jwt.Claims
 
 // GetUserInfo queries the IDP userinfo endpoint for claims
 func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "oidc.ClientApp.GetUserInfo")
+	defer span.End()
 	sub := jwtutil.StringField(actualClaims, "sub")
 	var claims jwt.MapClaims
 	var encClaims []byte
@@ -848,7 +925,7 @@ func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims,
 	}
 
 	// check if the accessToken for the user is still present
-	accessTokenBytes, err := a.GetValueFromEncryptedCache(FormatAccessTokenCacheKey(sub))
+	accessTokenBytes, err := a.GetValueFromEncryptedCache(ctx, FormatAccessTokenCacheKey(sub))
 	if err != nil {
 		return claims, true, fmt.Errorf("could not read accessToken from cache for %s: %w", sub, err)
 	}

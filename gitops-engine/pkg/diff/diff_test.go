@@ -27,8 +27,8 @@ import (
 	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/gitops-engine/pkg/diff/mocks"
-	"github.com/argoproj/gitops-engine/pkg/diff/testdata"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/testdata"
 )
 
 func printDiff(ctx context.Context, result *DiffResult) (string, error) {

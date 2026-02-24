@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -791,6 +791,14 @@ func (s *Server) isRepoPermittedInProject(ctx context.Context, repo string, proj
 // isSourceInHistory checks if the supplied application source is either our current application
 // source, or was something which we synced to previously.
 func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSource, index int32, versionId int32) bool {
+	if app.Spec.SourceHydrator != nil {
+		drySource := app.Spec.SourceHydrator.GetDrySource()
+		syncSource := app.Spec.SourceHydrator.GetSyncSource()
+		if source.Equals(&drySource) || source.Equals(&syncSource) {
+			return true
+		}
+		return false
+	}
 	// We have to check if the spec is within the source or sources split
 	// and then iterate over the historical
 	if app.Spec.HasMultipleSources() {

@@ -6,6 +6,7 @@ import * as AppUtils from '../utils';
 import {getApplicationLinkURL, getManagedByURL, getAppSetHealthStatus} from '../utils';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
+import {ResourceIcon} from '../resource-icon';
 
 export interface AppSetTileProps {
     appSet: models.ApplicationSet;
@@ -50,7 +51,7 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                     {/* Header row with icon, title, and action buttons */}
                     <div className='row'>
                         <div className='columns small-11'>
-                            <i className='icon argo-icon-git' />
+                            <ResourceIcon group='argoproj.io' kind='ApplicationSet' customStyle={{marginRight: '5px'}} />
                             <Tooltip content={AppUtils.appInstanceName(appSet)}>
                                 <span className='applications-list__title'>{AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}</span>
                             </Tooltip>
