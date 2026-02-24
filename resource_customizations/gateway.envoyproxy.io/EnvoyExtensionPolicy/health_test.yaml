@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: Policy has been accepted
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: Policy has not been accepted due to invalid configuration
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for EnvoyExtensionPolicy status
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for EnvoyExtensionPolicy status to be updated
+  inputPath: testdata/stale.yaml
