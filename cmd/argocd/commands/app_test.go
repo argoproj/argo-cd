@@ -2388,5 +2388,20 @@ func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _
 }
 
 func (c *fakeAcdClient) WatchApplicationSetWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationSetWatchEvent {
-	return make(chan *v1alpha1.ApplicationSetWatchEvent)
+	appSetEventsCh := make(chan *v1alpha1.ApplicationSetWatchEvent)
+	go func() {
+		defer close(appSetEventsCh)
+		addedEvent := &v1alpha1.ApplicationSetWatchEvent{
+			Type: watch.Added,
+			ApplicationSet: v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					Conditions: []v1alpha1.ApplicationSetCondition{
+						{Type: v1alpha1.ApplicationSetConditionResourcesUpToDate, Status: v1alpha1.ApplicationSetConditionStatusTrue},
+					},
+				},
+			},
+		}
+		appSetEventsCh <- addedEvent
+	}()
+	return appSetEventsCh
 }

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -118,8 +119,8 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 // NewApplicationSetCreateCommand returns a new instance of an `argocd appset create` command
 func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output         string
-		upsert, dryRun bool
+		output              string
+		upsert, dryRun, wait bool
 	)
 	command := &cobra.Command{
 		Use:   "create",
@@ -204,11 +205,18 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				default:
 					errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 				}
+
+				if wait && !dryRun {
+					err := waitForApplicationSetResourcesUpToDate(ctx, argocdClient, created.QualifiedName())
+					errors.CheckError(err)
+					c.PrintErrf("ApplicationSet '%s' resources are up to date\n", created.Name)
+				}
 			}
 		},
 	}
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Allows to evaluate the ApplicationSet template on the server to get a preview of the applications that would be created")
+	command.Flags().BoolVar(&wait, "wait", false, "Wait until the ApplicationSet's resources are up to date")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	return command
 }
@@ -378,21 +386,20 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 				if !confirmAll {
 					confirm, confirmAll = promptUtil.ConfirmBaseOnCount(messageForSingle, messageForAll, numOfApps)
 				}
-				if confirm || confirmAll {
-					// Start watch before delete so we can wait for the Deleted event.
-					// Server sends synthetic Deleted when the AppSet is already deleted
-					var appEventCh chan *arogappsetv1.ApplicationSetWatchEvent
-					if wait {
-						appEventCh = acdClient.WatchApplicationSetWithRetry(ctx, appSetQualifiedName, "")
-					}
-
+			if confirm || confirmAll {
 					_, err := appIf.Delete(ctx, &appsetDeleteReq)
 					errors.CheckError(err)
 
 					if wait {
-						for appEvent := range appEventCh {
-							if appEvent != nil && appEvent.Type == k8swatch.Deleted {
-								break
+						_, getErr := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{
+							Name: appSetName, AppsetNamespace: appSetNs,
+						})
+						if getErr == nil {
+							appEventCh := acdClient.WatchApplicationSetWithRetry(ctx, appSetQualifiedName, "")
+							for appEvent := range appEventCh {
+								if appEvent != nil && appEvent.Type == k8swatch.Deleted {
+									break
+								}
 							}
 						}
 					}
@@ -500,6 +507,31 @@ func printAppSetConditions(w io.Writer, appSet *arogappsetv1.ApplicationSet) {
 	for _, item := range appSet.Status.Conditions {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", item.Type, item.Status, item.Message, item.LastTransitionTime)
 	}
+}
+
+func isApplicationSetResourcesUpToDate(appSet *arogappsetv1.ApplicationSet) bool {
+	for _, c := range appSet.Status.Conditions {
+		if c.Type == arogappsetv1.ApplicationSetConditionResourcesUpToDate {
+			return c.Status == arogappsetv1.ApplicationSetConditionStatusTrue
+		}
+	}
+	return false
+}
+
+func waitForApplicationSetResourcesUpToDate(ctx context.Context, acdClient argocdclient.Client, appSetName string) error {
+	appEventCh := acdClient.WatchApplicationSetWithRetry(ctx, appSetName, "")
+	for appEvent := range appEventCh {
+		if appEvent == nil {
+			continue
+		}
+		if appEvent.Type == k8swatch.Deleted {
+			return fmt.Errorf("ApplicationSet %q was deleted before reaching ResourcesUpToDate", appSetName)
+		}
+		if isApplicationSetResourcesUpToDate(&appEvent.ApplicationSet) {
+			return nil
+		}
+	}
+	return fmt.Errorf("watch stream closed for ApplicationSet %q before reaching ResourcesUpToDate", appSetName)
 }
 
 func hasAppSetChanged(appReq, appRes *arogappsetv1.ApplicationSet, upsert bool) bool {
