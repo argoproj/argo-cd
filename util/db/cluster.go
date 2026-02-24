@@ -38,8 +38,13 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	initLocalCluster.Do(func() {
 		info, err := db.kubeclientset.Discovery().ServerVersion()
 		if err == nil {
-			//nolint:staticcheck
-			localCluster.ServerVersion = version.MustParseGeneric(info.GitVersion).String()
+			ver, verErr := version.ParseGeneric(info.GitVersion)
+			if err == nil {
+				//nolint:staticcheck
+				localCluster.ServerVersion = ver.String()
+			} else {
+				log.Warnf("Failed to parse Kubernetes server version: %v", verErr)
+			}
 			//nolint:staticcheck
 			localCluster.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 		} else {
