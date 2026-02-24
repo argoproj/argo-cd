@@ -87,7 +87,7 @@ func TestProcessWebhook_Unsupported(t *testing.T) {
 	req.Header.Set("X-GitHub-Event", "push") // not registry
 
 	_, err := h.ProcessWebhook(req)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported registry webhook")
 }
 

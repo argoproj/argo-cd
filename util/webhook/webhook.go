@@ -315,8 +315,8 @@ type changeInfo struct {
 
 // HandleEvent handles webhook events for repo push events
 func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
-	switch e := payload.(type) {
-	case *WebhookRegistryEvent:
+	// TODO: add switch statement in future when supporting other registries
+	if e, ok := payload.(*WebhookRegistryEvent); ok {
 		a.HandleRegistryEvent(e)
 		return
 	}
