@@ -21,11 +21,13 @@ argocd-applicationset-controller [flags]
       --client-certificate string               Path to a client certificate file for TLS
       --client-key string                       Path to a client key file for TLS
       --cluster string                          The name of the kubeconfig cluster to use
+      --cluster-profile-providers-file string   The path to the cluster profile providers file.
       --concurrent-reconciliations int          Max concurrent reconciliations limit for the controller (default 10)
       --context string                          The name of the kubeconfig context to use
       --debug                                   Print debug logs. Takes precedence over loglevel
       --disable-compression                     If true, opt-out of response compression for all requests to the server
       --dry-run                                 Enable dry run mode
+      --enable-cluster-profiles                 Whether to enable use of cluster profiles.
       --enable-github-api-metrics               Enable GitHub API metrics for generators that use the GitHub API
       --enable-leader-election                  Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.
       --enable-new-git-file-globbing            Enable new globbing in Git files generator.
