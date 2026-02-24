@@ -35,13 +35,25 @@ metadata:
   name: argocd-notifications-cm
 data:
   trigger.sync-operation-change: |
-    - when: app.status.operationState.phase in ['Succeeded']
+    - when: app.status?.operationState.phase in ['Succeeded']
       send: [github-commit-status]
-    - when: app.status.operationState.phase in ['Running']
+    - when: app.status?.operationState.phase in ['Running']
       send: [github-commit-status]
-    - when: app.status.operationState.phase in ['Error', 'Failed']
+    - when: app.status?.operationState.phase in ['Error', 'Failed']
       send: [app-sync-failed, github-commit-status]
 ```
+
+
+## Accessing Optional Manifest Sections and Fields
+
+Note that in the trigger example above, the `?.` (optional chaining) operator is used to access the Application's
+`status.operationState` section. This section is optional; it is not present when an operation has been initiated but has not yet
+started by the Application Controller.
+
+If the `?.` operator were not used, `status.operationState` would resolve to `nil` and the evaluation of the
+`app.status.operationState.phase` expression would fail.  The `app.status?.operationState.phase` expression is equivalent to
+`app.status.operationState != nil ?  app.status.operationState.phase : nil`.
+
 
 ## Avoid Sending Same Notification Too Often
 
@@ -60,14 +72,14 @@ data:
   # Optional 'oncePer' property ensure that notification is sent only once per specified field value
   # E.g. following is triggered once per sync revision
   trigger.on-deployed: |
-    when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+    when: app.status?.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
     oncePer: app.status.sync.revision
     send: [app-sync-succeeded]
 ```
 
 **Mono Repo Usage**
 
-When one repo is used to sync multiple applications, the `oncePer: app.status.sync.revision` field will trigger a notification for each commit. For mono repos, the better approach will be using `oncePer: app.status.operationState.syncResult.revision` statement. This way a notification will be sent only for a particular Application's revision.
+When one repo is used to sync multiple applications, the `oncePer: app.status.sync.revision` field will trigger a notification for each commit. For mono repos, the better approach will be using `oncePer: app.status?.operationState.syncResult.revision` statement. This way a notification will be sent only for a particular Application's revision.
 
 ### oncePer
 
@@ -122,7 +134,7 @@ Triggers have access to the set of built-in functions.
 Example:
 
 ```yaml
-when: time.Now().Sub(time.Parse(app.status.operationState.startedAt)).Minutes() >= 5
+when: time.Now().Sub(time.Parse(app.status?.operationState.startedAt)).Minutes() >= 5
 ```
 
 {!docs/operator-manual/notifications/functions.md!}

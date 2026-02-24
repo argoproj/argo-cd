@@ -15,7 +15,7 @@ import (
 )
 
 func TestGetAccounts_NoAccountsConfigured(t *testing.T) {
-	_, settingsManager := fixtures(nil)
+	_, settingsManager := fixtures(t.Context(), nil)
 	accounts, err := settingsManager.GetAccounts()
 	require.NoError(t, err)
 
@@ -25,7 +25,7 @@ func TestGetAccounts_NoAccountsConfigured(t *testing.T) {
 }
 
 func TestGetAccounts_HasConfiguredAccounts(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{"accounts.test": "apiKey"}, func(secret *corev1.Secret) {
+	_, settingsManager := fixtures(t.Context(), map[string]string{"accounts.test": "apiKey"}, func(secret *corev1.Secret) {
 		secret.Data["accounts.test.tokens"] = []byte(`[{"id":"123","iat":1583789194,"exp":1583789194}]`)
 	})
 	accounts, err := settingsManager.GetAccounts()
@@ -39,7 +39,7 @@ func TestGetAccounts_HasConfiguredAccounts(t *testing.T) {
 }
 
 func TestGetAccounts_DisableAccount(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
+	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"accounts.test":         "apiKey",
 		"accounts.test.enabled": "false",
 	})
@@ -52,7 +52,7 @@ func TestGetAccounts_DisableAccount(t *testing.T) {
 }
 
 func TestGetAccount(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
+	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"accounts.test": "apiKey",
 	})
 
@@ -71,7 +71,7 @@ func TestGetAccount(t *testing.T) {
 }
 
 func TestGetAccount_WithInvalidToken(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
+	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"accounts.user1":       "apiKey",
 		"accounts.invaliduser": "apiKey",
 		"accounts.user2":       "apiKey",
@@ -93,7 +93,7 @@ func TestGetAccount_WithInvalidToken(t *testing.T) {
 
 func TestGetAdminAccount(t *testing.T) {
 	mTime := time.Now().Format(time.RFC3339)
-	_, settingsManager := fixtures(nil, func(secret *corev1.Secret) {
+	_, settingsManager := fixtures(t.Context(), nil, func(secret *corev1.Secret) {
 		secret.Data["admin.password"] = []byte("admin-password")
 		secret.Data["admin.passwordMtime"] = []byte(mTime)
 	})
@@ -140,7 +140,7 @@ func TestTokenIndex_TokenDoesNotExist(t *testing.T) {
 }
 
 func TestAddAccount_AccountAdded(t *testing.T) {
-	clientset, settingsManager := fixtures(nil)
+	clientset, settingsManager := fixtures(t.Context(), nil)
 	mTime := time.Now()
 	addedAccount := Account{
 		Tokens:        []Token{{ID: "123"}},
@@ -167,19 +167,19 @@ func TestAddAccount_AccountAdded(t *testing.T) {
 }
 
 func TestAddAccount_AlreadyExists(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{"accounts.test": "login"})
+	_, settingsManager := fixtures(t.Context(), map[string]string{"accounts.test": "login"})
 	err := settingsManager.AddAccount("test", Account{})
 	require.Error(t, err)
 }
 
 func TestAddAccount_CannotAddAdmin(t *testing.T) {
-	_, settingsManager := fixtures(nil)
+	_, settingsManager := fixtures(t.Context(), nil)
 	err := settingsManager.AddAccount("admin", Account{})
 	require.Error(t, err)
 }
 
 func TestUpdateAccount_SuccessfullyUpdated(t *testing.T) {
-	clientset, settingsManager := fixtures(map[string]string{"accounts.test": "login"})
+	clientset, settingsManager := fixtures(t.Context(), map[string]string{"accounts.test": "login"})
 	mTime := time.Now()
 
 	err := settingsManager.UpdateAccount("test", func(account *Account) error {
@@ -207,7 +207,7 @@ func TestUpdateAccount_SuccessfullyUpdated(t *testing.T) {
 }
 
 func TestUpdateAccount_UpdateAdminPassword(t *testing.T) {
-	clientset, settingsManager := fixtures(nil)
+	clientset, settingsManager := fixtures(t.Context(), nil)
 	mTime := time.Now()
 
 	err := settingsManager.UpdateAccount("admin", func(account *Account) error {
@@ -225,7 +225,7 @@ func TestUpdateAccount_UpdateAdminPassword(t *testing.T) {
 }
 
 func TestUpdateAccount_AccountDoesNotExist(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{"accounts.test": "login"})
+	_, settingsManager := fixtures(t.Context(), map[string]string{"accounts.test": "login"})
 
 	err := settingsManager.UpdateAccount("test1", func(account *Account) error {
 		account.Enabled = false

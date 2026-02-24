@@ -27,7 +27,7 @@ redis-ha:
     serviceAccount:
       automountToken: true
   image:
-    tag: 7.2.7-alpine
+    tag: 8.2.3-alpine
   sentinel:
     bind: '0.0.0.0'
     lifecycle:

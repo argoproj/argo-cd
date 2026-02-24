@@ -77,8 +77,8 @@ To find these logs, search for `"Requesting app refresh caused by object update"
 fields for `api-version` and `kind`. Counting the number of refreshes triggered, by api-version/kind should
 reveal the high-churn resource kinds.
 
-!!! note
-    These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
+> [!NOTE]
+> These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
 
 Once you have identified some resources which change often, you can try to determine which fields are changing. Here is
 one approach:
@@ -99,8 +99,8 @@ Whenever Argo CD skips a refresh due to an ignored resource update, the controll
 
 Search the application-controller logs for this line to confirm that your resource ignore rules are being applied.
 
-!!! note
-    These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
+> [!NOTE]
+> These logs are at the `debug` level. Configure the application-controller's log level to `debug`.
 
 ## Examples
 
@@ -126,7 +126,7 @@ data:
 
 ## Ignoring updates for untracked resources
 
-ArgoCD will only apply `ignoreResourceUpdates` configuration to tracked resources of an application. This means dependant resources, such as a `ReplicaSet` and `Pod` created by a `Deployment`, will not ignore any updates and trigger a reconcile of the application for any changes.
+ArgoCD will only apply `ignoreResourceUpdates` configuration to tracked resources of an application. This means dependent resources, such as a `ReplicaSet` and `Pod` created by a `Deployment`, will not ignore any updates and trigger a reconcile of the application for any changes.
 
 If you want to apply the `ignoreResourceUpdates` configuration to an untracked resource, you can add the
 `argocd.argoproj.io/ignore-resource-updates=true` annotation in the dependent resources manifest.

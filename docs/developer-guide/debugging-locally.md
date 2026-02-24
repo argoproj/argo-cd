@@ -18,7 +18,7 @@ For the next steps, we will use Argo CD `api-server` as an example of running a 
 ## Configure your IDE
 
 ### Locate your component configuration in `Procfile`
-The `Procfile` is used by Goreman when running Argo CD locally with the local toolchain. The file is located in the top-level directory in your cloned Argo CD repo folder, you can view it's latest version [here](https://github.com/argoproj/argo-cd/blob/master/Procfile). It contains all the needed component run configuration, and you will need to copy parts of this configuration to your IDE. 
+The `Procfile` is used by Goreman when running Argo CD locally with the local toolchain. The [latest Procfile](https://github.com/argoproj/argo-cd/blob/master/Procfile) is located in the top-level directory in your cloned Argo CD repo folder. It contains all the needed component run configuration, and you will need to copy parts of this configuration to your IDE. 
 
 Example for `api-server` configuration in `Procfile`:
 ``` text
@@ -26,8 +26,8 @@ api-server: [ "$BIN_MODE" = 'true' ] && COMMAND=./dist/argocd || COMMAND='go run
 ```
 This configuration example will be used as the basis for the next steps.
 
-!!! note
-    The Procfile for a component may change with time. Please go through the Procfile and make sure you use the latest configuration for debugging.
+> [!NOTE]
+> The Procfile for a component may change with time. Please go through the Procfile and make sure you use the latest configuration for debugging.
 
 ### Configure component env variables
 The component that you will run in your IDE for debugging (`api-server` in our case) will need env variables. Copy the env variables from `Procfile`, located in the `argo-cd` root folder of your development branch. The env variables are located before the `$COMMAND` section in the `sh -c` section of the component run command.
@@ -112,8 +112,8 @@ Example for an `api-server` launch configuration snippet, based on our above exa
 </component>
 ```
 
-!!! note
-    As an alternative to importing the above file to Goland, you can create a Run/Debug Configuration using the official [Goland docs](https://www.jetbrains.com/help/go/go-build.html) and just copy the `parameters`, `directory` and `PATH` sections from the example above (specifying `Run kind` as `Directory` in the Run/Debug Configurations wizard)
+> [!NOTE]
+> As an alternative to importing the above file to Goland, you can create a Run/Debug Configuration using the official [Goland docs](https://www.jetbrains.com/help/go/go-build.html) and just copy the `parameters`, `directory` and `PATH` sections from the example above (specifying `Run kind` as `Directory` in the Run/Debug Configurations wizard)
 
 ## Run Argo CD without the debugged component
 Next, we need to run all Argo CD components, except for the debugged component (cause we will run this component separately in the IDE).
@@ -127,6 +127,8 @@ Below are the different options.
 So for the case of debugging the `api-server`, run:
 `make start-local ARGOCD_START="notification applicationset-controller repo-server redis dex controller ui"` 
 
+> [!NOTE]
+> By default, the api-server in this configuration runs with auth disabled. If you need to test argo cd auth-related functionality, run `export ARGOCD_E2E_DISABLE_AUTH='false' && make start-local`
 #### Run with "make run"
 `make run` runs all the components by default, but it is also possible to run it with a blacklist of components, enabling the separation we need.
 

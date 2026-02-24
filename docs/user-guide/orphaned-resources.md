@@ -1,10 +1,10 @@
 # Orphaned Resources Monitoring
 
-Orphaned Kubernetes resource is a top-level namespaced resource which does not belong to any Argo CD Application. The Orphaned Resources Monitoring feature allows detecting
-orphaned resources, inspect/remove resources using Argo CD UI and generate a warning.
+An [orphaned Kubernetes resource](https://kubernetes.io/docs/concepts/architecture/garbage-collection/#orphaned-dependents) is a top-level namespaced resource that does not belong to any Argo CD Application. The Orphaned Resources Monitoring feature allows detecting
+orphaned resources, inspecting/removing resources using the Argo CD UI, and generating a warning.
 
-The Orphaned Resources monitoring is enabled in [Project](projects.md) settings, 
-and the below is an example of enabling the feature using the AppProject custom resource.
+The Orphaned Resources monitoring is enabled in the [Project](projects.md) settings.
+Below is an example of enabling the feature using the AppProject custom resource.
 
 ```yaml
 kind: AppProject
@@ -17,12 +17,12 @@ spec:
 ...
 ```
 
-Once the feature is enabled, each project application which has any orphaned resources in its target namespace
-will get a warning. The orphaned resources can be located using the application details page:
+Once the feature is enabled, each project application that has any orphaned resources in its target namespace
+will get a warning. The orphaned resources can be located using the application details page by enabling the "Show Orphaned" filter:
 
 ![orphaned resources](../assets/orphaned-resources.png)
 
-When enabling the feature, you might want to consider disabling warning at first.
+When enabling the feature, you might want to consider disabling warnings at first.
 
 ```yaml
 spec:
@@ -30,18 +30,20 @@ spec:
     warn: false # Disable warning
 ```
 
-While warning disabled, application users can still view orphaned resources in the UI.
+When warnings are disabled, application users can still view orphaned resources in the UI.
 
 ## Exceptions
 
-Not every resource in the Kubernetes cluster is controlled by the end user. Following resources are never considered as orphaned:
+Not every resource in the Kubernetes cluster is controlled by the end user and managed by Argo CD. Other operators in the cluster can automatically create resources (e.g., the cert-manager creating secrets), which are then considered orphaned.
 
-* Namespaced resources denied in the project. Usually, such resources are managed by cluster administrators and not supposed to be modified by namespace user.
-* `ServiceAccount` with name `default` ( and corresponding auto-generated `ServiceAccountToken` ).
-* `Service` with name `kubernetes` in the `default` namespace.
-* `ConfigMap` with name `kube-root-ca.crt` in all namespaces.
+The following resources are never considered orphaned:
 
-Also, you can configure to ignore resources by providing a list of resource Group, Kind and Name.
+* Namespaced resources denied in the project. Usually, such resources are managed by cluster administrators and are not supposed to be modified by a namespace user.
+* `ServiceAccount` with the name `default` (and the corresponding auto-generated `ServiceAccountToken`).
+* `Service` with the name `kubernetes` in the `default` namespace.
+* `ConfigMap` with the name `kube-root-ca.crt` in all namespaces.
+
+You can prevent resources from being declared orphaned by providing a list of ignore rules, each defining a Group, Kind, and Name.
 
 ```yaml
 spec:
@@ -49,4 +51,14 @@ spec:
     ignore:
     - kind: ConfigMap
       name: orphaned-but-ignored-configmap
+```
+
+The `name` can be a [glob pattern](https://github.com/gobwas/glob), e.g.:
+
+```yaml
+spec:
+  orphanedResources:
+    ignore:
+    - kind: Secret
+      name: *.example.com
 ```

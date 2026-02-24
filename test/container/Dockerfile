@@ -1,35 +1,35 @@
-FROM docker.io/library/redis:7.4.3@sha256:7df1eeff67eb0ba84f6b9d2940765a6bb1158081426745c185a03b1507de6a09 AS redis
+FROM docker.io/library/redis:8.6.0@sha256:7b6fb55d8b0adcd77269dc52b3cfffe5f59ca5d43dec3c90dbe18aacce7942e1 AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
 # architecture, so we create a symlink here to facilitate copying.
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
-# Please make sure to also check the contained pnpm version and update the references below when upgrading this image's version
-FROM docker.io/library/node:22.9.0@sha256:69e667a79aa41ec0db50bc452a60e705ca16f35285eaf037ebe627a65a5cdf52 AS node
+# Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
+FROM docker.io/library/node:22.9.0@sha256:8398ea18b8b72817c84af283f72daed9629af2958c4f618fe6db4f453c5c9328 AS node
 
-FROM docker.io/library/golang:1.24.6@sha256:2c89c41fb9efc3807029b59af69645867cfe978d2b877d475be0d72f6c6ce6f6 AS golang
+FROM docker.io/library/golang:1.26.0@sha256:c83e68f3ebb6943a2904fa66348867d108119890a2c6a2e6f07b38d0eb6c25c5 AS golang
 
-FROM docker.io/library/registry:3.0@sha256:3725021071ec9383eb3d87ddbdff9ed602439b3f7c958c9c2fb941049ea6531d AS registry
+FROM docker.io/library/registry:3.0@sha256:6c5666b861f3505b116bb9aa9b25175e71210414bd010d92035ff64018f9457e AS registry
 
-FROM docker.io/bitnami/kubectl:1.32@sha256:493d1b871556d48d6b25d471f192c2427571cd6f78523eebcaf4d263353c7487 AS kubectl
+FROM docker.io/bitnamilegacy/kubectl:1.32@sha256:9524faf8e3cefb47fa28244a5d15f95ec21a73d963273798e593e61f80712333 AS kubectl
 
-FROM docker.io/library/ubuntu:25.04@sha256:10bb10bb062de665d4dc3e0ea36715270ead632cfcb74d08ca2273712a0dfb42
+FROM docker.io/library/ubuntu:26.04@sha256:fed6ddb82c61194e1814e93b59cfcb6759e5aa33c4e41bb3782313c2386ed6df
 
 ENV DEBIAN_FRONTEND=noninteractive
 
 # NOTE: binutils-gold contains the gold linker, which was recently removed
 #       from binutils, but is still nesessary for building lint-tools on arm64 only
 #       until this Golang issue is fixed: https://github.com/golang/go/issues/22040
-RUN  apt-get update && apt-get install --fix-missing -y \
+RUN  apt-get update && apt-get install --fix-missing --no-install-recommends -y \
     ca-certificates \
     curl \
     openssh-server \
     nginx \
     fcgiwrap \
     git \
-    git-lfs \
     gpg \
+    gpg-agent \
     jq \
     make \
     wget \
@@ -37,6 +37,7 @@ RUN  apt-get update && apt-get install --fix-missing -y \
     g++ \
     sudo \
     tini \
+    unzip \
     zip && \
     if [ "$(uname -m)" = "aarch64" ]; then \
        apt-get install --fix-missing -y binutils-gold; \
@@ -52,9 +53,16 @@ ENV PATH=/dist:/go/bin:/usr/local/go/bin:/go/src/github.com/argoproj/argo-cd/dis
 ENV GOROOT=/usr/local/go
 ENV GOPATH=/go
 
+# Disable gRPC service config lookups via DNS TXT records to prevent excessive
+# DNS queries for _grpc_config.<hostname> which can cause timeouts in dual-stack
+# environments. This can be overridden via argocd-cmd-params-cm ConfigMap.
+# See https://github.com/argoproj/argo-cd/issues/24991
+ENV GRPC_ENABLE_TXT_SERVICE_CONFIG=false
+
 # Install build and test dependencies
 COPY hack/install.sh hack/tool-versions.sh go.* ./
 COPY hack/installers installers
+COPY gitops-engine/go.* ./gitops-engine/
 
 RUN ./install.sh helm && \
     ./install.sh kustomize && \
@@ -62,6 +70,7 @@ RUN ./install.sh helm && \
     ./install.sh codegen-go-tools && \
     ./install.sh lint-tools && \
     ./install.sh gotestsum && \
+    ./install.sh git-lfs && \
     go install github.com/mattn/goreman@latest && \
     go install github.com/kisielk/godepgraph@latest && \
     go install github.com/jstemmer/go-junit-report@latest && \

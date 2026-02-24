@@ -75,6 +75,7 @@ message ApplicationManifestQuery {
 	optional string project = 4;
 	repeated int64 sourcePositions = 5;
 	repeated string revisions = 6;
+	optional bool noCache = 7;
 }
 
 message FileChunk {
@@ -318,6 +319,19 @@ message ManagedResourcesResponse {
 	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
 }
 
+message ApplicationServerSideDiffQuery {
+	required string appName = 1;
+	optional string appNamespace = 2;
+	optional string project = 3;
+	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff liveResources = 4;
+	repeated string targetManifests = 5;
+}
+
+message ApplicationServerSideDiffResponse {
+	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff items = 1;
+	required bool modified = 2;
+}
+
 message LinkInfo {
 	required string title = 1;
 	required string url = 2;
@@ -440,6 +454,11 @@ service ApplicationService {
 	// ManagedResources returns list of managed resources
 	rpc ManagedResources(ResourcesQuery) returns (ManagedResourcesResponse) {
 		option (google.api.http).get = "/api/v1/applications/{applicationName}/managed-resources";
+	}
+
+	// ServerSideDiff performs server-side diff calculation using dry-run apply
+	rpc ServerSideDiff(ApplicationServerSideDiffQuery) returns (ApplicationServerSideDiffResponse) {
+		option (google.api.http).get = "/api/v1/applications/{appName}/server-side-diff";
 	}
 
 	// ResourceTree returns resource tree

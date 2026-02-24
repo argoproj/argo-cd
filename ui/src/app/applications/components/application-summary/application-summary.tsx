@@ -8,6 +8,7 @@ import {
     DataLoader,
     EditablePanel,
     EditablePanelItem,
+    EditablePanelContent,
     Expandable,
     MapInputField,
     NumberField,
@@ -15,14 +16,14 @@ import {
     Revision,
     RevisionHelpIcon
 } from '../../../shared/components';
-import {BadgePanel, Spinner} from '../../../shared/components';
+import {BadgePanel} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource, helpTip} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
@@ -60,13 +61,23 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const [destFormat, setDestFormat] = React.useState(initialState);
-    const [changeSync, setChangeSync] = React.useState(false);
+    const [, setChangeSync] = React.useState(false);
+    const [isHydratorEnabled, setIsHydratorEnabled] = React.useState(!!app.spec.sourceHydrator);
+    const [savedSyncSource, setSavedSyncSource] = React.useState(app.spec.sourceHydrator?.syncSource || {targetBranch: '', path: ''});
 
     const notificationSubscriptions = useEditNotificationSubscriptions(app.metadata.annotations || {});
     const updateApp = notificationSubscriptions.withNotificationSubscriptions(props.updateApp);
 
+    const updateAppSource = async (input: models.Application, query: {validate?: boolean}) => {
+        const hydrateTo = input.spec.sourceHydrator?.hydrateTo;
+        if (hydrateTo && !hydrateTo.targetBranch?.trim() && input.spec.sourceHydrator) {
+            delete input.spec.sourceHydrator.hydrateTo;
+        }
+        return updateApp(input, query);
+    };
+
     const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
-    const isHydrator = app.spec.sourceHydrator && true;
+    const isHydrator = isHydratorEnabled;
     const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
 
     const attributes = [
@@ -172,97 +183,6 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             title: 'CREATED AT',
             view: formatCreationTimestamp(app.metadata.creationTimestamp)
         },
-        !hasMultipleSources && {
-            title: 'REPO URL',
-            view: <Repo url={source?.repoURL} />,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field={getRepoField(isHydrator)} component={Text} />
-        },
-        ...(!hasMultipleSources
-            ? isHelm
-                ? [
-                      {
-                          title: 'CHART',
-                          view: <span>{source && `${source.chart}:${source.targetRevision}`}</span>,
-                          edit: (formApi: FormApi) =>
-                              hasMultipleSources ? (
-                                  helpTip('CHART is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
-                              ) : (
-                                  <DataLoader
-                                      input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL}}
-                                      load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
-                                      {(charts: models.HelmChart[]) => (
-                                          <div className='row'>
-                                              <div className='columns small-8'>
-                                                  <FormField
-                                                      formApi={formApi}
-                                                      field='spec.source.chart'
-                                                      component={AutocompleteField}
-                                                      componentProps={{
-                                                          items: charts.map(chart => chart.name),
-                                                          filterSuggestions: true
-                                                      }}
-                                                  />
-                                              </div>
-                                              <DataLoader
-                                                  input={{charts, chart: getAppSpecDefaultSource(formApi.getFormState().values.spec).chart}}
-                                                  load={async data => {
-                                                      const chartInfo = data.charts.find(chart => chart.name === data.chart);
-                                                      return (chartInfo && chartInfo.versions) || new Array<string>();
-                                                  }}>
-                                                  {(versions: string[]) => (
-                                                      <div className='columns small-4'>
-                                                          <FormField
-                                                              formApi={formApi}
-                                                              field='spec.source.targetRevision'
-                                                              component={AutocompleteField}
-                                                              componentProps={{
-                                                                  items: versions
-                                                              }}
-                                                          />
-                                                          <RevisionHelpIcon type='helm' top='0' />
-                                                      </div>
-                                                  )}
-                                              </DataLoader>
-                                          </div>
-                                      )}
-                                  </DataLoader>
-                              )
-                      }
-                  ]
-                : [
-                      {
-                          title: 'TARGET REVISION',
-                          view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
-                          edit: (formApi: FormApi) =>
-                              hasMultipleSources ? (
-                                  helpTip('TARGET REVISION is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
-                              ) : (
-                                  <RevisionFormField
-                                      helpIconTop={'0'}
-                                      hideLabel={true}
-                                      formApi={formApi}
-                                      fieldValue={getTargetRevisionField(isHydrator)}
-                                      repoURL={source.repoURL}
-                                      repoType={repoType}
-                                  />
-                              )
-                      },
-                      {
-                          title: 'PATH',
-                          view: (
-                              <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
-                                  {processPath(source.path)}
-                              </Revision>
-                          ),
-                          edit: (formApi: FormApi) =>
-                              hasMultipleSources ? (
-                                  helpTip('PATH is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
-                              ) : (
-                                  <FormField formApi={formApi} field={getPathField(isHydrator)} component={Text} />
-                              )
-                      }
-                  ]
-            : []),
         {
             title: 'REVISION HISTORY LIMIT',
             view: app.spec.revisionHistoryLimit,
@@ -379,6 +299,235 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         });
     }
 
+    const standardSourceItems: EditablePanelItem[] = useAuthSettingsCtx?.hydratorEnabled
+        ? [
+              {
+                  title: 'ENABLE HYDRATOR',
+                  hint: 'Enable Source Hydrator to render and push manifests to a Git branch.',
+                  view: false, // Hide in view mode
+                  edit: (formApi: FormApi) => (
+                      <div className='checkbox-container'>
+                          <Checkbox
+                              onChange={(val: boolean) => {
+                                  const updatedApp = formApi.getFormState().values as models.Application;
+                                  if (val) {
+                                      // Enable hydrator - move source to sourceHydrator.drySource
+                                      if (!updatedApp.spec.sourceHydrator) {
+                                          updatedApp.spec.sourceHydrator = {
+                                              drySource: {
+                                                  repoURL: updatedApp.spec.source.repoURL,
+                                                  targetRevision: updatedApp.spec.source.targetRevision,
+                                                  path: updatedApp.spec.source.path
+                                              },
+                                              syncSource: savedSyncSource
+                                          };
+                                          delete updatedApp.spec.source;
+                                      }
+                                  } else {
+                                      // Disable hydrator - save sync source values and move drySource back to source
+                                      if (updatedApp.spec.sourceHydrator) {
+                                          setSavedSyncSource(updatedApp.spec.sourceHydrator.syncSource);
+                                          updatedApp.spec.source = updatedApp.spec.sourceHydrator.drySource;
+                                          delete updatedApp.spec.sourceHydrator;
+                                      }
+                                  }
+                                  formApi.setAllValues(updatedApp);
+                                  setIsHydratorEnabled(val);
+                              }}
+                              checked={!!(formApi.getFormState().values as models.Application).spec.sourceHydrator}
+                              id='enable-hydrator'
+                          />
+                          <label htmlFor='enable-hydrator'>SOURCE HYDRATOR ENABLED</label>
+                      </div>
+                  )
+              }
+          ]
+        : [];
+
+    const sourceItems: EditablePanelItem[] = [
+        {
+            title: 'REPO URL',
+            view: <Repo url={app.spec.source?.repoURL} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
+        },
+        ...(isHelm
+            ? [
+                  {
+                      title: 'CHART',
+                      view: <span>{source && `${source.chart}:${source.targetRevision}`}</span>,
+                      edit: (formApi: FormApi) => (
+                          <DataLoader
+                              input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL}}
+                              load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
+                              {(charts: models.HelmChart[]) => (
+                                  <div className='row'>
+                                      <div className='columns small-8'>
+                                          <FormField
+                                              formApi={formApi}
+                                              field='spec.source.chart'
+                                              component={AutocompleteField}
+                                              componentProps={{items: charts.map(chart => chart.name), filterSuggestions: true}}
+                                          />
+                                      </div>
+                                      <DataLoader
+                                          input={{charts, chart: getAppSpecDefaultSource(formApi.getFormState().values.spec).chart}}
+                                          load={async data => {
+                                              const chartInfo = data.charts.find(chart => chart.name === data.chart);
+                                              return (chartInfo && chartInfo.versions) || new Array<string>();
+                                          }}>
+                                          {(versions: string[]) => (
+                                              <div className='columns small-4'>
+                                                  <FormField
+                                                      formApi={formApi}
+                                                      field='spec.source.targetRevision'
+                                                      component={AutocompleteField}
+                                                      componentProps={{items: versions}}
+                                                  />
+                                                  <RevisionHelpIcon type='helm' top='0' />
+                                              </div>
+                                          )}
+                                      </DataLoader>
+                                  </div>
+                              )}
+                          </DataLoader>
+                      )
+                  }
+              ]
+            : [
+                  {
+                      title: 'TARGET REVISION',
+                      view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
+                      edit: (formApi: FormApi) => (
+                          <RevisionFormField hideLabel={true} formApi={formApi} fieldValue='spec.source.targetRevision' repoURL={source.repoURL} repoType={repoType} />
+                      )
+                  },
+                  {
+                      title: 'PATH',
+                      view: (
+                          <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
+                              {processPath(source.path)}
+                          </Revision>
+                      ),
+                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text} />
+                  }
+              ])
+    ];
+
+    const drySourceItems: EditablePanelItem[] = [
+        {
+            title: 'REPO URL',
+            hint: 'Git repo containing the unrendered source (Helm/Kustomize/manifests).',
+            view: <Repo url={app.spec.sourceHydrator?.drySource?.repoURL} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.drySource.repoURL' component={Text} />
+        },
+        {
+            title: 'TARGET REVISION',
+            hint: 'Git revision to read the dry source from (branch/tag/SHA).',
+            view: <Revision repoUrl={app.spec.sourceHydrator?.drySource?.repoURL} revision={app.spec.sourceHydrator?.drySource?.targetRevision || 'HEAD'} />,
+            edit: (formApi: FormApi) => (
+                <RevisionFormField
+                    hideLabel={true}
+                    formApi={formApi}
+                    fieldValue='spec.sourceHydrator.drySource.targetRevision'
+                    repoURL={app.spec.sourceHydrator?.drySource?.repoURL}
+                    repoType={repoType}
+                />
+            )
+        },
+        {
+            title: 'PATH',
+            hint: 'Directory in the dry repo with the unrendered source.',
+            view: (
+                <Revision
+                    repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
+                    revision={app.spec.sourceHydrator?.drySource?.targetRevision || 'HEAD'}
+                    path={app.spec.sourceHydrator?.drySource?.path}
+                    isForPath={true}>
+                    {processPath(app.spec.sourceHydrator?.drySource?.path)}
+                </Revision>
+            ),
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.drySource.path' component={Text} />
+        }
+    ];
+
+    const syncSourceItems: EditablePanelItem[] = [
+        {
+            title: 'TARGET BRANCH',
+            hint: 'Branch where hydrated manifests are written and synced from.',
+            view: <Revision repoUrl={app.spec.sourceHydrator?.drySource?.repoURL} revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'} />,
+            edit: (formApi: FormApi) => (
+                <RevisionFormField
+                    helpIconTop={'0'}
+                    hideLabel={true}
+                    formApi={formApi}
+                    fieldValue='spec.sourceHydrator.syncSource.targetBranch'
+                    repoURL={source.repoURL}
+                    repoType='git'
+                    revisionType='Branches'
+                />
+            )
+        },
+        {
+            title: 'PATH',
+            hint: 'Output directory for hydrated manifests; must be a non-root path.',
+            view: (
+                <Revision
+                    repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
+                    revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'}
+                    path={app.spec.sourceHydrator?.syncSource?.path}
+                    isForPath={true}>
+                    {processPath(app.spec.sourceHydrator?.syncSource?.path)}
+                </Revision>
+            ),
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.syncSource.path' component={Text} />
+        }
+    ];
+
+    const hydrateToItems: EditablePanelItem[] = [
+        {
+            title: 'TARGET BRANCH (OPTIONAL)',
+            hint: 'Optional staging branch to write hydrated output before syncing.',
+            view: (
+                <Revision
+                    repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
+                    revision={
+                        app.spec.sourceHydrator?.hydrateTo?.targetBranch ||
+                        (app.spec.sourceHydrator?.syncSource?.targetBranch ? `${app.spec.sourceHydrator.syncSource.targetBranch}-next` : 'HEAD')
+                    }
+                />
+            ),
+            edit: (formApi: FormApi) => (
+                <RevisionFormField
+                    helpIconTop={'0'}
+                    hideLabel={true}
+                    formApi={formApi}
+                    fieldValue='spec.sourceHydrator.hydrateTo.targetBranch'
+                    repoURL={source.repoURL}
+                    repoType='git'
+                    revisionType='Branches'
+                />
+            )
+        }
+    ];
+
+    const sourceAttributes: (EditablePanelItem | EditablePanelContent)[] = isHydrator
+        ? [
+              ...standardSourceItems,
+              {
+                  sectionName: 'Dry Source',
+                  items: drySourceItems
+              },
+              {
+                  sectionName: 'Sync Source',
+                  items: syncSourceItems
+              },
+              {
+                  sectionName: 'Hydrate To',
+                  items: hydrateToItems
+              }
+          ]
+        : [...standardSourceItems, ...sourceItems];
+
     async function setAutoSync(ctx: ContextApis, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean, enable: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
@@ -394,25 +543,6 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}:`} e={e} />,
-                    type: NotificationType.Error
-                });
-            } finally {
-                setChangeSync(false);
-            }
-        }
-    }
-
-    async function unsetAutoSync(ctx: ContextApis) {
-        const confirmed = await ctx.popup.confirm('Disable Auto-Sync?', 'Are you sure you want to disable automated application synchronization');
-        if (confirmed) {
-            try {
-                setChangeSync(true);
-                const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-                updatedApp.spec.syncPolicy.automated = null;
-                await updateApp(updatedApp, {validate: false});
-            } catch (e) {
-                ctx.notifications.show({
-                    content: <ErrorNotification title='Unable to disable Auto-Sync' e={e} />,
                     type: NotificationType.Error
                 });
             } finally {
@@ -509,128 +639,99 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 items={attributes}
                 onModeSwitch={() => notificationSubscriptions.onResetNotificationSubscriptions()}
             />
+            {!hasMultipleSources && (
+                <EditablePanel
+                    save={updateAppSource}
+                    values={app}
+                    title='SOURCE'
+                    items={sourceAttributes}
+                    hasMultipleSources={hasMultipleSources}
+                    onModeSwitch={() => notificationSubscriptions.onResetNotificationSubscriptions()}
+                />
+            )}
             <Consumer>
                 {ctx => (
                     <div className='white-box'>
                         <div className='white-box__details'>
                             <p>SYNC POLICY</p>
                             <div className='row white-box__details-row'>
-                                <div className='columns small-3'>{(app.spec.syncPolicy && app.spec.syncPolicy.automated && <span>AUTOMATED</span>) || <span>NONE</span>}</div>
-                                <div className='columns small-9'>
-                                    {(app.spec.syncPolicy && app.spec.syncPolicy.automated && (
-                                        <button className='argo-button argo-button--base' onClick={() => unsetAutoSync(ctx)}>
-                                            <Spinner show={changeSync} style={{marginRight: '5px'}} />
-                                            Disable Auto-Sync
-                                        </button>
-                                    )) || (
-                                        <button
-                                            className='argo-button argo-button--base'
-                                            onClick={() =>
-                                                setAutoSync(ctx, 'Enable Auto-Sync?', 'Are you sure you want to enable automated application synchronization?', false, false, true)
-                                            }>
-                                            <Spinner show={changeSync} style={{marginRight: '5px'}} />
-                                            Enable Auto-Sync
-                                        </button>
-                                    )}
+                                <div className='columns small-3'>
+                                    {app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false ? <span>AUTOMATED</span> : <span>NONE</span>}
                                 </div>
                             </div>
-
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-12'>
+                                    <div className='checkbox-container'>
+                                        <Checkbox
+                                            onChange={async (val: boolean) => {
+                                                const automated = app.spec.syncPolicy?.automated || {prune: false, selfHeal: false};
+                                                setAutoSync(
+                                                    ctx,
+                                                    val ? 'Enable Auto-Sync?' : 'Disable Auto-Sync?',
+                                                    val
+                                                        ? 'If checked, application will automatically sync when changes are detected'
+                                                        : 'Are you sure you want to disable automated application synchronization',
+                                                    automated.prune,
+                                                    automated.selfHeal,
+                                                    val
+                                                );
+                                            }}
+                                            checked={app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false}
+                                            id='enable-auto-sync'
+                                        />
+                                        <label htmlFor='enable-auto-sync'>ENABLE AUTO-SYNC</label>
+                                        <HelpIcon title='If checked, application will automatically sync when changes are detected' />
+                                    </div>
+                                </div>
+                            </div>
                             {app.spec.syncPolicy && app.spec.syncPolicy.automated && (
                                 <React.Fragment>
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-12'>
                                             <div className='checkbox-container'>
                                                 <Checkbox
-                                                    onChange={async (val: boolean) => {
+                                                    onChange={async (prune: boolean) => {
+                                                        const automated = app.spec.syncPolicy?.automated || {selfHeal: false, enabled: false};
                                                         setAutoSync(
                                                             ctx,
-                                                            val ? 'Enable Auto-Sync?' : 'Disable Auto-Sync?',
-                                                            val
-                                                                ? 'If checked, application will automatically sync when changes are detected'
-                                                                : 'Are you sure you want to disable automated application synchronization',
-                                                            app.spec.syncPolicy.automated.prune,
-                                                            app.spec.syncPolicy.automated.selfHeal,
-                                                            val
+                                                            prune ? 'Enable Prune Resources?' : 'Disable Prune Resources?',
+                                                            prune
+                                                                ? 'Are you sure you want to enable resource pruning during automated application synchronization?'
+                                                                : 'Are you sure you want to disable resource pruning during automated application synchronization?',
+                                                            prune,
+                                                            automated.selfHeal,
+                                                            automated.enabled
                                                         );
                                                     }}
-                                                    checked={app.spec.syncPolicy?.automated ? app.spec.syncPolicy.automated.enabled !== false : false}
-                                                    id='enable-auto-sync'
+                                                    checked={!!app.spec.syncPolicy?.automated?.prune}
+                                                    id='prune-resources'
                                                 />
-                                                <label htmlFor='enable-auto-sync'>ENABLE AUTO-SYNC</label>
-                                                <HelpIcon title='If checked, application will automatically sync when changes are detected' />
+                                                <label htmlFor='prune-resources'>PRUNE RESOURCES</label>
                                             </div>
                                         </div>
                                     </div>
                                     <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>PRUNE RESOURCES</div>
-                                        <div className='columns small-9'>
-                                            {(app.spec.syncPolicy.automated.prune && (
-                                                <button
-                                                    className='argo-button argo-button--base'
-                                                    onClick={() =>
+                                        <div className='columns small-12'>
+                                            <div className='checkbox-container'>
+                                                <Checkbox
+                                                    onChange={async (selfHeal: boolean) => {
+                                                        const automated = app.spec.syncPolicy?.automated || {prune: false, enabled: false};
                                                         setAutoSync(
                                                             ctx,
-                                                            'Disable Prune Resources?',
-                                                            'Are you sure you want to disable resource pruning during automated application synchronization?',
-                                                            false,
-                                                            app.spec.syncPolicy.automated.selfHeal,
-                                                            app.spec.syncPolicy.automated.enabled
-                                                        )
-                                                    }>
-                                                    Disable
-                                                </button>
-                                            )) || (
-                                                <button
-                                                    className='argo-button argo-button--base'
-                                                    onClick={() =>
-                                                        setAutoSync(
-                                                            ctx,
-                                                            'Enable Prune Resources?',
-                                                            'Are you sure you want to enable resource pruning during automated application synchronization?',
-                                                            true,
-                                                            app.spec.syncPolicy.automated.selfHeal,
-                                                            app.spec.syncPolicy.automated.enabled
-                                                        )
-                                                    }>
-                                                    Enable
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>SELF HEAL</div>
-                                        <div className='columns small-9'>
-                                            {(app.spec.syncPolicy.automated.selfHeal && (
-                                                <button
-                                                    className='argo-button argo-button--base'
-                                                    onClick={() =>
-                                                        setAutoSync(
-                                                            ctx,
-                                                            'Disable Self Heal?',
-                                                            'Are you sure you want to disable automated self healing?',
-                                                            app.spec.syncPolicy.automated.prune,
-                                                            false,
-                                                            app.spec.syncPolicy.automated.enabled
-                                                        )
-                                                    }>
-                                                    Disable
-                                                </button>
-                                            )) || (
-                                                <button
-                                                    className='argo-button argo-button--base'
-                                                    onClick={() =>
-                                                        setAutoSync(
-                                                            ctx,
-                                                            'Enable Self Heal?',
-                                                            'Are you sure you want to enable automated self healing?',
-                                                            app.spec.syncPolicy.automated.prune,
-                                                            true,
-                                                            app.spec.syncPolicy.automated.enabled
-                                                        )
-                                                    }>
-                                                    Enable
-                                                </button>
-                                            )}
+                                                            selfHeal ? 'Enable Self Heal?' : 'Disable Self Heal?',
+                                                            selfHeal
+                                                                ? 'If checked, application will automatically sync when changes are detected'
+                                                                : 'Are you sure you want to enable automated self healing?',
+                                                            automated.prune,
+                                                            selfHeal,
+                                                            automated.enabled
+                                                        );
+                                                    }}
+                                                    checked={!!app.spec.syncPolicy?.automated?.selfHeal}
+                                                    id='self-heal'
+                                                />
+                                                <label htmlFor='self-heal'>SELF HEAL</label>
+                                            </div>
                                         </div>
                                     </div>
                                 </React.Fragment>
@@ -652,20 +753,4 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             />
         </div>
     );
-};
-
-/** Get the repository URL field based on the hydrator status */
-const getRepoField = (isHydrator: boolean): string => {
-    const repoURLField = isHydrator ? 'spec.sourceHydrator.drySource.repoURL' : 'spec.source.repoURL';
-    return repoURLField;
-};
-
-const getTargetRevisionField = (isHydrator: boolean): string => {
-    const targetRevisionField = isHydrator ? 'spec.sourceHydrator.drySource.targetRevision' : 'spec.source.targetRevision';
-    return targetRevisionField;
-};
-
-const getPathField = (isHydrator: boolean): string => {
-    const pathField = isHydrator ? 'spec.sourceHydrator.drySource.path' : 'spec.source.path';
-    return pathField;
 };

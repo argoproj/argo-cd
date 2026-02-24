@@ -253,9 +253,9 @@ data:
 
   # A set of settings that allow enabling or disabling the config management tool.
   # If unset, each defaults to "true".
-  kustomize.enabled: "true"
-  jsonnet.enabled: "true"
-  helm.enabled: "true"
+  kustomize.enable: "true"
+  jsonnet.enable: "true"
+  helm.enable: "true"
 
   # Build options/parameters to use with `kustomize build` (optional)
   kustomize.buildOptions: --load_restrictor none
@@ -439,3 +439,38 @@ data:
 
   # application.sync.impersonation.enabled enables application sync to use a custom service account, via impersonation. This allows decoupling sync from control-plane service account.
   application.sync.impersonation.enabled: "false"
+
+  # If true, passing passing a different revision from the one given in the application when syncing requires the `override` privilege. 
+  # The current default setting up to now (`false`) requires only `sync` privilege for syncing to a different revision. 
+  # We highly recommend that this be set to `true`. The next major release will set the default to be `true`.  
+  application.sync.requireOverridePrivilegeForRevisionSync: "true"  
+
+  ### SourceHydrator commit author name (optional).
+  # Configures the author name for commits created by the Source Hydrator.
+  # If not specified, defaults to "Argo CD".
+  commit.author.name: "Argo CD"
+
+  ### SourceHydrator commit author email (optional).
+  # Configures the author email for commits created by the Source Hydrator.
+  # If not specified, defaults to "argo-cd@example.com".
+  commit.author.email: "argo-cd@example.com"
+
+  ### SourceHydrator commit message template.
+  # This template iterates through the fields in the `.metadata` object,
+  # and formats them based on their type (map, array, or primitive values).
+  # This is the default template and targets specific metadata properties
+  sourceHydrator.commitMessageTemplate: |
+    {{.metadata.drySha | trunc 7}}: {{ .metadata.subject }}
+    {{- if .metadata.body }}
+    
+    {{ .metadata.body }}
+    {{- end }}
+    {{ range $ref := .metadata.references }}
+    {{- if and $ref.commit $ref.commit.author }}
+    Co-authored-by: {{ $ref.commit.author }}
+    {{- end }}
+    {{- end }}
+    {{- if .metadata.author }}
+    Co-authored-by: {{ .metadata.author }}
+    {{- end }}
+

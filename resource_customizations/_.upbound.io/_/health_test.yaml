@@ -3,3 +3,7 @@ tests:
       status: Healthy
       message: "Resource is up-to-date."
     inputPath: testdata/providerconfig_healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "update failed: async update failed: refuse to update the external resource because the following update requires replacing it: cannot change the value of the argument \"location\" from \"westeurope\" to \"switzerlandnorth\""
+    inputPath: testdata/managedresource_failedupdate_degraded.yaml

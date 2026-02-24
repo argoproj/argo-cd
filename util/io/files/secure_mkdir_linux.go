@@ -7,13 +7,14 @@ import (
 	"os"
 
 	securejoin "github.com/cyphar/filepath-securejoin"
+	pathrs "github.com/cyphar/filepath-securejoin/pathrs-lite"
 )
 
 // SecureMkdirAll creates a directory with the given mode and returns the full path to the directory. It prevents
 // directory traversal attacks by ensuring the path is within the root directory. The path is constructed as if the
 // given root is the root of the filesystem. So anything traversing outside the root is simply removed from the path.
 func SecureMkdirAll(root, unsafePath string, mode os.FileMode) (string, error) {
-	err := securejoin.MkdirAll(root, unsafePath, mode)
+	err := pathrs.MkdirAll(root, unsafePath, mode)
 	if err != nil {
 		return "", fmt.Errorf("failed to make directory: %w", err)
 	}

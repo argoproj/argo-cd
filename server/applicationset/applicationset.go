@@ -18,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -41,6 +42,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/session"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 type Server struct {
@@ -57,6 +59,7 @@ type Server struct {
 	auditLogger              *argo.AuditLogger
 	projectLock              sync.KeyLock
 	enabledNamespaces        []string
+	clusterInformer          *settings.ClusterInformer
 	GitSubmoduleEnabled      bool
 	EnableNewGitFileGlobbing bool
 	ScmRootCAPath            string
@@ -86,6 +89,7 @@ func NewServer(
 	enableScmProviders bool,
 	enableGitHubAPIMetrics bool,
 	enableK8sEvent []string,
+	clusterInformer *settings.ClusterInformer,
 ) applicationset.ApplicationSetServiceServer {
 	s := &Server{
 		ns:                       namespace,
@@ -101,6 +105,7 @@ func NewServer(
 		projectLock:              projectLock,
 		auditLogger:              argo.NewAuditLogger(kubeclientset, "argocd-server", enableK8sEvent),
 		enabledNamespaces:        enabledNamespaces,
+		clusterInformer:          clusterInformer,
 		GitSubmoduleEnabled:      gitSubmoduleEnabled,
 		EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
 		ScmRootCAPath:            scmRootCAPath,
@@ -113,21 +118,7 @@ func NewServer(
 
 func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error) {
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
-
-	if !s.isNamespaceEnabled(namespace) {
-		return nil, security.NamespaceNotPermittedError(namespace)
-	}
-
-	a, err := s.appsetLister.ApplicationSets(namespace).Get(q.Name)
-	if err != nil {
-		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
-	}
-	err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns))
-	if err != nil {
-		return nil, err
-	}
-
-	return a, nil
+	return s.getAppSetEnforceRBAC(ctx, rbac.ActionGet, namespace, q.Name)
 }
 
 // List returns list of ApplicationSets
@@ -200,7 +191,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	}
 
 	if q.GetDryRun() {
-		apps, err := s.generateApplicationSetApps(ctx, log.WithField("applicationset", appset.Name), *appset, namespace)
+		apps, err := s.generateApplicationSetApps(ctx, log.WithField("applicationset", appset.Name), *appset)
 		if err != nil {
 			return nil, fmt.Errorf("unable to generate Applications of ApplicationSet: %w", err)
 		}
@@ -230,7 +221,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 		return nil, fmt.Errorf("error creating ApplicationSet: %w", err)
 	}
 	// act idempotent if existing spec matches new spec
-	existing, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Get(ctx, appset.Name, metav1.GetOptions{
+	existing, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(ctx, appset.Name, metav1.GetOptions{
 		ResourceVersion: "",
 	})
 	if err != nil {
@@ -260,12 +251,12 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	return updated, nil
 }
 
-func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet, namespace string) ([]v1alpha1.Application, error) {
+func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet) ([]v1alpha1.Application, error) {
 	argoCDDB := s.db
 
 	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, s.EnableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
 	argoCDService := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
-	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, namespace, argoCDService, s.dynamicClient, scmConfig)
+	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, s.ns, argoCDService, s.dynamicClient, scmConfig, s.clusterInformer)
 
 	apps, _, err := appsettemplate.GenerateApplications(logEntry, appset, appSetGenerators, &appsetutils.Render{}, s.client)
 	if err != nil {
@@ -287,7 +278,7 @@ func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationS
 		}
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		appset.Spec = newAppset.Spec
 		if merge {
 			appset.Labels = collections.Merge(appset.Labels, newAppset.Labels)
@@ -297,7 +288,7 @@ func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationS
 			appset.Annotations = newAppset.Annotations
 		}
 		appset.Finalizers = newAppset.Finalizers
-		res, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Update(ctx, appset, metav1.UpdateOptions{})
+		res, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(appset.Namespace).Update(ctx, appset, metav1.UpdateOptions{})
 		if err == nil {
 			s.logAppSetEvent(ctx, appset, argo.EventReasonResourceUpdated, "updated ApplicationSets spec")
 			s.waitSync(res)
@@ -307,7 +298,7 @@ func (s *Server) updateAppSet(ctx context.Context, appset *v1alpha1.ApplicationS
 			return nil, err
 		}
 
-		appset, err = s.appclientset.ArgoprojV1alpha1().ApplicationSets(s.ns).Get(ctx, newAppset.Name, metav1.GetOptions{})
+		appset, err = s.appclientset.ArgoprojV1alpha1().ApplicationSets(appset.Namespace).Get(ctx, appset.Name, metav1.GetOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("error getting ApplicationSets: %w", err)
 		}
@@ -341,20 +332,12 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 func (s *Server) ResourceTree(ctx context.Context, q *applicationset.ApplicationSetTreeQuery) (*v1alpha1.ApplicationSetTree, error) {
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
 
-	if !s.isNamespaceEnabled(namespace) {
-		return nil, security.NamespaceNotPermittedError(namespace)
-	}
-
-	a, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(ctx, q.Name, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
-	}
-	err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, a.RBACName(s.ns))
+	appset, err := s.getAppSetEnforceRBAC(ctx, rbac.ActionGet, namespace, q.Name)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.buildApplicationSetTree(a)
+	return s.buildApplicationSetTree(appset)
 }
 
 func (s *Server) Generate(ctx context.Context, q *applicationset.ApplicationSetGenerateRequest) (*applicationset.ApplicationSetGenerateResponse, error) {
@@ -363,11 +346,15 @@ func (s *Server) Generate(ctx context.Context, q *applicationset.ApplicationSetG
 	if appset == nil {
 		return nil, errors.New("error creating ApplicationSets: ApplicationSets is nil in request")
 	}
-	namespace := s.appsetNamespaceOrDefault(appset.Namespace)
 
+	// The RBAC check needs to be performed against the appset namespace
+	// However, when trying to generate params, the server namespace needs
+	// to be passed.
+	namespace := s.appsetNamespaceOrDefault(appset.Namespace)
 	if !s.isNamespaceEnabled(namespace) {
 		return nil, security.NamespaceNotPermittedError(namespace)
 	}
+
 	projectName, err := s.validateAppSet(appset)
 	if err != nil {
 		return nil, fmt.Errorf("error validating ApplicationSets: %w", err)
@@ -380,7 +367,16 @@ func (s *Server) Generate(ctx context.Context, q *applicationset.ApplicationSetG
 	logger := log.New()
 	logger.SetOutput(logs)
 
-	apps, err := s.generateApplicationSetApps(ctx, logger.WithField("applicationset", appset.Name), *appset, namespace)
+	// The server namespace will be used in the function
+	// since this is the exact namespace that is being used
+	// to generate parameters (especially for git generator).
+	//
+	// In case of Git generator, if the namespace is set to
+	// appset namespace, we'll look for a project in the appset
+	// namespace that would lead to error when generating params
+	// for an appset in any namespace feature.
+	// See https://github.com/argoproj/argo-cd/issues/22942
+	apps, err := s.generateApplicationSetApps(ctx, logger.WithField("applicationset", appset.Name), *appset)
 	if err != nil {
 		return nil, fmt.Errorf("unable to generate Applications of ApplicationSet: %w\n%s", err, logs.String())
 	}
@@ -504,4 +500,51 @@ func (s *Server) appsetNamespaceOrDefault(appNs string) string {
 
 func (s *Server) isNamespaceEnabled(namespace string) bool {
 	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
+}
+
+// getAppSetEnforceRBAC gets the ApplicationSet with the given name in the given namespace and
+// verifies that the user has the specified RBAC action permission on it.
+//
+// Note: Unlike Applications, ApplicationSets are not currently scoped to Projects for RBAC purposes.
+// The RBAC name is derived from the template's project field, but there is no project-level isolation
+// or validation (e.g., verifying the AppSet belongs to the claimed project)
+func (s *Server) getAppSetEnforceRBAC(ctx context.Context, action, namespace, name string) (*v1alpha1.ApplicationSet, error) {
+	if !s.isNamespaceEnabled(namespace) {
+		return nil, security.NamespaceNotPermittedError(namespace)
+	}
+
+	appset, err := s.appsetLister.ApplicationSets(namespace).Get(name)
+	if err != nil {
+		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, action, appset.RBACName(s.ns)); err != nil {
+		return nil, err
+	}
+
+	return appset, nil
+}
+
+// ListResourceEvents returns a list of event resources for an applicationset
+func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*corev1.EventList, error) {
+	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
+
+	appset, err := s.getAppSetEnforceRBAC(ctx, rbac.ActionGet, namespace, q.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	fieldSelector := fields.SelectorFromSet(map[string]string{
+		"involvedObject.name":      appset.Name,
+		"involvedObject.uid":       string(appset.UID),
+		"involvedObject.namespace": appset.Namespace,
+	}).String()
+
+	log.Debugf("Querying for resource events with field selector: %s", fieldSelector)
+	opts := metav1.ListOptions{FieldSelector: fieldSelector}
+	list, err := s.k8sClient.CoreV1().Events(namespace).List(ctx, opts)
+	if err != nil {
+		return nil, fmt.Errorf("error listing resource events: %w", err)
+	}
+	return list.DeepCopy(), nil
 }

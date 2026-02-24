@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -310,12 +310,20 @@ func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery
 	}
 	proj.NormalizeJWTTokens()
 	globalProjects := argo.GetGlobalProjects(proj, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.settingsMgr)
+	var apiRepos []*v1alpha1.Repository
+	for _, repo := range repositories {
+		apiRepos = append(apiRepos, repo.Normalize().Sanitized())
+	}
+	var apiClusters []*v1alpha1.Cluster
+	for _, cluster := range clusters {
+		apiClusters = append(apiClusters, cluster.Sanitized())
+	}
 
 	return &project.DetailedProjectsResponse{
 		GlobalProjects: globalProjects,
 		Project:        proj,
-		Repositories:   repositories,
-		Clusters:       clusters,
+		Repositories:   apiRepos,
+		Clusters:       apiClusters,
 	}, err
 }
 
@@ -412,7 +420,8 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
 		if err != nil {
 			if err.Error() != argo.ErrDestinationMissing {
-				return nil, err
+				// If cluster is not found, we should discard this app, as it's most likely already in error
+				continue
 			}
 			invalidDstCount++
 		}
@@ -538,7 +547,7 @@ func (s *Server) NormalizeProjs() error {
 		return status.Errorf(codes.Internal, "Error retrieving project list: %s", err.Error())
 	}
 	for _, proj := range projList.Items {
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			if !proj.NormalizeJWTTokens() {
 				break
 			}

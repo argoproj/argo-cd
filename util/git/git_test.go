@@ -10,11 +10,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v3/util/proxy"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/test/fixture/log"
 	"github.com/argoproj/argo-cd/v3/test/fixture/path"
 	"github.com/argoproj/argo-cd/v3/test/fixture/test"
 )
+
+func TestMain(m *testing.M) {
+	// Ensure tests use non-cached proxy callback
+	proxy.UseTestingProxyCallback()
+
+	os.Exit(m.Run())
+}
 
 func TestIsCommitSHA(t *testing.T) {
 	assert.True(t, IsCommitSHA("9d921f65f3c5373b682e2eb4b37afba6592e8f8b"))
@@ -183,7 +192,7 @@ func TestCustomHTTPClient(t *testing.T) {
 				assert.Nil(t, cert.PrivateKey)
 			}
 		}
-		req, err := http.NewRequest(http.MethodGet, "http://proxy-from-env:7878", http.NoBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://proxy-from-env:7878", http.NoBody)
 		require.NoError(t, err)
 		proxy, err := transport.Proxy(req)
 		require.NoError(t, err)
@@ -316,7 +325,7 @@ func TestLFSClient(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
 	_, err = client.Checkout(commitSHA, true)
@@ -351,7 +360,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -407,11 +416,11 @@ func TestNewFactory(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
-		err = client.Fetch("")
+		err = client.Fetch("", 0)
 		require.NoError(t, err)
 
 		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-		err = client.Fetch("")
+		err = client.Fetch("", 0)
 		require.NoError(t, err)
 
 		_, err = client.Checkout(commitSHA, true)
@@ -454,11 +463,12 @@ func TestListRevisions(t *testing.T) {
 func TestLsFiles(t *testing.T) {
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
+	ctx := t.Context()
 
 	client, err := NewClientExt("", tmpDir1, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
-	require.NoError(t, runCmd(tmpDir1, "git", "init"))
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "init"))
 
 	// Setup files
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir1, "a.yaml"), []byte{}, 0o644))
@@ -470,8 +480,8 @@ func TestLsFiles(t *testing.T) {
 
 	require.NoError(t, os.Symlink(filepath.Join(tmpDir2, "c.yaml"), filepath.Join(tmpDir1, "link.yaml")))
 
-	require.NoError(t, runCmd(tmpDir1, "git", "add", "."))
-	require.NoError(t, runCmd(tmpDir1, "git", "commit", "-m", "Initial commit"))
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "commit", "-m", "Initial commit"))
 
 	tests := []struct {
 		name           string
@@ -510,11 +520,12 @@ func TestLsFiles(t *testing.T) {
 
 func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 	tmpDir := t.TempDir()
+	ctx := t.Context()
 
 	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
-	err = runCmd(tmpDir, "git", "init")
+	err = runCmd(ctx, tmpDir, "git", "init")
 	require.NoError(t, err)
 
 	// Setup directory structure and files
@@ -538,8 +549,8 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 		_, err := os.Create(filepath.Join(tmpDir, file))
 		require.NoError(t, err)
 	}
-	require.NoError(t, runCmd(tmpDir, "git", "add", "."))
-	require.NoError(t, runCmd(tmpDir, "git", "commit", "-m", "Initial commit"))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "commit", "-m", "Initial commit"))
 
 	tests := []struct {
 		name                 string

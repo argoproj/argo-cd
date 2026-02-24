@@ -30,11 +30,12 @@ func NewNotificationsCommand() *cobra.Command {
 	)
 
 	var argocdService service.Service
+
 	toolsCommand := cmd.NewToolsCommand(
 		"notifications",
 		"argocd admin notifications",
 		applications,
-		settings.GetFactorySettingsForCLI(argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false),
+		settings.GetFactorySettingsForCLI(func() service.Service { return argocdService }, "argocd-notifications-secret", "argocd-notifications-cm", false),
 		func(clientConfig clientcmd.ClientConfig) {
 			k8sCfg, err := clientConfig.ClientConfig()
 			if err != nil {

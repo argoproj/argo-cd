@@ -213,7 +213,8 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	}
 	if port == nil || *port == 0 {
 		addr := *address + ":0"
-		ln, err := net.Listen("tcp", addr)
+		lc := &net.ListenConfig{}
+		ln, err := lc.Listen(ctx, "tcp", addr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to listen on %q: %w", addr, err)
 		}
@@ -301,7 +302,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	}
 
 	tries := 5
-	for i := 0; i < tries; i++ {
+	for range tries {
 		err = testAPI(ctx, clientOpts)
 		if err == nil {
 			break

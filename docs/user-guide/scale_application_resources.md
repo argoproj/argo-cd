@@ -12,9 +12,9 @@ This enables users to scale resources directly from the Argo CD UI. Users will b
 5. User presses OK, and the resource is scaled accordingly.
   ![result for scaling](../assets/scale_resources_3.png)
 
-!!! note
-    This feature will only apply to `Deployments`, and `StatefulSets`.
+> [!NOTE]
+> This feature will only apply to `Deployments`, and `StatefulSets`.
 
-!!! note
-    If you use HPA (Horizontal Pod Autoscaling) or enabled Argo CD auto-sync, changing the replica count in scale actions would be overwritten.
-    Ensure that invalid values (e.g., `non-numeric` characters, `negative` numbers, or values beyond the `max integer limit`) cannot be entered.
+> [!NOTE]
+> If you use HPA (Horizontal Pod Autoscaling) or enabled Argo CD auto-sync, changing the replica count in scale actions would be overwritten.
+> Ensure that invalid values (e.g., `non-numeric` characters, `negative` numbers, or values beyond the `max integer limit`) cannot be entered.

@@ -64,10 +64,13 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --retry-backoff-factor int                          Factor multiplies the base duration after each failed retry (default 2)
       --retry-backoff-max-duration duration               Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)
       --retry-limit int                                   Max number of allowed sync retries
+      --retry-refresh                                     Indicates if the latest revision should be used on retry instead of the initial one
       --revision string                                   Sync to a specific revision. Preserves parameter overrides
       --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
   -l, --selector string                                   Sync apps that match this label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
       --server-side                                       Use server-side apply while syncing the application
+      --server-side-diff-concurrency int                  Max concurrent batches for server-side diff. -1 = unlimited, 1 = sequential, 2+ = concurrent (0 = invalid) (default -1)
+      --server-side-diff-max-batch-kb int                 Max batch size in KB for server-side diff. Smaller values are safer for proxies (default 250)
       --source-names stringArray                          List of source names. Default is an empty array.
       --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
       --strategy string                                   Sync strategy (one of: apply|hook)

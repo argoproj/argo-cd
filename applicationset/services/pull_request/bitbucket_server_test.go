@@ -68,7 +68,7 @@ func TestListPullRequestNoAuth(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
-	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, int64(101), pullRequests[0].Number)
 	assert.Equal(t, "feat(ABC) : 123", pullRequests[0].Title)
 	assert.Equal(t, "feature-ABC-123", pullRequests[0].Branch)
 	assert.Equal(t, "master", pullRequests[0].TargetBranch)
@@ -211,7 +211,7 @@ func TestListPullRequestBasicAuth(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
-	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, int64(101), pullRequests[0].Number)
 	assert.Equal(t, "feature-ABC-123", pullRequests[0].Branch)
 	assert.Equal(t, "cb3cf2e4d1517c83e720d2585b9402dbef71f992", pullRequests[0].HeadSHA)
 }
@@ -228,7 +228,7 @@ func TestListPullRequestBearerAuth(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
-	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, int64(101), pullRequests[0].Number)
 	assert.Equal(t, "feat(ABC) : 123", pullRequests[0].Title)
 	assert.Equal(t, "feature-ABC-123", pullRequests[0].Branch)
 	assert.Equal(t, "cb3cf2e4d1517c83e720d2585b9402dbef71f992", pullRequests[0].HeadSHA)
@@ -268,7 +268,6 @@ func TestListPullRequestTLS(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				defaultHandler(t)(w, r)

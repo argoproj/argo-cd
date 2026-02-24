@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/itchyny/gojq"
 	log "github.com/sirupsen/logrus"

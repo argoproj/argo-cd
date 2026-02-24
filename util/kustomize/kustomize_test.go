@@ -149,7 +149,7 @@ func TestIsKustomization(t *testing.T) {
 }
 
 func TestParseKustomizeBuildOptions(t *testing.T) {
-	built := parseKustomizeBuildOptions(&kustomize{path: "guestbook"}, "-v 6 --logtostderr", &BuildOpts{
+	built := parseKustomizeBuildOptions(t.Context(), &kustomize{path: "guestbook"}, "-v 6 --logtostderr", &BuildOpts{
 		KubeVersion: "1.27", APIVersions: []string{"foo", "bar"},
 	})
 	// Helm is not enabled so helm options are not in the params
@@ -157,7 +157,7 @@ func TestParseKustomizeBuildOptions(t *testing.T) {
 }
 
 func TestParseKustomizeBuildHelmOptions(t *testing.T) {
-	built := parseKustomizeBuildOptions(&kustomize{path: "guestbook"}, "-v 6 --logtostderr --enable-helm", &BuildOpts{
+	built := parseKustomizeBuildOptions(t.Context(), &kustomize{path: "guestbook"}, "-v 6 --logtostderr --enable-helm", &BuildOpts{
 		KubeVersion: "1.27",
 		APIVersions: []string{"foo", "bar"},
 	})
@@ -176,13 +176,13 @@ func TestVersion(t *testing.T) {
 }
 
 func TestVersionWithBinaryPath(t *testing.T) {
-	ver, err := versionWithBinaryPath(&kustomize{binaryPath: "kustomize"})
+	ver, err := versionWithBinaryPath(t.Context(), &kustomize{binaryPath: "kustomize"})
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
 
 func TestGetSemver(t *testing.T) {
-	ver, err := getSemver(&kustomize{})
+	ver, err := getSemver(t.Context(), &kustomize{})
 	require.NoError(t, err)
 	assert.NotEmpty(t, ver)
 }
@@ -613,6 +613,26 @@ func TestFailKustomizeBuildPatches(t *testing.T) {
 
 	_, _, _, err = kustomize.Build(&kustomizeSource, nil, nil, nil)
 	require.EqualError(t, err, "kustomization file not found in the path")
+}
+
+func TestKustomizeBuildComponentsNoFoundComponents(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization6)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+
+	// Test with non-existent components and IgnoreMissingComponents = true
+	// This should result in foundComponents being empty, so no "edit add component" command should be executed
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"./non-existent-component1", "./non-existent-component2"},
+		IgnoreMissingComponents: true,
+	}
+	_, _, commands, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.NoError(t, err)
+
+	// Verify that no "edit add component" command was executed
+	for _, cmd := range commands {
+		assert.NotContains(t, cmd, "edit add component", "kustomize edit add component should not be invoked when foundComponents is empty")
+	}
 }
 
 func Test_getImageParameters_sorted(t *testing.T) {

@@ -62,7 +62,7 @@ applied to all new issues in our tracker.
 
 If it is not yet possible to classify the bug, i.e. because more information is
 required to correctly classify the bug, you should always set the label
-`bug/in-triage` to make it clear that triage process has started but could not
+`triage/pending` to make it clear that triage process has started but could not
 yet be completed.
 
 ### Issue type

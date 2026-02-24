@@ -1,10 +1,12 @@
 # Overview
 
-!!! warning "As an Argo CD user, you probably don't want to be reading this section of the docs."
-    This part of the manual is aimed at helping people contribute to Argo CD, documentation, or to develop third-party applications that interact with Argo CD, e.g.
-    
-    * A chat bot
-    * A Slack integration
+> [!WARNING]
+> **As an Argo CD user, you probably don't want to be reading this section of the docs.**
+>
+> This part of the manual is aimed at helping people contribute to Argo CD, documentation, or to develop third-party applications that interact with Argo CD, e.g.
+> 
+> * A chat bot
+> * A Slack integration
 
 ## Preface
 #### Understand the [Code Contribution Guide](code-contributions.md)
@@ -20,13 +22,13 @@ For backend and frontend contributions, that require a full building-testing-run
 
 ### Submit your PR
 - [Before submitting a PR](submit-your-pr.md#before-submitting-a-pr)
-- [Choose a correct title for your PR](submit-your-pr.md#choose-a-correct-title-for-your-pr)
-- [Perform the PR template checklist](submit-your-pr.md#perform-the-PR-template-checklist)
+- [Choose a correct title for your PR](submit-your-pr.md#title-of-the-pr)
+- [Perform the PR template checklist](submit-your-pr.md#pr-template-checklist)
 
 ## Contributing to Argo CD Notifications documentation
 
 This guide will help you get started quickly with contributing documentation changes, performing the minimum setup you'll need.
-The notificaions docs are located in [notifications-engine](https://github.com/argoproj/notifications-engine) Git repository and require 2 pull requests: one for the `notifications-engine` repo and one for the `argo-cd` repo.
+The notifications docs are located in [notifications-engine](https://github.com/argoproj/notifications-engine) Git repository and require 2 pull requests: one for the `notifications-engine` repo and one for the `argo-cd` repo.
 For backend and frontend contributions, that require a full building-testing-running-locally cycle, please refer to [Contributing to Argo CD backend and frontend ](index.md#contributing-to-argo-cd-backend-and-frontend) 
 
 ### Fork and clone Argo CD repository
@@ -34,8 +36,8 @@ For backend and frontend contributions, that require a full building-testing-run
 
 ### Submit your PR to notifications-engine
 - [Before submitting a PR](submit-your-pr.md#before-submitting-a-pr)
-- [Choose a correct title for your PR](submit-your-pr.md#choose-a-correct-title-for-your-pr)
-- [Perform the PR template checklist](submit-your-pr.md#perform-the-PR-template-checklist)
+- [Choose a correct title for your PR](submit-your-pr.md#title-of-the-pr)
+- [Perform the PR template checklist](submit-your-pr.md#pr-template-checklist)
 
 ### Install Go on your machine
 - [Install Go](development-environment.md#install-go)
@@ -43,8 +45,8 @@ For backend and frontend contributions, that require a full building-testing-run
 ### Submit your PR to argo-cd
 - [Contributing to notifications-engine](dependencies.md#notifications-engine-githubcomargoprojnotifications-engine)
 - [Before submitting a PR](submit-your-pr.md#before-submitting-a-pr)
-- [Choose a correct title for your PR](submit-your-pr.md#choose-a-correct-title-for-your-pr)
-- [Perform the PR template checklist](submit-your-pr.md#perform-the-PR-template-checklist)
+- [Choose a correct title for your PR](submit-your-pr.md#title-of-the-pr)
+- [Perform the PR template checklist](submit-your-pr.md#pr-template-checklist)
 
 ## Contributing to Argo CD backend and frontend 
 
@@ -69,11 +71,11 @@ As is the case with the development process, this document is under constant cha
 ### Perform the development cycle 
 - [Set kubectl context to argocd namespace](development-cycle.md#set-kubectl-context-to-argocd-namespace)
 - [Pull in all build dependencies](development-cycle.md#pull-in-all-build-dependencies)
-- [Generate API glue code and other assets](development-cycle.md#generate-API-glue-code-and-other-assets)
+- [Generate API glue code and other assets](development-cycle.md#generate-api-glue-code-and-other-assets)
 - [Build your code and run unit tests](development-cycle.md#build-your-code-and-run-unit-tests)
 - [Lint your code base](development-cycle.md#lint-your-code-base)
 - [Run e2e tests](development-cycle.md#run-end-to-end-tests)
-- How to contribute to documentation: [build and run documentation site](docs-site/) on your machine for manual testing
+- How to contribute to documentation: [build and run documentation site](docs-site.md) on your machine for manual testing
 
 ### Run and debug Argo CD locally
 - [Run Argo CD on your machine for manual testing](running-locally.md)
@@ -81,23 +83,22 @@ As is the case with the development process, this document is under constant cha
   
 ### Submit your PR
 - [Before submitting a PR](submit-your-pr.md#before-submitting-a-pr)
-- [Understand the Continuous Integration process](submit-your-pr.md#understand-the-continuous-integration-process)
-- [Choose a correct title for your PR](submit-your-pr.md#choose-a-correct-title-for-your-pr)
-- [Perform the PR template checklist](submit-your-pr.md#perform-the-PR-template-checklist)
-- [Understand the CI automated builds & tests](submit-your-pr.md#automated-builds-&-tests)
+- [Understand the Continuous Integration process](submit-your-pr.md#continuous-integration-process)
+- [Choose a correct title for your PR](submit-your-pr.md#title-of-the-pr)
+- [Perform the PR template checklist](submit-your-pr.md#pr-template-checklist)
+- [Understand the CI automated builds & tests](submit-your-pr.md#automated-builds-tests)
 - [Understand & make sure your PR meets the CI code test coverage requirements](submit-your-pr.md#code-test-coverage)
 
-Need help? Start with the [Contributors FAQ](faq/)
+Need help? Start with the [Contributors FAQ](faq.md)
 
 ## Contributing to Argo CD dependencies
 - [Contributing to argo-ui](dependencies.md#argo-ui-components-githubcomargoprojargo-ui)
-- [Contributing to gitops-engine](dependencies.md#gitops-engine-githubcomargoprojgitops-engine)
 - [Contributing to notifications-engine](dependencies.md#notifications-engine-githubcomargoprojnotifications-engine)
 
 ## Extensions and Third-Party Applications
 * [UI Extensions](extensions/ui-extensions.md)
 * [Proxy Extensions](extensions/proxy-extensions.md)
-* [Config Management Plugins](../operator-manual/config-management-plugins/)
+* [Config Management Plugins](../operator-manual/config-management-plugins.md)
 
 ## Contributing to Argo Website
 The Argo website is maintained in the [argo-site](https://github.com/argoproj/argo-site) repository.

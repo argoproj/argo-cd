@@ -1,0 +1,9 @@
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: test-bucket-claim
+spec:
+  bucketName: test-bucket
+  storageClassName: ceph-bucket
+status:
+  phase: Bound

@@ -61,11 +61,15 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 		var labelsList gitlab.LabelOptions = g.labels
 		labels = &labelsList
 	}
-	opts := &gitlab.ListProjectMergeRequestsOptions{
+
+	snippetsListOptions := gitlab.ExploreSnippetsOptions{
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
 		},
-		Labels: labels,
+	}
+	opts := &gitlab.ListProjectMergeRequestsOptions{
+		ListOptions: snippetsListOptions.ListOptions,
+		Labels:      labels,
 	}
 
 	if g.pullRequestState != "" {

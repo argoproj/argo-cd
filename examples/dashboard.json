@@ -3280,7 +3280,7 @@
               "datasource": {
                 "uid": "$datasource"
               },
-              "expr": "go_gc_duration_seconds{job=\"argocd-server-metrics\", quantile=\"1\", namespace=~\"$namespace\"}",
+              "expr": "go_gc_duration_seconds{job=\"argocd-server-metrics\", quantile=~\"1.0|1\", namespace=~\"$namespace\"}",
               "format": "time_series",
               "intervalFactor": 2,
               "legendFormat": "{{pod}}",

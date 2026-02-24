@@ -27,9 +27,12 @@ core/v1/ConfigMapNodeConfigSource
 core/v1/ConfigMapProjection
 core/v1/ConfigMapVolumeSource
 core/v1/Container
+core/v1/ContainerExtendedResourceRequest
 core/v1/ContainerImage
 core/v1/ContainerPort
 core/v1/ContainerResizePolicy
+core/v1/ContainerRestartRule
+core/v1/ContainerRestartRuleOnExitCodes
 core/v1/ContainerState
 core/v1/ContainerStateRunning
 core/v1/ContainerStateTerminated
@@ -58,6 +61,7 @@ core/v1/EventSeries
 core/v1/EventSource
 core/v1/ExecAction
 core/v1/FCVolumeSource
+core/v1/FileKeySelector
 core/v1/FlexPersistentVolumeSource
 core/v1/FlexVolumeSource
 core/v1/FlockerVolumeSource
@@ -133,10 +137,12 @@ core/v1/PodAffinity
 core/v1/PodAffinityTerm
 core/v1/PodAntiAffinity
 core/v1/PodAttachOptions
+core/v1/PodCertificateProjection
 core/v1/PodCondition
 core/v1/PodDNSConfig
 core/v1/PodDNSConfigOption
 core/v1/PodExecOptions
+core/v1/PodExtendedResourceClaimStatus
 core/v1/PodIP
 core/v1/PodList
 core/v1/PodLogOptions
