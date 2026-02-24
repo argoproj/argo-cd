@@ -217,6 +217,32 @@ func TestClusterURLInRestAPI(t *testing.T) {
 	assert.Equal(t, map[string]string{"test": "val"}, cluster.Labels)
 }
 
+func TestClusterSkipReconcileAnnotation(t *testing.T) {
+	fixture.EnsureCleanState(t)
+
+	clusterURL := url.QueryEscape(KubernetesInternalAPIServerAddr)
+
+	var cluster Cluster
+	err := fixture.DoHttpJsonRequest("PUT",
+		fmt.Sprintf("/api/v1/clusters/%s?updatedFields=annotations", clusterURL),
+		&cluster,
+		fmt.Appendf(nil, `{"annotations":{%q:"true"}}`, "argocd.argoproj.io/skip-reconcile")...)
+	require.NoError(t, err)
+	assert.Equal(t, "true", cluster.Annotations["argocd.argoproj.io/skip-reconcile"])
+
+	var cluster2 Cluster
+	err = fixture.DoHttpJsonRequest("GET", "/api/v1/clusters/"+clusterURL, &cluster2)
+	require.NoError(t, err)
+	assert.Equal(t, "in-cluster", cluster2.Name)
+	assert.Equal(t, "true", cluster2.Annotations["argocd.argoproj.io/skip-reconcile"])
+
+	err = fixture.DoHttpJsonRequest("PUT",
+		fmt.Sprintf("/api/v1/clusters/%s?updatedFields=annotations", clusterURL),
+		&cluster,
+		[]byte(`{"annotations":{}}`)...)
+	require.NoError(t, err)
+}
+
 func TestClusterDeleteDenied(t *testing.T) {
 	ctx := accountFixture.Given(t)
 	ctx.Name("test").

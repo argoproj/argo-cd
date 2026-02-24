@@ -14,7 +14,7 @@ FROM docker.io/library/registry:3.0@sha256:6c5666b861f3505b116bb9aa9b25175e71210
 
 FROM docker.io/bitnamilegacy/kubectl:1.32@sha256:9524faf8e3cefb47fa28244a5d15f95ec21a73d963273798e593e61f80712333 AS kubectl
 
-FROM docker.io/library/ubuntu:26.04@sha256:4095ef613201918336b5d7d00be15d8b09c72ddb77c80bca249c255887a64d87
+FROM docker.io/library/ubuntu:26.04@sha256:fed6ddb82c61194e1814e93b59cfcb6759e5aa33c4e41bb3782313c2386ed6df
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -28,7 +28,6 @@ RUN  apt-get update && apt-get install --fix-missing --no-install-recommends -y 
     nginx \
     fcgiwrap \
     git \
-    git-lfs \
     gpg \
     gpg-agent \
     jq \
@@ -71,6 +70,7 @@ RUN ./install.sh helm && \
     ./install.sh codegen-go-tools && \
     ./install.sh lint-tools && \
     ./install.sh gotestsum && \
+    ./install.sh git-lfs && \
     go install github.com/mattn/goreman@latest && \
     go install github.com/kisielk/godepgraph@latest && \
     go install github.com/jstemmer/go-junit-report@latest && \

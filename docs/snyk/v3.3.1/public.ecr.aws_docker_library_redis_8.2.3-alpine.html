@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="2 known vulnerabilities found in 3 vulnerable dependency paths.">
+  <meta name="description" content="0 known vulnerabilities found in 0 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,190 +492,35 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">February 8th 2026, 12:38:36 am (UTC+00:00)</p>
+                <p class="timestamp">February 22nd 2026, 12:31:42 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
-                <span>Scanned the following paths:</span>
+                <span>Scanned the following path:</span>
                 <ul>
-                  <li class="paths">quay.io/argoproj/argocd:v3.3.0-rc4/argoproj/argocd/Dockerfile (deb)</li>
-                  <li class="paths">quay.io/argoproj/argocd:v3.3.0-rc4/argoproj/argo-cd/v3//usr/local/bin/argocd (gomodules)</li>
-                  <li class="paths">quay.io/argoproj/argocd:v3.3.0-rc4//usr/local/bin/kustomize (gomodules)</li>
-                  <li class="paths">quay.io/argoproj/argocd:v3.3.0-rc4/helm/v3//usr/local/bin/helm (gomodules)</li>
-                  <li class="paths">quay.io/argoproj/argocd:v3.3.0-rc4/git-lfs/git-lfs//usr/bin/git-lfs (gomodules)</li>
+                  <li class="paths">public.ecr.aws/docker/library/redis:8.2.3-alpine/docker/library/redis (apk)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>2</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>3 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2321</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>0</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>0 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>22</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
-
+      <section class="layout-container">
+          <table class="metatable">
+              <tbody>
+              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|public.ecr.aws/docker/library/redis</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">public.ecr.aws/docker/library/redis:8.2.3-alpine/docker/library/redis</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Package Manager</th> <td class="meta-row-value">apk</td></tr>
+              
+              </tbody>
+          </table>
+      </section>
     <div class="layout-container" style="padding-top: 35px;">
-      <div class="cards--vuln filter--patch filter--ignore">
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Untrusted Search Path</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--high">
-                        <span class="label__text">high severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v3.3.0-rc4/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            go.opentelemetry.io/otel/sdk/resource
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v3@* and go.opentelemetry.io/otel/sdk/resource@v1.38.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        go.opentelemetry.io/otel/sdk/resource@v1.38.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Untrusted Search Path in resource detection code which executes <code>ioreg</code>, when the <code>PATH</code> environment variable is modified to include a malicious executable. An attacker can execute arbitrary code within the context of the application by placing a malicious binary earlier in the search path.</p>
-        <p><strong>Note:</strong> This vulnerability is only exploitable on MacOS/Darwin systems.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>go.opentelemetry.io/otel/sdk/resource</code> to version 1.40.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/open-telemetry/opentelemetry-go/commit/d45961bcda453fcbdb6469c22d6e88a1f9970a53">GitHub Commit</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOPENTELEMETRYIOOTELSDKRESOURCE-15182758">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--low">
-                        <span class="label__text">low severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:v3.3.0-rc4/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:25.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            glibc/libc-bin
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@v3.3.0-rc4 and glibc/libc-bin@2.41-6ubuntu1.2
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v3.3.0-rc4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc-bin@2.41-6ubuntu1.2
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@v3.3.0-rc4
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc6@2.41-6ubuntu1.2
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>glibc</code> package and not the <code>glibc</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:25.04</code> relevant fixed versions and status.</em></p>
-        <p>sha256crypt and sha512crypt through 0.6 allow attackers to cause a denial of service (CPU consumption) because the algorithm&#39;s runtime is proportional to the square of the length of the password.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:25.04</code> <code>glibc</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2016-20013">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2016-20013</a></li>
-        <li><a href="https://akkadia.org/drepper/SHA-crypt.txt">https://akkadia.org/drepper/SHA-crypt.txt</a></li>
-        <li><a href="https://pthree.org/2018/05/23/do-not-use-sha256crypt-sha512crypt-theyre-dangerous/">https://pthree.org/2018/05/23/do-not-use-sha256crypt-sha512crypt-theyre-dangerous/</a></li>
-        <li><a href="https://twitter.com/solardiz/status/795601240151457793">https://twitter.com/solardiz/status/795601240151457793</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2504-GLIBC-9828016">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-      </div><!-- cards -->
+      No known vulnerabilities detected.
     </div>
   </main><!-- .layout-stacked__content -->
 </body>
