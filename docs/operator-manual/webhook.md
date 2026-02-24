@@ -193,7 +193,14 @@ spec:
     namespace: default
 ```
 
-The `targetRevision` field supports exact tags and [semver constraints](https://github.com/Masterminds/semver#checking-version-constraints) (e.g., `>=1.0.0`, `^1.0.0`, `~1.2.0`).
+The `targetRevision` field supports exact tags and [semver constraints](https://github.com/Masterminds/semver#checking-version-constraints):
+
+| Constraint | Webhook triggers on push of |
+|------------|----------------------------|
+| `1.0.0` | Only `1.0.0` |
+| `^1.2.0` | `>=1.2.0` and `<2.0.0` (e.g., `1.2.1`, `1.9.0`) |
+| `~1.2.0` | `>=1.2.0` and `<1.3.0` (e.g., `1.2.1`, `1.2.9`) |
+| `>=1.0.0` | Any version `>=1.0.0` |
 
 #### URL Matching
 
