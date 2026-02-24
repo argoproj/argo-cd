@@ -155,7 +155,6 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *WebhookRegistryEvent) 
 		}
 	}
 
-	fmt.Println("we are hereeee")
 	for _, app := range filteredApps {
 		sources := app.Spec.GetSources()
 		if app.Spec.SourceHydrator != nil {
