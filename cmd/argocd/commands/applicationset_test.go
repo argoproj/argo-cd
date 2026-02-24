@@ -2,7 +2,7 @@ package commands
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io"
 	"os"
 	"testing"
@@ -61,7 +61,7 @@ func TestAppSetCreateWaitDeletedError(t *testing.T) {
 			continue
 		}
 		if appEvent.Type == watch.Deleted {
-			err = fmt.Errorf("ApplicationSet was deleted before reaching ResourcesUpToDate")
+			err = errors.New("ApplicationSet was deleted before reaching ResourcesUpToDate")
 			break
 		}
 	}

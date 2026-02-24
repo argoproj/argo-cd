@@ -119,7 +119,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 // NewApplicationSetCreateCommand returns a new instance of an `argocd appset create` command
 func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output              string
+		output string
 		upsert, dryRun, wait bool
 	)
 	command := &cobra.Command{
