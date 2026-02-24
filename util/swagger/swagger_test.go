@@ -70,7 +70,7 @@ func TestSwaggerUISecurityHeaders(t *testing.T) {
 
 	t.Run("security headers are set on swagger.json", func(t *testing.T) {
 		c := make(chan string, 1)
-		go serve(c, "DENY", "frame-ancestors 'none'")
+		go serve(c, "sameorigin", "frame-ancestors 'self';")
 		address := <-c
 
 		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+address+"/swagger.json", http.NoBody)
@@ -78,8 +78,8 @@ func TestSwaggerUISecurityHeaders(t *testing.T) {
 		resp, err := http.DefaultClient.Do(req)
 		require.NoError(t, err)
 		defer resp.Body.Close()
-		assert.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
-		assert.Equal(t, "frame-ancestors 'none'", resp.Header.Get("Content-Security-Policy"))
+		assert.Equal(t, "sameorigin", resp.Header.Get("X-Frame-Options"))
+		assert.Equal(t, "frame-ancestors 'self';", resp.Header.Get("Content-Security-Policy"))
 	})
 
 	t.Run("empty security headers are not set", func(t *testing.T) {
