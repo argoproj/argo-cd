@@ -2981,6 +2981,9 @@ func TestProcessRequestedAppAutomatedOperation_Successful(t *testing.T) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
 			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
+		if action.GetResource().Version == "v1beta1" {
+			return true, &v1beta1.Application{}, nil
+		}
 		return true, &v1alpha1.Application{}, nil
 	})
 

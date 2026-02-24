@@ -161,8 +161,8 @@ func convertSyncOptionsFromStrings(opts v1alpha1.SyncOptions) *SyncOptions {
 
 		default:
 			// Handle any unrecognized options by checking if they match known patterns
-			if strings.HasPrefix(opt, "PrunePropagationPolicy=") {
-				val := strings.TrimPrefix(opt, "PrunePropagationPolicy=")
+			if after, ok := strings.CutPrefix(opt, "PrunePropagationPolicy="); ok {
+				val := after
 				policy := PrunePropagationPolicy(val)
 				dst.PrunePropagationPolicy = &policy
 			}
