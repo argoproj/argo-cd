@@ -2010,10 +2010,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 
 		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
-		require.NotNil(t, res.SourceIntegrityResult)
-		assert.Empty(t, res.SourceIntegrityResult.Checks, "no Git policy applies, result should have empty Checks (no checks performed)")
-		assert.True(t, res.SourceIntegrityResult.IsValid())
-		require.NoError(t, res.SourceIntegrityResult.AsError())
+		assert.Nil(t, res.SourceIntegrityResult, "no Git policy applies, so no checks are performed")
 		gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything)
 	}
 }
@@ -2044,10 +2041,7 @@ func TestHelmSourceIntegrity_SkippedWhenNoPolicyMatches(t *testing.T) {
 	}
 	res, err := service.GenerateManifest(t.Context(), request)
 	require.NoError(t, err)
-	require.NotNil(t, res.SourceIntegrityResult)
-	assert.Empty(t, res.SourceIntegrityResult.Checks, "no Helm policy matches this repo; no checks should be performed")
-	assert.True(t, res.SourceIntegrityResult.IsValid())
-	require.NoError(t, res.SourceIntegrityResult.AsError())
+	assert.Nil(t, res.SourceIntegrityResult, "no Helm policy matches this repo; no checks should be performed")
 }
 
 func TestHelmSourceIntegrity_OciNotSupported(t *testing.T) {

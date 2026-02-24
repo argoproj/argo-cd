@@ -608,11 +608,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				if time.Since(firstSeen.(time.Time)) <= m.repoErrorGracePeriod && !noRevisionCache {
 					// if first seen is less than grace period and it's not a Level 3 comparison,
 					// ignore error and short circuit
-					logCtx.Warnf("++++ Ignoring repo error (noRevisionCache=false, within grace period); returning ErrCompareStateRepo without setting ComparisonError: %v", err.Error())
+					logCtx.Debugf("Ignoring repo error %v, already encountered error in grace period", err.Error())
 					return nil, ErrCompareStateRepo
 				}
 			} else if !noRevisionCache {
-				logCtx.Warnf("++++ Ignoring repo error (noRevisionCache=false, first occurrence); returning ErrCompareStateRepo without setting ComparisonError: %v", err.Error())
+				logCtx.Debugf("Ignoring repo error %v, first occurrence", err.Error())
 				m.repoErrorCache.Store(app.Name, time.Now())
 				return nil, ErrCompareStateRepo
 			}

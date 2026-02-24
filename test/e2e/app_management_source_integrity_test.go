@@ -425,33 +425,83 @@ func TestOCISourceIgnoredWithSourceIntegrity(t *testing.T) {
 		Sync("--local-repo-root", ".", "--force", "--prune")
 }
 
-func TestArtifactCacheInvalidatedOnSourceIntegrityChange(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
+func TestHelmSourceIntegrityRepoClash(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
 	fixture.EnsureCleanState(t)
 
-	Given(t).
+	workingApp := Given(t).
+		CustomCACertAdded().
+		HelmRepoAdded("custom-repo").
+		RepoURLType(fixture.RepoURLTypeHelm).
+		Chart("helm").
+		Revision("1.0.0").
 		Project("gpg").
-		Path(guestbookPath).
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		AddSignedFile("test.yaml", "null").
+		ProjectSpec(appProjectWithHelmSourceIntegrity(SourceIntegrityHelmPolicyProvenanceModeNone))
+
+	brokenApp := GivenWithSameState(workingApp).
+		SetAppNamespace(fixture.ArgoCDAppNamespace).
+		RepoURLType(fixture.RepoURLTypeHelm).
+		Chart("helm").
+		Revision("1.0.0").
+		Project("default").
+		ProjectSpec(appProjectWithHelmSourceIntegrity(SourceIntegrityHelmPolicyProvenanceModeProvenance, "D56C4FCA57A46444"))
+
+	expectHelmRepoClashWorkingAppState(workingApp.When().
+		IgnoreErrors().
 		CreateApp().
+		Sync().
+		Then())
+
+	expectHelmRepoClashBrokenAppState(brokenApp.When().
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then())
+
+	// Rerun to ensure app states remain independent across repeated syncs.
+	expectHelmRepoClashWorkingAppState(workingApp.When().
+		Sync().
+		Then())
+
+	expectHelmRepoClashBrokenAppState(brokenApp.When().
 		IgnoreErrors().
 		Sync().
-		Then().
+		Then())
+}
+
+func expectHelmRepoClashWorkingAppState(cons *Consequences) {
+	cons.
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(NoConditions()).
-		Given().
-		// Should start failing when the project does not bless they key anymore
-		ProjectSpec(appProjectWithSourceIntegrity()).
-		When().
-		IgnoreErrors().
-		Sync().
-		Then().
+		Expect(NoConditions())
+}
+
+func expectHelmRepoClashBrokenAppState(cons *Consequences) {
+	cons.
 		Expect(OperationPhaseIs(OperationError)).
-		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: Failed verifying revision")).
-		Expect(Condition(ApplicationConditionComparisonError, "signed with unallowed key (key_id="+fixture.GpgGoodKeyID+")"))
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Condition(ApplicationConditionComparisonError, "provenance file (.prov) is required but missing"))
+}
+
+func appProjectWithHelmSourceIntegrity(mode SourceIntegrityHelmPolicyProvenanceMode, keys ...string) AppProjectSpec {
+	if keys == nil {
+		keys = []string{}
+	}
+	return AppProjectSpec{
+		SourceRepos:      []string{"*"},
+		SourceNamespaces: []string{"*"},
+		Destinations:     []ApplicationDestination{{Namespace: "*", Server: "*"}},
+		SourceIntegrity: &SourceIntegrity{
+			Helm: &SourceIntegrityHelm{
+				Policies: []*SourceIntegrityHelmPolicy{{
+					Repos: []SourceIntegrityHelmPolicyRepo{{URL: "*"}},
+					Provenance: &SourceIntegrityHelmPolicyProvenance{
+						Mode: mode,
+						Keys: keys,
+					},
+				}},
+			},
+		},
+	}
 }
