@@ -1,6 +1,7 @@
 import {HelpIcon} from 'argo-ui';
 import * as React from 'react';
 import {ARGO_GRAY6_COLOR, DataLoader} from '../../../shared/components';
+import {Consumer} from '../../../shared/context';
 import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
@@ -66,98 +67,66 @@ const getApplicationSetOwnerRef = (application: models.Application) => {
     return application.metadata.ownerReferences?.find(ref => ref.kind === 'ApplicationSet');
 };
 
-const ProgressiveSyncStatus = ({application}: {application: models.Application}) => {
+const ApplicationSetPanel = ({application}: {application: models.Application}) => {
     const appSetRef = getApplicationSetOwnerRef(application);
     if (!appSetRef) {
         return null;
     }
-
     return (
-        <DataLoader
-            input={application}
-            errorRenderer={() => {
-                // For any errors, show a minimal error state
-                return (
-                    <div className='application-status-panel__item'>
-                        {sectionHeader({
-                            title: 'PROGRESSIVE SYNC',
-                            helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet.'
-                        })}
-                        <div className='application-status-panel__item-value'>
-                            <i className='fa fa-exclamation-triangle' style={{color: COLORS.sync.unknown}} /> Error
-                        </div>
-                        <div className='application-status-panel__item-name'>Unable to load Progressive Sync status</div>
+        <div className='application-status-panel__item'>
+            {sectionLabel({title: 'APPLICATIONSET', helpContent: 'The ApplicationSet that manages this application.'})}
+            <div className='application-status-panel__item-value'>
+                <Consumer>{ctx => <a onClick={() => ctx.navigation.goto(`/applicationsets/${application.metadata.namespace}/${appSetRef.name}`)}>{appSetRef.name}</a>}</Consumer>
+            </div>
+            <DataLoader
+                noLoaderOnInputChange={true}
+                input={application}
+                errorRenderer={() => (
+                    <div className='application-status-panel__item-name'>
+                        <i className='fa fa-exclamation-triangle' style={{color: COLORS.sync.unknown}} /> Unable to load Rolling Sync status
                     </div>
-                );
-            }}
-            load={async () => {
-                // Find ApplicationSet by searching all namespaces dynamically
-                const appSetList = await services.applications.listApplicationSets();
-                const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name);
-
-                return {appSet};
-            }}>
-            {({appSet}: {appSet: models.ApplicationSet}) => {
-                // Hide panel if: Progressive Sync disabled, no permission, or not RollingSync strategy
-                if (!appSet || !appSet.status?.applicationStatus || appSet?.spec?.strategy?.type !== 'RollingSync') {
-                    return null;
-                }
-
-                // Get the current application's status from the ApplicationSet applicationStatus
-                const appResource = appSet.status?.applicationStatus?.find(status => status.application === application.metadata.name);
-
-                // If no application status is found, show a default status
-                if (!appResource) {
-                    return (
-                        <div className='application-status-panel__item'>
-                            {sectionHeader({
-                                title: 'PROGRESSIVE SYNC',
-                                helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet with RollingSync strategy.'
-                            })}
-                            <div className='application-status-panel__item-value'>
-                                <i className='fa fa-clock' style={{color: COLORS.sync.out_of_sync}} /> Waiting
-                            </div>
-                            <div className='application-status-panel__item-name'>Application status not yet available from ApplicationSet</div>
-                        </div>
+                )}
+                load={async () => {
+                    const appSetList = await services.applications.listApplicationSets();
+                    const appSet = appSetList.items?.find(
+                        item => item.metadata.name === appSetRef.name && item.metadata.namespace === application.metadata.namespace
                     );
-                }
-
-                // Get last transition time from application status
-                const lastTransitionTime = appResource?.lastTransitionTime;
-
-                return (
-                    <div className='application-status-panel__item'>
-                        {sectionHeader({
-                            title: 'PROGRESSIVE SYNC',
-                            helpContent: 'Shows the current status of progressive sync for applications managed by an ApplicationSet with RollingSync strategy.'
-                        })}
-                        <div className='application-status-panel__item-value' style={{color: getProgressiveSyncStatusColor(appResource.status)}}>
-                            {getProgressiveSyncStatusIcon({status: appResource.status})}&nbsp;{appResource.status}
-                        </div>
-                        {appResource?.step && <div className='application-status-panel__item-value'>Wave: {appResource.step}</div>}
-                        {lastTransitionTime && (
-                            <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                                Last Transition: <br />
-                                <Timestamp date={lastTransitionTime} />
+                    return {appSet};
+                }}>
+                {({appSet}: {appSet: models.ApplicationSet}) => {
+                    if (!appSet || !appSet.status?.applicationStatus || appSet?.spec?.strategy?.type !== 'RollingSync') {
+                        return null;
+                    }
+                    const appResource = appSet.status.applicationStatus.find(s => s.application === application.metadata.name);
+                    if (!appResource) {
+                        return (
+                            <div className='application-status-panel__item-value'>
+                                <i className='fa fa-clock' style={{color: COLORS.sync.out_of_sync}} /> Rolling Sync: Waiting
                             </div>
-                        )}
-                        {appResource?.message && <div className='application-status-panel__item-name'>{appResource.message}</div>}
-                    </div>
-                );
-            }}
-        </DataLoader>
+                        );
+                    }
+                    return (
+                        <React.Fragment>
+                            <div className='application-status-panel__item-value' style={{color: getProgressiveSyncStatusColor(appResource.status)}}>
+                                {getProgressiveSyncStatusIcon({status: appResource.status})}&nbsp;Rolling Sync: {appResource.status}
+                            </div>
+                            {appResource.step && <div className='application-status-panel__item-name'>Wave: {appResource.step}</div>}
+                            {appResource.lastTransitionTime && (
+                                <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
+                                    Last Transition: <br />
+                                    <Timestamp date={appResource.lastTransitionTime} />
+                                </div>
+                            )}
+                            {appResource.message && <div className='application-status-panel__item-name'>{appResource.message}</div>}
+                        </React.Fragment>
+                    );
+                }}
+            </DataLoader>
+        </div>
     );
 };
 
 export const ApplicationStatusPanel = ({application, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
-    const [showProgressiveSync, setShowProgressiveSync] = React.useState(false);
-
-    React.useEffect(() => {
-        // Only show Progressive Sync if the application has an ApplicationSet parent
-        // The actual strategy validation will be done inside ProgressiveSyncStatus component
-        setShowProgressiveSync(!!getApplicationSetOwnerRef(application));
-    }, [application]);
-
     const today = new Date();
 
     let daysSinceLastSynchronized = 0;
@@ -360,7 +329,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     </React.Fragment>
                 )}
             </DataLoader>
-            {showProgressiveSync && <ProgressiveSyncStatus application={application} />}
+            <ApplicationSetPanel application={application} />
             {statusExtensions && statusExtensions.map(ext => <ext.component key={ext.title} application={application} openFlyout={() => showExtension && showExtension(ext.id)} />)}
         </div>
     );
