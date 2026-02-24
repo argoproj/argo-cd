@@ -121,7 +121,7 @@ const config = {
             disableDotRule: true
         },
         port: 4000,
-        host: process.env.ARGOCD_E2E_YARN_HOST || 'localhost',
+        host: process.env.ARGOCD_E2E_JS_HOST || 'localhost',
         client: {
             overlay: {
                 errors: true,
