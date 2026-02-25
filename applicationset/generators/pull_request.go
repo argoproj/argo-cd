@@ -53,7 +53,7 @@ func (g *PullRequestGenerator) GetContinueOnRepoNotFoundError(appSetGenerator *a
 }
 
 func (g *PullRequestGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
-	return &appSetGenerator.PullRequest.Template
+	return appSetGenerator.PullRequest.Template
 }
 
 func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {

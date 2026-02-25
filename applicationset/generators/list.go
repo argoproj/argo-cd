@@ -26,7 +26,7 @@ func (g *ListGenerator) GetRequeueAfter(_ *argoprojiov1alpha1.ApplicationSetGene
 }
 
 func (g *ListGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
-	return &appSetGenerator.List.Template
+	return appSetGenerator.List.Template
 }
 
 func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {

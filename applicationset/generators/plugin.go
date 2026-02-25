@@ -49,7 +49,7 @@ func (g *PluginGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 }
 
 func (g *PluginGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
-	return &appSetGenerator.Plugin.Template
+	return appSetGenerator.Plugin.Template
 }
 
 func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]any, error) {

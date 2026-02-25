@@ -78,7 +78,7 @@ func (g *SCMProviderGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alph
 }
 
 func (g *SCMProviderGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
-	return &appSetGenerator.SCMProvider.Template
+	return appSetGenerator.SCMProvider.Template
 }
 
 var ErrSCMProvidersDisabled = errors.New("scm providers are disabled")

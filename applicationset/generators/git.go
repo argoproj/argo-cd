@@ -43,7 +43,7 @@ func NewGitGenerator(repos services.Repos, controllerNamespace string) Generator
 // from the provided ApplicationSetGenerator. This template defines how each
 // generated Argo CD Application should be rendered.
 func (g *GitGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
-	return &appSetGenerator.Git.Template
+	return appSetGenerator.Git.Template
 }
 
 // GetRequeueAfter returns the duration after which the Git generator should be
