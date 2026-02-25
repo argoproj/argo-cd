@@ -15,3 +15,4 @@ helm3_version=3.19.4
 kustomize5_version=5.8.1
 protoc_version=29.3
 oras_version=1.2.0
+git_lfs_version=3.7.1
