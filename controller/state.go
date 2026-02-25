@@ -612,7 +612,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					return nil, ErrCompareStateRepo
 				}
 			} else if !noRevisionCache {
-				logCtx.Debugf("Ignoring repo error %v, first occurrence", err.Error())
+				logCtx.Debugf("Ignoring repo error %v, new occurrence", err.Error())
 				m.repoErrorCache.Store(app.Name, time.Now())
 				return nil, ErrCompareStateRepo
 			}
