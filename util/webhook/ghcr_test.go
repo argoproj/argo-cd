@@ -20,7 +20,7 @@ func TestGHCRParser_Parse(t *testing.T) {
 		body       string
 		expectErr  bool
 		expectSkip bool
-		expected   *WebhookRegistryEvent
+		expected   *RegistryEvent
 	}{
 		{
 			name: "valid container package event",
@@ -40,7 +40,7 @@ func TestGHCRParser_Parse(t *testing.T) {
 					}
 				}
 			}`,
-			expected: &WebhookRegistryEvent{
+			expected: &RegistryEvent{
 				RegistryURL: "ghcr.io",
 				Repository:  "user/repo",
 				Tag:         "1.0.0",

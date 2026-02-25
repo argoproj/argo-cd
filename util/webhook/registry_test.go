@@ -41,7 +41,9 @@ func TestNormalizeOCI(t *testing.T) {
 	}
 }
 
-func TestIsRegistryEvent(t *testing.T) {
+func TestRegistryHandlerCanHandle(t *testing.T) {
+	h := NewWebhookRegistryHandler("")
+
 	tests := []struct {
 		name     string
 		event    string
@@ -57,7 +59,7 @@ func TestIsRegistryEvent(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/", http.NoBody)
 			req.Header.Set("X-GitHub-Event", tt.event)
-			assert.Equal(t, tt.expected, IsRegistryEvent(req))
+			assert.Equal(t, tt.expected, h.CanHandle(req))
 		})
 	}
 }
@@ -121,7 +123,7 @@ func TestHandleRegistryEvent_RefreshMatchingApp(t *testing.T) {
 		},
 	)
 
-	event := &WebhookRegistryEvent{
+	event := &RegistryEvent{
 		RegistryURL: "ghcr.io",
 		Repository:  "user/repo",
 		Tag:         "1.0.0",
@@ -154,7 +156,7 @@ func TestHandleRegistryEvent_RepoMismatch(t *testing.T) {
 		},
 	)
 
-	event := &WebhookRegistryEvent{
+	event := &RegistryEvent{
 		RegistryURL: "ghcr.io",
 		Repository:  "user/repo",
 		Tag:         "1.0.0",
@@ -187,7 +189,7 @@ func TestHandleRegistryEvent_RevisionMismatch(t *testing.T) {
 		},
 	)
 
-	event := &WebhookRegistryEvent{
+	event := &RegistryEvent{
 		RegistryURL: "ghcr.io",
 		Repository:  "user/repo",
 		Tag:         "1.0.0",
@@ -233,7 +235,7 @@ func TestHandleRegistryEvent_NamespaceFiltering(t *testing.T) {
 		},
 	)
 
-	event := &WebhookRegistryEvent{
+	event := &RegistryEvent{
 		RegistryURL: "ghcr.io",
 		Repository:  "user/repo",
 		Tag:         "1.0.0",
