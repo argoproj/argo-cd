@@ -4,23 +4,24 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGHCRParser_Parse(t *testing.T) {
 	parser := NewGHCRParser()
 
 	tests := []struct {
-		name      string
-		body      string
-		expectErr bool
-		expected  *WebhookRegistryEvent
+		name       string
+		body       string
+		expectErr  bool
+		expectSkip bool
+		expected   *WebhookRegistryEvent
 	}{
 		{
 			name: "valid container package event",
@@ -56,18 +57,18 @@ func TestGHCRParser_Parse(t *testing.T) {
 					"package_type": "container"
 				}
 			}`,
-			expectErr: true,
+			expectSkip: true,
 		},
 		{
 			name: "ignore non-container package",
 			body: `{
-				"action": "updated",
+				"action": "published",
 				"package": {
 					"name": "repo",
 					"package_type": "npm"
 				}
 			}`,
-			expectErr: true,
+			expectSkip: true,
 		},
 		{
 			name: "missing tag",
@@ -84,7 +85,7 @@ func TestGHCRParser_Parse(t *testing.T) {
 					}
 				}
 			}`,
-			expectErr: true,
+			expectSkip: true,
 		},
 		{
 			name:      "invalid json",
@@ -99,6 +100,12 @@ func TestGHCRParser_Parse(t *testing.T) {
 
 			if tt.expectErr {
 				require.Error(t, err)
+				require.Nil(t, event)
+				return
+			}
+
+			if tt.expectSkip {
+				require.NoError(t, err)
 				require.Nil(t, event)
 				return
 			}
@@ -124,6 +131,7 @@ func TestValidateSignature(t *testing.T) {
 		secret      string
 		headerSig   string
 		expectError bool
+		expectHMAC  bool
 	}{
 		{
 			name:      "valid signature",
@@ -134,12 +142,14 @@ func TestValidateSignature(t *testing.T) {
 			name:        "missing signature header",
 			secret:      secret,
 			expectError: true,
+			expectHMAC:  true,
 		},
 		{
 			name:        "invalid signature",
 			secret:      secret,
 			headerSig:   "sha256=deadbeef",
 			expectError: true,
+			expectHMAC:  true,
 		},
 		{
 			name:   "no secret configured (skip validation)",
@@ -163,6 +173,9 @@ func TestValidateSignature(t *testing.T) {
 
 			if tt.expectError {
 				assert.Error(t, err)
+				if tt.expectHMAC {
+					assert.True(t, errors.Is(err, ErrHMACVerificationFailed))
+				}
 			} else {
 				assert.NoError(t, err)
 			}

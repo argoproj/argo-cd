@@ -37,6 +37,9 @@ type WebhookRegistryEvent struct {
 	Digest string `json:"digest,omitempty"`
 }
 
+// ErrHMACVerificationFailed is returned when a registry webhook signature check fails.
+var ErrHMACVerificationFailed = errors.New("HMAC verification failed")
+
 // RegistryParser defines an interface for parsing registry-specific webhook payloads.
 //
 // Implementations detect whether they can handle an incoming HTTP request and,

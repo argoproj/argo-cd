@@ -651,8 +651,13 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	if IsRegistryEvent(r) {
 		event, err := a.registryHandler.ProcessWebhook(r)
 		if err != nil {
-			log.Println("Error processing registry webhook:", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			if errors.Is(err, ErrHMACVerificationFailed) {
+				log.WithField(common.SecurityField, common.SecurityHigh).Infof("Registry webhook HMAC verification failed")
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+			log.Infof("Registry webhook processing failed: %s", err)
+			http.Error(w, "Registry webhook processing failed", http.StatusBadRequest)
 			return
 		}
 		if event == nil {
