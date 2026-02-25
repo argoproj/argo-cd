@@ -175,7 +175,7 @@ func TestMatrixGenerate(t *testing.T) {
 			got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
 				Matrix: &v1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
-					Template:   v1alpha1.ApplicationSetTemplate{},
+					Template:   &v1alpha1.ApplicationSetTemplate{},
 				},
 			}, appSet, nil)
 
@@ -388,7 +388,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 			got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
 				Matrix: &v1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
-					Template:   v1alpha1.ApplicationSetTemplate{},
+					Template:   &v1alpha1.ApplicationSetTemplate{},
 				},
 			}, appSet, nil)
 
@@ -532,7 +532,7 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 			got := matrixGenerator.GetRequeueAfter(&v1alpha1.ApplicationSetGenerator{
 				Matrix: &v1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
-					Template:   v1alpha1.ApplicationSetTemplate{},
+					Template:   &v1alpha1.ApplicationSetTemplate{},
 				},
 			})
 
@@ -668,7 +668,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 			got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
 				Matrix: &v1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
-					Template:   v1alpha1.ApplicationSetTemplate{},
+					Template:   &v1alpha1.ApplicationSetTemplate{},
 				},
 			}, appSet, nil)
 
@@ -849,7 +849,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 			got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
 				Matrix: &v1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
-					Template:   v1alpha1.ApplicationSetTemplate{},
+					Template:   &v1alpha1.ApplicationSetTemplate{},
 				},
 			}, appSet, nil)
 
@@ -1010,7 +1010,7 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 			got, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
 				Matrix: &v1alpha1.MatrixGenerator{
 					Generators: testCaseCopy.baseGenerators,
-					Template:   v1alpha1.ApplicationSetTemplate{},
+					Template:   &v1alpha1.ApplicationSetTemplate{},
 				},
 			}, appSet, nil)
 
