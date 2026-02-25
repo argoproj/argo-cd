@@ -220,7 +220,7 @@ ApplicationSet controller provides:
     3. starts and ends with an alphanumeric character
 
 - `slugify`: sanitizes like `normalize` and smart truncates (it doesn't cut a word into 2) like described in the [introduction](#introduction) section.
-- `toYaml` / `fromYaml` / `fromYamlArray` helm like functions
+- `toYaml` / `fromYaml` / `fromYamlArray` / `tpl` helm like functions
 
 
 ## Examples

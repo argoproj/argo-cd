@@ -1,8 +1,10 @@
 package utils
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
+	"text/template"
 
 	"sigs.k8s.io/yaml"
 )
@@ -68,4 +70,33 @@ func fromYAMLArray(str string) ([]any, error) {
 		return nil, err
 	}
 	return a, nil
+}
+
+// This has been copied from helm but adapted to our needs as we have a more limited use case for
+// https://github.com/helm/helm/blob/ee018608f6fbf381fac1bae9759164a65c6a0b1f/pkg/engine/engine.go#L153-L195
+func tplFun(parent *template.Template) func(string, interface{}) (string, error) {
+	return func(tpl string, vals interface{}) (string, error) {
+		t, err := parent.Clone()
+		if err != nil {
+			return "", fmt.Errorf("cannot clone template: %w", err)
+		}
+
+		// We need a .New template, as template text which is just blanks
+		// or comments after parsing out defines just adds new named
+		// template definitions without changing the main template.
+		// https://pkg.go.dev/text/template#Template.Parse
+		// Use the parent's name for lack of a better way to identify the tpl
+		// text string. (Maybe we could use a hash appended to the name?)
+		t, err = t.New(parent.Name()).Parse(tpl)
+		if err != nil {
+			return "", fmt.Errorf("cannot parse template %q: %w", tpl, err)
+		}
+
+		var buf strings.Builder
+		if err := t.Execute(&buf, vals); err != nil {
+			return "", fmt.Errorf("error during tpl function execution for %q: %w", tpl, err)
+		}
+
+		return strings.ReplaceAll(buf.String(), "<no value>", ""), nil
+	}
 }
