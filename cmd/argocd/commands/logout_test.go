@@ -201,8 +201,9 @@ func TestLogout_InsecureTLS_SetsInsecureFlag(t *testing.T) {
 	//   2. Connect with InsecureSkipVerify=false → fails (InsecureErr set)
 	cert := generateSelfSignedCert(t)
 
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
+	lc := net.ListenConfig{}
+	lis, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err, "Unable to start server")
 
 	serverCreds := grpccreds.NewServerTLSFromCert(&cert)
 	grpcServer := grpc.NewServer(grpc.Creds(serverCreds))
