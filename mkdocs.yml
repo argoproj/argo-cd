@@ -86,6 +86,7 @@ nav:
       - operator-manual/notifications/services/googlechat.md
       - operator-manual/notifications/services/grafana.md
       - operator-manual/notifications/services/mattermost.md
+      - operator-manual/notifications/services/nats.md
       - operator-manual/notifications/services/newrelic.md
       - operator-manual/notifications/services/opsgenie.md
       - operator-manual/notifications/services/overview.md
@@ -213,6 +214,7 @@ nav:
   - Development Environment: developer-guide/development-environment.md
   - Development Cycle: developer-guide/development-cycle.md
   - Submit Your PR: developer-guide/submit-your-pr.md
+  - Backport Your Fix: developer-guide/backporting-fixes.md
   - Architecture:
     - developer-guide/architecture/authz-authn.md
     - developer-guide/architecture/components.md

@@ -1425,6 +1425,22 @@ export function getConditionCategory(condition: appModels.ApplicationCondition):
     }
 }
 
+export function getAppSetConditionCategory(condition: appModels.ApplicationSetCondition): 'error' | 'warning' | 'info' {
+    const status = condition.status?.toLowerCase();
+    const type = condition.type;
+
+    // ErrorOccurred with status True = error
+    if (type === 'ErrorOccurred' && status === 'true') {
+        return 'error';
+    }
+    // ParametersGenerated or ResourcesUpToDate with status False = error (indicates failure)
+    if ((type === 'ParametersGenerated' || type === 'ResourcesUpToDate') && status === 'false') {
+        return 'error';
+    }
+    // Otherwise it's informational
+    return 'info';
+}
+
 export function isAppNode(node: appModels.ResourceNode) {
     return node.kind === 'Application' && node.group === 'argoproj.io';
 }
@@ -1451,6 +1467,16 @@ export function getAppDefaultSource(app?: appModels.Application) {
         return null;
     }
     return getAppSpecDefaultSource(app.spec);
+}
+
+// getAppDrySource gets the dry source from the source hydrator
+export function getAppDrySource(app?: appModels.Application): appModels.ApplicationSource | null {
+    if (!app) {
+        return null;
+    }
+    const {path, targetRevision, repoURL} = app.spec.sourceHydrator?.drySource || app.spec.source;
+
+    return {repoURL, targetRevision, path};
 }
 
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
@@ -1720,6 +1746,35 @@ export function isApp(abstractApp: appModels.AbstractApplication): abstractApp i
 
 export function getRootPathByApp(abstractApp: appModels.AbstractApplication) {
     return isApp(abstractApp) ? '/applications' : '/applicationsets';
+}
+
+// Get ApplicationSet health status from its conditions
+// Priority: ErrorOccurred=True → Degraded, RolloutProgressing=True → Progressing, ResourcesUpToDate=True → Healthy, else Unknown
+export function getAppSetHealthStatus(appSet: appModels.ApplicationSet): appModels.HealthStatusCode {
+    const conditions = appSet.status?.conditions;
+    if (!conditions || conditions.length === 0) {
+        return 'Unknown';
+    }
+
+    // Check for errors first (indicates degraded state)
+    const errorCondition = conditions.find(c => c.type === 'ErrorOccurred' && c.status === 'True');
+    if (errorCondition) {
+        return 'Degraded';
+    }
+
+    // Check if rollout is progressing
+    const progressingCondition = conditions.find(c => c.type === 'RolloutProgressing' && c.status === 'True');
+    if (progressingCondition) {
+        return 'Progressing';
+    }
+
+    // Check if resources are up to date (healthy state)
+    const upToDateCondition = conditions.find(c => c.type === 'ResourcesUpToDate' && c.status === 'True');
+    if (upToDateCondition) {
+        return 'Healthy';
+    }
+
+    return 'Unknown';
 }
 
 export function appQualifiedName(app: appModels.AbstractApplication, nsEnabled: boolean): string {

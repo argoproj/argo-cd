@@ -10,7 +10,7 @@ To run an Argo CD development environment review the [developer guide for runnin
 
 ## Install Kind
 
-Install Kind Following Instructions [here](https://kind.sigs.k8s.io/docs/user/quick-start#installation).
+Install Kind following their quick-start [instructions](https://kind.sigs.k8s.io/docs/user/quick-start#installation).
 
 ##  Create a Kind Cluster
 Once Kind is installed, create a new Kubernetes cluster with:

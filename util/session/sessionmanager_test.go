@@ -7,6 +7,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -235,10 +236,6 @@ func (tm *tokenVerifierMock) VerifyToken(_ context.Context, _ string) (jwt.Claim
 	return tm.claims, "", tm.err
 }
 
-func strPointer(str string) *string {
-	return &str
-}
-
 func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	handlerFunc := func() func(http.ResponseWriter, *http.Request) {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -288,7 +285,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			verifyTokenErr:       nil,
 			userInfoCacheClaims:  nil,
 			expectedStatusCode:   http.StatusOK,
-			expectedResponseBody: strPointer("{}"),
+			expectedResponseBody: new("{}"),
 		},
 		{
 			name:                 "will be noop if auth is disabled",
@@ -299,7 +296,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			verifyTokenErr:       nil,
 			userInfoCacheClaims:  nil,
 			expectedStatusCode:   http.StatusOK,
-			expectedResponseBody: strPointer("Ok"),
+			expectedResponseBody: new("Ok"),
 		},
 		{
 			name:                 "will return 400 if no cookie header",
@@ -332,7 +329,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			verifyTokenErr:       nil,
 			userInfoCacheClaims:  nil,
 			expectedStatusCode:   http.StatusOK,
-			expectedResponseBody: strPointer("null"),
+			expectedResponseBody: new("null"),
 		},
 		{
 			name:                 "will return 401 if sso is enabled but userinfo response not working",
@@ -343,7 +340,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			verifyTokenErr:       nil,
 			userInfoCacheClaims:  nil, // indicates that the userinfo response will not work since cache is empty and userinfo endpoint not rechable
 			expectedStatusCode:   http.StatusUnauthorized,
-			expectedResponseBody: strPointer("Invalid session"),
+			expectedResponseBody: new("Invalid session"),
 		},
 		{
 			name:                 "will return 200 if sso is enabled and userinfo response from cache is valid",
@@ -354,11 +351,10 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			verifyTokenErr:       nil,
 			userInfoCacheClaims:  &jwt.MapClaims{"sub": "randomUser", "groups": []string{"superusers"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			expectedStatusCode:   http.StatusOK,
-			expectedResponseBody: strPointer("\"groups\":[\"superusers\"]"),
+			expectedResponseBody: new("\"groups\":[\"superusers\"]"),
 		},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			mux := http.NewServeMux()
@@ -616,13 +612,13 @@ func TestLoginRateLimiter(t *testing.T) {
 }
 
 func TestMaxUsernameLength(t *testing.T) {
-	username := ""
-	for i := 0; i < maxUsernameLength+1; i++ {
-		username += "a"
+	var username strings.Builder
+	for range maxUsernameLength + 1 {
+		username.WriteString("a")
 	}
 	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
-	err := mgr.VerifyUsernamePassword(username, "password")
+	err := mgr.VerifyUsernamePassword(username.String(), "password")
 	assert.ErrorContains(t, err, fmt.Sprintf(usernameTooLongError, maxUsernameLength))
 }
 
@@ -666,9 +662,7 @@ func getKubeClientWithConfig(config map[string]string, secretConfig map[string][
 	mergedSecretConfig := map[string][]byte{
 		"server.secretkey": []byte("Hello, world!"),
 	}
-	for key, value := range secretConfig {
-		mergedSecretConfig[key] = value
-	}
+	maps.Copy(mergedSecretConfig, secretConfig)
 
 	return fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1307,7 +1301,7 @@ func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
 		}
 
 		// inside pickRandomNonAdminLoginFailure, it uses random, so we need to test it multiple times
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			user := pickRandomNonAdminLoginFailure(failures, "test")
 			assert.Equal(t, "test2", *user)
 		}
@@ -1327,7 +1321,7 @@ func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
 		}
 
 		// inside pickRandomNonAdminLoginFailure, it uses random, so we need to test it multiple times
-		for i := 0; i < 1000; i++ {
+		for range 1000 {
 			user := pickRandomNonAdminLoginFailure(failures, "test")
 			assert.Equal(t, "test2", *user)
 		}

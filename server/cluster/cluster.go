@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -117,7 +117,7 @@ func filterClustersByName(clusters []appv1.Cluster, name string) []appv1.Cluster
 		return clusters
 	}
 	items := make([]appv1.Cluster, 0)
-	for i := 0; i < len(clusters); i++ {
+	for i := range clusters {
 		if clusters[i].Name == name {
 			items = append(items, clusters[i])
 			return items
@@ -131,7 +131,7 @@ func filterClustersByServer(clusters []appv1.Cluster, server string) []appv1.Clu
 		return clusters
 	}
 	items := make([]appv1.Cluster, 0)
-	for i := 0; i < len(clusters); i++ {
+	for i := range clusters {
 		if clusters[i].Server == server {
 			items = append(items, clusters[i])
 			return items

@@ -23,7 +23,7 @@ This feature can only be enabled and used when your Argo CD is installed as a cl
 
 Also, while technically not necessary, it is strongly suggested that you switch the application tracking method from the default `label` setting to either `annotation` or `annotation+label`. The reasoning for this is, that application names will be a composite of the namespace's name and the name of the `Application`, and this can easily exceed the 63 characters length limit imposed on label values. Annotations have a notably greater length limit.
 
-To enable annotation based resource tracking, refer to the documentation about [resource tracking methods](../../user-guide/resource_tracking/)
+To enable annotation based resource tracking, refer to the documentation about [resource tracking methods](../user-guide/resource_tracking.md)
 
 ## Implementation details
 
