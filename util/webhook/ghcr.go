@@ -5,9 +5,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"net/http"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // GHCRParser parses webhook payloads sent by GitHub Container Registry (GHCR).
@@ -28,8 +30,9 @@ func NewGHCRParser() *GHCRParser {
 //
 // The method expects a GitHub package event with action "published" for a
 // container package. It returns a normalized WebhookRegistryEvent containing
-// the registry host, repository, tag, and digest. Non-container packages,
-// unsupported actions, or missing tags result in an error.
+// the registry host, repository, tag, and digest. Returns nil, nil for events
+// that are intentionally skipped (unsupported actions, non-container packages,
+// or missing tags). Only returns an error for genuinely malformed payloads.
 func (p *GHCRParser) Parse(body []byte) (*WebhookRegistryEvent, error) {
 	var payload struct {
 		Action  string `json:"action"`
@@ -57,11 +60,13 @@ func (p *GHCRParser) Parse(body []byte) (*WebhookRegistryEvent, error) {
 	}
 
 	if payload.Action != "published" {
-		return nil, errors.New("ignoring action")
+		log.Debugf("Skipping GHCR webhook event: unsupported action %q", payload.Action)
+		return nil, nil
 	}
 
 	if !strings.EqualFold(payload.Package.PackageType, "container") {
-		return nil, errors.New("not a container package")
+		log.Debugf("Skipping GHCR webhook event: unsupported package type %q", payload.Package.PackageType)
+		return nil, nil
 	}
 
 	repository := payload.Package.Owner.Login + "/" + payload.Package.Name
@@ -69,7 +74,8 @@ func (p *GHCRParser) Parse(body []byte) (*WebhookRegistryEvent, error) {
 	digest := payload.Package.PackageVersion.ContainerMetadata.Tag.Digest
 
 	if tag == "" {
-		return nil, errors.New("missing tag")
+		log.Debugf("Skipping GHCR webhook event: missing tag for repository %q", repository)
+		return nil, nil
 	}
 
 	return &WebhookRegistryEvent{
@@ -90,7 +96,7 @@ func (h *WebhookRegistryHandler) validateSignature(r *http.Request, body []byte)
 	if h.secret != "" {
 		signature := r.Header.Get("X-Hub-Signature-256")
 		if signature == "" {
-			return errors.New("missing signature")
+			return fmt.Errorf("%w: missing X-Hub-Signature-256 header", ErrHMACVerificationFailed)
 		}
 
 		mac := hmac.New(sha256.New, []byte(h.secret))
@@ -98,7 +104,7 @@ func (h *WebhookRegistryHandler) validateSignature(r *http.Request, body []byte)
 		expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
 
 		if !hmac.Equal([]byte(signature), []byte(expected)) {
-			return errors.New("invalid signature")
+			return fmt.Errorf("%w: signature mismatch", ErrHMACVerificationFailed)
 		}
 	}
 
