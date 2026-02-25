@@ -1699,7 +1699,7 @@ spec:
       initContainers:
       - args:
         - /bin/cp --update=none /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln
-          -s /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
+          -sf /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
         command:
         - sh
         - -c
