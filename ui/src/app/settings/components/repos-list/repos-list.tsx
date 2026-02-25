@@ -21,6 +21,7 @@ interface NewSSHRepoParams {
     proxy: string;
     noProxy: string;
     project?: string;
+    depth?: number;
     // write should be true if saving as a write credential.
     write: boolean;
 }
@@ -42,6 +43,7 @@ export interface NewHTTPSRepoParams {
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
     insecureOCIForceHttp: boolean;
+    depth?: number;
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
@@ -62,6 +64,7 @@ interface NewGitHubAppRepoParams {
     proxy: string;
     noProxy: string;
     project?: string;
+    depth?: number;
     // write should be true if saving as a write credential.
     write: boolean;
 }
@@ -74,6 +77,7 @@ interface NewGoogleCloudSourceRepoParams {
     proxy: string;
     noProxy: string;
     project?: string;
+    depth?: number;
     // write should be true if saving as a write credential.
     write: boolean;
 }
@@ -1108,6 +1112,10 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                 </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                    <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                                                </div>
                                             </div>
                                         )}
                                         {method === ConnectionMethod.HTTPS && (
@@ -1206,6 +1214,12 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Use Azure Workload Identity' field='useAzureWorkloadIdentity' component={CheckboxField} />
                                                 </div>
+                                                {formApi.getFormState().values.type === 'git' && (
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                        <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         {method === ConnectionMethod.GITHUBAPP && (
@@ -1274,6 +1288,10 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                 </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                    <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                                                </div>
                                             </div>
                                         )}
                                         {method === ConnectionMethod.GOOGLECLOUD && (
@@ -1293,6 +1311,10 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 </div>
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
+                                                </div>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                    <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
                                                 </div>
                                             </div>
                                         )}
