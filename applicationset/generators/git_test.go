@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
@@ -2423,7 +2422,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				},
 			},
 			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedProject: ptr.To("project"),
+			expectedProject: new("project"),
 			expectedError:   nil,
 		},
 		{
@@ -2457,7 +2456,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				},
 			},
 			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedProject: ptr.To(""),
+			expectedProject: new(""),
 			expectedError:   nil,
 		},
 	}

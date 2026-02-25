@@ -9,7 +9,6 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/expr-lang/expr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -126,8 +125,8 @@ func EvaluateDeepLinksResponse(obj map[string]any, name string, links []settings
 		}
 
 		finalLinks = append(finalLinks, &application.LinkInfo{
-			Title:       ptr.To(link.Title),
-			Url:         ptr.To(finalURL.String()),
+			Title:       new(link.Title),
+			Url:         new(finalURL.String()),
 			Description: link.Description,
 			IconClass:   link.IconClass,
 		})

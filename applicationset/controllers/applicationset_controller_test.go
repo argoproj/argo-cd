@@ -2950,6 +2950,112 @@ func TestUpdatePerformedWithSyncPolicySync(t *testing.T) {
 	assert.Equal(t, map[string]string{"label-key": "label-value"}, app.Labels)
 }
 
+// TestReconcilePopulatesResourcesStatusOnFirstRun verifies that status.resources and status.resourcesCount
+// are populated after the first reconcile, when applications are created.
+func TestReconcilePopulatesResourcesStatusOnFirstRun(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	err = corev1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	defaultProject := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
+		Spec:       v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://good-cluster"}}},
+	}
+	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicySync
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"cluster": "good-cluster","url": "https://good-cluster"}`),
+						}},
+					},
+				},
+			},
+			SyncPolicy: &v1alpha1.ApplicationSetSyncPolicy{
+				ApplicationsSync: &applicationsSyncPolicy,
+			},
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{cluster}}",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+					Project:     "default",
+					Destination: v1alpha1.ApplicationDestination{Server: "{{url}}"},
+				},
+			},
+		},
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cluster",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("good-cluster"),
+			"server": []byte("https://good-cluster"),
+			"config": []byte("{\"username\":\"foo\",\"password\":\"foo\"}"),
+		},
+	}
+
+	kubeclientset := getDefaultTestClientSet(secret)
+	client := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(&appSet, &defaultProject, secret).
+		WithStatusSubresource(&appSet).
+		WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+		Build()
+	metrics := appsetmetrics.NewFakeAppsetMetrics()
+
+	argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+	clusterInformer, err := settings.NewClusterInformer(kubeclientset, "argocd")
+	require.NoError(t, err)
+
+	defer startAndSyncInformer(t, clusterInformer)()
+
+	r := ApplicationSetReconciler{
+		Client:          client,
+		Scheme:          scheme,
+		Renderer:        &utils.Render{},
+		Recorder:        record.NewFakeRecorder(1),
+		Generators:      map[string]generators.Generator{"List": generators.NewListGenerator()},
+		ArgoDB:          argodb,
+		ArgoCDNamespace: "argocd",
+		KubeClientset:   kubeclientset,
+		Policy:          v1alpha1.ApplicationsSyncPolicySync,
+		Metrics:         metrics,
+		ClusterInformer: clusterInformer,
+	}
+
+	req := ctrl.Request{
+		NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "name"},
+	}
+
+	_, err = r.Reconcile(t.Context(), req)
+	require.NoError(t, err)
+
+	var retrievedAppSet v1alpha1.ApplicationSet
+	err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &retrievedAppSet)
+	require.NoError(t, err)
+
+	assert.Len(t, retrievedAppSet.Status.Resources, 1, "status.resources should have 1 item after first reconcile")
+	assert.Equal(t, int64(1), retrievedAppSet.Status.ResourcesCount, "status.resourcesCount should be 1 after first reconcile")
+	assert.Equal(t, "good-cluster", retrievedAppSet.Status.Resources[0].Name)
+}
+
 func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
 	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateOnly
 
