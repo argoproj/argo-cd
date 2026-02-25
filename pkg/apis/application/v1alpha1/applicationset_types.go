@@ -275,16 +275,16 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 // ListGenerator include items info
 type ListGenerator struct {
 	// +kubebuilder:validation:Optional
-	Elements     []apiextensionsv1.JSON `json:"elements" protobuf:"bytes,1,name=elements"`
-	Template     ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
-	ElementsYaml string                 `json:"elementsYaml,omitempty" protobuf:"bytes,3,opt,name=elementsYaml"`
+	Elements     []apiextensionsv1.JSON  `json:"elements" protobuf:"bytes,1,name=elements"`
+	Template     *ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
+	ElementsYaml string                  `json:"elementsYaml,omitempty" protobuf:"bytes,3,opt,name=elementsYaml"`
 }
 
 // MatrixGenerator generates the cartesian product of two sets of parameters. The parameters are defined by two nested
 // generators.
 type MatrixGenerator struct {
 	Generators []ApplicationSetNestedGenerator `json:"generators" protobuf:"bytes,1,name=generators"`
-	Template   ApplicationSetTemplate          `json:"template,omitempty" protobuf:"bytes,2,name=template"`
+	Template   *ApplicationSetTemplate         `json:"template,omitempty" protobuf:"bytes,2,name=template"`
 }
 
 // NestedMatrixGenerator is a MatrixGenerator nested under another combination-type generator (MatrixGenerator or
@@ -336,7 +336,7 @@ func (g NestedMatrixGenerator) ToMatrixGenerator() *MatrixGenerator {
 type MergeGenerator struct {
 	Generators []ApplicationSetNestedGenerator `json:"generators" protobuf:"bytes,1,name=generators"`
 	MergeKeys  []string                        `json:"mergeKeys" protobuf:"bytes,2,name=mergeKeys"`
-	Template   ApplicationSetTemplate          `json:"template,omitempty" protobuf:"bytes,3,name=template"`
+	Template   *ApplicationSetTemplate         `json:"template,omitempty" protobuf:"bytes,3,name=template"`
 }
 
 // NestedMergeGenerator is a MergeGenerator nested under another combination-type generator (MatrixGenerator or
@@ -382,8 +382,8 @@ type ClusterGenerator struct {
 	// Selector defines a label selector to match against all clusters registered with ArgoCD.
 	// Clusters today are stored as Kubernetes Secrets, thus the Secret labels will be used
 	// for matching the selector.
-	Selector metav1.LabelSelector   `json:"selector,omitempty" protobuf:"bytes,1,name=selector"`
-	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
+	Selector metav1.LabelSelector    `json:"selector,omitempty" protobuf:"bytes,1,name=selector"`
+	Template *ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,3,name=values"`
@@ -403,7 +403,7 @@ type DuckTypeGenerator struct {
 	RequeueAfterSeconds *int64               `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,3,name=requeueAfterSeconds"`
 	LabelSelector       metav1.LabelSelector `json:"labelSelector,omitempty" protobuf:"bytes,4,name=labelSelector"`
 
-	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,5,name=template"`
+	Template *ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,5,name=template"`
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,6,name=values"`
 }
@@ -414,7 +414,7 @@ type GitGenerator struct {
 	Files               []GitFileGeneratorItem      `json:"files,omitempty" protobuf:"bytes,3,name=files"`
 	Revision            string                      `json:"revision" protobuf:"bytes,4,name=revision"`
 	RequeueAfterSeconds *int64                      `json:"requeueAfterSeconds,omitempty" protobuf:"bytes,5,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate      `json:"template,omitempty" protobuf:"bytes,6,name=template"`
+	Template            *ApplicationSetTemplate     `json:"template,omitempty" protobuf:"bytes,6,name=template"`
 	PathParamPrefix     string                      `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
@@ -446,8 +446,8 @@ type SCMProviderGenerator struct {
 	// necessarily support all protocols.
 	CloneProtocol string `json:"cloneProtocol,omitempty" protobuf:"bytes,8,opt,name=cloneProtocol"`
 	// Standard parameters.
-	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,9,opt,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,10,opt,name=template"`
+	RequeueAfterSeconds *int64                  `json:"requeueAfterSeconds,omitempty" protobuf:"varint,9,opt,name=requeueAfterSeconds"`
+	Template            *ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,10,opt,name=template"`
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values        map[string]string                  `json:"values,omitempty" protobuf:"bytes,11,name=values"`
@@ -615,7 +615,7 @@ type PullRequestGenerator struct {
 	Filters []PullRequestGeneratorFilter `json:"filters,omitempty" protobuf:"bytes,5,rep,name=filters"`
 	// Standard parameters.
 	RequeueAfterSeconds *int64                         `json:"requeueAfterSeconds,omitempty" protobuf:"varint,6,opt,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate         `json:"template,omitempty" protobuf:"bytes,7,opt,name=template"`
+	Template            *ApplicationSetTemplate        `json:"template,omitempty" protobuf:"bytes,7,opt,name=template"`
 	Bitbucket           *PullRequestGeneratorBitbucket `json:"bitbucket,omitempty" protobuf:"bytes,8,opt,name=bitbucket"`
 	// Additional provider to use and config for it.
 	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,9,opt,name=azuredevops"`
@@ -794,8 +794,8 @@ type PluginGenerator struct {
 	ConfigMapRef PluginConfigMapRef `json:"configMapRef" protobuf:"bytes,1,name=configMapRef"`
 	Input        PluginInput        `json:"input,omitempty" protobuf:"bytes,2,name=input"`
 	// RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.
-	RequeueAfterSeconds *int64                 `json:"requeueAfterSeconds,omitempty" protobuf:"varint,3,opt,name=requeueAfterSeconds"`
-	Template            ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,4,name=template"`
+	RequeueAfterSeconds *int64                  `json:"requeueAfterSeconds,omitempty" protobuf:"varint,3,opt,name=requeueAfterSeconds"`
+	Template            *ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,4,name=template"`
 
 	// Values contains key/value pairs which are passed directly as parameters to the template. These values will not be
 	// sent as parameters to the plugin.
