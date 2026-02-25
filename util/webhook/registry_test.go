@@ -84,11 +84,11 @@ func TestProcessWebhook_Unsupported(t *testing.T) {
 	h := NewWebhookRegistryHandler("")
 
 	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString(`{}`))
-	req.Header.Set("X-GitHub-Event", "push") // not registry
+	req.Header.Set("X-GitHub-Event", "push") // not a registry event
 
-	_, err := h.ProcessWebhook(req)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unsupported registry webhook")
+	event, err := h.ProcessWebhook(req)
+	require.NoError(t, err)
+	assert.Nil(t, event)
 }
 
 func TestHandleRegistryEvent_RefreshMatchingApp(t *testing.T) {

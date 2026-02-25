@@ -14,8 +14,7 @@ import (
 )
 
 func TestGHCRParser_Parse(t *testing.T) {
-	parser := NewGHCRParser()
-
+	parser := NewGHCRParser("")
 	tests := []struct {
 		name       string
 		body       string
@@ -96,7 +95,8 @@ func TestGHCRParser_Parse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			event, err := parser.Parse([]byte(tt.body))
+			req := httptest.NewRequest(http.MethodPost, "/", nil)
+			event, err := parser.Parse(req, []byte(tt.body))
 
 			if tt.expectErr {
 				require.Error(t, err)
@@ -159,9 +159,7 @@ func TestValidateSignature(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			handler := &WebhookRegistryHandler{
-				secret: tt.secret,
-			}
+			parser := NewGHCRParser(tt.secret)
 
 			req := httptest.NewRequest(http.MethodPost, "/", http.NoBody)
 
@@ -169,7 +167,7 @@ func TestValidateSignature(t *testing.T) {
 				req.Header.Set("X-Hub-Signature-256", tt.headerSig)
 			}
 
-			err := handler.validateSignature(req, body)
+			err := parser.validateSignature(req, body)
 
 			if tt.expectError {
 				assert.Error(t, err)

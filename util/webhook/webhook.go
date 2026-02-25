@@ -664,7 +664,13 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		a.queue <- event
+		select {
+		case a.queue <- event:
+		default:
+			log.Info("Queue is full, discarding registry webhook payload")
+			http.Error(w, "Queue is full, discarding registry webhook payload", http.StatusServiceUnavailable)
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("Registry event received. Processing triggered."))
 		return
@@ -673,7 +679,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	payload, err = a.processSCMWebhook(r, w)
 	if err != nil {
 		// If the error is due to a large payload, return a more user-friendly error message
-		if err.Error() == "error parsing payload" {
+		if isParsingPayloadError(err) {
 			msg := fmt.Sprintf("Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under %v MB) and ensure it is valid JSON", a.maxWebhookPayloadSizeB/1024/1024)
 			log.WithField(common.SecurityField, common.SecurityHigh).Warn(msg)
 			http.Error(w, msg, http.StatusBadRequest)
@@ -698,6 +704,16 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+// isParsingPayloadError returns a bool if the error is parsing payload error
+func isParsingPayloadError(err error) bool {
+	return errors.Is(err, github.ErrParsingPayload) ||
+		errors.Is(err, gitlab.ErrParsingPayload) ||
+		errors.Is(err, gogs.ErrParsingPayload) ||
+		errors.Is(err, bitbucket.ErrParsingPayload) ||
+		errors.Is(err, bitbucketserver.ErrParsingPayload) ||
+		errors.Is(err, azuredevops.ErrParsingPayload)
 }
 
 // processSCMWebhook processes an SCM webhook

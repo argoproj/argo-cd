@@ -47,47 +47,35 @@ var ErrHMACVerificationFailed = errors.New("HMAC verification failed")
 // This allows the handler to support multiple container registries via pluggable parsers.
 type RegistryParser interface {
 	CanHandle(r *http.Request) bool
-	Parse(body []byte) (*WebhookRegistryEvent, error)
+	Parse(r *http.Request, body []byte) (*WebhookRegistryEvent, error)
 }
 
 // WebhookRegistryHandler processes container registry webhook requests.
 //
-// It validates the webhook signature, selects an appropriate parser based on
-// the request, and converts the payload into a normalized WebhookRegistryEvent.
+// It selects the appropriate parser based on the request and delegates
+// both signature validation and payload parsing to it.
 // The handler supports multiple registry formats through a list of RegistryParsers.
 type WebhookRegistryHandler struct {
 	parsers []RegistryParser
-	secret  string
 }
 
 // NewWebhookRegistryHandler creates a new WebhookRegistryHandler.
 //
-// The provided secret is used to validate webhook signatures. The handler
-// is initialized with built-in registry parsers (e.g., GHCR) but can be
-// extended to support additional registries.
+// The provided secret is passed to each registry-specific parser, which is
+// responsible for its own signature validation. The handler is initialized
+// with built-in registry parsers (e.g., GHCR) but can be extended to support
+// additional registries.
 func NewWebhookRegistryHandler(secret string) *WebhookRegistryHandler {
 	return &WebhookRegistryHandler{
 		parsers: []RegistryParser{
-			NewGHCRParser(),
+			NewGHCRParser(secret),
 		},
-		secret: secret,
 	}
 }
 
-// CanHandle reports whether the HTTP request corresponds to a GHCR webhook.
-//
-// It checks the GitHub event header and returns true for package-related
-// events that may contain container registry updates.
-func (p *GHCRParser) CanHandle(r *http.Request) bool {
-	return r.Header.Get("X-GitHub-Event") == "package"
-}
-
-// ProcessWebhook validates and parses an incoming registry webhook request.
-//
-// It reads the request body, verifies the webhook signature using the configured
-// secret, and delegates parsing to the first RegistryParser that reports it can
-// handle the request. On success, it returns a normalized WebhookRegistryEvent.
-// An error is returned if signature validation fails or no parser supports the event.
+// ProcessWebhook reads the request body and delegates to the first parser
+// that can handle the request. Signature validation is handled by each parser.
+// Returns nil, nil if no parser matches or if the event should be skipped.
 func (h *WebhookRegistryHandler) ProcessWebhook(r *http.Request) (*WebhookRegistryEvent, error) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -95,17 +83,17 @@ func (h *WebhookRegistryHandler) ProcessWebhook(r *http.Request) (*WebhookRegist
 	}
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
 
-	if err := h.validateSignature(r, body); err != nil {
-		return nil, err
-	}
-
 	for _, p := range h.parsers {
 		if p.CanHandle(r) {
-			return p.Parse(body)
+			return p.Parse(r, body)
 		}
 	}
 
-	return nil, errors.New("unsupported registry webhook")
+	// No parser matched. In practice this is unreachable because ProcessWebhook
+	// is only called after IsRegistryEvent returns true, and IsRegistryEvent
+	// uses the same header checks as each parser's CanHandle. Returning nil, nil
+	// here ensures graceful degradation if the two ever drift apart.
+	return nil, nil
 }
 
 // IsRegistryEvent reports whether the HTTP request corresponds to a supported
