@@ -1298,10 +1298,46 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 			},
 		},
 		{
-			"bitbucket display name differs from repo slug ",
+			"bitbucket display name is mixed case, differs from repo slug",
 			false,
 			"main",
 			bitbucketPushPayload("main", "test-owner", "test-repo", "Test Repo"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is all uppercase, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "TESTREPO"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is all lowercase, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "testrepo"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is all uppercase with spaces, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "TEST REPO"),
 			true,
 			[]string{"guestbook/guestbook-ui-deployment.yaml"},
 			changeInfo{
