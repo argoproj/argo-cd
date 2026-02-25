@@ -1,7 +1,7 @@
 tests:
 - healthStatus:
     status: Healthy
-    message: Policy has been accepted
+    message: "EnvoyPatchPolicy is healthy"
   inputPath: testdata/healthy.yaml
 - healthStatus:
     status: Degraded
@@ -13,5 +13,13 @@ tests:
   inputPath: testdata/progressing.yaml
 - healthStatus:
     status: Progressing
-    message: Waiting for EnvoyPatchPolicy status to be updated
+    message: Waiting for EnvoyPatchPolicy status
   inputPath: testdata/stale.yaml
+- healthStatus:
+    status: Degraded
+    message: Policy has not been accepted due to invalid configuration
+  inputPath: testdata/degraded_second_ancestor.yaml
+- healthStatus:
+    status: Healthy
+    message: "EnvoyPatchPolicy is healthy"
+  inputPath: testdata/healthy_with_stale_ancestor.yaml
