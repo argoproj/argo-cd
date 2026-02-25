@@ -78,6 +78,7 @@ func NewCommand() *cobra.Command {
 		webhookParallelism           int
 		tokenRefStrictMode           bool
 		maxResourcesStatusCount      int
+		cacheSyncPeriodSeconds       int
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -141,11 +142,18 @@ func NewCommand() *cobra.Command {
 
 			var cacheOpt ctrlcache.Options
 
+			cacheSyncPeriod := time.Duration(cacheSyncPeriodSeconds) * time.Second
+
 			if watchedNamespace != "" {
 				cacheOpt = ctrlcache.Options{
 					DefaultNamespaces: map[string]ctrlcache.Config{
 						watchedNamespace: {},
 					},
+					SyncPeriod: &cacheSyncPeriod,
+				}
+			} else {
+				cacheOpt = ctrlcache.Options{
+					SyncPeriod: &cacheSyncPeriod,
 				}
 			}
 
@@ -303,6 +311,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&metricsAplicationsetLabels, "metrics-applicationset-labels", []string{}, "List of Application labels that will be added to the argocd_applicationset_labels metric")
 	command.Flags().BoolVar(&enableGitHubAPIMetrics, "enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
 	command.Flags().IntVar(&maxResourcesStatusCount, "max-resources-status-count", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT", 5000, 0, math.MaxInt), "Max number of resources stored in appset status.")
+	command.Flags().IntVar(&cacheSyncPeriodSeconds, "cache-sync-period", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CACHE_SYNC_PERIOD", 0, 0, math.MaxInt), "Period (in seconds) at which the manager client cache is forcefully resynced with the Kubernetes API server. 0 disables periodic resync.")
 
 	return &command
 }

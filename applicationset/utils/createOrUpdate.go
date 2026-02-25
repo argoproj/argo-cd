@@ -104,6 +104,16 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ign
 		LogPatch(logCtx, patch, obj)
 	}
 	if err := c.Patch(ctx, obj, patch); err != nil {
+		// If the patch fails because the resource doesn't exist (cache was stale),
+		// fall back to creating the resource using the original clean copy.
+		if errors.IsNotFound(err) {
+			logCtx.Infof("Patch failed with NotFound, falling back to Create for %s", obj.Name)
+			obj.SetResourceVersion("")
+			if err := c.Create(ctx, obj); err != nil {
+				return controllerutil.OperationResultNone, err
+			}
+			return controllerutil.OperationResultCreated, nil
+		}
 		return controllerutil.OperationResultNone, err
 	}
 	return controllerutil.OperationResultUpdated, nil
