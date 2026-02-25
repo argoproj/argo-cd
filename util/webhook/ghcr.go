@@ -16,24 +16,39 @@ import (
 //
 // It extracts container image publication events from GitHub package webhooks
 // and converts them into a normalized WebhookRegistryEvent structure.
-type GHCRParser struct{}
+type GHCRParser struct {
+	secret string
+}
 
 // NewGHCRParser creates a new GHCRParser instance.
 //
 // The parser supports GitHub package webhook events for container images
 // published to GitHub Container Registry (ghcr.io).
-func NewGHCRParser() *GHCRParser {
-	return &GHCRParser{}
+func NewGHCRParser(secret string) *GHCRParser {
+	return &GHCRParser{secret: secret}
 }
 
-// Parse extracts container publication details from a GHCR webhook payload.
+// CanHandle reports whether the HTTP request corresponds to a GHCR webhook.
+//
+// It checks the GitHub event header and returns true for package-related
+// events that may contain container registry updates.
+func (p *GHCRParser) CanHandle(r *http.Request) bool {
+	return r.Header.Get("X-GitHub-Event") == "package"
+}
+
+// Parse validates the request signature and extracts container publication
+// details from a GHCR webhook payload.
 //
 // The method expects a GitHub package event with action "published" for a
 // container package. It returns a normalized WebhookRegistryEvent containing
 // the registry host, repository, tag, and digest. Returns nil, nil for events
 // that are intentionally skipped (unsupported actions, non-container packages,
-// or missing tags). Only returns an error for genuinely malformed payloads.
-func (p *GHCRParser) Parse(body []byte) (*WebhookRegistryEvent, error) {
+// or missing tags). Only returns an error for genuinely malformed payloads or
+// signature verification failures.
+func (p *GHCRParser) Parse(r *http.Request, body []byte) (*WebhookRegistryEvent, error) {
+	if err := p.validateSignature(r, body); err != nil {
+		return nil, err
+	}
 	var payload struct {
 		Action  string `json:"action"`
 		Package struct {
@@ -92,14 +107,14 @@ func (p *GHCRParser) Parse(body []byte) (*WebhookRegistryEvent, error) {
 // against the computed signature of the request body. An error is returned if
 // the signature is missing or does not match. If no secret is configured,
 // validation is skipped.
-func (h *WebhookRegistryHandler) validateSignature(r *http.Request, body []byte) error {
-	if h.secret != "" {
+func (p *GHCRParser) validateSignature(r *http.Request, body []byte) error {
+	if p.secret != "" {
 		signature := r.Header.Get("X-Hub-Signature-256")
 		if signature == "" {
 			return fmt.Errorf("%w: missing X-Hub-Signature-256 header", ErrHMACVerificationFailed)
 		}
 
-		mac := hmac.New(sha256.New, []byte(h.secret))
+		mac := hmac.New(sha256.New, []byte(p.secret))
 		mac.Write(body)
 		expected := "sha256=" + hex.EncodeToString(mac.Sum(nil))
 
