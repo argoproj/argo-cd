@@ -23,6 +23,14 @@ The following `argocd admin` command prints information about fields excluded fr
 argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argocd-cm-path ./argocd-cm.yaml
 ```
 
+**Diff results when using server-side apply**
+
+When `server-side apply` is enabled, `diff` results may include changes applied by the Kubernetes API server during reconciliation,
+such as defaulted fields or updates to `managedFields`.
+
+In these cases, Argo CD reports the state observed in the cluster, even if the change was not directly introduced by a user action.
+Reviewing the `diff` output produced by the command above can help determine whether the reported difference requires attention.
+
 **Health Assessment**
 
 Argo CD provides built-in [health assessment](./health.md) for several Kubernetes resources which can be further
