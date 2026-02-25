@@ -28,6 +28,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -129,24 +130,23 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			// By default, watch all namespaces
-			var watchedNamespace string
-			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
-			if len(applicationSetNamespaces) == 1 {
-				watchedNamespace = (applicationSetNamespaces)[0]
-			} else if enableScmProviders && len(allowedScmProviders) == 0 {
+			if len(applicationSetNamespaces) > 1 && enableScmProviders && len(allowedScmProviders) == 0 {
 				log.Error("When enabling applicationset in any namespace using applicationset-namespaces, you must either set --enable-scm-providers=false or specify --allowed-scm-providers")
 				os.Exit(1)
 			}
 
-			var cacheOpt ctrlcache.Options
+			// appSetNsConfig covers all namespaces the controller is allowed to manage
+			appSetNsConfig := make(map[string]ctrlcache.Config, len(applicationSetNamespaces))
+			for _, ns := range applicationSetNamespaces {
+				appSetNsConfig[ns] = ctrlcache.Config{}
+			}
 
-			if watchedNamespace != "" {
-				cacheOpt = ctrlcache.Options{
-					DefaultNamespaces: map[string]ctrlcache.Config{
-						watchedNamespace: {},
+			cacheOpt := ctrlcache.Options{
+				ByObject: map[ctrlclient.Object]ctrlcache.ByObject{
+					&corev1.Secret{}: {
+						Namespaces: appSetNsConfig,
 					},
-				}
+				},
 			}
 
 			cfg := ctrl.GetConfigOrDie()
