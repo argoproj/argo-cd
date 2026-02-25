@@ -7,7 +7,7 @@ option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/application";
 package application;
 
 import "google/api/annotations.proto";
-import "k8s.io/api/core/v1/generated.proto";
+import "google/protobuf/struct.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto";
 import "github.com/argoproj/argo-cd/v3/reposerver/repository/repository.proto";
@@ -359,7 +359,7 @@ service ApplicationService {
 	}
 
 	// ListResourceEvents returns a list of event resources
-	rpc ListResourceEvents(ApplicationResourceEventsQuery) returns (k8s.io.api.core.v1.EventList) {
+	rpc ListResourceEvents(ApplicationResourceEventsQuery) returns (google.protobuf.Struct) {
 		option (google.api.http).get = "/api/v1/applications/{name}/events";
 	}
 
