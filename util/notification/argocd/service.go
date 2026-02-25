@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/argoproj/argo-cd/v3/util/notification/expression/shared"
 
@@ -132,7 +133,7 @@ func (svc *argoCDService) GetAppProject(ctx context.Context, projectName string,
 	resource := v1alpha1.AppProjectSchemaGroupVersionKind.GroupVersion().WithResource(application.AppProjectPlural)
 	obj, err := svc.dynamicClient.Resource(resource).Namespace(namespace).Get(ctx, projectName, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot get application project %w", err)
 	}
 
 	return obj, nil
