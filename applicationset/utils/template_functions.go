@@ -74,8 +74,8 @@ func fromYAMLArray(str string) ([]any, error) {
 
 // This has been copied from helm but adapted to our needs as we have a more limited use case for
 // https://github.com/helm/helm/blob/ee018608f6fbf381fac1bae9759164a65c6a0b1f/pkg/engine/engine.go#L153-L195
-func tplFun(parent *template.Template) func(string, interface{}) (string, error) {
-	return func(tpl string, vals interface{}) (string, error) {
+func tplFun(parent *template.Template) func(string, any) (string, error) {
+	return func(tpl string, vals any) (string, error) {
 		t, err := parent.Clone()
 		if err != nil {
 			return "", fmt.Errorf("cannot clone template: %w", err)
