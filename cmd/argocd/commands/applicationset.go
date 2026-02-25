@@ -119,7 +119,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 // NewApplicationSetCreateCommand returns a new instance of an `argocd appset create` command
 func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output string
+		output               string
 		upsert, dryRun, wait bool
 	)
 	command := &cobra.Command{
@@ -386,7 +386,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 				if !confirmAll {
 					confirm, confirmAll = promptUtil.ConfirmBaseOnCount(messageForSingle, messageForAll, numOfApps)
 				}
-			if confirm || confirmAll {
+				if confirm || confirmAll {
 					_, err := appIf.Delete(ctx, &appsetDeleteReq)
 					errors.CheckError(err)
 
