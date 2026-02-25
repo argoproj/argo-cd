@@ -111,6 +111,9 @@ message AppProjectSpec {
 
   // DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
   repeated ApplicationDestinationServiceAccount destinationServiceAccounts = 14;
+
+  // SourceIntegrity represents a constraint on manifest sources integrity to be met before they can be used.
+  optional SourceIntegrity sourceIntegrity = 15;
 }
 
 // AppProjectStatus contains status information for AppProject CRs
@@ -2317,8 +2320,7 @@ message RevisionMetadata {
   // Message contains the message associated with the revision, most likely the commit message.
   optional string message = 4;
 
-  // SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
-  optional string signatureInfo = 5;
+  optional SourceIntegrityCheckResult sourceIntegrityResult = 5;
 
   // References contains references to information that's related to this commit in some way.
   repeated RevisionReference references = 6;
@@ -2558,6 +2560,60 @@ message SourceHydratorStatus {
 
   // CurrentOperation holds the status of the hydrate operation
   optional HydrateOperation currentOperation = 2;
+}
+
+message SourceIntegrity {
+  // Git - policies for git source verification
+  optional SourceIntegrityGit git = 1;
+}
+
+// SourceIntegrityCheckResult represents a conclusion of the SourceIntegrity evaluation.
+// Each check performed on a source(es), holds a check item representing all checks performed.
+message SourceIntegrityCheckResult {
+  // Checks holds a list of checks performed, with their eventual problems. If a check is not specified here,
+  // it means it was not performed.
+  repeated SourceIntegrityCheckResultItem checks = 1;
+}
+
+message SourceIntegrityCheckResultItem {
+  // Name of the check that is human-understandable pointing out to the kind of verification performed.
+  optional string name = 1;
+
+  // Problems is a list of messages explaining why the check failed. Empty list means success.
+  repeated string problems = 2;
+}
+
+message SourceIntegrityGit {
+  repeated SourceIntegrityGitPolicy policies = 1;
+}
+
+message SourceIntegrityGitPolicy {
+  // List of repository criteria restricting repositories the policy will apply to
+  repeated SourceIntegrityGitPolicyRepo repos = 1;
+
+  // Verify GPG commit/tag signatures
+  optional SourceIntegrityGitPolicyGPG gpg = 2;
+}
+
+// SourceIntegrityGitPolicyGPG verifies that the commit(s) are both correctly signed by a key in the repo-server keyring,
+// and that they are signed by one of the key listed in Keys.
+//
+// This policy can be deactivated through the ARGOCD_GPG_ENABLED environment variable.
+//
+// Note the listing of problematic commits/signatures reported when "strict" mode validation fails may not be complete.
+// This means that a user that has addressed all problems reported by source integrity check can run into
+// further problematic signatures on a subsequent attempt. That happens namely when history contains seal commits signed
+// with gpg keys that are in the keyring, but not listed in Keys.
+message SourceIntegrityGitPolicyGPG {
+  optional string mode = 1;
+
+  // List of key IDs to trust. The keys need to be in the repository server keyring.
+  repeated string keys = 3;
+}
+
+message SourceIntegrityGitPolicyRepo {
+  // URL specifier, glob.
+  optional string url = 1;
 }
 
 // SuccessfulHydrateOperation contains information about the most recent successful hydrate operation

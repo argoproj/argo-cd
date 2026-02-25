@@ -22,6 +22,9 @@ import (
 	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/syncwaves"
 	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
+
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -42,7 +45,6 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/env"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/stats"
@@ -77,7 +79,7 @@ type managedResource struct {
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState)
-	GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
+	GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
 }
 
 // comparisonResult holds the state of an application after the reconciliation
@@ -133,7 +135,7 @@ type appStateManager struct {
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
 // second argument.
-func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
+func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(ctx)
 	if err != nil {
@@ -238,8 +240,9 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
+	sourceCount := len(sources)
 	for i, source := range sources {
-		if len(revisions) < len(sources) || revisions[i] == "" {
+		if len(revisions) < sourceCount || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
 		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
@@ -289,7 +292,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 				InstallationID:     installationID,
 			})
 			if err != nil {
-				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
+				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, sourceCount, err)
 			}
 
 			if updateRevisionResult.Changes {
@@ -331,7 +334,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			KustomizeOptions:                kustomizeSettings,
 			KubeVersion:                     serverVersion,
 			ApiVersions:                     apiVersions,
-			VerifySignature:                 verifySignature,
+			SourceIntegrity:                 sourceIntegrity,
 			HelmRepoCreds:                   helmRepoCreds,
 			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enabledSourceTypes,
@@ -344,15 +347,26 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			InstallationID:                  installationID,
 		})
 		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
+			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, sourceCount, err)
 		}
 
 		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
 		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
+			return nil, nil, false, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, sourceCount, err)
 		}
 		targetObjs = append(targetObjs, targetObj...)
 		manifestInfos = append(manifestInfos, manifestInfo)
+
+		// Update eventual check problems with the ID of the current source. This is so users can attribute problems to correct sources
+		if sourceCount > 1 {
+			var sourceId string
+			if source.Name != "" {
+				sourceId = fmt.Sprintf("source %s: ", source.Name)
+			} else {
+				sourceId = fmt.Sprintf("source %d of %d: ", i+1, sourceCount)
+			}
+			manifestInfo.SourceIntegrityResult.InjectSourceName(sourceId)
+		}
 	}
 
 	ts.AddCheckpoint("manifests_ms")
@@ -500,45 +514,6 @@ func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.R
 	return appLabelKey, resourceOverrides, resFilter, installationID, trackingMethod, nil
 }
 
-// verifyGnuPGSignature verifies the result of a GnuPG operation for a given git
-// revision.
-func verifyGnuPGSignature(revision string, project *v1alpha1.AppProject, manifestInfo *apiclient.ManifestResponse) []v1alpha1.ApplicationCondition {
-	now := metav1.Now()
-	conditions := make([]v1alpha1.ApplicationCondition, 0)
-	// We need to have some data in the verification result to parse, otherwise there was no signature
-	if manifestInfo.VerifyResult != "" {
-		verifyResult := gpg.ParseGitCommitVerification(manifestInfo.VerifyResult)
-		switch verifyResult.Result {
-		case gpg.VerifyResultGood:
-			// This is the only case we allow to sync to, but we need to make sure signing key is allowed
-			validKey := false
-			for _, k := range project.Spec.SignatureKeys {
-				if gpg.KeyID(k.KeyID) == gpg.KeyID(verifyResult.KeyID) && gpg.KeyID(k.KeyID) != "" {
-					validKey = true
-					break
-				}
-			}
-			if !validKey {
-				msg := fmt.Sprintf("Found good signature made with %s key %s, but this key is not allowed in AppProject",
-					verifyResult.Cipher, verifyResult.KeyID)
-				conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-			}
-		case gpg.VerifyResultInvalid:
-			msg := fmt.Sprintf("Found signature made with %s key %s, but verification result was invalid: '%s'",
-				verifyResult.Cipher, verifyResult.KeyID, verifyResult.Message)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-		default:
-			msg := fmt.Sprintf("Could not verify commit signature on revision '%s', check logs for more information.", revision)
-			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-		}
-	} else {
-		msg := fmt.Sprintf("Target revision %s in Git is not signed, but a signature is required", revision)
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-	}
-
-	return conditions
-}
-
 func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application) bool {
 	return ns != nil && ns.GetKind() == kubeutil.NamespaceKind && ns.GetName() == app.Spec.Destination.Namespace && app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil
 }
@@ -579,9 +554,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		return &comparisonResult{syncStatus: syncStatus, healthStatus: health.HealthStatusUnknown}, nil
 	}
 
-	// When signature keys are defined in the project spec, we need to verify the signature on the Git revision
-	verifySignature := len(project.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled()
-
 	// do best effort loading live and target state to present as much information about app state as possible
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
@@ -611,7 +583,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfos, revisionsMayHaveChanges, err = m.GetRepoObjs(context.Background(), app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project, true)
+		targetObjs, manifestInfos, revisionsMayHaveChanges, err = m.GetRepoObjs(context.Background(), app, sources, appLabelKey, revisions, noCache, noRevisionCache, project.EffectiveSourceIntegrity(), project, true)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := "Failed to load target state: " + err.Error()
@@ -633,10 +605,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			m.repoErrorCache.Delete(app.Name)
 		}
 	} else {
-		// Prevent applying local manifests for now when signature verification is enabled
+		// Prevent applying local manifests for now when source integrity is enforced
 		// This is also enforced on API level, but as a last resort, we also enforce it here
-		if gpg.IsGPGEnabled() && verifySignature {
-			msg := "Cannot use local manifests when signature verification is required"
+		if sourceintegrity.HasCriteria(project.EffectiveSourceIntegrity(), sources...) {
+			msg := "Cannot use local manifests when source integrity is enforced"
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			failedToLoadObjs = true
@@ -997,12 +969,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: "error setting app health: " + err.Error(), LastTransitionTime: &now})
 	}
 
-	// Git has already performed the signature verification via its GPG interface, and the result is available
-	// in the manifest info received from the repository server. We now need to form our opinion about the result
-	// and stop processing if we do not agree about the outcome.
 	for _, manifestInfo := range manifestInfos {
-		if gpg.IsGPGEnabled() && verifySignature && manifestInfo != nil {
-			conditions = append(conditions, verifyGnuPGSignature(manifestInfo.Revision, project, manifestInfo)...)
+		if manifestInfo != nil {
+			if err = manifestInfo.SourceIntegrityResult.AsError(); err != nil {
+				conditions = append(conditions, v1alpha1.ApplicationCondition{
+					Type:               v1alpha1.ApplicationConditionComparisonError,
+					Message:            err.Error(),
+					LastTransitionTime: &now,
+				})
+			}
 		}
 	}
 

@@ -55,10 +55,55 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
-gpg:                using RSA key 4AEE18F83AFDEB23
-gpg: Good signature from "GitHub (web-flow commit signing) <noreply@github.com>" [ultimate]
-`
+var sourceIntegrityReqStrict = &v1alpha1.SourceIntegrity{
+	Git: &v1alpha1.SourceIntegrityGit{
+		Policies: []*v1alpha1.SourceIntegrityGitPolicy{
+			{
+				Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "*"}},
+				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+					Keys: []string{"f24e21389b25a3c1", "ffffffffff25a3c1"},
+				},
+			},
+		},
+	},
+}
+
+var LsSignaturesMockOk = func(_ string, _ bool) (info []git.RevisionSignatureInfo, err error) {
+	return []git.RevisionSignatureInfo{
+		{
+			Revision:           "d71589b8001a0bd78bb311cb03c9d129c6f91de1",
+			VerificationResult: git.GPGVerificationResultGood,
+			SignatureKeyID:     "f24e21389b25a3c1",
+			Date:               "Fri Oct 31 14:42:39 2025 +0100",
+			AuthorIdentity:     "Jane Doe <jdoe@acme.com>",
+		},
+	}, nil
+}
+
+var LsSignaturesMockGitError = func(_ string, _ bool) (info []git.RevisionSignatureInfo, err error) {
+	return []git.RevisionSignatureInfo{{
+		Revision:           "171589b8001a0bd78bb311cb03c9d129c6f91de1",
+		VerificationResult: git.GPGVerificationResultExpiredKey,
+		SignatureKeyID:     "EXPIRED",
+		Date:               "Fri Oct 31 14:42:39 2025 +0100",
+		AuthorIdentity:     "Late Fred <lfred@acme.com>",
+	}, {
+		Revision:           "111589b8001a0bd78bb311cb03c9d129c6f91de1",
+		VerificationResult: git.GPGVerificationResultUnsigned,
+		SignatureKeyID:     "",
+		Date:               "Fri Oct 31 14:42:39 2025 +0100",
+		AuthorIdentity:     "Unsigned <unsigned@acme.com>",
+	}}, nil
+}
+
+var sourceIntegrityResultGitError = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+	Name: "GIT/GPG",
+	Problems: []string{
+		"Failed verifying revision 171589b8001a0bd78bb311cb03c9d129c6f91de1 by 'Late Fred <lfred@acme.com>': signed with expired key (key_id=EXPIRED)",
+		"Failed verifying revision 111589b8001a0bd78bb311cb03c9d129c6f91de1 by 'Unsigned <unsigned@acme.com>': unsigned (key_id=)",
+	},
+}}}
 
 type clientFunc func(*gitmocks.Client, *helmmocks.Client, *ocimocks.Client, *iomocks.TempPaths)
 
@@ -102,7 +147,7 @@ func newCacheMocksWithOpts(repoCacheExpiration, revisionCacheExpiration, revisio
 	}
 }
 
-func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *gitmocks.Client, *repoCacheMocks) {
+func newServiceWithMocks(t *testing.T, root string) (*Service, *gitmocks.Client, *repoCacheMocks) {
 	t.Helper()
 	root, err := filepath.Abs(root)
 	if err != nil {
@@ -116,12 +161,8 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 		gitClient.EXPECT().LsRemote(mock.Anything).Return(mock.Anything, nil)
 		gitClient.EXPECT().CommitSHA().Return(mock.Anything, nil)
 		gitClient.EXPECT().Root().Return(root)
+		gitClient.EXPECT().RepoURL().Return("https://fake.com/fake_group/fake_repo.git")
 		gitClient.EXPECT().IsAnnotatedTag(mock.Anything).Return(false)
-		if signed {
-			gitClient.EXPECT().VerifyCommitSignature(mock.Anything).Return(testSignature, nil)
-		} else {
-			gitClient.EXPECT().VerifyCommitSignature(mock.Anything).Return("", nil)
-		}
 
 		chart := "my-chart"
 		oobChart := "out-of-bounds-chart"
@@ -176,13 +217,7 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 
 func newService(t *testing.T, root string) *Service {
 	t.Helper()
-	service, _, _ := newServiceWithMocks(t, root, false)
-	return service
-}
-
-func newServiceWithSignature(t *testing.T, root string) *Service {
-	t.Helper()
-	service, _, _ := newServiceWithMocks(t, root, true)
+	service, _, _ := newServiceWithMocks(t, root)
 	return service
 }
 
@@ -201,6 +236,7 @@ func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().LsRemote(revision).Return(revision, revisionErr)
+		gitClient.EXPECT().IsAnnotatedTag(revision).Return(revisionErr != nil)
 		gitClient.EXPECT().CommitSHA().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.EXPECT().Root().Return(root)
 		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
@@ -377,7 +413,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 }
 
 func TestGenerateManifests_EmptyCache(t *testing.T) {
-	service, gitMocks, mockCache := newServiceWithMocks(t, "../../manifests/base", false)
+	service, gitMocks, mockCache := newServiceWithMocks(t, "../../manifests/base")
 
 	src := v1alpha1.ApplicationSource{Path: "."}
 	q := apiclient.ManifestRequest{
@@ -528,7 +564,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 // ensure we can use a semver constraint range (>= 1.0.0) and get back the correct chart (1.0.0)
 func TestHelmManifestFromChartRepo(t *testing.T) {
 	root := t.TempDir()
-	service, gitMocks, mockCache := newServiceWithMocks(t, root, false)
+	service, gitMocks, mockCache := newServiceWithMocks(t, root)
 	source := &v1alpha1.ApplicationSource{Chart: "my-chart", TargetRevision: ">= 1.0.0"}
 	request := &apiclient.ManifestRequest{
 		Repo: &v1alpha1.Repository{}, ApplicationSource: source, NoCache: true, ProjectName: "something",
@@ -683,7 +719,7 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 }
 
 func TestGenerateManifestsUseExactRevision(t *testing.T) {
-	service, gitClient, _ := newServiceWithMocks(t, ".", false)
+	service, gitClient, _ := newServiceWithMocks(t, ".")
 
 	src := v1alpha1.ApplicationSource{Path: "./testdata/recurse", Directory: &v1alpha1.ApplicationSourceDirectory{Recurse: true}}
 
@@ -1774,9 +1810,10 @@ func TestGetHelmCharts(t *testing.T) {
 }
 
 func TestGetRevisionMetadata(t *testing.T) {
-	service, gitClient, _ := newServiceWithMocks(t, "../..", false)
+	service, gitClient, _ := newServiceWithMocks(t, "../..")
 	now := time.Now()
 
+	gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).RunAndReturn(LsSignaturesMockOk)
 	gitClient.EXPECT().RevisionMetadata(mock.Anything).Return(&git.RevisionMetadata{
 		Message: "test",
 		Author:  "author",
@@ -1799,9 +1836,9 @@ func TestGetRevisionMetadata(t *testing.T) {
 	}, nil)
 
 	res, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
-		Repo:           &v1alpha1.Repository{},
-		Revision:       "c0b400fc458875d925171398f9ba9eabd5529923",
-		CheckSignature: true,
+		Repo:            &v1alpha1.Repository{},
+		Revision:        "c0b400fc458875d925171398f9ba9eabd5529923",
+		SourceIntegrity: sourceIntegrityReqStrict,
 	})
 
 	require.NoError(t, err)
@@ -1809,16 +1846,16 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, now, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
 	assert.Equal(t, []string{"tag1", "tag2"}, res.Tags)
-	assert.NotEmpty(t, res.SignatureInfo)
+	assert.True(t, res.SourceIntegrityResult.IsValid())
 	require.Len(t, res.References, 1)
 	require.NotNil(t, res.References[0].Commit)
 	assert.Equal(t, "test-sha", res.References[0].Commit.SHA)
 
 	// Check for truncated revision value
 	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
-		Repo:           &v1alpha1.Repository{},
-		Revision:       "c0b400f",
-		CheckSignature: true,
+		Repo:            &v1alpha1.Repository{},
+		Revision:        "c0b400f",
+		SourceIntegrity: sourceIntegrityReqStrict,
 	})
 
 	require.NoError(t, err)
@@ -1826,95 +1863,111 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, now, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
 	assert.Equal(t, []string{"tag1", "tag2"}, res.Tags)
-	assert.NotEmpty(t, res.SignatureInfo)
+	assert.True(t, res.SourceIntegrityResult.IsValid())
 
-	// Cache hit - signature info should not be in result
+	// Cache hit, but SourceIntegrity removed, will be recreated without SourceIntegrityResult
 	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
-		Repo:           &v1alpha1.Repository{},
-		Revision:       "c0b400fc458875d925171398f9ba9eabd5529923",
-		CheckSignature: false,
+		Repo:            &v1alpha1.Repository{},
+		Revision:        "c0b400fc458875d925171398f9ba9eabd5529923",
+		SourceIntegrity: nil,
 	})
 	require.NoError(t, err)
-	assert.Empty(t, res.SignatureInfo)
+	assert.Nil(t, res.SourceIntegrityResult)
 
 	// Enforce cache miss - signature info should not be in result
 	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
-		Repo:           &v1alpha1.Repository{},
-		Revision:       "da52afd3b2df1ec49470603d8bbb46954dab1091",
-		CheckSignature: false,
+		Repo:            &v1alpha1.Repository{},
+		Revision:        "da52afd3b2df1ec49470603d8bbb46954dab1091",
+		SourceIntegrity: nil,
 	})
 	require.NoError(t, err)
-	assert.Empty(t, res.SignatureInfo)
+	assert.Nil(t, res.SourceIntegrityResult)
 
-	// Cache hit on previous entry that did not have signature info
+	// Cache miss on the previous entry that did not have signature info - recreated
 	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
-		Repo:           &v1alpha1.Repository{},
-		Revision:       "da52afd3b2df1ec49470603d8bbb46954dab1091",
-		CheckSignature: true,
+		Repo:            &v1alpha1.Repository{},
+		Revision:        "da52afd3b2df1ec49470603d8bbb46954dab1091",
+		SourceIntegrity: sourceIntegrityReqStrict,
 	})
 	require.NoError(t, err)
-	assert.NotEmpty(t, res.SignatureInfo)
+	assert.True(t, res.SourceIntegrityResult.IsValid())
 }
 
 func TestGetSignatureVerificationResult(t *testing.T) {
 	// Commit with signature and verification requested
 	{
-		service := newServiceWithSignature(t, "../../manifests/base")
+		service, gitClient, _ := newServiceWithMocks(t, "../../manifests/base")
+		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).RunAndReturn(LsSignaturesMockOk)
 
 		src := v1alpha1.ApplicationSource{Path: "."}
 		q := apiclient.ManifestRequest{
 			Repo:               &v1alpha1.Repository{},
 			ApplicationSource:  &src,
-			VerifySignature:    true,
+			SourceIntegrity:    sourceIntegrityReqStrict,
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		}
 
 		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
-		assert.Equal(t, testSignature, res.VerifyResult)
+		assert.True(t, res.SourceIntegrityResult.IsValid())
+		require.NoError(t, res.SourceIntegrityResult.AsError())
 	}
 	// Commit with signature and verification not requested
 	{
-		service := newServiceWithSignature(t, "../../manifests/base")
+		service, gitClient, _ := newServiceWithMocks(t, "../../manifests/base")
+		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).RunAndReturn(LsSignaturesMockOk)
 
 		src := v1alpha1.ApplicationSource{Path: "."}
 		q := apiclient.ManifestRequest{
-			Repo: &v1alpha1.Repository{}, ApplicationSource: &src, ProjectName: "something",
+			Repo:               &v1alpha1.Repository{},
+			ApplicationSource:  &src,
+			SourceIntegrity:    nil,
+			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		}
 
 		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
-		assert.Empty(t, res.VerifyResult)
+		assert.Nil(t, res.SourceIntegrityResult)
+		gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything)
 	}
 	// Commit without signature and verification requested
 	{
-		service := newService(t, "../../manifests/base")
+		service, gitClient, _ := newServiceWithMocks(t, "../../manifests/base")
+		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).RunAndReturn(LsSignaturesMockGitError)
 
 		src := v1alpha1.ApplicationSource{Path: "."}
 		q := apiclient.ManifestRequest{
-			Repo: &v1alpha1.Repository{}, ApplicationSource: &src, VerifySignature: true, ProjectName: "something",
+			Repo:               &v1alpha1.Repository{},
+			ApplicationSource:  &src,
+			SourceIntegrity:    sourceIntegrityReqStrict,
+			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		}
 
 		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
-		assert.Empty(t, res.VerifyResult)
+		assert.Equal(t, sourceIntegrityResultGitError, res.SourceIntegrityResult)
+		require.Error(t, res.SourceIntegrityResult.AsError())
 	}
 	// Commit without signature and verification not requested
 	{
-		service := newService(t, "../../manifests/base")
+		service, gitClient, _ := newServiceWithMocks(t, "../../manifests/base")
 
 		src := v1alpha1.ApplicationSource{Path: "."}
 		q := apiclient.ManifestRequest{
-			Repo: &v1alpha1.Repository{}, ApplicationSource: &src, VerifySignature: true, ProjectName: "something",
+			Repo:               &v1alpha1.Repository{},
+			ApplicationSource:  &src,
+			SourceIntegrity:    nil,
+			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		}
 
 		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
-		assert.Empty(t, res.VerifyResult)
+		assert.Nil(t, res.SourceIntegrityResult)
+		gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything)
 	}
 }
 
@@ -3622,11 +3675,11 @@ func TestErrorGetGitDirectories(t *testing.T) {
 				Revision:         "sadfsadf",
 			},
 		}, want: nil, wantErr: assert.Error},
-		{name: "ErrorVerifyCommit", fields: fields{service: func() *Service {
+		{name: "ErrorListingSignatures", fields: fields{service: func() *Service {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything).Return("", nil)
 				gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("ah error"))
-				gitClient.EXPECT().VerifyCommitSignature(mock.Anything).Return("", fmt.Errorf("revision %s is not signed", "sadfsadf"))
+				gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything).Return([]git.RevisionSignatureInfo{}, errors.New("the thing have exploded"))
 				gitClient.EXPECT().Root().Return(root)
 				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
 				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
@@ -3638,7 +3691,7 @@ func TestErrorGetGitDirectories(t *testing.T) {
 				Repo:             &v1alpha1.Repository{Repo: "not-a-valid-url"},
 				SubmoduleEnabled: false,
 				Revision:         "sadfsadf",
-				VerifyCommit:     true,
+				SourceIntegrity:  sourceIntegrityReqStrict,
 			},
 		}, want: nil, wantErr: assert.Error},
 	}
@@ -4499,55 +4552,6 @@ func TestGetRevisionChartDetails(t *testing.T) {
 		assert.Equal(t, "test-description", chartDetails.Description)
 		assert.Equal(t, "test-home", chartDetails.Home)
 		assert.Equal(t, []string{"test-maintainer"}, chartDetails.Maintainers)
-	})
-}
-
-func TestVerifyCommitSignature(t *testing.T) {
-	repo := &v1alpha1.Repository{
-		Repo: "https://github.com/example/repo.git",
-	}
-
-	t.Run("VerifyCommitSignature with valid signature", func(t *testing.T) {
-		t.Setenv("ARGOCD_GPG_ENABLED", "true")
-		mockGitClient := &gitmocks.Client{}
-		mockGitClient.EXPECT().VerifyCommitSignature(mock.Anything).
-			Return(testSignature, nil)
-		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
-		require.NoError(t, err)
-	})
-
-	t.Run("VerifyCommitSignature with invalid signature", func(t *testing.T) {
-		t.Setenv("ARGOCD_GPG_ENABLED", "true")
-		mockGitClient := &gitmocks.Client{}
-		mockGitClient.EXPECT().VerifyCommitSignature(mock.Anything).
-			Return("", nil)
-		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
-		assert.EqualError(t, err, "revision abcd1234 is not signed")
-	})
-
-	t.Run("VerifyCommitSignature with unknown signature", func(t *testing.T) {
-		t.Setenv("ARGOCD_GPG_ENABLED", "true")
-		mockGitClient := &gitmocks.Client{}
-		mockGitClient.EXPECT().VerifyCommitSignature(mock.Anything).
-			Return("", errors.New("UNKNOWN signature: gpg: Unknown signature from ABCDEFGH"))
-		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
-		assert.EqualError(t, err, "UNKNOWN signature: gpg: Unknown signature from ABCDEFGH")
-	})
-
-	t.Run("VerifyCommitSignature with error verifying signature", func(t *testing.T) {
-		t.Setenv("ARGOCD_GPG_ENABLED", "true")
-		mockGitClient := &gitmocks.Client{}
-		mockGitClient.EXPECT().VerifyCommitSignature(mock.Anything).
-			Return("", errors.New("error verifying signature of commit 'abcd1234' in repo 'https://github.com/example/repo.git': failed to verify signature"))
-		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
-		assert.EqualError(t, err, "error verifying signature of commit 'abcd1234' in repo 'https://github.com/example/repo.git': failed to verify signature")
-	})
-
-	t.Run("VerifyCommitSignature with signature verification disabled", func(t *testing.T) {
-		t.Setenv("ARGOCD_GPG_ENABLED", "false")
-		mockGitClient := &gitmocks.Client{}
-		err := verifyCommitSignature(false, mockGitClient, "abcd1234", repo)
-		require.NoError(t, err)
 	})
 }
 

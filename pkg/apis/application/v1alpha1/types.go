@@ -1651,9 +1651,8 @@ type RevisionMetadata struct {
 	// Floating tags can move from one revision to another
 	Tags []string `json:"tags,omitempty" protobuf:"bytes,3,opt,name=tags"`
 	// Message contains the message associated with the revision, most likely the commit message.
-	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
-	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
-	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
+	Message               string                      `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
+	SourceIntegrityResult *SourceIntegrityCheckResult `json:"sourceIntegrityResult,omitempty" protobuf:"bytes,5,opt,name=sourceIntegrityResult"`
 	// References contains references to information that's related to this commit in some way.
 	References []RevisionReference `json:"references,omitempty" protobuf:"bytes,6,opt,name=references"`
 }
@@ -2761,6 +2760,48 @@ type AppProjectSpec struct {
 	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
 	// DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
 	DestinationServiceAccounts []ApplicationDestinationServiceAccount `json:"destinationServiceAccounts,omitempty" protobuf:"bytes,14,name=destinationServiceAccounts"`
+	// SourceIntegrity represents a constraint on manifest sources integrity to be met before they can be used.
+	SourceIntegrity *SourceIntegrity `json:"sourceIntegrity,omitempty" protobuf:"bytes,15,name=sourceIntegrity"` // Do not access directly, use SourceIntegrity()
+}
+
+// EffectiveSourceIntegrity incorporates the legacy SignatureKeys into SourceIntegrity, if possible
+// SignatureKeys are added as a Git GPG policy for repos specified with `*`. If such a policy exists, the SignatureKeys are ignored.
+func (proj *AppProject) EffectiveSourceIntegrity() *SourceIntegrity {
+	var legacyKeys []string
+	for _, k := range proj.Spec.SignatureKeys {
+		legacyKeys = append(legacyKeys, k.KeyID)
+	}
+
+	if len(legacyKeys) == 0 {
+		// The modern version or nil
+		return proj.Spec.SourceIntegrity
+	}
+
+	migratedGit := &SourceIntegrityGit{
+		Policies: []*SourceIntegrityGitPolicy{{
+			Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
+			GPG: &SourceIntegrityGitPolicyGPG{
+				Mode: SourceIntegrityGitPolicyGPGModeHead,
+				Keys: legacyKeys,
+			},
+		}},
+	}
+
+	if proj.Spec.SourceIntegrity != nil {
+		if proj.Spec.SourceIntegrity.Git != nil {
+			log.Warnf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Ignoring SignatureKeys. Migrate them to SourceIntegrity.", proj.Name)
+			return proj.Spec.SourceIntegrity
+		}
+
+		// Preserve non-git checks without modifying project - use deep-copy and amend
+		log.Warnf("Merging SourceIntegrity with legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
+		deepCopy := proj.Spec.SourceIntegrity.DeepCopy()
+		deepCopy.Git = migratedGit
+		return deepCopy
+	}
+
+	log.Warnf("Creating project SourceIntegrity from legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
+	return &SourceIntegrity{Git: migratedGit}
 }
 
 // ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist

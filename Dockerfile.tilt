@@ -31,7 +31,6 @@ RUN ./install.sh helm && \
     ./install.sh git-lfs
 
 COPY hack/gpg-wrapper.sh \
-    hack/git-verify-wrapper.sh \
     entrypoint.sh \
     /usr/local/bin/
 
@@ -43,7 +42,7 @@ RUN touch ssh_known_hosts && \
 WORKDIR /app/config
 RUN mkdir -p tls && \
     mkdir -p gpg/source && \
-    mkdir -p gpg/keys 
+    mkdir -p gpg/keys
 
 COPY .tilt-bin/argocd_linux /usr/local/bin/argocd
 
