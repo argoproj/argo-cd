@@ -6,6 +6,7 @@ import {FieldApi, Form, FormApi, FormField as ReactFormField, Text} from 'react-
 import {YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {AuthSettingsCtx} from '../../../shared/context';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
@@ -124,6 +125,7 @@ export const ApplicationCreatePanel = (props: {
     const [isHydratorEnabled, setIsHydratorEnabled] = React.useState(!!app.spec.sourceHydrator);
     const [savedSyncSource, setSavedSyncSource] = React.useState(app.spec.sourceHydrator?.syncSource || {targetBranch: '', path: ''});
     let destinationComboValue = destinationFieldChanges.destFormat;
+    const authSettingsCtx = React.useContext(AuthSettingsCtx);
 
     React.useEffect(() => {
         comboSwitchedFromPanel.current = false;
@@ -317,39 +319,42 @@ export const ApplicationCreatePanel = (props: {
                                     const sourcePanel = () => (
                                         <div className='white-box'>
                                             <p>SOURCE</p>
-                                            <div className='row argo-form-row'>
-                                                <div className='columns small-12'>
-                                                    <div className='checkbox-container'>
-                                                        <Checkbox
-                                                            onChange={(val: boolean) => {
-                                                                const updatedApp = api.getFormState().values as models.Application;
-                                                                if (val) {
-                                                                    if (!updatedApp.spec.sourceHydrator) {
-                                                                        updatedApp.spec.sourceHydrator = {
-                                                                            drySource: {
-                                                                                repoURL: updatedApp.spec.source.repoURL,
-                                                                                targetRevision: updatedApp.spec.source.targetRevision,
-                                                                                path: updatedApp.spec.source.path
-                                                                            },
-                                                                            syncSource: savedSyncSource
-                                                                        };
-                                                                        delete updatedApp.spec.source;
+                                            {/* Only show hydrator checkbox if hydrator is enabled in auth settings */}
+                                            {authSettingsCtx?.hydratorEnabled && (
+                                                <div className='row argo-form-row'>
+                                                    <div className='columns small-12'>
+                                                        <div className='checkbox-container'>
+                                                            <Checkbox
+                                                                onChange={(val: boolean) => {
+                                                                    const updatedApp = api.getFormState().values as models.Application;
+                                                                    if (val) {
+                                                                        if (!updatedApp.spec.sourceHydrator) {
+                                                                            updatedApp.spec.sourceHydrator = {
+                                                                                drySource: {
+                                                                                    repoURL: updatedApp.spec.source.repoURL,
+                                                                                    targetRevision: updatedApp.spec.source.targetRevision,
+                                                                                    path: updatedApp.spec.source.path
+                                                                                },
+                                                                                syncSource: savedSyncSource
+                                                                            };
+                                                                            delete updatedApp.spec.source;
+                                                                        }
+                                                                    } else if (updatedApp.spec.sourceHydrator) {
+                                                                        setSavedSyncSource(updatedApp.spec.sourceHydrator.syncSource);
+                                                                        updatedApp.spec.source = updatedApp.spec.sourceHydrator.drySource;
+                                                                        delete updatedApp.spec.sourceHydrator;
                                                                     }
-                                                                } else if (updatedApp.spec.sourceHydrator) {
-                                                                    setSavedSyncSource(updatedApp.spec.sourceHydrator.syncSource);
-                                                                    updatedApp.spec.source = updatedApp.spec.sourceHydrator.drySource;
-                                                                    delete updatedApp.spec.sourceHydrator;
-                                                                }
-                                                                api.setAllValues(updatedApp);
-                                                                setIsHydratorEnabled(val);
-                                                            }}
-                                                            checked={!!(api.getFormState().values as models.Application).spec.sourceHydrator}
-                                                            id='enable-source-hydrator'
-                                                        />
-                                                        <label htmlFor='enable-source-hydrator'>enable source hydrator</label>
+                                                                    api.setAllValues(updatedApp);
+                                                                    setIsHydratorEnabled(val);
+                                                                }}
+                                                                checked={!!(api.getFormState().values as models.Application).spec.sourceHydrator}
+                                                                id='enable-source-hydrator'
+                                                            />
+                                                            <label htmlFor='enable-source-hydrator'>enable source hydrator</label>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
+                                            )}
                                             {isHydratorEnabled ? (
                                                 <HydratorSourcePanel formApi={api} repos={repos} />
                                             ) : (
