@@ -168,8 +168,9 @@ func generateSelfSignedCert(t *testing.T) tls.Certificate {
 func TestLogout_TLSCheckFails_AutoSetsPlainText(t *testing.T) {
 	// Listen on a random port, then close it immediately so nothing is listening.
 	// This causes grpc_util.TestTLS to fail, triggering the PlainText auto-set path.
-	lis, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
+	lc := net.ListenConfig{}
+	lis, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err, "Unable to start server")
 	addr := lis.Addr().String()
 	lis.Close()
 
@@ -205,7 +206,10 @@ func TestLogout_InsecureTLS_SetsInsecureFlag(t *testing.T) {
 
 	serverCreds := grpccreds.NewServerTLSFromCert(&cert)
 	grpcServer := grpc.NewServer(grpc.Creds(serverCreds))
-	go grpcServer.Serve(lis)
+	go func() {
+		err := grpcServer.Serve(lis)
+		require.NoError(t, err, "Unable to start the grpc server")
+	}()
 	defer grpcServer.Stop()
 
 	addr := lis.Addr().String()
