@@ -1236,7 +1236,6 @@ func (c *clusterCache) processCrossNamespaceChildren(
 				continue
 			}
 
-			// Check if already visited
 			alreadyVisited := visited[childKey] != 0
 
 			// If child is cluster-scoped and was already visited by processNamespaceHierarchy,

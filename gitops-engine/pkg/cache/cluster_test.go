@@ -1352,7 +1352,7 @@ func TestIterateHierarchyV2_ClusterScopedParent_FindsAllChildren(t *testing.T) {
 
 func TestIterateHierarchyV2_MultiLevelClusterScoped_FindsNamespacedGrandchildren(t *testing.T) {
 	// Test 3-level hierarchy: ClusterScoped -> ClusterScoped -> Namespaced
-	// This reproduces the Crossplane bug where:
+	// This test the scenario where:
 	//   Provider (managed) -> ProviderRevision (dynamic) -> Deployment (namespaced)
 	// The namespaced grandchildren should be found even when only the root is passed as a key.
 
