@@ -731,12 +731,13 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Infof("Webhook processing failed: %s", err)
+		msg := fmt.Sprintf("Webhook processing failed: %s", err)
+		log.Infof("%s", msg)
 		status := http.StatusBadRequest
 		if r.Method != http.MethodPost {
 			status = http.StatusMethodNotAllowed
 		}
-		http.Error(w, "Webhook processing failed", status)
+		http.Error(w, msg, status)
 		return
 	}
 
