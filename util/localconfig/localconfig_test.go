@@ -330,7 +330,7 @@ func TestWriteLocalConfig(t *testing.T) {
 func TestReadLocalConfig_FileNotExist(t *testing.T) {
 	config, err := ReadLocalConfig("/nonexistent/path/config")
 	require.NoError(t, err)
-	assert.Nil(t, config)
+	require.Nil(t, config)
 }
 
 func TestReadLocalConfig_InvalidYAML(t *testing.T) {
@@ -340,7 +340,7 @@ func TestReadLocalConfig_InvalidYAML(t *testing.T) {
 
 	config, err := ReadLocalConfig(tmpFile)
 	require.Error(t, err)
-	assert.Nil(t, config)
+	require.Nil(t, config)
 }
 
 func TestReadLocalConfig_EmptyFile(t *testing.T) {
@@ -351,7 +351,7 @@ func TestReadLocalConfig_EmptyFile(t *testing.T) {
 	config, err := ReadLocalConfig(tmpFile)
 	require.NoError(t, err)
 	// Empty file results in empty config, not nil
-	assert.NotNil(t, config)
+	require.NotNil(t, config)
 }
 
 func TestReadLocalConfig_ValidConfig(t *testing.T) {
@@ -361,7 +361,7 @@ func TestReadLocalConfig_ValidConfig(t *testing.T) {
 
 	config, err := ReadLocalConfig(tmpFile)
 	require.NoError(t, err)
-	assert.NotNil(t, config)
-	assert.Equal(t, "localhost:8080", config.CurrentContext)
-	assert.Len(t, config.Contexts, 3)
+	require.NotNil(t, config)
+	require.Equal(t, "localhost:8080", config.CurrentContext)
+	require.Len(t, config.Contexts, 3)
 }
