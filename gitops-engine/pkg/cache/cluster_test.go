@@ -2006,8 +2006,6 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 
 // BenchmarkIterateHierarchyV2_MultiLevelClusterScoped tests the performance of
 // multi-level cluster-scoped hierarchies: ClusterScoped -> ClusterScoped -> Namespaced
-// This is the specific scenario fixed by the bug fix for Crossplane's
-// Provider -> ProviderRevision -> Deployment hierarchy.
 func BenchmarkIterateHierarchyV2_MultiLevelClusterScoped(b *testing.B) {
 	testCases := []struct {
 		name                  string
