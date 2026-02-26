@@ -425,7 +425,6 @@ func DeletePGPKey(keyID string) error {
 // It returns the signer's key ID (long form) on success. Uses --status-fd for reliable parsing.
 // Parses the same GPG status-fd format as Git (GOODSIG, ERRSIG, BADSIG, etc.)
 func VerifyCleartextSignedMessage(clearsigned []byte) (signerKeyID string, err error) {
-	log.Infof("++++ GPG VerifyCleartextSignedMessage: verifying prov (%d bytes)", len(clearsigned))
 	f, err := os.CreateTemp("", "gpg-verify-")
 	if err != nil {
 		return "", err
@@ -474,16 +473,13 @@ func VerifyCleartextSignedMessage(clearsigned []byte) (signerKeyID string, err e
 	code, keyID, err := gpg.ParseStatusOutputStrict(status)
 	if err != nil {
 		if errors.Is(err, gpg.ErrNoStatusFound) {
-			log.Warnf("++++ GPG VerifyCleartextSignedMessage: no GOODSIG, status-fd=%q", status)
 			return "", fmt.Errorf("gpg verify did not report GOODSIG (status-fd output: %q)", status)
 		}
 		return "", err
 	}
 	if code == "GOODSIG" {
-		log.Infof("++++ GPG VerifyCleartextSignedMessage: GOODSIG keyID=%s", keyID)
 		return keyID, nil
 	}
-	log.Warnf("++++ GPG VerifyCleartextSignedMessage: %s keyID=%s status=%s", code, keyID, status)
 	return "", fmt.Errorf("%s", gpg.VerificationFailureMessage(code, keyID))
 }
 

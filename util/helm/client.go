@@ -446,22 +446,6 @@ func (c *nativeHelmChart) ChartTgzPath(chart string, version string) (string, er
 	return c.getCachedChartPath(chart, version)
 }
 
-// provStructurePreview returns a short, safe summary of prov file structure for ++++ debug logs.
-func provStructurePreview(prov []byte) string {
-	if len(prov) == 0 {
-		return "empty"
-	}
-	s := string(prov)
-	hasSignedMsg := strings.Contains(s, "-----BEGIN PGP SIGNED MESSAGE-----")
-	hasSig := strings.Contains(s, "-----BEGIN PGP SIGNATURE-----")
-	toPreview := s
-	if len(s) > 200 {
-		toPreview = s[:200]
-	}
-	preview := strings.ReplaceAll(toPreview, "\n", "\\n")
-	return fmt.Sprintf("hasPGPSignedMessage=%v hasPGPSignature=%v first200=%q", hasSignedMsg, hasSig, preview)
-}
-
 func (c *nativeHelmChart) FetchProvenance(chart string, version string) ([]byte, string, error) {
 	if c.enableOci {
 		return nil, "", ErrOCINotEnabled
@@ -473,7 +457,6 @@ func (c *nativeHelmChart) FetchProvenance(chart string, version string) ([]byte,
 	}
 	chartURL, err := index.GetChartURL(chart, version)
 	if err != nil {
-		log.Warnf("++++ Helm provenance: GetChartURL failed for %s@%s: %v", chart, version, err)
 		return nil, "", err
 	}
 	chartFilename := path.Base(chartURL)
@@ -510,21 +493,16 @@ func (c *nativeHelmChart) FetchProvenance(chart string, version string) ([]byte,
 	client := http.Client{Transport: tr}
 	resp, err := client.Do(req)
 	if err != nil {
-		log.Warnf("++++ Helm provenance: fetch FAILED for %s: %v", provURL, err)
 		return nil, "", fmt.Errorf("error fetching provenance %s: %w", provURL, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		log.Warnf("++++ Helm provenance: fetch returned %s for %s", resp.Status, provURL)
 		return nil, "", fmt.Errorf("provenance fetch returned %s for %s", resp.Status, provURL)
 	}
 	provContent, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Warnf("++++ Helm provenance: prov file read FAILED for %s: %v", provURL, err)
 		return nil, "", fmt.Errorf("error reading provenance: %w", err)
 	}
-	provPreview := provStructurePreview(provContent)
-	log.Infof("++++ Helm provenance: prov file FETCHED OK: url=%s size=%d chartFilename=%s structure=%s", provURL, len(provContent), chartFilename, provPreview)
 	return provContent, chartFilename, nil
 }
 

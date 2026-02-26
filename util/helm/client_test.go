@@ -766,23 +766,6 @@ entries:
 	assert.Equal(t, "mychart-1.0.0.tgz", chartFilename)
 }
 
-func Test_provStructurePreview(t *testing.T) {
-	assert.Equal(t, "empty", provStructurePreview(nil))
-	assert.Equal(t, "empty", provStructurePreview([]byte{}))
-
-	withSigned := []byte("-----BEGIN PGP SIGNED MESSAGE-----\n-----BEGIN PGP SIGNATURE-----")
-	s := provStructurePreview(withSigned)
-	assert.Contains(t, s, "hasPGPSignedMessage=true")
-	assert.Contains(t, s, "hasPGPSignature=true")
-
-	long := make([]byte, 300)
-	for i := range long {
-		long[i] = 'x'
-	}
-	s = provStructurePreview(long)
-	assert.Contains(t, s, "first200=")
-}
-
 func TestUserAgentPriority(t *testing.T) {
 	t.Run("Custom User-Agent set via WithUserAgent option", func(t *testing.T) {
 		// Create a test server that captures the User-Agent header

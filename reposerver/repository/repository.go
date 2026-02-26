@@ -414,8 +414,30 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 
+		var sourceIntegrityResult *v1alpha1.SourceIntegrityCheckResult
+		hasCriteria := sourceIntegrity != nil && sourceintegrity.HasCriteria(sourceIntegrity, *source)
+		isHelmOci := source.IsHelmOci()
+		if sourceIntegrity != nil && hasCriteria && isHelmOci {
+			chartContent, provContent, chartFilename, errFetch := ociClient.FetchHelmChartAndProvenance(ctx, revision)
+			if errFetch != nil {
+				sourceIntegrityResult = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+					Name:     sourceintegrity.CheckNameHelmProvenance,
+					Problems: []string{"could not access OCI helm chart for provenance verification: " + errFetch.Error()},
+				}}}
+			} else {
+				if chartFilename == "" {
+					chartFilename = fmt.Sprintf("%s-%s.tgz", source.Chart, revision)
+				}
+				var errVerify error
+				sourceIntegrityResult, errVerify = sourceintegrity.VerifyHelm(sourceIntegrity, source.RepoURL, chartContent, provContent, chartFilename)
+				if errVerify != nil {
+					return errVerify
+				}
+			}
+		}
+
 		return operation(ociPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{appPath, nil}, nil
+			return &operationContext{appPath, sourceIntegrityResult}, nil
 		})
 	} else if source.IsHelm() {
 		if settings.noCache {
@@ -451,11 +473,47 @@ func (s *Service) runRepoOperation(
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
 			var sourceIntegrityResult *v1alpha1.SourceIntegrityCheckResult
-			if sourceIntegrity != nil && sourceintegrity.HasCriteria(sourceIntegrity, *source) && source.IsHelmOci() {
-				sourceIntegrityResult = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
-					Name:     sourceintegrity.CheckNameHelmProvenance,
-					Problems: []string{"Helm OCI provenance verification not yet supported"},
-				}}}
+			hasCriteria := sourceIntegrity != nil && sourceintegrity.HasCriteria(sourceIntegrity, *source)
+			isHelmOci := source.IsHelmOci()
+			if sourceIntegrity != nil && hasCriteria && isHelmOci {
+				ociRepo := repo.DeepCopy()
+				ociRepoURL := ociRepo.Repo
+				if ociRepoURL == "" {
+					ociRepoURL = source.RepoURL
+				}
+				if !strings.HasPrefix(ociRepoURL, "oci://") {
+					ociRepoURL = "oci://" + strings.TrimPrefix(ociRepoURL, "oci://")
+				}
+				ociChartRepoURL := strings.TrimSuffix(ociRepoURL, "/")
+				chartPath := strings.TrimPrefix(source.Chart, "/")
+				if chartPath != "" && !strings.HasSuffix(ociChartRepoURL, "/"+chartPath) {
+					ociChartRepoURL = ociChartRepoURL + "/" + chartPath
+				}
+				ociRepo.Repo = ociChartRepoURL
+				ociClient, digest, errOci := s.newOCIClientResolveRevision(ctx, ociRepo, revision, settings.noCache || settings.noRevisionCache)
+				if errOci != nil {
+					sourceIntegrityResult = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+						Name:     sourceintegrity.CheckNameHelmProvenance,
+						Problems: []string{"could not resolve OCI helm chart for provenance verification: " + errOci.Error()},
+					}}}
+				} else {
+					chartContent, provContent, chartFilename, errFetch := ociClient.FetchHelmChartAndProvenance(ctx, digest)
+					if errFetch != nil {
+						sourceIntegrityResult = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+							Name:     sourceintegrity.CheckNameHelmProvenance,
+							Problems: []string{"could not access OCI helm chart for provenance verification: " + errFetch.Error()},
+						}}}
+					} else {
+						if chartFilename == "" {
+							chartFilename = fmt.Sprintf("%s-%s.tgz", source.Chart, revision)
+						}
+						var errVerify error
+						sourceIntegrityResult, errVerify = sourceintegrity.VerifyHelm(sourceIntegrity, source.RepoURL, chartContent, provContent, chartFilename)
+						if errVerify != nil {
+							return nil, errVerify
+						}
+					}
+				}
 			} else if sourceIntegrity != nil && sourceintegrity.HasCriteria(sourceIntegrity, *source) {
 				if tgzPath, errTgz := helmClient.ChartTgzPath(source.Chart, revision); errTgz == nil {
 					if chartTgz, errRead := os.ReadFile(tgzPath); errRead == nil {

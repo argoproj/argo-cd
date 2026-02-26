@@ -141,11 +141,14 @@ func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (p
 
 func repoMatches(urlGlob string, repoURL string) int {
 	if strings.HasPrefix(urlGlob, "!") {
-		if glob.Match(urlGlob[1:], repoURL) {
+		inner := urlGlob[1:]
+		matched := glob.Match(inner, repoURL)
+		if matched {
 			return -1
 		}
 	} else {
-		if glob.Match(urlGlob, repoURL) {
+		matched := glob.Match(urlGlob, repoURL)
+		if matched {
 			return 1
 		}
 	}
@@ -249,24 +252,15 @@ func isKeyInAllowedList(allowedKeys []string, signerKeyID string) bool {
 	if s, err := KeyID(signerKeyID); err == nil {
 		signerShort = s
 	}
-	signerNorm := strings.ToUpper(signerShort)
-	log.Infof("++++ isKeyInAllowedList: signerKeyID(raw)=%q signerShort(normalized)=%q signerNorm(uppercase)=%q allowedKeys=%v",
-		signerKeyID, signerShort, signerNorm, allowedKeys)
-	for i, k := range allowedKeys {
+	for _, k := range allowedKeys {
 		allowedKey, err := KeyID(k)
 		if err != nil {
-			log.Warnf("++++ isKeyInAllowedList: allowedKeys[%d]=%q KeyID err=%v (skipping)", i, k, err)
 			continue
 		}
-		allowedNorm := strings.ToUpper(allowedKey)
-		match := strings.EqualFold(allowedKey, signerShort)
-		log.Infof("++++ isKeyInAllowedList: compare allowedKeys[%d] raw=%q normalized=%q vs signer=%q -> match=%v", i, k, allowedNorm, signerNorm, match)
-		if match {
-			log.Infof("++++ isKeyInAllowedList: KEY MATCH FOUND (allowed=%q, signer=%q)", allowedNorm, signerNorm)
+		if strings.EqualFold(allowedKey, signerShort) {
 			return true
 		}
 	}
-	log.Warnf("++++ isKeyInAllowedList: NO MATCH - signer %q not in allowed list", signerNorm)
 	return false
 }
 
@@ -285,27 +279,17 @@ const CheckNameHelmProvenance = "HELM/PROVENANCE"
 // chartContent is the raw .tgz bytes; provContent is the .prov file (may be nil if missing); chartFilename is e.g. "mychart-1.0.0.tgz".
 // Returns nil when no policy matches or mode is none; otherwise returns a check result (HELM/PROVENANCE).
 func VerifyHelm(si *v1alpha1.SourceIntegrity, repoURL string, chartContent []byte, provContent []byte, chartFilename string) (*v1alpha1.SourceIntegrityCheckResult, error) {
-	log.Infof("++++ VerifyHelm: repoURL=%q provContentLen=%d chartFilename=%s", repoURL, len(provContent), chartFilename)
 	policy, earlyResult := resolveHelmProvenancePolicy(si, repoURL)
 	if earlyResult != nil {
-		log.Infof("++++ VerifyHelm: earlyResult (policy resolve returned error/early): %v", earlyResult.AsError())
 		return earlyResult, nil
 	}
 	if policy == nil {
-		log.Infof("++++ VerifyHelm: policy=nil (no matching policy or mode none), returning nil")
 		return nil, nil
 	}
-	log.Infof("++++ VerifyHelm: policy matched, mode=%v, allowedKeys=%v", policy.Provenance.Mode, policy.Provenance.Keys)
 	if !IsGPGEnabled() {
-		log.Warnf("++++ VerifyHelm: ARGOCD_GPG_ENABLED=false, skipping verification")
 		return helmProvenanceResult(nil), nil
 	}
 	problems := verifyHelmProvenanceContent(policy, chartContent, provContent, chartFilename)
-	if len(problems) > 0 {
-		log.Warnf("++++ VerifyHelm: verification FAILED: %v", problems)
-	} else {
-		log.Infof("++++ VerifyHelm: verification PASSED")
-	}
 	return helmProvenanceResult(problems), nil
 }
 
@@ -318,12 +302,10 @@ func helmProvenanceResult(problems []string) *v1alpha1.SourceIntegrityCheckResul
 
 func resolveHelmProvenancePolicy(si *v1alpha1.SourceIntegrity, repoURL string) (*v1alpha1.SourceIntegrityHelmPolicy, *v1alpha1.SourceIntegrityCheckResult) {
 	if si == nil || si.Helm == nil {
-		log.Infof("++++ resolveHelmProvenancePolicy: si or si.Helm nil, repoURL=%q", repoURL)
 		return nil, nil
 	}
 	policies := findMatchingHelmPolicies(si.Helm, repoURL)
 	if len(policies) == 0 {
-		log.Infof("++++ resolveHelmProvenancePolicy: NO policy matched repoURL=%q policyURLs=%v", repoURL, getHelmPolicyURLs(si.Helm))
 		return nil, nil
 	}
 	if len(policies) > 1 {
@@ -346,47 +328,30 @@ var helmProvenanceVerifier = VerifyCleartextSignedMessage
 
 func verifyHelmProvenanceContent(policy *v1alpha1.SourceIntegrityHelmPolicy, chartContent []byte, provContent []byte, chartFilename string) []string {
 	if len(provContent) == 0 {
-		log.Warnf("++++ verifyHelmProvenanceContent: provContent EMPTY - .prov file not available")
 		return []string{"provenance file (.prov) is required but missing"}
 	}
-	provPreview := provStructurePreviewForLog(provContent)
-	log.Infof("++++ verifyHelmProvenanceContent: prov file present, size=%d, structure=%s", len(provContent), provPreview)
-	log.Infof("++++ verifyHelmProvenanceContent: step 1 - GPG verify (key signing check)")
 	signerKeyID, err := helmProvenanceVerifier(provContent)
 	if err != nil {
-		log.Warnf("++++ verifyHelmProvenanceContent: step 1 FAILED - GPG verification error: %v", err)
 		return []string{"provenance signature verification failed: " + err.Error()}
 	}
-	log.Infof("++++ verifyHelmProvenanceContent: step 1 OK - signerKeyID=%q, allowedKeys=%v", signerKeyID, policy.Provenance.Keys)
 	if !isKeyInAllowedList(policy.Provenance.Keys, signerKeyID) {
 		signerShort := signerKeyID
 		if s, e := KeyID(signerKeyID); e == nil {
 			signerShort = s
 		}
-		log.Warnf("++++ verifyHelmProvenanceContent: key signing FAILED - signer %s NOT in allowed list", signerShort)
 		return []string{fmt.Sprintf(msgUnallowedKey, signerShort)}
 	}
-	log.Infof("++++ verifyHelmProvenanceContent: step 2 - extract signed body from prov")
 	signedBody, err := extractProvSignedBody(provContent)
 	if err != nil {
-		log.Warnf("++++ verifyHelmProvenanceContent: step 2 FAILED - extractProvSignedBody: %v (prov format may differ)", err)
 		return []string{"failed to parse provenance signed body: " + err.Error()}
 	}
-	log.Infof("++++ verifyHelmProvenanceContent: step 2 OK - signed body extracted, len=%d", len(signedBody))
-	log.Infof("++++ verifyHelmProvenanceContent: step 3 - parse digest for chart %q", chartFilename)
 	expectedSHA, err := parseProvFilesDigest(signedBody, chartFilename)
 	if err != nil {
-		log.Warnf("++++ verifyHelmProvenanceContent: step 3 FAILED - parseProvFilesDigest: %v", err)
 		return []string{err.Error()}
 	}
-	log.Infof("++++ verifyHelmProvenanceContent: step 3 OK - expected sha256=%s", expectedSHA)
-	log.Infof("++++ verifyHelmProvenanceContent: step 4 - verify chart checksum")
 	if err := verifyChartChecksum(chartContent, expectedSHA); err != nil {
-		log.Warnf("++++ verifyHelmProvenanceContent: step 4 FAILED - chart checksum mismatch: %v", err)
 		return []string{err.Error()}
 	}
-	log.Infof("++++ verifyHelmProvenanceContent: step 4 OK - chart checksum verified")
-	log.Infof("++++ verifyHelmProvenanceContent: ALL STEPS OK - verification PASSED")
 	return nil
 }
 
@@ -430,22 +395,6 @@ const (
 	pgpSignatureHeader     = "-----BEGIN PGP SIGNATURE-----"
 )
 
-// provStructurePreviewForLog returns a short summary of prov structure.
-func provStructurePreviewForLog(prov []byte) string {
-	if len(prov) == 0 {
-		return "empty"
-	}
-	s := string(prov)
-	hasSignedMsg := strings.Contains(s, pgpSignedMessageHeader)
-	hasSig := strings.Contains(s, pgpSignatureHeader)
-	previewLen := 120
-	if len(s) < previewLen {
-		previewLen = len(s)
-	}
-	preview := strings.ReplaceAll(s[:previewLen], "\n", "|")
-	return fmt.Sprintf("hasPGPSignedMessage=%v hasPGPSignature=%v first120=%q", hasSignedMsg, hasSig, preview)
-}
-
 // extractProvSignedBody extracts the signed body from a PGP cleartext-signed message (e.g. Helm .prov file).
 func extractProvSignedBody(provContent []byte) ([]byte, error) {
 	s := string(provContent)
@@ -482,19 +431,9 @@ func parseProvFilesDigest(signedBody []byte, chartFilename string) (expectedSHA2
 			if fn == chartFilename {
 				return string(m[2]), nil
 			}
-			log.Infof("++++ parseProvFilesDigest: found file in prov: %q (looking for %q)", fn, chartFilename)
 		}
 	}
-	log.Warnf("++++ parseProvFilesDigest: no digest for %q; signedBody preview: %q", chartFilename, truncateForLog(signedBody, 200))
 	return "", fmt.Errorf("provenance files section has no digest for %q", chartFilename)
-}
-
-func truncateForLog(b []byte, max int) string {
-	s := string(b)
-	if len(s) > max {
-		return s[:max] + "..."
-	}
-	return s
 }
 
 // verifyChartChecksum verifies that chartContent's SHA256 matches the expected hex digest.
