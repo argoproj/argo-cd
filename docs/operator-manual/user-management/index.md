@@ -461,7 +461,7 @@ This allows users to logout locally even if the server is down, though the token
 #### Security Best Practices
 
 1.**Use short-lived tokens**: Configure reasonable token expiration times in the OIDC provider to limit the window of exposure
-2.**Enable logout URLs**: Configure `logoutURL` for your OIDC provider to ensure SSO sessions are also terminated
+2.**Enable logout URLs**: Configure `logoutURL` in `oidc.config` for your OIDC provider to ensure SSO sessions are also terminated
 3.**Monitor token usage**: Use Argo CD's audit logging to track token creation and revocation events
 
 ### Configuring a custom root CA certificate for communicating with the OIDC provider

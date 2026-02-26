@@ -292,8 +292,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	}
 	if mgr.storage.IsTokenRevoked(id) {
 		return nil, "", errors.New("token is revoked, please re-login")
-	}
-	if capability == settings.AccountCapabilityApiKey && account.TokenIndex(id) == -1 {
+	} else if capability == settings.AccountCapabilityApiKey && account.TokenIndex(id) == -1 {
 		return nil, "", fmt.Errorf("account %s does not have token with id %s", subject, id)
 	}
 
