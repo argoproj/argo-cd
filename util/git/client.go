@@ -197,7 +197,8 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 	return client, nil
 }
 
-var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64)
+var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 60*time.Second, 0, math.MaxInt64)
+var gitTLSHandshakeTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_TLS_TIMEOUT", 30*time.Second, 0, math.MaxInt64)
 
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
@@ -250,10 +251,11 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 		Proxy: proxyFunc,
 		TLSClientConfig: &tls.Config{
 			GetClientCertificate: clientCertFunc,
+			KeyLogWriter:         log.StandardLogger().Writer(),
 		},
 		DisableKeepAlives:     true,
 		ResponseHeaderTimeout: 15 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
+		TLSHandshakeTimeout:   gitTLSHandshakeTimeout,
 		ForceAttemptHTTP2:     true,
 		DialContext: (&net.Dialer{
 			Timeout:   30 * time.Second,
