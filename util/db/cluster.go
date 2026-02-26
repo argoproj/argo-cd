@@ -40,7 +40,7 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 		info, err := db.kubeclientset.Discovery().ServerVersion()
 		if err == nil {
 			ver, verErr := version.ParseGeneric(info.GitVersion)
-			if err == nil {
+			if verErr == nil {
 				localCluster.Info.ServerVersion = ver.String()
 			} else {
 				log.Warnf("Failed to parse Kubernetes server version: %v", verErr)
