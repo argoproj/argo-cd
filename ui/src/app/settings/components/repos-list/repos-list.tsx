@@ -199,7 +199,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             case ConnectionMethod.SSH:
                 const sshValues = params as NewSSHRepoParams;
                 return {
-                    url: !sshValues.url && 'Repository URL is required'
+                    url: !sshValues.url && 'Repository URL is required',
+                    depth: sshValues.depth != undefined && sshValues.depth < 0 && 'Depth must be a non-negative number'
                 };
             case ConnectionMethod.HTTPS:
                 const validURLValues = params as NewHTTPSRepoParams;
@@ -214,20 +215,23 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     tlsClientCertKey: !validURLValues.tlsClientCertKey && validURLValues.tlsClientCertData && 'TLS client cert key is required if TLS client cert is given.',
                     bearerToken:
                         (validURLValues.password && validURLValues.bearerToken && 'Either the password or the bearer token must be set, but not both.') ||
-                        (validURLValues.bearerToken && validURLValues.type != 'git' && 'Bearer token is only supported for Git BitBucket Data Center repositories.')
+                        (validURLValues.bearerToken && validURLValues.type != 'git' && 'Bearer token is only supported for Git BitBucket Data Center repositories.'),
+                    depth: validURLValues.depth != undefined && validURLValues.depth < 0 && 'Depth must be a non-negative number'
                 };
             case ConnectionMethod.GITHUBAPP:
                 const githubAppValues = params as NewGitHubAppRepoParams;
                 return {
                     url: (!githubAppValues.url && 'Repository URL is required') || (credsTemplate && !isHTTPOrHTTPSUrl(githubAppValues.url) && 'Not a valid HTTP/HTTPS URL'),
                     githubAppId: !githubAppValues.githubAppId && 'GitHub App ID is required',
-                    githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required'
+                    githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required',
+                    depth: githubAppValues.depth != undefined && githubAppValues.depth < 0 && 'Depth must be a non-negative number'
                 };
             case ConnectionMethod.GOOGLECLOUD:
                 const googleCloudValues = params as NewGoogleCloudSourceRepoParams;
                 return {
                     url: (!googleCloudValues.url && 'Repo URL is required') || (credsTemplate && !isHTTPOrHTTPSUrl(googleCloudValues.url) && 'Not a valid HTTP/HTTPS URL'),
-                    gcpServiceAccountKey: !googleCloudValues.gcpServiceAccountKey && 'GCP service account key is required'
+                    gcpServiceAccountKey: !googleCloudValues.gcpServiceAccountKey && 'GCP service account key is required',
+                    depth: googleCloudValues.depth != undefined && googleCloudValues.depth < 0 && 'Depth must be a non-negative number'
                 };
         }
     };

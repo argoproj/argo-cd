@@ -123,7 +123,8 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
             validate={input => ({
                 username: !input.username && input.password && 'Username is required if password is given.',
                 password: !input.password && input.username && 'Password is required if username is given.',
-                bearerToken: input.password && input.bearerToken && 'Either the password or the bearer token must be set, but not both.'
+                bearerToken: input.password && input.bearerToken && 'Either the password or the bearer token must be set, but not both.',
+                depth: input.depth != undefined && input.depth < 0 && 'Depth must be a non-negative number'
             })}
             save={async input => {
                 const params: NewHTTPSRepoParams = {...newRepo, write};
