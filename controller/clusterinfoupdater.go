@@ -155,13 +155,21 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 		case info.LastCacheSyncTime == nil:
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown
 		case info.SyncError == nil:
-			// If there's no sync error, the connection is successful
-			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusSuccessful
+			// No sync error - check if we have failed GVKs (already merged by liveStateCache)
 			syncTime := metav1.NewTime(*info.LastCacheSyncTime)
 			clusterInfo.CacheInfo.LastCacheSyncTime = &syncTime
 			clusterInfo.CacheInfo.APIsCount = int64(info.APIsCount)
 			clusterInfo.CacheInfo.ResourcesCount = int64(info.ResourcesCount)
 			clusterInfo.CacheInfo.FailedResourceGVKs = info.FailedResourceGVKs
+
+			// If we have failed GVKs, mark as degraded
+			if len(info.FailedResourceGVKs) > 0 {
+				clusterInfo.ConnectionState.Status = appv1.ConnectionStatusDegraded
+				clusterInfo.ConnectionState.Message = fmt.Sprintf("Cluster has %d unavailable resource types due to conversion webhook failures",
+					len(info.FailedResourceGVKs))
+			} else {
+				clusterInfo.ConnectionState.Status = appv1.ConnectionStatusSuccessful
+			}
 		case c.hasClusterCacheIssues(cluster.Server, info.SyncError):
 			// We have a successful connection but some resources failed to sync
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusDegraded

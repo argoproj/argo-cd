@@ -3,6 +3,7 @@ package errors
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -350,10 +351,8 @@ func GetIssueTypes(message string) []ClusterHealthIssueType {
 
 // appendUnique adds an issue type if it's not already present
 func appendUnique(types []ClusterHealthIssueType, issueType ClusterHealthIssueType) []ClusterHealthIssueType {
-	for _, t := range types {
-		if t == issueType {
-			return types
-		}
+	if slices.Contains(types, issueType) {
+		return types
 	}
 	return append(types, issueType)
 }

@@ -28,7 +28,7 @@ func VerifyHealthyClusterState(t *testing.T, clusterServer string) {
 
 	// Wait up to 30 seconds for cluster to become healthy and failedResourceGVKs to be cleared
 	var isSuccessful bool
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		// Get cluster info via API
 		err := fixture.DoHttpJsonRequest("GET", "/api/v1/clusters/"+clusterURL, &cluster)
 		require.NoError(t, err)
@@ -108,7 +108,7 @@ func VerifyFailedResourcesInResponse(t *testing.T, clusterServer string) {
 	var gvks []string
 	var isDegraded bool
 	var connectionMsg string
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		// Check if we have both degraded status and failed GVKs
 		isDegraded = cluster.Info.ConnectionState.Status == v1alpha1.ConnectionStatusDegraded
 		connectionMsg = cluster.Info.ConnectionState.Message

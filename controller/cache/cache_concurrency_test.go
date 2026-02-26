@@ -21,39 +21,34 @@ func TestClusterTaintManagerConcurrency(t *testing.T) {
 
 	// Concurrently mark taints
 	for i := range numGoroutines {
-		wg.Add(1)
-		go func(id int) {
-			defer wg.Done()
+		id := i // capture loop variable
+		wg.Go(func() {
 			for j := range numOperations {
 				gvk := fmt.Sprintf("test/v1/Resource%d_%d", id, j)
 				manager.markTainted(server, gvk, "ConversionError", "test error")
 			}
-		}(i)
+		})
 	}
 
 	// Concurrently read taints
 	for range numGoroutines {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for range numOperations {
 				_ = manager.isTainted(server)
 				_ = manager.getTaintedGVKs(server)
 				_ = manager.getAllTaints()
 				time.Sleep(time.Microsecond) // Small delay to increase chance of race
 			}
-		}()
+		})
 	}
 
 	// Concurrently clear taints
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for range numOperations / 10 {
 			time.Sleep(time.Millisecond * 10)
 			manager.clearTaints(server)
 		}
-	}()
+	})
 
 	wg.Wait()
 
@@ -75,14 +70,13 @@ func TestClusterTaintManagerDataIntegrity(t *testing.T) {
 
 	// Each worker marks unique GVKs
 	for worker := range numWorkers {
-		wg.Add(1)
-		go func(workerID int) {
-			defer wg.Done()
+		workerID := worker // capture loop variable
+		wg.Go(func() {
 			for i := range numGVKsPerWorker {
 				gvk := fmt.Sprintf("worker%d/v1/Resource%d", workerID, i)
 				manager.markTainted(server, gvk, "ConversionError", "test")
 			}
-		}(worker)
+		})
 	}
 
 	wg.Wait()
@@ -108,22 +102,19 @@ func TestClusterTaintManagerIsolation(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Concurrent operations on different servers should not interfere
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for i := range 100 {
 			gvk := fmt.Sprintf("server1/v1/Resource%d", i)
 			manager.markTainted(server1, gvk, "ConversionError", "test")
 		}
-	}()
+	})
 
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		for i := range 100 {
 			gvk := fmt.Sprintf("server2/v1/Resource%d", i)
 			manager.markTainted(server2, gvk, "NetworkError", "test")
 		}
-	}()
+	})
 
 	wg.Wait()
 

@@ -990,9 +990,40 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 		info := clusterCache.GetClusterInfo()
 		info.Server = server
 
+		// Merge tainted GVKs from taintManager into FailedResourceGVKs
+		// This ensures a unified view regardless of which tracking system captured the failure
+		info.FailedResourceGVKs = c.mergeFailedGVKs(server, info.FailedResourceGVKs)
+
 		res = append(res, info)
 	}
 	return res
+}
+
+// mergeFailedGVKs combines GVKs from gitops-engine with tainted GVKs from the taint manager
+// This ensures we capture all failed GVKs regardless of timing issues between the two tracking systems
+func (c *liveStateCache) mergeFailedGVKs(server string, engineGVKs []string) []string {
+	taintedGVKs := c.taintManager.getTaintedGVKs(server)
+	if len(taintedGVKs) == 0 {
+		return engineGVKs
+	}
+	if len(engineGVKs) == 0 {
+		return taintedGVKs
+	}
+
+	// Merge and deduplicate
+	gvkSet := make(map[string]bool, len(engineGVKs)+len(taintedGVKs))
+	for _, gvk := range engineGVKs {
+		gvkSet[gvk] = true
+	}
+	for _, gvk := range taintedGVKs {
+		gvkSet[gvk] = true
+	}
+
+	result := make([]string, 0, len(gvkSet))
+	for gvk := range gvkSet {
+		result = append(result, gvk)
+	}
+	return result
 }
 
 func (c *liveStateCache) GetClusterCache(server *appv1.Cluster) (clustercache.ClusterCache, error) {
