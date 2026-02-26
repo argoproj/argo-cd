@@ -5442,6 +5442,10 @@
           "description": "Namespace defines the Kubernetes namespace where the resource is located.",
           "type": "string"
         },
+        "pruneRequested": {
+          "description": "PruneRequested is true if the resource opted in to pruning via sync-option Prune=true.",
+          "type": "boolean"
+        },
         "requiresDeletionConfirmation": {
           "description": "RequiresDeletionConfirmation is true if the resource requires explicit user confirmation before deletion.",
           "type": "boolean"

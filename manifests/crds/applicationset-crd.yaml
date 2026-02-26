@@ -23148,6 +23148,8 @@ spec:
                       type: string
                     namespace:
                       type: string
+                    pruneRequested:
+                      type: boolean
                     requiresDeletionConfirmation:
                       type: boolean
                     requiresPruning:

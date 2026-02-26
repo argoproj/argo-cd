@@ -2164,6 +2164,8 @@ type ResourceStatus struct {
 	Hook bool `json:"hook,omitempty" protobuf:"bytes,8,opt,name=hook"`
 	// RequiresPruning is true if the resource needs to be pruned (deleted) as part of synchronization.
 	RequiresPruning bool `json:"requiresPruning,omitempty" protobuf:"bytes,9,opt,name=requiresPruning"`
+	// PruneRequested is true if the resource opted in to pruning via sync-option Prune=true.
+	PruneRequested bool `json:"pruneRequested,omitempty" protobuf:"bytes,12,opt,name=pruneRequested"`
 	// SyncWave determines the order in which resources are applied during a sync operation.
 	// Lower values are applied first.
 	SyncWave int64 `json:"syncWave,omitempty" protobuf:"bytes,10,opt,name=syncWave"`

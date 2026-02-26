@@ -2252,6 +2252,9 @@ message ResourceStatus {
   // RequiresPruning is true if the resource needs to be pruned (deleted) as part of synchronization.
   optional bool requiresPruning = 9;
 
+  // PruneRequested is true if the resource opted in to pruning via sync-option Prune=true.
+  optional bool pruneRequested = 12;
+
   // SyncWave determines the order in which resources are applied during a sync operation.
   // Lower values are applied first.
   optional int64 syncWave = 10;
