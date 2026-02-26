@@ -322,6 +322,10 @@ message ApplicationSetResourceIgnoreDifferences {
   // Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.
   optional string name = 1;
 
+  // LabelSelector is used to filter applications based on their labels. If not specified, the rule applies to all applications.
+  // When both Name and LabelSelector are specified, both must match for the rule to apply.
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector labelSelector = 4;
+
   // JSONPointers is a list of JSON pointers to fields to ignore differences for.
   repeated string jsonPointers = 2;
 
