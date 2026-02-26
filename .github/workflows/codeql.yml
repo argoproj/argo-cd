@@ -6,6 +6,12 @@ on:
     branches-ignore:
       - 'dependabot/**'
       - 'cherry-pick-*'
+      
+    # Skip CodeQL for documentation-only changes
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
   pull_request:
     # Skip CodeQL for documentation-only changes
     paths-ignore:
