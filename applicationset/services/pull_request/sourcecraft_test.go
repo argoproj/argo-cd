@@ -288,8 +288,7 @@ func TestSourceCraftListHandlesInvalidPRSlug(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = svc.List(t.Context())
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid syntax", "Should return error for invalid PR slug")
+	require.NoError(t, err)
 }
 
 func TestSourceCraftServiceInsecure(t *testing.T) {

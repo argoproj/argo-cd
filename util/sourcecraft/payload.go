@@ -453,3 +453,21 @@ type PullRequestReviewDecisionEventPaylaod struct {
 	// Decision is the review decision (ship, sticky_ship, block, abstain, or null for withdrawal).
 	Decision string `json:"decision"`
 }
+
+// PullRequestEventAggregate is the normalized payload returned by Parse when using PullRequestAggregate.
+// It provides direct access to the common fields shared by all pull request events.
+// RawEvent holds the original specific payload (e.g. PullRequestMergeEventPayload) for clients
+// that need event-specific fields beyond the common ones.
+type PullRequestEventAggregate struct {
+	// Header is the event header with common fields.
+	Header *EventHeader
+	// Repository is the repository where the pull request is located.
+	Repository *Repository
+	// PullRequest is the pull request.
+	PullRequest *PullRequest
+	// EventType is the specific pull request event type (e.g. PullRequestCreateEvent).
+	EventType Event
+	// RawEvent holds the original specific event payload for detailed processing.
+	// Type-assert against the concrete payload type corresponding to EventType.
+	RawEvent any
+}

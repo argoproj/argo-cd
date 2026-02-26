@@ -165,6 +165,17 @@ func (hook Webhook) Parse(r *http.Request, events ...EventMatcher) (any, error) 
 		}
 	}
 
+	// Determine if any of the requested matchers is an aggregate.
+	// When an aggregate is used, PR events are returned as PullRequestEventAggregate
+	// instead of the specific concrete payload types.
+	usesAggregate := false
+	for _, m := range events {
+		if _, ok := m.(EventAggregate); ok {
+			usesAggregate = true
+			break
+		}
+	}
+
 	switch srcEvent {
 	case PingEvent:
 		var pl PingEventPayload
@@ -177,38 +188,65 @@ func (hook Webhook) Parse(r *http.Request, events ...EventMatcher) (any, error) 
 	case PullRequestCreateEvent:
 		var pl PullRequestCreateEventPayload
 		err = json.Unmarshal([]byte(payload), &pl)
+		if usesAggregate {
+			return PullRequestEventAggregate{pl.Header, pl.Repository, pl.PullRequest, PullRequestCreateEvent, pl}, err
+		}
 		return pl, err
 	case PullRequestUpdateEvent:
 		var pl PullRequestUpdateEventPayload
 		err = json.Unmarshal([]byte(payload), &pl)
+		if usesAggregate {
+			return PullRequestEventAggregate{pl.Header, pl.Repository, pl.PullRequest, PullRequestUpdateEvent, pl}, err
+		}
 		return pl, err
 	case PullRequestPublishEvent:
 		var pl PullRequestPublishEventPayload
 		err = json.Unmarshal([]byte(payload), &pl)
+		if usesAggregate {
+			return PullRequestEventAggregate{pl.Header, pl.Repository, pl.PullRequest, PullRequestPublishEvent, pl}, err
+		}
 		return pl, err
 	case PullRequestRefreshEvent:
 		var pl PullRequestRefreshEventPayload
 		err = json.Unmarshal([]byte(payload), &pl)
+		if usesAggregate {
+			return PullRequestEventAggregate{pl.Header, pl.Repository, pl.PullRequest, PullRequestRefreshEvent, pl}, err
+		}
 		return pl, err
 	case PullRequestMergeFailureEvent:
 		var pl PullRequestMergeFailureEventPayload
 		err = json.Unmarshal([]byte(payload), &pl)
+		if usesAggregate {
+			return PullRequestEventAggregate{pl.Header, pl.Repository, pl.PullRequest, PullRequestMergeFailureEvent, pl}, err
+		}
 		return pl, err
 	case PullRequestMergeEvent:
 		var pl PullRequestMergeEventPayload
 		err = json.Unmarshal([]byte(payload), &pl)
+		if usesAggregate {
+			return PullRequestEventAggregate{pl.Header, pl.Repository, pl.PullRequest, PullRequestMergeEvent, pl}, err
+		}
 		return pl, err
 	case PullRequestNewIterationEvent:
 		var pl PullRequestNewIterationEventPayload
 		err = json.Unmarshal([]byte(payload), &pl)
+		if usesAggregate {
+			return PullRequestEventAggregate{pl.Header, pl.Repository, pl.PullRequest, PullRequestNewIterationEvent, pl}, err
+		}
 		return pl, err
 	case PullRequestReviewAssignmentEvent:
 		var pl PullRequestReviewAssignmentEventPayload
 		err = json.Unmarshal([]byte(payload), &pl)
+		if usesAggregate {
+			return PullRequestEventAggregate{pl.Header, pl.Repository, pl.PullRequest, PullRequestReviewAssignmentEvent, pl}, err
+		}
 		return pl, err
 	case PullRequestReviewDecisionEvent:
 		var pl PullRequestReviewDecisionEventPaylaod
 		err = json.Unmarshal([]byte(payload), &pl)
+		if usesAggregate {
+			return PullRequestEventAggregate{pl.Header, pl.Repository, pl.PullRequest, PullRequestReviewDecisionEvent, pl}, err
+		}
 		return pl, err
 	default:
 		return nil, fmt.Errorf("unknown event %s", srcEvent)

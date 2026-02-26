@@ -230,6 +230,9 @@ func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
 		// unfortunately, Azure DevOps doesn't provide a list of changed files
 	case sourcecraft.PushEventPayload:
+		if payload.Repository == nil || payload.RefUpdate == nil {
+			return nil
+		}
 		webURL = payload.Repository.WebURL
 		revision = webhook.ParseRevision(payload.RefUpdate.Ref)
 		touchedHead = payload.IsDefaultBranchUpdated
@@ -299,17 +302,16 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 			Project: project,
 		}
 
-	case sourcecraft.PullRequestEventPayload:
-		if !slices.Contains(sourceCraftAllowedPullRequestActions, string(payload.GetEventType())) {
+	case sourcecraft.PullRequestEventAggregate:
+		if !slices.Contains(sourceCraftAllowedPullRequestActions, string(payload.EventType)) {
 			return nil
 		}
-		repository := payload.GetRepository()
-		if repository == nil {
+		if payload.Repository == nil {
 			return nil
 		}
 		info.SourceCraft = &prGeneratorSourceCraftInfo{
-			OrganizationSlug: repository.Organization.Slug,
-			RepoSlug:         repository.Slug,
+			OrganizationSlug: payload.Repository.Organization.Slug,
+			RepoSlug:         payload.Repository.Slug,
 		}
 
 	default:

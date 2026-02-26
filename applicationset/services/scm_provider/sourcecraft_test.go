@@ -257,7 +257,7 @@ func TestSourceCraftGetBranches(t *testing.T) {
 
 		_, err = provider.GetBranches(context.Background(), repo)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "got 404 while getting default branch")
+		assert.Contains(t, err.Error(), "Repository not found")
 	})
 }
 

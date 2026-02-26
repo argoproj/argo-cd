@@ -37,14 +37,14 @@ func NewSourceCraftProvider(organizationSlug, token, url string, allBranches, in
 func (g *SourceCraftProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
 	if !g.allBranches {
 		branch, status, err := g.client.GetRepoBranch(ctx, g.organizationSlug, repo.Repository, repo.Branch)
-		if status.StatusCode == http.StatusNotFound {
+		if err != nil {
+			return nil, err
+		}
+		if status != nil && status.StatusCode == http.StatusNotFound {
 			return nil, fmt.Errorf("got 404 while getting default branch %q for repo %q - check your repo config: %w", repo.Branch, repo.Repository, err)
 		}
 		if branch == nil {
 			return nil, fmt.Errorf("got nil branch while getting default branch %q for repo %q - check your repo config", repo.Branch, repo.Repository)
-		}
-		if err != nil {
-			return nil, err
 		}
 		return []*Repository{
 			{

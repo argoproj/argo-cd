@@ -116,60 +116,70 @@ func TestBadRequests(t *testing.T) {
 	}
 }
 
-func TestPullRequestEventPayloadInterface(t *testing.T) {
+func TestPullRequestEventAggregateStruct(t *testing.T) {
 	t.Parallel()
 
 	assert := require.New(t)
 
 	tests := []struct {
-		name     string
-		event    Event
-		filename string
+		name          string
+		eventHeader   string
+		filename      string
+		expectedEvent Event
 	}{
 		{
-			name:     "PullRequestCreateEvent",
-			event:    PullRequestCreateEvent,
-			filename: "testdata/pull-request-create.json",
+			name:          "PullRequestCreateEvent",
+			eventHeader:   "pull_request.create",
+			filename:      "testdata/pull-request-create.json",
+			expectedEvent: PullRequestCreateEvent,
 		},
 		{
-			name:     "PullRequestUpdateEvent",
-			event:    PullRequestUpdateEvent,
-			filename: "testdata/pull-request-update.json",
+			name:          "PullRequestUpdateEvent",
+			eventHeader:   "pull_request.update",
+			filename:      "testdata/pull-request-update.json",
+			expectedEvent: PullRequestUpdateEvent,
 		},
 		{
-			name:     "PullRequestPublishEvent",
-			event:    PullRequestPublishEvent,
-			filename: "testdata/pull-request-publish.json",
+			name:          "PullRequestPublishEvent",
+			eventHeader:   "pull_request.publish",
+			filename:      "testdata/pull-request-publish.json",
+			expectedEvent: PullRequestPublishEvent,
 		},
 		{
-			name:     "PullRequestRefreshEvent",
-			event:    PullRequestRefreshEvent,
-			filename: "testdata/pull-request-refresh.json",
+			name:          "PullRequestRefreshEvent",
+			eventHeader:   "pull_request.refresh",
+			filename:      "testdata/pull-request-refresh.json",
+			expectedEvent: PullRequestRefreshEvent,
 		},
 		{
-			name:     "PullRequestNewIterationEvent",
-			event:    PullRequestNewIterationEvent,
-			filename: "testdata/pull-request-new-iteration.json",
+			name:          "PullRequestNewIterationEvent",
+			eventHeader:   "pull_request.new_iteration",
+			filename:      "testdata/pull-request-new-iteration.json",
+			expectedEvent: PullRequestNewIterationEvent,
 		},
 		{
-			name:     "PullRequestReviewAssignmentEvent",
-			event:    PullRequestReviewAssignmentEvent,
-			filename: "testdata/pull-request-review-assignment.json",
+			name:          "PullRequestReviewAssignmentEvent",
+			eventHeader:   "pull_request.review_assignment",
+			filename:      "testdata/pull-request-review-assignment.json",
+			expectedEvent: PullRequestReviewAssignmentEvent,
 		},
 		{
-			name:     "PullRequestReviewDecisionEvent",
-			event:    PullRequestReviewDecisionEvent,
-			filename: "testdata/pull-request-review-decision.json",
+			name:          "PullRequestReviewDecisionEvent",
+			eventHeader:   "pull_request.review_decision",
+			filename:      "testdata/pull-request-review-decision.json",
+			expectedEvent: PullRequestReviewDecisionEvent,
 		},
 		{
-			name:     "PullRequestMergeEvent",
-			event:    PullRequestMergeEvent,
-			filename: "testdata/pull-request-merge.json",
+			name:          "PullRequestMergeEvent",
+			eventHeader:   "pull_request.merge",
+			filename:      "testdata/pull-request-merge.json",
+			expectedEvent: PullRequestMergeEvent,
 		},
 		{
-			name:     "PullRequestMergeFailureEvent",
-			event:    PullRequestMergeFailureEvent,
-			filename: "testdata/pull-request-merge-failure.json",
+			name:          "PullRequestMergeFailureEvent",
+			eventHeader:   "pull_request.merge_failure",
+			filename:      "testdata/pull-request-merge-failure.json",
+			expectedEvent: PullRequestMergeFailureEvent,
 		},
 	}
 
@@ -184,13 +194,13 @@ func TestPullRequestEventPayloadInterface(t *testing.T) {
 			var parseError error
 			var results any
 			server := newServer(func(_ http.ResponseWriter, r *http.Request) {
-				results, parseError = hook.Parse(r, tc.event)
+				results, parseError = hook.Parse(r, PullRequestAggregate)
 			})
 			defer server.Close()
 
 			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL+path, bytes.NewReader(payload))
 			assert.NoError(err)
-			req.Header.Set("X-Src-Event", string(tc.event))
+			req.Header.Set("X-Src-Event", tc.eventHeader)
 
 			mac := hmac.New(sha256.New, []byte(hook.secret))
 			mac.Write(payload)
@@ -202,37 +212,31 @@ func TestPullRequestEventPayloadInterface(t *testing.T) {
 			assert.Equal(http.StatusOK, resp.StatusCode)
 			assert.NoError(parseError)
 
-			// Test that all PR events implement the PullRequestEventPayload interface
-			// and can be handled in a single type switch case
-			switch prPayload := results.(type) {
-			case PullRequestEventPayload:
-				// Verify that we can access common fields through the interface
-				assert.NotNil(prPayload.GetHeader(), "Header should not be nil")
-				assert.NotNil(prPayload.GetRepository(), "Repository should not be nil")
-				assert.NotNil(prPayload.GetPullRequest(), "PullRequest should not be nil")
+			// All PR events parsed via PullRequestAggregate return PullRequestEventAggregate
+			prPayload, ok := results.(PullRequestEventAggregate)
+			assert.True(ok, "Expected PullRequestEventAggregate struct, got %T", results)
 
-				// Verify the header has required fields
-				header := prPayload.GetHeader()
-				assert.NotEmpty(header.Id, "Header ID should not be empty")
-				assert.NotEmpty(header.Type, "Header Type should not be empty")
+			// Verify common fields are populated
+			assert.NotNil(prPayload.Header, "Header should not be nil")
+			assert.NotEmpty(prPayload.Header.Id, "Header ID should not be empty")
+			assert.NotEmpty(prPayload.Header.Type, "Header Type should not be empty")
+			assert.NotNil(prPayload.Repository, "Repository should not be nil")
+			assert.NotEmpty(prPayload.Repository.Id, "Repository ID should not be empty")
+			assert.NotEmpty(prPayload.Repository.Slug, "Repository Slug should not be empty")
+			assert.NotNil(prPayload.PullRequest, "PullRequest should not be nil")
+			assert.NotEmpty(prPayload.PullRequest.Id, "PullRequest ID should not be empty")
+			assert.NotEmpty(prPayload.PullRequest.Slug, "PullRequest Slug should not be empty")
 
-				// Verify the repository has required fields
-				repo := prPayload.GetRepository()
-				assert.NotEmpty(repo.Id, "Repository ID should not be empty")
-				assert.NotEmpty(repo.Slug, "Repository Slug should not be empty")
+			// Verify EventType is set correctly
+			assert.Equal(tc.expectedEvent, prPayload.EventType, "EventType should match the incoming event")
 
-				// Verify the pull request has required fields
-				pr := prPayload.GetPullRequest()
-				assert.NotEmpty(pr.Id, "PullRequest ID should not be empty")
-				assert.NotEmpty(pr.Slug, "PullRequest Slug should not be empty")
-			default:
-				t.Fatalf("Expected PullRequestEventPayload interface, got %T", results)
-			}
+			// Verify RawEvent is populated
+			assert.NotNil(prPayload.RawEvent, "RawEvent should not be nil")
 		})
 	}
 }
 
-func TestNonPullRequestEventsDoNotImplementInterface(t *testing.T) {
+func TestNonPullRequestEventsDoNotReturnPRPayload(t *testing.T) {
 	t.Parallel()
 
 	assert := require.New(t)
@@ -283,9 +287,9 @@ func TestNonPullRequestEventsDoNotImplementInterface(t *testing.T) {
 			assert.Equal(http.StatusOK, resp.StatusCode)
 			assert.NoError(parseError)
 
-			// Verify that non-PR events do NOT implement PullRequestEventPayload interface
-			_, isPRPayload := results.(PullRequestEventPayload)
-			assert.False(isPRPayload, "Non-PR event %s should not implement PullRequestEventPayload interface", tc.event)
+			// Verify that non-PR events are never returned as PullRequestEventAggregate
+			_, isPRPayload := results.(PullRequestEventAggregate)
+			assert.False(isPRPayload, "Non-PR event %s should not be returned as PullRequestEventAggregate", tc.event)
 		})
 	}
 }
@@ -441,64 +445,74 @@ func TestWebhook_PullRequestAggregate(t *testing.T) {
 	assert := require.New(t)
 
 	tests := []struct {
-		name         string
-		filename     string
-		eventHeader  string
-		expectedType any
+		name            string
+		filename        string
+		eventHeader     string
+		expectedEvent   Event
+		expectedRawType any
 	}{
 		{
-			name:         "CreateEventMatchesPullRequestAggregate",
-			filename:     "testdata/pull-request-create.json",
-			eventHeader:  "pull_request.create",
-			expectedType: PullRequestCreateEventPayload{},
+			name:            "CreateEventMatchesPullRequestAggregate",
+			filename:        "testdata/pull-request-create.json",
+			eventHeader:     "pull_request.create",
+			expectedEvent:   PullRequestCreateEvent,
+			expectedRawType: PullRequestCreateEventPayload{},
 		},
 		{
-			name:         "UpdateEventMatchesPullRequestAggregate",
-			filename:     "testdata/pull-request-update.json",
-			eventHeader:  "pull_request.update",
-			expectedType: PullRequestUpdateEventPayload{},
+			name:            "UpdateEventMatchesPullRequestAggregate",
+			filename:        "testdata/pull-request-update.json",
+			eventHeader:     "pull_request.update",
+			expectedEvent:   PullRequestUpdateEvent,
+			expectedRawType: PullRequestUpdateEventPayload{},
 		},
 		{
-			name:         "PublishEventMatchesPullRequestAggregate",
-			filename:     "testdata/pull-request-publish.json",
-			eventHeader:  "pull_request.publish",
-			expectedType: PullRequestPublishEventPayload{},
+			name:            "PublishEventMatchesPullRequestAggregate",
+			filename:        "testdata/pull-request-publish.json",
+			eventHeader:     "pull_request.publish",
+			expectedEvent:   PullRequestPublishEvent,
+			expectedRawType: PullRequestPublishEventPayload{},
 		},
 		{
-			name:         "RefreshEventMatchesPullRequestAggregate",
-			filename:     "testdata/pull-request-refresh.json",
-			eventHeader:  "pull_request.refresh",
-			expectedType: PullRequestRefreshEventPayload{},
+			name:            "RefreshEventMatchesPullRequestAggregate",
+			filename:        "testdata/pull-request-refresh.json",
+			eventHeader:     "pull_request.refresh",
+			expectedEvent:   PullRequestRefreshEvent,
+			expectedRawType: PullRequestRefreshEventPayload{},
 		},
 		{
-			name:         "MergeEventMatchesPullRequestAggregate",
-			filename:     "testdata/pull-request-merge.json",
-			eventHeader:  "pull_request.merge",
-			expectedType: PullRequestMergeEventPayload{},
+			name:            "MergeEventMatchesPullRequestAggregate",
+			filename:        "testdata/pull-request-merge.json",
+			eventHeader:     "pull_request.merge",
+			expectedEvent:   PullRequestMergeEvent,
+			expectedRawType: PullRequestMergeEventPayload{},
 		},
 		{
-			name:         "MergeFailureEventMatchesPullRequestAggregate",
-			filename:     "testdata/pull-request-merge-failure.json",
-			eventHeader:  "pull_request.merge_failure",
-			expectedType: PullRequestMergeFailureEventPayload{},
+			name:            "MergeFailureEventMatchesPullRequestAggregate",
+			filename:        "testdata/pull-request-merge-failure.json",
+			eventHeader:     "pull_request.merge_failure",
+			expectedEvent:   PullRequestMergeFailureEvent,
+			expectedRawType: PullRequestMergeFailureEventPayload{},
 		},
 		{
-			name:         "NewIterationEventMatchesPullRequestAggregate",
-			filename:     "testdata/pull-request-new-iteration.json",
-			eventHeader:  "pull_request.new_iteration",
-			expectedType: PullRequestNewIterationEventPayload{},
+			name:            "NewIterationEventMatchesPullRequestAggregate",
+			filename:        "testdata/pull-request-new-iteration.json",
+			eventHeader:     "pull_request.new_iteration",
+			expectedEvent:   PullRequestNewIterationEvent,
+			expectedRawType: PullRequestNewIterationEventPayload{},
 		},
 		{
-			name:         "ReviewAssignmentEventMatchesPullRequestAggregate",
-			filename:     "testdata/pull-request-review-assignment.json",
-			eventHeader:  "pull_request.review_assignment",
-			expectedType: PullRequestReviewAssignmentEventPayload{},
+			name:            "ReviewAssignmentEventMatchesPullRequestAggregate",
+			filename:        "testdata/pull-request-review-assignment.json",
+			eventHeader:     "pull_request.review_assignment",
+			expectedEvent:   PullRequestReviewAssignmentEvent,
+			expectedRawType: PullRequestReviewAssignmentEventPayload{},
 		},
 		{
-			name:         "ReviewDecisionEventMatchesPullRequestAggregate",
-			filename:     "testdata/pull-request-review-decision.json",
-			eventHeader:  "pull_request.review_decision",
-			expectedType: PullRequestReviewDecisionEventPaylaod{},
+			name:            "ReviewDecisionEventMatchesPullRequestAggregate",
+			filename:        "testdata/pull-request-review-decision.json",
+			eventHeader:     "pull_request.review_decision",
+			expectedEvent:   PullRequestReviewDecisionEvent,
+			expectedRawType: PullRequestReviewDecisionEventPaylaod{},
 		},
 	}
 
@@ -513,7 +527,6 @@ func TestWebhook_PullRequestAggregate(t *testing.T) {
 			var parseError error
 			var results any
 			server := newServer(func(_ http.ResponseWriter, r *http.Request) {
-				// Parse with only the PullRequestAggregate type
 				results, parseError = hook.Parse(r, PullRequestAggregate)
 			})
 			defer server.Close()
@@ -532,16 +545,21 @@ func TestWebhook_PullRequestAggregate(t *testing.T) {
 			assert.Equal(http.StatusOK, resp.StatusCode)
 			assert.NoError(parseError, "Should successfully parse with PullRequestAggregate")
 
-			// Verify the correct specific type was returned
-			assert.Equal(reflect.TypeOf(tc.expectedType), reflect.TypeOf(results),
-				"Should return correct specific payload type")
+			// All PR events parsed via PullRequestAggregate return PullRequestEventAggregate
+			prPayload, ok := results.(PullRequestEventAggregate)
+			assert.True(ok, "Result should be PullRequestEventAggregate struct, got %T", results)
 
-			// Verify it implements PullRequestEventPayload interface
-			prPayload, ok := results.(PullRequestEventPayload)
-			assert.True(ok, "Result should implement PullRequestEventPayload interface")
-			assert.NotNil(prPayload.GetHeader())
-			assert.NotNil(prPayload.GetRepository())
-			assert.NotNil(prPayload.GetPullRequest())
+			// Verify common fields
+			assert.NotNil(prPayload.Header)
+			assert.NotNil(prPayload.Repository)
+			assert.NotNil(prPayload.PullRequest)
+
+			// Verify EventType is set correctly
+			assert.Equal(tc.expectedEvent, prPayload.EventType, "EventType should match the incoming event")
+
+			// Verify RawEvent holds the correct specific type
+			assert.Equal(reflect.TypeOf(tc.expectedRawType), reflect.TypeOf(prPayload.RawEvent),
+				"RawEvent should hold the specific payload type")
 
 			t.Logf("✓ PullRequestAggregate matched: %s", tc.eventHeader)
 		})

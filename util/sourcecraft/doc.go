@@ -33,7 +33,11 @@
 //	case sourcecraft.PushEventPayload:
 //	    // handle push event
 //	case sourcecraft.PullRequestEventPayload:
-//	    // handle pull request event
+//	    // p.Header, p.Repository, p.PullRequest and p.EventType are directly accessible.
+//	    // For event-specific fields, type-assert p.RawEvent:
+//	    if merge, ok := p.RawEvent.(sourcecraft.PullRequestMergeEventPayload); ok {
+//	        _ = merge.MergeHash
+//	    }
 //	}
 //
 // The webhook parser automatically verifies HMAC signatures using SHA-256

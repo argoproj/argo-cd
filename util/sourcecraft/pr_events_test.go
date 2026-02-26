@@ -15,82 +15,78 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/sourcecraft"
 )
 
-// TestPullRequestEventPayload_TypeSwitch demonstrates how to use the
-// PullRequestEventPayload interface with a type switch to handle all
-// pull request events in a single case branch.
-func TestPullRequestEventPayload_TypeSwitch(t *testing.T) {
+// TestPullRequestEventAggregate_TypeSwitch demonstrates how to use PullRequestEventAggregate
+// with a type switch when using PullRequestAggregate to handle all PR events in one case.
+func TestPullRequestEventAggregate_TypeSwitch(t *testing.T) {
 	assert := require.New(t)
 
-	// Create a webhook handler with a secret
 	hook, err := sourcecraft.New(sourcecraft.Options.Secret("your-webhook-secret"))
 	assert.NoError(err)
 
 	tests := []struct {
-		name                 string
-		event                sourcecraft.Event
-		filename             string
-		expectPRInterface    bool
-		expectSpecificType   string
-		validatePRPayload    func(*testing.T, sourcecraft.PullRequestEventPayload)
-		validateOtherPayload func(*testing.T, any)
+		name              string
+		eventHeader       string
+		filename          string
+		expectPRPayload   bool
+		validatePRPayload func(*testing.T, sourcecraft.PullRequestEventAggregate)
+		validateOther     func(*testing.T, any)
 	}{
 		{
-			name:               "PullRequestCreateEvent",
-			event:              sourcecraft.PullRequestCreateEvent,
-			filename:           "testdata/pull-request-create.json",
-			expectPRInterface:  true,
-			expectSpecificType: "PullRequestCreateEventPayload",
-			validatePRPayload: func(_ *testing.T, payload sourcecraft.PullRequestEventPayload) {
-				assert.Equal("pull_request.create", payload.GetHeader().Type)
-				assert.NotEmpty(payload.GetRepository().Slug)
-				assert.NotEmpty(payload.GetPullRequest().Title)
+			name:            "PullRequestCreateEvent",
+			eventHeader:     "pull_request.create",
+			filename:        "testdata/pull-request-create.json",
+			expectPRPayload: true,
+			validatePRPayload: func(_ *testing.T, p sourcecraft.PullRequestEventAggregate) {
+				assert.Equal("pull_request.create", p.Header.Type)
+				assert.NotEmpty(p.Repository.Slug)
+				assert.NotEmpty(p.PullRequest.Title)
+				assert.Equal(sourcecraft.PullRequestCreateEvent, p.EventType)
 			},
 		},
 		{
-			name:               "PullRequestMergeEvent",
-			event:              sourcecraft.PullRequestMergeEvent,
-			filename:           "testdata/pull-request-merge.json",
-			expectPRInterface:  true,
-			expectSpecificType: "PullRequestMergeEventPayload",
-			validatePRPayload: func(_ *testing.T, payload sourcecraft.PullRequestEventPayload) {
-				assert.Equal("pull_request.merge", payload.GetHeader().Type)
-				// Test specific type assertion
-				if mergeEvent, ok := payload.(sourcecraft.PullRequestMergeEventPayload); ok {
+			name:            "PullRequestMergeEvent",
+			eventHeader:     "pull_request.merge",
+			filename:        "testdata/pull-request-merge.json",
+			expectPRPayload: true,
+			validatePRPayload: func(_ *testing.T, p sourcecraft.PullRequestEventAggregate) {
+				assert.Equal("pull_request.merge", p.Header.Type)
+				assert.Equal(sourcecraft.PullRequestMergeEvent, p.EventType)
+				// Access event-specific fields via RawEvent
+				if mergeEvent, ok := p.RawEvent.(sourcecraft.PullRequestMergeEventPayload); ok {
 					assert.NotEmpty(mergeEvent.MergeHash, "MergeHash should be present")
 				}
 			},
 		},
 		{
-			name:               "PullRequestMergeFailureEvent",
-			event:              sourcecraft.PullRequestMergeFailureEvent,
-			filename:           "testdata/pull-request-merge-failure.json",
-			expectPRInterface:  true,
-			expectSpecificType: "PullRequestMergeFailureEventPayload",
-			validatePRPayload: func(_ *testing.T, payload sourcecraft.PullRequestEventPayload) {
-				assert.Equal("pull_request.merge_failure", payload.GetHeader().Type)
-				// Test specific type assertion
-				if failureEvent, ok := payload.(sourcecraft.PullRequestMergeFailureEventPayload); ok {
+			name:            "PullRequestMergeFailureEvent",
+			eventHeader:     "pull_request.merge_failure",
+			filename:        "testdata/pull-request-merge-failure.json",
+			expectPRPayload: true,
+			validatePRPayload: func(_ *testing.T, p sourcecraft.PullRequestEventAggregate) {
+				assert.Equal("pull_request.merge_failure", p.Header.Type)
+				assert.Equal(sourcecraft.PullRequestMergeFailureEvent, p.EventType)
+				// Access event-specific fields via RawEvent
+				if failureEvent, ok := p.RawEvent.(sourcecraft.PullRequestMergeFailureEventPayload); ok {
 					assert.NotEmpty(failureEvent.ErrorMessage, "ErrorMessage should be present")
 				}
 			},
 		},
 		{
-			name:               "PullRequestUpdateEvent",
-			event:              sourcecraft.PullRequestUpdateEvent,
-			filename:           "testdata/pull-request-update.json",
-			expectPRInterface:  true,
-			expectSpecificType: "PullRequestUpdateEventPayload",
-			validatePRPayload: func(_ *testing.T, payload sourcecraft.PullRequestEventPayload) {
-				assert.Equal("pull_request.update", payload.GetHeader().Type)
+			name:            "PullRequestUpdateEvent",
+			eventHeader:     "pull_request.update",
+			filename:        "testdata/pull-request-update.json",
+			expectPRPayload: true,
+			validatePRPayload: func(_ *testing.T, p sourcecraft.PullRequestEventAggregate) {
+				assert.Equal("pull_request.update", p.Header.Type)
+				assert.Equal(sourcecraft.PullRequestUpdateEvent, p.EventType)
 			},
 		},
 		{
-			name:               "PushEvent",
-			event:              sourcecraft.PushEvent,
-			filename:           "testdata/push-event.json",
-			expectPRInterface:  false,
-			expectSpecificType: "PushEventPayload",
-			validateOtherPayload: func(_ *testing.T, payload any) {
+			name:            "PushEvent",
+			eventHeader:     "repository.push",
+			filename:        "testdata/push-event.json",
+			expectPRPayload: false,
+			validateOther: func(_ *testing.T, payload any) {
 				pushEvent, ok := payload.(sourcecraft.PushEventPayload)
 				assert.True(ok, "Should be PushEventPayload")
 				assert.NotNil(pushEvent.Repository)
@@ -98,12 +94,11 @@ func TestPullRequestEventPayload_TypeSwitch(t *testing.T) {
 			},
 		},
 		{
-			name:               "PingEvent",
-			event:              sourcecraft.PingEvent,
-			filename:           "testdata/ping.json",
-			expectPRInterface:  false,
-			expectSpecificType: "PingEventPayload",
-			validateOtherPayload: func(_ *testing.T, payload any) {
+			name:            "PingEvent",
+			eventHeader:     "webhook.ping",
+			filename:        "testdata/ping.json",
+			expectPRPayload: false,
+			validateOther: func(_ *testing.T, payload any) {
 				pingEvent, ok := payload.(sourcecraft.PingEventPayload)
 				assert.True(ok, "Should be PingEventPayload")
 				assert.NotEmpty(pingEvent.WebhookSlug)
@@ -114,67 +109,52 @@ func TestPullRequestEventPayload_TypeSwitch(t *testing.T) {
 	for _, tt := range tests {
 		tc := tt
 		t.Run(tt.name, func(t *testing.T) {
-			// Read test payload
 			payloadBytes, err := os.ReadFile(tc.filename)
 			assert.NoError(err)
 
-			// Create test HTTP request
 			req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewReader(payloadBytes))
-			req.Header.Set("X-Src-Event", string(tc.event))
+			req.Header.Set("X-Src-Event", tc.eventHeader)
 			req.Header.Set("Content-Type", "application/json")
 
-			// Sign the payload
 			mac := hmac.New(sha256.New, []byte("your-webhook-secret"))
 			mac.Write(payloadBytes)
 			req.Header.Set("X-Src-Signature", hex.EncodeToString(mac.Sum(nil)))
 
-			// Parse the webhook payload
-			payload, err := hook.Parse(req, tc.event)
+			// Use PullRequestAggregate to receive PullRequestEventAggregate for all PR events,
+			// combined with specific non-PR events.
+			payload, err := hook.Parse(req, sourcecraft.PullRequestAggregate, sourcecraft.PushEvent, sourcecraft.PingEvent)
 			assert.NoError(err)
 			assert.NotNil(payload)
 
-			// Use type switch to handle different event types
-			// This demonstrates the single case branch for all PR events
 			switch event := payload.(type) {
-			case sourcecraft.PullRequestEventPayload:
-				assert.True(tc.expectPRInterface, "Expected PR interface for event %s", tc.event)
+			case sourcecraft.PullRequestEventAggregate:
+				assert.True(tc.expectPRPayload, "Expected PullRequestEventAggregate for event %s", tc.eventHeader)
 
-				// All PR events can be handled here with access to common fields
-				pr := event.GetPullRequest()
-				repo := event.GetRepository()
-				header := event.GetHeader()
+				assert.NotNil(event.Header, "Header should not be nil")
+				assert.NotEmpty(event.Header.Type, "Header Type should not be empty")
+				assert.NotNil(event.Repository, "Repository should not be nil")
+				assert.NotEmpty(event.Repository.Slug, "Repository Slug should not be empty")
+				assert.NotNil(event.PullRequest, "PullRequest should not be nil")
+				assert.NotEmpty(event.PullRequest.Slug, "PullRequest Slug should not be empty")
+				assert.NotNil(event.RawEvent, "RawEvent should not be nil")
 
-				// Validate common fields
-				assert.NotNil(header, "Header should not be nil")
-				assert.NotEmpty(header.Type, "Header Type should not be empty")
-				assert.NotNil(repo, "Repository should not be nil")
-				assert.NotEmpty(repo.Slug, "Repository Slug should not be empty")
-				assert.NotNil(pr, "PullRequest should not be nil")
-				assert.NotEmpty(pr.Slug, "PullRequest Slug should not be empty")
-
-				// Run custom validation if provided
 				if tc.validatePRPayload != nil {
 					tc.validatePRPayload(t, event)
 				}
 
-				t.Logf("✓ Successfully handled PR event through interface: %s", header.Type)
-				t.Logf("  Repository: %s", repo.Slug)
-				t.Logf("  Pull Request: %s - %s", pr.Slug, pr.Title)
-				t.Logf("  Status: %s", pr.Status)
+				t.Logf("✓ Handled PR event: %s (EventType: %s)", event.Header.Type, event.EventType)
 
 			case sourcecraft.PushEventPayload:
-				assert.False(tc.expectPRInterface, "Did not expect PR interface for PushEvent")
-				assert.Equal("PushEventPayload", tc.expectSpecificType)
-				if tc.validateOtherPayload != nil {
-					tc.validateOtherPayload(t, event)
+				assert.False(tc.expectPRPayload, "Did not expect PullRequestEventAggregate for PushEvent")
+				if tc.validateOther != nil {
+					tc.validateOther(t, event)
 				}
 				t.Logf("✓ Push Event to %s", event.Repository.Slug)
 
 			case sourcecraft.PingEventPayload:
-				assert.False(tc.expectPRInterface, "Did not expect PR interface for PingEvent")
-				assert.Equal("PingEventPayload", tc.expectSpecificType)
-				if tc.validateOtherPayload != nil {
-					tc.validateOtherPayload(t, event)
+				assert.False(tc.expectPRPayload, "Did not expect PullRequestEventAggregate for PingEvent")
+				if tc.validateOther != nil {
+					tc.validateOther(t, event)
 				}
 				t.Logf("✓ Webhook ping from %s", event.WebhookSlug)
 
@@ -185,27 +165,28 @@ func TestPullRequestEventPayload_TypeSwitch(t *testing.T) {
 	}
 }
 
-// TestPullRequestEventPayload_SingleCaseHandling verifies that all PR events
-// can be handled in a single switch case, which is the main benefit of the interface.
-func TestPullRequestEventPayload_SingleCaseHandling(t *testing.T) {
+// TestPullRequestEventAggregate_SingleCaseHandling verifies that all PR events parsed
+// via PullRequestAggregate are returned as PullRequestEventAggregate and handled in one case.
+func TestPullRequestEventAggregate_SingleCaseHandling(t *testing.T) {
 	assert := require.New(t)
 
 	hook, err := sourcecraft.New(sourcecraft.Options.Secret("test-secret"))
 	assert.NoError(err)
 
 	allPREvents := []struct {
-		event    sourcecraft.Event
-		filename string
+		eventHeader string
+		filename    string
+		eventType   sourcecraft.Event
 	}{
-		{sourcecraft.PullRequestCreateEvent, "testdata/pull-request-create.json"},
-		{sourcecraft.PullRequestUpdateEvent, "testdata/pull-request-update.json"},
-		{sourcecraft.PullRequestPublishEvent, "testdata/pull-request-publish.json"},
-		{sourcecraft.PullRequestRefreshEvent, "testdata/pull-request-refresh.json"},
-		{sourcecraft.PullRequestMergeEvent, "testdata/pull-request-merge.json"},
-		{sourcecraft.PullRequestMergeFailureEvent, "testdata/pull-request-merge-failure.json"},
-		{sourcecraft.PullRequestNewIterationEvent, "testdata/pull-request-new-iteration.json"},
-		{sourcecraft.PullRequestReviewAssignmentEvent, "testdata/pull-request-review-assignment.json"},
-		{sourcecraft.PullRequestReviewDecisionEvent, "testdata/pull-request-review-decision.json"},
+		{"pull_request.create", "testdata/pull-request-create.json", sourcecraft.PullRequestCreateEvent},
+		{"pull_request.update", "testdata/pull-request-update.json", sourcecraft.PullRequestUpdateEvent},
+		{"pull_request.publish", "testdata/pull-request-publish.json", sourcecraft.PullRequestPublishEvent},
+		{"pull_request.refresh", "testdata/pull-request-refresh.json", sourcecraft.PullRequestRefreshEvent},
+		{"pull_request.merge", "testdata/pull-request-merge.json", sourcecraft.PullRequestMergeEvent},
+		{"pull_request.merge_failure", "testdata/pull-request-merge-failure.json", sourcecraft.PullRequestMergeFailureEvent},
+		{"pull_request.new_iteration", "testdata/pull-request-new-iteration.json", sourcecraft.PullRequestNewIterationEvent},
+		{"pull_request.review_assignment", "testdata/pull-request-review-assignment.json", sourcecraft.PullRequestReviewAssignmentEvent},
+		{"pull_request.review_decision", "testdata/pull-request-review-decision.json", sourcecraft.PullRequestReviewDecisionEvent},
 	}
 
 	handledCount := 0
@@ -215,25 +196,27 @@ func TestPullRequestEventPayload_SingleCaseHandling(t *testing.T) {
 		assert.NoError(err)
 
 		req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewReader(payloadBytes))
-		req.Header.Set("X-Src-Event", string(tc.event))
+		req.Header.Set("X-Src-Event", tc.eventHeader)
 		req.Header.Set("Content-Type", "application/json")
 
 		mac := hmac.New(sha256.New, []byte("test-secret"))
 		mac.Write(payloadBytes)
 		req.Header.Set("X-Src-Signature", hex.EncodeToString(mac.Sum(nil)))
 
-		payload, err := hook.Parse(req, tc.event)
+		payload, err := hook.Parse(req, sourcecraft.PullRequestAggregate)
 		assert.NoError(err)
 
 		// Single case handles ALL PR events - this is the key benefit!
 		switch prEvent := payload.(type) {
-		case sourcecraft.PullRequestEventPayload:
+		case sourcecraft.PullRequestEventAggregate:
 			handledCount++
-			assert.NotNil(prEvent.GetHeader())
-			assert.NotNil(prEvent.GetRepository())
-			assert.NotNil(prEvent.GetPullRequest())
+			assert.NotNil(prEvent.Header)
+			assert.NotNil(prEvent.Repository)
+			assert.NotNil(prEvent.PullRequest)
+			assert.Equal(tc.eventType, prEvent.EventType)
+			assert.NotNil(prEvent.RawEvent)
 		default:
-			t.Fatalf("Expected PullRequestEventPayload, got %T for event %s", payload, tc.event)
+			t.Fatalf("Expected PullRequestEventAggregate, got %T for event %s", payload, tc.eventHeader)
 		}
 	}
 
@@ -242,73 +225,73 @@ func TestPullRequestEventPayload_SingleCaseHandling(t *testing.T) {
 	t.Logf("✓ Successfully handled all %d PR event types in a single switch case", handledCount)
 }
 
-// TestPullRequestEventPayload_GetEventType verifies that the GetEventType method
-// returns the correct event type for each payload.
-func TestPullRequestEventPayload_GetEventType(t *testing.T) {
+// TestPullRequestEventAggregate_EventType verifies that EventType is set correctly
+// for each PR event when parsed via PullRequestAggregate.
+func TestPullRequestEventAggregate_EventType(t *testing.T) {
 	assert := require.New(t)
 
 	hook, err := sourcecraft.New(sourcecraft.Options.Secret("test-secret"))
 	assert.NoError(err)
 
 	tests := []struct {
-		name         string
-		event        sourcecraft.Event
-		filename     string
-		expectedType sourcecraft.Event
+		name          string
+		eventHeader   string
+		filename      string
+		expectedEvent sourcecraft.Event
 	}{
 		{
-			name:         "PullRequestCreateEvent",
-			event:        sourcecraft.PullRequestCreateEvent,
-			filename:     "testdata/pull-request-create.json",
-			expectedType: sourcecraft.PullRequestCreateEvent,
+			name:          "PullRequestCreateEvent",
+			eventHeader:   "pull_request.create",
+			filename:      "testdata/pull-request-create.json",
+			expectedEvent: sourcecraft.PullRequestCreateEvent,
 		},
 		{
-			name:         "PullRequestUpdateEvent",
-			event:        sourcecraft.PullRequestUpdateEvent,
-			filename:     "testdata/pull-request-update.json",
-			expectedType: sourcecraft.PullRequestUpdateEvent,
+			name:          "PullRequestUpdateEvent",
+			eventHeader:   "pull_request.update",
+			filename:      "testdata/pull-request-update.json",
+			expectedEvent: sourcecraft.PullRequestUpdateEvent,
 		},
 		{
-			name:         "PullRequestPublishEvent",
-			event:        sourcecraft.PullRequestPublishEvent,
-			filename:     "testdata/pull-request-publish.json",
-			expectedType: sourcecraft.PullRequestPublishEvent,
+			name:          "PullRequestPublishEvent",
+			eventHeader:   "pull_request.publish",
+			filename:      "testdata/pull-request-publish.json",
+			expectedEvent: sourcecraft.PullRequestPublishEvent,
 		},
 		{
-			name:         "PullRequestRefreshEvent",
-			event:        sourcecraft.PullRequestRefreshEvent,
-			filename:     "testdata/pull-request-refresh.json",
-			expectedType: sourcecraft.PullRequestRefreshEvent,
+			name:          "PullRequestRefreshEvent",
+			eventHeader:   "pull_request.refresh",
+			filename:      "testdata/pull-request-refresh.json",
+			expectedEvent: sourcecraft.PullRequestRefreshEvent,
 		},
 		{
-			name:         "PullRequestMergeEvent",
-			event:        sourcecraft.PullRequestMergeEvent,
-			filename:     "testdata/pull-request-merge.json",
-			expectedType: sourcecraft.PullRequestMergeEvent,
+			name:          "PullRequestMergeEvent",
+			eventHeader:   "pull_request.merge",
+			filename:      "testdata/pull-request-merge.json",
+			expectedEvent: sourcecraft.PullRequestMergeEvent,
 		},
 		{
-			name:         "PullRequestMergeFailureEvent",
-			event:        sourcecraft.PullRequestMergeFailureEvent,
-			filename:     "testdata/pull-request-merge-failure.json",
-			expectedType: sourcecraft.PullRequestMergeFailureEvent,
+			name:          "PullRequestMergeFailureEvent",
+			eventHeader:   "pull_request.merge_failure",
+			filename:      "testdata/pull-request-merge-failure.json",
+			expectedEvent: sourcecraft.PullRequestMergeFailureEvent,
 		},
 		{
-			name:         "PullRequestNewIterationEvent",
-			event:        sourcecraft.PullRequestNewIterationEvent,
-			filename:     "testdata/pull-request-new-iteration.json",
-			expectedType: sourcecraft.PullRequestNewIterationEvent,
+			name:          "PullRequestNewIterationEvent",
+			eventHeader:   "pull_request.new_iteration",
+			filename:      "testdata/pull-request-new-iteration.json",
+			expectedEvent: sourcecraft.PullRequestNewIterationEvent,
 		},
 		{
-			name:         "PullRequestReviewAssignmentEvent",
-			event:        sourcecraft.PullRequestReviewAssignmentEvent,
-			filename:     "testdata/pull-request-review-assignment.json",
-			expectedType: sourcecraft.PullRequestReviewAssignmentEvent,
+			name:          "PullRequestReviewAssignmentEvent",
+			eventHeader:   "pull_request.review_assignment",
+			filename:      "testdata/pull-request-review-assignment.json",
+			expectedEvent: sourcecraft.PullRequestReviewAssignmentEvent,
 		},
 		{
-			name:         "PullRequestReviewDecisionEvent",
-			event:        sourcecraft.PullRequestReviewDecisionEvent,
-			filename:     "testdata/pull-request-review-decision.json",
-			expectedType: sourcecraft.PullRequestReviewDecisionEvent,
+			name:          "PullRequestReviewDecisionEvent",
+			eventHeader:   "pull_request.review_decision",
+			filename:      "testdata/pull-request-review-decision.json",
+			expectedEvent: sourcecraft.PullRequestReviewDecisionEvent,
 		},
 	}
 
@@ -319,23 +302,21 @@ func TestPullRequestEventPayload_GetEventType(t *testing.T) {
 			assert.NoError(err)
 
 			req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewReader(payloadBytes))
-			req.Header.Set("X-Src-Event", string(tc.event))
+			req.Header.Set("X-Src-Event", tc.eventHeader)
 			req.Header.Set("Content-Type", "application/json")
 
 			mac := hmac.New(sha256.New, []byte("test-secret"))
 			mac.Write(payloadBytes)
 			req.Header.Set("X-Src-Signature", hex.EncodeToString(mac.Sum(nil)))
 
-			payload, err := hook.Parse(req, tc.event)
+			payload, err := hook.Parse(req, sourcecraft.PullRequestAggregate)
 			assert.NoError(err)
 
-			prEvent, ok := payload.(sourcecraft.PullRequestEventPayload)
-			assert.True(ok, "Payload should implement PullRequestEventPayload interface")
+			prEvent, ok := payload.(sourcecraft.PullRequestEventAggregate)
+			assert.True(ok, "Payload should be PullRequestEventAggregate struct")
 
-			// Test GetEventType method
-			eventType := prEvent.GetEventType()
-			assert.Equal(tc.expectedType, eventType, "GetEventType should return %s", tc.expectedType)
-			t.Logf("✓ GetEventType() correctly returns: %s", eventType)
+			assert.Equal(tc.expectedEvent, prEvent.EventType, "EventType should be %s", tc.expectedEvent)
+			t.Logf("✓ EventType correctly set to: %s", prEvent.EventType)
 		})
 	}
 }
