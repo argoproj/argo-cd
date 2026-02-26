@@ -72,19 +72,38 @@ const ApplicationSetPanel = ({application}: {application: models.Application}) =
     if (!appSetRef) {
         return null;
     }
+
+    const appSetLink = (
+        <Consumer>{ctx => <a onClick={() => ctx.navigation.goto(`/applicationsets/${application.metadata.namespace}/${appSetRef.name}`)}>{appSetRef.name}</a>}</Consumer>
+    );
+
+    const appSetRevisionLink = (
+        <Consumer>
+            {ctx => (
+                <div className='application-status-panel__item-value__revision show-for-large'>
+                    <a onClick={() => ctx.navigation.goto(`/applicationsets/${application.metadata.namespace}/${appSetRef.name}`)}>
+                        {appSetRef.name} <i className='fa fa-external-link-alt' />
+                    </a>
+                </div>
+            )}
+        </Consumer>
+    );
+
     return (
         <div className='application-status-panel__item'>
-            {sectionLabel({title: 'APPLICATIONSET', helpContent: 'The ApplicationSet that manages this application.'})}
-            <div className='application-status-panel__item-value'>
-                <Consumer>{ctx => <a onClick={() => ctx.navigation.goto(`/applicationsets/${application.metadata.namespace}/${appSetRef.name}`)}>{appSetRef.name}</a>}</Consumer>
-            </div>
             <DataLoader
                 noLoaderOnInputChange={true}
                 input={application}
                 errorRenderer={() => (
-                    <div className='application-status-panel__item-name'>
-                        <i className='fa fa-exclamation-triangle' style={{color: COLORS.sync.unknown}} /> Unable to load Rolling Sync status
-                    </div>
+                    <React.Fragment>
+                        {sectionLabel({title: 'APPLICATIONSET', helpContent: 'The ApplicationSet that manages this application.'})}
+                        <div className='application-status-panel__item-value'>
+                            {appSetLink}
+                        </div>
+                        <div className='application-status-panel__item-name'>
+                            <i className='fa fa-exclamation-triangle' style={{color: COLORS.sync.unknown}} /> Unable to load ApplicationSet status
+                        </div>
+                    </React.Fragment>
                 )}
                 load={async () => {
                     const appSetList = await services.applications.listApplicationSets();
@@ -92,21 +111,36 @@ const ApplicationSetPanel = ({application}: {application: models.Application}) =
                     return {appSet};
                 }}>
                 {({appSet}: {appSet: models.ApplicationSet}) => {
-                    if (!appSet || !appSet.status?.applicationStatus || appSet?.spec?.strategy?.type !== 'RollingSync') {
-                        return null;
-                    }
-                    const appResource = appSet.status.applicationStatus.find(s => s.application === application.metadata.name);
-                    if (!appResource) {
+                    if (!appSet || !appSet.status?.applicationStatus?.length || appSet?.spec?.strategy?.type !== 'RollingSync') {
                         return (
-                            <div className='application-status-panel__item-value'>
-                                <i className='fa fa-clock' style={{color: COLORS.sync.out_of_sync}} /> Rolling Sync: Waiting
-                            </div>
+                            <React.Fragment>
+                                {sectionLabel({title: 'APPLICATIONSET', helpContent: 'The ApplicationSet that manages this application.'})}
+                                <div className='application-status-panel__item-value'>
+                                    {appSetLink}
+                                </div>
+                            </React.Fragment>
                         );
                     }
+
+                    const appResource = appSet.status?.applicationStatus?.find(s => s.application === application.metadata.name);
+                    if (!appResource) {
+                        return (
+                            <React.Fragment>
+                                {sectionLabel({title: 'PROGRESSIVE SYNC', helpContent: 'The progressive sync status of this application managed by an ApplicationSet.'})}
+                                <div className='application-status-panel__item-value'>
+                                    <i className='fa fa-clock' style={{color: COLORS.sync.out_of_sync}} /> Waiting
+                                    {appSetRevisionLink}
+                                </div>
+                            </React.Fragment>
+                        );
+                    }
+
                     return (
                         <React.Fragment>
+                            {sectionLabel({title: 'PROGRESSIVE SYNC', helpContent: 'The progressive sync status of this application managed by an ApplicationSet.'})}
                             <div className='application-status-panel__item-value' style={{color: getProgressiveSyncStatusColor(appResource.status)}}>
-                                {getProgressiveSyncStatusIcon({status: appResource.status})}&nbsp;Rolling Sync: {appResource.status}
+                                {getProgressiveSyncStatusIcon({status: appResource.status})}&nbsp;{appResource.status}
+                                {appSetRevisionLink}
                             </div>
                             {appResource.step && <div className='application-status-panel__item-name'>Wave: {appResource.step}</div>}
                             {appResource.lastTransitionTime && (
