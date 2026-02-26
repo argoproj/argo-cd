@@ -10,8 +10,6 @@ on:
     branches:
       - 'master'
       - 'release-*'
-      - 'Speedup-build'
-      # For testing purpose
 
 env:
   # Golang version to use across CI steps
