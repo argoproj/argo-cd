@@ -2385,4 +2385,3 @@ func TestCompareAppStateNoWarningWhenTaintedGVKInTargets(t *testing.T) {
 		}
 	}
 }
-

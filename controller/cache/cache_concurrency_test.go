@@ -20,11 +20,11 @@ func TestClusterTaintManagerConcurrency(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Concurrently mark taints
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < numOperations; j++ {
+			for j := range numOperations {
 				gvk := fmt.Sprintf("test/v1/Resource%d_%d", id, j)
 				manager.markTainted(server, gvk, "ConversionError", "test error")
 			}
@@ -32,11 +32,11 @@ func TestClusterTaintManagerConcurrency(t *testing.T) {
 	}
 
 	// Concurrently read taints
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for j := 0; j < numOperations; j++ {
+			for range numOperations {
 				_ = manager.isTainted(server)
 				_ = manager.getTaintedGVKs(server)
 				_ = manager.getAllTaints()
@@ -49,7 +49,7 @@ func TestClusterTaintManagerConcurrency(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		for i := 0; i < numOperations/10; i++ {
+		for range numOperations / 10 {
 			time.Sleep(time.Millisecond * 10)
 			manager.clearTaints(server)
 		}
@@ -74,11 +74,11 @@ func TestClusterTaintManagerDataIntegrity(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Each worker marks unique GVKs
-	for worker := 0; worker < numWorkers; worker++ {
+	for worker := range numWorkers {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
-			for i := 0; i < numGVKsPerWorker; i++ {
+			for i := range numGVKsPerWorker {
 				gvk := fmt.Sprintf("worker%d/v1/Resource%d", workerID, i)
 				manager.markTainted(server, gvk, "ConversionError", "test")
 			}
@@ -111,7 +111,7 @@ func TestClusterTaintManagerIsolation(t *testing.T) {
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			gvk := fmt.Sprintf("server1/v1/Resource%d", i)
 			manager.markTainted(server1, gvk, "ConversionError", "test")
 		}
@@ -119,7 +119,7 @@ func TestClusterTaintManagerIsolation(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		for i := 0; i < 100; i++ {
+		for i := range 100 {
 			gvk := fmt.Sprintf("server2/v1/Resource%d", i)
 			manager.markTainted(server2, gvk, "NetworkError", "test")
 		}
@@ -194,7 +194,7 @@ func BenchmarkClusterTaintManager(b *testing.B) {
 	})
 
 	// Setup some data for read benchmarks
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		gvk := fmt.Sprintf("test/v1/Resource%d", i)
 		manager.markTainted(server, gvk, "ConversionError", "setup")
 	}

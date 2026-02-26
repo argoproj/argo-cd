@@ -1166,9 +1166,7 @@ func (ctm *clusterTaintManager) getAllTaints() map[string]map[string]string {
 	result := make(map[string]map[string]string)
 	for server, taints := range ctm.taints {
 		result[server] = make(map[string]string)
-		for gvk, errorType := range taints {
-			result[server][gvk] = errorType
-		}
+		maps.Copy(result[server], taints)
 	}
 	return result
 }

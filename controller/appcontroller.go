@@ -2242,10 +2242,8 @@ func (ctrl *ApplicationController) checkMessageForIssues(message string, issueTy
 
 // appendUniqueIssueType adds an issue type if it's not already present
 func appendUniqueIssueType(types []errors.ClusterHealthIssueType, issueType errors.ClusterHealthIssueType) []errors.ClusterHealthIssueType {
-	for _, t := range types {
-		if t == issueType {
-			return types
-		}
+	if slices.Contains(types, issueType) {
+		return types
 	}
 	return append(types, issueType)
 }
