@@ -124,6 +124,7 @@ message AppProjectStatus {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=applications,shortName=app;apps
+// +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
 // +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
@@ -735,6 +736,13 @@ message ApplicationStatus {
 
   // SourceHydrator stores information about the current state of source hydration
   optional SourceHydratorStatus sourceHydrator = 14;
+
+  // ObservedGeneration is the most recent generation observed for this application.
+  // It corresponds to the application's generation, which is updated on mutation by the API Server.
+  // This field is used to indicate whether the controller has processed the latest spec changes.
+  // Note: This field is managed by the controller via the v1beta1 API's status subresource.
+  // +optional
+  optional int64 observedGeneration = 15;
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
