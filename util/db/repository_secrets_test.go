@@ -100,6 +100,10 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		_, err = f.clientSet.CoreV1().Secrets(testNamespace).Update(t.Context(), secret, metav1.UpdateOptions{})
 		require.NoError(t, err)
 
+		// Resync informers to ensure the cache reflects the updated secret
+		err = f.repoBackend.db.settingsMgr.ResyncInformers()
+		require.NoError(t, err)
+
 		// when - try to create the same repository again
 		output, err := f.repoBackend.CreateRepository(t.Context(), repo)
 
@@ -1024,7 +1028,7 @@ func TestRaceConditionInRepoCredsOperations(t *testing.T) {
 	errChan := make(chan error, concurrentOps*2) // Channel to collect errors
 
 	// Launch goroutines that perform concurrent operations
-	for i := 0; i < concurrentOps; i++ {
+	for range concurrentOps {
 		wg.Add(2)
 
 		// One goroutine converts from RepoCreds to Secret
@@ -1107,7 +1111,7 @@ func TestRaceConditionInRepositoryOperations(t *testing.T) {
 	errChan := make(chan error, concurrentOps*2) // Channel to collect errors
 
 	// Launch goroutines that perform concurrent operations
-	for i := 0; i < concurrentOps; i++ {
+	for range concurrentOps {
 		wg.Add(2)
 
 		// One goroutine converts from Repository to Secret

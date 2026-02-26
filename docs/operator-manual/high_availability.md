@@ -1,13 +1,13 @@
 # High Availability
 
 Argo CD is largely stateless. All data is persisted as Kubernetes objects, which in turn is stored in Kubernetes' etcd.
-Redis is only used as a throw-away cache and can be lost. When lost, it will be rebuilt without loss of service.
+Redis is only used as a disposable cache and can be safely rebuilt without service disruption.
 
 A set of [HA manifests](https://github.com/argoproj/argo-cd/tree/stable/manifests/ha) are provided for users who wish to
 run Argo CD in a highly available manner. This runs more containers, and runs Redis in HA mode.
 
 > [!NOTE]
-> The HA installation will require at least three different nodes due to pod anti-affinity roles in the
+> The HA installation will require at least three different nodes due to pod anti-affinity rule in the
 > specs. Additionally, IPv6 only clusters are not supported.
 
 ## Scaling Up
@@ -19,17 +19,17 @@ run Argo CD in a highly available manner. This runs more containers, and runs Re
 The `argocd-repo-server` is responsible for cloning Git repository, keeping it up to date and generating manifests using
 the appropriate tool.
 
-* `argocd-repo-server` fork/exec config management tool to generate manifests. The fork can fail due to lack of memory
+* `argocd-repo-server` fork/exec config management tools to generate manifests. The fork can fail due to lack of memory
   or limit on the number of OS threads.
   The `--parallelismlimit` flag controls how many manifests generations are running concurrently and helps avoid OOM
   kills.
 
-* the `argocd-repo-server` ensures that repository is in the clean state during the manifest generation using config
+* The `argocd-repo-server` ensures that repository is in the clean state during the manifest generation using config
   management tools such as Kustomize, Helm
   or custom plugin. As a result Git repositories with multiple applications might affect repository server performance.
   Read [Monorepo Scaling Considerations](#monorepo-scaling-considerations) for more information.
 
-* `argocd-repo-server` clones the repository into `/tmp` (or the path specified in the `TMPDIR` env variable). The Pod
+* `argocd-repo-server` clones the repository into `/tmp` (or the path specified in the `TMPDIR` env variable). The pod
   might run out of disk space if it has too many repositories
   or if the repositories have a lot of files. To avoid this problem mount a persistent volume.
 
@@ -83,7 +83,7 @@ get the actual cluster state.
   syncing (seconds). The number of queue processors for each queue is controlled by
   `--status-processors` (20 by default) and `--operation-processors` (10 by default) flags. Increase the number of
   processors if your Argo CD instance manages too many applications.
-  For 1000 application we use 50 for `--status-processors` and 25 for `--operation-processors`
+  For 1000 applications, we use 50 for `--status-processors` and 25 for `--operation-processors`
 
 * The manifest generation typically takes the most time during reconciliation. The duration of manifest generation is
   limited to make sure the controller refresh queue does not overflow.
@@ -139,7 +139,7 @@ spec:
       and also reduces cluster or application reshuffling in case of additions or removals of shards or clusters.
 
 The `--sharding-method` parameter can also be overridden by setting the key `controller.sharding.algorithm` in the
-`argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment
+`argocd-cmd-params-cm` `ConfigMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment
 variable and by specifying the same possible values.
 
 > [!WARNING]
@@ -148,7 +148,7 @@ variable and by specifying the same possible values.
 > The `round-robin` shard distribution algorithm is an experimental feature. Reshuffling is known to occur in certain
 > scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur
 > and may temporarily have negative performance impacts.
-> The `consistent-hashing` shard distribution algorithm is an experimental feature. Extensive benchmark have been
+> The `consistent-hashing` shard distribution algorithm is an experimental feature. Extensive benchmarks have been
 > documented on the [CNOE blog](https://cnoe.io/blog/argo-cd-application-scalability) with encouraging results.
 > Community
 > feedback is highly appreciated before moving this feature to a production ready state.
@@ -182,7 +182,7 @@ stringData:
   if you need to troubleshoot performance issues. Note: This metric is expensive to both query and store!
 
 * `ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` - environment variable controlling the number of pages the controller
-  buffers in memory when performing a list operation against the K8s api server while syncing the cluster cache. This
+  buffers in memory when performing a list operation against the K8s Api server while syncing the cluster cache. This
   is useful when the cluster contains a large number of resources and cluster sync times exceed the default etcd
   compaction interval timeout. In this scenario, when attempting to sync the cluster cache, the application controller
   may throw an error that the `continue parameter is too old to display a consistent list result`. Setting a higher
@@ -255,14 +255,14 @@ spec:
 
 ### argocd-dex-server, argocd-redis
 
-The `argocd-dex-server` uses an in-memory database, and two or more instances would have inconsistent data.
+The `argocd-dex-server` uses an in-memory database, and two or more instances may have inconsistent data.
 `argocd-redis` is pre-configured with the understanding of only three total redis servers/sentinels.
 
 ## Monorepo Scaling Considerations
 
 Argo CD repo server maintains one repository clone locally and uses it for application manifest generation. If the
 manifest generation requires to change a file in the local repository clone then only one concurrent manifest generation
-per server instance is allowed. This limitation might significantly slowdown Argo CD if you have a mono repository with
+per server instance is allowed. This limitation might significantly slow down Argo CD if you have a monorepo with
 multiple applications (50+).
 
 ### Enable Concurrent Processing
@@ -280,8 +280,8 @@ The following are known cases that might cause slowness and their workarounds:
   `.argocd-allow-concurrency` file in the app directory, or use the sidecar plugin option, which processes each
   application using a temporary copy of the repository.
 
-* **Multiple Kustomize applications in same repository with [parameter overrides](../user-guide/parameters.md):** sorry,
-  no workaround for now.
+* **Multiple Kustomize applications in same repository with [parameter overrides](../user-guide/parameters.md):** Currently,
+  there is no workaround for this limitation.
 
 ### Manifest Paths Annotation
 
@@ -522,12 +522,12 @@ Not all HTTP responses are eligible for retries. The following conditions will n
 
 Argo CD optionally exposes a profiling endpoint that can be used to profile the CPU and memory usage of the Argo CD
 component.
-The profiling endpoint is available on metrics port of each component. See [metrics](./metrics.md) for more information
+The profiling endpoint is available on the metrics port of each component. See [metrics](./metrics.md) for more information
 about the port.
 For security reasons, the profiling endpoint is disabled by default. The endpoint can be enabled by setting the
-`server.profile.enabled`, `applicationsetcontroller.profile.enabled`, or `controller.profile.enabled` key
-of [argocd-cmd-params-cm](argocd-cmd-params-cm.yaml) ConfigMap to `true`.
-Once the endpoint is enabled, you can use go profile tool to collect the CPU and memory profiles. Example:
+`server.profile.enabled`, `applicationsetcontroller.profile.enabled`, `reposerver.profile.enabled` or 
+`controller.profile.enabled` key of [argocd-cmd-params-cm](argocd-cmd-params-cm.yaml) ConfigMap to `true`.
+Once the endpoint is enabled, you can use the go profile tool to collect the CPU and memory profiles. Example:
 
 ```bash
 $ kubectl port-forward svc/argocd-metrics 8082:8082
@@ -555,6 +555,7 @@ metadata:
 type: Opaque
 ```
 
-> [!NOTE] You can use the `argocd repo add <repo-url> --depth` command to add a repository with shallow cloning enabled.
+> [!NOTE]
+> You can use the `argocd repo add <repo-url> --depth` command to add a repository with shallow cloning enabled.
 
 When shallow cloning, the repository is cloned with a depth of 1, which means only the required commit is cloned as opposed to the full history. This approach makes sense when the repository has a large history.

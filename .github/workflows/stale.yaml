@@ -1,0 +1,33 @@
+name: "Label stale issues and PRs"
+on:
+  schedule:
+    - cron: "0 0 * * *" #Runs midnight 12AM UTC
+
+#Added Recommended permissions
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/stale@b5d41d4e1d5dceea10e7104786b73624c18a190f # v10.2.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+          stale-issue-message: >
+            This issue has been marked as stale because it has had no activity for 90 days. Please comment if this is still relevant.
+
+          stale-pr-message: >
+            This pull request has been marked as stale because it has had no activity for 90 days. Please comment if this is still relevant.
+
+          days-before-stale: 90
+          days-before-close: -1   # Auto-close diabled
+
+          exempt-issue-labels: >
+            bug, security, breaking/high, breaking/medium, breaking/low
+
+          # General configuration
+          operations-per-run: 200
+          remove-stale-when-updated: true #Remove stale label when issue/pr is updated

@@ -710,15 +710,15 @@ func TestClusterRaceConditionClusterSecrets(t *testing.T) {
 	cluster, _ := SecretToCluster(clusterSecret)
 	go func() {
 		for {
-			// create a copy so we dont act on the same argo cluster
+			// create a copy so we don't act on the same argo cluster
 			clusterCopy := cluster.DeepCopy()
 			_, _ = db.UpdateCluster(ctx, clusterCopy)
 		}
 	}()
 	// yes, we will take 15 seconds to run this test
 	// but it reliably triggered the race condition
-	for i := 0; i < 30; i++ {
-		// create a copy so we dont act on the same argo cluster
+	for range 30 {
+		// create a copy so we don't act on the same argo cluster
 		clusterCopy := cluster.DeepCopy()
 		_, _ = db.UpdateCluster(ctx, clusterCopy)
 		time.Sleep(time.Millisecond * 500)

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

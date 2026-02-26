@@ -23,8 +23,8 @@ import (
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
 
-const gitAttributesContents = `*/README.md linguist-generated=true
-*/hydrator.metadata linguist-generated=true`
+const gitAttributesContents = `**/README.md linguist-generated=true
+**/hydrator.metadata linguist-generated=true`
 
 func init() {
 	// Avoid allowing the user to learn things about the environment.
@@ -247,9 +247,5 @@ func AddNote(gitClient git.Client, drySha, commitSha string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal commit note: %w", err)
 	}
-	err = gitClient.AddAndPushNote(commitSha, NoteNamespace, string(jsonBytes))
-	if err != nil {
-		return fmt.Errorf("failed to add commit note: %w", err)
-	}
-	return nil
+	return gitClient.AddAndPushNote(commitSha, NoteNamespace, string(jsonBytes)) // nolint:wrapcheck // wrapping the error wouldn't add any information
 }

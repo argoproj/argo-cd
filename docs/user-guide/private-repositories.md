@@ -50,6 +50,9 @@ Then, connect the repository using any non-empty string as username and the acce
 > [!NOTE]
 > For some services, you might have to specify your account name as the username instead of any string.
 
+> [!NOTE]
+> For BitBucket Cloud and BitBucket Data Center, you have to specify your username as `x-token-auth`.
+
 ### TLS Client Certificates for HTTPS repositories
 
 If your repository server requires you to use TLS client certificates for authentication, you can configure Argo CD repositories to make use of them. For this purpose, `--tls-client-cert-path` and `--tls-client-cert-key-path` switches to the `argocd repo add` command can be used to specify the files on your local system containing client certificate and the corresponding key, respectively:
@@ -358,7 +361,7 @@ It is possible to add and remove TLS certificates using the ArgoCD web UI:
 ### Managing TLS certificates using declarative configuration
 
 You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object `argocd-tls-certs-cm`.
-Please refer to the [Operator Manual](../../operator-manual/declarative-setup/#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca) for more information.
+Please refer to the [Operator Manual](../operator-manual/declarative-setup.md#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca) for more information.
 
 ## Unknown SSH Hosts
 
@@ -483,6 +486,29 @@ argocd repo add registry-1.docker.io/bitnamicharts --type=helm --enable-oci=true
 Using the UI:
 
 Select the _Enable OCI_ checkbox when adding a HTTPS based _helm_ repository.
+
+### Custom HTTP User-Agent
+
+Some Helm repository providers (like Wikimedia) require a specific User-Agent header as part of their robot access policies. Argo CD automatically sends a default User-Agent header (`argocd-repo-server/<version> (<platform>)`) for all Helm repository requests.
+
+If you need to customize the User-Agent (for example, to include your organization name or contact information), set the `ARGOCD_HELM_USER_AGENT` environment variable on the `argocd-repo-server` deployment:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-repo-server
+        env:
+        - name: ARGOCD_HELM_USER_AGENT
+          value: "my-org/argocd (team@example.com)"
+```
+
+This environment variable applies globally to all Helm repository requests.
 
 ## Git Submodules
 

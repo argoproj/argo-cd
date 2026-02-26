@@ -54,7 +54,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	argoCDSettings, err := h.settingsMgr.GetSettings()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, "Failed to retrieve argoCD settings: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -74,9 +73,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	cookies := r.Cookies()
 	tokenString, err = httputil.JoinCookies(common.AuthCookieName, cookies)
-	if tokenString == "" || err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	// Build message safely: only include err when non-nil
+	if err != nil {
 		http.Error(w, "Failed to retrieve ArgoCD auth token: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if tokenString == "" {
+		http.Error(w, "Failed to retrieve ArgoCD auth token", http.StatusBadRequest)
 		return
 	}
 
