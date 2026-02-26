@@ -4,7 +4,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -44,7 +43,6 @@ func TestGHCRParser_Parse(t *testing.T) {
 				RegistryURL: "ghcr.io",
 				Repository:  "user/repo",
 				Tag:         "1.0.0",
-				Digest:      "sha256:abc123",
 			},
 		},
 		{
@@ -95,7 +93,7 @@ func TestGHCRParser_Parse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/", nil)
+			req := httptest.NewRequest(http.MethodPost, "/", http.NoBody)
 			event, err := parser.Parse(req, []byte(tt.body))
 
 			if tt.expectErr {
@@ -170,9 +168,9 @@ func TestValidateSignature(t *testing.T) {
 			err := parser.validateSignature(req, body)
 
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				if tt.expectHMAC {
-					assert.True(t, errors.Is(err, ErrHMACVerificationFailed))
+					require.ErrorIs(t, err, ErrHMACVerificationFailed)
 				}
 			} else {
 				assert.NoError(t, err)

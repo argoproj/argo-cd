@@ -83,15 +83,20 @@ func NewWebhookRegistryHandler(secret string) *RegistryHandler {
 	}
 }
 
+// findParser returns the first parser that can handle the request, or nil.
+func (h *RegistryHandler) findParser(r *http.Request) RegistryParser {
+	for _, p := range h.parsers {
+		if p.CanHandle(r) {
+			return p
+		}
+	}
+	return nil
+}
+
 // CanHandle reports whether any registered parser can handle the request.
 // Used by the top-level handler to route registry webhook requests.
 func (h *RegistryHandler) CanHandle(r *http.Request) bool {
-	for _, p := range h.parsers {
-		if p.CanHandle(r) {
-			return true
-		}
-	}
-	return false
+	return h.findParser(r) != nil
 }
 
 // ProcessWebhook reads the request body and delegates to the first parser
@@ -104,13 +109,12 @@ func (h *RegistryHandler) ProcessWebhook(r *http.Request) (*RegistryEvent, error
 	}
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
 
-	for _, p := range h.parsers {
-		if p.CanHandle(r) {
-			return p.Parse(r, body)
-		}
+	p := h.findParser(r)
+	// No parser matched; unsupported registry
+	if p == nil {
+		return nil, nil
 	}
-
-	return nil, nil
+	return p.Parse(r, body)
 }
 
 // HandleRegistryEvent processes a normalized registry event and refreshes
