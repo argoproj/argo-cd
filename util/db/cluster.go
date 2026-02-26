@@ -39,7 +39,7 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 		info, err := db.kubeclientset.Discovery().ServerVersion()
 		if err == nil {
 			ver, verErr := version.ParseGeneric(info.GitVersion)
-			if err == nil {
+			if verErr == nil {
 				//nolint:staticcheck
 				localCluster.ServerVersion = ver.String()
 			} else {
