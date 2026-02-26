@@ -25,6 +25,9 @@ type GHCRParser struct {
 // The parser supports GitHub package webhook events for container images
 // published to GitHub Container Registry (ghcr.io).
 func NewGHCRParser(secret string) *GHCRParser {
+	if secret == "" {
+		log.Warn("GHCR webhook secret is not configured; incoming webhook events will not be validated")
+	}
 	return &GHCRParser{secret: secret}
 }
 
@@ -62,8 +65,7 @@ func (p *GHCRParser) Parse(r *http.Request, body []byte) (*RegistryEvent, error)
 			PackageVersion struct {
 				ContainerMetadata struct {
 					Tag struct {
-						Name   string `json:"name"`
-						Digest string `json:"digest"`
+						Name string `json:"name"`
 					} `json:"tag"`
 				} `json:"container_metadata"`
 			} `json:"package_version"`
@@ -71,7 +73,7 @@ func (p *GHCRParser) Parse(r *http.Request, body []byte) (*RegistryEvent, error)
 	}
 
 	if err := json.Unmarshal(body, &payload); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to unmarshal GHCR webhook payload: %w", err)
 	}
 
 	if payload.Action != "published" {
@@ -86,7 +88,6 @@ func (p *GHCRParser) Parse(r *http.Request, body []byte) (*RegistryEvent, error)
 
 	repository := payload.Package.Owner.Login + "/" + payload.Package.Name
 	tag := payload.Package.PackageVersion.ContainerMetadata.Tag.Name
-	digest := payload.Package.PackageVersion.ContainerMetadata.Tag.Digest
 
 	if tag == "" {
 		log.Debugf("Skipping GHCR webhook event: missing tag for repository %q", repository)
@@ -97,7 +98,6 @@ func (p *GHCRParser) Parse(r *http.Request, body []byte) (*RegistryEvent, error)
 		RegistryURL: "ghcr.io",
 		Repository:  repository,
 		Tag:         tag,
-		Digest:      digest,
 	}, nil
 }
 
