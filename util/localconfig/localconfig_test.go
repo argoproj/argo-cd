@@ -202,3 +202,42 @@ func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_false(t *testing.
 
 	assert.False(t, GetPromptsEnabled(true))
 }
+
+func TestReadLocalConfig_FileNotExist(t *testing.T) {
+	config, err := ReadLocalConfig("/nonexistent/path/config")
+	require.NoError(t, err)
+	assert.Nil(t, config)
+}
+
+func TestReadLocalConfig_InvalidYAML(t *testing.T) {
+	tmpFile := filepath.Join(t.TempDir(), "config")
+	err := os.WriteFile(tmpFile, []byte("invalid: yaml: content: ["), 0o600)
+	require.NoError(t, err)
+
+	config, err := ReadLocalConfig(tmpFile)
+	require.Error(t, err)
+	assert.Nil(t, config)
+}
+
+func TestReadLocalConfig_EmptyFile(t *testing.T) {
+	tmpFile := filepath.Join(t.TempDir(), "config")
+	err := os.WriteFile(tmpFile, []byte(""), 0o600)
+	require.NoError(t, err)
+
+	config, err := ReadLocalConfig(tmpFile)
+	require.NoError(t, err)
+	// Empty file results in empty config, not nil
+	assert.NotNil(t, config)
+}
+
+func TestReadLocalConfig_ValidConfig(t *testing.T) {
+	tmpFile := filepath.Join(t.TempDir(), "config")
+	err := os.WriteFile(tmpFile, []byte(testConfig), 0o600)
+	require.NoError(t, err)
+
+	config, err := ReadLocalConfig(tmpFile)
+	require.NoError(t, err)
+	assert.NotNil(t, config)
+	assert.Equal(t, "localhost:8080", config.CurrentContext)
+	assert.Len(t, config.Contexts, 3)
+}
