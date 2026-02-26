@@ -6,8 +6,8 @@ package v1alpha1
 import (
 	fmt "fmt"
 
-	github_com_argoproj_gitops_engine_pkg_health "github.com/argoproj/gitops-engine/pkg/health"
-	github_com_argoproj_gitops_engine_pkg_sync_common "github.com/argoproj/gitops-engine/pkg/sync/common"
+	github_com_argoproj_gitops_engine_pkg_health "github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	github_com_argoproj_gitops_engine_pkg_sync_common "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 
 	io "io"
 
