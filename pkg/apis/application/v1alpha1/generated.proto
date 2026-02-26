@@ -364,6 +364,8 @@ message ApplicationSetSpec {
   repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 9;
 
   optional string templatePatch = 10;
+
+  optional string templateJSONPatch = 11;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
