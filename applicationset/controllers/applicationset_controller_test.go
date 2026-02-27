@@ -1338,7 +1338,7 @@ func TestCreateOrUpdateInCluster_Concurrent(t *testing.T) {
 			WithObjects(initObjs...).
 			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
 			WithInterceptorFuncs(interceptor.Funcs{
-				Patch: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, patch crtclient.Patch, opts ...crtclient.PatchOption) error {
+				Patch: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ crtclient.Patch, _ ...crtclient.PatchOption) error {
 					return patchErr
 				},
 			}).
@@ -1401,7 +1401,7 @@ func TestCreateOrUpdateInCluster_ContextCancellation(t *testing.T) {
 			WithObjects(initObjs...).
 			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
 			WithInterceptorFuncs(interceptor.Funcs{
-				Patch: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, patch crtclient.Patch, opts ...crtclient.PatchOption) error {
+				Patch: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ crtclient.Patch, _ ...crtclient.PatchOption) error {
 					return context.Canceled
 				},
 			}).
@@ -1431,7 +1431,7 @@ func TestCreateOrUpdateInCluster_ContextCancellation(t *testing.T) {
 			WithObjects(initObjs...).
 			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
 			WithInterceptorFuncs(interceptor.Funcs{
-				Patch: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, patch crtclient.Patch, opts ...crtclient.PatchOption) error {
+				Patch: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ crtclient.Patch, _ ...crtclient.PatchOption) error {
 					return context.DeadlineExceeded
 				},
 			}).
@@ -1462,7 +1462,7 @@ func TestCreateOrUpdateInCluster_ContextCancellation(t *testing.T) {
 			WithObjects(initObjs...).
 			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
 			WithInterceptorFuncs(interceptor.Funcs{
-				Patch: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, patch crtclient.Patch, opts ...crtclient.PatchOption) error {
+				Patch: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ crtclient.Patch, _ ...crtclient.PatchOption) error {
 					return patchErr
 				},
 			}).
@@ -1488,7 +1488,7 @@ func TestCreateOrUpdateInCluster_ContextCancellation(t *testing.T) {
 			WithObjects(initObjs...).
 			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
 			WithInterceptorFuncs(interceptor.Funcs{
-				Create: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, opts ...crtclient.CreateOption) error {
+				Create: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ ...crtclient.CreateOption) error {
 					return context.Canceled
 				},
 			}).
@@ -1564,7 +1564,7 @@ func TestDeleteInCluster_ContextCancellation(t *testing.T) {
 			WithObjects(&appSet, app).
 			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
 			WithInterceptorFuncs(interceptor.Funcs{
-				Delete: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, opts ...crtclient.DeleteOption) error {
+				Delete: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ ...crtclient.DeleteOption) error {
 					return context.Canceled
 				},
 			}).
@@ -1585,7 +1585,7 @@ func TestDeleteInCluster_ContextCancellation(t *testing.T) {
 			WithObjects(&appSet, app).
 			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
 			WithInterceptorFuncs(interceptor.Funcs{
-				Delete: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, opts ...crtclient.DeleteOption) error {
+				Delete: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ ...crtclient.DeleteOption) error {
 					return context.DeadlineExceeded
 				},
 			}).
@@ -1607,7 +1607,7 @@ func TestDeleteInCluster_ContextCancellation(t *testing.T) {
 			WithObjects(&appSet, app).
 			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
 			WithInterceptorFuncs(interceptor.Funcs{
-				Delete: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, opts ...crtclient.DeleteOption) error {
+				Delete: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ ...crtclient.DeleteOption) error {
 					return deleteErr
 				},
 			}).
