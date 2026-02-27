@@ -77,6 +77,7 @@ export interface ApplicationResourceTreeProps {
     nameWrap: boolean;
     setNodeExpansion: (node: string, isExpanded: boolean) => any;
     getNodeExpansion: (node: string) => boolean;
+    showAppSetParent?: boolean;
 }
 
 interface Line {
@@ -947,7 +948,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 : []
     };
 
-    const appSetRef = isApp(props.app) ? getApplicationSetOwnerRef(props.app as models.Application) : null;
+    const appSetRef = isApp(props.app) && props.showAppSetParent ? getApplicationSetOwnerRef(props.app as models.Application) : null;
     const appSetNode = appSetRef
         ? {
               kind: 'ApplicationSet',

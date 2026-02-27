@@ -766,6 +766,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             ),
                                         app: application as appModels.Application,
                                         showOrphanedResources: pref.orphanedResources,
+                                        showAppSetParent: pref.showAppSetParent,
                                         useNetworkingHierarchy: pref.view === 'network',
                                         podGroupCount: pref.podGroupCount
                                     };
@@ -1039,6 +1040,16 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                         <i className={classNames('fa fa-object-group fa-fw')} />
                                                                     </a>
                                                                 </Tooltip>
+                                                            )}
+                                                            {isApplication && (
+                                                                <a
+                                                                    className={`group-nodes-button group-nodes-button${pref.showAppSetParent ? '-on' : ''}`}
+                                                                    title='Show ApplicationSet parent node'
+                                                                    onClick={() =>
+                                                                        services.viewPreferences.updatePreferences({appDetails: {...pref, showAppSetParent: !pref.showAppSetParent}})
+                                                                    }>
+                                                                    <i className='fa fa-sitemap fa-fw' />
+                                                                </a>
                                                             )}
                                                             <span className={`separator`} />
                                                             <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
