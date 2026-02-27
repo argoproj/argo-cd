@@ -171,5 +171,5 @@ func getMatrixGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*ar
 }
 
 func (m *MatrixGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
-	return &appSetGenerator.Matrix.Template
+	return appSetGenerator.Matrix.Template
 }

@@ -1751,7 +1751,11 @@ func (in *ClusterConfig) DeepCopy() *ClusterConfig {
 func (in *ClusterGenerator) DeepCopyInto(out *ClusterGenerator) {
 	*out = *in
 	in.Selector.DeepCopyInto(&out.Selector)
-	in.Template.DeepCopyInto(&out.Template)
+	if in.Template != nil {
+		in, out := &in.Template, &out.Template
+		*out = new(ApplicationSetTemplate)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Values != nil {
 		in, out := &in.Values, &out.Values
 		*out = make(map[string]string, len(*in))
@@ -2028,7 +2032,11 @@ func (in *DuckTypeGenerator) DeepCopyInto(out *DuckTypeGenerator) {
 		**out = **in
 	}
 	in.LabelSelector.DeepCopyInto(&out.LabelSelector)
-	in.Template.DeepCopyInto(&out.Template)
+	if in.Template != nil {
+		in, out := &in.Template, &out.Template
+		*out = new(ApplicationSetTemplate)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Values != nil {
 		in, out := &in.Values, &out.Values
 		*out = make(map[string]string, len(*in))
@@ -2169,7 +2177,11 @@ func (in *GitGenerator) DeepCopyInto(out *GitGenerator) {
 		*out = new(int64)
 		**out = **in
 	}
-	in.Template.DeepCopyInto(&out.Template)
+	if in.Template != nil {
+		in, out := &in.Template, &out.Template
+		*out = new(ApplicationSetTemplate)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Values != nil {
 		in, out := &in.Values, &out.Values
 		*out = make(map[string]string, len(*in))
@@ -2711,7 +2723,11 @@ func (in *ListGenerator) DeepCopyInto(out *ListGenerator) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	in.Template.DeepCopyInto(&out.Template)
+	if in.Template != nil {
+		in, out := &in.Template, &out.Template
+		*out = new(ApplicationSetTemplate)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
@@ -2765,7 +2781,11 @@ func (in *MatrixGenerator) DeepCopyInto(out *MatrixGenerator) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	in.Template.DeepCopyInto(&out.Template)
+	if in.Template != nil {
+		in, out := &in.Template, &out.Template
+		*out = new(ApplicationSetTemplate)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
@@ -2794,7 +2814,11 @@ func (in *MergeGenerator) DeepCopyInto(out *MergeGenerator) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	in.Template.DeepCopyInto(&out.Template)
+	if in.Template != nil {
+		in, out := &in.Template, &out.Template
+		*out = new(ApplicationSetTemplate)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
@@ -3095,7 +3119,11 @@ func (in *PluginGenerator) DeepCopyInto(out *PluginGenerator) {
 		*out = new(int64)
 		**out = **in
 	}
-	in.Template.DeepCopyInto(&out.Template)
+	if in.Template != nil {
+		in, out := &in.Template, &out.Template
+		*out = new(ApplicationSetTemplate)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Values != nil {
 		in, out := &in.Values, &out.Values
 		*out = make(map[string]string, len(*in))
@@ -3227,7 +3255,11 @@ func (in *PullRequestGenerator) DeepCopyInto(out *PullRequestGenerator) {
 		*out = new(int64)
 		**out = **in
 	}
-	in.Template.DeepCopyInto(&out.Template)
+	if in.Template != nil {
+		in, out := &in.Template, &out.Template
+		*out = new(ApplicationSetTemplate)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Bitbucket != nil {
 		in, out := &in.Bitbucket, &out.Bitbucket
 		*out = new(PullRequestGeneratorBitbucket)
@@ -4153,7 +4185,11 @@ func (in *SCMProviderGenerator) DeepCopyInto(out *SCMProviderGenerator) {
 		*out = new(int64)
 		**out = **in
 	}
-	in.Template.DeepCopyInto(&out.Template)
+	if in.Template != nil {
+		in, out := &in.Template, &out.Template
+		*out = new(ApplicationSetTemplate)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Values != nil {
 		in, out := &in.Values, &out.Values
 		*out = make(map[string]string, len(*in))

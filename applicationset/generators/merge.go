@@ -224,5 +224,5 @@ func getMergeGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*arg
 
 // GetTemplate gets the Template field for the MergeGenerator.
 func (m *MergeGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
-	return &appSetGenerator.Merge.Template
+	return appSetGenerator.Merge.Template
 }

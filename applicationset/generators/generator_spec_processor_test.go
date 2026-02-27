@@ -80,7 +80,7 @@ func TestMatchValues(t *testing.T) {
 				Selector: testCase.selector,
 				List: &argov1alpha1.ListGenerator{
 					Elements: testCase.elements,
-					Template: emptyTemplate(),
+					Template: nil,
 				},
 			},
 				data,
@@ -164,7 +164,7 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 				Selector: testCase.selector,
 				List: &argov1alpha1.ListGenerator{
 					Elements: testCase.elements,
-					Template: emptyTemplate(),
+					Template: nil,
 				},
 			},
 				data,
@@ -235,7 +235,7 @@ func TestTransForm(t *testing.T) {
 					Selector: testCase.selector,
 					Clusters: &argov1alpha1.ClusterGenerator{
 						Selector: metav1.LabelSelector{},
-						Template: argov1alpha1.ApplicationSetTemplate{},
+						Template: nil,
 						Values:   nil,
 					},
 				},
@@ -366,7 +366,7 @@ func TestGetRelevantGenerators(t *testing.T) {
 	requestedGenerator = &argov1alpha1.ApplicationSetGenerator{
 		Clusters: &argov1alpha1.ClusterGenerator{
 			Selector: metav1.LabelSelector{},
-			Template: argov1alpha1.ApplicationSetTemplate{},
+			Template: nil,
 			Values:   nil,
 		},
 	}
@@ -382,7 +382,7 @@ func TestGetRelevantGenerators(t *testing.T) {
 			Files:               nil,
 			Revision:            "",
 			RequeueAfterSeconds: nil,
-			Template:            argov1alpha1.ApplicationSetTemplate{},
+			Template:            nil,
 		},
 	}
 
@@ -430,7 +430,7 @@ func TestInterpolateGenerator(t *testing.T) {
 	requestedGenerator = &argov1alpha1.ApplicationSetGenerator{
 		Git: &argov1alpha1.GitGenerator{
 			Files:    append([]argov1alpha1.GitFileGeneratorItem{}, fileNamePath, fileServerPath),
-			Template: argov1alpha1.ApplicationSetTemplate{},
+			Template: nil,
 		},
 	}
 	clusterGeneratorParams := map[string]any{
@@ -485,7 +485,7 @@ func TestInterpolateGenerator_go(t *testing.T) {
 	requestedGenerator = &argov1alpha1.ApplicationSetGenerator{
 		Git: &argov1alpha1.GitGenerator{
 			Files:    append([]argov1alpha1.GitFileGeneratorItem{}, fileNamePath, fileServerPath),
-			Template: argov1alpha1.ApplicationSetTemplate{},
+			Template: nil,
 		},
 	}
 	clusterGeneratorParams := map[string]any{
