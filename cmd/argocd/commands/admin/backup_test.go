@@ -285,11 +285,6 @@ spec:
   - git:
       repoURL: https://github.com/org/repo
       revision: ""
-      template:
-        metadata: {}
-        spec:
-          destination: {}
-          project: ""
   template:
     metadata: {}
     spec:
@@ -316,11 +311,6 @@ spec:
   - git:
       repoURL: https://github.com/org/repo
       revision: ""
-      template:
-        metadata: {}
-        spec:
-          destination: {}
-          project: ""
   template:
     metadata: {}
     spec:
