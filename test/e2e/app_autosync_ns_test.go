@@ -3,7 +3,7 @@ package e2e
 import (
 	"testing"
 
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -15,8 +15,8 @@ import (
 )
 
 func TestNSAutoSyncSelfHealDisabled(t *testing.T) {
-	Given(t).
-		SetTrackingMethod("annotation").
+	ctx := Given(t)
+	ctx.SetTrackingMethod("annotation").
 		Path(guestbookPath).
 		SetAppNamespace(fixture.AppNamespace()).
 		// TODO: There is a bug with annotation tracking method that prevents
@@ -37,7 +37,7 @@ func TestNSAutoSyncSelfHealDisabled(t *testing.T) {
 		// app should not be auto-synced if k8s change detected
 		When().
 		And(func() {
-			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Patch(t.Context(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), metav1.PatchOptions{}))
 		}).
 		Then().
@@ -45,8 +45,8 @@ func TestNSAutoSyncSelfHealDisabled(t *testing.T) {
 }
 
 func TestNSAutoSyncSelfHealEnabled(t *testing.T) {
-	Given(t).
-		SetTrackingMethod("annotation").
+	ctx := Given(t)
+	ctx.SetTrackingMethod("annotation").
 		Path(guestbookPath).
 		SetAppNamespace(fixture.AppNamespace()).
 		When().
@@ -63,7 +63,7 @@ func TestNSAutoSyncSelfHealEnabled(t *testing.T) {
 		When().
 		// app should be auto-synced once k8s change detected
 		And(func() {
-			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Patch(t.Context(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), metav1.PatchOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).

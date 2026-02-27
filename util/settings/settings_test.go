@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"maps"
 	"net/http"
 	"os"
 	"sort"
@@ -25,7 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/test"
 )
 
-func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *SettingsManager) {
+func fixtures(ctx context.Context, data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *SettingsManager) {
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
@@ -50,7 +51,7 @@ func fixtures(data map[string]string, opts ...func(secret *corev1.Secret)) (*fak
 		opts[i](secret)
 	}
 	kubeClient := fake.NewClientset(cm, secret)
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	settingsManager := NewSettingsManager(ctx, kubeClient, "default")
 
 	return kubeClient, settingsManager
 }
@@ -67,13 +68,13 @@ func TestDocumentedArgoCDConfigMapIsValid(t *testing.T) {
 
 func TestGetConfigMapByName(t *testing.T) {
 	t.Run("data is never nil", func(t *testing.T) {
-		_, settingsManager := fixtures(nil)
+		_, settingsManager := fixtures(t.Context(), nil)
 		cm, err := settingsManager.GetConfigMapByName(common.ArgoCDConfigMapName)
 		require.NoError(t, err)
 		assert.NotNil(t, cm.Data)
 	})
 	t.Run("cannot update informer value", func(t *testing.T) {
-		_, settingsManager := fixtures(nil)
+		_, settingsManager := fixtures(t.Context(), nil)
 		cm1, err := settingsManager.GetConfigMapByName(common.ArgoCDConfigMapName)
 		require.NoError(t, err)
 		cm1.Data["test"] = "invalid"
@@ -85,13 +86,13 @@ func TestGetConfigMapByName(t *testing.T) {
 
 func TestGetSecretByName(t *testing.T) {
 	t.Run("data is never nil", func(t *testing.T) {
-		_, settingsManager := fixtures(nil, func(secret *corev1.Secret) { secret.Data = nil })
+		_, settingsManager := fixtures(t.Context(), nil, func(secret *corev1.Secret) { secret.Data = nil })
 		secret, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
 		require.NoError(t, err)
 		assert.NotNil(t, secret.Data)
 	})
 	t.Run("cannot update informer value", func(t *testing.T) {
-		_, settingsManager := fixtures(nil)
+		_, settingsManager := fixtures(t.Context(), nil)
 		s1, err := settingsManager.GetSecretByName(common.ArgoCDSecretName)
 		require.NoError(t, err)
 		s1.Data["test"] = []byte("invalid")
@@ -135,7 +136,6 @@ func TestGetExtensionConfigs(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			// When
 			output := getExtensionConfigs(tc.input)
@@ -152,7 +152,7 @@ func TestGetResourceFilter(t *testing.T) {
 		"resource.exclusions": "\n  - apiGroups: [\"group1\"]\n    kinds: [\"kind1\"]\n    clusters: [\"cluster1\"]\n",
 		"resource.inclusions": "\n  - apiGroups: [\"group2\"]\n    kinds: [\"kind2\"]\n    clusters: [\"cluster2\"]\n",
 	}
-	_, settingsManager := fixtures(data)
+	_, settingsManager := fixtures(t.Context(), data)
 	filter, err := settingsManager.GetResourcesFilter()
 	require.NoError(t, err)
 	assert.Equal(t, &ResourcesFilter{
@@ -162,14 +162,14 @@ func TestGetResourceFilter(t *testing.T) {
 }
 
 func TestInClusterServerAddressEnabled(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
+	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"cluster.inClusterEnabled": "true",
 	})
 	argoCDCM, err := settingsManager.getConfigMap()
 	require.NoError(t, err)
 	assert.Equal(t, "true", argoCDCM.Data[inClusterEnabledKey])
 
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"cluster.inClusterEnabled": "false",
 	})
 	argoCDCM, err = settingsManager.getConfigMap()
@@ -211,7 +211,7 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 
 func TestGetAppInstanceLabelKey(t *testing.T) {
 	t.Run("should get custom instanceLabelKey", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{
+		_, settingsManager := fixtures(t.Context(), map[string]string{
 			"application.instanceLabelKey": "testLabel",
 		})
 		label, err := settingsManager.GetAppInstanceLabelKey()
@@ -220,7 +220,7 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 	})
 
 	t.Run("should get default instanceLabelKey if custom not defined", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{})
+		_, settingsManager := fixtures(t.Context(), map[string]string{})
 		label, err := settingsManager.GetAppInstanceLabelKey()
 		require.NoError(t, err)
 		assert.Equal(t, common.LabelKeyAppInstance, label)
@@ -229,7 +229,7 @@ func TestGetAppInstanceLabelKey(t *testing.T) {
 
 func TestGetTrackingMethod(t *testing.T) {
 	t.Run("should get custom trackingMethod", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{
+		_, settingsManager := fixtures(t.Context(), map[string]string{
 			"application.resourceTrackingMethod": string(v1alpha1.TrackingMethodLabel),
 		})
 		label, err := settingsManager.GetTrackingMethod()
@@ -238,7 +238,7 @@ func TestGetTrackingMethod(t *testing.T) {
 	})
 
 	t.Run("should get default trackingMethod if custom not defined", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{})
+		_, settingsManager := fixtures(t.Context(), map[string]string{})
 		label, err := settingsManager.GetTrackingMethod()
 		require.NoError(t, err)
 		assert.Equal(t, string(v1alpha1.TrackingMethodAnnotation), label)
@@ -246,7 +246,7 @@ func TestGetTrackingMethod(t *testing.T) {
 }
 
 func TestGetInstallationID(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
+	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"installationID": "123456789",
 	})
 	id, err := settingsManager.GetInstallationID()
@@ -255,14 +255,14 @@ func TestGetInstallationID(t *testing.T) {
 }
 
 func TestApplicationFineGrainedRBACInheritanceDisabledDefault(t *testing.T) {
-	_, settingsManager := fixtures(nil)
+	_, settingsManager := fixtures(t.Context(), nil)
 	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
 	require.NoError(t, err)
 	assert.True(t, flag)
 }
 
 func TestApplicationFineGrainedRBACInheritanceDisabled(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
+	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"server.rbac.disableApplicationFineGrainedRBACInheritance": "false",
 	})
 	flag, err := settingsManager.ApplicationFineGrainedRBACInheritanceDisabled()
@@ -271,12 +271,12 @@ func TestApplicationFineGrainedRBACInheritanceDisabled(t *testing.T) {
 }
 
 func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
-	_, settingsManager := fixtures(nil)
+	_, settingsManager := fixtures(t.Context(), nil)
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
 	require.NoError(t, err)
 	assert.True(t, ignoreResourceUpdatesEnabled)
 
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"resource.ignoreResourceUpdatesEnabled": "true",
 	})
 	ignoreResourceUpdatesEnabled, err = settingsManager.GetIsIgnoreResourceUpdatesEnabled()
@@ -285,7 +285,7 @@ func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
 }
 
 func TestGetIsIgnoreResourceUpdatesEnabledFalse(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
+	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"resource.ignoreResourceUpdatesEnabled": "false",
 	})
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
@@ -299,7 +299,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	}}
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
-	_, settingsManager := fixtures(map[string]string{
+	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"resource.customizations": `
     admissionregistration.k8s.io/MutatingWebhookConfiguration:
       ignoreDifferences: |
@@ -336,7 +336,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.Equal(t, ignoreStatus, globalOverrides)
 
 	// with value all, status of all objects should be ignored
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: all`,
 	})
@@ -348,7 +348,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.Equal(t, ignoreStatus, globalOverrides)
 
 	// with value crd, status of crd objects should be ignored
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: crd`,
 
@@ -371,7 +371,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	}}, crdOverrides)
 
 	// with incorrect value, status of all objects should be ignored
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: foobar`,
 	})
@@ -383,7 +383,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.Equal(t, ignoreStatus, globalOverrides)
 
 	// with value non-string off, status of no objects should be ignored
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: off`,
 	})
@@ -392,7 +392,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.Empty(t, overrides)
 
 	// with value non-string false, status of no objects should be ignored
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: false`,
 	})
@@ -401,7 +401,7 @@ func TestGetResourceOverrides(t *testing.T) {
 	assert.Empty(t, overrides)
 
 	// with value none, status of no objects should be ignored
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"resource.compareoptions": `
     ignoreResourceStatusField: none`,
 	})
@@ -419,7 +419,7 @@ func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
 	}
 
 	t.Run("TestResourceHealthOverrideWithWildcard", func(t *testing.T) {
-		_, settingsManager := fixtures(data)
+		_, settingsManager := fixtures(t.Context(), data)
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		require.NoError(t, err)
@@ -429,7 +429,7 @@ func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
 }
 
 func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
+	_, settingsManager := fixtures(t.Context(), map[string]string{
 		resourceCustomizationsKey: "",
 	})
 	overrides, err := settingsManager.GetResourceOverrides()
@@ -463,7 +463,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 	}
 
 	t.Run("MergedKey", func(t *testing.T) {
-		_, settingsManager := fixtures(data)
+		_, settingsManager := fixtures(t.Context(), data)
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		require.NoError(t, err)
@@ -512,7 +512,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
         - bar`,
 		}
 
-		_, settingsManager := fixtures(mergemaps(data, newData))
+		_, settingsManager := fixtures(t.Context(), mergemaps(data, newData))
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		require.NoError(t, err)
@@ -545,9 +545,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 }
 
 func mergemaps(mapA map[string]string, mapB map[string]string) map[string]string {
-	for k, v := range mapA {
-		mapB[k] = v
-	}
+	maps.Copy(mapB, mapA)
 	return mapB
 }
 
@@ -576,7 +574,7 @@ func TestGetIgnoreResourceUpdatesOverrides(t *testing.T) {
         - .webhooks[1].clientConfig.caBundle`,
 	}
 
-	_, settingsManager := fixtures(testCustomizations)
+	_, settingsManager := fixtures(t.Context(), testCustomizations)
 	overrides, err := settingsManager.GetIgnoreResourceUpdatesOverrides()
 	require.NoError(t, err)
 
@@ -596,7 +594,7 @@ func TestGetIgnoreResourceUpdatesOverrides(t *testing.T) {
 	}, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"])
 
 	// without ignoreDifferencesOnResourceUpdates, only ignoreResourceUpdates should be added
-	_, settingsManager = fixtures(mergemaps(map[string]string{
+	_, settingsManager = fixtures(t.Context(), mergemaps(map[string]string{
 		"resource.compareoptions": `
             ignoreResourceStatusField: none
             ignoreDifferencesOnResourceUpdates: false`,
@@ -632,7 +630,7 @@ func TestConvertToOverrideKey(t *testing.T) {
 func TestGetResourceCompareOptions(t *testing.T) {
 	// ignoreAggregatedRules is true
 	{
-		_, settingsManager := fixtures(map[string]string{
+		_, settingsManager := fixtures(t.Context(), map[string]string{
 			"resource.compareoptions": "ignoreAggregatedRoles: true",
 		})
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
@@ -642,7 +640,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 
 	// ignoreAggregatedRules is false
 	{
-		_, settingsManager := fixtures(map[string]string{
+		_, settingsManager := fixtures(t.Context(), map[string]string{
 			"resource.compareoptions": "ignoreAggregatedRoles: false",
 		})
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
@@ -652,7 +650,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 
 	// ignoreDifferencesOnResourceUpdates is true
 	{
-		_, settingsManager := fixtures(map[string]string{
+		_, settingsManager := fixtures(t.Context(), map[string]string{
 			"resource.compareoptions": "ignoreDifferencesOnResourceUpdates: true",
 		})
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
@@ -662,7 +660,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 
 	// ignoreDifferencesOnResourceUpdates is false
 	{
-		_, settingsManager := fixtures(map[string]string{
+		_, settingsManager := fixtures(t.Context(), map[string]string{
 			"resource.compareoptions": "ignoreDifferencesOnResourceUpdates: false",
 		})
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
@@ -672,7 +670,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 
 	// The empty resource.compareoptions should result in default being returned
 	{
-		_, settingsManager := fixtures(map[string]string{
+		_, settingsManager := fixtures(t.Context(), map[string]string{
 			"resource.compareoptions": "",
 		})
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
@@ -684,7 +682,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 
 	// resource.compareoptions not defined - should result in default being returned
 	{
-		_, settingsManager := fixtures(map[string]string{})
+		_, settingsManager := fixtures(t.Context(), map[string]string{})
 		compareOptions, err := settingsManager.GetResourceCompareOptions()
 		defaultOptions := GetDefaultDiffOptions()
 		require.NoError(t, err)
@@ -695,7 +693,7 @@ func TestGetResourceCompareOptions(t *testing.T) {
 
 func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 	t.Run("Empty", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{})
+		_, settingsManager := fixtures(t.Context(), map[string]string{})
 
 		settings, err := settingsManager.GetKustomizeSettings()
 
@@ -704,7 +702,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 		assert.Empty(t, settings.Versions)
 	})
 	t.Run("Set", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{
+		_, settingsManager := fixtures(t.Context(), map[string]string{
 			"kustomize.buildOptions":   "foo",
 			"kustomize.version.v3.2.1": "somePath",
 		})
@@ -717,7 +715,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 	})
 
 	t.Run("Kustomize settings per-version", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{
+		_, settingsManager := fixtures(t.Context(), map[string]string{
 			"kustomize.buildOptions":        "--global true",
 			"kustomize.version.v3.2.1":      "/path_3.2.1",
 			"kustomize.buildOptions.v3.2.3": "--options v3.2.3",
@@ -750,7 +748,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 	})
 
 	t.Run("Kustomize settings per-version with duplicate versions", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{
+		_, settingsManager := fixtures(t.Context(), map[string]string{
 			"kustomize.buildOptions":        "--global true",
 			"kustomize.version.v3.2.1":      "/path_3.2.1",
 			"kustomize.buildOptions.v3.2.1": "--options v3.2.3",
@@ -764,7 +762,7 @@ func TestSettingsManager_GetKustomizeBuildOptions(t *testing.T) {
 	})
 
 	t.Run("Config map with no Kustomize settings", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{
+		_, settingsManager := fixtures(t.Context(), map[string]string{
 			"other.options": "--global true",
 		})
 
@@ -792,9 +790,9 @@ func TestSettingsManager_GetEventLabelKeys(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, settingsManager := fixtures(map[string]string{})
+			_, settingsManager := fixtures(t.Context(), map[string]string{})
 			if tt.data != "" {
-				_, settingsManager = fixtures(map[string]string{
+				_, settingsManager = fixtures(t.Context(), map[string]string{
 					resourceIncludeEventLabelKeys: tt.data,
 					resourceExcludeEventLabelKeys: tt.data,
 				})
@@ -865,7 +863,7 @@ func Test_GetKustomizeBinaryPath(t *testing.T) {
 }
 
 func TestGetGoogleAnalytics(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
+	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"ga.trackingid": "123",
 	})
 	ga, err := settingsManager.GetGoogleAnalytics()
@@ -876,14 +874,14 @@ func TestGetGoogleAnalytics(t *testing.T) {
 
 func TestSettingsManager_GetHelp(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
-		_, settingsManager := fixtures(nil)
+		_, settingsManager := fixtures(t.Context(), nil)
 		h, err := settingsManager.GetHelp()
 		require.NoError(t, err)
 		assert.Empty(t, h.ChatURL)
 		assert.Empty(t, h.ChatText)
 	})
 	t.Run("Set", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{
+		_, settingsManager := fixtures(t.Context(), map[string]string{
 			"help.chatUrl":  "foo",
 			"help.chatText": "bar",
 		})
@@ -893,7 +891,7 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		assert.Equal(t, "bar", h.ChatText)
 	})
 	t.Run("SetOnlyChatUrl", func(t *testing.T) {
-		_, settingManager := fixtures(map[string]string{
+		_, settingManager := fixtures(t.Context(), map[string]string{
 			"help.chatUrl": "foo",
 		})
 		h, err := settingManager.GetHelp()
@@ -902,7 +900,7 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		assert.Equal(t, "Chat now!", h.ChatText)
 	})
 	t.Run("SetOnlyChatText", func(t *testing.T) {
-		_, settingManager := fixtures(map[string]string{
+		_, settingManager := fixtures(t.Context(), map[string]string{
 			"help.chatText": "bar",
 		})
 		h, err := settingManager.GetHelp()
@@ -911,7 +909,7 @@ func TestSettingsManager_GetHelp(t *testing.T) {
 		assert.Empty(t, h.ChatText)
 	})
 	t.Run("GetBinaryUrls", func(t *testing.T) {
-		_, settingsManager := fixtures(map[string]string{
+		_, settingsManager := fixtures(t.Context(), map[string]string{
 			"help.download.darwin-amd64": "amd64-path",
 			"help.download.linux-s390x":  "s390x-path",
 			"help.download.unsupported":  "nowhere",
@@ -1020,43 +1018,94 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 }
 
 func TestGetOIDCConfig(t *testing.T) {
-	kubeClient := fake.NewClientset(
-		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
-			},
-			Data: map[string]string{
+	testCases := []struct {
+		name          string
+		configMapData map[string]string
+		testFunc      func(t *testing.T, settingsManager *SettingsManager)
+	}{
+		{
+			name: "requestedIDTokenClaims",
+			configMapData: map[string]string{
 				"oidc.config": "\n  requestedIDTokenClaims: {\"groups\": {\"essential\": true}}\n",
 			},
+			testFunc: func(t *testing.T, settingsManager *SettingsManager) {
+				t.Helper()
+				settings, err := settingsManager.GetSettings()
+				require.NoError(t, err)
+
+				oidcConfig := settings.OIDCConfig()
+				assert.NotNil(t, oidcConfig)
+
+				claim := oidcConfig.RequestedIDTokenClaims["groups"]
+				assert.NotNil(t, claim)
+				assert.True(t, claim.Essential)
+			},
 		},
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDSecretName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
+		{
+			name: "refreshTokenThreshold success",
+			configMapData: map[string]string{
+				"oidc.config": "\n  refreshTokenThreshold: 5m\n",
+			},
+			testFunc: func(t *testing.T, settingsManager *SettingsManager) {
+				t.Helper()
+				settings, err := settingsManager.GetSettings()
+				require.NoError(t, err)
+
+				oidcConfig := settings.OIDCConfig()
+				assert.NotNil(t, oidcConfig)
+
+				assert.Equal(t, 5*time.Minute, settings.RefreshTokenThreshold())
+			},
+		},
+		{
+			name: "refreshTokenThreshold parse failure",
+			configMapData: map[string]string{
+				"oidc.config": "\n  refreshTokenThreshold: 5xx\n",
+			},
+			testFunc: func(t *testing.T, settingsManager *SettingsManager) {
+				t.Helper()
+				settings, err := settingsManager.GetSettings()
+				require.NoError(t, err)
+
+				oidcConfig := settings.OIDCConfig()
+				assert.NotNil(t, oidcConfig)
+
+				assert.Equal(t, time.Duration(0), settings.RefreshTokenThreshold())
+			},
+		},
+	}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			kubeClient := fake.NewClientset(
+				&corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      common.ArgoCDConfigMapName,
+						Namespace: "default",
+						Labels: map[string]string{
+							"app.kubernetes.io/part-of": "argocd",
+						},
+					},
+					Data: tc.configMapData,
 				},
-			},
-			Data: map[string][]byte{
-				"admin.password":   nil,
-				"server.secretkey": nil,
-			},
-		},
-	)
-	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-	settings, err := settingsManager.GetSettings()
-	require.NoError(t, err)
-
-	oidcConfig := settings.OIDCConfig()
-	assert.NotNil(t, oidcConfig)
-
-	claim := oidcConfig.RequestedIDTokenClaims["groups"]
-	assert.NotNil(t, claim)
-	assert.True(t, claim.Essential)
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      common.ArgoCDSecretName,
+						Namespace: "default",
+						Labels: map[string]string{
+							"app.kubernetes.io/part-of": "argocd",
+						},
+					},
+					Data: map[string][]byte{
+						"admin.password":   nil,
+						"server.secretkey": nil,
+					},
+				},
+			)
+			settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+			tc.testFunc(t, settingsManager)
+		})
+	}
 }
 
 func TestRedirectURL(t *testing.T) {
@@ -1089,7 +1138,7 @@ func Test_validateExternalURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateExternalURL(tt.url)
+			err := ValidateExternalURL(tt.url)
 			if tt.errMsg != "" {
 				assert.EqualError(t, err, tt.errMsg)
 			} else {
@@ -1318,7 +1367,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 
 		kubeClient := fake.NewClientset(cm, secret, tlsSecret)
 		callCount := 0
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", func(mgr *SettingsManager) {
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default", func(mgr *SettingsManager) {
 			mgr.tlsCertParser = func(certpem []byte, keypem []byte) (tls.Certificate, error) {
 				callCount++
 
@@ -1376,7 +1425,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 
 		kubeClient := fake.NewClientset(cm, secret, tlsSecret)
 		callCount := 0
-		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default", func(mgr *SettingsManager) {
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default", func(mgr *SettingsManager) {
 			mgr.tlsCertParser = func(certpem []byte, keypem []byte) (tls.Certificate, error) {
 				callCount++
 
@@ -1441,7 +1490,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		// should have internal cert at this point
 		assert.NotNil(t, settings.Certificate)
 		assert.False(t, settings.CertificateIsExternal)
-		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
+		assert.Equal(t, "argocd-e2e-server", getCNFromCertificate(settings.Certificate))
 
 		externalTLSSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1524,7 +1573,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		// should now have an internal cert
 		assert.NotNil(t, settings.Certificate)
 		assert.False(t, settings.CertificateIsExternal)
-		assert.Equal(t, "Argo CD E2E", getCNFromCertificate(settings.Certificate))
+		assert.Equal(t, "argocd-e2e-server", getCNFromCertificate(settings.Certificate))
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
@@ -1561,26 +1610,26 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, settings.CertificateIsExternal)
 		assert.NotNil(t, settings.Certificate)
-		assert.Contains(t, getCNFromCertificate(settings.Certificate), "Argo CD E2E")
+		assert.Contains(t, getCNFromCertificate(settings.Certificate), "argocd-e2e-server")
 	})
 }
 
 func TestDownloadArgoCDBinaryUrls(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
+	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"help.download.darwin-amd64": "some-url",
 	})
 	argoCDCM, err := settingsManager.getConfigMap()
 	require.NoError(t, err)
 	assert.Equal(t, "some-url", argoCDCM.Data["help.download.darwin-amd64"])
 
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"help.download.linux-s390x": "some-url",
 	})
 	argoCDCM, err = settingsManager.getConfigMap()
 	require.NoError(t, err)
 	assert.Equal(t, "some-url", argoCDCM.Data["help.download.linux-s390x"])
 
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"help.download.unsupported": "some-url",
 	})
 	argoCDCM, err = settingsManager.getConfigMap()
@@ -1822,8 +1871,6 @@ rootCA: "invalid"`},
 	}
 
 	for _, testCase := range testCases {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			if testCase.expectNilTLSConfig {
 				assert.Nil(t, testCase.settings.OIDCTLSConfig())
@@ -1921,16 +1968,10 @@ func TestReplaceStringSecret(t *testing.T) {
 }
 
 func TestRedirectURLForRequest(t *testing.T) {
-	generateRequest := func(url string) *http.Request {
-		r, err := http.NewRequest(http.MethodPost, url, http.NoBody)
-		require.NoError(t, err)
-		return r
-	}
-
 	testCases := []struct {
 		Name        string
 		Settings    *ArgoCDSettings
-		Request     *http.Request
+		RequestURL  string
 		ExpectedURL string
 		ExpectError bool
 	}{
@@ -1939,7 +1980,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 			Settings: &ArgoCDSettings{
 				URL: "https://example.org",
 			},
-			Request:     generateRequest("https://example.org/login"),
+			RequestURL:  "https://example.org/login",
 			ExpectedURL: "https://example.org/auth/callback",
 			ExpectError: false,
 		},
@@ -1948,7 +1989,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 			Settings: &ArgoCDSettings{
 				URL: "https://otherhost.org",
 			},
-			Request:     generateRequest("https://example.org/login"),
+			RequestURL:  "https://example.org/login",
 			ExpectedURL: "https://otherhost.org/auth/callback",
 			ExpectError: false,
 		},
@@ -1957,7 +1998,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 			Settings: &ArgoCDSettings{
 				URL: ":httpsotherhostorg",
 			},
-			Request:     generateRequest("https://example.org/login"),
+			RequestURL:  "https://example.org/login",
 			ExpectedURL: "",
 			ExpectError: true,
 		},
@@ -1967,7 +2008,7 @@ func TestRedirectURLForRequest(t *testing.T) {
 				URL:            "https://otherhost.org",
 				AdditionalURLs: []string{"https://anotherhost.org"},
 			},
-			Request:     generateRequest("https://anotherhost.org/login"),
+			RequestURL:  "https://anotherhost.org/login",
 			ExpectedURL: "https://anotherhost.org/auth/callback",
 			ExpectError: false,
 		},
@@ -1975,7 +2016,9 @@ func TestRedirectURLForRequest(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
-			result, err := tc.Settings.RedirectURLForRequest(tc.Request)
+			request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, tc.RequestURL, http.NoBody)
+			require.NoError(t, err)
+			result, err := tc.Settings.RedirectURLForRequest(request)
 			assert.Equal(t, tc.ExpectedURL, result)
 			if tc.ExpectError {
 				assert.Error(t, err)
@@ -2085,13 +2128,13 @@ func TestIsImpersonationEnabled(t *testing.T) {
 	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 	featureFlag, err := settingsManager.IsImpersonationEnabled()
 	require.False(t, featureFlag,
-		"with no argocd-cm config map, IsImpersonationEnabled() must return return false (default value)")
+		"with no argocd-cm config map, IsImpersonationEnabled() must return false (default value)")
 	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
 		"with no argocd-cm config map, IsImpersonationEnabled() must return an error")
 
 	// When there is no impersonation feature flag present in the argocd-cm,
 	// Then IsImpersonationEnabled() must return false (default value) and nil error.
-	_, settingsManager = fixtures(map[string]string{})
+	_, settingsManager = fixtures(t.Context(), map[string]string{})
 	featureFlag, err = settingsManager.IsImpersonationEnabled()
 	require.False(t, featureFlag,
 		"with empty argocd-cm config map, IsImpersonationEnabled() must return false (default value)")
@@ -2100,7 +2143,7 @@ func TestIsImpersonationEnabled(t *testing.T) {
 
 	// When user disables the feature explicitly,
 	// Then IsImpersonationEnabled() must return false and nil error.
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"application.sync.impersonation.enabled": "false",
 	})
 	featureFlag, err = settingsManager.IsImpersonationEnabled()
@@ -2111,7 +2154,7 @@ func TestIsImpersonationEnabled(t *testing.T) {
 
 	// When user enables the feature explicitly,
 	// Then IsImpersonationEnabled() must return true and nil error.
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager = fixtures(t.Context(), map[string]string{
 		"application.sync.impersonation.enabled": "true",
 	})
 	featureFlag, err = settingsManager.IsImpersonationEnabled()
@@ -2119,6 +2162,68 @@ func TestIsImpersonationEnabled(t *testing.T) {
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must return user set value")
 	require.NoError(t, err,
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncNoConfigMap(t *testing.T) {
+	// When there is no argocd-cm itself,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false (default value) and an error with appropriate error message.
+	kubeClient := fake.NewClientset()
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
+	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
+		"with no argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return an error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncEmptyConfigMap(t *testing.T) {
+	// When there is no feature flag present in the argocd-cm,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false (default value) and nil error.
+	_, settingsManager := fixtures(t.Context(), map[string]string{})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"with empty argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
+	require.NoError(t, err,
+		"with empty argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncFalse(t *testing.T) {
+	// When user disables the feature explicitly,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false and nil error.
+	_, settingsManager := fixtures(t.Context(), map[string]string{
+		"application.sync.RequireOverridePrivilegeForRevisionSync": "false",
+	})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"when user disables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return user set value")
+	require.NoError(t, err,
+		"when user disables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncTrue(t *testing.T) {
+	// When user enables the feature explicitly,
+	// Then RequireOverridePrivilegeForRevisionSync() must return true and nil error.
+	_, settingsManager := fixtures(t.Context(), map[string]string{
+		"application.sync.requireOverridePrivilegeForRevisionSync": "true",
+	})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.True(t, featureFlag,
+		"when user enables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return user set value")
+	require.NoError(t, err,
+		"when user enables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must not return any error")
+}
+
+func TestRequireOverridePrivilegeForRevisionSyncParseError(t *testing.T) {
+	// When a value is set that cannot be parsed as boolean,
+	// Then RequireOverridePrivilegeForRevisionSync() must return false and nil error.
+	_, settingsManager := fixtures(t.Context(), map[string]string{
+		"application.sync.requireOverridePrivilegeForRevisionSync": "BANANA",
+	})
+	featureFlag, err := settingsManager.RequireOverridePrivilegeForRevisionSync()
+	require.False(t, featureFlag,
+		"when user set the flag to unparseable value in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return false (default value)")
+	require.ErrorContains(t, err, "invalid syntax",
+		"when user set the flag to unparseable value in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return an error")
 }
 
 func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
@@ -2145,7 +2250,7 @@ func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, settingsManager := fixtures(map[string]string{
+			_, settingsManager := fixtures(t.Context(), map[string]string{
 				resourceSensitiveAnnotationsKey: tt.input,
 			})
 			keys := settingsManager.GetSensitiveAnnotations()
@@ -2184,7 +2289,7 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, settingsManager := fixtures(map[string]string{
+			_, settingsManager := fixtures(t.Context(), map[string]string{
 				allowedNodeLabelsKey: tt.input,
 			})
 			keys := settingsManager.GetAllowedNodeLabels()

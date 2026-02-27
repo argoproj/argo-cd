@@ -28,6 +28,10 @@ Impersonation is a feature in Kubernetes and enabled in the `kubectl` CLI client
 
 Impersonation requests first authenticate as the requesting user, then switch to the impersonated user info.
 
+### Feature scope 
+
+Impersonation is currently only supported for the lifecycle of objects managed by an Application directly, which includes sync operations (creation, update and pruning of resources) and deletion as part of Application finalizer logic. This *does not* includes operations triggered via ArgoCD's UI, which will still be executed with Argo CD's control-plane service account.
+
 ## Prerequisites
 
 In a multi-team/multi-tenant environment, a team/tenant is typically granted access to a target namespace to self-manage their kubernetes resources in a declarative way.

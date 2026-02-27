@@ -5,6 +5,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"os"
 	"strings"
@@ -12,13 +13,12 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -136,9 +136,9 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))")
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync option, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
-	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
-	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
-	command.Flags().BoolVar(&opts.allowEmpty, "allow-empty", false, "Set allow zero live resources when sync is automated")
+	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning for automated sync policy")
+	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing for automated sync policy")
+	command.Flags().BoolVar(&opts.allowEmpty, "allow-empty", false, "Set allow zero live resources for automated sync policy")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().StringVar(&opts.kustomizeVersion, "kustomize-version", "", "Kustomize version")
@@ -240,8 +240,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			}
 			for _, option := range appOpts.syncOptions {
 				// `!` means remove the option
-				if strings.HasPrefix(option, "!") {
-					option = strings.TrimPrefix(option, "!")
+				if after, ok := strings.CutPrefix(option, "!"); ok {
+					option = after
 					spec.SyncPolicy.SyncOptions = spec.SyncPolicy.SyncOptions.RemoveOption(option)
 				} else {
 					spec.SyncPolicy.SyncOptions = spec.SyncPolicy.SyncOptions.AddOption(option)
@@ -261,7 +261,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 					Backoff: &argoappv1.Backoff{
 						Duration:    appOpts.retryBackoffDuration.String(),
 						MaxDuration: appOpts.retryBackoffMaxDuration.String(),
-						Factor:      ptr.To(appOpts.retryBackoffFactor),
+						Factor:      new(appOpts.retryBackoffFactor),
 					},
 					Refresh: appOpts.retryRefresh,
 				}
@@ -284,25 +284,26 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			spec.SyncPolicy.Retry.Refresh = appOpts.retryRefresh
 		}
 	})
-	if flags.Changed("auto-prune") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
-	}
-	if flags.Changed("self-heal") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --self-heal: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
-	}
-	if flags.Changed("allow-empty") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --allow-empty: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
-	}
 
+	if flags.Changed("auto-prune") || flags.Changed("self-heal") || flags.Changed("allow-empty") {
+		if spec.SyncPolicy == nil {
+			spec.SyncPolicy = &argoappv1.SyncPolicy{}
+		}
+		if spec.SyncPolicy.Automated == nil {
+			disabled := false
+			spec.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{Enabled: &disabled}
+		}
+
+		if flags.Changed("auto-prune") {
+			spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
+		}
+		if flags.Changed("self-heal") {
+			spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
+		}
+		if flags.Changed("allow-empty") {
+			spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
+		}
+	}
 	return visited
 }
 
@@ -846,13 +847,9 @@ func mergeLabels(app *argoappv1.Application, labels []string) {
 
 	mergedLabels := make(map[string]string)
 
-	for name, value := range app.GetLabels() {
-		mergedLabels[name] = value
-	}
+	maps.Copy(mergedLabels, app.GetLabels())
 
-	for name, value := range mapLabels {
-		mergedLabels[name] = value
-	}
+	maps.Copy(mergedLabels, mapLabels)
 
 	app.SetLabels(mergedLabels)
 }

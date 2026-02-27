@@ -10,7 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
 
 	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
 	"github.com/argoproj/argo-cd/v3/util/argo/testdata"

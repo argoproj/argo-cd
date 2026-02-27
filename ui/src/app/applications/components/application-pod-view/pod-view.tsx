@@ -126,7 +126,7 @@ export function PodView(props: PodViewProps) {
                                                 style={group.kind === 'node' ? {} : {cursor: 'pointer'}}>
                                                 <div style={{display: 'flex', alignItems: 'center'}}>
                                                     <div style={{marginRight: '10px'}}>
-                                                        <ResourceIcon kind={group.kind || 'Unknown'} />
+                                                        <ResourceIcon group={group.group} kind={group.kind || 'Unknown'} />
                                                         <br />
                                                         {<div style={{textAlign: 'center'}}>{ResourceLabel({kind: group.kind})}</div>}
                                                     </div>
