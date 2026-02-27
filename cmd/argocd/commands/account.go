@@ -503,7 +503,7 @@ curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applica
 			}
 			validator := jwt.NewValidator()
 			if validator.Validate(*claims) != nil {
-				log.Fatal("Token has expired. Please run 'argocd relogin'")
+				log.Fatal("Token is invalid or expired. Please run 'argocd relogin'")
 			}
 
 			switch output {
