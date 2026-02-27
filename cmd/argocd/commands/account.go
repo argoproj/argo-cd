@@ -17,6 +17,7 @@ import (
 	"golang.org/x/term"
 	"sigs.k8s.io/yaml"
 
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
@@ -136,7 +137,7 @@ has appropriate RBAC permissions to change other accounts.
 				errors.CheckError(err)
 				claims, err := configCtx.User.Claims()
 				errors.CheckError(err)
-				tokenString := passwordLogin(ctx, acdClient, localconfig.GetUsername(claims.Subject), newPassword)
+				tokenString := passwordLogin(ctx, acdClient, localconfig.GetUsername(jwtutil.StringField(claims, "sub")), newPassword)
 				localCfg.UpsertUser(localconfig.User{
 					Name:      localCfg.CurrentContext,
 					AuthToken: tokenString,
@@ -502,23 +503,28 @@ curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applica
 				log.Fatal("Invalid token format. Please run 'argocd relogin'")
 			}
 			validator := jwt.NewValidator()
-			if validator.Validate(*claims) != nil {
+			if validator.Validate(claims) != nil {
 				log.Fatal("Token has expired. Please run 'argocd relogin'")
 			}
 
 			switch output {
 			case "json":
+				iss := jwtutil.StringField(claims, "iss")
 				tokenInfo := map[string]any{
-					"token":             configCtx.User.AuthToken,
 					"type":              "local",
-					"issuer":            claims.Issuer,
-					"subject":           claims.Subject,
-					"expires_at":        claims.ExpiresAt,
-					"issued_at":         claims.IssuedAt,
+					"issuer":            iss,
+					"user_id":           jwtutil.GetUserIdentifier(claims),
+					"token":             configCtx.User.AuthToken,
 					"has_refresh_token": configCtx.User.RefreshToken != "",
 				}
-				if claims.Issuer != sessionutil.SessionManagerClaimsIssuer {
+				if iss != sessionutil.SessionManagerClaimsIssuer {
 					tokenInfo["type"] = "sso"
+				}
+				if iat, err := jwtutil.IssuedAtTime(claims); err == nil {
+					tokenInfo["issued_at"] = iat.Format(time.RFC3339)
+				}
+				if exp, err := jwtutil.ExpirationTime(claims); err == nil {
+					tokenInfo["expires_at"] = exp.Format(time.RFC3339)
 				}
 
 				jsonBytes, err := json.MarshalIndent(tokenInfo, "", "  ")
