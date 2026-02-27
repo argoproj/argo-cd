@@ -1251,6 +1251,113 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 	}
 }
 
+func TestCreateOrUpdateInCluster_Concurrent(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "namespace",
+		},
+	}
+
+	t.Run("all apps are created correctly with concurrency > 1", func(t *testing.T) {
+		desiredApps := make([]v1alpha1.Application, 5)
+		for i := range desiredApps {
+			desiredApps[i] = v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("app%d", i),
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSpec{Project: "project"},
+			}
+		}
+
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(&appSet).
+			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+			Build()
+		metrics := appsetmetrics.NewFakeAppsetMetrics()
+
+		r := ApplicationSetReconciler{
+			Client:                       fakeClient,
+			Scheme:                       scheme,
+			Recorder:                     record.NewFakeRecorder(10),
+			Metrics:                      metrics,
+			ConcurrentApplicationUpdates: 5,
+		}
+
+		err = r.createOrUpdateInCluster(t.Context(), log.NewEntry(log.StandardLogger()), appSet, desiredApps)
+		require.NoError(t, err)
+
+		for _, desired := range desiredApps {
+			got := &v1alpha1.Application{}
+			require.NoError(t, fakeClient.Get(t.Context(), crtclient.ObjectKey{Namespace: desired.Namespace, Name: desired.Name}, got))
+			assert.Equal(t, desired.Spec.Project, got.Spec.Project)
+		}
+	})
+
+	t.Run("non-context errors from concurrent goroutines are collected and one is returned", func(t *testing.T) {
+		existingApps := make([]v1alpha1.Application, 5)
+		initObjs := []crtclient.Object{&appSet}
+		for i := range existingApps {
+			existingApps[i] = v1alpha1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       application.ApplicationKind,
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            fmt.Sprintf("app%d", i),
+					Namespace:       "namespace",
+					ResourceVersion: "1",
+				},
+				Spec: v1alpha1.ApplicationSpec{Project: "old"},
+			}
+			app := existingApps[i].DeepCopy()
+			require.NoError(t, controllerutil.SetControllerReference(&appSet, app, scheme))
+			initObjs = append(initObjs, app)
+		}
+
+		desiredApps := make([]v1alpha1.Application, 5)
+		for i := range desiredApps {
+			desiredApps[i] = v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("app%d", i),
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSpec{Project: "new"},
+			}
+		}
+
+		patchErr := errors.New("some patch error")
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(initObjs...).
+			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Patch: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, patch crtclient.Patch, opts ...crtclient.PatchOption) error {
+					return patchErr
+				},
+			}).
+			Build()
+		metrics := appsetmetrics.NewFakeAppsetMetrics()
+
+		r := ApplicationSetReconciler{
+			Client:                       fakeClient,
+			Scheme:                       scheme,
+			Recorder:                     record.NewFakeRecorder(10),
+			Metrics:                      metrics,
+			ConcurrentApplicationUpdates: 5,
+		}
+
+		err = r.createOrUpdateInCluster(t.Context(), log.NewEntry(log.StandardLogger()), appSet, desiredApps)
+		require.ErrorIs(t, err, patchErr)
+	})
+}
+
 func TestCreateOrUpdateInCluster_ContextCancellation(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)

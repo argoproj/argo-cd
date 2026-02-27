@@ -907,7 +907,7 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 			err := r.removeFinalizerOnInvalidDestination(ctx, applicationSet, &app, clusterList, appLogCtx)
 			if err != nil {
 				appLogCtx.WithError(err).Error("failed to update Application")
-				// Propagate context cancellation so errgroup stops launching new goroutines.
+				// If the context was canceled or its deadline exceeded, return the error so it propagates through g.Wait().
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return err
 				}
@@ -922,7 +922,7 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 			err = r.Delete(ctx, &app)
 			if err != nil {
 				appLogCtx.WithError(err).Error("failed to delete Application")
-				// Propagate context cancellation so errgroup stops launching new goroutines.
+				// If the context was canceled or its deadline exceeded, return the error so it propagates through g.Wait().
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return err
 				}
