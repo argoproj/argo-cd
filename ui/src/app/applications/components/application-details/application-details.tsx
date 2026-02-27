@@ -1046,7 +1046,9 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                     className={`group-nodes-button group-nodes-button${pref.showAppSetParent ? '-on' : ''}`}
                                                                     title='Show ApplicationSet parent node'
                                                                     onClick={() =>
-                                                                        services.viewPreferences.updatePreferences({appDetails: {...pref, showAppSetParent: !pref.showAppSetParent}})
+                                                                        services.viewPreferences.updatePreferences({
+                                                                            appDetails: {...pref, showAppSetParent: !pref.showAppSetParent}
+                                                                        })
                                                                     }>
                                                                     <i className='fa fa-sitemap fa-fw' />
                                                                 </a>
