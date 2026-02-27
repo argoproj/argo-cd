@@ -469,7 +469,7 @@ argocd account session-token -o json
 # Use in scripts
 export ARGOCD_AUTH_TOKEN=$(argocd account session-token)
 curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applications`,
-		Run: func(c *cobra.Command, _ []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			// Create client first - this handles token refresh automatically
 			_, err := argocdclient.NewClient(clientOpts)
 			if err != nil {
