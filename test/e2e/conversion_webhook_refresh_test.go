@@ -20,7 +20,8 @@ import (
 //
 // Current behavior: app stays Healthy/OutOfSync, resources show Missing
 // Previous behavior: app goes Degraded/Unknown, shows 3 cryptic error conditions
-// Desired behavior: app goes Degraded/Unknown, shows 1 friendly condition message
+// Desired behavior: app goes Unknown/Unknown, shows 1 friendly condition message
+// (Unknown rather than Degraded because we cannot determine actual state when webhooks fail)
 func TestConversionWebhookRefreshBehavior(t *testing.T) {
 	crdAppName := "crd-refresh-test-app"
 
@@ -114,9 +115,11 @@ func TestConversionWebhookRefreshBehavior(t *testing.T) {
 				}
 			}
 
-			// DESIRED BEHAVIOR: App should go Degraded/Unknown with friendly message
-			assert.Equal(t, health.HealthStatusDegraded, app.Status.Health.Status,
-				"App should be Degraded when conversion webhook fails")
+			// DESIRED BEHAVIOR: App should go Unknown/Unknown with friendly message
+			// Health is Unknown (not Degraded) because we cannot determine actual health
+			// when conversion webhooks prevent fetching resources
+			assert.Equal(t, health.HealthStatusUnknown, app.Status.Health.Status,
+				"App should have Unknown health when conversion webhook failures prevent determining actual state")
 			assert.Equal(t, SyncStatusCodeUnknown, app.Status.Sync.Status,
 				"App should have Unknown sync status when conversion webhook fails")
 
@@ -148,8 +151,8 @@ func TestConversionWebhookRefreshBehavior(t *testing.T) {
 
 			// Note: Individual resource statuses may still show their last known state (Synced/OutOfSync)
 			// because the conversion webhook failure prevents accurate comparison.
-			// The important indicators are the app-level Degraded health, Unknown sync status,
+			// The important indicators are the app-level Unknown health and sync status,
 			// and the condition message explaining the problem.
-			t.Log("✅ App correctly shows Degraded/Unknown status with conversion webhook error condition")
+			t.Log("✅ App correctly shows Unknown/Unknown status with conversion webhook error condition")
 		})
 }
