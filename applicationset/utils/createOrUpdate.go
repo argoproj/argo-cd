@@ -26,6 +26,10 @@ import (
 
 var appEquality = conversion.EqualitiesOrDie(
 	func(a, b resource.Quantity) bool {
+		// Ignore formatting, only care that numeric value stayed the same.
+		// TODO: if we decide it's important, it should be safe to start comparing the format.
+		//
+		// Uninitialized quantities are equivalent to 0 quantities.
 		return a.Cmp(b) == 0
 	},
 	func(a, b metav1.MicroTime) bool {
