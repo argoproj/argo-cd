@@ -751,7 +751,15 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 if (isApplication) {
                                     return {
                                         ...commonProps,
-                                        onNodeClick: (fullName: string) => selectNode(fullName),
+                                        onNodeClick: (fullName: string) => {
+                                            const parts = fullName.split('/');
+                                            const [group, kind, namespace, name] = parts;
+                                            if (group === 'argoproj.io' && kind === 'ApplicationSet' && namespace && name) {
+                                                appContext.navigation.goto(`/applicationsets/${namespace}/${name}`);
+                                                return;
+                                            }
+                                            selectNode(fullName);
+                                        },
                                         nodeMenu: (node: ResourceTreeNode) =>
                                             AppUtils.renderResourceMenu(node, application as appModels.Application, tree, appContext, appChanged.current, () =>
                                                 getApplicationActionMenu(application as appModels.Application, false)

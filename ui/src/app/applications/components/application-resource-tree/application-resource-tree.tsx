@@ -16,10 +16,12 @@ import {
     BASE_COLORS,
     ComparisonStatusIcon,
     getAppOverridesCount,
+    getApplicationSetOwnerRef,
     getAppSetHealthStatus,
     HealthStatusIcon,
     isApp,
     isAppNode,
+    isAppSetNode,
     isYoungerThanXMinutes,
     NodeId,
     nodeKey,
@@ -511,6 +513,11 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                                 }}
                             </Consumer>
                         )}
+                        {isAppSetNode(node) && (
+                            <a onClick={e => e.stopPropagation()} title='Open ApplicationSet'>
+                                <i className='fa fa-external-link-alt' />
+                            </a>
+                        )}
                         <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
                     </span>
                     {childCount > 0 && (
@@ -821,6 +828,11 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                             }}
                         </Consumer>
                     )}
+                    {isAppSetNode(node) && (
+                        <a onClick={e => e.stopPropagation()} title='Open ApplicationSet'>
+                            <i className='fa fa-external-link-alt' />
+                        </a>
+                    )}
                     <ApplicationURLs urls={rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
                 </div>
                 {childCount > 0 && (
@@ -934,6 +946,22 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                   ]
                 : []
     };
+
+    const appSetRef = isApp(props.app) ? getApplicationSetOwnerRef(props.app as models.Application) : null;
+    const appSetNode = appSetRef
+        ? {
+              kind: 'ApplicationSet',
+              name: appSetRef.name,
+              namespace: props.app.metadata.namespace,
+              group: 'argoproj.io',
+              version: '',
+              children: [] as string[],
+              status: null as string,
+              health: null as models.HealthStatus,
+              uid: 'ApplicationSet-' + props.app.metadata.namespace + '-' + appSetRef.name,
+              info: [] as {name: string; value: string}[]
+          }
+        : null;
 
     const statusByKey = new Map<string, models.ResourceStatus>();
     const appSetStatusByKey = new Map<string, models.ApplicationSetResource>();
@@ -1190,8 +1218,13 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             processNode(node, node);
         });
         graph.setNode(appNodeKey(props.app), {...appNode, width: NODE_WIDTH, height: NODE_HEIGHT});
+        const appSetKey = appSetNode ? nodeKey({group: 'argoproj.io', kind: 'ApplicationSet', name: appSetRef.name, namespace: props.app.metadata.namespace}) : null;
+        if (appSetKey) {
+            graph.setNode(appSetKey, {...appSetNode, width: NODE_WIDTH, height: NODE_HEIGHT});
+            graph.setEdge(appSetKey, appNodeKey(props.app));
+        }
         if (props.nodeFilter) {
-            filterGraph(props.app, appNodeKey(props.app), graph, props.nodeFilter);
+            filterGraph(props.app, appSetKey || appNodeKey(props.app), graph, props.nodeFilter);
         }
         if (props.showCompactNodes) {
             groupNodes(nodes, graph);

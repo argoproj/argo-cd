@@ -369,13 +369,13 @@
             left: -20px;
             top: -8px;
             text-align: center;
+            color: $white-color;
 
             @include themify($themes) {
                 border: 4px solid themed('background-2');
             }
 
             i {
-                color: $white-color;
                 line-height: 56px;
                 font-size: 28px;
             }
