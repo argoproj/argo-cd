@@ -794,7 +794,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			})
 			if err != nil {
 				appLog.WithError(err).WithField("action", action).Errorf("failed to %s Application", action)
-				// Propagate context cancellation so errgroup stops launching new goroutines.
+				// If the context was canceled or its deadline exceeded, return the error so it propagates through g.Wait().
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return err
 				}
