@@ -575,7 +575,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         </Tooltip>
                     )}
                 </div>
-                {props.nodeMenu && (
+                {props.nodeMenu && !isAppSetNode(node) && (
                     <div className='application-resource-tree__node-menu'>
                         <DropDown
                             key={node.uid}
@@ -886,7 +886,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     </Tooltip>
                 )}
             </div>
-            {props.nodeMenu && (
+            {props.nodeMenu && !isAppSetNode(node) && (
                 <div className='application-resource-tree__node-menu'>
                     <DropDown
                         isMenu={true}
