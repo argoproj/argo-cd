@@ -46,7 +46,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/util/localconfig"
 )
 
 func Test_getInfos(t *testing.T) {
@@ -1906,8 +1905,8 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
 
 	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
-%s            Service     default         service-name1    Synced  Healthy              
-%s   apps  Deployment     default                  test    Synced  Healthy              
+%s            Service     default         service-name1    Synced  Healthy
+%s   apps  Deployment     default                  test    Synced  Healthy
 
 Name:               argocd/test
 Project:            default
@@ -1927,15 +1926,15 @@ Health Status:      Progressing
 
 Operation:          Sync
 Sync Revision:      revision
-Phase:              
+Phase:
 Start:              0001-01-01 00:00:00 +0000 UTC
 Finished:           2020-11-10 23:00:00 +0000 UTC
 Duration:           2333448h16m18.871345152s
 Message:            test
 
 GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
-       Service     default    service-name1  Synced  Healthy        
-apps   Deployment  default    test           Synced  Healthy        
+       Service     default    service-name1  Synced  Healthy
+apps   Deployment  default    test           Synced  Healthy
 `
 	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
 	expectationParts := strings.Split(expectation, "\n")
@@ -1967,8 +1966,8 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T)
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
 
 	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
-%s            Service     default         service-name1    Synced  Healthy              
-%s   apps  Deployment     default                  test    Synced  Healthy              
+%s            Service     default         service-name1    Synced  Healthy
+%s   apps  Deployment     default                  test    Synced  Healthy
 
 The command timed out waiting for the conditions to be met.
 
@@ -1992,15 +1991,15 @@ Health Status:      Progressing
 
 Operation:          Sync
 Sync Revision:      revision
-Phase:              
+Phase:
 Start:              0001-01-01 00:00:00 +0000 UTC
 Finished:           2020-11-10 23:00:00 +0000 UTC
 Duration:           2333448h16m18.871345152s
 Message:            test
 
 GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
-       Service     default    service-name1  Synced  Healthy        
-apps   Deployment  default    test           Synced  Healthy        
+       Service     default    service-name1  Synced  Healthy
+apps   Deployment  default    test           Synced  Healthy
 `
 	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
 	expectationParts := strings.Split(expectation, "\n")
@@ -2356,10 +2355,6 @@ func (c *fakeAcdClient) NewVersionClient() (io.Closer, versionpkg.VersionService
 
 func (c *fakeAcdClient) NewVersionClientOrDie() (io.Closer, versionpkg.VersionServiceClient) {
 	return nil, nil
-}
-
-func (c *fakeAcdClient) RefreshAuthToken(_ *localconfig.LocalConfig, _, _ string) error {
-	return nil
 }
 
 func (c *fakeAcdClient) NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient, error) {

@@ -98,7 +98,6 @@ type Client interface {
 	NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient)
 	NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error)
 	NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient)
-	RefreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, configPath string) error
 	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent
 	WatchApplicationSetWithRetry(ctx context.Context, appSetName, revision string) chan *v1alpha1.ApplicationSetWatchEvent
 }
@@ -307,7 +306,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		}
 	}
 	if localCfg != nil {
-		err = c.RefreshAuthToken(localCfg, ctxName, opts.ConfigPath)
+		err = c.refreshAuthToken(localCfg, ctxName, opts.ConfigPath)
 		if err != nil {
 			return nil, err
 		}
@@ -391,8 +390,8 @@ func (c *client) HTTPClient() (*http.Client, error) {
 	}, nil
 }
 
-// RefreshAuthToken refreshes a JWT auth token if it is invalid (e.g. expired)
-func (c *client) RefreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, configPath string) error {
+// refreshAuthToken refreshes a JWT auth token if it is invalid (e.g. expired)
+func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, configPath string) error {
 	if c.RefreshToken == "" {
 		// If we have no refresh token, there's no point in doing anything
 		return nil
