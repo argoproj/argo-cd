@@ -590,7 +590,6 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 const automated = app.spec.syncPolicy?.automated || {prune: false, enabled: false, selfHeal: false};
                 const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
 
-                console.log(updatedApp);
                 if (!updatedApp.spec.syncPolicy) {
                     updatedApp.spec.syncPolicy = {};
                 }
@@ -598,7 +597,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 const disableUntil = new Date(Date.now() + (temporaryDisableSyncOptions.option === '10m' ? 10 : temporaryDisableSyncOptions.option === '30m' ? 30 : 60) * 60000);
 
                 updatedApp.spec.syncPolicy.automated = {prune: automated.prune, selfHeal: automated.selfHeal, enabled: automated.enabled, disableUntil: disableUntil.toISOString()};
-                console.log('Updated app spec for temporary disable:', updatedApp.spec.syncPolicy.automated);
+                console.debug('[disableUntil] sending to server: app=%s, disableUntil=%s', updatedApp.metadata.name, disableUntil.toISOString());
                 await updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({

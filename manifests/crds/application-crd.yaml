@@ -2237,6 +2237,10 @@ spec:
                         description: 'AllowEmpty allows apps have zero live resources
                           (default: false)'
                         type: boolean
+                      disableUntil:
+                        description: DisableUntil specifies a time until which automated
+                          sync is disabled
+                        type: string
                       enabled:
                         description: Enable allows apps to explicitly control automated
                           sync
