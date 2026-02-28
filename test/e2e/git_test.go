@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -259,5 +260,57 @@ func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
 				return revisionHistoryLimit != nil && *revisionHistoryLimit != 9, nil
 			})
 			require.Error(t, waitErr, "A timeout error should occur, indicating that revisionHistoryLimit never changed from 9")
+		})
+}
+
+// TestGitSemverRevisionResolution verifies that when a semver constraint is used as the
+// target revision (e.g. "v0.1.*"), the sync result captures the intermediate resolution —
+// i.e. which concrete tag the constraint resolved to — in SyncResult.Resolution.
+func TestGitSemverRevisionResolution(t *testing.T) {
+	Given(t).
+		Path("deployment").
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeSSH).
+		Revision("v0.1.*").
+		When().
+		AddTag("v0.1.0").
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState, "OperationState should be set after sync")
+			require.NotNil(t, app.Status.OperationState.SyncResult, "SyncResult should be set after sync")
+			require.NotNil(t, app.Status.OperationState.SyncResult.Resolution,
+				"Resolution should be populated when a semver constraint was resolved")
+			assert.Equal(t, "v0.1.0", app.Status.OperationState.SyncResult.Resolution.ResolvedSymbol,
+				"ResolvedSymbol should be the concrete tag selected by the constraint")
+			assert.Equal(t, "v0.1.*", app.Status.OperationState.SyncResult.Resolution.Constraint,
+				"Constraint should be the original target revision expression")
+		})
+}
+
+// TestGitPinnedTagNoRevisionResolution verifies that when a pinned (non-constraint) tag is
+// used as the target revision, SyncResult.Resolution is nil — resolution metadata should
+// only be present when an actual range/constraint was resolved.
+func TestGitPinnedTagNoRevisionResolution(t *testing.T) {
+	Given(t).
+		Path("deployment").
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeSSH).
+		Revision("v0.1.0").
+		When().
+		AddTag("v0.1.0").
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState, "OperationState should be set after sync")
+			require.NotNil(t, app.Status.OperationState.SyncResult, "SyncResult should be set after sync")
+			assert.Nil(t, app.Status.OperationState.SyncResult.Resolution,
+				"Resolution should be nil when a concrete tag (not a constraint) was specified")
 		})
 }
