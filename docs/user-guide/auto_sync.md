@@ -34,6 +34,26 @@ spec:
 For a standalone application, toggling auto-sync is performed by changing the application's `spec.syncPolicy.automated` field. For an ApplicationSet managed application, changing the application's `spec.syncPolicy.automated` field will, however, have no effect.
 [Controlling Resource Modification](../operator-manual/applicationset/Controlling-Resource-Modification.md) has more details about how to perform the toggling for applications managed by ApplicationSets.
 
+## Temporarily disabling auto-sync
+
+The Argo CD UI provides a "Disable temporarily" button in the application **SYNC POLICY** panel when automated sync is enabled. Clicking the button opens a small popup to choose a duration (the UI defaults to 15 minutes) and sets a timestamp on the application which instructs the controller to skip automated syncs until that time.
+
+Implementation details:
+- The UI writes an ISO8601 timestamp to `spec.syncPolicy.automated.disableUntil` (for example, `"2026-02-28T12:34:56Z"`).
+- The `argocd-application-controller` checks `spec.syncPolicy.automated.disableUntil` during reconciliation and will skip automated syncs while the timestamp is in the future.
+- When the timestamp expires the controller's auto-sync process will remove the `disableUntil` key and automated sync will resume.
+- The UI also shows a `Re-enable` button when a `disableUntil` timestamp is present so users can cancel the temporary disable early (this deletes the key).
+
+Example manifest snippet:
+
+```yaml
+spec:
+  syncPolicy:
+    automated:
+      enabled: true
+      disableUntil: "2026-02-28T12:34:56Z"
+```
+
 
 ## Automatic Pruning
 

@@ -726,7 +726,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                             app.spec.syncPolicy.automated.enabled !== false &&
                                             (app.spec.syncPolicy?.automated.disableUntil ? (
                                                 <button className='argo-button argo-button--base' style={{marginLeft: '10px'}} onClick={() => reenableAutoSyncTemporarily(ctx)}>
-                                                    Reenable
+                                                    Re-enable
                                                 </button>
                                             ) : (
                                                 <button className='argo-button argo-button--base' style={{marginLeft: '10px'}} onClick={() => disableAutoSyncTemporarily(ctx)}>
