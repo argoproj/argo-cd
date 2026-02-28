@@ -416,6 +416,27 @@ data:
     {{- end }}
 ```
 
+## Commit Author Configuration
+
+You can customize the git commit author name and email used by the source hydrator when committing hydrated manifests. This is configured via the `argocd-cm` ConfigMap.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  commit.author.name: "GitOps Bot"
+  commit.author.email: "gitops@company.com"
+```
+
+**Configuration Keys:**
+- `commit.author.name`: The git commit author name (defaults to `"Argo CD"` if not set)
+- `commit.author.email`: The git commit author email (defaults to `"argo-cd@example.com"` if not set)
+
+Both values are optional. If only one is configured, the configured value will be used and the other will use its default.
+
 ### Credential Templates
 
 Credential templates allow a single credential to be used for multiple repositories. The source hydrator supports credential templates. For example, if you setup credential templates for the URL prefix `https://github.com/argoproj`, these credentials will be used for all repositories with this URL as prefix (e.g. `https://github.com/argoproj/argocd-example-apps`) that do not have their own credentials configured.

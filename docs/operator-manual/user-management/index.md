@@ -505,7 +505,8 @@ If you want to store sensitive data in **another** Kubernetes `Secret`, instead 
 
 Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
 
-> NOTE: Secret must have label `app.kubernetes.io/part-of: argocd`
+> [!NOTE]
+> Secret must have label `app.kubernetes.io/part-of: argocd`
 
 ##### Example
 

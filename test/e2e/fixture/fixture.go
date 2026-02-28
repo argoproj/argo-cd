@@ -20,11 +20,14 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/yaml"
@@ -91,6 +94,7 @@ var (
 	DynamicClientset        dynamic.Interface
 	AppClientset            appclientset.Interface
 	ArgoCDClientset         apiclient.Client
+	Mapper                  meta.RESTMapper
 	adminUsername           string
 	AdminPassword           string
 	apiServerAddress        string
@@ -195,6 +199,7 @@ func init() {
 	AppClientset = appclientset.NewForConfigOrDie(config)
 	KubeClientset = kubernetes.NewForConfigOrDie(config)
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
+	Mapper = restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(KubeClientset.Discovery()))
 	KubeConfig = config
 
 	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultAPIServer)
@@ -530,14 +535,14 @@ func SetAccounts(accounts map[string][]string) error {
 
 func SetPermissions(permissions []ACL, username string, roleName string) error {
 	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
-		var aclstr string
+		var aclstr strings.Builder
 
 		for _, permission := range permissions {
-			aclstr += fmt.Sprintf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
+			_, _ = fmt.Fprintf(&aclstr, "p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
 		}
 
-		aclstr += fmt.Sprintf("g, %s, role:%s", username, roleName)
-		cm.Data["policy.csv"] = aclstr
+		_, _ = fmt.Fprintf(&aclstr, "g, %s, role:%s", username, roleName)
+		cm.Data["policy.csv"] = aclstr.String()
 
 		return nil
 	})
@@ -982,7 +987,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 	var out string
 	var err error
-	for i := 0; i < maxRetries; i++ {
+	for range maxRetries {
 		out, err = RunCli(args...)
 		if err == nil {
 			break

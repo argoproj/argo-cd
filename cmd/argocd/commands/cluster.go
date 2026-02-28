@@ -91,7 +91,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	)
 	command := &cobra.Command{
 		Use:   "add CONTEXT",
-		Short: cliName + " cluster add CONTEXT",
+		Short: common.CommandCLI + " cluster add CONTEXT",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -549,7 +549,7 @@ argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "rotate-auth SERVER/NAME",
-		Short: cliName + " cluster rotate-auth SERVER/NAME",
+		Short: common.CommandCLI + " cluster rotate-auth SERVER/NAME",
 		Example: `argocd cluster rotate-auth https://12.34.567.89
 argocd cluster rotate-auth cluster-name`,
 		Run: func(c *cobra.Command, args []string) {
