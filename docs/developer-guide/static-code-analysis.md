@@ -1,6 +1,6 @@
 # Code Quality and Security Scanning
 
-We use the following static code analysis tools:
+We use the following code quality and security scanning tools:
 
 * `golangci-lint` and `eslint` for compile time linting
 * [CodeQL](https://codeql.github.com/) - for semantic code analysis
