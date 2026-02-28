@@ -986,8 +986,26 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	// Update the initial revision to the resolved manifest SHA
 	if hasMultipleSources {
 		syncStatus.Revisions = manifestRevisions
+		// Populate revision resolutions for multi-source: use the last resolution seen per index.
+		manifestResolutions := make([]v1alpha1.RevisionResolution, len(manifestInfos))
+		for i, manifestInfo := range manifestInfos {
+			if manifestInfo != nil && manifestInfo.Resolution != nil {
+				manifestResolutions[i] = v1alpha1.RevisionResolution{
+					ResolvedSymbol: manifestInfo.Resolution.ResolvedSymbol,
+					Constraint:     manifestInfo.Resolution.Constraint,
+				}
+			}
+		}
+		syncStatus.Resolutions = manifestResolutions
 	} else if len(manifestRevisions) > 0 {
 		syncStatus.Revision = manifestRevisions[0]
+		// Populate revision resolution for single-source.
+		if len(manifestInfos) > 0 && manifestInfos[0] != nil && manifestInfos[0].Resolution != nil {
+			syncStatus.Resolution = &v1alpha1.RevisionResolution{
+				ResolvedSymbol: manifestInfos[0].Resolution.ResolvedSymbol,
+				Constraint:     manifestInfos[0].Resolution.Constraint,
+			}
+		}
 	}
 
 	ts.AddCheckpoint("sync_ms")

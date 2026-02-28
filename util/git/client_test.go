@@ -187,10 +187,10 @@ func Test_ChangedFiles(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Changes", "-a")
 	require.NoError(t, err)
 
-	previousSHA, err := client.LsRemote("some-tag")
+	previousSHA, _, err := client.LsRemote("some-tag")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, _, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
 	// Invalid commits, error
@@ -240,25 +240,29 @@ func Test_SemverTags(t *testing.T) {
 		err = runCmd(ctx, client.Root(), "git", "tag", tag)
 		require.NoError(t, err)
 
-		sha, err := client.LsRemote("HEAD")
+		sha, _, err := client.LsRemote("HEAD")
 		require.NoError(t, err)
 
 		mapTagRefs[tag] = sha
 	}
 
 	for _, tc := range []struct {
-		name     string
-		ref      string
-		expected string
-		error    bool
+		name               string
+		ref                string
+		expected           string
+		error              bool
+		expectResolution   bool   // true when a semver constraint resolved to a different tag
+		expectedResSymbol  string // the intermediate tag that was resolved (e.g. "v1.1.0")
 	}{{
 		name:     "pinned rc version",
 		ref:      "v1.0.0-rc1",
 		expected: mapTagRefs["v1.0.0-rc1"],
 	}, {
-		name:     "lt rc constraint",
-		ref:      "< v1.0.0-rc3",
-		expected: mapTagRefs["v1.0.0-rc2"],
+		name:              "lt rc constraint",
+		ref:               "< v1.0.0-rc3",
+		expected:          mapTagRefs["v1.0.0-rc2"],
+		expectResolution:  true,
+		expectedResSymbol: "v1.0.0-rc2",
 	}, {
 		name:     "pinned major version",
 		ref:      "v1.0.0",
@@ -272,30 +276,42 @@ func Test_SemverTags(t *testing.T) {
 		ref:      "v1.1.0",
 		expected: mapTagRefs["v1.1.0"],
 	}, {
-		name:     "patch wildcard constraint",
-		ref:      "v1.0.*",
-		expected: mapTagRefs["v1.0.1"],
+		name:              "patch wildcard constraint",
+		ref:               "v1.0.*",
+		expected:          mapTagRefs["v1.0.1"],
+		expectResolution:  true,
+		expectedResSymbol: "v1.0.1",
 	}, {
-		name:     "patch tilde constraint",
-		ref:      "~v1.0.0",
-		expected: mapTagRefs["v1.0.1"],
+		name:              "patch tilde constraint",
+		ref:               "~v1.0.0",
+		expected:          mapTagRefs["v1.0.1"],
+		expectResolution:  true,
+		expectedResSymbol: "v1.0.1",
 	}, {
-		name:     "minor wildcard constraint",
-		ref:      "v1.*",
-		expected: mapTagRefs["v1.1.0"],
+		name:              "minor wildcard constraint",
+		ref:               "v1.*",
+		expected:          mapTagRefs["v1.1.0"],
+		expectResolution:  true,
+		expectedResSymbol: "v1.1.0",
 	}, {
 		// The semver library allows for using both * and x as the wildcard modifier.
-		name:     "alternative minor wildcard constraint",
-		ref:      "v1.x",
-		expected: mapTagRefs["v1.1.0"],
+		name:              "alternative minor wildcard constraint",
+		ref:               "v1.x",
+		expected:          mapTagRefs["v1.1.0"],
+		expectResolution:  true,
+		expectedResSymbol: "v1.1.0",
 	}, {
-		name:     "minor gte constraint",
-		ref:      ">= v1.0.0",
-		expected: mapTagRefs["v1.1.0"],
+		name:              "minor gte constraint",
+		ref:               ">= v1.0.0",
+		expected:          mapTagRefs["v1.1.0"],
+		expectResolution:  true,
+		expectedResSymbol: "v1.1.0",
 	}, {
-		name:     "multiple constraints",
-		ref:      "> v1.0.0 < v1.1.0",
-		expected: mapTagRefs["v1.0.1"],
+		name:              "multiple constraints",
+		ref:               "> v1.0.0 < v1.1.0",
+		expected:          mapTagRefs["v1.0.1"],
+		expectResolution:  true,
+		expectedResSymbol: "v1.0.1",
 	}, {
 		// We treat non-specific semver versions as regular tags, rather than constraints.
 		name:     "non-specific version",
@@ -338,12 +354,14 @@ func Test_SemverTags(t *testing.T) {
 		// However, if one specifies the minor/patch versions, semver constraints can be used to match non-semver tags.
 		// 2024-banana is considered as "2024.0.0-banana" in semver-ish, and banana > apple, so it's a match.
 		// Note: this is more for documentation and future reference than real testing, as it seems like quite odd behaviour.
-		name:     "semver constraints on semver tags",
-		ref:      "> 2024.0.0-apple",
-		expected: mapTagRefs["2024-banana"],
+		name:              "semver constraints on semver tags",
+		ref:               "> 2024.0.0-apple",
+		expected:          mapTagRefs["2024-banana"],
+		expectResolution:  true,
+		expectedResSymbol: "2024-banana",
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			commitSHA, err := client.LsRemote(tc.ref)
+			commitSHA, resolution, err := client.LsRemote(tc.ref)
 			if tc.error {
 				require.Error(t, err)
 				return
@@ -351,6 +369,13 @@ func Test_SemverTags(t *testing.T) {
 			require.NoError(t, err)
 			assert.True(t, IsCommitSHA(commitSHA))
 			assert.Equal(t, tc.expected, commitSHA)
+			if tc.expectResolution {
+				require.NotNil(t, resolution, "expected non-nil RevisionResolution for constraint %q", tc.ref)
+				assert.Equal(t, tc.expectedResSymbol, resolution.ResolvedSymbol, "wrong ResolvedSymbol")
+				assert.Equal(t, tc.ref, resolution.Constraint, "wrong Constraint")
+			} else {
+				assert.Nil(t, resolution, "expected nil RevisionResolution for non-constraint ref %q", tc.ref)
+			}
 		})
 	}
 }
@@ -401,7 +426,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, _, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
 	// Call Checkout() with submoduleEnabled=false.
@@ -469,7 +494,7 @@ func Test_IsRevisionPresent(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Initial Commit", "-a")
 	require.NoError(t, err)
 
-	commitSHA, err := client.LsRemote("HEAD")
+	commitSHA, _, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
 	// Ensure revision for HEAD is present locally.

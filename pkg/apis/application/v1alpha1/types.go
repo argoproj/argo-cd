@@ -1376,6 +1376,18 @@ func (r SyncOperationResource) Compare(name string, namespace string, gvk schema
 	return false
 }
 
+// RevisionResolution captures the intermediate result of resolving a revision constraint
+// (e.g. semver range) to a concrete reference before final SHA/digest resolution.
+// Only populated when a range or constraint was resolved; nil when the user specified a
+// branch, concrete SHA, or other non-constraint reference.
+type RevisionResolution struct {
+	// ResolvedSymbol is the intermediate resolved reference (e.g. tag "v1.2.3" resolved from
+	// constraint "v1.*") before the final SHA/digest resolution.
+	ResolvedSymbol string `json:"resolvedSymbol,omitempty" protobuf:"bytes,1,opt,name=resolvedSymbol"`
+	// Constraint is the original constraint expression that was resolved (e.g. "v1.*", ">=1.2.0 <2.0.0").
+	Constraint string `json:"constraint,omitempty" protobuf:"bytes,2,opt,name=constraint"`
+}
+
 // SyncOperation contains details about a sync operation.
 type SyncOperation struct {
 	// Revision is the revision (Git) or chart version (Helm) which to sync the application to
@@ -1404,6 +1416,12 @@ type SyncOperation struct {
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
 	// SelfHealAttemptsCount contains the number of auto-heal attempts
 	SelfHealAttemptsCount int64 `json:"autoHealAttemptsCount,omitempty" protobuf:"bytes,12,opt,name=autoHealAttemptsCount"`
+	// Resolution holds the intermediate revision resolution metadata for the primary source,
+	// populated when a semver constraint was resolved to a concrete tag/version.
+	Resolution *RevisionResolution `json:"resolution,omitempty" protobuf:"bytes,13,opt,name=resolution"`
+	// Resolutions holds the intermediate revision resolution metadata for each source in a
+	// multi-source sync, indexed to match the Sources/Revisions fields.
+	Resolutions []RevisionResolution `json:"resolutions,omitempty" protobuf:"bytes,14,rep,name=resolutions"`
 }
 
 // IsApplyStrategy returns true if the sync strategy is "apply"
@@ -1692,6 +1710,12 @@ type SyncOperationResult struct {
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,5,opt,name=revisions"`
 	// ManagedNamespaceMetadata contains the current sync state of managed namespace metadata
 	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,6,opt,name=managedNamespaceMetadata"`
+	// Resolution holds the intermediate revision resolution metadata for the primary source,
+	// populated when a semver constraint was resolved to a concrete tag/version.
+	Resolution *RevisionResolution `json:"resolution,omitempty" protobuf:"bytes,7,opt,name=resolution"`
+	// Resolutions holds the intermediate revision resolution metadata for each source in a
+	// multi-source sync, indexed to match the Sources/Revisions fields.
+	Resolutions []RevisionResolution `json:"resolutions,omitempty" protobuf:"bytes,8,rep,name=resolutions"`
 }
 
 // ResourceResult holds the operation result details of a specific resource
@@ -1873,6 +1897,12 @@ type SyncStatus struct {
 	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
 	// Revisions contains information about the revisions of multiple sources the comparison has been performed to
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,4,opt,name=revisions"`
+	// Resolution holds the intermediate revision resolution metadata for the primary source,
+	// populated when a semver constraint was resolved to a concrete tag/version.
+	Resolution *RevisionResolution `json:"resolution,omitempty" protobuf:"bytes,5,opt,name=resolution"`
+	// Resolutions holds the intermediate revision resolution metadata for each source in a
+	// multi-source comparison, indexed to match the Revisions field.
+	Resolutions []RevisionResolution `json:"resolutions,omitempty" protobuf:"bytes,6,rep,name=resolutions"`
 }
 
 // AppHealthStatus contains information about the currently observed health state of an application

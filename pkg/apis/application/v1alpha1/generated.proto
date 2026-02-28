@@ -2346,6 +2346,19 @@ message RevisionReference {
   optional CommitMetadata commit = 1;
 }
 
+// RevisionResolution captures the intermediate result of resolving a revision constraint
+// (e.g. semver range) to a concrete reference before final SHA/digest resolution.
+// Only populated when a range or constraint was resolved; nil when the user specified a
+// branch, concrete SHA, or other non-constraint reference.
+message RevisionResolution {
+  // ResolvedSymbol is the intermediate resolved reference (e.g. tag "v1.2.3" resolved from
+  // constraint "v1.*") before the final SHA/digest resolution.
+  optional string resolvedSymbol = 1;
+
+  // Constraint is the original constraint expression that was resolved (e.g. "v1.*", ">=1.2.0 <2.0.0").
+  optional string constraint = 2;
+}
+
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.
 message SCMProviderGenerator {
   // Which provider to use and config for it.
@@ -2625,6 +2638,14 @@ message SyncOperation {
 
   // SelfHealAttemptsCount contains the number of auto-heal attempts
   optional int64 autoHealAttemptsCount = 12;
+
+  // Resolution holds the intermediate revision resolution metadata for the primary source,
+  // populated when a semver constraint was resolved to a concrete tag/version.
+  optional RevisionResolution resolution = 13;
+
+  // Resolutions holds the intermediate revision resolution metadata for each source in a
+  // multi-source sync, indexed to match the Sources/Revisions fields.
+  repeated RevisionResolution resolutions = 14;
 }
 
 // SyncOperationResource contains resources to sync.
@@ -2657,6 +2678,14 @@ message SyncOperationResult {
 
   // ManagedNamespaceMetadata contains the current sync state of managed namespace metadata
   optional ManagedNamespaceMetadata managedNamespaceMetadata = 6;
+
+  // Resolution holds the intermediate revision resolution metadata for the primary source,
+  // populated when a semver constraint was resolved to a concrete tag/version.
+  optional RevisionResolution resolution = 7;
+
+  // Resolutions holds the intermediate revision resolution metadata for each source in a
+  // multi-source sync, indexed to match the Sources/Revisions fields.
+  repeated RevisionResolution resolutions = 8;
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git
@@ -2719,6 +2748,14 @@ message SyncStatus {
 
   // Revisions contains information about the revisions of multiple sources the comparison has been performed to
   repeated string revisions = 4;
+
+  // Resolution holds the intermediate revision resolution metadata for the primary source,
+  // populated when a semver constraint was resolved to a concrete tag/version.
+  optional RevisionResolution resolution = 5;
+
+  // Resolutions holds the intermediate revision resolution metadata for each source in a
+  // multi-source comparison, indexed to match the Revisions field.
+  repeated RevisionResolution resolutions = 6;
 }
 
 // SyncStrategy controls the manner in which a sync is performed

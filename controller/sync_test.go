@@ -1637,6 +1637,30 @@ func TestClientSideApplyMigration(t *testing.T) {
 	})
 }
 
+func TestNewSyncOperationResult_CopiesResolution(t *testing.T) {
+	app := newFakeApp()
+	resolution := &v1alpha1.RevisionResolution{
+		ResolvedSymbol: "v1.2.3",
+		Constraint:     "v1.*",
+	}
+	resolutions := []v1alpha1.RevisionResolution{
+		{ResolvedSymbol: "v2.0.0", Constraint: "v2.*"},
+	}
+	op := v1alpha1.SyncOperation{
+		Revision:    "abc123",
+		Resolution:  resolution,
+		Resolutions: resolutions,
+	}
+
+	result := newSyncOperationResult(app, op)
+
+	require.NotNil(t, result.Resolution)
+	assert.Equal(t, "v1.2.3", result.Resolution.ResolvedSymbol)
+	assert.Equal(t, "v1.*", result.Resolution.Constraint)
+	require.Len(t, result.Resolutions, 1)
+	assert.Equal(t, "v2.0.0", result.Resolutions[0].ResolvedSymbol)
+}
+
 func dig(obj any, path ...any) any {
 	i := obj
 

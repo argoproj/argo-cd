@@ -56,12 +56,24 @@ type tagsCache interface {
 	GetOCITags(repo string, indexData *[]byte) error
 }
 
+// RevisionResolution captures the intermediate result of resolving a revision constraint
+// (e.g. semver range "v1.*") to a concrete tag (e.g. "v1.2.3") before final digest resolution.
+// Only populated when MaxVersion resolved a constraint; nil for exact tags and digests.
+type RevisionResolution struct {
+	// ResolvedSymbol is the tag resolved from the constraint (e.g. "v1.2.3" from "v1.*").
+	ResolvedSymbol string
+	// Constraint is the original constraint expression (e.g. "v1.*", ">=1.2.0 <2.0.0").
+	Constraint string
+}
+
 // Client is a generic OCI client interface that provides methods for interacting with an OCI (Open Container Initiative) registry.
 type Client interface {
 	// ResolveRevision resolves a tag, digest, or semantic version constraint to a concrete digest.
 	// If noCache is true, the resolution bypasses the local tags cache and queries the remote registry.
 	// If the revision is already a digest, it is returned as-is.
-	ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error)
+	// When the revision was a semver constraint that resolved to an intermediate tag, the returned
+	// RevisionResolution captures that intermediate step.
+	ResolveRevision(ctx context.Context, revision string, noCache bool) (string, *RevisionResolution, error)
 
 	// DigestMetadata retrieves an OCI manifest for a given digest.
 	DigestMetadata(ctx context.Context, digest string) (*imagev1.Manifest, error)
@@ -372,41 +384,48 @@ func (c *nativeOCIClient) digestMetadata(ctx context.Context, digest string) (*i
 	return getOCIManifestFromCache(ctx, path, digest)
 }
 
-func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
+func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, *RevisionResolution, error) {
 	inc := c.OnResolveRevision(c.repoURL)
 	defer inc()
 	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnResolveRevision()
 	fail := c.OnResolveRevisionFail(c.repoURL)
-	resolveRevision, err := c.resolveRevision(ctx, revision, noCache)
+	digest, resolution, err := c.resolveRevision(ctx, revision, noCache)
 	if err != nil {
 		fail(revision)
 	}
-	return resolveRevision, err
+	return digest, resolution, err
 }
 
-func (c *nativeOCIClient) resolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
+func (c *nativeOCIClient) resolveRevision(ctx context.Context, revision string, noCache bool) (string, *RevisionResolution, error) {
 	digest, err := c.resolveDigest(ctx, revision) // Lookup explicit revision
 	if err != nil {
 		// If the revision is not a semver constraint, just return the error
 		if !versions.IsConstraint(revision) {
-			return digest, err
+			return digest, nil, err
 		}
 
 		tags, err := c.GetTags(ctx, noCache)
 		if err != nil {
-			return "", fmt.Errorf("error fetching tags: %w", err)
+			return "", nil, fmt.Errorf("error fetching tags: %w", err)
 		}
 
 		// Look to see if revision is a semver constraint
 		version, err := versions.MaxVersion(revision, tags)
 		if err != nil {
-			return "", fmt.Errorf("no version for constraints: %w", err)
+			return "", nil, fmt.Errorf("no version for constraints: %w", err)
 		}
 		// Look up the digest for the resolved version
-		return c.resolveDigest(ctx, version)
+		digest, err = c.resolveDigest(ctx, version)
+		if err != nil {
+			return "", nil, err
+		}
+		return digest, &RevisionResolution{
+			ResolvedSymbol: version,
+			Constraint:     revision,
+		}, nil
 	}
 
-	return digest, nil
+	return digest, nil, nil
 }
 
 func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, error) {

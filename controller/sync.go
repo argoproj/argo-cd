@@ -114,6 +114,10 @@ func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation
 	// concrete git commit SHA, the revision of the SyncOperationResult will be updated with the SHA
 	syncRes.Revision = op.Revision
 	syncRes.Revisions = op.Revisions
+	// Propagate intermediate revision resolution metadata (e.g. "v1.*" → "v1.2.3") so that
+	// the sync result records which tag was selected at sync-request time.
+	syncRes.Resolution = op.Resolution
+	syncRes.Resolutions = op.Resolutions
 	return syncRes
 }
 
@@ -169,6 +173,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	// what we should be syncing to when resuming operations.
 	state.SyncResult.Revision = compareResult.syncStatus.Revision
 	state.SyncResult.Revisions = compareResult.syncStatus.Revisions
+	// Update resolution metadata from the latest manifest generation (fresh data from the repo server).
+	if compareResult.syncStatus.Resolution != nil {
+		state.SyncResult.Resolution = compareResult.syncStatus.Resolution
+	}
+	if len(compareResult.syncStatus.Resolutions) > 0 {
+		state.SyncResult.Resolutions = compareResult.syncStatus.Resolutions
+	}
 
 	// validates if it should fail the sync on that revision if it finds shared resources
 	hasSharedResource, sharedResourceMessage := hasSharedResourceCondition(app)
