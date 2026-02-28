@@ -65,6 +65,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: dexserver.disable.tls
                 optional: true
+          - name: DEX_CONTINUE_ON_CONNECTOR_FAILURE
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: dexserver.connector.failure.ignore
+                optional: false
         securityContext:
           capabilities:
             drop:

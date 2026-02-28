@@ -2208,6 +2208,12 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
+        - name: DEX_CONTINUE_ON_CONNECTOR_FAILURE
+          valueFrom:
+            configMapKeyRef:
+              key: dexserver.connector.failure.ignore
+              name: argocd-cmd-params-cm
+              optional: false
         image: ghcr.io/dexidp/dex:v2.45.0
         imagePullPolicy: Always
         name: dex
