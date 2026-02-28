@@ -553,35 +553,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         }
     }
 
-    async function disableAutoSyncTemporarily(ctx: ContextApis) {
-        temporaryDisableUntil.current = new Date(Date.now() + 10 * 60000).toISOString();
-
-        const PopupContent = () => <DisableSyncPopup defaultMinutes={15} onDateChange={iso => (temporaryDisableUntil.current = iso)} />;
-
-        const confirmed = await ctx.popup.confirm('Disable Auto-Sync temporarily', PopupContent);
-        if (confirmed) {
-            try {
-                setChangeSync(true);
-                const automated = app.spec.syncPolicy?.automated || {prune: false, enabled: false, selfHeal: false};
-                const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
-                if (!updatedApp.spec.syncPolicy) {
-                    updatedApp.spec.syncPolicy = {};
-                }
-                const disableUntil = temporaryDisableUntil.current;
-                updatedApp.spec.syncPolicy.automated = {prune: automated.prune, selfHeal: automated.selfHeal, enabled: automated.enabled, disableUntil};
-                await updateApp(updatedApp, {validate: false});
-            } catch (e) {
-                ctx.notifications.show({
-                    content: <ErrorNotification title={`Unable to disable auto-sync temporarily`} e={e} />,
-                    type: NotificationType.Error
-                });
-            } finally {
-                setChangeSync(false);
-            }
-        }
-    }
-
-    async function reenableAutoSyncTemporarily(ctx: ContextApis) {
+    async function updateDisableUntil(ctx: ContextApis, disableUntil?: string) {
         try {
             setChangeSync(true);
             const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
@@ -591,16 +563,33 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             if (!updatedApp.spec.syncPolicy.automated) {
                 updatedApp.spec.syncPolicy.automated = {} as any;
             }
-            delete updatedApp.spec.syncPolicy.automated.disableUntil;
+            if (disableUntil !== undefined) {
+                updatedApp.spec.syncPolicy.automated.disableUntil = disableUntil;
+            } else {
+                delete updatedApp.spec.syncPolicy.automated.disableUntil;
+            }
             await updateApp(updatedApp, {validate: false});
         } catch (e) {
             ctx.notifications.show({
-                content: <ErrorNotification title={`Unable to re-enable auto-sync`} e={e} />,
+                content: <ErrorNotification title={disableUntil !== undefined ? 'Unable to disable auto-sync temporarily' : 'Unable to re-enable auto-sync'} e={e} />,
                 type: NotificationType.Error
             });
         } finally {
             setChangeSync(false);
         }
+    }
+
+    async function disableAutoSyncTemporarily(ctx: ContextApis) {
+        temporaryDisableUntil.current = new Date(Date.now() + 10 * 60000).toISOString();
+        const PopupContent = () => <DisableSyncPopup defaultMinutes={15} onDateChange={iso => (temporaryDisableUntil.current = iso)} />;
+        const confirmed = await ctx.popup.confirm('Disable Auto-Sync temporarily', PopupContent);
+        if (confirmed) {
+            await updateDisableUntil(ctx, temporaryDisableUntil.current);
+        }
+    }
+
+    async function reenableAutoSyncTemporarily(ctx: ContextApis) {
+        await updateDisableUntil(ctx, undefined);
     }
 
     const items = app.spec.info || [];
