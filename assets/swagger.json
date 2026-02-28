@@ -9542,12 +9542,12 @@
         "githubAppID": {
           "type": "integer",
           "format": "int64",
-          "title": "GithubAppID specifies the Github App ID of the app used to access the repo for GitHub app authentication"
+          "title": "GithubAppId specifies the Github App ID of the app used to access the repo for GitHub app authentication"
         },
         "githubAppInstallationID": {
           "type": "integer",
           "format": "int64",
-          "title": "GithubAppInstallationID specifies the ID of the installed GitHub App for GitHub app authentication"
+          "title": "GithubAppInstallationId specifies the ID of the installed GitHub App for GitHub app authentication"
         },
         "githubAppPrivateKey": {
           "type": "string",
@@ -9653,12 +9653,12 @@
         "githubAppID": {
           "type": "integer",
           "format": "int64",
-          "title": "GithubAppID specifies the ID of the GitHub app used to access the repo"
+          "title": "GithubAppId specifies the ID of the GitHub app used to access the repo"
         },
         "githubAppInstallationID": {
           "type": "integer",
           "format": "int64",
-          "title": "GithubAppInstallationID specifies the installation ID of the GitHub App used to access the repo"
+          "title": "GithubAppInstallationId specifies the installation ID of the GitHub App used to access the repo"
         },
         "githubAppPrivateKey": {
           "type": "string",

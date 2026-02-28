@@ -75,8 +75,8 @@ func TestGetGitCreds(t *testing.T) {
 			repo: &Repository{
 				Repo:                    "https://github.com/argoproj/argo-cd",
 				GithubAppPrivateKey:     "github-key",
-				GithubAppID:             123,
-				GithubAppInstallationID: 456,
+				GithubAppId:             123,
+				GithubAppInstallationId: 456,
 			},
 			expected: git.NewGitHubAppCreds(123, 456, "github-key", "", "", "", false, "", "", nil, "https://github.com/argoproj/argo-cd"),
 		},
@@ -109,8 +109,8 @@ func TestGetGitCreds_GitHubApp_InstallationNotFound(t *testing.T) {
 	repo := &Repository{
 		Repo:                "https://github.com/nonexistent-org-12345/repo.git",
 		GithubAppPrivateKey: "github-key",
-		GithubAppID:         123,
-		// GithubAppInstallationID is 0 (not set), triggering auto-discovery
+		GithubAppId:         123,
+		// GithubAppInstallationId is 0 (not set), triggering auto-discovery
 	}
 
 	creds := repo.GetGitCreds(nil)
@@ -149,8 +149,8 @@ func TestSanitizedRepository(t *testing.T) {
 		Project:                    "default",
 		ForceHttpBasicAuth:         true,
 		InheritedCreds:             true,
-		GithubAppID:                12345,
-		GithubAppInstallationID:    67890,
+		GithubAppId:                12345,
+		GithubAppInstallationId:    67890,
 		GitHubAppEnterpriseBaseURL: "https://ghe.example.com/api/v3",
 		UseAzureWorkloadIdentity:   true,
 		Depth:                      1,
@@ -170,8 +170,8 @@ func TestSanitizedRepository(t *testing.T) {
 	assert.Equal(t, repo.Project, sanitized.Project)
 	assert.Equal(t, repo.ForceHttpBasicAuth, sanitized.ForceHttpBasicAuth)
 	assert.Equal(t, repo.InheritedCreds, sanitized.InheritedCreds)
-	assert.Equal(t, repo.GithubAppID, sanitized.GithubAppID)
-	assert.Equal(t, repo.GithubAppInstallationID, sanitized.GithubAppInstallationID)
+	assert.Equal(t, repo.GithubAppId, sanitized.GithubAppId)
+	assert.Equal(t, repo.GithubAppInstallationId, sanitized.GithubAppInstallationId)
 	assert.Equal(t, repo.GitHubAppEnterpriseBaseURL, sanitized.GitHubAppEnterpriseBaseURL)
 	assert.Equal(t, repo.UseAzureWorkloadIdentity, sanitized.UseAzureWorkloadIdentity)
 	assert.Equal(t, repo.Depth, sanitized.Depth)
@@ -204,8 +204,8 @@ func TestGetGitCreds_GitHubApp_OrgExtractionFails(t *testing.T) {
 	repo := &Repository{
 		Repo:                "invalid-url-format",
 		GithubAppPrivateKey: "github-key",
-		GithubAppID:         123,
-		// GithubAppInstallationID is 0 (not set), triggering auto-discovery
+		GithubAppId:         123,
+		// GithubAppInstallationId is 0 (not set), triggering auto-discovery
 	}
 
 	creds := repo.GetGitCreds(nil)
