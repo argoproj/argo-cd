@@ -314,3 +314,34 @@ func TestGitPinnedTagNoRevisionResolution(t *testing.T) {
 				"Resolution should be nil when a concrete tag (not a constraint) was specified")
 		})
 }
+
+// TestGitSemverResolvedRevisionInBuildEnv verifies that when a semver constraint is used, the
+// intermediate resolved revision (e.g. "v0.1.0" from "v0.1.*") is exposed as
+// ARGOCD_APP_RESOLVED_REVISION during manifest generation and can be templated into output via
+// a Helm parameter.
+func TestGitSemverResolvedRevisionInBuildEnv(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		Path("helm-build-env").
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeSSH).
+		Revision("v0.1.*").
+		When().
+		AddTag("v0.1.0").
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source.Helm = &ApplicationSourceHelm{
+				Parameters: []HelmParameter{
+					{Name: "resolvedRevision", Value: "$ARGOCD_APP_RESOLVED_REVISION"},
+				},
+			}
+		}).
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			output, err := fixture.Run("", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "build-env", "-o", "jsonpath={.metadata.annotations.resolvedRevision}")
+			require.NoError(t, err)
+			assert.Equal(t, "v0.1.0", output, "ARGOCD_APP_RESOLVED_REVISION should be the resolved tag, not the constraint")
+		})
+}
