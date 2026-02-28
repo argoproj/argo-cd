@@ -607,7 +607,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         temporaryDisableUntil.current = new Date(Date.now() + 10 * 60000).toISOString();
 
         const PopupContent = () => (
-            <DisableSyncPopupContent defaultMinutes={10} onDateChange={iso => (temporaryDisableUntil.current = iso)} />
+            <DisableSyncPopupContent defaultMinutes={15} onDateChange={iso => (temporaryDisableUntil.current = iso)} />
         );
 
         const confirmed = await ctx.popup.confirm('Disable Auto-Sync temporarily', PopupContent);
@@ -788,20 +788,16 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                         {app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false && (
                                             app.spec.syncPolicy?.automated.disableUntil ? (
                                                 <button
-                                                    key={'source_panel_save_button'}
-                                                    className='argo-button argo-button--base '
-                                                    disabled={false}
+                                                    className='argo-button argo-button--base'
+                                                    style={{marginLeft: '10px'}}
                                                     onClick={() => reenableAutoSyncTemporarily(ctx)}>
-                                                    <Spinner show={false} style={{marginRight: '5px'}} />
                                                     Reenable
                                                 </button>
                                             ) : (
                                                 <button
-                                                    key={'source_panel_save_button'}
-                                                    className='argo-button argo-button--base '
-                                                    disabled={false}
+                                                    className='argo-button argo-button--base'
+                                                    style={{marginLeft: '10px'}}
                                                     onClick={() => disableAutoSyncTemporarily(ctx)}>
-                                                    <Spinner show={false} style={{marginRight: '5px'}} />
                                                     Disable temporarily
                                                 </button>
                                             )
