@@ -620,9 +620,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     updatedApp.spec.syncPolicy = {};
                 }
                 const disableUntil = temporaryDisableUntil.current;
-                console.debug('[disableAutoSyncTemporarily] disableUntil selected: %s', disableUntil);
                 updatedApp.spec.syncPolicy.automated = {prune: automated.prune, selfHeal: automated.selfHeal, enabled: automated.enabled, disableUntil};
-                console.debug('[disableUntil] sending to server: app=%s, disableUntil=%s', updatedApp.metadata.name, disableUntil);
                 await updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({

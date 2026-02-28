@@ -5024,3 +5024,38 @@ func TestIgnoreDifferences_Equals(t *testing.T) {
 		})
 	}
 }
+
+func TestSyncPolicy_IsAutomatedSyncEnabled_DisableUntil(t *testing.T) {
+	tests := []struct {
+		name         string
+		disableUntil string
+		want         bool
+	}{
+		{
+			name:         "DisableUntilFuture",
+			disableUntil: time.Now().Add(1 * time.Hour).Format(time.RFC3339Nano),
+			want:         false,
+		},
+		{
+			name:         "DisableUntilPast",
+			disableUntil: time.Now().Add(-1 * time.Hour).Format(time.RFC3339Nano),
+			want:         true,
+		},
+		{
+			name:         "DisableUntilEmpty",
+			disableUntil: "",
+			want:         true,
+		},
+		{
+			name:         "DisableUntilInvalid",
+			disableUntil: "not-a-timestamp",
+			want:         true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &SyncPolicy{Automated: &SyncPolicyAutomated{DisableUntil: tt.disableUntil}}
+			assert.Equal(t, tt.want, p.IsAutomatedSyncEnabled())
+		})
+	}
+}

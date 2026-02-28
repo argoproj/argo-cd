@@ -1484,13 +1484,8 @@ func (p *SyncPolicy) IsAutomatedSyncEnabled() bool {
 	if p.Automated != nil && (p.Automated.Enabled == nil || *p.Automated.Enabled) {
 		if p.Automated.DisableUntil != "" {
 			disableUntil, err := time.Parse(time.RFC3339Nano, p.Automated.DisableUntil)
-			if err != nil {
-				log.Debugf("disableUntil: failed to parse timestamp %q: %v", p.Automated.DisableUntil, err)
-			} else if time.Now().Before(disableUntil) {
-				log.Debugf("disableUntil: auto-sync disabled until %s (%.0fs remaining)", p.Automated.DisableUntil, time.Until(disableUntil).Seconds())
+			if err == nil && time.Now().Before(disableUntil) {
 				return false
-			} else {
-				log.Debugf("disableUntil: timestamp %s has expired, auto-sync enabled", p.Automated.DisableUntil)
 			}
 		}
 		return true

@@ -1050,9 +1050,6 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 	}
 
 	a.Spec = *q.GetSpec()
-	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && a.Spec.SyncPolicy.Automated.DisableUntil != "" {
-		log.Debugf("UpdateSpec: setting disableUntil=%s for app %s/%s", a.Spec.SyncPolicy.Automated.DisableUntil, a.Namespace, a.Name)
-	}
 	validate := true
 	if q.Validate != nil {
 		validate = *q.Validate
