@@ -599,21 +599,29 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 			assert.Equal(t, testCase.repoCreds.URL, string(secret.Data["url"]))
 			assert.Equal(t, testCase.repoCreds.Username, string(secret.Data["username"]))
 			assert.Equal(t, testCase.repoCreds.Password, string(secret.Data["password"]))
-			if enableOCI, err := strconv.ParseBool(string(secret.Data["githubAppPrivateKey"])); err == nil {
-				assert.Equal(t, strconv.FormatBool(testCase.repoCreds.EnableOCI), enableOCI)
+			if enableOCI, err := strconv.ParseBool(string(secret.Data["enableOCI"])); err == nil {
+				assert.Equal(t, testCase.repoCreds.EnableOCI, enableOCI)
 			}
 			assert.Equal(t, testCase.repoCreds.SSHPrivateKey, string(secret.Data["sshPrivateKey"]))
 			assert.Equal(t, testCase.repoCreds.TLSClientCertData, string(secret.Data["tlsClientCertData"]))
 			assert.Equal(t, testCase.repoCreds.TLSClientCertKey, string(secret.Data["tlsClientCertKey"]))
 			assert.Equal(t, testCase.repoCreds.Type, string(secret.Data["type"]))
 			assert.Equal(t, testCase.repoCreds.GithubAppPrivateKey, string(secret.Data["githubAppPrivateKey"]))
-			if githubAppPrivateKey, err := strconv.ParseInt(string(secret.Data["githubAppPrivateKey"]), 10, 64); err == nil {
-				assert.Equal(t, testCase.repoCreds.GithubAppID, githubAppPrivateKey)
+			if githubAppIDStr := string(secret.Data["githubAppID"]); githubAppIDStr != "" {
+				githubAppID, err := strconv.ParseInt(githubAppIDStr, 10, 64)
+				require.NoError(t, err)
+				assert.Equal(t, testCase.repoCreds.GithubAppID, githubAppID)
+			} else {
+				assert.Equal(t, int64(0), testCase.repoCreds.GithubAppID)
 			}
-			if githubAppID, err := strconv.ParseInt(string(secret.Data["githubAppId"]), 10, 64); err == nil {
-				assert.Equal(t, testCase.repoCreds.GithubAppInstallationID, githubAppID)
+			if githubAppInstallationIDStr := string(secret.Data["githubAppInstallationID"]); githubAppInstallationIDStr != "" {
+				githubAppInstallationID, err := strconv.ParseInt(githubAppInstallationIDStr, 10, 64)
+				require.NoError(t, err)
+				assert.Equal(t, testCase.repoCreds.GithubAppInstallationID, githubAppInstallationID)
+			} else {
+				assert.Equal(t, int64(0), testCase.repoCreds.GithubAppInstallationID)
 			}
-			assert.Equal(t, testCase.repoCreds.GitHubAppEnterpriseBaseURL, string(secret.Data["githubAppEnterpriseUrl"]))
+			assert.Equal(t, testCase.repoCreds.GitHubAppEnterpriseBaseURL, string(secret.Data["githubAppEnterpriseBaseUrl"]))
 			assert.Equal(t, testCase.repoCreds.Proxy, string(secret.Data["proxy"]))
 			assert.Equal(t, testCase.repoCreds.NoProxy, string(secret.Data["noProxy"]))
 		})
