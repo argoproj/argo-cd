@@ -294,9 +294,10 @@ export class ApplicationsService {
         namespace: string,
         podName: string,
         resource: {group: string; kind: string; name: string},
-        containerName: string
+        containerName: string,
+        previous: boolean
     ): string {
-        const search = this.getLogsQuery({namespace, appNamespace, podName, resource, containerName, follow: false});
+        const search = this.getLogsQuery({namespace, appNamespace, podName, resource, containerName, follow: false, previous});
         search.set('download', 'true');
         return `api/v1/applications/${applicationName}/logs?${search.toString()}`;
     }
@@ -621,5 +622,12 @@ export class ApplicationsService {
 
     public async listApplicationSets(): Promise<models.ApplicationSetList> {
         return requests.get(`/applicationsets`).then(res => res.body as models.ApplicationSetList);
+    }
+
+    public appSetEvents(name: string, appNamespace: string): Promise<models.Event[]> {
+        return requests
+            .get(`/applicationsets/${name}/events`)
+            .query({appsetNamespace: appNamespace})
+            .then(res => (res.body as models.EventList).items || []);
     }
 }

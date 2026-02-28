@@ -22,7 +22,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
+	argoio "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/io"
 
 	"github.com/argoproj/argo-cd/v3/util/cert"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"

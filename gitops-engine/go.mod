@@ -1,4 +1,4 @@
-module github.com/argoproj/gitops-engine
+module github.com/argoproj/argo-cd/gitops-engine
 
 go 1.26.0
 
