@@ -42,6 +42,8 @@ message ManifestRequest {
     string annotationManifestGeneratePaths = 26;
     // Holds instance installation id
     string installationID = 27;
+    // resolution contains the intermediate revision resolution when a semver constraint was resolved
+    RevisionResolution resolution = 28;
 }
 
 message ManifestRequestWithFiles {
