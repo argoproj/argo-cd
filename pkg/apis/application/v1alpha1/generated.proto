@@ -2672,6 +2672,9 @@ message SyncPolicyAutomated {
 
   // Enable allows apps to explicitly control automated sync
   optional bool enabled = 4;
+
+  // DisableUntil specifies a time until which automated sync is disabled
+  optional string disableUntil = 5;
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
