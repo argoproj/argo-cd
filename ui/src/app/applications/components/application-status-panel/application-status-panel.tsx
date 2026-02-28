@@ -240,6 +240,11 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     },
                     () => showMetadataInfo(application.status.sync ? 'SYNC_STATUS_REVISION' : null)
                 )}
+                {application.spec.syncPolicy?.automated?.disableUntil && (
+                    <div style={{color: COLORS.sync.out_of_sync, fontSize: '12px', marginBottom: '0.5em', marginTop: '0.2em'}}>
+                        Auto-sync will be re-enabled <Timestamp date={application.spec.syncPolicy.automated.disableUntil} />
+                    </div>
+                )}
                 <div className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
                     <div>
                         {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
