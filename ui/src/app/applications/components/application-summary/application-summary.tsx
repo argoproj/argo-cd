@@ -14,8 +14,7 @@ import {
     NumberField,
     Repo,
     Revision,
-    RevisionHelpIcon,
-    Spinner
+    RevisionHelpIcon
 } from '../../../shared/components';
 import {BadgePanel} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
@@ -30,6 +29,7 @@ import {ApplicationRetryView} from '../application-retry-view/application-retry-
 import {Link} from 'react-router-dom';
 import {EditNotificationSubscriptions, useEditNotificationSubscriptions} from './edit-notification-subscriptions';
 import {EditAnnotations} from './edit-annotations';
+import {DisableSyncPopup} from './disable-sync-popup';
 
 import './application-summary.scss';
 import {DeepLinks} from '../../../shared/components/deep-links';
@@ -48,55 +48,6 @@ function processPath(path: string) {
         return path;
     }
     return '';
-}
-
-interface DisableSyncPopupProps {
-    defaultMinutes: number;
-    onDateChange: (isoDate: string) => void;
-}
-
-function DisableSyncPopupContent({defaultMinutes, onDateChange}: DisableSyncPopupProps) {
-    const [selectedDate, setSelectedDate] = React.useState(() => new Date(Date.now() + defaultMinutes * 60000));
-
-    React.useEffect(() => {
-        onDateChange(selectedDate.toISOString());
-    }, [selectedDate]);
-
-    const applyPreset = (minutes: number) => setSelectedDate(new Date(Date.now() + minutes * 60000));
-
-    const toLocal = (d: Date) => {
-        const pad = (n: number) => String(n).padStart(2, '0');
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    };
-
-    return (
-        <div style={{marginTop: '20px', marginBottom: '20px'}}>
-            <div style={{marginBottom: '10px'}}>
-                <button className='argo-button argo-button--base-o' style={{marginRight: '8px'}} onClick={() => applyPreset(15)}>
-                    15 min
-                </button>
-                <button className='argo-button argo-button--base-o' style={{marginRight: '8px'}} onClick={() => applyPreset(60)}>
-                    1 hour
-                </button>
-                <button className='argo-button argo-button--base-o' style={{marginRight: '8px'}} onClick={() => applyPreset(480)}>
-                    8 hours
-                </button>
-                <button className='argo-button argo-button--base-o'style={{marginRight: '8px'}} onClick={() => applyPreset(1440)}>
-                    24 hours
-                </button>
-            </div>
-            <div>
-                <input
-                    type='datetime-local'
-                    className='argo-field'
-                    value={toLocal(selectedDate)}
-                    min={toLocal(new Date())}
-                    onChange={e => e.target.value && setSelectedDate(new Date(e.target.value))}
-                    style={{width: '50%'}}
-                />
-            </div>
-        </div>
-    );
 }
 
 export interface ApplicationSummaryProps {
@@ -602,13 +553,10 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         }
     }
 
-
     async function disableAutoSyncTemporarily(ctx: ContextApis) {
         temporaryDisableUntil.current = new Date(Date.now() + 10 * 60000).toISOString();
 
-        const PopupContent = () => (
-            <DisableSyncPopupContent defaultMinutes={15} onDateChange={iso => (temporaryDisableUntil.current = iso)} />
-        );
+        const PopupContent = () => <DisableSyncPopup defaultMinutes={15} onDateChange={iso => (temporaryDisableUntil.current = iso)} />;
 
         const confirmed = await ctx.popup.confirm('Disable Auto-Sync temporarily', PopupContent);
         if (confirmed) {
@@ -785,23 +733,17 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                         />
                                         <label htmlFor='enable-auto-sync'>ENABLE AUTO-SYNC</label>
                                         <HelpIcon title='If checked, application will automatically sync when changes are detected' />
-                                        {app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false && (
-                                            app.spec.syncPolicy?.automated.disableUntil ? (
-                                                <button
-                                                    className='argo-button argo-button--base'
-                                                    style={{marginLeft: '10px'}}
-                                                    onClick={() => reenableAutoSyncTemporarily(ctx)}>
+                                        {app.spec.syncPolicy?.automated &&
+                                            app.spec.syncPolicy.automated.enabled !== false &&
+                                            (app.spec.syncPolicy?.automated.disableUntil ? (
+                                                <button className='argo-button argo-button--base' style={{marginLeft: '10px'}} onClick={() => reenableAutoSyncTemporarily(ctx)}>
                                                     Reenable
                                                 </button>
                                             ) : (
-                                                <button
-                                                    className='argo-button argo-button--base'
-                                                    style={{marginLeft: '10px'}}
-                                                    onClick={() => disableAutoSyncTemporarily(ctx)}>
+                                                <button className='argo-button argo-button--base' style={{marginLeft: '10px'}} onClick={() => disableAutoSyncTemporarily(ctx)}>
                                                     Disable temporarily
                                                 </button>
-                                            )
-                                        )}
+                                            ))}
                                     </div>
                                 </div>
                             </div>
