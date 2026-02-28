@@ -575,6 +575,17 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 				NoProxy:  ".example.com,127.0.0.1",
 			},
 		},
+		{
+			name: "with_github_app_fields",
+			repoCreds: appsv1.RepoCreds{
+				URL:                        "git@github.com:github-app",
+				Type:                       "git",
+				GithubAppPrivateKey:        "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----",
+				GithubAppId:                123,
+				GithubAppInstallationId:    456,
+				GitHubAppEnterpriseBaseURL: "https://ghe.example.com/api/v3",
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
