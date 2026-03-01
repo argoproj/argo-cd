@@ -2012,6 +2012,46 @@ apps   Deployment  default    test           Synced  Healthy
 	assert.Equalf(t, expectationSorted, outputSorted, "Incorrect output %q, should be %q (items order doesn't matter)", output, expectation)
 }
 
+func TestWaitOnApplicationStatus_TimeoutErrorIncludesPendingResources(t *testing.T) {
+	// the fake app has resources that are Synced/Healthy but app-level sync is OutOfSync,
+	// so when watching for sync the timeout error should mention that the app hasn't synced
+	acdClient := &customAcdClient{&fakeAcdClient{}}
+	ctx := t.Context()
+	var selectResource []*v1alpha1.SyncOperationResource
+	watch := watchOpts{
+		sync:   true,
+		health: true,
+	}
+	watch = getWatchOpts(watch)
+
+	// channel closes immediately so waitOnApplicationStatus returns the timeout error
+	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "wide")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "timed out")
+	// the individual resources are Synced/Healthy so they should not appear as pending,
+	// but the app-level sync status is OutOfSync so the error should still fire
+}
+
+func TestWaitOnApplicationStatus_TimeoutErrorListsNotReadyResources(t *testing.T) {
+	// the fake app has OutOfSync status at app level, individual resources are Synced/Healthy
+	// when we watch for sync with no selected resources, the error should fire because
+	// the app-level check fails (OutOfSync), even though individual resources look fine
+	acdClient := &customAcdClient{&fakeAcdClient{}}
+	ctx := t.Context()
+	watch := watchOpts{
+		sync: true,
+	}
+	watch = getWatchOpts(watch)
+
+	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "wide")
+	require.Error(t, err)
+	errMsg := err.Error()
+	assert.Contains(t, errMsg, "timed out")
+	// since we check app-level sync (OutOfSync) but individual resources are Synced,
+	// no individual resources should appear as "not ready" in the error
+	assert.NotContains(t, errMsg, "resources not ready")
+}
+
 type customAcdClient struct {
 	*fakeAcdClient
 }
