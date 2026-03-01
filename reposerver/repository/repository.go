@@ -635,7 +635,8 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 
 		// Propagate resolution into the request so newEnv can expose ARGOCD_APP_RESOLVED_REVISION.
 		// revResolution is set by revisionResolutionOut before this closure runs.
-		if revResolution != nil {
+		// Only propagate when a semver constraint was actually resolved; plain SHAs/branches carry no symbol.
+		if revResolution != nil && revResolution.ResolvedSymbol != "" {
 			q.Resolution = revResolution
 		}
 		promise = s.runManifestGen(ctx, repoRoot, commitSHA, cacheKey, ctxSrc, q)
@@ -672,7 +673,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	}
 	// Attach the intermediate revision resolution to the response so the controller can
 	// record it in SyncStatus. Only set when a semver constraint was resolved.
-	if err == nil && res != nil && revResolution != nil {
+	if err == nil && res != nil && revResolution != nil && revResolution.ResolvedSymbol != "" {
 		res.Resolution = revResolution
 	}
 	return res, err
@@ -2615,11 +2616,12 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	if err != nil {
 		return nil, "", err
 	}
-	commitSHA, _, err := gitClient.LsRemote(revision)
+	res, err := gitClient.LsRemote(revision)
 	if err != nil {
 		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return nil, "", err
 	}
+	commitSHA := res.Revision
 	return gitClient, commitSHA, nil
 }
 
@@ -2630,20 +2632,17 @@ func (s *Service) newClientResolveRevisionWithResolution(repo *v1alpha1.Reposito
 	if err != nil {
 		return nil, "", nil, err
 	}
-	commitSHA, gitResolution, err := gitClient.LsRemote(revision)
+	gitRes, err := gitClient.LsRemote(revision)
 	if err != nil {
 		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return nil, "", nil, err
 	}
-	var resolution *apiclient.RevisionResolution
-	if gitResolution != nil {
-		resolution = &apiclient.RevisionResolution{
-			ResolvedSymbol: gitResolution.ResolvedSymbol,
-			Constraint:     gitResolution.Constraint,
-			Revision:       commitSHA,
-		}
+	resolution := &apiclient.RevisionResolution{
+		ResolvedSymbol: gitRes.ResolvedSymbol,
+		Constraint:     gitRes.Constraint,
+		Revision:       gitRes.Revision,
 	}
-	return gitClient, commitSHA, resolution, nil
+	return gitClient, gitRes.Revision, resolution, nil
 }
 
 func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, *apiclient.RevisionResolution, error) {
@@ -2652,20 +2651,16 @@ func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha
 		return nil, "", nil, fmt.Errorf("failed to initialize oci client: %w", err)
 	}
 
-	digest, ociResolution, err := ociClient.ResolveRevision(ctx, revision, noRevisionCache)
+	ociRes, err := ociClient.ResolveRevision(ctx, revision, noRevisionCache)
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("failed to resolve revision %q: %w", revision, err)
 	}
-
-	var resolution *apiclient.RevisionResolution
-	if ociResolution != nil {
-		resolution = &apiclient.RevisionResolution{
-			ResolvedSymbol: ociResolution.ResolvedSymbol,
-			Constraint:     ociResolution.Constraint,
-			Revision:       digest,
-		}
+	resolution := &apiclient.RevisionResolution{
+		ResolvedSymbol: ociRes.ResolvedSymbol,
+		Constraint:     ociRes.Constraint,
+		Revision:       ociRes.Revision,
 	}
-	return ociClient, digest, resolution, nil
+	return ociClient, ociRes.Revision, resolution, nil
 }
 
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, *apiclient.RevisionResolution, error) {
@@ -2920,21 +2915,19 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	if err != nil {
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 	}
-	revision, gitResolution, err := gitClient.LsRemote(ambiguousRevision)
+	gitRes, err := gitClient.LsRemote(ambiguousRevision)
 	if err != nil {
-		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
+		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), ambiguousRevision)
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 	}
 	resp := &apiclient.ResolveRevisionResponse{
-		Revision:          revision,
-		AmbiguousRevision: fmt.Sprintf("%s (%s)", ambiguousRevision, revision),
-	}
-	if gitResolution != nil {
-		resp.Resolution = &apiclient.RevisionResolution{
-			ResolvedSymbol: gitResolution.ResolvedSymbol,
-			Constraint:     gitResolution.Constraint,
-			Revision:       revision,
-		}
+		Revision:          gitRes.Revision,
+		AmbiguousRevision: fmt.Sprintf("%s (%s)", ambiguousRevision, gitRes.Revision),
+		Resolution: &apiclient.RevisionResolution{
+			ResolvedSymbol: gitRes.ResolvedSymbol,
+			Constraint:     gitRes.Constraint,
+			Revision:       gitRes.Revision,
+		},
 	}
 	return resp, nil
 }
@@ -3120,11 +3113,12 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
-	syncedRevision, _, err = gitClient.LsRemote(syncedRevision)
+	syncedRes, err := gitClient.LsRemote(syncedRevision)
 	if err != nil {
 		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
 		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
+	syncedRevision = syncedRes.Revision
 
 	// No need to compare if it is the same revision
 	if revision == syncedRevision {

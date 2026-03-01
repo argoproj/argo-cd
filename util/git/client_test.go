@@ -187,10 +187,13 @@ func Test_ChangedFiles(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Changes", "-a")
 	require.NoError(t, err)
 
-	previousSHA, _, err := client.LsRemote("some-tag")
+	previousRes, err := client.LsRemote("some-tag")
 	require.NoError(t, err)
+	previousSHA := previousRes.Revision
 
-	commitSHA, _, err := client.LsRemote("HEAD")
+	headRes, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+	commitSHA := headRes.Revision
 	require.NoError(t, err)
 
 	// Invalid commits, error
@@ -240,8 +243,9 @@ func Test_SemverTags(t *testing.T) {
 		err = runCmd(ctx, client.Root(), "git", "tag", tag)
 		require.NoError(t, err)
 
-		sha, _, err := client.LsRemote("HEAD")
+		headRes, err := client.LsRemote("HEAD")
 		require.NoError(t, err)
+		sha := headRes.Revision
 
 		mapTagRefs[tag] = sha
 	}
@@ -361,21 +365,21 @@ func Test_SemverTags(t *testing.T) {
 		expectedResSymbol: "2024-banana",
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			commitSHA, resolution, err := client.LsRemote(tc.ref)
+			res, err := client.LsRemote(tc.ref)
 			if tc.error {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			assert.True(t, IsCommitSHA(commitSHA))
-			assert.Equal(t, tc.expected, commitSHA)
+			require.NotNil(t, res)
+			assert.True(t, IsCommitSHA(res.Revision))
+			assert.Equal(t, tc.expected, res.Revision)
 			if tc.expectResolution {
-				require.NotNil(t, resolution, "expected non-nil RevisionResolution for constraint %q", tc.ref)
-				assert.Equal(t, tc.expectedResSymbol, resolution.ResolvedSymbol, "wrong ResolvedSymbol")
-				assert.Equal(t, tc.ref, resolution.Constraint, "wrong Constraint")
-				assert.Equal(t, commitSHA, resolution.Revision, "Revision should be the resolved commit SHA")
+				assert.Equal(t, tc.expectedResSymbol, res.ResolvedSymbol, "wrong ResolvedSymbol")
+				assert.Equal(t, tc.ref, res.Constraint, "wrong Constraint")
 			} else {
-				assert.Nil(t, resolution, "expected nil RevisionResolution for non-constraint ref %q", tc.ref)
+				assert.Empty(t, res.ResolvedSymbol, "expected empty ResolvedSymbol for non-constraint ref %q", tc.ref)
+				assert.Empty(t, res.Constraint, "expected empty Constraint for non-constraint ref %q", tc.ref)
 			}
 		})
 	}
@@ -427,8 +431,9 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
-	commitSHA, _, err := client.LsRemote("HEAD")
+	headRes, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
+	commitSHA := headRes.Revision
 
 	// Call Checkout() with submoduleEnabled=false.
 	_, err = client.Checkout(commitSHA, false)
@@ -495,8 +500,9 @@ func Test_IsRevisionPresent(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Initial Commit", "-a")
 	require.NoError(t, err)
 
-	commitSHA, _, err := client.LsRemote("HEAD")
+	headRes, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
+	commitSHA := headRes.Revision
 
 	// Ensure revision for HEAD is present locally.
 	revisionPresent := client.IsRevisionPresent(commitSHA)
