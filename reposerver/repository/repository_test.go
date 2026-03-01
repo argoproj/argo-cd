@@ -544,6 +544,10 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 		Revision:   "1.1.0",
 		SourceType: "Helm",
 		Commands:   []string{`helm template . --name-template "" --include-crds`},
+		Resolution: &apiclient.RevisionResolution{
+			ResolvedSymbol: "1.1.0",
+			Constraint:     ">= 1.0.0",
+		},
 	}, response)
 	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,
@@ -582,6 +586,10 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 		Revision:   "1.1.0",
 		SourceType: "Helm",
 		Commands:   []string{`helm template . --name-template "" --values ./testdata/my-chart/my-chart-values.yaml --include-crds`},
+		Resolution: &apiclient.RevisionResolution{
+			ResolvedSymbol: "1.1.0",
+			Constraint:     ">= 1.0.0",
+		},
 	}, response)
 }
 
@@ -1321,6 +1329,10 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		Revision:   "1.1.0",
 		SourceType: "Helm",
 		Commands:   []string{`helm template . --name-template "" --values ./testdata/my-chart/my-chart-values.yaml --include-crds`},
+		Resolution: &apiclient.RevisionResolution{
+			ResolvedSymbol: "1.1.0",
+			Constraint:     ">= 1.0.0",
+		},
 	}, response)
 }
 
