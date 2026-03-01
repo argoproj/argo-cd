@@ -8,7 +8,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -122,9 +121,9 @@ func (c *Consequences) resource(kind, name, namespace string) v1alpha1.ResourceS
 	require.NoError(c.context.T(), err)
 	defer utilio.Close(closer)
 	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{
-		Name:         ptr.To(c.context.AppName()),
+		Name:         new(c.context.AppName()),
 		Projects:     []string{c.context.project},
-		AppNamespace: ptr.To(c.context.appNamespace),
+		AppNamespace: new(c.context.appNamespace),
 	})
 	require.NoError(c.context.T(), err)
 	for _, r := range app.Status.Resources {
