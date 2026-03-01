@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -19,6 +20,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -1711,4 +1713,17 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	argocd.newStaticAssetsHandler()(w, req)
 	resp = w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
+}
+
+func TestClientAddress(t *testing.T) {
+	t.Run("returns peer address when available", func(t *testing.T) {
+		ctx := peer.NewContext(context.Background(), &peer.Peer{
+			Addr: &net.TCPAddr{IP: net.ParseIP("192.168.1.1"), Port: 12345},
+		})
+		assert.Equal(t, "192.168.1.1:12345", clientAddress(ctx))
+	})
+
+	t.Run("returns unknown when no peer", func(t *testing.T) {
+		assert.Equal(t, "unknown", clientAddress(context.Background()))
+	})
 }
