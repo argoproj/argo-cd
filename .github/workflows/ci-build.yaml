@@ -85,6 +85,8 @@ jobs:
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+              ${{ runner.os }}-go-
       - name: Download all Go modules
         run: |
           go mod download
@@ -156,6 +158,8 @@ jobs:
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
       - name: Install all tools required for building & testing
         run: |
           make install-test-tools-local
@@ -220,6 +224,8 @@ jobs:
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
       - name: Install all tools required for building & testing
         run: |
           make install-test-tools-local
@@ -480,6 +486,8 @@ jobs:
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
       - name: Add ~/go/bin to PATH
         run: |
           echo "$HOME/go/bin" >> $GITHUB_PATH
