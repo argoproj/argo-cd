@@ -2938,7 +2938,38 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		}
 		_ = w.Flush()
 	}
-	_ = printFinalStatus(appWithLock.GetApp())
+	app = appWithLock.GetApp()
+	_ = printFinalStatus(app)
+
+	// collect resources that have not yet reached the desired state to provide
+	// actionable information in the timeout error message
+	var pending []string
+	if len(selectedResources) > 0 {
+		for _, state := range getResourceStates(app, selectedResources) {
+			if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, false) {
+				pending = append(pending, fmt.Sprintf("%s/%s/%s (sync: %s, health: %s)", state.Group, state.Kind, state.Name, state.Status, state.Health))
+			}
+		}
+	} else {
+		for _, res := range app.Status.Resources {
+			healthStatus := ""
+			if res.Health != nil {
+				healthStatus = string(res.Health.Status)
+			}
+			if !checkResourceStatus(watch, healthStatus, string(res.Status), app.Operation, false) {
+				pending = append(pending, fmt.Sprintf("%s/%s/%s (sync: %s, health: %s)", res.Group, res.Kind, res.Name, res.Status, healthStatus))
+			}
+		}
+	}
+
+	if len(pending) > 0 {
+		const maxPending = 10
+		summary := strings.Join(pending, ", ")
+		if len(pending) > maxPending {
+			summary = strings.Join(pending[:maxPending], ", ") + fmt.Sprintf(", ... and %d more", len(pending)-maxPending)
+		}
+		return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state. resources not ready: %s", timeout, appName, summary)
+	}
 	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
 }
 
