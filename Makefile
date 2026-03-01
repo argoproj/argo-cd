@@ -158,7 +158,7 @@ endef
 
 #
 define exec-in-test-server
-	$(SUDO) $(DOCKER) exec -it -u $(CONTAINER_UID):$(CONTAINER_GID) -e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) -e TEST_FLAGS=$(TEST_FLAGS) argocd-test-server $(1)
+	$(SUDO) $(DOCKER) exec -it -u $(CONTAINER_UID):$(CONTAINER_GID) -e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) -e "TEST_FLAGS=$(TEST_FLAGS)" argocd-test-server $(1)
 endef
 
 PATH:=$(PATH):$(PWD)/hack
