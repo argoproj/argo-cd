@@ -247,12 +247,12 @@ func Test_SemverTags(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		name               string
-		ref                string
-		expected           string
-		error              bool
-		expectResolution   bool   // true when a semver constraint resolved to a different tag
-		expectedResSymbol  string // the intermediate tag that was resolved (e.g. "v1.1.0")
+		name              string
+		ref               string
+		expected          string
+		error             bool
+		expectResolution  bool   // true when a semver constraint resolved to a different tag
+		expectedResSymbol string // the intermediate tag that was resolved (e.g. "v1.1.0")
 	}{{
 		name:     "pinned rc version",
 		ref:      "v1.0.0-rc1",

@@ -3090,7 +3090,7 @@ func TestNewClientResolveRevisionWithResolution(t *testing.T) {
 		nil,
 	)
 	gitClient.On("Root").Return("/tmp/repo")
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (git.Client, error) {
+	service.newGitClient = func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (git.Client, error) {
 		return gitClient, nil
 	}
 
@@ -3118,7 +3118,7 @@ func TestNewClientResolveRevisionWithResolution_NoConstraint(t *testing.T) {
 		nil,
 	)
 	gitClient.On("Root").Return("/tmp/repo")
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (git.Client, error) {
+	service.newGitClient = func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (git.Client, error) {
 		return gitClient, nil
 	}
 
