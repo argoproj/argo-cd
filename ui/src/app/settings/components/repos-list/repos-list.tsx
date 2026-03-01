@@ -965,13 +965,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                             )}
                                                             items={[
                                                                 {
-                                                                    title: 'Create application',
-                                                                    action: () =>
-                                                                        ctx.navigation.goto('/applications', {
-                                                                            new: JSON.stringify({spec: {source: {repoURL: repo.repo}}})
-                                                                        })
-                                                                },
-                                                                {
                                                                     title: 'Disconnect',
                                                                     action: () => disconnectRepo(repo.repo, repo.project, true)
                                                                 }
