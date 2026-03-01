@@ -666,9 +666,9 @@ func TestHelmOCIRevisionResolution(t *testing.T) {
 		})
 }
 
-// TestHelmOCIPinnedVersionNoRevisionResolution verifies that a pinned chart version
+// TestHelmOCIPinnedNoResolution verifies that a pinned chart version
 // (not a constraint) produces no RevisionResolution.
-func TestHelmOCIPinnedVersionNoRevisionResolution(t *testing.T) {
+func TestHelmOCIPinnedNoResolution(t *testing.T) {
 	Given(t).
 		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
 		HelmOCIRepoAdded("myrepo").
