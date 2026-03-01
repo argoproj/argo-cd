@@ -5539,6 +5539,10 @@
         "resolvedSymbol": {
           "description": "ResolvedSymbol is the intermediate resolved reference (e.g. tag \"v1.2.3\" resolved from\nconstraint \"v1.*\") before the final SHA/digest resolution.",
           "type": "string"
+        },
+        "revision": {
+          "description": "Revision is the final resolved SHA or digest that the constraint resolved to.",
+          "type": "string"
         }
       }
     },
@@ -6276,6 +6280,9 @@
           "type": "string"
         },
         "resolvedSymbol": {
+          "type": "string"
+        },
+        "revision": {
           "type": "string"
         }
       }
@@ -10254,6 +10261,10 @@
         },
         "resolvedSymbol": {
           "description": "ResolvedSymbol is the intermediate resolved reference (e.g. tag \"v1.2.3\" resolved from\nconstraint \"v1.*\") before the final SHA/digest resolution.",
+          "type": "string"
+        },
+        "revision": {
+          "description": "Revision is the final resolved SHA or digest that the constraint resolved to.",
           "type": "string"
         }
       }

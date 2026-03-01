@@ -993,6 +993,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				manifestResolutions[i] = v1alpha1.RevisionResolution{
 					ResolvedSymbol: manifestInfo.Resolution.ResolvedSymbol,
 					Constraint:     manifestInfo.Resolution.Constraint,
+					Revision:       manifestInfo.Resolution.Revision,
 				}
 			}
 		}
@@ -1004,6 +1005,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			syncStatus.Resolution = &v1alpha1.RevisionResolution{
 				ResolvedSymbol: manifestInfos[0].Resolution.ResolvedSymbol,
 				Constraint:     manifestInfos[0].Resolution.Constraint,
+				Revision:       manifestInfos[0].Resolution.Revision,
 			}
 		}
 	}
