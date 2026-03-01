@@ -173,11 +173,15 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 	// what we should be syncing to when resuming operations.
 	state.SyncResult.Revision = compareResult.syncStatus.Revision
 	state.SyncResult.Revisions = compareResult.syncStatus.Revisions
-	// Update resolution metadata from the latest manifest generation (fresh data from the repo server).
+	// Update resolution metadata only when the comparison actually resolved a constraint.
+	// The sync-time comparison uses pre-resolved concrete revisions (e.g. "1.0.0"), so it
+	// returns no resolution metadata. Preserving syncRes values (populated by the server's
+	// resolveRevision call or by autoSync from syncStatus) keeps the correct constraint→tag
+	// mapping in the sync result.
 	if compareResult.syncStatus.Resolution != nil {
 		state.SyncResult.Resolution = compareResult.syncStatus.Resolution
 	}
-	if len(compareResult.syncStatus.Resolutions) > 0 {
+	if anyResolutionPopulated(compareResult.syncStatus.Resolutions) {
 		state.SyncResult.Resolutions = compareResult.syncStatus.Resolutions
 	}
 
@@ -531,6 +535,19 @@ func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObje
 		return nil, err
 	}
 	return patchedObj, nil
+}
+
+// anyResolutionPopulated returns true when at least one entry in the slice has a non-empty
+// ResolvedSymbol, indicating a semver constraint was actually resolved during manifest generation.
+// An all-zero-value slice (produced when the comparison ran against pre-resolved revisions)
+// must not overwrite the resolution metadata that was recorded at sync-initiation time.
+func anyResolutionPopulated(resolutions []v1alpha1.RevisionResolution) bool {
+	for _, r := range resolutions {
+		if r.ResolvedSymbol != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // hasSharedResourceCondition will check if the Application has any resource that has already
