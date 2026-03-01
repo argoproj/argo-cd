@@ -42,6 +42,11 @@ endif
 
 DOCKER_SRCDIR?=$(GOPATH)/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
+DOCKER_HOME?=/home/user
+
+# Translate a host KUBECONFIG path into the equivalent container path.
+# The host's $HOME/.kube is mounted at $(DOCKER_HOME)/.kube inside containers.
+DOCKER_KUBECONFIG=$(subst $(HOME)/,$(DOCKER_HOME)/,$(KUBECONFIG))
 
 # Allows you to control which Docker network the test-util containers attach to.
 # This is particularly useful if you are running Kubernetes in Docker (e.g., k3d)
@@ -120,7 +125,7 @@ define run-in-test-server
 		-e ARGOCD_GPG_DATA_PATH=${ARGOCD_GPG_DATA_PATH:-/tmp/argocd-local/gpg/source} \
 		-e ARGOCD_APPLICATION_NAMESPACES \
 		-e GITHUB_TOKEN \
-		-e KUBECONFIG \
+		-e "KUBECONFIG=$(DOCKER_KUBECONFIG)" \
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
