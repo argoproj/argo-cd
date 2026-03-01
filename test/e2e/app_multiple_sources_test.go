@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
@@ -351,18 +352,20 @@ func TestMultiSourceRevisionResolutions(t *testing.T) {
 			syncResolutions := app.Status.Sync.Resolutions
 			require.Len(t, syncResolutions, 3, "Resolutions must be index-aligned with Sources")
 
-			// sources[0]: semver constraint → populated.
+			// sources[0]: semver constraint → full resolution.
 			assert.Equal(t, "1.0.0", syncResolutions[0].ResolvedSymbol)
 			assert.Equal(t, ">=1.0.0", syncResolutions[0].Constraint)
 			assert.Equal(t, "1.0.0", syncResolutions[0].Revision)
 
-			// sources[1]: pinned OCI version → empty (versions.IsVersion short-circuits).
-			assert.Empty(t, syncResolutions[1].ResolvedSymbol, "pinned OCI version should have no resolution")
-			assert.Empty(t, syncResolutions[1].Constraint)
+			// sources[1]: pinned OCI version → revision only, no constraint resolution.
+			assert.Equal(t, "1.0.0", syncResolutions[1].Revision, "pinned OCI version should have revision")
+			assert.Empty(t, syncResolutions[1].ResolvedSymbol, "pinned OCI version should have no resolvedSymbol")
+			assert.Empty(t, syncResolutions[1].Constraint, "pinned OCI version should have no constraint")
 
-			// sources[2]: git HEAD → empty (non-semver git path).
-			assert.Empty(t, syncResolutions[2].ResolvedSymbol, "git HEAD should have no resolution")
-			assert.Empty(t, syncResolutions[2].Constraint)
+			// sources[2]: git HEAD → revision (SHA) only, no constraint resolution.
+			assert.NotEmpty(t, syncResolutions[2].Revision, "git HEAD should have a resolved SHA")
+			assert.Empty(t, syncResolutions[2].ResolvedSymbol, "git HEAD should have no resolvedSymbol")
+			assert.Empty(t, syncResolutions[2].Constraint, "git HEAD should have no constraint")
 
 			// SyncResult.Resolutions must mirror the same structure.
 			require.NotNil(t, app.Status.OperationState)
@@ -373,8 +376,10 @@ func TestMultiSourceRevisionResolutions(t *testing.T) {
 			assert.Equal(t, "1.0.0", syncResultResolutions[0].ResolvedSymbol)
 			assert.Equal(t, ">=1.0.0", syncResultResolutions[0].Constraint)
 			assert.Equal(t, "1.0.0", syncResultResolutions[0].Revision)
-			assert.Empty(t, syncResultResolutions[1].ResolvedSymbol, "pinned OCI version should have no resolution")
-			assert.Empty(t, syncResultResolutions[2].ResolvedSymbol, "git HEAD should have no resolution")
+			assert.Equal(t, "1.0.0", syncResultResolutions[1].Revision, "pinned OCI version should have revision")
+			assert.Empty(t, syncResultResolutions[1].ResolvedSymbol, "pinned OCI version should have no resolvedSymbol")
+			assert.NotEmpty(t, syncResultResolutions[2].Revision, "git HEAD should have a resolved SHA")
+			assert.Empty(t, syncResultResolutions[2].ResolvedSymbol, "git HEAD should have no resolvedSymbol")
 
 			// Singular Resolution must be nil for multi-source apps.
 			assert.Nil(t, app.Status.Sync.Resolution, "singular Resolution must be nil for multi-source apps")

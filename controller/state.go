@@ -986,16 +986,23 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	// Update the initial revision to the resolved manifest SHA
 	if hasMultipleSources {
 		syncStatus.Revisions = manifestRevisions
-		// Populate revision resolutions for multi-source: use the last resolution seen per index.
+		// Populate revision resolutions for multi-source, index-aligned with Sources/Revisions.
+		// Revision is always set (mirrors Revisions[i]); Constraint and ResolvedSymbol are only
+		// set when a semver range was actually resolved by the repo server.
 		manifestResolutions := make([]v1alpha1.RevisionResolution, len(manifestInfos))
 		for i, manifestInfo := range manifestInfos {
-			if manifestInfo != nil && manifestInfo.Resolution != nil {
-				manifestResolutions[i] = v1alpha1.RevisionResolution{
-					ResolvedSymbol: manifestInfo.Resolution.ResolvedSymbol,
-					Constraint:     manifestInfo.Resolution.Constraint,
-					Revision:       manifestInfo.Resolution.Revision,
+			if manifestInfo == nil {
+				continue
+			}
+			res := v1alpha1.RevisionResolution{Revision: manifestInfo.Revision}
+			if manifestInfo.Resolution != nil {
+				res.ResolvedSymbol = manifestInfo.Resolution.ResolvedSymbol
+				res.Constraint = manifestInfo.Resolution.Constraint
+				if manifestInfo.Resolution.Revision != "" {
+					res.Revision = manifestInfo.Resolution.Revision
 				}
 			}
+			manifestResolutions[i] = res
 		}
 		syncStatus.Resolutions = manifestResolutions
 	} else if len(manifestRevisions) > 0 {

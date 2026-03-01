@@ -125,9 +125,11 @@ func TestOCIRevisionResolution(t *testing.T) {
 		})
 }
 
-// TestOCIPinnedTagNoRevisionResolution verifies that a pinned OCI tag (not a constraint)
-// produces no RevisionResolution.
-func TestOCIPinnedTagNoRevisionResolution(t *testing.T) {
+// TestOCIPinnedTagRevisionResolution verifies that a pinned OCI tag (not a constraint) produces a
+// RevisionResolution with only Revision populated — Constraint and ResolvedSymbol are empty because
+// no range resolution took place. Revision is always populated so it can replace revisions[] in a
+// future API version.
+func TestOCIPinnedTagRevisionResolution(t *testing.T) {
 	Given(t).
 		RepoURLType(fixture.RepoURLTypeOCI).
 		PushImageToOCIRegistry("testdata/guestbook", "1.0.0").
@@ -145,7 +147,10 @@ func TestOCIPinnedTagNoRevisionResolution(t *testing.T) {
 		And(func(app *Application) {
 			require.NotNil(t, app.Status.OperationState, "OperationState should be set after sync")
 			require.NotNil(t, app.Status.OperationState.SyncResult, "SyncResult should be set after sync")
-			assert.Nil(t, app.Status.OperationState.SyncResult.Resolution,
-				"Resolution should be nil when a pinned tag (not a constraint) was specified")
+			res := app.Status.OperationState.SyncResult.Resolution
+			require.NotNil(t, res, "Resolution should be set even for a pinned tag")
+			assert.Equal(t, "1.0.0", res.Revision, "Revision should equal the pinned tag")
+			assert.Empty(t, res.Constraint, "Constraint should be empty for a pinned tag")
+			assert.Empty(t, res.ResolvedSymbol, "ResolvedSymbol should be empty for a pinned tag")
 		})
 }

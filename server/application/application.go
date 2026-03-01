@@ -2430,8 +2430,9 @@ func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application,
 	source := app.Spec.GetSourcePtrByIndex(sourceIndex)
 	if !source.IsHelm() {
 		if git.IsCommitSHA(ambiguousRevision) {
-			// If it's already a commit SHA, then no need to look it up
-			return ambiguousRevision, ambiguousRevision, nil, nil
+			// If it's already a commit SHA, then no need to look it up.
+			// Still return a resolution so resolutions[].revision is always populated.
+			return ambiguousRevision, ambiguousRevision, &v1alpha1.RevisionResolution{Revision: ambiguousRevision}, nil
 		}
 	}
 
@@ -2444,13 +2445,12 @@ func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application,
 	if err != nil {
 		return "", "", nil, fmt.Errorf("error resolving repo revision: %w", err)
 	}
-	var resolution *v1alpha1.RevisionResolution
+	// Always populate Revision so resolutions[].revision is a reliable mirror of revisions[].
+	// Constraint and ResolvedSymbol are only set when a semver range was actually resolved.
+	resolution := &v1alpha1.RevisionResolution{Revision: resolveRevisionResponse.Revision}
 	if resolveRevisionResponse.Resolution != nil {
-		resolution = &v1alpha1.RevisionResolution{
-			ResolvedSymbol: resolveRevisionResponse.Resolution.ResolvedSymbol,
-			Constraint:     resolveRevisionResponse.Resolution.Constraint,
-			Revision:       resolveRevisionResponse.Revision,
-		}
+		resolution.ResolvedSymbol = resolveRevisionResponse.Resolution.ResolvedSymbol
+		resolution.Constraint = resolveRevisionResponse.Resolution.Constraint
 	}
 	return resolveRevisionResponse.Revision, resolveRevisionResponse.AmbiguousRevision, resolution, nil
 }
