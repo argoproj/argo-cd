@@ -1386,6 +1386,8 @@ type RevisionResolution struct {
 	ResolvedSymbol string `json:"resolvedSymbol,omitempty" protobuf:"bytes,1,opt,name=resolvedSymbol"`
 	// Constraint is the original constraint expression that was resolved (e.g. "v1.*", ">=1.2.0 <2.0.0").
 	Constraint string `json:"constraint,omitempty" protobuf:"bytes,2,opt,name=constraint"`
+	// Revision is the final resolved SHA or digest that the constraint resolved to.
+	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
 }
 
 // SyncOperation contains details about a sync operation.

@@ -64,6 +64,8 @@ type RevisionResolution struct {
 	ResolvedSymbol string
 	// Constraint is the original constraint expression (e.g. "v1.*", ">=1.2.0 <2.0.0").
 	Constraint string
+	// Revision is the final resolved digest.
+	Revision string
 }
 
 // Client is a generic OCI client interface that provides methods for interacting with an OCI (Open Container Initiative) registry.
@@ -422,6 +424,7 @@ func (c *nativeOCIClient) resolveRevision(ctx context.Context, revision string, 
 		return digest, &RevisionResolution{
 			ResolvedSymbol: version,
 			Constraint:     revision,
+			Revision:       digest,
 		}, nil
 	}
 

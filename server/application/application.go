@@ -2449,6 +2449,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application,
 		resolution = &v1alpha1.RevisionResolution{
 			ResolvedSymbol: resolveRevisionResponse.Resolution.ResolvedSymbol,
 			Constraint:     resolveRevisionResponse.Resolution.Constraint,
+			Revision:       resolveRevisionResponse.Revision,
 		}
 	}
 	return resolveRevisionResponse.Revision, resolveRevisionResponse.AmbiguousRevision, resolution, nil

@@ -2357,6 +2357,9 @@ message RevisionResolution {
 
   // Constraint is the original constraint expression that was resolved (e.g. "v1.*", ">=1.2.0 <2.0.0").
   optional string constraint = 2;
+
+  // Revision is the final resolved SHA or digest that the constraint resolved to.
+  optional string revision = 3;
 }
 
 // SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.

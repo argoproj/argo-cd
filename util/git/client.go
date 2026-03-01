@@ -116,6 +116,8 @@ type RevisionResolution struct {
 	ResolvedSymbol string
 	// Constraint is the original constraint expression (e.g. "v1.*", ">=1.2.0 <2.0.0").
 	Constraint string
+	// Revision is the final resolved commit SHA.
+	Revision string
 }
 
 // this should match reposerver/repository/repository.proto/RefsList
@@ -809,6 +811,9 @@ func (m *nativeGitClient) lsRemote(revision string) (string, *RevisionResolution
 		if ref.Name().Short() == revision || refName == revision {
 			if ref.Type() == plumbing.HashReference {
 				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
+				if resolution != nil {
+					resolution.Revision = hash
+				}
 				return hash, resolution, nil
 			}
 			if ref.Type() == plumbing.SymbolicReference {
@@ -822,6 +827,9 @@ func (m *nativeGitClient) lsRemote(revision string) (string, *RevisionResolution
 		// It should exist in our refToHash map
 		if hash, ok := refToHash[refToResolve]; ok {
 			log.Debugf("symbolic reference '%s' (%s) resolved to '%s'", revision, refToResolve, hash)
+			if resolution != nil {
+				resolution.Revision = hash
+			}
 			return hash, resolution, nil
 		}
 	}
@@ -829,6 +837,9 @@ func (m *nativeGitClient) lsRemote(revision string) (string, *RevisionResolution
 	// We support the ability to use a truncated commit-SHA (e.g. first 7 characters of a SHA)
 	if IsTruncatedCommitSHA(revision) {
 		log.Debugf("revision '%s' assumed to be commit sha", revision)
+		if resolution != nil {
+			resolution.Revision = revision
+		}
 		return revision, resolution, nil
 	}
 

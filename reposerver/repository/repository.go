@@ -2640,6 +2640,7 @@ func (s *Service) newClientResolveRevisionWithResolution(repo *v1alpha1.Reposito
 		resolution = &apiclient.RevisionResolution{
 			ResolvedSymbol: gitResolution.ResolvedSymbol,
 			Constraint:     gitResolution.Constraint,
+			Revision:       commitSHA,
 		}
 	}
 	return gitClient, commitSHA, resolution, nil
@@ -2661,6 +2662,7 @@ func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha
 		resolution = &apiclient.RevisionResolution{
 			ResolvedSymbol: ociResolution.ResolvedSymbol,
 			Constraint:     ociResolution.Constraint,
+			Revision:       digest,
 		}
 	}
 	return ociClient, digest, resolution, nil
@@ -2702,6 +2704,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 	resolution := &apiclient.RevisionResolution{
 		ResolvedSymbol: maxV,
 		Constraint:     revision,
+		Revision:       maxV,
 	}
 	return helmClient, maxV, resolution, nil
 }
@@ -2930,6 +2933,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 		resp.Resolution = &apiclient.RevisionResolution{
 			ResolvedSymbol: gitResolution.ResolvedSymbol,
 			Constraint:     gitResolution.Constraint,
+			Revision:       revision,
 		}
 	}
 	return resp, nil

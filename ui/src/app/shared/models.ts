@@ -33,6 +33,7 @@ export interface SyncStrategy {
 export interface RevisionResolution {
     resolvedSymbol: string;
     constraint: string;
+    revision?: string;
 }
 
 export interface SyncOperation {

@@ -785,6 +785,7 @@ func Test_nativeOCIClient_ResolveRevision_RevisionResolution(t *testing.T) {
 		require.NotNil(t, resolution)
 		require.Equal(t, "1.2.0", resolution.ResolvedSymbol)
 		require.Equal(t, "^1.0.0", resolution.Constraint)
+		require.NotEmpty(t, resolution.Revision, "Revision should be the resolved digest")
 	})
 
 	t.Run("exact version tag does not populate RevisionResolution", func(t *testing.T) {

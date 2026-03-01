@@ -547,6 +547,7 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 		Resolution: &apiclient.RevisionResolution{
 			ResolvedSymbol: "1.1.0",
 			Constraint:     ">= 1.0.0",
+			Revision:       "1.1.0",
 		},
 	}, response)
 	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
@@ -589,6 +590,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 		Resolution: &apiclient.RevisionResolution{
 			ResolvedSymbol: "1.1.0",
 			Constraint:     ">= 1.0.0",
+			Revision:       "1.1.0",
 		},
 	}, response)
 }
@@ -1332,6 +1334,7 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		Resolution: &apiclient.RevisionResolution{
 			ResolvedSymbol: "1.1.0",
 			Constraint:     ">= 1.0.0",
+			Revision:       "1.1.0",
 		},
 	}, response)
 }
@@ -1967,6 +1970,7 @@ func Test_newEnv(t *testing.T) {
 			Resolution: &apiclient.RevisionResolution{
 				ResolvedSymbol: "v1.2.3",
 				Constraint:     "v1.*",
+				Revision:       "abc1234567890abc1234567890abc1234567890ab",
 			},
 		}, "abc1234567890abc1234567890abc1234567890ab")
 		envMap := make(map[string]string)
@@ -3086,7 +3090,7 @@ func TestNewClientResolveRevisionWithResolution(t *testing.T) {
 	gitClient.On("Fetch", mock.Anything).Return(nil)
 	gitClient.On("LsRemote", "v1.*").Return(
 		"abc1234567890abc1234567890abc1234567890ab",
-		&git.RevisionResolution{ResolvedSymbol: "v1.2.3", Constraint: "v1.*"},
+		&git.RevisionResolution{ResolvedSymbol: "v1.2.3", Constraint: "v1.*", Revision: "abc1234567890abc1234567890abc1234567890ab"},
 		nil,
 	)
 	gitClient.On("Root").Return("/tmp/repo")
@@ -3102,6 +3106,7 @@ func TestNewClientResolveRevisionWithResolution(t *testing.T) {
 	require.NotNil(t, resolution)
 	assert.Equal(t, "v1.2.3", resolution.ResolvedSymbol)
 	assert.Equal(t, "v1.*", resolution.Constraint)
+	assert.Equal(t, "abc1234567890abc1234567890abc1234567890ab", resolution.Revision)
 }
 
 func TestNewClientResolveRevisionWithResolution_NoConstraint(t *testing.T) {

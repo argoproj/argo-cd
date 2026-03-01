@@ -90,6 +90,7 @@ message ResolveRevisionRequest {
 message RevisionResolution {
     string resolvedSymbol = 1;
     string constraint = 2;
+    string revision = 3;
 }
 
 // ResolveRevisionResponse

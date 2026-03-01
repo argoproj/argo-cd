@@ -373,6 +373,7 @@ func Test_SemverTags(t *testing.T) {
 				require.NotNil(t, resolution, "expected non-nil RevisionResolution for constraint %q", tc.ref)
 				assert.Equal(t, tc.expectedResSymbol, resolution.ResolvedSymbol, "wrong ResolvedSymbol")
 				assert.Equal(t, tc.ref, resolution.Constraint, "wrong Constraint")
+				assert.Equal(t, commitSHA, resolution.Revision, "Revision should be the resolved commit SHA")
 			} else {
 				assert.Nil(t, resolution, "expected nil RevisionResolution for non-constraint ref %q", tc.ref)
 			}

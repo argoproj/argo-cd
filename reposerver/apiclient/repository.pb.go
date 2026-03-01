@@ -659,6 +659,7 @@ func (m *ResolveRevisionRequest) GetSourceIndex() int64 {
 type RevisionResolution struct {
 	ResolvedSymbol       string   `protobuf:"bytes,1,opt,name=resolvedSymbol,proto3" json:"resolvedSymbol,omitempty"`
 	Constraint           string   `protobuf:"bytes,2,opt,name=constraint,proto3" json:"constraint,omitempty"`
+	Revision             string   `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -707,6 +708,13 @@ func (m *RevisionResolution) GetResolvedSymbol() string {
 func (m *RevisionResolution) GetConstraint() string {
 	if m != nil {
 		return m.Constraint
+	}
+	return ""
+}
+
+func (m *RevisionResolution) GetRevision() string {
+	if m != nil {
+		return m.Revision
 	}
 	return ""
 }

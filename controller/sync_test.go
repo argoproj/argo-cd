@@ -1642,9 +1642,10 @@ func TestNewSyncOperationResult_CopiesResolution(t *testing.T) {
 	resolution := &v1alpha1.RevisionResolution{
 		ResolvedSymbol: "v1.2.3",
 		Constraint:     "v1.*",
+		Revision:       "abc123sha",
 	}
 	resolutions := []v1alpha1.RevisionResolution{
-		{ResolvedSymbol: "v2.0.0", Constraint: "v2.*"},
+		{ResolvedSymbol: "v2.0.0", Constraint: "v2.*", Revision: "def456sha"},
 	}
 	op := v1alpha1.SyncOperation{
 		Revision:    "abc123",
@@ -1657,8 +1658,10 @@ func TestNewSyncOperationResult_CopiesResolution(t *testing.T) {
 	require.NotNil(t, result.Resolution)
 	assert.Equal(t, "v1.2.3", result.Resolution.ResolvedSymbol)
 	assert.Equal(t, "v1.*", result.Resolution.Constraint)
+	assert.Equal(t, "abc123sha", result.Resolution.Revision)
 	require.Len(t, result.Resolutions, 1)
 	assert.Equal(t, "v2.0.0", result.Resolutions[0].ResolvedSymbol)
+	assert.Equal(t, "def456sha", result.Resolutions[0].Revision)
 }
 
 func dig(obj any, path ...any) any {
