@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">February 22nd 2026, 12:37:01 am (UTC+00:00)</p>
+                <p class="timestamp">March 1st 2026, 12:40:09 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -2400,18 +2400,18 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
         <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
-        <p>Issue summary: Parsing CMS AuthEnvelopedData message with maliciously
-        crafted AEAD parameters can trigger a stack buffer overflow.</p>
+        <p>Issue summary: Parsing CMS AuthEnvelopedData or EnvelopedData message with
+        maliciously crafted AEAD parameters can trigger a stack buffer overflow.</p>
         <p>Impact summary: A stack buffer overflow may lead to a crash, causing Denial
         of Service, or potentially remote code execution.</p>
-        <p>When parsing CMS AuthEnvelopedData structures that use AEAD ciphers such as
+        <p>When parsing CMS (Auth)EnvelopedData structures that use AEAD ciphers such as
         AES-GCM, the IV (Initialization Vector) encoded in the ASN.1 parameters is
         copied into a fixed-size stack buffer without verifying that its length fits
         the destination. An attacker can supply a crafted CMS message with an
         oversized IV, causing a stack-based out-of-bounds write before any
         authentication or tag verification occurs.</p>
         <p>Applications and services that parse untrusted CMS or PKCS#7 content using
-        AEAD ciphers (e.g., S/MIME AuthEnvelopedData with AES-GCM) are vulnerable.
+        AEAD ciphers (e.g., S/MIME (Auth)EnvelopedData with AES-GCM) are vulnerable.
         Because the overflow occurs prior to authentication, no valid key material
         is required to trigger it. While exploitability to remote code execution
         depends on platform and toolchain mitigations, the stack-based write
@@ -2432,6 +2432,7 @@
         <li><a href="https://github.com/openssl/openssl/commit/d0071a0799f20cc8101730145349ed4487c268dc">https://github.com/openssl/openssl/commit/d0071a0799f20cc8101730145349ed4487c268dc</a></li>
         <li><a href="https://openssl-library.org/news/secadv/20260127.txt">https://openssl-library.org/news/secadv/20260127.txt</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2026/01/27/10">http://www.openwall.com/lists/oss-security/2026/01/27/10</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/02/25/6">http://www.openwall.com/lists/oss-security/2026/02/25/6</a></li>
         <li><a href="https://github.com/guiimoraes/CVE-2025-15467">https://github.com/guiimoraes/CVE-2025-15467</a></li>
         </ul>
         
