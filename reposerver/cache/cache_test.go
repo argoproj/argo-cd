@@ -365,7 +365,7 @@ func TestGetGitReferences(t *testing.T) {
 		assert.Len(t, references, 1)
 		assert.Equal(t, "test", (references)[0].Target().String())
 		assert.Equal(t, "test-repo", (references)[0].Name().String())
-		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1, ExternalDeletesByPattern: 1})
 	})
 
 	t.Run("cache error", func(t *testing.T) {
@@ -472,7 +472,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		assert.Empty(t, lockId, "Lock id should not be set")
 		assert.Equal(t, "test-repo", references[0].Name().String())
 		assert.Equal(t, "test", references[0].Target().String())
-		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1, ExternalDeletesByPattern: 1})
 	})
 
 	t.Run("Test cache lock, cache hit remote", func(t *testing.T) {
@@ -512,7 +512,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEqual(t, "test-lock-id", lockId)
 		assert.Empty(t, lockId, "Lock id should not be set")
-		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 2, ExternalGets: 2})
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 2, ExternalGets: 2, ExternalDeletesByPattern: 1})
 	})
 
 	t.Run("Test cache lock timeout", func(t *testing.T) {
@@ -529,7 +529,7 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		assert.Equal(t, "test-lock-id", lockId)
 		assert.NotEmpty(t, lockId, "Lock id should be set")
 		cache.revisionCacheLockTimeout = 10 * time.Second
-		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1})
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalDeletesByPattern: 1})
 	})
 
 	t.Run("Test cache lock error", func(t *testing.T) {
@@ -547,6 +547,56 @@ func TestGetOrLockGitReferences(t *testing.T) {
 		assert.NotEmpty(t, lockId, "Lock id should be set")
 		fixtures.mockCache.RedisClient.AssertNumberOfCalls(t, "Set", 2)
 		fixtures.mockCache.RedisClient.AssertNumberOfCalls(t, "Get", 4)
+	})
+}
+
+func TestGetResolvedGitReference(t *testing.T) {
+	t.Run("Test cache miss", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		cache := fixtures.cache
+		sha, err := cache.GetResolvedGitReference("test-repo", "main")
+		require.NoError(t, err)
+		assert.Empty(t, sha)
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 0, ExternalGets: 1})
+	})
+
+	t.Run("Test cache set and hit", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		cache := fixtures.cache
+		err := cache.SetResolvedGitReference("test-repo", "main", "test-sha")
+		require.NoError(t, err)
+		sha, err := cache.GetResolvedGitReference("test-repo", "main")
+		require.NoError(t, err)
+		assert.Equal(t, "test-sha", sha)
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 1})
+	})
+}
+
+func TestCleanResolvedGitReference(t *testing.T) {
+	t.Run("Resolved references are cleaned as part of the SetGitReferences flow", func(t *testing.T) {
+		fixtures := newFixtures()
+		t.Cleanup(fixtures.mockCache.StopRedisCallback)
+		cache := fixtures.cache
+
+		// Set a resolved reference, and confirm it's there
+		err := cache.SetResolvedGitReference("test-repo", "main", "test-sha")
+		require.NoError(t, err)
+		sha, err := cache.GetResolvedGitReference("test-repo", "main")
+		require.NoError(t, err)
+		assert.Equal(t, "test-sha", sha)
+
+		// Set git references, which should clear the resolved reference
+		err = cache.SetGitReferences("test-repo", *GitRefCacheItemToReferences([][2]string{{"test-repo", "ref: test"}}))
+		require.NoError(t, err)
+
+		// After setting git references, the resolved reference should be gone, even if there was a value before
+		sha, err = cache.GetResolvedGitReference("test-repo", "main")
+		require.NoError(t, err)
+		assert.Empty(t, sha)
+
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 2, ExternalGets: 2, ExternalDeletesByPattern: 1})
 	})
 }
 

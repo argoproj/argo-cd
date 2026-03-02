@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/gob"
 	"fmt"
+	"strings"
 	"time"
 
 	gocache "github.com/patrickmn/go-cache"
@@ -82,6 +83,18 @@ func (i *InMemoryCache) Get(key string, obj any) error {
 
 func (i *InMemoryCache) Delete(key string) error {
 	i.memCache.Delete(key)
+	return nil
+}
+
+func (i *InMemoryCache) DeleteByPattern(key string) error {
+	for k := range i.memCache.Items() {
+		if strings.HasPrefix(k, key) {
+			err := i.Delete(k)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

@@ -91,6 +91,64 @@ func TestRedisSetCache(t *testing.T) {
 	})
 }
 
+func TestRedisDeleteByPattern(t *testing.T) {
+	mr, err := miniredis.Run()
+	if err != nil {
+		panic(err)
+	}
+	defer mr.Close()
+	assert.NotNil(t, mr)
+
+	compressionTypes := []RedisCompressionType{RedisCompressionNone, RedisCompressionGZip}
+	for _, compression := range compressionTypes {
+		t.Run("Successful set - "+string(compression), func(t *testing.T) {
+			client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 60*time.Second, compression)
+			err = client.Set(&Item{Key: "my-key:1", Object: "bar-1"})
+			require.NoError(t, err)
+			err = client.Set(&Item{Key: "my-key:2", Object: "bar-2"})
+			require.NoError(t, err)
+			err = client.Set(&Item{Key: "other-key:1", Object: "bar"})
+			require.NoError(t, err)
+			err = client.Set(&Item{Key: "other-key:2", Object: "bar"})
+			require.NoError(t, err)
+		})
+
+		t.Run("Successful get- "+string(compression), func(t *testing.T) {
+			var res string
+			client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, compression)
+			err = client.Get("my-key:1", &res)
+			require.NoError(t, err)
+			assert.Equal(t, "bar-1", res)
+		})
+
+		t.Run("Successful delete- "+string(compression), func(t *testing.T) {
+			client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, compression)
+			err = client.DeleteByPattern("my-key:")
+			require.NoError(t, err)
+		})
+
+		t.Run("Cache miss- "+string(compression), func(t *testing.T) {
+			var res string
+			client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, compression)
+			err = client.Get("my-key:1", &res)
+			require.ErrorContains(t, err, "cache: key is missing")
+			err = client.Get("my-key:2", &res)
+			require.ErrorContains(t, err, "cache: key is missing")
+		})
+
+		t.Run("Other keys should not be deleted- "+string(compression), func(t *testing.T) {
+			var res string
+			client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, compression)
+			err = client.Get("other-key:1", &res)
+			require.NoError(t, err)
+			assert.Equal(t, "bar", res)
+			err = client.Get("other-key:2", &res)
+			require.NoError(t, err)
+			assert.Equal(t, "bar", res)
+		})
+	}
+}
+
 func TestRedisSetCacheCompressed(t *testing.T) {
 	mr, err := miniredis.Run()
 	if err != nil {

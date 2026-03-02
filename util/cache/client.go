@@ -25,6 +25,8 @@ type CacheActionOpts struct {
 	DisableOverwrite bool
 	// Expiration is the cache expiration time.
 	Expiration time.Duration
+	// KeyPatternToDelete is the pattern of keys to delete when the item is set. It can be used to invalidate related cache entries.
+	KeyPatternToDelete string
 }
 
 type CacheClient interface {
@@ -32,6 +34,7 @@ type CacheClient interface {
 	Rename(oldKey string, newKey string, expiration time.Duration) error
 	Get(key string, obj any) error
 	Delete(key string) error
+	DeleteByPattern(key string) error
 	OnUpdated(ctx context.Context, key string, callback func() error) error
 	NotifyUpdated(key string) error
 }

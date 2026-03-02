@@ -57,6 +57,17 @@ func (c *MockCacheClient) Delete(key string) error {
 	return c.BaseCache.Delete(key)
 }
 
+func (c *MockCacheClient) DeleteByPattern(key string) error {
+	args := c.Called(key)
+	if len(args) > 0 && args.Get(0) != nil {
+		return args.Get(0).(error)
+	}
+	if c.WriteDelay > 0 {
+		time.Sleep(c.WriteDelay)
+	}
+	return c.BaseCache.DeleteByPattern(key)
+}
+
 func (c *MockCacheClient) OnUpdated(ctx context.Context, key string, callback func() error) error {
 	args := c.Called(ctx, key, callback)
 	if len(args) > 0 && args.Get(0) != nil {
