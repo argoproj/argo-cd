@@ -97,7 +97,7 @@ type ArgoCDWebhookHandler struct {
 	settingsSrc            settingsSource
 	queue                  chan any
 	maxWebhookPayloadSizeB int64
-	registryHandler        *RegistryHandler
+	ghcrHandler            *GHCRParser
 }
 
 func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister,
@@ -128,7 +128,6 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	if err != nil {
 		log.Warnf("Unable to init the Azure DevOps webhook")
 	}
-	registryHandler := NewWebhookRegistryHandler(set.GetWebhookGitHubSecret())
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:                     namespace,
 		appNs:                  applicationNamespaces,
@@ -147,7 +146,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		queue:                  make(chan any, payloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
 		appsLister:             appsLister,
-		registryHandler:        registryHandler,
+		ghcrHandler:            NewGHCRParser(set.GetWebhookGitHubSecret()),
 	}
 
 	acdWebhook.startWorkerPool(webhookParallelism)
@@ -693,8 +692,8 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
-	if a.registryHandler.CanHandle(r) {
-		event, err := a.registryHandler.ProcessWebhook(r)
+
+	if event, handled, err := a.processRegistryWebhook(r); handled {
 		if err != nil {
 			if errors.Is(err, ErrHMACVerificationFailed) {
 				log.WithField(common.SecurityField, common.SecurityHigh).Infof("Registry webhook HMAC verification failed")
@@ -760,6 +759,20 @@ func isParsingPayloadError(err error) bool {
 		errors.Is(err, bitbucket.ErrParsingPayload) ||
 		errors.Is(err, bitbucketserver.ErrParsingPayload) ||
 		errors.Is(err, azuredevops.ErrParsingPayload)
+}
+
+// processRegistryWebhook routes an incoming request to the appropriate registry
+// handler. It returns the parsed event, a boolean indicating whether any handler
+// claimed the request, and any error from parsing. When handled is false, the
+// caller should fall through to SCM webhook processing.
+func (a *ArgoCDWebhookHandler) processRegistryWebhook(r *http.Request) (*RegistryEvent, bool, error) {
+	switch {
+	case a.ghcrHandler.CanHandle(r):
+		event, err := a.ghcrHandler.ProcessWebhook(r)
+		return event, true, err
+		// TODO: add dockerhub, ecr handler cases in future
+	}
+	return nil, false, nil
 }
 
 // processSCMWebhook processes an SCM webhook

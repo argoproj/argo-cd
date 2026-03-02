@@ -41,8 +41,8 @@ func TestNormalizeOCI(t *testing.T) {
 	}
 }
 
-func TestRegistryHandlerCanHandle(t *testing.T) {
-	h := NewWebhookRegistryHandler("")
+func TestGHCRHandlerCanHandle(t *testing.T) {
+	h := NewGHCRParser("")
 
 	tests := []struct {
 		name     string
@@ -80,17 +80,6 @@ func TestRegistryPackageEvent(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, hook.LastEntry().Message, "Received registry webhook event")
-}
-
-func TestProcessWebhook_Unsupported(t *testing.T) {
-	h := NewWebhookRegistryHandler("")
-
-	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewBufferString(`{}`))
-	req.Header.Set("X-GitHub-Event", "push") // not a registry event
-
-	event, err := h.ProcessWebhook(req)
-	require.NoError(t, err)
-	assert.Nil(t, event)
 }
 
 func TestHandleRegistryEvent_RefreshMatchingApp(t *testing.T) {
