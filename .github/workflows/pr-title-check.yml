@@ -1,4 +1,4 @@
-name: "Lint PR"
+name: "Lint PR Reggie"
 
 on:
   pull_request:
