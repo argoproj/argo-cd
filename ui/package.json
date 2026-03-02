@@ -2,7 +2,7 @@
   "name": "argo-cd-ui",
   "version": "1.0.0",
   "license": "Apache-2.0",
-  "packageManager": "pnpm@10.13.1",
+  "packageManager": "pnpm@10.28.1",
   "scripts": {
     "start": "webpack-dev-server --config ./src/app/webpack.config.js --mode development",
     "docker": "./scripts/build_docker.sh",
