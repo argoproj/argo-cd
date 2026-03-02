@@ -1,11 +1,9 @@
 name: "Lint PR"
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, edited, reopened, synchronize]
 
-# IMPORTANT: No checkout actions, scripts, or builds should be added to this workflow. Permissions should always be used
-# with extreme caution. https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request_target
 permissions: {}
 
 # PR updates can happen in quick succession leading to this
