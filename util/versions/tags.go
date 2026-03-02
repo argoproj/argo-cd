@@ -15,7 +15,7 @@ import (
 // tagTokenRegex matches tag-like tokens with an optional path prefix (group 1) and version (group 2).
 // The prefix must end with "/" and may contain path segments. The version part cannot contain "/",
 // which structurally prevents nested prefix confusion (e.g., "prod/" matching inside "prod/prod/").
-var tagTokenRegex = regexp.MustCompile(`([a-zA-Z0-9-_./]+/)?([a-zA-Z0-9-_./*]+)`)
+var tagTokenRegex = regexp.MustCompile(`([a-zA-Z0-9-_./]+/)?([a-zA-Z0-9-_.*]+)`)
 
 // extractPrefixes extracts a common path prefix from a semver revision/constraint string.
 // The prefix must end with "/" and be consistent across all version segments in the constraint.
