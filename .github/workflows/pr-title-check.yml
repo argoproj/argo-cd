@@ -1,11 +1,9 @@
-name: "Lint PR Reggie"
+name: "Lint PR"
 
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
 
-# IMPORTANT: No checkout actions, scripts, or builds should be added to this workflow. Permissions should always be used
-# with extreme caution. https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#pull_request_target
 permissions: {}
 
 # PR updates can happen in quick succession leading to this
@@ -13,7 +11,7 @@ permissions: {}
 # to one run per PR.
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   validate:
