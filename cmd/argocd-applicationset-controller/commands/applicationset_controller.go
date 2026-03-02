@@ -305,7 +305,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableGitHubAPIMetrics, "enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
 	command.Flags().IntVar(&maxResourcesStatusCount, "max-resources-status-count", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT", 5000, 0, math.MaxInt), "Max number of resources stored in appset status.")
 	command.Flags().DurationVar(&cacheSyncPeriod, "cache-sync-period", env.ParseDurationFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CACHE_SYNC_PERIOD", time.Hour*10, 0, time.Hour*24), "Period at which the manager client cache is forcefully resynced with the Kubernetes API server. 0 disables periodic resync.")
-	command.Flags().IntVar(&concurrentApplicationUpdates, "concurrent-application-updates", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_APPLICATION_UPDATES", 1, 1, math.MaxInt), "Number of concurrent Application create/update/delete operations per ApplicationSet reconcile.")
+	command.Flags().IntVar(&concurrentApplicationUpdates, "concurrent-application-updates", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_APPLICATION_UPDATES", 1, 1, 200), "Number of concurrent Application create/update/delete operations per ApplicationSet reconcile.")
 
 	return &command
 }
