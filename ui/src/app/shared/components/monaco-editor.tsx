@@ -69,7 +69,7 @@ const MonacoEditorLazy = React.lazy(() =>
             return (
                 <div
                     style={{
-                        height: `${Math.max(props.minHeight || 0, height + 100)}px`,
+                        height: `${Math.max(props.minHeight || 0, height)}px`,
                         overflowY: 'hidden'
                     }}
                     ref={el => {
@@ -95,7 +95,8 @@ const MonacoEditorLazy = React.lazy(() =>
 
                                 const model = monaco.editor.createModel(props.editor.input.text, props.editor.input.language);
                                 const lineCount = model.getLineCount();
-                                setHeight(lineCount * DEFAULT_LINE_HEIGHT);
+                                const newHeight = lineCount * DEFAULT_LINE_HEIGHT + 50;
+                                setHeight(newHeight > window.innerHeight * 0.95 ? window.innerHeight * 0.95 : newHeight);
 
                                 if (!IsEqualInput(container.prevEditorInput, props.editor.input)) {
                                     container.prevEditorInput = props.editor.input;
