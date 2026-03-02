@@ -69,7 +69,7 @@ spec:
             valueFrom:
               configMapKeyRef:
                 name: argocd-cmd-params-cm
-                key: dexserver.connector.failure.ignore
+                key: dexserver.connector.failure.continue
                 optional: false
         securityContext:
           capabilities:

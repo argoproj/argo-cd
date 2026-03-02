@@ -303,7 +303,7 @@ data:
   # Disable TLS on the HTTP endpoint
   dexserver.disable.tls: "false"
   # To continue without failing the auth flow in case of a connector failure, set this to "true".
-  dexserver.connector.failure.ignore: "false"
+  dexserver.connector.failure.continue: "true"
 
   ## ApplicationSet Controller Properties
   # Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.
