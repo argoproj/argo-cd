@@ -187,6 +187,18 @@ func TestExtractPrefix(t *testing.T) {
 			expectedPrefix: "",
 			expectedStrip:  "> < >=",
 		},
+		{
+			name:           "nested prefix mismatch - prod vs prod/prod",
+			input:          "> prod/v1.0.0 < prod/prod/v2.0.0",
+			expectedPrefix: "",
+			expectedStrip:  "> prod/v1.0.0 < prod/prod/v2.0.0",
+		},
+		{
+			name:           "consistent nested prefix",
+			input:          "> prod/prod/v1.0.0 < prod/prod/v2.0.0",
+			expectedPrefix: "prod/prod/",
+			expectedStrip:  "> v1.0.0 < v2.0.0",
+		},
 	}
 
 	for _, tc := range tests {
