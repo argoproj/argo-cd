@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -138,7 +139,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig
-		err = yaml.Unmarshal([]byte(argoCDSettings.DexConfig), &cfg)
+		err = yaml.Unmarshal(GetFilteredDexConfig(argoCDSettings), &cfg)
 		if err == nil {
 			set.DexConfig = &cfg
 		}
@@ -157,6 +158,49 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		}
 	}
 	return &set, nil
+}
+
+// GetFilteredDexConfig returns dex.config filtered by dex.auth.connectorId
+func GetFilteredDexConfig(a *settings.ArgoCDSettings) []byte {
+	// fallback to original DexConfig
+	fallback := []byte(a.DexConfig)
+
+	connID := a.DexAuthConnectorID
+	if connID == "" {
+		return fallback
+	}
+
+	type PartialDexConfig struct {
+		Connectors []struct {
+			ID   string `json:"id,omitempty"`
+			Name string `json:"name,omitempty"`
+			Type string `json:"type,omitempty"`
+		} `json:"connectors,omitempty"`
+	}
+	var dexCfg PartialDexConfig
+	err := yaml.Unmarshal([]byte(a.DexConfig), &dexCfg)
+	if err != nil {
+		log.Errorf("failed to unmarshal dex.config: %v", err)
+		return fallback
+	}
+
+	var filteredDexCfg PartialDexConfig
+	for _, c := range dexCfg.Connectors {
+		if c.ID == connID {
+			filteredDexCfg.Connectors = append(filteredDexCfg.Connectors, c)
+			break
+		}
+	}
+	if len(filteredDexCfg.Connectors) == 0 {
+		log.Warnf("connector ID not found in dex.config: %s", connID)
+		return fallback
+	}
+	filtered, err := yaml.Marshal(&filteredDexCfg)
+	if err != nil {
+		log.Errorf("failed to marshal PartialDexConfig: %v", err)
+		return fallback
+	}
+	return filtered
 }
 
 // GetPlugins returns a list of plugins

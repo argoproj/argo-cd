@@ -412,6 +412,53 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			assert.Empty(t, w.Header().Get("Location"))
 		})
 	})
+	t.Run("with multiple dex connectors", func(t *testing.T) {
+		tests := []struct {
+			cdSettings   *settings.ArgoCDSettings
+			name         string
+			expectConnID bool
+		}{
+			{
+				name: "set connector_id if specified",
+				cdSettings: &settings.ArgoCDSettings{
+					URL:                dexTestServer.URL,
+					DexConfig:          "connectors: [{id: github}, {id: gitlab}]",
+					DexAuthConnectorID: "github",
+				},
+				expectConnID: true,
+			},
+			{
+				name: "omit connector_id if empty",
+				cdSettings: &settings.ArgoCDSettings{
+					URL:                dexTestServer.URL,
+					DexConfig:          "connectors: [{id: github}, {id: gitlab}]",
+					DexAuthConnectorID: "",
+				},
+				expectConnID: false,
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				app, err := NewClientApp(tt.cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+				require.NoError(t, err)
+
+				req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+				w := httptest.NewRecorder()
+				app.HandleLogin(w, req)
+
+				assert.Equal(t, http.StatusSeeOther, w.Code)
+				location, err := url.Parse(w.Header().Get("Location"))
+				require.NoError(t, err)
+				values, err := url.ParseQuery(location.RawQuery)
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectConnID, values.Has("connector_id"))
+				if tt.expectConnID {
+					assert.Equal(t, tt.cdSettings.DexAuthConnectorID, values.Get("connector_id"))
+				}
+			})
+		}
+	})
 }
 
 func Test_Login_Flow(t *testing.T) {
