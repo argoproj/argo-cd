@@ -1,11 +1,8 @@
 package webhook
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -49,73 +46,6 @@ func (e *RegistryEvent) OCIRepoURL() string {
 
 // ErrHMACVerificationFailed is returned when a registry webhook signature check fails.
 var ErrHMACVerificationFailed = errors.New("HMAC verification failed")
-
-// RegistryParser defines an interface for parsing registry-specific webhook payloads.
-//
-// Implementations detect whether they can handle an incoming HTTP request and,
-// if so, extract relevant event information into a WebhookRegistryEvent.
-// This allows the handler to support multiple container registries via pluggable parsers.
-type RegistryParser interface {
-	CanHandle(r *http.Request) bool
-	Parse(r *http.Request, body []byte) (*RegistryEvent, error)
-}
-
-// RegistryHandler processes container registry webhook requests.
-//
-// It selects the appropriate parser based on the request and delegates
-// both signature validation and payload parsing to it.
-// The handler supports multiple registry formats through a list of RegistryParsers.
-type RegistryHandler struct {
-	parsers []RegistryParser
-}
-
-// NewWebhookRegistryHandler creates a new WebhookRegistryHandler.
-//
-// The provided secret is passed to each registry-specific parser, which is
-// responsible for its own signature validation. The handler is initialized
-// with built-in registry parsers (e.g., GHCR) but can be extended to support
-// additional registries.
-func NewWebhookRegistryHandler(secret string) *RegistryHandler {
-	return &RegistryHandler{
-		parsers: []RegistryParser{
-			NewGHCRParser(secret),
-		},
-	}
-}
-
-// findParser returns the first parser that can handle the request, or nil.
-func (h *RegistryHandler) findParser(r *http.Request) RegistryParser {
-	for _, p := range h.parsers {
-		if p.CanHandle(r) {
-			return p
-		}
-	}
-	return nil
-}
-
-// CanHandle reports whether any registered parser can handle the request.
-// Used by the top-level handler to route registry webhook requests.
-func (h *RegistryHandler) CanHandle(r *http.Request) bool {
-	return h.findParser(r) != nil
-}
-
-// ProcessWebhook reads the request body and delegates to the first parser
-// that can handle the request. Signature validation is handled by each parser.
-// Returns nil, nil if the event should be skipped.
-func (h *RegistryHandler) ProcessWebhook(r *http.Request) (*RegistryEvent, error) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
-	r.Body = io.NopCloser(bytes.NewBuffer(body))
-
-	p := h.findParser(r)
-	// No parser matched; unsupported registry
-	if p == nil {
-		return nil, nil
-	}
-	return p.Parse(r, body)
-}
 
 // HandleRegistryEvent processes a normalized registry event and refreshes
 // matching Argo CD Applications.

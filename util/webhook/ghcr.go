@@ -1,11 +1,13 @@
 package webhook
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -29,6 +31,17 @@ func NewGHCRParser(secret string) *GHCRParser {
 		log.Warn("GHCR webhook secret is not configured; incoming webhook events will not be validated")
 	}
 	return &GHCRParser{secret: secret}
+}
+
+// ProcessWebhook reads the request body and parses the GHCR webhook payload.
+// Returns nil, nil for events that should be skipped.
+func (p *GHCRParser) ProcessWebhook(r *http.Request) (*RegistryEvent, error) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	r.Body = io.NopCloser(bytes.NewBuffer(body))
+	return p.Parse(r, body)
 }
 
 // CanHandle reports whether the HTTP request corresponds to a GHCR webhook.
