@@ -103,7 +103,7 @@ func NewServer(
 		appsetInformer:           appsetInformer,
 		appsetLister:             appsetLister,
 		projectLock:              projectLock,
-		auditLogger:              argo.NewAuditLogger(kubeclientset, "argocd-server", enableK8sEvent),
+		auditLogger:              argo.NewAuditLogger(kubeclientset, namespace, "argocd-server", enableK8sEvent),
 		enabledNamespaces:        enabledNamespaces,
 		clusterInformer:          clusterInformer,
 		GitSubmoduleEnabled:      gitSubmoduleEnabled,
