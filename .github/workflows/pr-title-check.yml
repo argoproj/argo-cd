@@ -13,7 +13,7 @@ permissions: {}
 # to one run per PR.
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   validate:
