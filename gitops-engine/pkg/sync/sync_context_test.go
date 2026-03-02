@@ -111,6 +111,17 @@ func TestSyncNamespaceCreatedBeforeDryRunWithoutFailure(t *testing.T) {
 		Live:   []*unstructured.Unstructured{nil, nil},
 		Target: []*unstructured.Unstructured{pod},
 	})
+
+	ns := &unstructured.Unstructured{}
+	ns.SetGroupVersionKind(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"})
+	ns.SetName(testingutils.FakeArgoCDNamespace)
+
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
+	fakeDynamicClient.PrependReactor("get", "namespaces", func(action testcore.Action) (bool, runtime.Object, error) {
+		return true, ns, nil
+	})
+	syncCtx.dynamicIf = fakeDynamicClient
+
 	syncCtx.Sync()
 	phase, msg, resources := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
