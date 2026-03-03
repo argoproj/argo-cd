@@ -513,7 +513,7 @@ curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applica
 				tokenInfo := map[string]any{
 					"type":              "local",
 					"issuer":            iss,
-					"user_id":           jwtutil.GetUserIdentifier(claims),
+					"username":          localconfig.GetUsername(jwtutil.GetUserIdentifier(claims)),
 					"token":             configCtx.User.AuthToken,
 					"has_refresh_token": configCtx.User.RefreshToken != "",
 				}
