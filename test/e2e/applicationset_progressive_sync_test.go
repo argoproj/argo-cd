@@ -625,59 +625,6 @@ var appSetWithEmptyGenerator = v1alpha1.ApplicationSet{
 	},
 }
 
-var appSetWithMultipleAppsInEachStep = v1alpha1.ApplicationSet{
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "progressive-sync-multi-apps",
-	},
-	Spec: v1alpha1.ApplicationSetSpec{
-		GoTemplate: true,
-		Template: v1alpha1.ApplicationSetTemplate{
-			ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-				Name:      "prog-{{.name}}",
-				Namespace: fixture.TestNamespace(),
-				Labels: map[string]string{
-					"environment": "{{.environment}}",
-				},
-			},
-			Spec: v1alpha1.ApplicationSpec{
-				Project: "default",
-				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
-					Path:           "progressive-sync/multiple-apps-in-step/{{.environment}}/{{.name}}",
-					TargetRevision: "HEAD",
-				},
-				Destination: v1alpha1.ApplicationDestination{
-					Server:    "https://kubernetes.default.svc",
-					Namespace: "prog-{{.name}}",
-				},
-				SyncPolicy: &v1alpha1.SyncPolicy{
-					SyncOptions: v1alpha1.SyncOptions{"CreateNamespace=true"},
-				},
-			},
-		},
-		Generators: []v1alpha1.ApplicationSetGenerator{
-			{
-				List: &v1alpha1.ListGenerator{
-					Elements: []apiextensionsv1.JSON{
-						{Raw: []byte(`{"environment": "dev", "name": "sketch"}`)},
-						{Raw: []byte(`{"environment": "dev", "name": "build"}`)},
-						{Raw: []byte(`{"environment": "staging", "name": "verify"}`)},
-						{Raw: []byte(`{"environment": "staging", "name": "validate"}`)},
-						{Raw: []byte(`{"environment": "prod", "name": "ship"}`)},
-						{Raw: []byte(`{"environment": "prod", "name": "run"}`)},
-					},
-				},
-			},
-		},
-		Strategy: &v1alpha1.ApplicationSetStrategy{
-			Type: "RollingSync",
-			RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
-				Steps: generateStandardRolloutSyncSteps(),
-			},
-		},
-	},
-}
-
 var appSetWithReverseDeletionOrder = v1alpha1.ApplicationSet{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "appset-reverse-deletion-order",
