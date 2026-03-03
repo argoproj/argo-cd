@@ -1,6 +1,7 @@
 package glob
 
 import (
+	"fmt"
 	"math"
 	"sync"
 
@@ -37,13 +38,24 @@ func init() {
 	globCache = lru.New(env.ParseNumFromEnv(EnvGlobCacheSize, DefaultGlobCacheSize, 1, math.MaxInt))
 }
 
+// cacheKey returns a key combining pattern and separators, since the same
+// pattern compiled with different separators produces different globs.
+func cacheKey(pattern string, separators ...rune) string {
+	if len(separators) == 0 {
+		return pattern
+	}
+	return fmt.Sprintf("%s\x00%s", pattern, string(separators))
+}
+
 // getOrCompile returns a cached compiled glob pattern, compiling and caching it if necessary.
 func getOrCompile(pattern string, compiler compileFn, separators ...rune) (glob.Glob, error) {
 	globCacheLock.Lock()
 	defer globCacheLock.Unlock()
 
+	key := cacheKey(pattern, separators...)
+
 	// Check cache first
-	if cached, ok := globCache.Get(pattern); ok {
+	if cached, ok := globCache.Get(key); ok {
 		return cached.(glob.Glob), nil
 	}
 
@@ -53,7 +65,7 @@ func getOrCompile(pattern string, compiler compileFn, separators ...rune) (glob.
 		return nil, err
 	}
 
-	globCache.Add(pattern, compiled)
+	globCache.Add(key, compiled)
 	return compiled, nil
 }
 

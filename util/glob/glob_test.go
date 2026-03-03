@@ -20,11 +20,11 @@ func resetGlobCacheForTest() {
 	globCache.Clear()
 }
 
-// isPatternCached returns true if the pattern is cached.
-func isPatternCached(pattern string) bool {
+// isPatternCached returns true if the pattern (with optional separators) is cached.
+func isPatternCached(pattern string, separators ...rune) bool {
 	globCacheLock.Lock()
 	defer globCacheLock.Unlock()
-	_, ok := globCache.Get(pattern)
+	_, ok := globCache.Get(cacheKey(pattern, separators...))
 	return ok
 }
 
@@ -213,6 +213,33 @@ func Test_GlobCacheLRUEviction(t *testing.T) {
 
 	// The most recently used patterns should still be cached
 	require.True(t, isPatternCached(fmt.Sprintf("pattern-%d-*", DefaultGlobCacheSize+99)), "most recent pattern should be cached")
+}
+
+func Test_GlobCacheKeyIncludesSeparators(t *testing.T) {
+	resetGlobCacheForTest()
+
+	compiler, compileCount := countingCompiler()
+
+	pattern := "a*b"
+	textWithSlash := "a/b"
+
+	// Without separators, '*' matches '/' so "a/b" matches "a*b"
+	require.True(t, matchWithCompiler(pattern, textWithSlash, compiler))
+	require.Equal(t, int32(1), atomic.LoadInt32(compileCount))
+
+	// With separator '/', '*' does NOT match '/' so "a/b" should NOT match "a*b"
+	require.False(t, matchWithCompiler(pattern, textWithSlash, compiler, '/'))
+	require.Equal(t, int32(2), atomic.LoadInt32(compileCount), "same pattern with different separators must compile separately")
+
+	// Both entries should be independently cached
+	require.True(t, isPatternCached(pattern))
+	require.True(t, isPatternCached(pattern, '/'))
+	require.Equal(t, 2, globCacheLen())
+
+	// Subsequent calls should use cache (no additional compiles)
+	matchWithCompiler(pattern, textWithSlash, compiler)
+	matchWithCompiler(pattern, textWithSlash, compiler, '/')
+	require.Equal(t, int32(2), atomic.LoadInt32(compileCount), "cached patterns should not recompile")
 }
 
 func Test_InvalidGlobNotCached(t *testing.T) {
