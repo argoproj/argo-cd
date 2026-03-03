@@ -624,6 +624,61 @@ func TestWebhook_PullRequestAggregateDoesNotMatchNonPREvents(t *testing.T) {
 	}
 }
 
+func TestNew_WithFailingOption(t *testing.T) {
+	failingOpt := func(_ *Webhook) error {
+		return ErrHMACVerificationFailed // any non-nil error triggers the path
+	}
+	h, err := New(failingOpt)
+	require.Error(t, err)
+	require.Nil(t, h)
+	require.EqualError(t, err, "option error")
+}
+
+func TestParse_NoEventsSpecified(t *testing.T) {
+	r := httptest.NewRequest(http.MethodPost, "/webhooks", http.NoBody)
+	_, err := hook.Parse(r)
+	require.ErrorIs(t, err, ErrEventNotSpecifiedToParse)
+}
+
+func TestParse_NonPostMethod(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/webhooks", http.NoBody)
+	_, err := hook.Parse(r, PushEvent)
+	require.ErrorIs(t, err, ErrInvalidHTTPMethod)
+}
+
+func TestParse_PullRequestRefreshAggregate(t *testing.T) {
+	payload, err := os.ReadFile("testdata/pull-request-refresh.json")
+	require.NoError(t, err)
+
+	r := httptest.NewRequest(http.MethodPost, "/webhooks", bytes.NewReader(payload))
+	r.Header.Set("X-Src-Event", string(PullRequestRefreshEvent))
+
+	mac := hmac.New(sha256.New, []byte(hook.secret))
+	mac.Write(payload)
+	r.Header.Set("X-Src-Signature", hex.EncodeToString(mac.Sum(nil)))
+
+	result, err := hook.Parse(r, PullRequestAggregate)
+	require.NoError(t, err)
+
+	agg, ok := result.(PullRequestEventAggregate)
+	require.True(t, ok, "expected PullRequestEventAggregate, got %T", result)
+	require.Equal(t, PullRequestRefreshEvent, agg.EventType)
+}
+
+func TestParse_UnknownEventInAggregate(t *testing.T) {
+	payload := []byte(`{"foo":"bar"}`)
+	r := httptest.NewRequest(http.MethodPost, "/webhooks", bytes.NewReader(payload))
+	r.Header.Set("X-Src-Event", "pull_request.unknown_type")
+
+	mac := hmac.New(sha256.New, []byte(hook.secret))
+	mac.Write(payload)
+	r.Header.Set("X-Src-Signature", hex.EncodeToString(mac.Sum(nil)))
+
+	_, err := hook.Parse(r, PullRequestAggregate)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown event pull_request.unknown_type")
+}
+
 func TestWebhook_MultipleSecretsSupport(t *testing.T) {
 	t.Parallel()
 	assert := require.New(t)

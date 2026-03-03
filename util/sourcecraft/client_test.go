@@ -3,6 +3,7 @@ package sourcecraft
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -604,4 +605,122 @@ func TestClient_CustomHeaders(t *testing.T) {
 // Helper function to create string pointers
 func strPtr(s string) *string {
 	return &s
+}
+
+type errorOnCloseReader struct {
+	data     string
+	pos      int
+	readErr  error
+	closeErr error
+}
+
+func (r *errorOnCloseReader) Read(p []byte) (int, error) {
+	if r.readErr != nil {
+		return 0, r.readErr
+	}
+	if r.pos >= len(r.data) {
+		return 0, io.EOF
+	}
+	n := copy(p, r.data[r.pos:])
+	r.pos += n
+	return n, nil
+}
+
+func (r *errorOnCloseReader) Close() error {
+	return r.closeErr
+}
+
+type mockRoundTripper struct {
+	resp *http.Response
+}
+
+func (m *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	m.resp.Request = req
+	return m.resp, nil
+}
+
+func TestNewClient_WithFailingOption(t *testing.T) {
+	failingOption := func(_ *Client) error {
+		return errors.New("option initialization failed")
+	}
+	client, err := NewClient("https://api.example.com", failingOption)
+	require.Error(t, err)
+	assert.Nil(t, client)
+	assert.Contains(t, err.Error(), "option initialization failed")
+}
+
+func TestClient_doRequest_InvalidMethod(t *testing.T) {
+	client, err := NewClient("https://api.example.com")
+	require.NoError(t, err)
+
+	_, err = client.doRequest(context.Background(), "INVALID METHOD", "/test", nil, nil)
+	require.Error(t, err)
+}
+
+func TestClient_getResponse_BodyCloseError(t *testing.T) {
+	closeErr := errors.New("body close failed")
+	body := &errorOnCloseReader{
+		data:     `{"status":"ok"}`,
+		closeErr: closeErr,
+	}
+	transport := &mockRoundTripper{
+		resp: &http.Response{
+			StatusCode: http.StatusOK,
+			Status:     "200 OK",
+			Body:       body,
+			Header:     http.Header{},
+		},
+	}
+	client, err := NewClient("https://api.example.com")
+	require.NoError(t, err)
+	client.SetHTTPClient(&http.Client{Transport: transport})
+
+	data, _, err := client.getResponse(context.Background(), "GET", "/test", nil, nil)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"status":"ok"}`, string(data))
+}
+
+func TestStatusCodeToErr_BodyCloseError(t *testing.T) {
+	closeErr := errors.New("close failed")
+	body := &errorOnCloseReader{
+		data:     `{"message":"bad request"}`,
+		closeErr: closeErr,
+	}
+	req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/test", http.NoBody)
+	require.NoError(t, reqErr)
+
+	resp := &Response{
+		Response: &http.Response{
+			StatusCode: http.StatusBadRequest,
+			Status:     "400 Bad Request",
+			Body:       body,
+			Request:    req,
+		},
+	}
+
+	_, err := statusCodeToErr(resp)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bad request")
+}
+
+func TestStatusCodeToErr_BodyReadError(t *testing.T) {
+	readErr := errors.New("read failed")
+	body := &errorOnCloseReader{readErr: readErr}
+
+	req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://example.com/test", http.NoBody)
+	require.NoError(t, reqErr)
+
+	resp := &Response{
+		Response: &http.Response{
+			StatusCode: http.StatusInternalServerError,
+			Status:     "500 Internal Server Error",
+			Body:       body,
+			Request:    req,
+		},
+	}
+
+	_, err := statusCodeToErr(resp)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "body read on HTTP error 500")
+	assert.Contains(t, err.Error(), "read failed")
 }

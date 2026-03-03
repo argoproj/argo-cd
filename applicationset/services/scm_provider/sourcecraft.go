@@ -25,7 +25,7 @@ func NewSourceCraftProvider(organizationSlug, token, url string, allBranches, in
 	}
 	client, err := sourcecraft.NewClient(url, sourcecraft.SetToken(token), sourcecraft.WithHTTPClient(insecure))
 	if err != nil {
-		return nil, fmt.Errorf("error creating a new souorcecraft client: %w", err)
+		return nil, fmt.Errorf("error creating a new sourcecraft client: %w", err)
 	}
 	return &SourceCraftProvider{
 		client:           client,

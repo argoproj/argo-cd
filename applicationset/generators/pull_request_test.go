@@ -3,11 +3,14 @@ package generators
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -440,4 +443,58 @@ func TestSCMProviderDisabled_PRGenerator(t *testing.T) {
 
 	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 	assert.ErrorIs(t, err, ErrSCMProvidersDisabled)
+}
+
+func TestPullRequestSourceCraft_ServiceInitialization(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"pull_requests":[],"next_page_token":""}`))
+	}))
+	defer server.Close()
+
+	gen := NewPullRequestGenerator(nil, SCMConfig{enableSCMProviders: true})
+	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "set", Namespace: "test-ns"},
+		Spec: argoprojiov1alpha1.ApplicationSetSpec{
+			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+				PullRequest: &argoprojiov1alpha1.PullRequestGenerator{
+					SourceCraft: &argoprojiov1alpha1.PullRequestGeneratorSourceCraft{
+						Organization: "test-org",
+						Repo:         "test-repo",
+						API:          server.URL,
+					},
+				},
+			}},
+		},
+	}
+	got, err := gen.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+	require.NoError(t, err)
+	assert.Empty(t, got)
+}
+
+func TestPullRequestSourceCraft_TokenFetchError(t *testing.T) {
+	fakeClient := fake.NewClientBuilder().Build()
+	gen := NewPullRequestGenerator(fakeClient, SCMConfig{enableSCMProviders: true})
+
+	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "set", Namespace: "test-ns"},
+		Spec: argoprojiov1alpha1.ApplicationSetSpec{
+			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+				PullRequest: &argoprojiov1alpha1.PullRequestGenerator{
+					SourceCraft: &argoprojiov1alpha1.PullRequestGeneratorSourceCraft{
+						Organization: "test-org",
+						Repo:         "test-repo",
+						API:          "https://sourcecraft.dev",
+						TokenRef: &argoprojiov1alpha1.SecretRef{
+							SecretName: "nonexistent-secret",
+							Key:        "token",
+						},
+					},
+				},
+			}},
+		},
+	}
+	_, err := gen.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "error fetching Secret token")
 }

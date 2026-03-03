@@ -28,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/sourcecraft"
 )
 
 type generatorMock struct {
@@ -940,4 +941,53 @@ func newFakeClient(ns string) *kubefake.Clientset {
 			"server.secretkey": nil,
 		},
 	})
+}
+
+func TestGetPRGeneratorInfo_SourceCraft_DisallowedAction(t *testing.T) {
+	payload := sourcecraft.PullRequestEventAggregate{
+		EventType: sourcecraft.PullRequestReviewDecisionEvent,
+	}
+	info := getPRGeneratorInfo(payload)
+	assert.Nil(t, info)
+}
+
+func TestGetPRGeneratorInfo_SourceCraft_NilRepository(t *testing.T) {
+	payload := sourcecraft.PullRequestEventAggregate{
+		EventType:  sourcecraft.PullRequestCreateEvent, // allowed action
+		Repository: nil,
+	}
+	info := getPRGeneratorInfo(payload)
+	assert.Nil(t, info)
+}
+
+func TestShouldRefreshPRGenerator_SourceCraft_OrgMismatch(t *testing.T) {
+	gen := &v1alpha1.PullRequestGenerator{
+		SourceCraft: &v1alpha1.PullRequestGeneratorSourceCraft{
+			Organization: "org-a",
+			Repo:         "repo",
+		},
+	}
+	info := &prGeneratorInfo{
+		SourceCraft: &prGeneratorSourceCraftInfo{
+			OrganizationSlug: "org-b",
+			RepoSlug:         "repo",
+		},
+	}
+	assert.False(t, shouldRefreshPRGenerator(gen, info))
+}
+
+func TestShouldRefreshPRGenerator_SourceCraft_RepoMismatch(t *testing.T) {
+	gen := &v1alpha1.PullRequestGenerator{
+		SourceCraft: &v1alpha1.PullRequestGeneratorSourceCraft{
+			Organization: "org-a",
+			Repo:         "repo-b",
+		},
+	}
+	info := &prGeneratorInfo{
+		SourceCraft: &prGeneratorSourceCraftInfo{
+			OrganizationSlug: "org-a",
+			RepoSlug:         "repo-a",
+		},
+	}
+	assert.False(t, shouldRefreshPRGenerator(gen, info))
 }

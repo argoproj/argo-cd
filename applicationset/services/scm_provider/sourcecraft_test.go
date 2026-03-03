@@ -467,3 +467,116 @@ func TestSourceCraftGetBranchesNilBranch(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "got nil branch while getting default branch")
 }
+
+func TestSourceCraftGetBranchesNilBranchDirectServer(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, err := io.WriteString(w, `{"branches": [], "next_page_token": ""}`)
+		require.NoError(t, err)
+	}))
+	defer ts.Close()
+
+	provider, err := NewSourceCraftProvider("test-org", "test-token", ts.URL, false, false)
+	require.NoError(t, err)
+
+	repo := &Repository{
+		Organization: "test-org",
+		Repository:   "test-repo",
+		Branch:       "main",
+	}
+
+	_, err = provider.GetBranches(context.Background(), repo)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "got nil branch while getting default branch")
+}
+
+func TestSourceCraftGetBranchesAllBranchesError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_, err := io.WriteString(w, `{"message": "branches server error"}`)
+		require.NoError(t, err)
+	}))
+	defer ts.Close()
+
+	provider, err := NewSourceCraftProvider("test-org", "test-token", ts.URL, true, false)
+	require.NoError(t, err)
+
+	repo := &Repository{
+		Organization: "test-org",
+		Repository:   "test-repo",
+		Branch:       "main",
+	}
+
+	_, err = provider.GetBranches(context.Background(), repo)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "branches server error")
+}
+
+func TestSourceCraftListReposNilCloneURL(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.RequestURI {
+		case "/orgs/test-org/repos?":
+			_, err := io.WriteString(w, `{"repositories": [{"id": "1", "slug": "no-url-repo", "default_branch": "main", "clone_url": null}], "next_page_token": ""}`)
+			require.NoError(t, err)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer ts.Close()
+
+	provider, err := NewSourceCraftProvider("test-org", "test-token", ts.URL, false, false)
+	require.NoError(t, err)
+
+	repos, err := provider.ListRepos(context.Background(), "ssh")
+	require.NoError(t, err)
+	assert.Empty(t, repos)
+}
+
+func TestSourceCraftListReposLabelsError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.RequestURI {
+		case "/orgs/test-org/repos?":
+			_, err := io.WriteString(w, `{"repositories": [{"id": "1", "slug": "test-repo", "default_branch": "main", "clone_url": {"ssh": "git@example.com/org/repo.git", "https": "https://example.com/org/repo.git"}}], "next_page_token": ""}`)
+			require.NoError(t, err)
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+			_, err := io.WriteString(w, `{"message": "labels error"}`)
+			require.NoError(t, err)
+		}
+	}))
+	defer ts.Close()
+
+	provider, err := NewSourceCraftProvider("test-org", "test-token", ts.URL, false, false)
+	require.NoError(t, err)
+
+	_, err = provider.ListRepos(context.Background(), "ssh")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "labels error")
+}
+
+func TestSourceCraftRepoHasPathError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_, err := io.WriteString(w, `{"message": "tree server error"}`)
+		require.NoError(t, err)
+	}))
+	defer ts.Close()
+
+	provider, err := NewSourceCraftProvider("test-org", "test-token", ts.URL, false, false)
+	require.NoError(t, err)
+
+	repo := &Repository{
+		Organization: "test-org",
+		Repository:   "test-repo",
+		Branch:       "main",
+	}
+
+	ok, err := provider.RepoHasPath(context.Background(), repo, "some/path")
+	require.Error(t, err)
+	assert.False(t, ok)
+	assert.Contains(t, err.Error(), "tree server error")
+}
