@@ -275,7 +275,7 @@ func TestOverrideKeyWithoutGroup(t *testing.T) {
 func TestKnownTypes(t *testing.T) {
 	typesData, err := os.ReadFile("./diffing_known_types.txt")
 	require.NoError(t, err)
-	for _, typeName := range strings.Split(string(typesData), "\n") {
+	for typeName := range strings.SplitSeq(string(typesData), "\n") {
 		if typeName = strings.TrimSpace(typeName); typeName == "" {
 			continue
 		}

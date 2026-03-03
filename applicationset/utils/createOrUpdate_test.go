@@ -216,7 +216,6 @@ spec:
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			foundApp := v1alpha1.Application{TypeMeta: appMeta}

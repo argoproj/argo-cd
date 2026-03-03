@@ -1,9 +1,8 @@
 # Overview
 
-!!!note
-
-    This section contains information on upgrading Argo CD. Before upgrading please make sure to read details about
-    the breaking changes between Argo CD versions.
+> [!NOTE]
+> This section contains information on upgrading Argo CD. Before upgrading please make sure to read details about
+> the breaking changes between Argo CD versions.
 
 Argo CD uses semver-like versioning that ensures the following rules:
 
@@ -21,23 +20,27 @@ command to upgrade Argo CD. Make sure to replace `<version>` with the required v
 **Non-HA**:
 
 ```bash
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/<version>/manifests/install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/<version>/manifests/install.yaml
 ```
 
 **HA**:
 
 ```bash
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/<version>/manifests/ha/install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/<version>/manifests/ha/install.yaml
 ```
 
-!!! warning
+> [!NOTE]
+> The `--server-side --force-conflicts` flags are required because some Argo CD CRDs exceed the size limit for client-side apply. See the [getting started guide](../../getting_started.md#1-install-argo-cd) for more details.
 
-    Even though some releases require only image change it is still recommended to apply whole manifests set.
-    Manifest changes might include important parameter modifications and applying the whole set will protect you from
-    introducing misconfiguration.
+> [!WARNING]
+> Even though some releases require only image change it is still recommended to apply whole manifests set.
+> Manifest changes might include important parameter modifications and applying the whole set will protect you from
+> introducing misconfiguration.
 
 <hr/>
 
+- [v3.3 to v3.4](./3.3-3.4.md)
+- [v3.2 to v3.3](./3.2-3.3.md)
 - [v3.1 to v3.2](./3.1-3.2.md)
 - [v3.0 to v3.1](./3.0-3.1.md)
 - [v2.14 to v3.0](./2.14-3.0.md)

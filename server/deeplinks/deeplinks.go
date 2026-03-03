@@ -6,10 +6,9 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/expr-lang/expr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -31,6 +30,7 @@ const (
 	AppDeepLinkShortKey = "app"
 	ClusterDeepLinkKey  = "cluster"
 	ProjectDeepLinkKey  = "project"
+	ManagedByURLKey     = "managedByURL"
 )
 
 type ClusterLinksData struct {
@@ -70,6 +70,17 @@ func CreateDeepLinksObject(resourceObj *unstructured.Unstructured, app *unstruct
 	if app != nil {
 		deeplinkObj[AppDeepLinkKey] = app.Object
 		deeplinkObj[AppDeepLinkShortKey] = app.Object
+
+		// Add managed-by URL if present in annotations
+		if app.Object["metadata"] != nil {
+			if metadata, ok := app.Object["metadata"].(map[string]any); ok {
+				if annotations, ok := metadata["annotations"].(map[string]any); ok {
+					if managedByURL, ok := annotations[v1alpha1.AnnotationKeyManagedByURL].(string); ok {
+						deeplinkObj[ManagedByURLKey] = managedByURL
+					}
+				}
+			}
+		}
 	}
 	if cluster != nil {
 		deeplinkObj[ClusterDeepLinkKey] = cluster.Object
@@ -114,8 +125,8 @@ func EvaluateDeepLinksResponse(obj map[string]any, name string, links []settings
 		}
 
 		finalLinks = append(finalLinks, &application.LinkInfo{
-			Title:       ptr.To(link.Title),
-			Url:         ptr.To(finalURL.String()),
+			Title:       new(link.Title),
+			Url:         new(finalURL.String()),
 			Description: link.Description,
 			IconClass:   link.IconClass,
 		})

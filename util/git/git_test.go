@@ -10,11 +10,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v3/util/proxy"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/test/fixture/log"
 	"github.com/argoproj/argo-cd/v3/test/fixture/path"
 	"github.com/argoproj/argo-cd/v3/test/fixture/test"
 )
+
+func TestMain(m *testing.M) {
+	// Ensure tests use non-cached proxy callback
+	proxy.UseTestingProxyCallback()
+
+	os.Exit(m.Run())
+}
 
 func TestIsCommitSHA(t *testing.T) {
 	assert.True(t, IsCommitSHA("9d921f65f3c5373b682e2eb4b37afba6592e8f8b"))
@@ -183,7 +192,7 @@ func TestCustomHTTPClient(t *testing.T) {
 				assert.Nil(t, cert.PrivateKey)
 			}
 		}
-		req, err := http.NewRequest(http.MethodGet, "http://proxy-from-env:7878", http.NoBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://proxy-from-env:7878", http.NoBody)
 		require.NoError(t, err)
 		proxy, err := transport.Proxy(req)
 		require.NoError(t, err)
@@ -316,7 +325,7 @@ func TestLFSClient(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
 	_, err = client.Checkout(commitSHA, true)
@@ -351,7 +360,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -407,11 +416,11 @@ func TestNewFactory(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
-		err = client.Fetch("")
+		err = client.Fetch("", 0)
 		require.NoError(t, err)
 
 		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-		err = client.Fetch("")
+		err = client.Fetch("", 0)
 		require.NoError(t, err)
 
 		_, err = client.Checkout(commitSHA, true)
@@ -454,11 +463,12 @@ func TestListRevisions(t *testing.T) {
 func TestLsFiles(t *testing.T) {
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
+	ctx := t.Context()
 
 	client, err := NewClientExt("", tmpDir1, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
-	require.NoError(t, runCmd(tmpDir1, "git", "init"))
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "init"))
 
 	// Setup files
 	require.NoError(t, os.WriteFile(filepath.Join(tmpDir1, "a.yaml"), []byte{}, 0o644))
@@ -470,8 +480,8 @@ func TestLsFiles(t *testing.T) {
 
 	require.NoError(t, os.Symlink(filepath.Join(tmpDir2, "c.yaml"), filepath.Join(tmpDir1, "link.yaml")))
 
-	require.NoError(t, runCmd(tmpDir1, "git", "add", "."))
-	require.NoError(t, runCmd(tmpDir1, "git", "commit", "-m", "Initial commit"))
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "commit", "-m", "Initial commit"))
 
 	tests := []struct {
 		name           string
@@ -510,11 +520,12 @@ func TestLsFiles(t *testing.T) {
 
 func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 	tmpDir := t.TempDir()
+	ctx := t.Context()
 
 	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
-	err = runCmd(tmpDir, "git", "init")
+	err = runCmd(ctx, tmpDir, "git", "init")
 	require.NoError(t, err)
 
 	// Setup directory structure and files
@@ -538,8 +549,8 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 		_, err := os.Create(filepath.Join(tmpDir, file))
 		require.NoError(t, err)
 	}
-	require.NoError(t, runCmd(tmpDir, "git", "add", "."))
-	require.NoError(t, runCmd(tmpDir, "git", "commit", "-m", "Initial commit"))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "commit", "-m", "Initial commit"))
 
 	tests := []struct {
 		name                 string
@@ -710,4 +721,123 @@ func TestAnnotatedTagHandling(t *testing.T) {
 
 	// Verify tag exists in the list and points to a valid commit SHA
 	assert.Contains(t, refs.Tags, "v1.0.0", "Tag v1.0.0 should exist in refs")
+}
+
+func TestIsShortRef(t *testing.T) {
+	tests := []struct {
+		name     string
+		revision string
+		expected bool
+	}{
+		// Short refs (should return true)
+		{
+			name:     "short branch name",
+			revision: "master",
+			expected: true,
+		},
+		{
+			name:     "short branch name with slashes",
+			revision: "feature/my-feature",
+			expected: true,
+		},
+		{
+			name:     "short branch name with multiple slashes",
+			revision: "release/v1.0/bugfix",
+			expected: true,
+		},
+		{
+			name:     "short tag name",
+			revision: "v1.0.0",
+			expected: true,
+		},
+		{
+			name:     "short tag name without version prefix",
+			revision: "release-1.0",
+			expected: true,
+		},
+		{
+			name:     "simple branch name",
+			revision: "main",
+			expected: true,
+		},
+		{
+			name:     "branch with hyphens",
+			revision: "my-feature-branch",
+			expected: true,
+		},
+		{
+			name:     "branch with underscores",
+			revision: "my_feature_branch",
+			expected: true,
+		},
+		// Full refs (should return false)
+		{
+			name:     "full branch ref",
+			revision: "refs/heads/master",
+			expected: false,
+		},
+		{
+			name:     "full tag ref",
+			revision: "refs/tags/v1.0.0",
+			expected: false,
+		},
+		{
+			name:     "full remote branch ref",
+			revision: "refs/remotes/origin/master",
+			expected: false,
+		},
+		{
+			name:     "full branch ref with slashes in name",
+			revision: "refs/heads/feature/my-feature",
+			expected: false,
+		},
+		{
+			name:     "full tag ref with slashes in name",
+			revision: "refs/tags/release/v1.0.0",
+			expected: false,
+		},
+		{
+			name:     "full remote branch ref with slashes",
+			revision: "refs/remotes/origin/feature/branch",
+			expected: false,
+		},
+		{
+			name:     "full pull request ref",
+			revision: "refs/pull/123/head",
+			expected: false,
+		},
+		{
+			name:     "full notes ref",
+			revision: "refs/notes/commits",
+			expected: false,
+		},
+		// Special cases
+		{
+			name:     "HEAD",
+			revision: "HEAD",
+			expected: true,
+		},
+		{
+			name:     "commit SHA",
+			revision: "9d921f65f3c5373b682e2eb4b37afba6592e8f8b",
+			expected: true,
+		},
+		{
+			name:     "truncated commit SHA",
+			revision: "9d921f6",
+			expected: true,
+		},
+		{
+			name:     "empty string",
+			revision: "",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsShortRef(tt.revision)
+			assert.Equal(t, tt.expected, result, "IsShortRef(%q) = %v, expected %v", tt.revision, result, tt.expected)
+		})
+	}
 }

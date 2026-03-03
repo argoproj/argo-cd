@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -102,6 +102,40 @@ var (
     uid: "4"
     annotations:
       link.argocd.argoproj.io/external-link: http://my-grafana.example.com/ingress-link
+  spec:
+    backend:
+      serviceName: not-found-service
+      servicePort: 443
+    rules:
+    - host: helm-guestbook.example.com
+      http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+          path: /
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: https
+          path: /
+    tls:
+    - host: helm-guestbook.example.com
+    secretName: my-tls-secret
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
+
+	testIgnoreDefaultLinksIngress = strToUnstructured(`
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    uid: "4"
+    annotations:
+      link.argocd.argoproj.io/external-link: http://my-grafana.example.com/ingress-link
+      argocd.argoproj.io/ignore-default-links: "true"
   spec:
     backend:
       serviceName: not-found-service
@@ -1197,6 +1231,30 @@ func TestGetLinkAnnotatedIngressInfo(t *testing.T) {
 			Name:      "not-found-service",
 		}},
 		ExternalURLs: []string{"http://my-grafana.example.com/ingress-link", "https://helm-guestbook.example.com/"},
+	}, info.NetworkingInfo)
+}
+
+func TestGetIgnoreDefaultLinksIngressInfo(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testIgnoreDefaultLinksIngress, info, []string{})
+	assert.Empty(t, info.Info)
+	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
+		return info.NetworkingInfo.TargetRefs[i].Name < info.NetworkingInfo.TargetRefs[j].Name
+	})
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		Ingress: []corev1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		}, {
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "not-found-service",
+		}},
+		ExternalURLs: []string{"http://my-grafana.example.com/ingress-link"},
 	}, info.NetworkingInfo)
 }
 

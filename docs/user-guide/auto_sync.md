@@ -26,13 +26,13 @@ spec:
       enabled: true
 ```
 
-!!!note 
-    Setting the `spec.syncPolicy.automated.enabled` flag to null will be treated as if automated sync is enabled. When the `enabled` field is set to false, fields like `prune`, `selfHeal` and `allowEmpty` can be set without enabling them.
+> [!NOTE]
+> Setting the `spec.syncPolicy.automated.enabled` flag to null will be treated as if automated sync is enabled. When the `enabled` field is set to false, fields like `prune`, `selfHeal` and `allowEmpty` can be set without enabling them.
 
 ## Temporarily toggling auto-sync for applications managed by ApplicationSets
 
 For a standalone application, toggling auto-sync is performed by changing the application's `spec.syncPolicy.automated` field. For an ApplicationSet managed application, changing the application's `spec.syncPolicy.automated` field will, however, have no effect.
-Read more details about how to perform the toggling for applications managed by ApplicationSets [here](../operator-manual/applicationset/Controlling-Resource-Modification.md).
+[Controlling Resource Modification](../operator-manual/applicationset/Controlling-Resource-Modification.md) has more details about how to perform the toggling for applications managed by ApplicationSets.
 
 
 ## Automatic Pruning
@@ -91,8 +91,25 @@ spec:
       selfHeal: true
 ```
 
-!!!note 
-    Disabling self-heal does not guarantee that live cluster changes in multi-source applications will persist. Although one of the resource's sources remains unchanged, changes in another can trigger `autosync`. To handle such cases, consider disabling `autosync`.
+> [!NOTE]
+> Disabling self-heal does not guarantee that live cluster changes in multi-source applications will persist. Although one of the resource's sources remains unchanged, changes in another can trigger `autosync`. To handle such cases, consider disabling `autosync`.
+
+## Automatic Retry Refresh on new revisions
+
+This feature allows users to configure their applications to refresh on new revisions when the current sync is retrying. To enable automatic refresh during sync retries, run:
+
+```bash
+argocd app set <APPNAME> --sync-retry-refresh
+```
+
+Or by setting the `retry.refresh` option to `true` in the sync policy:
+
+```yaml
+spec:
+  syncPolicy:
+    retry:
+      refresh: true
+```
 
 ## Automated Sync Semantics
 

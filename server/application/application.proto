@@ -75,6 +75,7 @@ message ApplicationManifestQuery {
 	optional string project = 4;
 	repeated int64 sourcePositions = 5;
 	repeated string revisions = 6;
+	optional bool noCache = 7;
 }
 
 message FileChunk {

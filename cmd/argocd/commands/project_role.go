@@ -605,8 +605,17 @@ ID          ISSUED-AT                                  EXPIRES-AT
 			fmt.Printf(printRoleFmtStr, "Description:", role.Description)
 			fmt.Printf("Policies:\n")
 			fmt.Printf("%s\n", proj.ProjectPoliciesString())
+			fmt.Printf("Groups:\n")
+			// if the group exists in the role
+			// range over each group and print it
+			if v1alpha1.RoleGroupExists(role) {
+				for _, group := range role.Groups {
+					fmt.Printf("  - %s\n", group)
+				}
+			} else {
+				fmt.Println("<none>")
+			}
 			fmt.Printf("JWT Tokens:\n")
-			// TODO(jessesuen): print groups
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(w, "ID\tISSUED-AT\tEXPIRES-AT\n")
 			for _, token := range proj.Status.JWTTokensByRole[roleName].Items {

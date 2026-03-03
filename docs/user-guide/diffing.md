@@ -129,8 +129,8 @@ data:
 
 If you rely on the status field being part of your desired state, although this is not recommended, the `ignoreResourceStatusField` setting can be used to configure this behavior.
 
-!!! note
-    Since it is common for `CustomResourceDefinitions` to have their `status` committed to Git, consider using `crd` over `none`.
+> [!NOTE]
+> Since it is common for `CustomResourceDefinitions` to have their `status` committed to Git, consider using `crd` over `none`.
 
 ### Ignoring RBAC changes made by AggregateRoles
 
@@ -193,7 +193,7 @@ data:
 The list of supported Kubernetes types is available in [diffing_known_types.txt](https://raw.githubusercontent.com/argoproj/argo-cd/master/util/argo/normalizers/diffing_known_types.txt) and additionally:
 
 - `core/Quantity`
-- `meta/v1/duration`
+- `meta/v1/Duration`
 
 ### JQ Path expression timeout
 

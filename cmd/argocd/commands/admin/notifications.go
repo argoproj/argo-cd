@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -30,11 +31,12 @@ func NewNotificationsCommand() *cobra.Command {
 	)
 
 	var argocdService service.Service
+
 	toolsCommand := cmd.NewToolsCommand(
 		"notifications",
 		"argocd admin notifications",
 		applications,
-		settings.GetFactorySettingsForCLI(argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false),
+		settings.GetFactorySettingsForCLI(func() service.Service { return argocdService }, "argocd-notifications-secret", "argocd-notifications-cm", false),
 		func(clientConfig clientcmd.ClientConfig) {
 			k8sCfg, err := clientConfig.ClientConfig()
 			if err != nil {
@@ -59,7 +61,11 @@ func NewNotificationsCommand() *cobra.Command {
 				tlsConfig.Certificates = pool
 			}
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, 5, tlsConfig)
-			argocdService, err = service.NewArgoCDService(kubernetes.NewForConfigOrDie(k8sCfg), ns, repoClientset)
+			dynamicClient, err := dynamic.NewForConfig(k8sCfg)
+			if err != nil {
+				log.Fatalf("Failed to create dynamic client: %v", err)
+			}
+			argocdService, err = service.NewArgoCDService(kubernetes.NewForConfigOrDie(k8sCfg), dynamicClient, ns, repoClientset)
 			if err != nil {
 				log.Fatalf("Failed to initialize Argo CD service: %v", err)
 			}

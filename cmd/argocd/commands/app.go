@@ -17,11 +17,13 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"golang.org/x/sync/errgroup"
+
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/ignore"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
@@ -33,7 +35,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8swatch "k8s.io/apimachinery/pkg/watch"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
@@ -44,7 +45,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 
-	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
 
 	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
@@ -353,7 +354,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	command := &cobra.Command{
 		Use:   "get APPNAME",
 		Short: "Get application details",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Get basic details about the application "my-app" in wide format
   argocd app get my-app -o wide
 
@@ -383,7 +384,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
   # Get application details and display them in a tree format
   argocd app get my-app --output tree
-  
+
   # Get application details and display them in a detailed tree format
   argocd app get my-app --output tree=detailed
   		`),
@@ -541,7 +542,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command := &cobra.Command{
 		Use:   "logs APPNAME",
 		Short: "Get logs of application pods",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Get logs of pods associated with the application "my-app"
   argocd app logs my-app
 
@@ -600,17 +601,17 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				stream, err := appIf.PodLogs(ctx, &application.ApplicationPodLogsQuery{
 					Name:         &appName,
 					Group:        &group,
-					Namespace:    ptr.To(namespace),
+					Namespace:    new(namespace),
 					Kind:         &kind,
 					ResourceName: &resourceName,
-					Follow:       ptr.To(follow),
-					TailLines:    ptr.To(tail),
-					SinceSeconds: ptr.To(sinceSeconds),
+					Follow:       new(follow),
+					TailLines:    new(tail),
+					SinceSeconds: new(sinceSeconds),
 					UntilTime:    &untilTime,
 					Filter:       &filter,
-					MatchCase:    ptr.To(matchCase),
-					Container:    ptr.To(container),
-					Previous:     ptr.To(previous),
+					MatchCase:    new(matchCase),
+					Container:    new(container),
+					Previous:     new(previous),
 					AppNamespace: &appNs,
 				})
 				if err != nil {
@@ -855,7 +856,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	command := &cobra.Command{
 		Use:   "set APPNAME",
 		Short: "Set application parameters",
-		Example: templates.Examples(`  
+		Example: templates.Examples(`
   # Set application parameters for the application "my-app"
   argocd app set my-app --parameter key1=value1 --parameter key2=value2
 
@@ -1275,24 +1276,32 @@ type objKeyLiveTarget struct {
 	target *unstructured.Unstructured
 }
 
+// addServerSideDiffPerfFlags adds server-side diff performance tuning flags to a command
+func addServerSideDiffPerfFlags(command *cobra.Command, serverSideDiffConcurrency *int, serverSideDiffMaxBatchKB *int) {
+	command.Flags().IntVar(serverSideDiffConcurrency, "server-side-diff-concurrency", -1, "Max concurrent batches for server-side diff. -1 = unlimited, 1 = sequential, 2+ = concurrent (0 = invalid)")
+	command.Flags().IntVar(serverSideDiffMaxBatchKB, "server-side-diff-max-batch-kb", 250, "Max batch size in KB for server-side diff. Smaller values are safer for proxies")
+}
+
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
 func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		refresh              bool
-		hardRefresh          bool
-		exitCode             bool
-		diffExitCode         int
-		local                string
-		revision             string
-		localRepoRoot        string
-		serverSideGenerate   bool
-		serverSideDiff       bool
-		localIncludes        []string
-		appNamespace         string
-		revisions            []string
-		sourcePositions      []int64
-		sourceNames          []string
-		ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
+		refresh                   bool
+		hardRefresh               bool
+		exitCode                  bool
+		diffExitCode              int
+		local                     string
+		revision                  string
+		localRepoRoot             string
+		serverSideGenerate        bool
+		serverSideDiff            bool
+		serverSideDiffConcurrency int
+		serverSideDiffMaxBatchKB  int
+		localIncludes             []string
+		appNamespace              string
+		revisions                 []string
+		sourcePositions           []int64
+		sourceNames               []string
+		ignoreNormalizerOpts      normalizers.IgnoreNormalizerOpts
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	command := &cobra.Command{
@@ -1379,6 +1388,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					AppNamespace:    &appNs,
 					Revisions:       revisions,
 					SourcePositions: sourcePositions,
+					NoCache:         &hardRefresh,
 				}
 				res, err := appIf.GetManifests(ctx, &q)
 				errors.CheckError(err)
@@ -1390,6 +1400,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					Name:         &appName,
 					Revision:     &revision,
 					AppNamespace: &appNs,
+					NoCache:      &hardRefresh,
 				}
 				res, err := appIf.GetManifests(ctx, &q)
 				errors.CheckError(err)
@@ -1421,7 +1432,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			proj := getProject(ctx, c, clientOpts, app.Spec.Project)
 
-			foundDiffs := findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, app.GetName(), app.GetNamespace())
+			foundDiffs := findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, app.GetName(), app.GetNamespace(), serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
 			if foundDiffs && exitCode {
 				os.Exit(diffExitCode)
 			}
@@ -1436,6 +1447,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
 	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
 	command.Flags().BoolVar(&serverSideDiff, "server-side-diff", false, "Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.")
+	addServerSideDiffPerfFlags(command, &serverSideDiffConcurrency, &serverSideDiffMaxBatchKB)
 	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only render the difference in namespace")
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
@@ -1452,7 +1464,14 @@ func printResourceDiff(group, kind, namespace, name string, live, target *unstru
 }
 
 // findAndPrintServerSideDiff performs a server-side diff by making requests to the api server and prints the response
-func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application, items []objKeyLiveTarget, resources *application.ManagedResourcesResponse, appIf application.ApplicationServiceClient, appName, appNs string) bool {
+func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application, items []objKeyLiveTarget, resources *application.ManagedResourcesResponse, appIf application.ApplicationServiceClient, appName, appNs string, maxConcurrency int, maxBatchSizeKB int) bool {
+	if maxConcurrency == 0 {
+		errors.CheckError(stderrors.New("invalid value for --server-side-diff-concurrency: 0 is not allowed (use -1 for unlimited, or a positive number to limit concurrency)"))
+	}
+
+	liveResources := make([]*argoappv1.ResourceDiff, 0, len(items))
+	targetManifests := make([]string, 0, len(items))
+
 	// Process each item for server-side diff
 	foundDiffs := false
 	for _, item := range items {
@@ -1486,6 +1505,7 @@ func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application,
 				Modified:    true,
 			}
 		}
+		liveResources = append(liveResources, liveResource)
 
 		if item.target != nil {
 			jsonBytes, err := json.Marshal(item.target)
@@ -1494,23 +1514,63 @@ func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application,
 			}
 			targetManifest = string(jsonBytes)
 		}
+		targetManifests = append(targetManifests, targetManifest)
+	}
 
-		// Call server-side diff for this individual resource
-		serverSideDiffQuery := &application.ApplicationServerSideDiffQuery{
-			AppName:         &appName,
-			AppNamespace:    &appNs,
-			Project:         &app.Spec.Project,
-			LiveResources:   []*argoappv1.ResourceDiff{liveResource},
-			TargetManifests: []string{targetManifest},
+	if len(liveResources) == 0 {
+		return false
+	}
+
+	// Batch by size to avoid proxy limits
+	maxBatchSize := maxBatchSizeKB * 1024
+	var batches []struct{ start, end int }
+	for i := 0; i < len(liveResources); {
+		start := i
+		size := 0
+		for i < len(liveResources) {
+			resourceSize := len(liveResources[i].LiveState) + len(targetManifests[i])
+			if size+resourceSize > maxBatchSize && i > start {
+				break
+			}
+			size += resourceSize
+			i++
 		}
+		batches = append(batches, struct{ start, end int }{start, i})
+	}
 
-		serverSideDiffRes, err := appIf.ServerSideDiff(ctx, serverSideDiffQuery)
-		if err != nil {
-			errors.CheckError(err)
-		}
+	// Process batches in parallel
+	g, errGroupCtx := errgroup.WithContext(ctx)
+	g.SetLimit(maxConcurrency)
 
-		// Extract diff for this resource
-		for _, resultItem := range serverSideDiffRes.Items {
+	results := make([][]*argoappv1.ResourceDiff, len(batches))
+
+	for idx, batch := range batches {
+		i := idx
+		b := batch
+		g.Go(func() error {
+			// Call server-side diff for this batch of resources
+			serverSideDiffQuery := &application.ApplicationServerSideDiffQuery{
+				AppName:         &appName,
+				AppNamespace:    &appNs,
+				Project:         &app.Spec.Project,
+				LiveResources:   liveResources[b.start:b.end],
+				TargetManifests: targetManifests[b.start:b.end],
+			}
+			serverSideDiffRes, err := appIf.ServerSideDiff(errGroupCtx, serverSideDiffQuery)
+			if err != nil {
+				return err
+			}
+			results[i] = serverSideDiffRes.Items
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		errors.CheckError(err)
+	}
+
+	for _, items := range results {
+		for _, resultItem := range items {
 			if resultItem.Hook || (!resultItem.Modified && resultItem.TargetState != "" && resultItem.LiveState != "") {
 				continue
 			}
@@ -1520,13 +1580,12 @@ func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application,
 
 				if resultItem.TargetState != "" && resultItem.TargetState != "null" {
 					target = &unstructured.Unstructured{}
-					err = json.Unmarshal([]byte(resultItem.TargetState), target)
+					err := json.Unmarshal([]byte(resultItem.TargetState), target)
 					errors.CheckError(err)
 				}
-
 				if resultItem.LiveState != "" && resultItem.LiveState != "null" {
 					live = &unstructured.Unstructured{}
-					err = json.Unmarshal([]byte(resultItem.LiveState), live)
+					err := json.Unmarshal([]byte(resultItem.LiveState), live)
 					errors.CheckError(err)
 				}
 
@@ -1552,14 +1611,14 @@ type DifferenceOption struct {
 }
 
 // findAndPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
-func findAndPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts, useServerSideDiff bool, appIf application.ApplicationServiceClient, appName, appNs string) bool {
+func findAndPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts, useServerSideDiff bool, appIf application.ApplicationServiceClient, appName, appNs string, serverSideDiffConcurrency int, serverSideDiffMaxBatchKB int) bool {
 	var foundDiffs bool
 
 	items, err := prepareObjectsForDiff(ctx, app, proj, resources, argoSettings, diffOptions)
 	errors.CheckError(err)
 
 	if useServerSideDiff {
-		return findAndPrintServerSideDiff(ctx, app, items, resources, appIf, appName, appNs)
+		return findAndPrintServerSideDiff(ctx, app, items, resources, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
 	}
 
 	for _, item := range items {
@@ -1792,6 +1851,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		repo         string
 		appNamespace string
 		cluster      string
+		path         string
 	)
 	command := &cobra.Command{
 		Use:   "list",
@@ -1811,7 +1871,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer utilio.Close(conn)
 			apps, err := appIf.List(ctx, &application.ApplicationQuery{
-				Selector:     ptr.To(selector),
+				Selector:     new(selector),
 				AppNamespace: &appNamespace,
 			})
 
@@ -1826,6 +1886,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			if cluster != "" {
 				appList = argo.FilterByCluster(appList, cluster)
+			}
+			if path != "" {
+				appList = argo.FilterByPath(appList, path)
 			}
 
 			switch output {
@@ -1847,6 +1910,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&repo, "repo", "r", "", "List apps by source repo URL")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only list applications in namespace")
 	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
+	command.Flags().StringVarP(&path, "path", "P", "", "List apps by path")
 	return command
 }
 
@@ -1923,8 +1987,8 @@ func parseSelectedResources(resources []string) ([]*argoappv1.SyncOperationResou
 	for _, resource := range resources {
 		isExcluded := false
 		// check if the resource flag starts with a '!'
-		if strings.HasPrefix(resource, resourceExcludeIndicator) {
-			resource = strings.TrimPrefix(resource, resourceExcludeIndicator)
+		if after, ok := strings.CutPrefix(resource, resourceExcludeIndicator); ok {
+			resource = after
 			isExcluded = true
 		}
 		fields := strings.Split(resource, resourceFieldDelimiter)
@@ -2008,7 +2072,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			closer, appIf := acdClient.NewApplicationClientOrDie()
 			defer utilio.Close(closer)
 			if selector != "" {
-				list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: ptr.To(selector)})
+				list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: new(selector)})
 				errors.CheckError(err)
 				for _, i := range list.Items {
 					appNames = append(appNames, i.QualifiedName())
@@ -2068,35 +2132,38 @@ func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parent
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		revision                string
-		revisions               []string
-		sourcePositions         []int64
-		sourceNames             []string
-		resources               []string
-		labels                  []string
-		selector                string
-		prune                   bool
-		dryRun                  bool
-		timeout                 uint
-		strategy                string
-		force                   bool
-		replace                 bool
-		serverSideApply         bool
-		applyOutOfSyncOnly      bool
-		async                   bool
-		retryLimit              int64
-		retryBackoffDuration    time.Duration
-		retryBackoffMaxDuration time.Duration
-		retryBackoffFactor      int64
-		local                   string
-		localRepoRoot           string
-		infos                   []string
-		diffChanges             bool
-		diffChangesConfirm      bool
-		projects                []string
-		output                  string
-		appNamespace            string
-		ignoreNormalizerOpts    normalizers.IgnoreNormalizerOpts
+		revision                  string
+		revisions                 []string
+		sourcePositions           []int64
+		sourceNames               []string
+		resources                 []string
+		labels                    []string
+		selector                  string
+		prune                     bool
+		dryRun                    bool
+		timeout                   uint
+		strategy                  string
+		force                     bool
+		replace                   bool
+		serverSideApply           bool
+		applyOutOfSyncOnly        bool
+		async                     bool
+		retryLimit                int64
+		retryRefresh              bool
+		retryBackoffDuration      time.Duration
+		retryBackoffMaxDuration   time.Duration
+		retryBackoffFactor        int64
+		local                     string
+		localRepoRoot             string
+		infos                     []string
+		diffChanges               bool
+		diffChangesConfirm        bool
+		projects                  []string
+		output                    string
+		appNamespace              string
+		ignoreNormalizerOpts      normalizers.IgnoreNormalizerOpts
+		serverSideDiffConcurrency int
+		serverSideDiffMaxBatchKB  int
 	)
 	command := &cobra.Command{
 		Use:   "sync [APPNAME... | -l selector | --project project-name]",
@@ -2189,7 +2256,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			appNames := args
 			if selector != "" || len(projects) > 0 {
 				list, err := appIf.List(ctx, &application.ApplicationQuery{
-					Selector:     ptr.To(selector),
+					Selector:     new(selector),
 					AppNamespace: &appNamespace,
 					Projects:     projects,
 				})
@@ -2356,13 +2423,14 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				default:
 					log.Fatalf("Unknown sync strategy: '%s'", strategy)
 				}
-				if retryLimit > 0 {
+				if retryLimit != 0 {
 					syncReq.RetryStrategy = &argoappv1.RetryStrategy{
-						Limit: retryLimit,
+						Limit:   retryLimit,
+						Refresh: retryRefresh,
 						Backoff: &argoappv1.Backoff{
 							Duration:    retryBackoffDuration.String(),
 							MaxDuration: retryBackoffMaxDuration.String(),
-							Factor:      ptr.To(retryBackoffFactor),
+							Factor:      new(retryBackoffFactor),
 						},
 					}
 				}
@@ -2384,7 +2452,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					// Check if application has ServerSideDiff annotation
 					serverSideDiff := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
 
-					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs)
+					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
 					if !foundDiffs {
 						fmt.Printf("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
@@ -2427,6 +2495,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&labels, "label", []string{}, "Sync only specific resources with a label. This option may be specified repeatedly.")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().Int64Var(&retryLimit, "retry-limit", 0, "Max number of allowed sync retries")
+	command.Flags().BoolVar(&retryRefresh, "retry-refresh", false, "Indicates if the latest revision should be used on retry instead of the initial one")
 	command.Flags().DurationVar(&retryBackoffDuration, "retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().DurationVar(&retryBackoffMaxDuration, "retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&retryBackoffFactor, "retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed retry")
@@ -2448,13 +2517,14 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
+	addServerSideDiffPerfFlags(command, &serverSideDiffConcurrency, &serverSideDiffMaxBatchKB)
 	return command
 }
 
 func getAppNamesBySelector(ctx context.Context, appIf application.ApplicationServiceClient, selector string) ([]string, error) {
 	appNames := []string{}
 	if selector != "" {
-		list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: ptr.To(selector)})
+		list, err := appIf.List(ctx, &application.ApplicationQuery{Selector: new(selector)})
 		if err != nil {
 			return []string{}, err
 		}
@@ -2632,7 +2702,7 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 func resourceParentChild(ctx context.Context, acdClient argocdclient.Client, appName string, appNs string) (map[string]argoappv1.ResourceNode, map[string][]string, map[string]struct{}, map[string]*resourceState) {
 	_, appIf := acdClient.NewApplicationClientOrDie()
 	mapUIDToNode, mapParentToChild, parentNode := parentChildDetails(ctx, appIf, appName, appNs)
-	app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: ptr.To(appName), AppNamespace: ptr.To(appNs)})
+	app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: new(appName), AppNamespace: new(appNs)})
 	errors.CheckError(err)
 	mapNodeNameToResourceState := make(map[string]*resourceState)
 	for _, res := range getResourceStates(app, nil) {
@@ -3064,8 +3134,8 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 			_, err = appIf.Rollback(ctx, &application.ApplicationRollbackRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Id:           ptr.To(depInfo.ID),
-				Prune:        ptr.To(prune),
+				Id:           new(depInfo.ID),
+				Prune:        new(prune),
 			})
 			errors.CheckError(err)
 
@@ -3212,13 +3282,12 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					errors.CheckError(err)
 
 					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-					//nolint:staticcheck
-					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
+					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
 				case len(revisions) > 0 && len(sourcePositions) > 0:
 					q := application.ApplicationManifestQuery{
 						Name:            &appName,
 						AppNamespace:    &appNs,
-						Revision:        ptr.To(revision),
+						Revision:        new(revision),
 						Revisions:       revisions,
 						SourcePositions: sourcePositions,
 					}
@@ -3234,7 +3303,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					q := application.ApplicationManifestQuery{
 						Name:         &appName,
 						AppNamespace: &appNs,
-						Revision:     ptr.To(revision),
+						Revision:     new(revision),
 					}
 					res, err := appIf.GetManifests(ctx, &q)
 					errors.CheckError(err)
@@ -3256,7 +3325,6 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			default:
 				log.Fatalf("Unknown source type '%s'", source)
 			}
-
 			for _, obj := range unstructureds {
 				fmt.Println("---")
 				yamlBytes, err := yaml.Marshal(obj)
@@ -3484,7 +3552,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 		Short: "Remove a source from multiple sources application.",
 		Example: `  # Remove the source at position 1 from application's sources. Counting starts at 1.
   argocd app remove-source myapplication --source-position 1
-  
+
   # Remove the source named "test" from application's sources.
   argocd app remove-source myapplication --source-name test`,
 		Run: func(c *cobra.Command, args []string) {
@@ -3596,7 +3664,7 @@ func NewApplicationConfirmDeletionCommand(clientOpts *argocdclient.ClientOptions
 
 			_, err = appIf.Update(ctx, &application.ApplicationUpdateRequest{
 				Application: app,
-				Validate:    ptr.To(false),
+				Validate:    new(false),
 				Project:     &app.Spec.Project,
 			})
 			errors.CheckError(err)
