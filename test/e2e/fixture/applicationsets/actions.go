@@ -595,7 +595,6 @@ func (a *Actions) RemoveFinalizerFromApps(appNames []string, finalizer string) *
 
 		_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Update(
 			context.Background(), app, metav1.UpdateOptions{})
-
 		if err != nil {
 			a.lastError = err
 		}
