@@ -220,7 +220,7 @@ const AppSetHealthFilter = (props: AppSetFilterProps) => (
             props.apps,
             'health',
             app => getAppSetHealthStatus(app),
-            Object.keys(HealthStatuses),
+            ['Healthy', 'Progressing', 'Degraded', 'Unknown'],
             s => (
                 <HealthStatusIcon state={{status: s as HealthStatusCode, message: ''}} noSpin={true} />
             )
