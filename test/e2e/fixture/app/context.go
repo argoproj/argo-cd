@@ -204,6 +204,11 @@ func (c *Context) HelmRepoAdded(name string) *Context {
 	return c
 }
 
+func (c *Context) HelmProvenanceRepoAdded(name string) *Context {
+	repos.AddHelmProvenanceRepo(c.T(), name)
+	return c
+}
+
 func (c *Context) HelmOCIRepoAdded(name string) *Context {
 	repos.AddHelmOCIRepo(c.T(), name)
 	return c
@@ -221,6 +226,11 @@ func (c *Context) PushImageToAuthenticatedOCIRegistry(pathName, tag string) *Con
 
 func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
 	repos.PushChartToOCIRegistry(c.T(), chartPathName, chartName, chartVersion)
+	return c
+}
+
+func (c *Context) PushChartWithProvenanceToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
+	repos.PushChartWithProvenanceToOCIRegistry(c.T(), chartPathName, chartName, chartVersion)
 	return c
 }
 

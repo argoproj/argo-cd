@@ -1,0 +1,8 @@
+apiVersion: v1
+entries:
+  helm-provenance:
+    - created: 2025-01-01T00:00:00Z
+      urls:
+        - http://127.0.0.1:9080/argo-e2e/testdata.git/helm-repo/provenance/helm-provenance-1.0.0.tgz
+      version: 1.0.0
+      name: helm-provenance
