@@ -1,13 +1,10 @@
 package e2e
 
 import (
-	"context"
-	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
+	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
@@ -177,7 +174,7 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 		ExpectWithDuration(CheckApplicationInRightSteps("3", []string{"app3-prod"}), time.Second*5).
 		// cleanup
 		When().
-		Delete().
+		Delete(false).
 		Then().
 		ExpectWithDuration(ApplicationsDoNotExist([]v1alpha1.Application{expectedDevApp, expectedStageApp, expectedProdApp}), time.Minute)
 }
@@ -345,7 +342,7 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 		}).
 		// Cleanup
 		When().
-		Delete().
+		Delete(false).
 		Then().
 		ExpectWithDuration(ApplicationsDoNotExist([]v1alpha1.Application{expectedDevApp, expectedStageApp, expectedProdApp}), TransitionTimeout)
 }
@@ -395,7 +392,7 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 		Expect(ApplicationSetDoesNotHaveApplicationStatus()).
 		// Cleanup
 		When().
-		Delete().
+		Delete(false).
 		Then().
 		ExpectWithDuration(ApplicationsDoNotExist(expectedApps), TransitionTimeout)
 }
@@ -417,40 +414,12 @@ func TestNoApplicationStatusWhenNoApplications(t *testing.T) {
 		Expect(ApplicationSetDoesNotHaveApplicationStatus()).
 		// Cleanup
 		When().
-		Delete().
+		Delete(false).
 		Then().
 		Expect(ApplicationsDoNotExist(expectedApps))
 }
 
-func TestProgressiveSyncMultipleAppsPerStep(t *testing.T) {
-	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {
-		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")
-	}
-	expectedApps := []v1alpha1.Application{
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/dev/", "sketch", "dev", ""),
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/dev/", "build", "dev", ""),
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/staging/", "verify", "staging", ""),
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/staging/", "validate", "staging", ""),
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/prod/", "ship", "prod", ""),
-		generateExpectedApp("prog-", "progressive-sync/multiple-apps-in-step/prod/", "run", "prod", ""),
-	}
-	Given(t).
-		When().
-		Create(appSetWithMultipleAppsInEachStep).
-		Then().
-		Expect(ApplicationsExist(expectedApps)).
-		Expect(CheckApplicationInRightSteps("1", []string{"prog-sketch", "prog-build"})).
-		Expect(CheckApplicationInRightSteps("2", []string{"prog-verify", "prog-validate"})).
-		Expect(CheckApplicationInRightSteps("3", []string{"prog-ship", "prog-run"})).
-		ExpectWithDuration(ApplicationSetHasApplicationStatus(6), TransitionTimeout).
-		// Cleanup
-		When().
-		Delete().
-		Then().
-		Expect(ApplicationsDoNotExist(expectedApps))
-}
-
-func TestProgressiveSyncWithReverseDeletionOrder(t *testing.T) {
+func TestProgressiveSyncMultipleAppsPerStepWithReverseDeletionOrder(t *testing.T) {
 	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {
 		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")
 	}
@@ -458,7 +427,6 @@ func TestProgressiveSyncWithReverseDeletionOrder(t *testing.T) {
 	prodApps := []string{"prog-ship", "prog-run"}
 	stagingApps := []string{"prog-verify", "prog-validate"}
 	devApps := []string{"prog-sketch", "prog-build"}
-	//allApps := []string{"prog-ship", "prog-run", "prog-verify", "prog-validate", "prog-sketch", "prog-build"}
 	testFinalizer := "test.e2e.argoproj.io/wait-for-verification"
 	// Create expected app definitions for existence checks
 	expectedProdApps := []v1alpha1.Application{
@@ -492,18 +460,10 @@ func TestProgressiveSyncWithReverseDeletionOrder(t *testing.T) {
 		ExpectWithDuration(ApplicationSetHasApplicationStatus(6), TransitionTimeout).
 		And(func() {
 			t.Log("All 6 applications exist and are tracked in ApplicationSet status")
-			// VERIFY finalizers were actually added
-			fixtureClient := utils.GetE2EFixtureK8sClient(t)
-			for _, appName := range allExpectedApps {
-				app, _ := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(
-					context.Background(), appName.Name, metav1.GetOptions{})
-				t.Logf("App %s finalizers: %v", appName.Name, app.Finalizers)
-				// Should include both resources-finalizer and test finalizer
-			}
 		}).
 		// Delete the ApplicationSet
 		When().
-		Delete().
+		Delete(true).
 		Then().
 		And(func() {
 			t.Log("Starting deletion - should happen in reverse order: prod -> staging -> dev")
@@ -522,7 +482,7 @@ func TestProgressiveSyncWithReverseDeletionOrder(t *testing.T) {
 			t.Log("removed finalizer from prod apps, confirm prod apps deleted")
 			t.Log("Wave 2: Verifying staging apps (prog-verify, prog-validate) are deleted second")
 		}).
-		// Wave 2: Staging apps deleted, dev untouched
+		// Wave 2: Staging apps being deleted, dev untouched
 		ExpectWithDuration(ApplicationsDoNotExist(expectedProdApps), TransitionTimeout).
 		Expect(ApplicationsBeingDeletedOrGone(stagingApps)).
 		Expect(ApplicationsExistAndNotBeingDeleted(devApps)).
@@ -541,13 +501,12 @@ func TestProgressiveSyncWithReverseDeletionOrder(t *testing.T) {
 		Expect(ApplicationsBeingDeletedOrGone(devApps)).
 		And(func() {
 			t.Log("Wave 3 confirmed: all prod and staging apps gone, dev apps deleting/gone")
-			t.Log("Waiting for final cleanup - all applications should be deleted")
 		}).
 		When().
 		RemoveFinalizerFromApps(devApps, testFinalizer).
 		Then().
 		And(func() {
-			t.Log("removed finalizer from dev apps, confirm prod apps deleted")
+			t.Log("removed finalizer from dev apps, confirm dev apps deleted")
 			t.Log("Waiting for final cleanup - all applications should be deleted")
 		}).
 		// Final: All applications should be gone
