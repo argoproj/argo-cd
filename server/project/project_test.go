@@ -111,7 +111,7 @@ func TestProjectServer(t *testing.T) {
 		Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server3"}},
 	}
 
-	policyTemplate := "p, proj:%s:%s, applications, %s, %s/%s, %s"
+	policyTemplate := "p, proj:%s:%s, applications, %s, %s/%s/%s, %s"
 
 	ctx := t.Context()
 	fakeAppsClientset := apps.NewSimpleClientset()
@@ -572,7 +572,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
-		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
+		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, projWithRole.Namespace, object, effect)
 		role.Policies = append(role.Policies, policy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -581,7 +581,7 @@ p, role:admin, projects, update, *, allow`)
 		_, err := projectServer.Update(t.Context(), request)
 		require.NoError(t, err)
 		t.Log(projWithRole.Spec.Roles[0].Policies[0])
-		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, role.Name, action, projWithRole.Name, object, effect)
+		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, role.Name, action, projWithRole.Name, projWithRole.Namespace, object, effect)
 		assert.Equal(t, expectedPolicy, projWithRole.Spec.Roles[0].Policies[0])
 	})
 
@@ -593,7 +593,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
-		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
+		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, projWithRole.Namespace, object, effect)
 		role.Policies = append(role.Policies, policy)
 		role.Policies = append(role.Policies, policy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
@@ -601,8 +601,11 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(t.Context(), request)
-		expectedErr := fmt.Sprintf("rpc error: code = AlreadyExists desc = policy '%s' already exists for role '%s'", policy, roleName)
-		assert.EqualError(t, err, expectedErr)
+		require.NoError(t, err)
+		require.Len(t, projWithRole.Spec.Roles, 1)
+		assert.Len(t, projWithRole.Spec.Roles[0].Policies, 1, "duplicate policies should be deduplicated")
+		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, projWithRole.Namespace, object, effect)
+		assert.Equal(t, expectedPolicy, projWithRole.Spec.Roles[0].Policies[0])
 	})
 
 	t.Run("TestValidateProjectAccessToSeparateProjectObjectFailure", func(t *testing.T) {
@@ -614,7 +617,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
-		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, otherProject, object, effect)
+		policy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, otherProject, projWithRole.Namespace, object, effect)
 		role.Policies = append(role.Policies, policy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -633,7 +636,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
-		invalidPolicy := fmt.Sprintf(policyTemplate, otherProject, roleName, action, projWithRole.Name, object, effect)
+		invalidPolicy := fmt.Sprintf(policyTemplate, otherProject, roleName, action, projWithRole.Name, projWithRole.Namespace, object, effect)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -652,7 +655,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
-		invalidPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, otherToken, action, projWithRole.Name, object, effect)
+		invalidPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, otherToken, action, projWithRole.Name, projWithRole.Namespace, object, effect)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -670,7 +673,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
-		invalidPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
+		invalidPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, projWithRole.Namespace, object, effect)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -689,7 +692,7 @@ p, role:admin, projects, update, *, allow`)
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
 		noSpacesPolicyTemplate := strings.ReplaceAll(policyTemplate, " ", "")
-		invalidPolicy := fmt.Sprintf(noSpacesPolicyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
+		invalidPolicy := fmt.Sprintf(noSpacesPolicyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, projWithRole.Namespace, object, effect)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -697,7 +700,7 @@ p, role:admin, projects, update, *, allow`)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		updateProj, err := projectServer.Update(t.Context(), request)
 		require.NoError(t, err)
-		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
+		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, projWithRole.Namespace, object, effect)
 		assert.Equal(t, expectedPolicy, updateProj.Spec.Roles[0].Policies[0])
 	})
 

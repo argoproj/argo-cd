@@ -17,6 +17,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 )
 
 const (
@@ -361,24 +362,19 @@ func (proj *AppProject) RemoveGroupFromRole(roleName, group string) (bool, error
 func (proj *AppProject) NormalizePolicies() {
 	for i, role := range proj.Spec.Roles {
 		var normalizedPolicies []string
+		seen := make(map[string]struct{})
 		for _, policy := range role.Policies {
-			normalizedPolicies = append(normalizedPolicies, proj.normalizePolicy(policy))
+			normalizedPolicy := rbac.NormalizePolicy(policy, proj.Namespace)
+
+			if _, ok := seen[normalizedPolicy]; ok {
+				continue
+			}
+
+			seen[normalizedPolicy] = struct{}{}
+			normalizedPolicies = append(normalizedPolicies, normalizedPolicy)
 		}
 		proj.Spec.Roles[i].Policies = normalizedPolicies
 	}
-}
-
-func (proj *AppProject) normalizePolicy(policy string) string {
-	policyComponents := strings.Split(policy, ",")
-	normalizedPolicy := ""
-	for _, component := range policyComponents {
-		if normalizedPolicy == "" {
-			normalizedPolicy = component
-		} else {
-			normalizedPolicy = fmt.Sprintf("%s, %s", normalizedPolicy, strings.Trim(component, " "))
-		}
-	}
-	return normalizedPolicy
 }
 
 // ProjectPoliciesString returns a Casbin formatted string of a project's policies for each role
@@ -387,7 +383,19 @@ func (proj *AppProject) ProjectPoliciesString() string {
 	for _, role := range proj.Spec.Roles {
 		projectPolicy := fmt.Sprintf("p, proj:%s:%s, projects, get, %s, allow", proj.Name, role.Name, proj.Name)
 		policies = append(policies, projectPolicy)
-		policies = append(policies, role.Policies...)
+
+		seen := make(map[string]struct{})
+		for _, policy := range role.Policies {
+			normalizedPolicy := rbac.NormalizePolicy(policy, proj.Namespace)
+
+			if _, ok := seen[normalizedPolicy]; ok {
+				continue
+			}
+
+			seen[normalizedPolicy] = struct{}{}
+			policies = append(policies, normalizedPolicy)
+		}
+
 		for _, groupName := range role.Groups {
 			policies = append(policies, fmt.Sprintf("g, %s, proj:%s:%s", groupName, proj.Name, role.Name))
 		}

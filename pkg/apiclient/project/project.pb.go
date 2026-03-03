@@ -90,7 +90,7 @@ func (m *ProjectCreateRequest) GetUpsert() bool {
 	return false
 }
 
-// ProjectTokenCreateRequest defines project token deletion parameters.
+// ProjectTokenDeleteRequest defines project token deletion parameters.
 type ProjectTokenDeleteRequest struct {
 	Project              string   `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
 	Role                 string   `protobuf:"bytes,2,opt,name=role,proto3" json:"role,omitempty"`

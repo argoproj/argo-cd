@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -33,7 +34,7 @@ func TestUpdateProjects_FindMatchingProject(t *testing.T) {
 
 	clientset := fake.NewSimpleClientset(newProj("foo", "test"), newProj("bar", "test"))
 
-	modification, err := getModification("set", "*", "*", "allow")
+	modification, err := getModification("set", "*", "*", "allow", namespace)
 	require.NoError(t, err)
 	err = updateProjects(ctx, clientset.ArgoprojV1alpha1().AppProjects(namespace), "ba*", "*", "set", modification, false)
 	require.NoError(t, err)
@@ -47,12 +48,31 @@ func TestUpdateProjects_FindMatchingProject(t *testing.T) {
 	assert.Equal(t, []string{"p, proj:bar:test, *, set, bar/*, allow"}, barProj.Spec.Roles[0].Policies)
 }
 
+func TestUpdateProjects_FindMatchingProjectWithNamespace(t *testing.T) {
+	ctx := t.Context()
+
+	clientset := fake.NewSimpleClientset(newProj("foo", "test"), newProj("bar", "test"))
+
+	modification, err := getModification("set", "*", "test-ns/*", "allow", namespace)
+	require.NoError(t, err)
+	err = updateProjects(ctx, clientset.ArgoprojV1alpha1().AppProjects(namespace), "ba*", "*", "set", modification, false)
+	require.NoError(t, err)
+
+	fooProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "foo", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, fooProj.Spec.Roles[0].Policies)
+
+	barProj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "bar", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"p, proj:bar:test, *, set, bar/test-ns/*, allow"}, barProj.Spec.Roles[0].Policies)
+}
+
 func TestUpdateProjects_FindMatchingRole(t *testing.T) {
 	ctx := t.Context()
 
 	clientset := fake.NewSimpleClientset(newProj("proj", "foo", "bar"))
 
-	modification, err := getModification("set", "*", "*", "allow")
+	modification, err := getModification("set", "*", "*", "allow", namespace)
 	require.NoError(t, err)
 	err = updateProjects(ctx, clientset.ArgoprojV1alpha1().AppProjects(namespace), "*", "fo*", "set", modification, false)
 	require.NoError(t, err)
@@ -63,21 +83,55 @@ func TestUpdateProjects_FindMatchingRole(t *testing.T) {
 	assert.Empty(t, proj.Spec.Roles[1].Policies)
 }
 
+func TestUpdateProjects_FindMatchingRoleWithNamespace(t *testing.T) {
+	ctx := t.Context()
+
+	clientset := fake.NewSimpleClientset(newProj("proj", "foo", "bar"))
+
+	modification, err := getModification("set", "*", "test-ns/*", "allow", namespace)
+	require.NoError(t, err)
+	err = updateProjects(ctx, clientset.ArgoprojV1alpha1().AppProjects(namespace), "*", "fo*", "set", modification, false)
+	require.NoError(t, err)
+
+	proj, err := clientset.ArgoprojV1alpha1().AppProjects(namespace).Get(ctx, "proj", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"p, proj:proj:foo, *, set, proj/test-ns/*, allow"}, proj.Spec.Roles[0].Policies)
+	assert.Empty(t, proj.Spec.Roles[1].Policies)
+}
+
 func TestGetModification_SetPolicy(t *testing.T) {
-	modification, err := getModification("set", "*", "*", "allow")
+	modification, err := getModification("set", "*", "*", "allow", namespace)
 	require.NoError(t, err)
 	policy := modification("proj", "myaction")
 	assert.Equal(t, "*, myaction, proj/*, allow", policy)
 }
 
+func TestGetModification_SetNormalizedPolicy(t *testing.T) {
+	resources := []string{"applications", "applicationsets", "logs", "exec"}
+
+	for _, resource := range resources {
+		modification, err := getModification("set", resource, "*", "allow", namespace)
+		require.NoError(t, err)
+		policy := modification("proj", "myaction")
+		assert.Equal(t, fmt.Sprintf("%s, myaction, proj/%s/*, allow", resource, namespace), policy)
+	}
+}
+
+func TestGetModification_SetPolicyWithNamespace(t *testing.T) {
+	modification, err := getModification("set", "*", "test-ns/*", "allow", namespace)
+	require.NoError(t, err)
+	policy := modification("proj", "myaction")
+	assert.Equal(t, "*, myaction, proj/test-ns/*, allow", policy)
+}
+
 func TestGetModification_RemovePolicy(t *testing.T) {
-	modification, err := getModification("remove", "*", "*", "allow")
+	modification, err := getModification("remove", "*", "*", "allow", namespace)
 	require.NoError(t, err)
 	policy := modification("proj", "myaction")
 	assert.Empty(t, policy)
 }
 
 func TestGetModification_NotSupported(t *testing.T) {
-	_, err := getModification("bar", "*", "*", "allow")
+	_, err := getModification("bar", "*", "*", "allow", namespace)
 	assert.Errorf(t, err, "modification bar is not supported")
 }

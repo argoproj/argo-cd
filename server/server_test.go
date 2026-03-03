@@ -99,13 +99,13 @@ func TestEnforceProjectToken(t *testing.T) {
 	projectName := "testProj"
 	roleName := "testRole"
 	subFormat := "proj:%s:%s"
-	policyTemplate := "p, %s, applications, get, %s/%s, %s"
+	policyTemplate := "p, %s, applications, get, %s/%s/%s, %s"
 	defaultObject := "*"
 	defaultEffect := "allow"
-	defaultTestObject := fmt.Sprintf("%s/%s", projectName, "test")
+	defaultTestObject := fmt.Sprintf("%s/%s/%s", projectName, test.FakeArgoCDNamespace, "test")
 	defaultIssuedAt := int64(1)
 	defaultSub := fmt.Sprintf(subFormat, projectName, roleName)
-	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
+	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, test.FakeArgoCDNamespace, defaultObject, defaultEffect)
 	defaultId := "testId"
 
 	role := v1alpha1.ProjectRole{Name: roleName, Policies: []string{defaultPolicy}, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}, {ID: defaultId}}}
@@ -166,8 +166,8 @@ func TestEnforceProjectToken(t *testing.T) {
 
 	t.Run("TestEnforceProjectTokenExplicitDeny", func(t *testing.T) {
 		denyApp := "testDenyApp"
-		allowPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
-		denyPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, denyApp, "deny")
+		allowPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, test.FakeArgoCDNamespace, defaultObject, defaultEffect)
+		denyPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, test.FakeArgoCDNamespace, denyApp, "deny")
 		role := v1alpha1.ProjectRole{Name: roleName, Policies: []string{allowPolicy, denyPolicy}, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}}}
 		proj := existingProj.DeepCopy()
 		proj.Spec.Roles[0] = role
@@ -176,8 +176,8 @@ func TestEnforceProjectToken(t *testing.T) {
 		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
-		allowedObject := fmt.Sprintf("%s/%s", projectName, "test")
-		denyObject := fmt.Sprintf("%s/%s", projectName, denyApp)
+		allowedObject := fmt.Sprintf("%s/%s/%s", projectName, test.FakeArgoCDNamespace, "test")
+		denyObject := fmt.Sprintf("%s/%s/%s", projectName, test.FakeArgoCDNamespace, denyApp)
 		assert.True(t, s.enf.Enforce(claims, "applications", "get", allowedObject))
 		assert.False(t, s.enf.Enforce(claims, "applications", "get", denyObject))
 	})
@@ -216,7 +216,7 @@ g, bob, role:admin
 		jwt.RegisteredClaims{Subject: "admin"},
 	}
 	for _, c := range allowed {
-		if !assert.True(t, enf.Enforce(c, "applications", "delete", "foo/obj")) {
+		if !assert.True(t, enf.Enforce(c, "applications", "delete", "foo/ns/obj")) {
 			log.Errorf("%v: expected true, got false", c)
 		}
 	}
@@ -226,7 +226,7 @@ g, bob, role:admin
 		jwt.RegisteredClaims{Subject: "nobody"},
 	}
 	for _, c := range disallowed {
-		if !assert.False(t, enf.Enforce(c, "applications", "delete", "foo/obj")) {
+		if !assert.False(t, enf.Enforce(c, "applications", "delete", "foo/ns/obj")) {
 			log.Errorf("%v: expected true, got false", c)
 		}
 	}
@@ -240,10 +240,10 @@ func TestDefaultRoleWithClaims(t *testing.T) {
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 	claims := jwt.MapClaims{"groups": []string{"org1:team1", "org2:team2"}}
 
-	assert.False(t, enf.Enforce(claims, "applications", "get", "foo/bar"))
+	assert.False(t, enf.Enforce(claims, "applications", "get", "foo/bar/baz"))
 	// after setting the default role to be the read-only role, this should now pass
 	enf.SetDefaultRole("role:readonly")
-	assert.True(t, enf.Enforce(claims, "applications", "get", "foo/bar"))
+	assert.True(t, enf.Enforce(claims, "applications", "get", "foo/bar/baz"))
 }
 
 func TestEnforceNilClaims(t *testing.T) {
@@ -252,9 +252,9 @@ func TestEnforceNilClaims(t *testing.T) {
 	_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 	rbacEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, test.NewFakeProjLister())
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
-	assert.False(t, enf.Enforce(nil, "applications", "get", "foo/obj"))
+	assert.False(t, enf.Enforce(nil, "applications", "get", "foo/ns/obj"))
 	enf.SetDefaultRole("role:readonly")
-	assert.True(t, enf.Enforce(nil, "applications", "get", "foo/obj"))
+	assert.True(t, enf.Enforce(nil, "applications", "get", "foo/ns/obj"))
 }
 
 func TestInitializingExistingDefaultProject(t *testing.T) {
@@ -312,15 +312,15 @@ func TestEnforceProjectGroups(t *testing.T) {
 	projectName := "testProj"
 	roleName := "testRole"
 	subFormat := "proj:%s:%s"
-	policyTemplate := "p, %s, applications, get, %s/%s, %s"
+	policyTemplate := "p, %s, applications, get, %s/%s/%s, %s"
 	groupName := "my-org:my-team"
 
 	defaultObject := "*"
 	defaultEffect := "allow"
-	defaultTestObject := fmt.Sprintf("%s/%s", projectName, "test")
+	defaultTestObject := fmt.Sprintf("%s/%s/%s", projectName, test.FakeDestNamespace, "test")
 	defaultIssuedAt := int64(1)
 	defaultSub := fmt.Sprintf(subFormat, projectName, roleName)
-	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
+	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, test.FakeDestNamespace, defaultObject, defaultEffect)
 
 	existingProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -367,13 +367,13 @@ func TestRevokedToken(t *testing.T) {
 	projectName := "testProj"
 	roleName := "testRole"
 	subFormat := "proj:%s:%s"
-	policyTemplate := "p, %s, applications, get, %s/%s, %s"
+	policyTemplate := "p, %s, applications, get, %s/%s/%s, %s"
 	defaultObject := "*"
 	defaultEffect := "allow"
-	defaultTestObject := fmt.Sprintf("%s/%s", projectName, "test")
+	defaultTestObject := fmt.Sprintf("%s/%s/%s", projectName, test.FakeDestNamespace, "test")
 	defaultIssuedAt := int64(1)
 	defaultSub := fmt.Sprintf(subFormat, projectName, roleName)
-	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
+	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, test.FakeDestNamespace, defaultObject, defaultEffect)
 	kubeclientset := fake.NewClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
 

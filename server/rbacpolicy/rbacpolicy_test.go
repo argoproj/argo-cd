@@ -54,45 +54,45 @@ func TestEnforceAllPolicies(t *testing.T) {
 	projLister := test.NewFakeProjLister(newFakeProj())
 	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
 	enf.EnableLog(true)
-	_ = enf.SetBuiltinPolicy(`p, alice, applications, create, my-proj/*, allow` + "\n" + `p, alice, logs, get, my-proj/*, allow` + "\n" + `p, alice, exec, create, my-proj/*, allow`)
-	_ = enf.SetUserPolicy(`p, bob, applications, create, my-proj/*, allow` + "\n" + `p, bob, logs, get, my-proj/*, allow` + "\n" + `p, bob, exec, create, my-proj/*, allow`)
+	_ = enf.SetBuiltinPolicy(`p, alice, applications, create, my-proj/` + test.FakeArgoCDNamespace + `/*, allow` + "\n" + `p, alice, logs, get, my-proj/` + test.FakeArgoCDNamespace + `/*, allow` + "\n" + `p, alice, exec, create, my-proj/` + test.FakeArgoCDNamespace + `/*, allow`)
+	_ = enf.SetUserPolicy(`p, bob, applications, create, my-proj/` + test.FakeArgoCDNamespace + `/*, allow` + "\n" + `p, bob, logs, get, my-proj/` + test.FakeArgoCDNamespace + `/*, allow` + "\n" + `p, bob, exec, create, my-proj/` + test.FakeArgoCDNamespace + `/*, allow`)
 	rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 
 	claims := jwt.MapClaims{"sub": "alice"}
-	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
-	assert.True(t, enf.Enforce(claims, "logs", "get", "my-proj/my-app"))
-	assert.True(t, enf.Enforce(claims, "exec", "create", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(claims, "applications", "create", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
+	assert.True(t, enf.Enforce(claims, "logs", "get", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
+	assert.True(t, enf.Enforce(claims, "exec", "create", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
 
 	claims = jwt.MapClaims{"sub": "bob"}
-	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
-	assert.True(t, enf.Enforce(claims, "logs", "get", "my-proj/my-app"))
-	assert.True(t, enf.Enforce(claims, "exec", "create", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(claims, "applications", "create", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
+	assert.True(t, enf.Enforce(claims, "logs", "get", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
+	assert.True(t, enf.Enforce(claims, "exec", "create", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
 
 	claims = jwt.MapClaims{"sub": "qwertyuiop", "federated_claims": map[string]any{"user_id": "bob"}}
-	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
-	assert.True(t, enf.Enforce(claims, "logs", "get", "my-proj/my-app"))
-	assert.True(t, enf.Enforce(claims, "exec", "create", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(claims, "applications", "create", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
+	assert.True(t, enf.Enforce(claims, "logs", "get", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
+	assert.True(t, enf.Enforce(claims, "exec", "create", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
 
 	claims = jwt.MapClaims{"sub": "proj:my-proj:my-role", "iat": 1234}
-	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
-	assert.True(t, enf.Enforce(claims, "logs", "get", "my-proj/my-app"))
-	assert.True(t, enf.Enforce(claims, "exec", "create", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(claims, "applications", "create", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
+	assert.True(t, enf.Enforce(claims, "logs", "get", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
+	assert.True(t, enf.Enforce(claims, "exec", "create", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
 
 	claims = jwt.MapClaims{"groups": []string{"my-org:my-team"}}
-	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
-	assert.True(t, enf.Enforce(claims, "logs", "get", "my-proj/my-app"))
-	assert.True(t, enf.Enforce(claims, "exec", "create", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(claims, "applications", "create", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
+	assert.True(t, enf.Enforce(claims, "logs", "get", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
+	assert.True(t, enf.Enforce(claims, "exec", "create", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
 
 	claims = jwt.MapClaims{"sub": "cathy"}
-	assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
-	assert.False(t, enf.Enforce(claims, "logs", "get", "my-proj/my-app"))
-	assert.False(t, enf.Enforce(claims, "exec", "create", "my-proj/my-app"))
+	assert.False(t, enf.Enforce(claims, "applications", "create", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
+	assert.False(t, enf.Enforce(claims, "logs", "get", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
+	assert.False(t, enf.Enforce(claims, "exec", "create", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
 
 	// AWS cognito returns its groups in  cognito:groups
 	rbacEnf.SetScopes([]string{"cognito:groups"})
 	claims = jwt.MapClaims{"cognito:groups": []string{"my-org:my-team"}}
-	assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(claims, "applications", "create", `my-proj/`+test.FakeArgoCDNamespace+`/my-app`))
 }
 
 func TestEnforceActionActions(t *testing.T) {

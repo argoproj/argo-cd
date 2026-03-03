@@ -126,6 +126,10 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Resources, r.Resource)
 	}
 
+	if rbac.NeedNormalization(r.Resource) {
+		r.Subresource = rbac.NormalizeSubresource(r.Subresource, s.settingsMgr.GetNamespace())
+	}
+
 	ok := s.enf.Enforce(ctx.Value("claims"), r.Resource, r.Action, r.Subresource)
 	if ok {
 		return &account.CanIResponse{Value: "yes"}, nil

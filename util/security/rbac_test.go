@@ -23,7 +23,7 @@ func Test_AppRBACName(t *testing.T) {
 			"default",
 			"",
 			"app",
-			"default/app",
+			"default/argocd/app",
 		},
 		{
 			"namespace is default namespace",
@@ -31,7 +31,7 @@ func Test_AppRBACName(t *testing.T) {
 			"default",
 			"argocd",
 			"app",
-			"default/app",
+			"default/argocd/app",
 		},
 		{
 			"namespace is not default namespace",

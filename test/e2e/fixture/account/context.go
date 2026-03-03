@@ -11,8 +11,6 @@ import (
 // It embeds fixture.TestState to provide test-specific state that enables parallel test execution.
 type Context struct {
 	*fixture.TestState
-
-	project string
 }
 
 func Given(t *testing.T) *Context {
@@ -26,11 +24,6 @@ func Given(t *testing.T) *Context {
 func GivenWithSameState(ctx fixture.TestContext) *Context {
 	ctx.T().Helper()
 	return &Context{TestState: fixture.NewTestStateFromContext(ctx)}
-}
-
-func (c *Context) Project(project string) *Context {
-	c.project = project
-	return c
 }
 
 func (c *Context) Name(name string) *Context {

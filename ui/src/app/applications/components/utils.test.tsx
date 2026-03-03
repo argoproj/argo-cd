@@ -14,6 +14,7 @@ import * as jsYaml from 'js-yaml';
 import {
     ComparisonStatusIcon,
     getAppOperationState,
+    getCanISubresource,
     getOperationType,
     getPodStateReason,
     HealthStatusIcon,
@@ -891,5 +892,55 @@ status:
         const {reason} = getPodStateReason(pod as State);
 
         expect(reason).toBe('SchedulingGated');
+    });
+});
+
+describe('getCanISubresource', () => {
+    it('returns project/namespace/name when namespace is defined', () => {
+        const app = {
+            metadata: {
+                name: 'my-app',
+                namespace: 'my-namespace'
+            },
+            spec: {
+                project: 'my-project'
+            }
+        } as Application;
+
+        const result = getCanISubresource(app);
+
+        expect(result).toBe('my-project/my-namespace/my-app');
+    });
+
+    it('returns project/name when namespace is undefined', () => {
+        const app = {
+            metadata: {
+                name: 'my-app'
+            },
+            spec: {
+                project: 'my-project'
+            }
+        } as Application;
+
+        const result = getCanISubresource(app);
+
+        expect(result).toBe('my-project/my-app');
+    });
+
+    it('handles empty namespace string as undefined', () => {
+        const app = {
+            metadata: {
+                name: 'test-app',
+                namespace: ''
+            },
+            spec: {
+                project: 'test-project'
+            }
+        } as Application;
+
+        // Note: The function checks typeof === 'undefined', so empty string will still include namespace
+        const result = getCanISubresource(app);
+
+        expect(result).toBe('test-project/test-app');
     });
 });

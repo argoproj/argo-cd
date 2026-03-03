@@ -3841,7 +3841,11 @@ func Test_validatePolicy_projIsNotRegex(t *testing.T) {
 func Test_validatePolicy_ValidResource(t *testing.T) {
 	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
 	require.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*/*, allow")
+	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applicationsets, *, some-project/*, allow")
+	require.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applicationsets, *, some-project/*/*, allow")
 	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
 	require.NoError(t, err)
@@ -3849,7 +3853,11 @@ func Test_validatePolicy_ValidResource(t *testing.T) {
 	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, exec, *, some-project/*, allow")
 	require.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, exec, *, some-project/*/*, allow")
+	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, logs, *, some-project/*, allow")
+	require.NoError(t, err)
+	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, logs, *, some-project/*/*, allow")
 	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, unknown, *, some-project/*, allow")
 	require.Error(t, err)
@@ -4116,11 +4124,11 @@ func Test_RBACName(t *testing.T) {
 	}
 	t.Run("App in same namespace as controller when ns is argocd", func(t *testing.T) {
 		a := testApp("argocd", "default")
-		assert.Equal(t, "default/test-app", a.RBACName("argocd"))
+		assert.Equal(t, "default/argocd/test-app", a.RBACName("argocd"))
 	})
 	t.Run("App in same namespace as controller when ns is not argocd", func(t *testing.T) {
 		a := testApp("some-ns", "default")
-		assert.Equal(t, "default/test-app", a.RBACName("some-ns"))
+		assert.Equal(t, "default/some-ns/test-app", a.RBACName("some-ns"))
 	})
 	t.Run("App in different namespace as controller when ns is argocd", func(t *testing.T) {
 		a := testApp("some-ns", "default")
@@ -4132,11 +4140,11 @@ func Test_RBACName(t *testing.T) {
 	})
 	t.Run("App in same namespace as controller when project is not yet set", func(t *testing.T) {
 		a := testApp("argocd", "")
-		assert.Equal(t, "default/test-app", a.RBACName("argocd"))
+		assert.Equal(t, "default/argocd/test-app", a.RBACName("argocd"))
 	})
 	t.Run("App in same namespace as controller when ns is not yet set", func(t *testing.T) {
 		a := testApp("", "")
-		assert.Equal(t, "default/test-app", a.RBACName("argocd"))
+		assert.Equal(t, "default/argocd/test-app", a.RBACName("argocd"))
 	})
 }
 

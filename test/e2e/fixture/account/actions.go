@@ -18,16 +18,16 @@ type Actions struct {
 	lastError  error
 }
 
-func (a *Actions) prepareCanIGetLogsArgs() []string {
+func (a *Actions) prepareCanIGetLogsArgs(scope string) []string {
 	a.context.T().Helper()
 	return []string{
-		"account", "can-i", "get", "logs", a.context.project + "/*",
+		"account", "can-i", "get", "logs", scope,
 	}
 }
 
-func (a *Actions) CanIGetLogs() *Actions {
+func (a *Actions) CanIGetLogs(scope string) *Actions {
 	a.context.T().Helper()
-	a.runCli(a.prepareCanIGetLogsArgs()...)
+	a.runCli(a.prepareCanIGetLogsArgs(scope)...)
 	return a
 }
 
