@@ -1,11 +1,14 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"reflect"
 	"text/tabwriter"
+
+	k8swatch "k8s.io/apimachinery/pkg/watch"
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
@@ -115,8 +118,10 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 // NewApplicationSetCreateCommand returns a new instance of an `argocd appset create` command
 func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var output string
-	var upsert, dryRun bool
+	var (
+		output               string
+		upsert, dryRun, wait bool
+	)
 	command := &cobra.Command{
 		Use:   "create",
 		Short: "Create one or more ApplicationSets",
@@ -200,11 +205,18 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				default:
 					errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 				}
+
+				if wait && !dryRun {
+					err := waitForApplicationSetResourcesUpToDate(ctx, argocdClient, created.QualifiedName())
+					errors.CheckError(err)
+					c.PrintErrf("ApplicationSet '%s' resources are up to date\n", created.Name)
+				}
 			}
 		},
 	}
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Allows to evaluate the ApplicationSet template on the server to get a preview of the applications that would be created")
+	command.Flags().BoolVar(&wait, "wait", false, "Wait until the ApplicationSet's resources are up to date. Will block indefinitely if the ApplicationSet has errors")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	return command
 }
@@ -325,7 +337,10 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 
 // NewApplicationSetDeleteCommand returns a new instance of an `argocd appset delete` command
 func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var noPrompt bool
+	var (
+		noPrompt bool
+		wait     bool
+	)
 	command := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete one or more ApplicationSets",
@@ -340,7 +355,8 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
+			acdClient := headless.NewClientOrDie(clientOpts, c)
+			conn, appIf := acdClient.NewApplicationSetClientOrDie()
 			defer utilio.Close(conn)
 			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 			numOfApps := len(args)
@@ -373,6 +389,20 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 				if confirm || confirmAll {
 					_, err := appIf.Delete(ctx, &appsetDeleteReq)
 					errors.CheckError(err)
+
+					if wait {
+						_, getErr := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{
+							Name: appSetName, AppsetNamespace: appSetNs,
+						})
+						if getErr == nil {
+							appEventCh := acdClient.WatchApplicationSetWithRetry(ctx, appSetQualifiedName, "")
+							for appEvent := range appEventCh {
+								if appEvent != nil && appEvent.Type == k8swatch.Deleted {
+									break
+								}
+							}
+						}
+					}
 					fmt.Printf("applicationset '%s' deleted\n", appSetQualifiedName)
 				} else {
 					fmt.Println("The command to delete '" + appSetQualifiedName + "' was cancelled.")
@@ -381,6 +411,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 		},
 	}
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of Application resources")
+	command.Flags().BoolVar(&wait, "wait", false, "Wait until deletion of the applicationset(s) completes")
 	return command
 }
 
@@ -476,6 +507,31 @@ func printAppSetConditions(w io.Writer, appSet *arogappsetv1.ApplicationSet) {
 	for _, item := range appSet.Status.Conditions {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", item.Type, item.Status, item.Message, item.LastTransitionTime)
 	}
+}
+
+func isApplicationSetResourcesUpToDate(appSet *arogappsetv1.ApplicationSet) bool {
+	for _, c := range appSet.Status.Conditions {
+		if c.Type == arogappsetv1.ApplicationSetConditionResourcesUpToDate {
+			return c.Status == arogappsetv1.ApplicationSetConditionStatusTrue
+		}
+	}
+	return false
+}
+
+func waitForApplicationSetResourcesUpToDate(ctx context.Context, acdClient argocdclient.Client, appSetName string) error {
+	appEventCh := acdClient.WatchApplicationSetWithRetry(ctx, appSetName, "")
+	for appEvent := range appEventCh {
+		if appEvent == nil {
+			continue
+		}
+		if appEvent.Type == k8swatch.Deleted {
+			return fmt.Errorf("ApplicationSet %q was deleted before reaching ResourcesUpToDate", appSetName)
+		}
+		if isApplicationSetResourcesUpToDate(&appEvent.ApplicationSet) {
+			return nil
+		}
+	}
+	return fmt.Errorf("watch stream closed for ApplicationSet %q before reaching ResourcesUpToDate", appSetName)
 }
 
 func hasAppSetChanged(appReq, appRes *arogappsetv1.ApplicationSet, upsert bool) bool {

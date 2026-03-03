@@ -16,7 +16,7 @@
         "go"
       ],
       "matchPackageNames": [
-        "github.com/golangci/golangci-lint",
+        "github.com/golangci/golangci-lint/v2",
         "github.com/vektra/mockery/v3"
       ],
       "enabled": true

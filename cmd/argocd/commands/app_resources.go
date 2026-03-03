@@ -20,7 +20,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
@@ -89,7 +88,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 		// Get manifests of resources
 		// If resource name is "" find all resources of that kind
 		var resources []unstructured.Unstructured
-		var fetchedStr string
+		var resourceNames []string
 		for _, r := range tree.Nodes {
 			if (resourceName != "" && r.Name != resourceName) || (group != "" && r.Group != group) || r.Kind != kind {
 				continue
@@ -119,14 +118,11 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 				obj = filterFieldsFromObject(obj, filteredFields)
 			}
 
-			fetchedStr += obj.GetName() + ", "
+			resourceNames = append(resourceNames, obj.GetName())
 			resources = append(resources, *obj)
 		}
+		fetchedStr := strings.Join(resourceNames, ", ")
 		printManifests(&resources, len(filteredFields) > 0, resourceName == "", output)
-
-		if fetchedStr != "" {
-			fetchedStr = strings.TrimSuffix(fetchedStr, ", ")
-		}
 		log.Infof("Resources '%s' fetched", fetchedStr)
 	}
 
@@ -340,14 +336,14 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			_, err = appIf.PatchResource(ctx, &applicationpkg.ApplicationResourcePatchRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(obj.GetName()),
-				Version:      ptr.To(gvk.Version),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Patch:        ptr.To(patch),
-				PatchType:    ptr.To(patchType),
-				Project:      ptr.To(project),
+				Namespace:    new(obj.GetNamespace()),
+				ResourceName: new(obj.GetName()),
+				Version:      new(gvk.Version),
+				Group:        new(gvk.Group),
+				Kind:         new(gvk.Kind),
+				Patch:        new(patch),
+				PatchType:    new(patchType),
+				Project:      new(project),
 			})
 			errors.CheckError(err)
 			log.Infof("Resource '%s' patched", obj.GetName())
@@ -413,14 +409,14 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 				_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
 					Name:         &appName,
 					AppNamespace: &appNs,
-					Namespace:    ptr.To(obj.GetNamespace()),
-					ResourceName: ptr.To(obj.GetName()),
-					Version:      ptr.To(gvk.Version),
-					Group:        ptr.To(gvk.Group),
-					Kind:         ptr.To(gvk.Kind),
+					Namespace:    new(obj.GetNamespace()),
+					ResourceName: new(obj.GetName()),
+					Version:      new(gvk.Version),
+					Group:        new(gvk.Group),
+					Kind:         new(gvk.Kind),
 					Force:        &force,
 					Orphan:       &orphan,
-					Project:      ptr.To(project),
+					Project:      new(project),
 				})
 				errors.CheckError(err)
 				log.Infof("Resource '%s' deleted", obj.GetName())

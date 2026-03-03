@@ -2,15 +2,13 @@ package commands
 
 import (
 	"github.com/spf13/cobra"
-)
 
-const (
-	cliName = "argocd-k8s-auth"
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 func NewCommand() *cobra.Command {
 	command := &cobra.Command{
-		Use:               cliName,
+		Use:               common.CommandK8sAuth,
 		Short:             "argocd-k8s-auth a set of commands to generate k8s auth token",
 		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, args []string) {
