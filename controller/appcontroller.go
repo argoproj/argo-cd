@@ -1536,37 +1536,42 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			return
 		}
 
-		hydratedSHA := ""
-		if app.Status.SourceHydrator.CurrentOperation != nil {
-			hydratedSHA = app.Status.SourceHydrator.CurrentOperation.HydratedSHA
-		}
-
-		if hydratedSHA != "" && app.Status.Sync.Revision != hydratedSHA {
-			logCtx.Infof("Triggering refresh before sync to pick up hydrated commit %s (current sync revision: %s)", hydratedSHA, app.Status.Sync.Revision)
-			patch := map[string]any{
-				"metadata": map[string]any{
-					"annotations": map[string]string{
-						appv1.AnnotationKeyRefresh: string(appv1.RefreshTypeNormal),
-					},
-				},
+		// When HydrateTo is set, the hydratedSHA refers to a commit on the staging branch (not the sync
+		// source branch), so it will never match app.Status.Sync.Revision. Skip the SHA check and
+		// revision-pinning in that case and let the sync proceed normally against the sync source branch.
+		if app.Spec.SourceHydrator.HydrateTo == nil {
+			hydratedSHA := ""
+			if app.Status.SourceHydrator.CurrentOperation != nil {
+				hydratedSHA = app.Status.SourceHydrator.CurrentOperation.HydratedSHA
 			}
-			patchJSON, err := json.Marshal(patch)
-			if err != nil {
-				logCtx.WithError(err).Error("error marshaling json")
+
+			if hydratedSHA != "" && app.Status.Sync.Revision != hydratedSHA {
+				logCtx.Infof("Triggering refresh before sync to pick up hydrated commit %s (current sync revision: %s)", hydratedSHA, app.Status.Sync.Revision)
+				patch := map[string]any{
+					"metadata": map[string]any{
+						"annotations": map[string]string{
+							appv1.AnnotationKeyRefresh: string(appv1.RefreshTypeNormal),
+						},
+					},
+				}
+				patchJSON, err := json.Marshal(patch)
+				if err != nil {
+					logCtx.WithError(err).Error("error marshaling json")
+					return
+				}
+				_, err = ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+				if err != nil {
+					logCtx.WithError(err).Error("Failed to patch app with refresh annotation")
+				}
 				return
 			}
-			_, err = ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
-			if err != nil {
-				logCtx.WithError(err).Error("Failed to patch app with refresh annotation")
-			}
-			return
-		}
 
-		logCtx.Debugf("Proceeding with sync, hydration is not stale (last hydration: %v, sync started: %v)", lastHydrationTime, state.StartedAt)
-		if hydratedSHA != "" {
-			// Ensure we sync to the hydrated commit
-			state.Operation.Sync.Revision = hydratedSHA
-			state.Operation.Sync.Revisions = nil
+			logCtx.Debugf("Proceeding with sync, hydration is not stale (last hydration: %v, sync started: %v)", lastHydrationTime, state.StartedAt)
+			if hydratedSHA != "" {
+				// Ensure we sync to the hydrated commit
+				state.Operation.Sync.Revision = hydratedSHA
+				state.Operation.Sync.Revisions = nil
+			}
 		}
 	}
 
