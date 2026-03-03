@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"hash/fnv"
 	"math"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/go-git/go-git/v5/plumbing"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -151,9 +151,7 @@ func clusterRuntimeInfoKey(info ClusterRuntimeInfo) uint32 {
 // check if info is nil, the caller must do that.
 func clusterRuntimeInfoKeyUnhashed(info ClusterRuntimeInfo) string {
 	apiVersions := info.GetApiVersions()
-	sort.Slice(apiVersions, func(i, j int) bool {
-		return apiVersions[i] < apiVersions[j]
-	})
+	slices.Sort(apiVersions)
 	return info.GetKubeVersion() + "|" + strings.Join(apiVersions, ",")
 }
 
@@ -520,6 +518,23 @@ func (c *Cache) GetGitDirectories(repoURL, revision string) ([]string, error) {
 	var item []string
 	err := c.cache.GetItem(gitDirectoriesKey(repoURL, revision), &item)
 	return item, err
+}
+
+func getGitFilesChangesKey(repoURL, revision, targetRevision string) string {
+	return fmt.Sprintf("gitFilesChanges|%s|%s|%s", repoURL, revision, targetRevision)
+}
+
+func (c *Cache) SetGitFilesChanges(repoURL, revision, targetRevision string, files []string) error {
+	return c.cache.SetItem(
+		getGitFilesChangesKey(repoURL, revision, targetRevision),
+		&files,
+		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+}
+
+func (c *Cache) GetGitFilesChanges(repoURL, revision, targetRevision string) ([]string, error) {
+	var files []string
+	err := c.cache.GetItem(getGitFilesChangesKey(repoURL, revision, targetRevision), &files)
+	return files, err
 }
 
 func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {

@@ -949,7 +949,7 @@ func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 		PauseGenerationOnFailureForRequests:          4,
 	}
 
-	for step := 0; step < 3; step++ {
+	for step := range 3 {
 		// step 1) Attempt to generate manifests against invalid helm chart (should return uncached error)
 		// step 2) Attempt to generate manifest against valid helm chart (should succeed and return valid response)
 		// step 3) Attempt to generate manifest against invalid helm chart (should return cached value from step 2)
@@ -1028,7 +1028,7 @@ func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
 			}
 
 			// 1) Put the cache into the failure state
-			for x := 0; x < 2; x++ {
+			for x := range 2 {
 				res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 					Repo:    &v1alpha1.Repository{},
 					AppName: "test",
@@ -1088,7 +1088,7 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 	}
 
 	// 1) Put the cache into the failure state
-	for x := 0; x < 2; x++ {
+	for x := range 2 {
 		res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
@@ -3915,12 +3915,13 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		previousRevision string
 	}
 	tests := []struct {
-		name     string
-		fields   fields
-		args     args
-		want     *apiclient.UpdateRevisionForPathsResponse
-		wantErr  assert.ErrorAssertionFunc
-		cacheHit *cacheHit
+		name           string
+		fields         fields
+		args           args
+		want           *apiclient.UpdateRevisionForPathsResponse
+		wantErr        assert.ErrorAssertionFunc
+		cacheHit       *cacheHit
+		cacheCallCount *repositorymocks.CacheCallCounts
 	}{
 		{name: "NoPathAbort", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, _ *iomocks.TempPaths) {
@@ -3961,7 +3962,11 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
 			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
-		}, wantErr: assert.NoError},
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
+			ExternalGets:    0,
+			ExternalSets:    0,
+		}},
 		{name: "ChangedFilesDoNothing", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
@@ -3994,7 +3999,11 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
 			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
 			Changes:  true,
-		}, wantErr: assert.NoError},
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
+			ExternalGets:    1,
+			ExternalSets:    1,
+		}},
 		{name: "NoChangesUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
@@ -4036,6 +4045,10 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
+		}, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 1,
+			ExternalGets:    1,
+			ExternalSets:    1,
 		}},
 		{name: "NoChangesHelmMultiSourceUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
@@ -4078,6 +4091,10 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
+		}, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 1,
+			ExternalGets:    1,
+			ExternalSets:    1,
 		}},
 		{name: "NoChangesHelmWithRefMultiSourceUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
@@ -4131,6 +4148,10 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "0.0.1",
 			revision:         "0.0.1",
+		}, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 1,
+			ExternalGets:    2,
+			ExternalSets:    2,
 		}},
 		{name: "NoChangesHelmWithRefMultiSource_IgnoreUnusedRef", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
@@ -4182,6 +4203,10 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "0.0.1",
 			revision:         "0.0.1",
+		}, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 1,
+			ExternalGets:    1,
+			ExternalSets:    1,
 		}},
 		{name: "NoChangesHelmWithRefMultiSource_UndefinedRef", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
@@ -4284,6 +4309,10 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
 			revision:         "1e67a504d03def3a6a1125d934cb511680f72555",
+		}, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 1,
+			ExternalGets:    1,
+			ExternalSets:    1,
 		}},
 	}
 	for _, tt := range tests {
@@ -4301,14 +4330,8 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			}
 			assert.Equalf(t, tt.want, got, "UpdateRevisionForPaths(%v, %v)", tt.args.ctx, tt.args.request)
 
-			if tt.cacheHit != nil {
-				cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-					ExternalRenames: 1,
-				})
-			} else {
-				cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-					ExternalRenames: 0,
-				})
+			if tt.cacheCallCount != nil {
+				cache.mockCache.AssertCacheCalledTimes(t, tt.cacheCallCount)
 			}
 		})
 	}
@@ -4337,10 +4360,8 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	var wg sync.WaitGroup
 	numberOfCallers := 10
-	for i := 0; i < numberOfCallers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range numberOfCallers {
+		wg.Go(func() {
 			client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
@@ -4348,7 +4369,7 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 			assert.NotNil(t, refs)
 			assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 			assert.NotEmpty(t, refs.Branches[0])
-		}()
+		})
 	}
 	wg.Wait()
 	// Unlock should not have been called
@@ -4393,10 +4414,8 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	var wg sync.WaitGroup
 	numberOfCallers := 10
-	for i := 0; i < numberOfCallers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range numberOfCallers {
+		wg.Go(func() {
 			client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
@@ -4404,7 +4423,7 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 			assert.NotNil(t, refs)
 			assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 			assert.NotEmpty(t, refs.Branches[0])
-		}()
+		})
 	}
 	wg.Wait()
 	// Unlock should not have been called

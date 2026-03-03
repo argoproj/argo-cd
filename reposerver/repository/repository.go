@@ -22,8 +22,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	textutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	gogit "github.com/go-git/go-git/v5"
@@ -1122,9 +1122,9 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 			repos = append(repos, &v1alpha1.Repository{
 				Name: r.Repository[1:],
 			})
-		} else if strings.HasPrefix(r.Repository, "alias:") {
+		} else if after, ok := strings.CutPrefix(r.Repository, "alias:"); ok {
 			repos = append(repos, &v1alpha1.Repository{
-				Name: strings.TrimPrefix(r.Repository, "alias:"),
+				Name: after,
 			})
 		} else if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
@@ -1540,6 +1540,9 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			KubeVersion: kubeVersion,
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		})
+		if err != nil {
+			return nil, err
+		}
 	case v1alpha1.ApplicationSourceTypePlugin:
 		pluginName := ""
 		if q.ApplicationSource.Plugin != nil {
@@ -1548,7 +1551,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
 		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
 		if err != nil {
-			err = fmt.Errorf("CMP processing failed for application %q: %w", q.AppName, err)
+			return nil, fmt.Errorf("CMP processing failed for application %q: %w", q.AppName, err)
 		}
 	case v1alpha1.ApplicationSourceTypeDirectory:
 		var directory *v1alpha1.ApplicationSourceDirectory
@@ -3058,24 +3061,41 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 		return revision, syncedRevision, false, nil
 	}
 
-	s.metricsServer.IncPendingRepoRequest(repo.Repo)
-	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
+	getGitFilesChanges := func() ([]string, error) {
+		var files []string
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, false, 0)
-	})
-	if err != nil {
-		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+		s.metricsServer.IncPendingRepoRequest(repo.Repo)
+		defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
+
+		closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
+			return s.checkoutRevision(gitClient, revision, false, 0)
+		})
+		if err != nil {
+			return files, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+		}
+		defer utilio.Close(closer)
+
+		if err := s.fetch(gitClient, []string{syncedRevision}); err != nil {
+			return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
+		}
+
+		files, err = gitClient.ChangedFiles(syncedRevision, revision)
+		if err != nil {
+			return files, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
+		}
+		return files, nil
 	}
-	defer utilio.Close(closer)
 
-	if err := s.fetch(gitClient, []string{syncedRevision}); err != nil {
-		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
+	files, err := s.cache.GetGitFilesChanges(repo.Repo, revision, syncedRevision)
+	if err != nil {
+		files, err = getGitFilesChanges()
+		if err != nil {
+			return revision, syncedRevision, true, err
+		}
 	}
 
-	files, err := gitClient.ChangedFiles(syncedRevision, revision)
-	if err != nil {
-		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
+	if err := s.cache.SetGitFilesChanges(repo.Repo, revision, syncedRevision, files); err != nil {
+		log.Warnf("Failed to store git files changes for `%s` repo in `%s...%s` with: %v", repo.Repo, revision, syncedRevision, err)
 	}
 
 	changed := false

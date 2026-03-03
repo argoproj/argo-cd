@@ -1,6 +1,6 @@
 import * as deepMerge from 'deepmerge';
 import {Observable} from 'rxjs';
-import {map, repeat, retry} from 'rxjs/operators';
+import {filter, map, repeat, retry} from 'rxjs/operators';
 
 import * as models from '../models';
 import {isValidURL} from '../utils';
@@ -125,9 +125,28 @@ export class ApplicationsService {
 
     public watchResourceTree(name: string, appNamespace: string, objectListKind: string): Observable<models.ApplicationTree> {
         const isApplication = objectListKind === 'application';
-        const endpoint = isApplication ? 'applications' : 'applicationsets';
+        // ApplicationSet has no dedicated streaming resource-tree endpoint.
+        // Derive the tree from status.resources via the existing AppSet watch stream.
+        if (!isApplication) {
+            return this.watch(objectListKind, {name, appNamespace}).pipe(
+                map(watchEvent => {
+                    const appset = watchEvent.application;
+                    return {
+                        nodes: (appset.status?.resources || []).map(res => ({
+                            ...res,
+                            parentRefs: [] as models.ResourceRef[],
+                            info: [] as models.InfoItem[],
+                            resourceVersion: '',
+                            uid: ''
+                        })),
+                        orphanedNodes: [],
+                        hosts: []
+                    } as models.ApplicationTree;
+                })
+            );
+        }
         return requests
-            .loadEventSource(`/stream/${endpoint}/${name}/resource-tree?appNamespace=${appNamespace}`)
+            .loadEventSource(`/stream/applications/${name}/resource-tree?appNamespace=${appNamespace}`)
             .pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
     }
 
@@ -249,7 +268,9 @@ export class ApplicationsService {
             .pipe(map(data => JSON.parse(data).result as models.ApplicationWatchEvent))
             .pipe(
                 map(watchEvent => {
-                    watchEvent.application = this.parseAppFields(watchEvent.application, isApplication) as models.Application;
+                    // ApplicationSetWatchEvent has 'applicationSet' field, normalize to 'application'
+                    const rawApp = isApplication ? watchEvent.application : (watchEvent as unknown as models.ApplicationSetWatchEvent).applicationSet;
+                    watchEvent.application = this.parseAppFields(rawApp, isApplication) as models.Application;
                     return watchEvent;
                 })
             );
@@ -294,9 +315,10 @@ export class ApplicationsService {
         namespace: string,
         podName: string,
         resource: {group: string; kind: string; name: string},
-        containerName: string
+        containerName: string,
+        previous: boolean
     ): string {
-        const search = this.getLogsQuery({namespace, appNamespace, podName, resource, containerName, follow: false});
+        const search = this.getLogsQuery({namespace, appNamespace, podName, resource, containerName, follow: false, previous});
         search.set('download', 'true');
         return `api/v1/applications/${applicationName}/logs?${search.toString()}`;
     }
@@ -318,7 +340,17 @@ export class ApplicationsService {
     }): Observable<models.LogEntry> {
         const {applicationName} = query;
         const search = this.getLogsQuery(query);
-        const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).pipe(map(data => JSON.parse(data).result as models.LogEntry));
+        const entries = requests.loadEventSource(`/applications/${applicationName}/logs?${search.toString()}`).pipe(
+            map(data => {
+                try {
+                    const parsed = JSON.parse(data);
+                    return parsed && parsed.result ? (parsed.result as models.LogEntry) : null;
+                } catch (e) {
+                    return null;
+                }
+            }),
+            filter((result): result is models.LogEntry => !!result)
+        );
         let first = true;
         return new Observable(observer => {
             const subscription = entries.subscribe(
@@ -611,5 +643,12 @@ export class ApplicationsService {
 
     public async listApplicationSets(): Promise<models.ApplicationSetList> {
         return requests.get(`/applicationsets`).then(res => res.body as models.ApplicationSetList);
+    }
+
+    public appSetEvents(name: string, appNamespace: string): Promise<models.Event[]> {
+        return requests
+            .get(`/applicationsets/${name}/events`)
+            .query({appsetNamespace: appNamespace})
+            .then(res => (res.body as models.EventList).items || []);
     }
 }

@@ -445,7 +445,7 @@ test: test-tools-image
 .PHONY: test-local
 test-local: test-gitops-engine
 # run if TEST_MODULE is empty or does not point to gitops-engine tests
-ifneq ($(if $(TEST_MODULE),,ALL)$(filter-out github.com/argoproj/gitops-engine% ./gitops-engine%,$(TEST_MODULE)),)
+ifneq ($(if $(TEST_MODULE),,ALL)$(filter-out github.com/argoproj/argo-cd/gitops-engine% ./gitops-engine%,$(TEST_MODULE)),)
 	if test "$(TEST_MODULE)" = ""; then \
 		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -args -test.gocoverdir="$(PWD)/test-results"; \
 	else \
@@ -457,7 +457,7 @@ endif
 .PHONY: test-gitops-engine
 test-gitops-engine:
 # run if TEST_MODULE is empty or points to gitops-engine tests
-ifneq ($(if $(TEST_MODULE),,ALL)$(filter github.com/argoproj/gitops-engine% ./gitops-engine%,$(TEST_MODULE)),)
+ifneq ($(if $(TEST_MODULE),,ALL)$(filter github.com/argoproj/argo-cd/gitops-engine% ./gitops-engine%,$(TEST_MODULE)),)
 	mkdir -p $(PWD)/test-results
 	cd gitops-engine && go test -race -cover ./... -args -test.gocoverdir="$(PWD)/test-results"
 endif
