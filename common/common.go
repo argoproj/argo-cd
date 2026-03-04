@@ -25,6 +25,7 @@ const (
 	CommandCLI                      = "argocd"
 	CommandApplicationController    = "argocd-application-controller"
 	CommandApplicationSetController = "argocd-applicationset-controller"
+	CommandClusterProfileController = "argocd-clusterprofile-controller"
 	CommandServer                   = "argocd-server"
 	CommandCMPServer                = "argocd-cmp-server"
 	CommandCommitServer             = "argocd-commit-server"

@@ -38,8 +38,6 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	clusterv1alpha1 "sigs.k8s.io/cluster-inventory-api/apis/v1alpha1"
-
 	appsetmetrics "github.com/argoproj/argo-cd/v3/applicationset/metrics"
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	appv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -81,13 +79,10 @@ func NewCommand() *cobra.Command {
 		tokenRefStrictMode           bool
 		maxResourcesStatusCount      int
 		cacheSyncPeriod              time.Duration
-		enableClusterProfiles        bool
-		clusterProfileProvidersFile  string
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = appv1alpha1.AddToScheme(scheme)
-	_ = clusterv1alpha1.AddToScheme(scheme)
 	command := cobra.Command{
 		Use:               common.CommandApplicationSetController,
 		Short:             "Starts Argo CD ApplicationSet controller",
@@ -267,18 +262,6 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			if enableClusterProfiles {
-				if err = (&controllers.ClusterProfileReconciler{
-					Client:                      mgr.GetClient(),
-					Scheme:                      mgr.GetScheme(),
-					Namespace:                   namespace,
-					ClusterProfileProvidersFile: clusterProfileProvidersFile,
-				}).SetupWithManager(mgr); err != nil {
-					log.Error(err, "unable to create controller", "controller", "ClusterProfile")
-					os.Exit(1)
-				}
-			}
-
 			stats.StartStatsTicker(10 * time.Minute)
 			log.Info("Starting manager")
 			if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
@@ -320,8 +303,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableGitHubAPIMetrics, "enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
 	command.Flags().IntVar(&maxResourcesStatusCount, "max-resources-status-count", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT", 5000, 0, math.MaxInt), "Max number of resources stored in appset status.")
 	command.Flags().DurationVar(&cacheSyncPeriod, "cache-sync-period", env.ParseDurationFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CACHE_SYNC_PERIOD", time.Hour*10, 0, time.Hour*24), "Period at which the manager client cache is forcefully resynced with the Kubernetes API server. 0 disables periodic resync.")
-	command.Flags().BoolVar(&enableClusterProfiles, "enable-cluster-profiles", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_CLUSTER_PROFILES", false), "Whether to enable use of cluster profiles.")
-	command.Flags().StringVar(&clusterProfileProvidersFile, "cluster-profile-providers-file", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CLUSTER_PROFILE_PROVIDERS_FILE", ""), "The path to the cluster profile providers file.")
 
 	return &command
 }

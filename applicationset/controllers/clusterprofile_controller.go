@@ -164,7 +164,6 @@ func (r *ClusterProfileReconciler) mutateSecret(secret *corev1.Secret, clusterPr
 		}
 		return nil
 	}
-
 	if r.AccessProviders == nil {
 		return fmt.Errorf("ClusterProfileReconciler AccessProviders not initialized. Required for custom config for ClusterProfile: %v", clusterProfile.Name)
 	}

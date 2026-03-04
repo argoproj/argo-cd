@@ -23,29 +23,40 @@ Install Argo CD in `hub`:
 
 ```bash
 kubectl config use-context kind-hub
-kubectl config set-context --current --namespace=argocd
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-kubectl set env deployment/argocd-applicationset-controller -n argocd ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_CLUSTER_PROFILES="true"
-kubectl set env deployment/argocd-applicationset-controller -n argocd ARGOCD_APPLICATIONSET_CONTROLLER_CLUSTER_PROFILE_PROVIDERS_FILE="/app/cp-creds/cp-creds.json"
+kubectl config set-context --current --namespace=argocd
+# Install Argo CD. ApplicationSet CRD is too large for client-side `kubectl apply`, use server-side:
+kubectl apply --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# Enable the Cluster Profile Controller
+kubectl scale deployment argocd-clusterprofile-controller --replicas=1
 ```
 
-If doing local development in a fork of the argo-cd repo, build the local image instead:
+### \[Alternative\] Local Development
+
+If you have made changes to the Argo CD source code in a local fork of the argo-cd repo, build the local image instead:
 ```bash
 kubectl config use-context kind-hub
 kubectl create namespace argocd
+kubectl config set-context --current --namespace=argocd
 export IMAGE_NAMESPACE=quay.io/argoproj
 export IMAGE_TAG=my-dev-v1
 export DOCKER_PUSH=false
 make image
+make manifests-local
+
+# Set ImagePullPolicy to Never for the Argo CD image for local dev
+sed -i -e '/image: .*argocd/!b' -e 'n;s/imagePullPolicy: \(Always\|IfNotPresent\)/imagePullPolicy: Never/' manifests/install.yaml
 kind load docker-image ${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG} --name hub
-make manifests
-kubectl apply -n argocd -f manifests/install.yaml
-kubectl set env deployment/argocd-applicationset-controller -n argocd ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_CLUSTER_PROFILES="true"
-kubectl set env deployment/argocd-applicationset-controller -n argocd ARGOCD_APPLICATIONSET_CONTROLLER_CLUSTER_PROFILE_PROVIDERS_FILE="/app/cp-creds/cp-creds.json"
+
+# Install local Argo manifests. ApplicationSet CRD is too large for client-side `kubectl apply`, use server-side:
+kubectl apply --server-side --force-conflicts -f manifests/install.yaml
+
+# Enable the Cluster Profile Controller
+kubectl scale deployment argocd-clusterprofile-controller --replicas=1
 ```
 
-Create argocd manager service account in `spoke`:
+Create argocd-manager service account in `spoke`:
 ```bash
 kubectl config use-context kind-spoke
 kubectl apply -f - <<EOF
@@ -79,7 +90,7 @@ type: kubernetes.io/service-account-token
 EOF
 ```
 
-Also create the namespace for the sample application:
+Create the namespace for the sample application:
 ```bash
 kubectl config use-context kind-spoke
 kubectl create namespace guestbook
@@ -98,7 +109,7 @@ SPOKE_TOKEN=$(kubectl --context kind-spoke -n kube-system get secret argocd-mana
 Create a simple auth plugin. It uses ExecCredential for a token in the format expected by Kubernetes:
 ```bash
 kubectl config use-context kind-hub
-kubectl create configmap argocd-custom-auth-plugin -n argocd --from-literal=get-token.sh='#!/bin/sh
+kubectl create configmap argocd-custom-auth-plugin --from-literal=get-token.sh='#!/bin/sh
 cat <<EOF
 {
   "apiVersion": "client.authentication.k8s.io/v1beta1",
@@ -113,7 +124,7 @@ EOF
 
 Mount the auth plugin into the application controller:
 ```bash
-kubectl -n argocd patch sts/argocd-application-controller --type strategic --patch '
+kubectl patch sts/argocd-application-controller --type strategic --patch '
 spec:
   template:
     spec:
@@ -136,7 +147,7 @@ A Cluster Profile expects an access providers file with an `execConfig` for auth
 Create an access providers secret:
 ```bash
 kubectl config use-context kind-hub
-kubectl create secret -n argocd generic cp-creds-secret \
+kubectl create secret generic cp-creds-secret \
   --from-file=cp-creds.json=/dev/stdin <<EOF
 {
   "providers": [
@@ -182,13 +193,13 @@ EOF
 
 Add access provider to the status:
 ```bash
-kubectl patch clusterprofile spoke-cluster -n argocd --subresource=status --type=merge -p '{"status":{"accessProviders":[{"name":"hub-provider","cluster":{"server":"https://'"${SPOKE_IP}"':6443", "certificate-authority-data": "'"${SPOKE_CA}"'"}}]}}'
+kubectl patch clusterprofile spoke-cluster --subresource=status --type=merge -p '{"status":{"accessProviders":[{"name":"hub-provider","cluster":{"server":"https://'"${SPOKE_IP}"':6443", "certificate-authority-data": "'"${SPOKE_CA}"'"}}]}}'
 ```
 Note that the provider's `name` refers to the name from the access providers secret/file.
 
-Now we mount the access providers file into application controller and enable the Cluster Profile syncer:
+Now we mount the access providers file into the Cluster Profile controller:
 ```bash
-kubectl -n argocd patch deploy/argocd-applicationset-controller --type strategic --patch '
+kubectl patch deploy/argocd-clusterprofile-controller --type strategic --patch '
 spec:
   template:
     spec:
@@ -197,21 +208,21 @@ spec:
           secret:
             secretName: cp-creds-secret
       containers:
-        - name: argocd-applicationset-controller
+        - name: argocd-clusterprofile-controller
           volumeMounts:
             - name: cp-creds-vol
               mountPath: /app/cp-creds
           args:
-            - "/usr/local/bin/argocd-applicationset-controller"
+            - "/usr/local/bin/argocd-clusterprofile-controller"
             - "--cluster-profile-providers-file=/app/cp-creds/cp-creds.json"'
 ```
-Setting a value for `--cluster-profile-providers-file` will enable the Cluster Profile syncer in the applicationset controller.
+Setting a value for `--cluster-profile-providers-file` will enable the Cluster Profile syncer in the clusterprofile controller.
 
 ## 7. Create ApplicationSet
 
 Create simple ApplicationSet with ClusterGenerator:
-```yaml
-kubectl apply -n argocd -f - <<EOF
+```bash
+kubectl apply -f - <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
