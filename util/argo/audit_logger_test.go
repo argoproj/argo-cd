@@ -96,7 +96,9 @@ func TestLogAppProjEvent(t *testing.T) {
 		Type:   "info",
 	}
 
-	logger.LogAppProjEvent(&proj, ei, "This is a test message", "admin")
+	captureLogEntries(func() {
+		logger.LogAppProjEvent(&proj, ei, "This is a test message", "admin")
+	})
 
 	// Verify event was created in the AppProject's namespace (argocd)
 	events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
@@ -136,8 +138,9 @@ func TestLogAppEvent(t *testing.T) {
 		Reason: _test,
 		Type:   "info",
 	}
-
-	logger.LogAppEvent(&app, ei, "This is a test message", "admin", nil)
+	captureLogEntries(func() {
+		logger.LogAppEvent(&app, ei, "This is a test message", "admin", nil)
+	})
 
 	// Verify event was created in the Application's namespace (argocd)
 	events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
@@ -223,8 +226,9 @@ func TestLogResourceEvent_MultiCluster_CreatesEventInArgocdNamespace(t *testing.
 		Reason: EventReasonResourceActionRan,
 		Type:   corev1.EventTypeNormal,
 	}
-
-	logger.LogResourceEvent(&res, ei, "Resource action executed", "admin")
+	captureLogEntries(func() {
+		logger.LogResourceEvent(&res, ei, "Resource action executed", "admin")
+	})
 
 	events, err := fakeClient.CoreV1().Events(_targetNs).List(context.Background(), metav1.ListOptions{})
 	require.NoError(t, err)
@@ -260,8 +264,9 @@ func TestLogAppSetEvent_CreatesEventInAppSetNamespace(t *testing.T) {
 		Reason: _test,
 		Type:   corev1.EventTypeNormal,
 	}
-
-	logger.LogAppSetEvent(&appset, ei, "ApplicationSet event test", "admin")
+	captureLogEntries(func() {
+		logger.LogAppSetEvent(&appset, ei, "ApplicationSet event test", "admin")
+	})
 
 	// Verify event was created in the ApplicationSet's namespace (argocd)
 	events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
@@ -328,8 +333,9 @@ func TestLogResourceEvent_DifferentKinds_AllInArgocdNamespace(t *testing.T) {
 				Reason: EventReasonResourceActionRan,
 				Type:   corev1.EventTypeNormal,
 			}
-
-			logger.LogResourceEvent(&res, ei, "Action ran", "admin")
+			captureLogEntries(func() {
+				logger.LogResourceEvent(&res, ei, "Action ran", "admin")
+			})
 
 			events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
 			require.NoError(t, err)
@@ -363,8 +369,9 @@ func TestLogResourceEvent_EmptyNamespace(t *testing.T) {
 		Reason: EventReasonResourceActionRan,
 		Type:   corev1.EventTypeNormal,
 	}
-
-	logger.LogResourceEvent(&res, ei, "Cluster role action", "admin")
+	captureLogEntries(func() {
+		logger.LogResourceEvent(&res, ei, "Cluster role action", "admin")
+	})
 
 	// Event should be created in ArgoCD namespace (not empty namespace)
 	events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
