@@ -17,11 +17,11 @@ interface NewGnuPGPublicKeyParams {
 export const GpgKeysList = ({match, location}: RouteComponentProps) => {
     const ctx = useContext(Context);
 
-    const formApi = useRef<FormApi>();
-    const loader = useRef<DataLoader>();
+    const formApi = useRef<FormApi | null>(null);
+    const loader = useRef<DataLoader | null>(null);
 
     const clearForms = () => {
-        formApi.current.resetAll();
+        formApi.current?.resetAll();
     };
 
     const validateKeyInputfield = (data: string): boolean => {
@@ -54,7 +54,7 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
             }
             await services.gpgkeys.create({keyData: params.keyData});
             setAddGnuPGKey(false);
-            loader.current.reload();
+            loader.current?.reload();
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Unable to add GnuPG public key' e={e} />,
@@ -67,7 +67,7 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
         const confirmed = await ctx.popup.confirm('Remove GPG public key', 'Are you sure you want to remove GPG key with ID ' + keyId + '?');
         if (confirmed) {
             await services.gpgkeys.delete(keyId);
-            loader.current.reload();
+            loader.current?.reload();
         }
     };
 
@@ -98,7 +98,11 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
             }}>
             <div className='gpgkeys-list'>
                 <div className='argo-container'>
-                    <DataLoader load={() => services.gpgkeys.list()} ref={ref => (loader.current = ref)}>
+                    <DataLoader
+                        load={() => services.gpgkeys.list()}
+                        ref={ref => {
+                            loader.current = ref;
+                        }}>
                         {(gpgkeys: models.GnuPGPublicKey[]) =>
                             (gpgkeys.length > 0 && (
                                 <div className='argo-table-list'>

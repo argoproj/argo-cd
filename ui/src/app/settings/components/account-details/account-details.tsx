@@ -15,7 +15,7 @@ require('./account-details.scss');
 export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
     const ctx = React.useContext(Context);
     const [newToken, setNewToken] = React.useState(null);
-    const tokensLoaderRef = React.useRef<DataLoader>();
+    const tokensLoaderRef = React.useRef<DataLoader | null>(null);
     return (
         <Page
             title={props.match.params.name}

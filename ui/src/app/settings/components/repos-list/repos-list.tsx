@@ -712,7 +712,11 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                 )}
                                 qeId='type-menu'
                             />
-                            <DataLoader load={services.repos.list} ref={loader => (repoLoader.current = loader)}>
+                            <DataLoader
+                                load={services.repos.list}
+                                ref={loader => {
+                                    repoLoader.current = loader;
+                                }}>
                                 {(repos: models.Repository[]) => {
                                     const projectValues = Array.from(new Set(repos.map(repo => repo.project)));
 
@@ -778,7 +782,11 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                         <div className='search-bar' style={{display: 'flex', alignItems: 'flex-end', width: '100%'}}></div>
                         <input type='text' className='argo-field' placeholder='Search Name' value={name} onChange={e => setName(e.target.value)} />
                     </div>
-                    <DataLoader load={services.repos.list} ref={loader => (repoLoader.current = loader)}>
+                    <DataLoader
+                        load={services.repos.list}
+                        ref={loader => {
+                            repoLoader.current = loader;
+                        }}>
                         {(repos: models.Repository[]) => {
                             const filteredRepos = filterRepos(repos, typeProperty, projectProperty, statusProperty, name);
 
@@ -872,7 +880,11 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     </DataLoader>
                 </div>
                 <div className='argo-container'>
-                    <DataLoader load={() => services.repocreds.list()} ref={loader => (credsLoader.current = loader)}>
+                    <DataLoader
+                        load={() => services.repocreds.list()}
+                        ref={loader => {
+                            credsLoader.current = loader;
+                        }}>
                         {(creds: models.RepoCreds[]) =>
                             creds.length > 0 && (
                                 <div className='argo-table-list'>
@@ -914,7 +926,11 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 </div>
                 {authSettings?.hydratorEnabled && (
                     <div className='argo-container'>
-                        <DataLoader load={() => services.repos.listWrite()} ref={loader => (repoLoader.current = loader)}>
+                        <DataLoader
+                            load={() => services.repos.listWrite()}
+                            ref={loader => {
+                                repoLoader.current = loader;
+                            }}>
                             {(repos: models.Repository[]) =>
                                 (repos.length > 0 && (
                                     <div className='argo-table-list'>
@@ -987,7 +1003,11 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 )}
                 {authSettings?.hydratorEnabled && (
                     <div className='argo-container'>
-                        <DataLoader load={() => services.repocreds.listWrite()} ref={loader => (credsLoader.current = loader)}>
+                        <DataLoader
+                            load={() => services.repocreds.listWrite()}
+                            ref={loader => {
+                                credsLoader.current = loader;
+                            }}>
                             {(creds: models.RepoCreds[]) =>
                                 creds.length > 0 && (
                                     <div className='argo-table-list'>

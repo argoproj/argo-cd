@@ -21,9 +21,17 @@ jest.mock('./resource-customizations', () => ({
 }));
 
 describe('ResourceIcon', () => {
+    const renderResourceIcon = (group: string, kind: string) => {
+        let testRenderer: renderer.ReactTestRenderer;
+        renderer.act(() => {
+            testRenderer = renderer.create(<ResourceIcon group={group} kind={kind} />);
+        });
+        return testRenderer;
+    };
+
     describe('kind-based icons (no group)', () => {
         it('should show kind-based icon for ConfigMap without group', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='' kind='ConfigMap' />);
+            const testRenderer = renderResourceIcon('', 'ConfigMap');
             const testInstance = testRenderer.root;
             const imgs = testInstance.findAllByType('img');
             expect(imgs.length).toBeGreaterThan(0);
@@ -31,7 +39,7 @@ describe('ResourceIcon', () => {
         });
 
         it('should show kind-based icon for Deployment without group', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='' kind='Deployment' />);
+            const testRenderer = renderResourceIcon('', 'Deployment');
             const testInstance = testRenderer.root;
             const imgs = testInstance.findAllByType('img');
             expect(imgs.length).toBeGreaterThan(0);
@@ -41,7 +49,7 @@ describe('ResourceIcon', () => {
 
     describe('group-based icons (with matching group)', () => {
         it('should show group-based icon for exact group match', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='cert-manager.io' kind='Certificate' />);
+            const testRenderer = renderResourceIcon('cert-manager.io', 'Certificate');
             const testInstance = testRenderer.root;
             const imgs = testInstance.findAllByType('img');
             expect(imgs.length).toBeGreaterThan(0);
@@ -49,14 +57,14 @@ describe('ResourceIcon', () => {
         });
 
         it('should show group-based icon for wildcard group match (crossplane)', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='pkg.crossplane.io' kind='Provider' />);
+            const testRenderer = renderResourceIcon('pkg.crossplane.io', 'Provider');
             const testInstance = testRenderer.root;
             const imgs = testInstance.findAllByType('img');
             expect(imgs.length).toBeGreaterThan(0);
             // Wildcard '*' should be replaced with '_' in the path
             expect(imgs[0].props.src).toBe('assets/images/resources/_.crossplane.io/icon.svg');
 
-            const complexTestRenderer = renderer.create(<ResourceIcon group='identify.provider.crossplane.io' kind='Provider' />);
+            const complexTestRenderer = renderResourceIcon('identify.provider.crossplane.io', 'Provider');
             const complexTestInstance = complexTestRenderer.root;
             const complexImgs = complexTestInstance.findAllByType('img');
             expect(complexImgs.length).toBeGreaterThan(0);
@@ -65,7 +73,7 @@ describe('ResourceIcon', () => {
         });
 
         it('should show group-based icon for wildcard group match (fluxcd)', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='source.fluxcd.io' kind='GitRepository' />);
+            const testRenderer = renderResourceIcon('source.fluxcd.io', 'GitRepository');
             const testInstance = testRenderer.root;
             const imgs = testInstance.findAllByType('img');
             expect(imgs.length).toBeGreaterThan(0);
@@ -78,7 +86,7 @@ describe('ResourceIcon', () => {
             // This is the main bug fix test case
             // Ingress has group 'networking.k8s.io' which is NOT in resourceCustomizations
             // But Ingress IS in resourceIcons, so it should still show the icon
-            const testRenderer = renderer.create(<ResourceIcon group='networking.k8s.io' kind='Ingress' />);
+            const testRenderer = renderResourceIcon('networking.k8s.io', 'Ingress');
             const testInstance = testRenderer.root;
             const imgs = testInstance.findAllByType('img');
             expect(imgs.length).toBeGreaterThan(0);
@@ -86,7 +94,7 @@ describe('ResourceIcon', () => {
         });
 
         it('should fallback to kind-based icon for Service with core group', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='' kind='Service' />);
+            const testRenderer = renderResourceIcon('', 'Service');
             const testInstance = testRenderer.root;
             const imgs = testInstance.findAllByType('img');
             expect(imgs.length).toBeGreaterThan(0);
@@ -96,7 +104,7 @@ describe('ResourceIcon', () => {
 
     describe('fallback to initials (no matching group or kind)', () => {
         it('should show initials for unknown resource with unknown group', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='unknown.example.io' kind='UnknownResource' />);
+            const testRenderer = renderResourceIcon('unknown.example.io', 'UnknownResource');
             const testInstance = testRenderer.root;
             const imgs = testInstance.findAllByType('img');
             expect(imgs.length).toBe(0);
@@ -107,7 +115,7 @@ describe('ResourceIcon', () => {
         });
 
         it('should show initials for MyCustomKind', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='' kind='MyCustomKind' />);
+            const testRenderer = renderResourceIcon('', 'MyCustomKind');
             const testInstance = testRenderer.root;
             const imgs = testInstance.findAllByType('img');
             expect(imgs.length).toBe(0);
@@ -120,7 +128,7 @@ describe('ResourceIcon', () => {
 
     describe('special cases', () => {
         it('should show node icon for kind=node', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='' kind='node' />);
+            const testRenderer = renderResourceIcon('', 'node');
             const testInstance = testRenderer.root;
             const imgs = testInstance.findAllByType('img');
             expect(imgs.length).toBeGreaterThan(0);
@@ -128,7 +136,7 @@ describe('ResourceIcon', () => {
         });
 
         it('should show application icon for kind=Application', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='' kind='Application' />);
+            const testRenderer = renderResourceIcon('', 'Application');
             const testInstance = testRenderer.root;
             const icons = testInstance.findAll(node => node.type === 'i' && typeof node.props.className === 'string' && node.props.className.includes('argo-icon-application'));
             expect(icons.length).toBeGreaterThan(0);

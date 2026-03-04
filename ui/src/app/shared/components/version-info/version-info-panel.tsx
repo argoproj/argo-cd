@@ -16,7 +16,7 @@ export function VersionPanel({isShown, onClose, version}: VersionPanelProps) {
     const [copyState, setCopyState] = useState<CopyState>(undefined);
     const header = 'Argo CD Server Version';
 
-    const buildVersionTable = (version: VersionMessage): JSX.Element => {
+    const buildVersionTable = (version: VersionMessage): React.ReactElement => {
         const formattedVersion = {
             'Argo CD': version.Version,
             'Build Date': version.BuildDate,
@@ -51,7 +51,7 @@ export function VersionPanel({isShown, onClose, version}: VersionPanelProps) {
         );
     };
 
-    const getCopyButton = (version: VersionMessage): JSX.Element => {
+    const getCopyButton = (version: VersionMessage): React.ReactElement => {
         let img: string;
         let text: string;
         if (copyState === 'success') {

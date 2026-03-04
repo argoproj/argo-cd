@@ -23,7 +23,7 @@ export const NamespacesEditor = ReactFormField((props: {fieldApi: FieldApi; clas
 
 export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {objectListKind?: string}) => {
     const server = decodeURIComponent(props.match.params.server);
-    const loaderRef = React.useRef<DataLoader>();
+    const loaderRef = React.useRef<DataLoader | null>(null);
     const [updating, setUpdating] = React.useState(false);
     const objectListKind = props.objectListKind || 'application';
     return (

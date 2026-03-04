@@ -184,7 +184,7 @@ export const ApplicationParameters = (props: {
                         props.setPageNumber(page);
                     }}>
                     {data => {
-                        const listOfPanels: JSX.Element[] = [];
+                        const listOfPanels: React.ReactElement[] = [];
                         data.forEach(appSource => {
                             const i = app.spec.sources.indexOf(appSource);
                             listOfPanels.push(getEditablePanelForSources(i, appSource));
@@ -294,7 +294,7 @@ export const ApplicationParameters = (props: {
     }
 
     // Collapse button is separate
-    function getEditablePanelForSources(index: number, appSource: models.ApplicationSource): JSX.Element {
+    function getEditablePanelForSources(index: number, appSource: models.ApplicationSource): React.ReactElement {
         return (collapsible && props.collapsedSources[index] === undefined) || props.collapsedSources[index] ? (
             <div
                 key={'app_params_collapsed_' + index}

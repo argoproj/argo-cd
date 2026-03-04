@@ -144,7 +144,11 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
             }}>
             <div className='certs-list'>
                 <div className='argo-container'>
-                    <DataLoader load={() => services.certs.list()} ref={ref => (loader.current = ref)}>
+                    <DataLoader
+                        load={() => services.certs.list()}
+                        ref={ref => {
+                            loader.current = ref;
+                        }}>
                         {(certs: models.RepoCert[]) =>
                             (certs.length > 0 && (
                                 <div className='argo-table-list'>
