@@ -1330,3 +1330,7 @@ func GetNotificationServerAddress() string {
 func GetToken() string {
 	return token
 }
+
+func IsPlainText() bool {
+	return plainText
+}
