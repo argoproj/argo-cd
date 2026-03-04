@@ -309,7 +309,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Setup NodeJS
-        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           # renovate: datasource=node-version packageName=node versioning=node
           node-version: '22.9.0'
@@ -502,7 +502,7 @@ jobs:
           git config --global user.email "john.doe@example.com"
       - name: Pull Docker image required for tests
         run: |
-          docker pull ghcr.io/dexidp/dex:v2.44.0
+          docker pull ghcr.io/dexidp/dex:v2.45.0
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           docker pull redis:8.2.3-alpine
       - name: Create target directory for binaries in the build-process
