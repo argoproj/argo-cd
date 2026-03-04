@@ -350,10 +350,6 @@ func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) 
 	replicas := 2
 	sharding := setupTestSharding(shard, replicas)
 
-	Int64Ptr := func(i int64) *int64 {
-		return &i
-	}
-
 	clusterWithNil := &v1alpha1.Cluster{
 		ID:     "2",
 		Server: "https://127.0.0.1:6443",
@@ -363,13 +359,13 @@ func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) 
 	clusterWithValue := &v1alpha1.Cluster{
 		ID:     "1",
 		Server: "https://kubernetes.default.svc",
-		Shard:  Int64Ptr(1),
+		Shard:  new(int64(1)),
 	}
 
 	clusterWithToBigValue := &v1alpha1.Cluster{
 		ID:     "3",
 		Server: "https://1.1.1.1",
-		Shard:  Int64Ptr(999), // shard value is explicitly bigger than the number of replicas
+		Shard:  new(int64(999)), // shard value is explicitly bigger than the number of replicas
 	}
 
 	sharding.Init(
@@ -402,10 +398,6 @@ func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) 
 }
 
 func TestHasShardingUpdates(t *testing.T) {
-	Int64Ptr := func(i int64) *int64 {
-		return &i
-	}
-
 	testCases := []struct {
 		name     string
 		old      *v1alpha1.Cluster
@@ -416,11 +408,11 @@ func TestHasShardingUpdates(t *testing.T) {
 			name: "No updates",
 			old: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(1),
+				Shard:  new(int64(1)),
 			},
 			new: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(1),
+				Shard:  new(int64(1)),
 			},
 			expected: false,
 		},
@@ -428,11 +420,11 @@ func TestHasShardingUpdates(t *testing.T) {
 			name: "Updates",
 			old: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(1),
+				Shard:  new(int64(1)),
 			},
 			new: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			expected: true,
 		},
@@ -441,7 +433,7 @@ func TestHasShardingUpdates(t *testing.T) {
 			old:  nil,
 			new: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			expected: false,
 		},
@@ -449,7 +441,7 @@ func TestHasShardingUpdates(t *testing.T) {
 			name: "New is nil",
 			old: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			new:      nil,
 			expected: false,
@@ -480,7 +472,7 @@ func TestHasShardingUpdates(t *testing.T) {
 			},
 			new: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			expected: true,
 		},
@@ -488,7 +480,7 @@ func TestHasShardingUpdates(t *testing.T) {
 			name: "New shard is nil",
 			old: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			new: &v1alpha1.Cluster{
 				Server: "https://kubernetes.default.svc",
@@ -501,12 +493,12 @@ func TestHasShardingUpdates(t *testing.T) {
 			old: &v1alpha1.Cluster{
 				ID:     "1",
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			new: &v1alpha1.Cluster{
 				ID:     "2",
 				Server: "https://kubernetes.default.svc",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			expected: true,
 		},
@@ -515,12 +507,12 @@ func TestHasShardingUpdates(t *testing.T) {
 			old: &v1alpha1.Cluster{
 				ID:     "1",
 				Server: "https://server1",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			new: &v1alpha1.Cluster{
 				ID:     "1",
 				Server: "https://server2",
-				Shard:  Int64Ptr(2),
+				Shard:  new(int64(2)),
 			},
 			expected: true,
 		},
