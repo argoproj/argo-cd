@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-clusterprofile-controller
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: clusterprofile-controller
+  name: argocd-clusterprofile-controller

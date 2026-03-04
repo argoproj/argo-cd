@@ -21,6 +21,15 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   labels:
+    app.kubernetes.io/component: clusterprofile-controller
+    app.kubernetes.io/name: argocd-clusterprofile-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-clusterprofile-controller
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
     app.kubernetes.io/component: dex-server
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
@@ -178,6 +187,85 @@ rules:
   - coordination.k8s.io
   resourceNames:
   - 58ac56fa.applicationsets.argoproj.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - update
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: clusterprofile-controller
+    app.kubernetes.io/name: argocd-clusterprofile-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-clusterprofile-controller
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - appprojects
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - multicluster.x-k8s.io
+  resources:
+  - clusterprofiles
+  - clusterprofiles/status
+  - clusterprofiles/finalizers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+- apiGroups:
+  - coordination.k8s.io
+  resourceNames:
+  - clusterprofile.argoproj.io
   resources:
   - leases
   verbs:
@@ -348,6 +436,22 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-applicationset-controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: clusterprofile-controller
+    app.kubernetes.io/name: argocd-clusterprofile-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-clusterprofile-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-clusterprofile-controller
+subjects:
+- kind: ServiceAccount
+  name: argocd-clusterprofile-controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -620,6 +724,23 @@ spec:
     targetPort: metrics
   selector:
     app.kubernetes.io/name: argocd-applicationset-controller
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: clusterprofile-controller
+    app.kubernetes.io/name: argocd-clusterprofile-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-clusterprofile-controller
+spec:
+  ports:
+  - name: metrics
+    port: 8080
+    protocol: TCP
+    targetPort: metrics
+  selector:
+    app.kubernetes.io/name: argocd-clusterprofile-controller
 ---
 apiVersion: v1
 kind: Service
@@ -1055,6 +1176,158 @@ spec:
           items:
           - key: applicationsetcontroller.profile.enabled
             path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: clusterprofile-controller
+    app.kubernetes.io/name: argocd-clusterprofile-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-clusterprofile-controller
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-clusterprofile-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-clusterprofile-controller
+    spec:
+      containers:
+      - args:
+        - /usr/local/bin/argocd-clusterprofile-controller
+        env:
+        - name: GRPC_ENABLE_TXT_SERVICE_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.grpc.enable.txt.service.config
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: ARGOCD_CLUSTERPROFILE_CONTROLLER_ENABLE_LEADER_ELECTION
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.enable.leader.election
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTERPROFILE_CONTROLLER_DEBUG
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.debug
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTERPROFILE_CONTROLLER_LOGFORMAT
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.log.format
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTERPROFILE_CONTROLLER_LOGLEVEL
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.log.level
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_LOG_FORMAT_TIMESTAMP
+          valueFrom:
+            configMapKeyRef:
+              key: log.format.timestamp
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_QPS
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.k8s.client.qps
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_BURST
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.k8s.client.burst
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.k8s.client.max.idle.connections
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.k8s.tcp.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_KEEPALIVE
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.k8s.tcp.keepalive
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.k8s.tls.handshake.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_IDLE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.k8s.tcp.idle.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTERPROFILE_CONTROLLER_DRY_RUN
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.dryrun
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTERPROFILE_CONTROLLER_NAMESPACES
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.namespaces
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_CLUSTERPROFILE_CONTROLLER_ENABLE_CLUSTER_PROFILES
+          valueFrom:
+            configMapKeyRef:
+              key: clusterprofilecontroller.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        image: quay.io/argoproj/argocd:latest
+        imagePullPolicy: Always
+        name: argocd-clusterprofile-controller
+        ports:
+        - containerPort: 8080
+          name: metrics
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
+      nodeSelector:
+        kubernetes.io/os: linux
+      serviceAccountName: argocd-clusterprofile-controller
+      volumes:
+      - emptyDir: {}
+        name: tmp
+      - configMap:
           name: argocd-cmd-params-cm
           optional: true
         name: argocd-cmd-params-cm
@@ -2659,6 +2932,27 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: argocd-applicationset-controller
+  policyTypes:
+  - Ingress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  labels:
+    app.kubernetes.io/component: clusterprofile-controller
+    app.kubernetes.io/name: argocd-clusterprofile-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-clusterprofile-controller-network-policy
+spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - port: 8080
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-clusterprofile-controller
   policyTypes:
   - Ingress
 ---

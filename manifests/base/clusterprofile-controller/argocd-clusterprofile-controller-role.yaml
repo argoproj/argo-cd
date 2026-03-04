@@ -1,0 +1,81 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/name: argocd-clusterprofile-controller
+    app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/component: clusterprofile-controller
+  name: argocd-clusterprofile-controller
+rules:
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - applications
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - appprojects
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+      - configmaps
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - multicluster.x-k8s.io
+    resources:
+      - clusterprofiles
+      - clusterprofiles/status
+      - clusterprofiles/finalizers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  # argocd-clusterprofile-controller leader election rules
+  # Create with resourceNames fails, so use a separate rule for the lease creation
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    resourceNames:
+      # Defined in `cmd/argocd-clusterprofile-controller/commands/main.go`
+      - clusterprofile.argoproj.io
+    verbs:
+      - get
+      - update
+      - create

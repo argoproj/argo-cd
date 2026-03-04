@@ -360,6 +360,7 @@ ifeq ($(DEV_IMAGE), true)
 # The "dev" image builds the binaries from the users desktop environment (instead of in Docker)
 # which speeds up builds. Dockerfile.dev needs to be copied into dist to perform the build, since
 # the dist directory is under .dockerignore.
+# TODO: are the quotation marks correct formatting?
 IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image: build-ui
 	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t argocd-base --target argocd-base .

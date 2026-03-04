@@ -164,6 +164,9 @@ func (r *ClusterProfileReconciler) mutateSecret(secret *corev1.Secret, clusterPr
 		}
 		return nil
 	}
+	if r.AccessProviders == nil {
+		return fmt.Errorf("ClusterProfileReconciler AccessProviders not initialized. Required for custom config for ClusterProfile: %v", clusterProfile.Name)
+	}
 
 	// If using custom access providers, build the kubeconfig.
 	config, err := r.AccessProviders.BuildConfigFromCP(clusterProfile)

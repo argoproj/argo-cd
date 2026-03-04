@@ -31027,6 +31027,81 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
+    app.kubernetes.io/component: clusterprofile-controller
+    app.kubernetes.io/name: argocd-clusterprofile-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-clusterprofile-controller
+rules:
+- apiGroups:
+  - argoproj.io
+  resources:
+  - applications
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - argoproj.io
+  resources:
+  - appprojects
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - get
+  - list
+  - patch
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - multicluster.x-k8s.io
+  resources:
+  - clusterprofiles
+  - clusterprofiles/status
+  - clusterprofiles/finalizers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+- apiGroups:
+  - coordination.k8s.io
+  resourceNames:
+  - clusterprofile.argoproj.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - update
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
     app.kubernetes.io/component: server
     app.kubernetes.io/name: argocd-server
     app.kubernetes.io/part-of: argocd
@@ -31219,6 +31294,23 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-applicationset-controller
+  namespace: argocd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: clusterprofile-controller
+    app.kubernetes.io/name: argocd-clusterprofile-controller
+    app.kubernetes.io/part-of: argocd
+  name: argocd-clusterprofile-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-clusterprofile-controller
+subjects:
+- kind: ServiceAccount
+  name: argocd-clusterprofile-controller
   namespace: argocd
 ---
 apiVersion: rbac.authorization.k8s.io/v1

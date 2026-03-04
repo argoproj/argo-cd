@@ -11,6 +11,7 @@ import (
 
 	appcontroller "github.com/argoproj/argo-cd/v3/cmd/argocd-application-controller/commands"
 	applicationset "github.com/argoproj/argo-cd/v3/cmd/argocd-applicationset-controller/commands"
+	clusterprofile "github.com/argoproj/argo-cd/v3/cmd/argocd-clusterprofile-controller/commands"
 	cmpserver "github.com/argoproj/argo-cd/v3/cmd/argocd-cmp-server/commands"
 	commitserver "github.com/argoproj/argo-cd/v3/cmd/argocd-commit-server/commands"
 	dex "github.com/argoproj/argo-cd/v3/cmd/argocd-dex/commands"
@@ -69,6 +70,9 @@ func main() {
 	case "argocd-k8s-auth":
 		command = k8sauth.NewCommand()
 		isArgocdCLI = true
+	case "argocd-clusterprofile-controller":
+		command = clusterprofile.NewCommand()
+		isArgocdCLI = false
 	default:
 		command = cli.NewCommand()
 		isArgocdCLI = true

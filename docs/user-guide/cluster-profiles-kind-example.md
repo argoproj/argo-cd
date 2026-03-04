@@ -23,29 +23,39 @@ Install Argo CD in `hub`:
 
 ```bash
 kubectl config use-context kind-hub
-kubectl config set-context --current --namespace=argocd
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-kubectl set env deployment/argocd-applicationset-controller -n argocd ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_CLUSTER_PROFILES="true"
-kubectl set env deployment/argocd-applicationset-controller -n argocd ARGOCD_APPLICATIONSET_CONTROLLER_CLUSTER_PROFILE_PROVIDERS_FILE="/app/cp-creds/cp-creds.json"
+kubectl config set-context --current --namespace=argocd
+kubectl create -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# Enable the Cluster Profile Controller
+kubectl patch configmap argocd-cmd-params-cm -n argocd --type merge -p '{"data":{"clusterprofilecontroller.enabled":"true"}}'
+kubectl rollout restart deployment argocd-clusterprofile-controller -n argocd
 ```
 
 If doing local development in a fork of the argo-cd repo, build the local image instead:
 ```bash
 kubectl config use-context kind-hub
 kubectl create namespace argocd
+kubectl config set-context --current --namespace=argocd
 export IMAGE_NAMESPACE=quay.io/argoproj
 export IMAGE_TAG=my-dev-v1
 export DOCKER_PUSH=false
 make image
+make manifests-local
+
+# Set ImagePullPolicy to Never for the Argo CD image for local dev
+sed -i -e '/image: .*argocd/!b' -e 'n;s/imagePullPolicy: \(Always\|IfNotPresent\)/imagePullPolicy: Never/' manifests/install.yaml
 kind load docker-image ${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG} --name hub
-make manifests
-kubectl apply -n argocd -f manifests/install.yaml
-kubectl set env deployment/argocd-applicationset-controller -n argocd ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_CLUSTER_PROFILES="true"
-kubectl set env deployment/argocd-applicationset-controller -n argocd ARGOCD_APPLICATIONSET_CONTROLLER_CLUSTER_PROFILE_PROVIDERS_FILE="/app/cp-creds/cp-creds.json"
+
+# ApplicationSet definition is too large for client-side `kubectl apply`. Use server-side apply instead:
+kubectl apply -n argocd --server-side --force-conflicts -f manifests/install.yaml
+
+# Enable the Cluster Profile Controller
+kubectl patch configmap argocd-cmd-params-cm -n argocd --type merge -p '{"data":{"clusterprofilecontroller.enabled":"true"}}'
+kubectl rollout restart deployment argocd-clusterprofile-controller -n argocd
 ```
 
-Create argocd manager service account in `spoke`:
+Create argocd-manager service account in `spoke`:
 ```bash
 kubectl config use-context kind-spoke
 kubectl apply -f - <<EOF
@@ -79,7 +89,7 @@ type: kubernetes.io/service-account-token
 EOF
 ```
 
-Also create the namespace for the sample application:
+Create the namespace for the sample application:
 ```bash
 kubectl config use-context kind-spoke
 kubectl create namespace guestbook
@@ -186,9 +196,9 @@ kubectl patch clusterprofile spoke-cluster -n argocd --subresource=status --type
 ```
 Note that the provider's `name` refers to the name from the access providers secret/file.
 
-Now we mount the access providers file into application controller and enable the Cluster Profile syncer:
+Now we mount the access providers file into the Cluster Profile controller:
 ```bash
-kubectl -n argocd patch deploy/argocd-applicationset-controller --type strategic --patch '
+kubectl -n argocd patch deploy/argocd-clusterprofile-controller --type strategic --patch '
 spec:
   template:
     spec:
@@ -197,12 +207,12 @@ spec:
           secret:
             secretName: cp-creds-secret
       containers:
-        - name: argocd-applicationset-controller
+        - name: argocd-clusterprofile-controller
           volumeMounts:
             - name: cp-creds-vol
               mountPath: /app/cp-creds
           args:
-            - "/usr/local/bin/argocd-applicationset-controller"
+            - "/usr/local/bin/argocd-clusterprofile-controller"
             - "--cluster-profile-providers-file=/app/cp-creds/cp-creds.json"'
 ```
 Setting a value for `--cluster-profile-providers-file` will enable the Cluster Profile syncer in the applicationset controller.
@@ -210,7 +220,7 @@ Setting a value for `--cluster-profile-providers-file` will enable the Cluster P
 ## 7. Create ApplicationSet
 
 Create simple ApplicationSet with ClusterGenerator:
-```yaml
+```bash
 kubectl apply -n argocd -f - <<EOF
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
