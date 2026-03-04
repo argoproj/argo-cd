@@ -1,7 +1,6 @@
 package glob
 
 import (
-	"fmt"
 	"math"
 	"sync"
 
@@ -44,7 +43,7 @@ func cacheKey(pattern string, separators ...rune) string {
 	if len(separators) == 0 {
 		return pattern
 	}
-	return fmt.Sprintf("%s\x00%s", pattern, string(separators))
+	return pattern + "\x00" + string(separators)
 }
 
 // getOrCompile returns a cached compiled glob pattern, compiling and caching it if necessary.
