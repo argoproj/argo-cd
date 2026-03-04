@@ -42,6 +42,7 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -696,12 +697,52 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	ts.AddCheckpoint("dedup_ms")
 
+	// On hard refresh (noCache=true), validate tainted GVKs used by this application
+	if noCache {
+		logCtx.Debug("Hard refresh detected - checking for tainted GVKs used by this application")
+		m.validateAppGVKTaints(destCluster, targetObjs, logCtx)
+	}
+
 	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, targetObjs)
 	if err != nil {
-		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
-		msg := "Failed to load live state: " + err.Error()
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-		failedToLoadObjs = true
+		// Handle cluster cache errors gracefully - this includes various issues
+		// that might result in partial data (conversion webhooks, pagination token expiration, etc.)
+
+		// Log the error for debugging during refresh
+		logCtx.Warnf("GetManagedLiveObjs error during refresh: %v", err)
+
+		// Use centralized error analysis to determine if this is a cache-tainting error
+		analysis := argoerrors.AnalyzeError(err)
+		if analysis.IsCacheTainting && analysis.ExtractedGVK != "" {
+			// Mark affected GVK as tainted
+			m.liveStateCache.MarkClusterTainted(destCluster.Server, err.Error(), analysis.ExtractedGVK, string(analysis.IssueType))
+			logCtx.Warnf("Marked GVK %s as tainted due to %s: %v", analysis.ExtractedGVK, analysis.IssueType, err)
+		}
+
+		taintedGVKs := m.liveStateCache.GetTaintedGVKs(destCluster.Server)
+		if len(taintedGVKs) > 0 {
+			logCtx.Warnf("Failed to get managed live objects due to tainted cluster cache (affected GVKs: %v), continuing with empty live state: %v", taintedGVKs, err)
+			liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
+
+			// Get appropriate condition message from the analysis
+			message := analysis.GetConditionMessage()
+			if message == "" {
+				// Fallback if analysis didn't produce a message
+				message = fmt.Sprintf("Error retrieving live state: %v", err)
+			}
+
+			conditions = append(conditions, v1alpha1.ApplicationCondition{
+				Type:               v1alpha1.ApplicationConditionComparisonError,
+				Message:            message,
+				LastTransitionTime: &now,
+			})
+			// Don't set failedToLoadObjs = true here to allow processing to continue
+		} else {
+			liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
+			msg := "Failed to load live state: " + err.Error()
+			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
+			failedToLoadObjs = true
+		}
 	}
 
 	logCtx.Debugf("Retrieved live manifests")
@@ -790,6 +831,57 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 
 	reconciliation := sync.Reconcile(targetObjsForSync, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
+
+	// Check if we have current cache-tainting issues that affect this application
+	// Use real-time information from the cluster cache rather than stale app conditions
+	taintedGVKs := m.liveStateCache.GetTaintedGVKs(destCluster.Server)
+
+	// Check if any of the tainted GVKs are used by this application
+	hasCacheTaintingIssues := false
+	if len(taintedGVKs) > 0 {
+		logCtx.Infof("Checking if app uses any of the tainted GVKs: %v", taintedGVKs)
+
+		// Check if any target objects match tainted GVKs
+		for _, obj := range targetObjs {
+			gvk := obj.GroupVersionKind()
+			gvkString := gvk.String()
+
+			logCtx.Debugf("Checking target object GVK: %s", gvkString)
+
+			for _, taintedGVK := range taintedGVKs {
+				if gvkString == taintedGVK {
+					hasCacheTaintingIssues = true
+					logCtx.Warnf("Application uses tainted GVK %s - marking sync status as Unknown", taintedGVK)
+					break
+				}
+			}
+			if hasCacheTaintingIssues {
+				break
+			}
+		}
+
+		if !hasCacheTaintingIssues {
+			logCtx.Infof("Application does not use any tainted GVKs")
+		}
+
+		// Check for tainted GVKs that the project permits but are not in target objects.
+		// These could affect the app through dynamically-discovered children (e.g., Pods from Deployments).
+		permittedTaintedGVKs := m.checkProjectPermitsTaintedGVKs(project, destCluster, taintedGVKs, targetObjs, logCtx)
+		if len(permittedTaintedGVKs) > 0 {
+			msg := fmt.Sprintf(
+				"Cluster has degraded resource types that this application's project permits: %v. "+
+					"These may affect child resources discovered dynamically (e.g., Pods from Deployments). "+
+					"Check cluster status for details.",
+				permittedTaintedGVKs)
+			conditions = append(conditions, v1alpha1.ApplicationCondition{
+				Type:               v1alpha1.ApplicationConditionComparisonError,
+				Message:            msg,
+				LastTransitionTime: &now,
+			})
+			logCtx.Warnf("Project permits tainted GVKs not in targets: %v", permittedTaintedGVKs)
+		}
+	}
+
 	ts.AddCheckpoint("live_ms")
 
 	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
@@ -975,9 +1067,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		resourceSummaries[i] = resState
 	}
 
-	if failedToLoadObjs {
+	switch {
+	case failedToLoadObjs:
 		syncCode = v1alpha1.SyncStatusCodeUnknown
-	} else if app.HasChangedManagedNamespaceMetadata() {
+	case hasCacheTaintingIssues:
+		// If we have cache-tainting issues, the sync status should be Unknown regardless
+		// of target objects. We cannot reliably determine the actual state, and marking
+		// as OutOfSync could mislead users into attempting sync operations that will fail.
+		syncCode = v1alpha1.SyncStatusCodeUnknown
+	case app.HasChangedManagedNamespaceMetadata():
 		syncCode = v1alpha1.SyncStatusCodeOutOfSync
 	}
 
@@ -992,7 +1090,22 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	ts.AddCheckpoint("sync_ms")
 
-	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
+	// Get cluster health information for enhanced health analysis
+	var clusterHealth *ClusterHealthStatus
+	if m.liveStateCache != nil {
+		// Create a minimal cluster health analyzer function
+		clusterURL := app.Spec.Destination.Server
+		taintedGVKs := m.liveStateCache.GetTaintedGVKs(clusterURL)
+		if len(taintedGVKs) > 0 {
+			clusterHealth = &ClusterHealthStatus{
+				HasCacheIssues: true,
+				AffectedGVKs:   taintedGVKs,
+				Severity:       argoerrors.SeverityDegraded,
+			}
+		}
+	}
+
+	healthStatus, err := setApplicationHealthWithClusterInfo(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth, clusterHealth)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: "error setting app health: " + err.Error(), LastTransitionTime: &now})
 	}
@@ -1235,4 +1348,181 @@ func isSelfReferencedObj(obj *unstructured.Unstructured, aiv argo.AppInstanceVal
 		obj.GetName() == aiv.Name &&
 		obj.GetObjectKind().GroupVersionKind().Group == aiv.Group &&
 		obj.GetObjectKind().GroupVersionKind().Kind == aiv.Kind
+}
+
+// validateAppGVKTaints checks if any GVKs used by this application are currently tainted,
+// and validates whether those taints are still valid by testing the specific target objects
+// this application needs. If a tainted GVK's resources can now be accessed, its taint is cleared.
+func (m *appStateManager) validateAppGVKTaints(cluster *v1alpha1.Cluster, targetObjs []*unstructured.Unstructured, logCtx *log.Entry) {
+	// Get currently tainted GVKs for this cluster
+	taintedGVKs := m.liveStateCache.GetTaintedGVKs(cluster.Server)
+
+	// Group target objects by their GVK
+	objsByGVK := make(map[string][]*unstructured.Unstructured)
+	for _, obj := range targetObjs {
+		gvk := obj.GroupVersionKind()
+		gvkString := gvk.String()
+		objsByGVK[gvkString] = append(objsByGVK[gvkString], obj)
+	}
+
+	// During hard refresh, proactively test ALL GVKs used by the app to discover new issues,
+	// not just already-tainted ones. This catches errors that haven't been discovered yet by
+	// background watch operations (race condition).
+	var gvksToTest []string
+	if len(taintedGVKs) > 0 {
+		// Test already-tainted GVKs to see if they've recovered
+		for _, taintedGVK := range taintedGVKs {
+			if _, hasGVK := objsByGVK[taintedGVK]; hasGVK {
+				gvksToTest = append(gvksToTest, taintedGVK)
+			}
+		}
+	} else {
+		// No known taints - proactively test all GVKs during hard refresh
+		logCtx.Debug("No existing taints - proactively testing all app GVKs for issues")
+		for gvkString := range objsByGVK {
+			gvksToTest = append(gvksToTest, gvkString)
+		}
+	}
+
+	if len(gvksToTest) == 0 {
+		logCtx.Debug("No GVKs to test")
+		return
+	}
+
+	// Test each GVK by attempting to access specific resources
+	var testedGVKs []string
+	var newlyTaintedGVKs []string
+	for _, gvkString := range gvksToTest {
+		objects := objsByGVK[gvkString]
+		isTainted := slices.Contains(taintedGVKs, gvkString)
+
+		logCtx.Infof("Testing GVK %s (currently tainted: %v) by attempting to access %d specific resources",
+			gvkString, isTainted, len(objects))
+
+		if m.testGVKHealth(cluster, gvkString, objects, logCtx) {
+			if isTainted {
+				// Was tainted, now healthy - clear the taint
+				logCtx.Infof("GVK %s is now healthy - clearing taint", gvkString)
+				m.liveStateCache.ClearGVKTaint(cluster.Server, gvkString)
+			} else {
+				logCtx.Debugf("GVK %s is healthy", gvkString)
+			}
+			testedGVKs = append(testedGVKs, gvkString)
+		} else {
+			if !isTainted {
+				// Was not tainted, but now discovered to be problematic
+				logCtx.Infof("GVK %s has issues - newly discovered during hard refresh", gvkString)
+				newlyTaintedGVKs = append(newlyTaintedGVKs, gvkString)
+			} else {
+				logCtx.Infof("GVK %s is still problematic - keeping taint", gvkString)
+			}
+		}
+	}
+
+	logCtx.Infof("Hard refresh GVK validation complete - tested: %d, healthy: %d, newly tainted: %d",
+		len(gvksToTest), len(testedGVKs), len(newlyTaintedGVKs))
+}
+
+// checkProjectPermitsTaintedGVKs checks if any tainted GVKs are permitted by the app's project
+// but are NOT in the target objects. These could affect the app through dynamically-discovered
+// children (e.g., Pods created by Deployments). Returns a list of permitted tainted GVKs.
+func (m *appStateManager) checkProjectPermitsTaintedGVKs(
+	project *v1alpha1.AppProject,
+	destCluster *v1alpha1.Cluster,
+	taintedGVKs []string,
+	targetObjs []*unstructured.Unstructured,
+	logCtx *log.Entry,
+) []string {
+	// Build set of GVKs already in target objects
+	targetGVKSet := make(map[string]bool)
+	for _, obj := range targetObjs {
+		targetGVKSet[obj.GroupVersionKind().String()] = true
+	}
+
+	var permittedTaintedGVKs []string
+
+	for _, gvkStr := range taintedGVKs {
+		// Skip if already in target objects (handled by direct taint detection)
+		if targetGVKSet[gvkStr] {
+			continue
+		}
+
+		// Parse GVK string using centralized parser (format: "group/version, Kind=kind")
+		gvk := argoerrors.ExtractGVKObject(gvkStr)
+		if gvk == nil {
+			logCtx.Warnf("Failed to parse tainted GVK string %q", gvkStr)
+			continue
+		}
+		gk := gvk.GroupKind()
+
+		// Check if namespaced (default to true if unknown - safer to warn)
+		isNamespaced := true
+		namespaced, err := m.liveStateCache.IsNamespaced(destCluster, gk)
+		if err == nil {
+			isNamespaced = namespaced
+		}
+
+		// Check if project permits this GVK
+		if project.IsGroupKindNamePermitted(gk, "", isNamespaced) {
+			permittedTaintedGVKs = append(permittedTaintedGVKs, gvkStr)
+		}
+	}
+
+	return permittedTaintedGVKs
+}
+
+// testGVKHealth tests if a specific GVK is healthy by attempting to fetch resources using actual
+// API calls. This forces Kubernetes to execute conversion webhooks, allowing synchronous detection
+// of webhook failures during hard refresh. Returns true if healthy, false if problematic.
+func (m *appStateManager) testGVKHealth(cluster *v1alpha1.Cluster, gvkString string, objects []*unstructured.Unstructured, logCtx *log.Entry) bool {
+	if len(objects) == 0 {
+		return false
+	}
+
+	clusterCache, err := m.liveStateCache.GetClusterCache(cluster)
+	if err != nil {
+		logCtx.Warnf("Failed to get cluster cache for GVK validation: %v", err)
+		return false
+	}
+
+	// Make actual API calls for each resource to trigger conversion webhooks
+	// The API server will execute webhooks when converting between versions
+	logCtx.Debugf("Testing GVK %s by fetching %d resources via API calls", gvkString, len(objects))
+
+	// Get REST config for making API calls
+	config, err := cluster.RESTConfig()
+	if err != nil {
+		logCtx.Warnf("Failed to get REST config for cluster: %v", err)
+		return false
+	}
+
+	for _, obj := range objects {
+		gvk := obj.GroupVersionKind()
+		logCtx.Debugf("Making API call for %s %s/%s", gvk.String(), obj.GetNamespace(), obj.GetName())
+
+		// Use kubectl to make actual API GET call
+		// This will trigger conversion webhooks if the requested version differs from storage version
+		_, err := m.kubectl.GetResource(context.Background(), config, gvk, obj.GetName(), obj.GetNamespace())
+		if err != nil {
+			// Check if this is a conversion webhook error using centralized detection
+			if argoerrors.IsConversionWebhookError(err) {
+				logCtx.Infof("GVK %s failed with conversion webhook error: %v - tainting GVK", gvkString, err)
+
+				// Report the error to the cluster cache's taint framework
+				// This ensures the error is tracked and surfaced to the application
+				clusterCache.HandleResourceGVKError(gvk, err)
+				return false
+			}
+
+			// Other errors (not found, permissions, etc.) don't indicate webhook problems
+			logCtx.Debugf("GVK %s returned non-webhook error (acceptable): %v", gvkString, err)
+		}
+	}
+
+	// All API calls succeeded - GVK is healthy
+	// Clear any previous taint for this GVK
+	gvk := objects[0].GroupVersionKind()
+	clusterCache.ClearResourceGVKError(gvk)
+	logCtx.Debugf("GVK %s successfully validated - all API calls succeeded", gvkString)
+	return true
 }

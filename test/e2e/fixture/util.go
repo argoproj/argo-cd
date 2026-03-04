@@ -1,6 +1,7 @@
 package fixture
 
 import (
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
@@ -36,4 +37,9 @@ func RunFunctionsInParallelAndCheckErrors(t *testing.T, functions []func() error
 		eg.Go(function)
 	}
 	require.NoError(t, eg.Wait())
+}
+
+// URLEncodeServerAddress encodes a server address for use in API calls
+func URLEncodeServerAddress(serverAddr string) string {
+	return url.QueryEscape(serverAddr)
 }
