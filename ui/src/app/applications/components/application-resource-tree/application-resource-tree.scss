@@ -162,6 +162,13 @@
             }
         }
 
+        &--applicationset {
+            border: 1.5px dashed $argo-color-teal-6 !important;
+            @include themify($themes) {
+                background-color: themed('light-argo-teal-1');
+            }
+        }
+
         &--lower-section {
             left: 8px;
             right: 10px;
@@ -397,6 +404,18 @@
         font-size: 0.6em;
         text-transform: lowercase;
         margin-right: 1px;
+
+        &--appset {
+            background-color: $argo-color-teal-2;
+            color: $argo-color-teal-7;
+            border-color: $argo-color-teal-5;
+            cursor: pointer;
+            text-transform: none;
+
+            &:hover {
+                background-color: $argo-color-teal-3;
+            }
+        }
     }
 
 
