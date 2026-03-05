@@ -1844,7 +1844,7 @@ export function getAppSetHealthStatus(appSet: appModels.ApplicationSet): appMode
 }
 
 export function appQualifiedName(app: appModels.AbstractApplication, nsEnabled: boolean): string {
-    return (nsEnabled ? app.metadata.namespace + '/' : '') + app.metadata.name;
+    return (nsEnabled ? app.metadata.namespace + '/' : '') + getAppDisplayName(app);
 }
 
 /**
@@ -1864,7 +1864,7 @@ export function appRBACName(app: appModels.Application): string {
 }
 
 export function appInstanceName(app: appModels.AbstractApplication): string {
-    return app.metadata.namespace + '_' + app.metadata.name;
+    return app.metadata.namespace + '_' + getAppDisplayName(app);
 }
 
 export function formatCreationTimestamp(creationTimestamp: string) {
