@@ -385,3 +385,64 @@ func TestHydratorWithAuthenticatedRepo(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
+
+func TestAutoSyncBlockedOnStaleHydratedManifests(t *testing.T) {
+	// Test that auto-sync is blocked when hydrated manifests are stale.
+	// This happens when the sync source path changes to a location that hasn't been
+	// freshly hydrated yet (path-specific drySHA doesn't match root drySHA).
+	// The test verifies:
+	// 1. Auto-sync works initially with fresh manifests
+	// 2. Auto-sync is silently blocked when manifests become stale (no error condition)
+	// 3. Auto-sync is unblocked once fresh hydration completes
+	Given(t).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("app1").
+		SyncSourceBranch("env/test").
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{}}
+		}).
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		// First hydration should succeed and auto-sync
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		// Make a change to the dry source to trigger a new hydration
+		PatchFile("guestbook/guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 5}]`).
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		// Auto-sync should proceed with the new hydrated manifests
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		// Now change the sync source path to a different location (app2)
+		// At this point, app2 path will be stale because it was hydrated with the old drySHA
+		// while the root metadata has the new drySHA from the previous change
+		PatchApp(`[{"op": "replace", "path": "/spec/sourceHydrator/syncSource/path", "value": "app2"}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// Auto-sync should be blocked because app2 path has stale manifests
+		// The app should remain OutOfSync without any error condition (silent blocking)
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		// Verify no sync error condition is created (staleness is transient, not an error)
+		And(func(app *Application) {
+			for _, condition := range app.Status.Conditions {
+				if condition.Type == ApplicationConditionSyncError {
+					t.Fatalf("Expected no SyncError condition for stale manifests, but found: %s", condition.Message)
+				}
+			}
+		}).
+		When().
+		// Wait for hydration to complete for the new path
+		// This will hydrate app2 with the current drySHA, making it fresh
+		Wait("--hydrated").
+		Refresh(RefreshTypeNormal).
+		Then().
+		// Now that app2 has fresh manifests, auto-sync should proceed
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}

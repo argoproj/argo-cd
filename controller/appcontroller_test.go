@@ -75,6 +75,7 @@ type fakeData struct {
 	applicationNamespaces           []string
 	updateRevisionForPathsResponse  *apiclient.UpdateRevisionForPathsResponse
 	updateRevisionForPathsResponses []*apiclient.UpdateRevisionForPathsResponse
+	gitFilesResponse                map[string][]byte
 	additionalObjs                  []runtime.Object
 }
 
@@ -139,6 +140,12 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		} else {
 			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
 		}
+	}
+
+	if data.gitFilesResponse != nil {
+		mockRepoClient.EXPECT().GetGitFiles(mock.Anything, mock.Anything).Return(&apiclient.GitFilesResponse{
+			Map: data.gitFilesResponse,
+		}, nil).Maybe()
 	}
 
 	mockRepoClientset := &mockrepoclient.Clientset{RepoServerServiceClient: mockRepoClient}
