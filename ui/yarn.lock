@@ -1652,9 +1652,9 @@
   integrity sha512-he+DHOWReW0nghN24E1WUqM0efK4kI9oTqDm6XmK8ZPe2djZ90BSNdGnIyCLzCPw7/pogPlGbzI2wHGGmi4O/Q==
 
 "@types/dagre@^0.7.40":
-  version "0.7.42"
-  resolved "https://registry.yarnpkg.com/@types/dagre/-/dagre-0.7.42.tgz#2b0cd7678d5fc273df7816a88b8b34016e3a5d85"
-  integrity sha512-knVdi1Ul8xYgJ0wdhQ+/2YGJFKJFa/5srcPII9zvOs4KhsHfpnFrSTQXATYmjslglxRMif3Lg+wEZ0beag+94A==
+  version "0.7.54"
+  resolved "https://registry.yarnpkg.com/@types/dagre/-/dagre-0.7.54.tgz#4f3be2a3f89938b0483013739362a477ec978a84"
+  integrity sha512-QjcRY+adGbYvBFS7cwv5txhVIwX1XXIUswWl+kSQTbI6NjgZydrZkEKX/etzVd7i+bCsCb40Z/xlBY5eoFuvWQ==
 
 "@types/deepmerge@^2.2.0":
   version "2.2.3"
