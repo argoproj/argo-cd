@@ -63,6 +63,12 @@ Syntax: `p, <role/user/group>, <resource>, <action>, <object>, <effect>`
 - `<object>`: The object identifier representing the resource on which the action is performed. Depending on the resource, the object's format will vary.
 - `<effect>`: Whether this policy should grant or restrict the operation on the target object. One of `allow` or `deny`.
 
+> [!NOTE]
+> **Groups must have a role assigned for policies to work**
+>
+> If you want to assign policies to a group, you must first assign a role to it using `g, <group>, <role>`.
+> Otherwise, policies defined with `p, <group>, ... ` won't be considered.
+
 Below is a table that summarizes all possible resources and which actions are valid for each of them.
 
 | Resource\Action     | get | create | update | delete | sync | action | override | invoke |
