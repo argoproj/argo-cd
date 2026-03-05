@@ -768,20 +768,15 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     const extLinks: string[] = isApp(props.app) ? (props.app as models.Application).status.summary.externalURLs : [];
     const childCount = nodesHavingChildren.get(node.uid);
     const ownerAppSetRef = rootNode && appNode && isApp(props.app) ? getApplicationSetOwnerRef(props.app as models.Application) : null;
-    const isAppSetParent =
-        isAppSetNode(node) && isApp(props.app) && getApplicationSetOwnerRef(props.app as models.Application)?.name === node.name;
+    const isAppSetParent = isAppSetNode(node) && isApp(props.app) && getApplicationSetOwnerRef(props.app as models.Application)?.name === node.name;
     const isManagedAppSet = isAppSetNode(node) && !isAppSetParent;
     return (
         <div
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
-            className={classNames(
-                'application-resource-tree__node',
-                !isManagedAppSet && ('application-resource-tree__node--' + node.kind.toLowerCase()),
-                {
-                    'active': fullName === props.selectedNodeFullName,
-                    'application-resource-tree__node--orphaned': node.orphaned
-                }
-            )}
+            className={classNames('application-resource-tree__node', !isManagedAppSet && 'application-resource-tree__node--' + node.kind.toLowerCase(), {
+                'active': fullName === props.selectedNodeFullName,
+                'application-resource-tree__node--orphaned': node.orphaned
+            })}
             title={isAppSetParent ? `ApplicationSet: ${node.name}\nThis ApplicationSet generates and manages this Application.` : describeNode(node)}
             style={{
                 left: node.x,
