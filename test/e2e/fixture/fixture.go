@@ -1386,3 +1386,7 @@ func SetOIDCConfig(value string) error {
 		return nil
 	})
 }
+
+func IsPlainText() bool {
+	return plainText
+}

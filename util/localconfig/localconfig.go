@@ -66,14 +66,14 @@ type User struct {
 }
 
 // Claims returns the standard claims from the JWT claims
-func (u *User) Claims() (*jwt.RegisteredClaims, error) {
+func (u *User) Claims() (jwt.MapClaims, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
-	claims := jwt.RegisteredClaims{}
+	claims := jwt.MapClaims{}
 	_, _, err := parser.ParseUnverified(u.AuthToken, &claims)
 	if err != nil {
 		return nil, err
 	}
-	return &claims, nil
+	return claims, nil
 }
 
 // ReadLocalConfig loads up the local configuration file. Returns nil if config does not exist

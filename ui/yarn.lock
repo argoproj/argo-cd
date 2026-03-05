@@ -2452,7 +2452,7 @@ arg@^4.1.0:
 
 "argo-ui@git+https://github.com/argoproj/argo-ui.git":
   version "1.0.0"
-  resolved "git+https://github.com/argoproj/argo-ui.git#2bfda77cec418c4123fe61e35f22d09432af15b7"
+  resolved "git+https://github.com/argoproj/argo-ui.git#a1c32a45e83fdda4baafc7ca3105c3ead383f8ba"
   dependencies:
     "@fortawesome/fontawesome-free" "^6.2.1"
     "@tippy.js/react" "^3.1.1"
