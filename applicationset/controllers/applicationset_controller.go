@@ -16,6 +16,9 @@ package controllers
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -1144,6 +1147,15 @@ func getAppStep(appName string, appStepMap map[string]int) int {
 }
 
 // check the status of each Application's status and promote Applications to the next status if needed
+func hashSources(app argov1alpha1.Application) string {
+	data, err := json.Marshal(app.Spec.GetSources())
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
+}
+
 func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applications))
@@ -1182,12 +1194,23 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 		newAppStatus := currentAppStatus.DeepCopy()
 		newAppStatus.Step = strconv.Itoa(getAppStep(newAppStatus.Application, appStepMap))
 
-		if !reflect.DeepEqual(currentAppStatus.TargetRevisions, app.Status.GetRevisions()) {
+		currentHash := hashSources(app)
+	revisionsChanged := !reflect.DeepEqual(currentAppStatus.TargetRevisions, app.Status.GetRevisions())
+	sourcesChanged := currentAppStatus.TargetSourcesHash != "" &&
+		currentAppStatus.TargetSourcesHash != currentHash
+
+	if revisionsChanged || sourcesChanged {
 			// A new version is available in the application and we need to re-sync the application
 			newAppStatus.TargetRevisions = app.Status.GetRevisions()
+			newAppStatus.TargetSourcesHash = currentHash
 			newAppStatus.Message = "Application has pending changes, setting status to Waiting"
 			newAppStatus.Status = argov1alpha1.ProgressiveSyncWaiting
 			newAppStatus.LastTransitionTime = &now
+		}
+
+		// Migration: populate hash on first reconcile without triggering a reset
+		if currentAppStatus.TargetSourcesHash == "" {
+			newAppStatus.TargetSourcesHash = currentHash
 		}
 
 		if newAppStatus.Status == argov1alpha1.ProgressiveSyncWaiting {
