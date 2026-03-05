@@ -164,6 +164,7 @@
 
         &--applicationset {
             border: 1.5px dashed $argo-color-teal-6 !important;
+            opacity: 0.65;
             @include themify($themes) {
                 background-color: themed('light-argo-teal-1');
             }

@@ -845,6 +845,21 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 )}
             </div>
             <div className='application-resource-tree__node-labels'>
+                {ownerAppSetRef && (
+                    <Consumer>
+                        {ctx => (
+                            <a
+                                className='application-resource-tree__node-label application-resource-tree__node-label--appset'
+                                onClick={e => {
+                                    e.stopPropagation();
+                                    ctx.navigation.goto(`/applicationsets/${props.app.metadata.namespace}/${ownerAppSetRef.name}`);
+                                }}
+                                title={`Managed by ApplicationSet: ${ownerAppSetRef.name}`}>
+                                {ownerAppSetRef.name}
+                            </a>
+                        )}
+                    </Consumer>
+                )}
                 {node.createdAt || rootNode ? (
                     <span title={`${node.kind} was created ${moment(node.createdAt || props.app.metadata.creationTimestamp).fromNow()}`}>
                         <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
@@ -882,21 +897,6 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                             More
                         </span>
                     </Tooltip>
-                )}
-                {ownerAppSetRef && (
-                    <Consumer>
-                        {ctx => (
-                            <a
-                                className='application-resource-tree__node-label application-resource-tree__node-label--appset'
-                                onClick={e => {
-                                    e.stopPropagation();
-                                    ctx.navigation.goto(`/applicationsets/${props.app.metadata.namespace}/${ownerAppSetRef.name}`);
-                                }}
-                                title={`Managed by ApplicationSet: ${ownerAppSetRef.name}`}>
-                                {ownerAppSetRef.name}
-                            </a>
-                        )}
-                    </Consumer>
                 )}
             </div>
             {props.nodeMenu && !isAppSetNode(node) && (

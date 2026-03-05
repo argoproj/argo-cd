@@ -112,7 +112,7 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                         </DataLoader>
                     </div>
                 )
-            }
+            },
         ];
 
         const extensionTabs = services.extensions.getResourceTabs('argoproj.io', 'ApplicationSet').map((ext, i) => ({
