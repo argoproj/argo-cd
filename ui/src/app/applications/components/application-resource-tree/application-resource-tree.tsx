@@ -768,14 +768,21 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     const extLinks: string[] = isApp(props.app) ? (props.app as models.Application).status.summary.externalURLs : [];
     const childCount = nodesHavingChildren.get(node.uid);
     const ownerAppSetRef = rootNode && appNode && isApp(props.app) ? getApplicationSetOwnerRef(props.app as models.Application) : null;
+    const isAppSetParent =
+        isAppSetNode(node) && isApp(props.app) && getApplicationSetOwnerRef(props.app as models.Application)?.name === node.name;
+    const isManagedAppSet = isAppSetNode(node) && !isAppSetParent;
     return (
         <div
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
-            className={classNames('application-resource-tree__node', 'application-resource-tree__node--' + node.kind.toLowerCase(), {
-                'active': fullName === props.selectedNodeFullName,
-                'application-resource-tree__node--orphaned': node.orphaned
-            })}
-            title={isAppSetNode(node) ? `ApplicationSet: ${node.name}\nThis ApplicationSet generates and manages this Application.` : describeNode(node)}
+            className={classNames(
+                'application-resource-tree__node',
+                !isManagedAppSet && ('application-resource-tree__node--' + node.kind.toLowerCase()),
+                {
+                    'active': fullName === props.selectedNodeFullName,
+                    'application-resource-tree__node--orphaned': node.orphaned
+                }
+            )}
+            title={isAppSetParent ? `ApplicationSet: ${node.name}\nThis ApplicationSet generates and manages this Application.` : describeNode(node)}
             style={{
                 left: node.x,
                 top: node.y,
@@ -831,7 +838,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                         </Consumer>
                     )}
 
-                    <ApplicationURLs urls={isAppSetNode(node) ? [] : rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
+                    <ApplicationURLs urls={isAppSetParent ? [] : rootNode ? extLinks : node.networkingInfo && node.networkingInfo.externalURLs} />
                 </div>
                 {childCount > 0 && (
                     <div
@@ -845,7 +852,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 )}
             </div>
             <div className='application-resource-tree__node-labels'>
-                {ownerAppSetRef && (
+                {ownerAppSetRef && !props.showAppSetParent && (
                     <Consumer>
                         {ctx => (
                             <a
@@ -856,6 +863,21 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                                 }}
                                 title={`Managed by ApplicationSet: ${ownerAppSetRef.name}`}>
                                 {ownerAppSetRef.name}
+                            </a>
+                        )}
+                    </Consumer>
+                )}
+                {isManagedAppSet && (
+                    <Consumer>
+                        {ctx => (
+                            <a
+                                className='application-resource-tree__node-label application-resource-tree__node-label--appset'
+                                onClick={e => {
+                                    e.stopPropagation();
+                                    ctx.navigation.goto(`/applicationsets/${node.namespace}/${node.name}`);
+                                }}
+                                title={`View ApplicationSet: ${node.name}`}>
+                                {node.name}
                             </a>
                         )}
                     </Consumer>
@@ -899,7 +921,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     </Tooltip>
                 )}
             </div>
-            {props.nodeMenu && !isAppSetNode(node) && (
+            {props.nodeMenu && !isAppSetParent && (
                 <div className='application-resource-tree__node-menu'>
                     <DropDown
                         isMenu={true}

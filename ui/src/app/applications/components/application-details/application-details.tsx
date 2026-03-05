@@ -755,8 +755,13 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             const parts = fullName.split('/');
                                             const [group, kind, namespace, name] = parts;
                                             if (group === 'argoproj.io' && kind === 'ApplicationSet' && namespace && name) {
-                                                appContext.navigation.goto(`/applicationsets/${namespace}/${name}`);
-                                                return;
+                                                // Only navigate to AppSet page if this AppSet owns the current Application.
+                                                // If the AppSet is a child resource managed by this Application, open ResourceDetails instead.
+                                                const ownerAppSetRef = AppUtils.getApplicationSetOwnerRef(application as appModels.Application);
+                                                if (ownerAppSetRef && ownerAppSetRef.name === name) {
+                                                    appContext.navigation.goto(`/applicationsets/${namespace}/${name}`);
+                                                    return;
+                                                }
                                             }
                                             selectNode(fullName);
                                         },
@@ -1041,7 +1046,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                     </a>
                                                                 </Tooltip>
                                                             )}
-                                                            {isApplication && (
+                                                            {isApplication && !!AppUtils.getApplicationSetOwnerRef(application as appModels.Application) && (
                                                                 <a
                                                                     className={`group-nodes-button group-nodes-button${pref.showAppSetParent ? '-on' : ''}`}
                                                                     title='Show ApplicationSet parent node'
