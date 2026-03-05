@@ -47,6 +47,10 @@ func (g *generatorMock) GetRequeueAfter(_ *v1alpha1.ApplicationSetGenerator) tim
 	return d
 }
 
+func (g *generatorMock) GetValues(_ *v1alpha1.ApplicationSetGenerator) *map[string]string {
+	return nil
+}
+
 func TestWebhookHandler(t *testing.T) {
 	tt := []struct {
 		desc               string

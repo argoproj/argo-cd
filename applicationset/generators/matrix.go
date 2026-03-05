@@ -173,3 +173,9 @@ func getMatrixGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*ar
 func (m *MatrixGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
 	return &appSetGenerator.Matrix.Template
 }
+
+// GetValues returns the pointer to the Values map associated with this Generator
+func (*MatrixGenerator) GetValues(_ *argoprojiov1alpha1.ApplicationSetGenerator) *map[string]string {
+	// This generator does not have Values field, so it returns nil
+	return nil
+}

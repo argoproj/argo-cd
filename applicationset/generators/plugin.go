@@ -83,6 +83,14 @@ func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	return res, nil
 }
 
+// GetValues returns the pointer to the Values map associated with this Generator
+func (g *PluginGenerator) GetValues(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *map[string]string {
+	if appSetGenerator != nil && appSetGenerator.Plugin != nil {
+		return &appSetGenerator.Plugin.Values
+	}
+	return nil
+}
+
 func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName string, generatorConfig *argoprojiov1alpha1.PluginGenerator) (*plugin.Service, error) {
 	cm, err := g.getConfigMap(ctx, generatorConfig.ConfigMapRef.Name)
 	if err != nil {

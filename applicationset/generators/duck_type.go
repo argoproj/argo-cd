@@ -177,6 +177,14 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	return res, nil
 }
 
+// GetValues returns the pointer to the Values map associated with this Generator
+func (g *DuckTypeGenerator) GetValues(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *map[string]string {
+	if appSetGenerator != nil && appSetGenerator.ClusterDecisionResource != nil {
+		return &appSetGenerator.ClusterDecisionResource.Values
+	}
+	return nil
+}
+
 func buildClusterDecisions(duckResources *unstructured.UnstructuredList, statusListKey string) []any {
 	clusterDecisions := []any{}
 

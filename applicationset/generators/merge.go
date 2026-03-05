@@ -100,6 +100,12 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 	return mergedParamSets, nil
 }
 
+// GetValues returns the pointer to the Values map associated with this Generator
+// This generator does not have Values field, so it returns nil
+func (*MergeGenerator) GetValues(_ *argoprojiov1alpha1.ApplicationSetGenerator) *map[string]string {
+	return nil
+}
+
 // getParamSetsByMergeKey converts the given list of parameter sets to a map of parameter sets where the key is the
 // unique key of the parameter set as determined by the given mergeKeys. If any two parameter sets share the same merge
 // key, getParamSetsByMergeKey will throw NonUniqueParamSets.

@@ -107,6 +107,14 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	return paramHolder.consolidate(), nil
 }
 
+// GetValues returns the pointer to the Values map associated with this Generator
+func (g *ClusterGenerator) GetValues(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) *map[string]string {
+	if appSetGenerator != nil && appSetGenerator.Clusters != nil {
+		return &appSetGenerator.Clusters.Values
+	}
+	return nil
+}
+
 type paramHolder struct {
 	isFlatMode bool
 	params     []map[string]any

@@ -88,3 +88,9 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 
 	return res, nil
 }
+
+// GetValues returns the pointer to the Values map associated with this Generator
+func (*ListGenerator) GetValues(_ *argoprojiov1alpha1.ApplicationSetGenerator) *map[string]string {
+	// This generator does not have Values field, so it returns nil
+	return nil
+}
