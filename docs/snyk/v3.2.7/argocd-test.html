@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="21 known vulnerabilities found in 56 vulnerable dependency paths.">
+  <meta name="description" content="22 known vulnerabilities found in 58 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">February 22nd 2026, 12:34:10 am (UTC+00:00)</p>
+                <p class="timestamp">March 1st 2026, 12:37:08 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -504,8 +504,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>21</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>56 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>22</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>58 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2115</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -606,6 +606,109 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-QS-14724253">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            qs
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, superagent@8.1.2 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        superagent@8.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        qs@6.11.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        superagent@8.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        formidable@2.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        qs@6.11.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.com/package/qs">qs</a> is a querystring parser that supports nesting and arrays, with a depth limit.</p>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling via the <code>parseArrayValue</code> function when the <code>comma</code> option is in use. An attacker can exhaust system memory by submitting a parameter containing a large number of comma-separated values, resulting in the allocation of excessively large arrays.</p>
+        <p><strong>Note:</strong>
+        This is only exploitable if the <code>comma</code> option is explicitly set to true. <code>arrayLimit</code> is properly enforced for index and bracket notation.</p>
+        <h2 id="poc">PoC</h2>
+        <pre><code class="language-js">const qs = require(&#39;qs&#39;);
+        
+        const payload = &#39;a=&#39; + &#39;,&#39;.repeat(25);  // 26 elements after split (bypasses arrayLimit: 5)
+        const options = { comma: true, arrayLimit: 5, throwOnLimitExceeded: true };
+        
+        try {
+          const result = qs.parse(payload, options);
+          console.log(result.a.length);  // Outputs: 26 (bypass successful)
+        } catch (e) {
+          console.log(&#39;Limit enforced:&#39;, e.message);  // Not thrown
+        }
+        </code></pre>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>qs</code> to version 6.14.2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/ljharb/qs/commit/f6a7abff1f13d644db9b05fe4f2c98ada6bf8482">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-QS-15268416">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -743,16 +846,104 @@
         </tbody></table>
         <p>By the time the string includes 14 C&#39;s, the engine has to take over 65,000 steps just to see if the string is valid. These extreme situations can cause them to work very slowly (exponentially related to input size, as shown above), allowing an attacker to exploit this and can cause the service to excessively consume CPU, resulting in a Denial of Service.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>minimatch</code> to version 10.2.1 or higher.</p>
+        <p>Upgrade <code>minimatch</code> to version 3.1.3, 4.2.4, 5.1.7, 6.2.1, 7.4.7, 8.0.5, 9.0.6, 10.2.1 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://github.com/isaacs/minimatch/commit/2e111f3a79abc00fa73110195de2c0f2351904f5">GitHub Commit</a></li>
+        <li><a href="https://github.com/isaacs/minimatch/commit/50126552835505d2c73ba13e8bdaafd737469a2f">GitHub Commit</a></li>
+        <li><a href="https://github.com/isaacs/minimatch/commit/5173367083a01c3892b29df8366ee6de44e76ef6">GitHub Commit</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-MINIMATCH-15309438">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Inefficient Algorithmic Complexity</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            minimatch
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                argo-cd-ui@1.0.0 and minimatch@3.1.2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        minimatch@3.1.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        redoc@2.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        @redocly/openapi-core@1.30.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        minimatch@5.1.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.com/package/minimatch">minimatch</a> is a minimal matching utility.</p>
+        <p>Affected versions of this package are vulnerable to Inefficient Algorithmic Complexity via the <code>matchOne</code> function. An attacker can cause significant delays in processing and stall the event loop by supplying specially crafted glob patterns containing multiple non-adjacent GLOBSTAR segments.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>minimatch</code> to version 3.1.3, 4.2.5, 5.1.8, 6.2.2, 7.4.8, 8.0.6, 9.0.7, 10.2.3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/isaacs/minimatch/commit/0bf499aa45f5059b56809cc3b75ff3eafeb8d748">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-MINIMATCH-15353389">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -875,84 +1066,6 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Uncaught Exception</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--high">
-                        <span class="label__text">high severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Proof of Concept</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: npm
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            fast-xml-parser
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    argo-cd-ui@1.0.0, redoc@2.4.0 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        redoc@2.4.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openapi-sampler@1.6.1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        fast-xml-parser@4.5.3
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://www.npmjs.org/package/fast-xml-parser">fast-xml-parser</a> is a Validate XML, Parse XML, Build XML without C/C++ based libraries</p>
-        <p>Affected versions of this package are vulnerable to Uncaught Exception in the numeric entity processing when parsing XML containing out-of-range entity code points. An attacker can cause the application to crash by submitting specially crafted XML input that triggers an uncaught exception.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>fast-xml-parser</code> to version 5.3.4 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/NaturalIntelligence/fast-xml-parser/commit/4e387f61c4a5cef792f6a2f42467013290bf95dc">GitHub Commit</a></li>
-        <li><a href="https://github.com/NaturalIntelligence/fast-xml-parser/releases/tag/v5.3.4">GitHub Release</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-JS-FASTXMLPARSER-15155603">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">XML Entity Expansion</h2>
             <div class="card__section">
         
@@ -1041,7 +1154,7 @@
         </li>
         </ul>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>fast-xml-parser</code> to version 5.3.6 or higher.</p>
+        <p>Upgrade <code>fast-xml-parser</code> to version 4.5.4, 5.3.6 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://github.com/NaturalIntelligence/fast-xml-parser/commit/910dae5be2de2955e968558fadf6e8f74f117a77">GitHub Commit</a></li>
@@ -1119,7 +1232,7 @@
         <p><a href="https://www.npmjs.org/package/fast-xml-parser">fast-xml-parser</a> is a Validate XML, Parse XML, Build XML without C/C++ based libraries</p>
         <p>Affected versions of this package are vulnerable to Incorrect Regular Expression in the entity parsing RegEx in DOCTYPE declarations. An attacker can inject arbitrary values that override built-in XML entities by crafting entity names containing <code>.</code>, which is interpreted as a regex wildcard, allowing malicious content to be substituted in place of standard entities when the XML is parsed and subsequently rendered or used in sensitive contexts.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>fast-xml-parser</code> to version 5.3.5 or higher.</p>
+        <p>Upgrade <code>fast-xml-parser</code> to version 4.5.4, 5.3.5 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://github.com/NaturalIntelligence/fast-xml-parser/commit/943ef0eb1b2d3284e72dd74f44a042ee9f07026e">GitHub Commit</a></li>
@@ -1131,109 +1244,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-FASTXMLPARSER-15324289">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Proof of Concept</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: npm
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            qs
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    argo-cd-ui@1.0.0, superagent@8.1.2 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        superagent@8.1.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        qs@6.11.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        argo-cd-ui@1.0.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        superagent@8.1.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        formidable@2.1.2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        qs@6.11.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://www.npmjs.com/package/qs">qs</a> is a querystring parser that supports nesting and arrays, with a depth limit.</p>
-        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling via the <code>parseArrayValue</code> function when the <code>comma</code> option is in use. An attacker can exhaust system memory by submitting a parameter containing a large number of comma-separated values, resulting in the allocation of excessively large arrays.</p>
-        <p><strong>Note:</strong>
-        This is only exploitable if the <code>comma</code> option is explicitly set to true. <code>arrayLimit</code> is properly enforced for index and bracket notation.</p>
-        <h2 id="poc">PoC</h2>
-        <pre><code class="language-js">const qs = require(&#39;qs&#39;);
-        
-        const payload = &#39;a=&#39; + &#39;,&#39;.repeat(25);  // 26 elements after split (bypasses arrayLimit: 5)
-        const options = { comma: true, arrayLimit: 5, throwOnLimitExceeded: true };
-        
-        try {
-          const result = qs.parse(payload, options);
-          console.log(result.a.length);  // Outputs: 26 (bypass successful)
-        } catch (e) {
-          console.log(&#39;Limit enforced:&#39;, e.message);  // Not thrown
-        }
-        </code></pre>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>qs</code> to version 6.14.2 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/ljharb/qs/commit/f6a7abff1f13d644db9b05fe4f2c98ada6bf8482">GitHub Commit</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-JS-QS-15268416">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -2801,6 +2811,86 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-FOUNDATIONSITES-8310364">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Buffer Overflow</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            fast-xml-parser
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, redoc@2.4.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        redoc@2.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openapi-sampler@1.6.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        fast-xml-parser@4.5.3
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.org/package/fast-xml-parser">fast-xml-parser</a> is a Validate XML, Parse XML, Build XML without C/C++ based libraries</p>
+        <p>Affected versions of this package are vulnerable to Buffer Overflow via the <code>XMLBuilder</code> when <code>preserveOrder:true</code> is set. An attacker can cause the application to crash by providing specially crafted input data. </p>
+        <h2 id="workaround">Workaround</h2>
+        <p>This vulnerability can be mitigated by using <code>preserveOrder:false</code> or by validating input data before passing it to the builder.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>fast-xml-parser</code> to version 4.5.4, 5.3.8 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/NaturalIntelligence/fast-xml-parser/commit/c13a961910f14986295dd28484eee830fa1a0e8a">GitHub Commit</a></li>
+        <li><a href="https://github.com/NaturalIntelligence/fast-xml-parser/pull/791">GitHub PR</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-FASTXMLPARSER-15353391">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
