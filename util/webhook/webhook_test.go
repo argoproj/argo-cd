@@ -1201,7 +1201,7 @@ func TestHandleEvent(t *testing.T) {
 					// Verify cache was updated with afterSHA
 					clusterInfo := &mockClusterInfo{}
 					var afterManifests cache.CachedManifestResponse
-					err := repoCache.GetManifests(testAfterSHA, source, nil, clusterInfo, "", "", testAppLabelKey, ttc.app.Name, &afterManifests, nil, "")
+					err := repoCache.GetManifests(testAfterSHA, source, nil, clusterInfo, "", "", testAppLabelKey, ttc.app.Name, &afterManifests, nil, "", nil)
 					require.NoError(t, err, "cache should be updated with afterSHA")
 					if err == nil {
 						assert.Equal(t, testAfterSHA, afterManifests.ManifestResponse.Revision, "cached revision should match afterSHA")
@@ -1709,6 +1709,6 @@ func setupTestCache(t *testing.T, repoCache *cache.Cache, appName string, source
 			Server:    testClusterURL,
 		},
 	}
-	err := repoCache.SetManifests(testBeforeSHA, source, nil, clusterInfo, "", "", testAppLabelKey, appName, dummyManifests, nil, "")
+	err := repoCache.SetManifests(testBeforeSHA, source, nil, clusterInfo, "", "", testAppLabelKey, appName, dummyManifests, nil, "", nil)
 	require.NoError(t, err)
 }

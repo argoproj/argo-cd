@@ -253,8 +253,8 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
+	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func(clean bool) (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repository lock: %w", err)
@@ -415,24 +415,18 @@ func (s *Service) runRepoOperation(
 		}
 
 		var sourceIntegrityResult *v1alpha1.SourceIntegrityCheckResult
-		hasCriteria := sourceIntegrity != nil && sourceintegrity.HasCriteria(sourceIntegrity, *source)
-		isHelmOci := source.IsHelmOci()
-		if sourceIntegrity != nil && hasCriteria && isHelmOci {
+		if sourceintegrity.NeedsHelmProvenanceVerification(sourceIntegrity, *source) && source.IsHelmOci() {
 			chartContent, provContent, chartFilename, errFetch := ociClient.FetchHelmChartAndProvenance(ctx, revision)
 			if errFetch != nil {
-				sourceIntegrityResult = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
-					Name:     sourceintegrity.CheckNameHelmProvenance,
-					Problems: []string{"could not access OCI helm chart for provenance verification: " + errFetch.Error()},
-				}}}
-			} else {
-				if chartFilename == "" {
-					chartFilename = fmt.Sprintf("%s-%s.tgz", source.Chart, revision)
-				}
-				var errVerify error
-				sourceIntegrityResult, errVerify = sourceintegrity.VerifyHelm(sourceIntegrity, source.RepoURL, chartContent, provContent, chartFilename)
-				if errVerify != nil {
-					return errVerify
-				}
+				return errFetch
+			}
+			if chartFilename == "" {
+				chartFilename = fmt.Sprintf("%s-%s.tgz", source.Chart, revision)
+			}
+			var errVerify error
+			sourceIntegrityResult, errVerify = sourceintegrity.VerifyHelm(sourceIntegrity, source.RepoURL, chartContent, provContent, chartFilename)
+			if errVerify != nil {
+				return errVerify
 			}
 		}
 
@@ -473,9 +467,8 @@ func (s *Service) runRepoOperation(
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
 			var sourceIntegrityResult *v1alpha1.SourceIntegrityCheckResult
-			hasCriteria := sourceIntegrity != nil && sourceintegrity.HasCriteria(sourceIntegrity, *source)
-			isHelmOci := source.IsHelmOci()
-			if sourceIntegrity != nil && hasCriteria && isHelmOci {
+			needsVerify := sourceintegrity.NeedsHelmProvenanceVerification(sourceIntegrity, *source)
+			if needsVerify && source.IsHelmOci() {
 				ociRepo := repo.DeepCopy()
 				ociRepoURL := ociRepo.Repo
 				if ociRepoURL == "" {
@@ -492,58 +485,44 @@ func (s *Service) runRepoOperation(
 				ociRepo.Repo = ociChartRepoURL
 				ociClient, digest, errOci := s.newOCIClientResolveRevision(ctx, ociRepo, revision, settings.noCache || settings.noRevisionCache)
 				if errOci != nil {
-					sourceIntegrityResult = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
-						Name:     sourceintegrity.CheckNameHelmProvenance,
-						Problems: []string{"could not resolve OCI helm chart for provenance verification: " + errOci.Error()},
-					}}}
-				} else {
-					chartContent, provContent, chartFilename, errFetch := ociClient.FetchHelmChartAndProvenance(ctx, digest)
-					if errFetch != nil {
-						sourceIntegrityResult = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
-							Name:     sourceintegrity.CheckNameHelmProvenance,
-							Problems: []string{"could not access OCI helm chart for provenance verification: " + errFetch.Error()},
-						}}}
-					} else {
-						if chartFilename == "" {
-							chartFilename = fmt.Sprintf("%s-%s.tgz", source.Chart, revision)
-						}
-						var errVerify error
-						sourceIntegrityResult, errVerify = sourceintegrity.VerifyHelm(sourceIntegrity, source.RepoURL, chartContent, provContent, chartFilename)
-						if errVerify != nil {
-							return nil, errVerify
-						}
-					}
+					return nil, errOci
 				}
-			} else if sourceIntegrity != nil && sourceintegrity.HasCriteria(sourceIntegrity, *source) {
-				if tgzPath, errTgz := helmClient.ChartTgzPath(source.Chart, revision); errTgz == nil {
-					if chartTgz, errRead := os.ReadFile(tgzPath); errRead == nil {
-						provContent, chartFilename, errProv := helmClient.FetchProvenance(source.Chart, revision)
-						if errProv != nil {
-							provContent = nil
-						}
-						var errVerify error
-						sourceIntegrityResult, errVerify = sourceintegrity.VerifyHelm(sourceIntegrity, source.RepoURL, chartTgz, provContent, chartFilename)
-						if errVerify != nil {
-							return nil, errVerify
-						}
-					} else {
-						sourceIntegrityResult = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
-							Name:     sourceintegrity.CheckNameHelmProvenance,
-							Problems: []string{"could not read chart for provenance verification: " + errRead.Error()},
-						}}}
-					}
-				} else {
-					sourceIntegrityResult = &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
-						Name:     sourceintegrity.CheckNameHelmProvenance,
-						Problems: []string{"could not access chart for provenance verification: " + errTgz.Error()},
-					}}}
+				chartContent, provContent, chartFilename, errFetch := ociClient.FetchHelmChartAndProvenance(ctx, digest)
+				if errFetch != nil {
+					return nil, errFetch
+				}
+				if chartFilename == "" {
+					chartFilename = fmt.Sprintf("%s-%s.tgz", source.Chart, revision)
+				}
+				var errVerify error
+				sourceIntegrityResult, errVerify = sourceintegrity.VerifyHelm(sourceIntegrity, source.RepoURL, chartContent, provContent, chartFilename)
+				if errVerify != nil {
+					return nil, errVerify
+				}
+			} else if needsVerify {
+				tgzPath, errTgz := helmClient.ChartTgzPath(source.Chart, revision)
+				if errTgz != nil {
+					return nil, errTgz
+				}
+				chartTgz, errRead := os.ReadFile(tgzPath)
+				if errRead != nil {
+					return nil, errRead
+				}
+				provContent, chartFilename, errProv := helmClient.FetchProvenance(source.Chart, revision)
+				if errProv != nil {
+					provContent = nil
+				}
+				var errVerify error
+				sourceIntegrityResult, errVerify = sourceintegrity.VerifyHelm(sourceIntegrity, source.RepoURL, chartTgz, provContent, chartFilename)
+				if errVerify != nil {
+					return nil, errVerify
 				}
 			}
 			return &operationContext{chartPath, sourceIntegrityResult}, nil
 		})
 	}
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth)
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func(clean bool) (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth, clean)
 	})
 	if err != nil {
 		return err
@@ -920,8 +899,8 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							ch.errCh <- fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refVar, refSourceMapping.TargetRevision, referencedCommitSHA, q.Revision, commitSHA)
 							return
 						}
-						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func() (goio.Closer, error) {
-							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
+						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func(clean bool) (goio.Closer, error) {
+							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
 						})
 						if err != nil {
 							log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
@@ -982,7 +961,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
 			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
 			innerRes := &cache.CachedManifestResponse{}
-			cacheErr := s.cache.GetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs, q.InstallationID)
+			cacheErr := s.cache.GetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 			if cacheErr != nil && !errors.Is(cacheErr, cache.ErrCacheMiss) {
 				logCtx.Warnf("manifest cache get error %s: %v", appSourceCopy.String(), cacheErr)
 				ch.errCh <- cacheErr
@@ -1000,7 +979,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
-			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs, q.InstallationID)
+			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 
 			if cacheErr != nil {
 				logCtx.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
@@ -1024,7 +1003,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	}
 	manifestGenResult.Revision = commitSHA
 	manifestGenResult.SourceIntegrityResult = opContext.sourceIntegrityResult
-	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs, q.InstallationID)
+	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)
 	}
@@ -1041,7 +1020,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
 
 	res := cache.CachedManifestResponse{}
-	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs, q.InstallationID)
+	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 	if err == nil {
 		// The cache contains an existing value
 
@@ -1058,7 +1037,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
 
 						// We can now try again, so reset the cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -1073,7 +1052,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "reset after paused generation count", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
 
 						// We can now try again, so reset the error cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -1094,7 +1073,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 					// Increment the number of returned cached responses and push that new value to the cache
 					// (if we have not already done so previously in this function)
 					res.NumberOfCachedResponsesReturned++
-					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs, q.InstallationID)
+					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs, q.InstallationID, q.SourceIntegrity)
 					if err != nil {
 						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 					}
@@ -1381,7 +1360,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		return nil, "", fmt.Errorf("error getting helm repos: %w", err)
 	}
 
-	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, q.Repo.NoProxy, passCredentials)
+	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, q.Repo.NoProxy, passCredentials, q.Repo.Insecure)
 	if err != nil {
 		return nil, "", fmt.Errorf("error initializing helm app object: %w", err)
 	}
@@ -2347,7 +2326,7 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	if err != nil {
 		return err
 	}
-	h, err := helm.NewHelmApp(appPath, helmRepos, false, version, q.Repo.Proxy, q.Repo.NoProxy, passCredentials)
+	h, err := helm.NewHelmApp(appPath, helmRepos, false, version, q.Repo.Proxy, q.Repo.NoProxy, passCredentials, q.Repo.Insecure)
 	if err != nil {
 		return err
 	}
@@ -2520,8 +2499,8 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
+	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func(clean bool) (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
@@ -2731,9 +2710,9 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64) (goio.Closer, error) {
+func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64, clean bool) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
-	err := checkoutRevision(gitClient, revision, submoduleEnabled, depth)
+	err := checkoutRevision(gitClient, revision, submoduleEnabled, depth, clean)
 	if err != nil {
 		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
 	}
@@ -2784,7 +2763,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 	return nil
 }
 
-func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64) error {
+func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64, cleanState bool) error {
 	err := gitClient.Init()
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -2810,7 +2789,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		}
 	}
 
-	_, err = gitClient.Checkout(revision, submoduleEnabled)
+	_, err = gitClient.Checkout(revision, submoduleEnabled, cleanState)
 	if err != nil {
 		// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
 		// for the given revision, try explicitly fetching it.
@@ -2821,7 +2800,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
 
-		_, err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
+		_, err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled, cleanState)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 		}
@@ -2959,8 +2938,8 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	// cache miss, generate the results
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth)
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, clean)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
@@ -3025,8 +3004,8 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	// cache miss, generate the results
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth)
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, clean)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
@@ -3111,8 +3090,8 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 	s.metricsServer.IncPendingRepoRequest(repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, false, 0)
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, false, 0, clean)
 	})
 	if err != nil {
 		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)

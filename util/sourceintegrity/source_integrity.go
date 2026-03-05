@@ -59,6 +59,12 @@ func HasHelmProvenanceCriteria(si *v1alpha1.SourceIntegrity, sources ...v1alpha1
 	return false
 }
 
+// NeedsHelmProvenanceVerification returns true when the given Helm source has a matching
+// project policy that requires provenance verification.
+func NeedsHelmProvenanceVerification(si *v1alpha1.SourceIntegrity, source v1alpha1.ApplicationSource) bool {
+	return hasHelmProvenanceCriteriaForSource(si, source)
+}
+
 func hasHelmProvenanceCriteriaForSource(si *v1alpha1.SourceIntegrity, source v1alpha1.ApplicationSource) bool {
 	if !source.IsHelm() || si == nil || si.Helm == nil {
 		return false
@@ -187,7 +193,7 @@ func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verif
 		return nil, fmt.Errorf("unknown GPG mode %q configured for GIT source integrity", g.Mode)
 	}
 
-	signatures, err := gitClient.LsSignatures(verifiedRevision, deep)
+	signatures, _, err := gitClient.LsSignatures(verifiedRevision, deep)
 	if err != nil {
 		return nil, err
 	}
@@ -293,11 +299,16 @@ func VerifyHelm(si *v1alpha1.SourceIntegrity, repoURL string, chartContent []byt
 	return helmProvenanceResult(problems), nil
 }
 
-func helmProvenanceResult(problems []string) *v1alpha1.SourceIntegrityCheckResult {
+// HelmProvenanceResult builds a SourceIntegrityCheckResult for the HELM/PROVENANCE check.
+func HelmProvenanceResult(problems []string) *v1alpha1.SourceIntegrityCheckResult {
 	return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
 		Name:     CheckNameHelmProvenance,
 		Problems: problems,
 	}}}
+}
+
+func helmProvenanceResult(problems []string) *v1alpha1.SourceIntegrityCheckResult {
+	return HelmProvenanceResult(problems)
 }
 
 func resolveHelmProvenancePolicy(si *v1alpha1.SourceIntegrity, repoURL string) (*v1alpha1.SourceIntegrityHelmPolicy, *v1alpha1.SourceIntegrityCheckResult) {
