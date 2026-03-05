@@ -85,7 +85,7 @@ function getParamsEditableItems(
         original: string;
         metadata: {name: string; value: string};
     }[],
-    component: React.ComponentType = TextWithMetadataField
+    component: React.ComponentType<any> = TextWithMetadataField
 ) {
     return params
         .sort(overridesFirst)

@@ -17,7 +17,7 @@ const onlyPositiveValidation = {
     step: '1'
 };
 
-function buildFormItem(label: string, propertyPath: string, component: React.ComponentType, formApi: FormApi, componentProps?: Record<string, any>) {
+function buildFormItem(label: string, propertyPath: string, component: React.ComponentType<any>, formApi: FormApi, componentProps?: Record<string, any>) {
     return <FormField formApi={formApi} label={label} field={propertyPath} component={component} componentProps={componentProps} />;
 }
 
