@@ -1195,11 +1195,11 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 		newAppStatus.Step = strconv.Itoa(getAppStep(newAppStatus.Application, appStepMap))
 
 		currentHash := hashSources(app)
-	revisionsChanged := !reflect.DeepEqual(currentAppStatus.TargetRevisions, app.Status.GetRevisions())
-	sourcesChanged := currentAppStatus.TargetSourcesHash != "" &&
-		currentAppStatus.TargetSourcesHash != currentHash
+		revisionsChanged := !reflect.DeepEqual(currentAppStatus.TargetRevisions, app.Status.GetRevisions())
+		sourcesChanged := currentAppStatus.TargetSourcesHash != "" &&
+			currentAppStatus.TargetSourcesHash != currentHash
 
-	if revisionsChanged || sourcesChanged {
+		if revisionsChanged || sourcesChanged {
 			// A new version is available in the application and we need to re-sync the application
 			newAppStatus.TargetRevisions = app.Status.GetRevisions()
 			newAppStatus.TargetSourcesHash = currentHash

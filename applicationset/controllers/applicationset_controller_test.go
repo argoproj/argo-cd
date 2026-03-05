@@ -5439,9 +5439,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
 				appStatuses[i].LastTransitionTime = nil
+				appStatuses[i].TargetSourcesHash = ""
 			}
 			for i := range cc.expectedAppStatus {
 				cc.expectedAppStatus[i].LastTransitionTime = nil
+				cc.expectedAppStatus[i].TargetSourcesHash = ""
 			}
 
 			require.NoError(t, err, "expected no errors, but errors occurred")
@@ -6192,6 +6194,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
 				appStatuses[i].LastTransitionTime = nil
+				appStatuses[i].TargetSourcesHash = ""
 			}
 
 			require.NoError(t, err, "expected no errors, but errors occurred")
