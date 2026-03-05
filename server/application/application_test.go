@@ -4663,6 +4663,7 @@ func (s *localValueFilesStream) RecvMsg(_ any) error          { return nil }
 func (s *localValueFilesStream) SendAndClose(_ *apiclient.ManifestResponse) error {
 	return nil
 }
+
 func (s *localValueFilesStream) Recv() (*application.ApplicationManifestQueryWithFilesWrapper, error) {
 	if !s.headerSent {
 		s.headerSent = true
@@ -4714,6 +4715,7 @@ func TestGetManifestsWithFiles_LocalValueFiles(t *testing.T) {
 	appServer := newTestAppServer(t, helmApp)
 	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoClient}
 
+	//nolint:staticcheck
 	ctx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"admin"}})
 
 	t.Run("appends local value files to helm source", func(t *testing.T) {
