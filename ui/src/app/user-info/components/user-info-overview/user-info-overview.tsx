@@ -1,7 +1,7 @@
 import React, {useCallback, useContext, useRef, useState} from 'react';
 
-import {FormField, NotificationType, SlidingPanel} from 'argo-ui/src/index';
-import {Form, FormApi, FormValue, Nested, Text} from 'react-form';
+import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
+import {Form, FormApi, FormValue, Nested, Text} from 'argo-ui';
 import {DataLoader, ErrorNotification, Page, Spinner} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';

@@ -1,6 +1,6 @@
 import {FormField, NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {Form, FormApi, Text} from 'react-form';
+import {Form, FormApi, Text} from 'argo-ui';
 
 import {Consumer, ContextApis} from '../../../shared/context';
 import {JwtToken} from '../../../shared/models';

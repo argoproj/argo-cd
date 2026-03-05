@@ -1,6 +1,6 @@
 import {ErrorNotification, FormField, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {Form, FormApi, Text} from 'react-form';
+import {Form, FormApi, Text} from 'argo-ui';
 
 import {ARGO_WARNING_COLOR, CheckboxField, Spinner} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';

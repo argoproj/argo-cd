@@ -1,6 +1,6 @@
 /* eslint-disable no-prototype-builtins */
 import * as React from 'react';
-import {FormApi, NestedForm, Text, Form} from 'react-form';
+import {FormApi, NestedForm, Text, Form} from 'argo-ui';
 import {Checkbox, FormField} from 'argo-ui';
 import {omit} from 'lodash-es';
 import {NumberField} from '../../../shared/components';
