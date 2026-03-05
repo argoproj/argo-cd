@@ -3,7 +3,7 @@ import * as React from 'react';
 
 import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
-import {getAppUrl} from '../utils';
+import {getAppUrl, getAppDisplayName} from '../utils';
 
 export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectListKind: string}) => {
     const [opened, setOpened] = React.useState(false);
@@ -35,7 +35,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                             }
                         />
                     </li>
-                    <DataLoader load={() => services.applications.list([], props.objectListKind, {fields: ['items.metadata.name', 'items.metadata.namespace']})}>
+                    <DataLoader load={() => services.applications.list([], props.objectListKind, {fields: ['items.metadata.name', 'items.metadata.namespace', 'items.metadata.annotations']})}>
                         {apps =>
                             apps.items
                                 .filter(app => {
@@ -44,7 +44,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                                 .slice(0, 100) // take top 100 results after filtering to avoid performance issues
                                 .map(app => (
                                     <li key={app.metadata.name} onClick={() => ctx.navigation.goto(`/${getAppUrl(app)}`)}>
-                                        {app.metadata.name} {app.metadata.name === props.appName && ' (current)'}
+                                        {getAppDisplayName(app)} {app.metadata.name === props.appName && ' (current)'}
                                     </li>
                                 ))
                         }

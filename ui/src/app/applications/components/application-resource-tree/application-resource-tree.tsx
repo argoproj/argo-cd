@@ -30,7 +30,8 @@ import {
     getUsrMsgKeyToDisplay,
     getApplicationLinkURLFromNode,
     getManagedByURLFromNode,
-    formatResourceInfo
+    formatResourceInfo,
+    getAppDisplayName
 } from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
@@ -508,7 +509,7 @@ function renderPodGroup(
                             'application-resource-tree__direction-left': !props.nameDirection
                         })}
                         onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}>
-                        {node.name}
+                        {(node as any).displayName || node.name}
                     </span>
                     <span
                         className={classNames('application-resource-tree__node-status-icon', {
@@ -840,7 +841,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, node: ResourceT
                         'application-resource-tree__direction-right': props.nameDirection,
                         'application-resource-tree__direction-left': !props.nameDirection
                     })}>
-                    {node.name}
+                    {(node as any).displayName || node.name}
                 </div>
                 <div
                     className={classNames('application-resource-tree__node-status-icon', {
@@ -1007,7 +1008,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const overridesCount = getAppOverridesCount(props.app);
     const appNode = {
         kind: props.app.kind,
-        name: props.app.metadata.name,
+        name: props.app.metadata.name, 
+        displayName: getAppDisplayName(props.app), 
         namespace: props.app.metadata.namespace,
         resourceVersion: props.app.metadata.resourceVersion,
         group: 'argoproj.io',

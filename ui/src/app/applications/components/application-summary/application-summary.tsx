@@ -24,7 +24,17 @@ import {isValidURL} from '../../../shared/utils';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource, appRBACName} from '../utils';
+import {
+    ComparisonStatusIcon,
+    HealthStatusIcon,
+    syncStatusMessage,
+    urlPattern,
+    formatCreationTimestamp,
+    getAppDefaultSource,
+    getAppSpecDefaultSource,
+    getAppDisplayName,
+    appRBACName
+} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
@@ -690,7 +700,11 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     'spec.destination.name': !input.spec.destination.name && input.spec.destination.hasOwnProperty('name') && 'Cluster name is required'
                 })}
                 values={app}
-                title={app.metadata.name.toLocaleUpperCase()}
+                title={
+                    getAppDisplayName(app) !== app.metadata.name
+                        ? `${getAppDisplayName(app)} (${app.metadata.name})`.toLocaleUpperCase()
+                        : getAppDisplayName(app).toLocaleUpperCase()
+                }
                 items={attributes}
                 onModeSwitch={() => notificationSubscriptions.onResetNotificationSubscriptions()}
             />
