@@ -1597,6 +1597,157 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 	})
 }
 
+func TestValidatePermissionsSourceHydrator(t *testing.T) {
+	t.Run("Valid hydrator configuration", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "https://github.com/example/dry-repo",
+					TargetRevision: "main",
+					Path:           ".",
+				},
+				SyncSource: argoappv1.SyncSource{
+					TargetBranch: "hydrated",
+					Path:         "app1",
+				},
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    "https://127.0.0.1:6443",
+				Namespace: "testns",
+			},
+		}
+		proj := argoappv1.AppProject{
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{
+					{Server: "*", Namespace: "*"},
+				},
+				SourceRepos: []string{"*"},
+			},
+		}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Empty(t, conditions)
+	})
+
+	t.Run("SyncSource path at root - empty string", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "https://github.com/example/dry-repo",
+					TargetRevision: "main",
+					Path:           ".",
+				},
+				SyncSource: argoappv1.SyncSource{
+					TargetBranch: "hydrated",
+					Path:         "",
+				},
+			},
+		}
+		proj := argoappv1.AppProject{}
+		db := &dbmocks.ArgoDB{}
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+		assert.Contains(t, conditions[0].Message, "cannot be at the repository root")
+	})
+
+	t.Run("SyncSource path at root - dot", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "https://github.com/example/dry-repo",
+					TargetRevision: "main",
+					Path:           ".",
+				},
+				SyncSource: argoappv1.SyncSource{
+					TargetBranch: "hydrated",
+					Path:         ".",
+				},
+			},
+		}
+		proj := argoappv1.AppProject{}
+		db := &dbmocks.ArgoDB{}
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+		assert.Contains(t, conditions[0].Message, "cannot be at the repository root")
+	})
+
+	t.Run("SyncSource path at root - slash", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "https://github.com/example/dry-repo",
+					TargetRevision: "main",
+					Path:           ".",
+				},
+				SyncSource: argoappv1.SyncSource{
+					TargetBranch: "hydrated",
+					Path:         "/",
+				},
+			},
+		}
+		proj := argoappv1.AppProject{}
+		db := &dbmocks.ArgoDB{}
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+		assert.Contains(t, conditions[0].Message, "cannot be at the repository root")
+	})
+
+	t.Run("Missing drySource repoURL", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "",
+					TargetRevision: "main",
+					Path:           ".",
+				},
+				SyncSource: argoappv1.SyncSource{
+					TargetBranch: "hydrated",
+					Path:         "app1",
+				},
+			},
+		}
+		proj := argoappv1.AppProject{}
+		db := &dbmocks.ArgoDB{}
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+		assert.Contains(t, conditions[0].Message, "drySource.repoURL is required")
+	})
+
+	t.Run("Missing syncSource targetBranch", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "https://github.com/example/dry-repo",
+					TargetRevision: "main",
+					Path:           ".",
+				},
+				SyncSource: argoappv1.SyncSource{
+					TargetBranch: "",
+					Path:         "app1",
+				},
+			},
+		}
+		proj := argoappv1.AppProject{}
+		db := &dbmocks.ArgoDB{}
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+		assert.Contains(t, conditions[0].Message, "syncSource.targetBranch is required")
+	})
+}
+
 func TestAugmentSyncMsg(t *testing.T) {
 	mockAPIResourcesFn := func() ([]kube.APIResourceInfo, error) {
 		return []kube.APIResourceInfo{

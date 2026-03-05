@@ -150,10 +150,10 @@ func TestValidateHydratedCommitFreshness_Fresh(t *testing.T) {
 		},
 	}
 
-	rootMetadata := map[string]interface{}{
+	rootMetadata := map[string]any{
 		"drySHA": "dry-sha-123",
 	}
-	pathMetadata := map[string]interface{}{
+	pathMetadata := map[string]any{
 		"drySHA": "dry-sha-123",
 	}
 
@@ -190,10 +190,10 @@ func TestValidateHydratedCommitFreshness_Stale(t *testing.T) {
 		},
 	}
 
-	rootMetadata := map[string]interface{}{
+	rootMetadata := map[string]any{
 		"drySHA": "dry-sha-new",
 	}
-	pathMetadata := map[string]interface{}{
+	pathMetadata := map[string]any{
 		"drySHA": "dry-sha-old",
 	}
 
@@ -257,7 +257,7 @@ func TestValidateHydratedCommitFreshness_MissingPathMetadata(t *testing.T) {
 		},
 	}
 
-	rootMetadata := map[string]interface{}{
+	rootMetadata := map[string]any{
 		"drySHA": "dry-sha-123",
 	}
 
@@ -322,7 +322,7 @@ func TestValidateHydratedCommitFreshness_MalformedPathMetadata(t *testing.T) {
 		},
 	}
 
-	rootMetadata := map[string]interface{}{
+	rootMetadata := map[string]any{
 		"drySHA": "dry-sha-123",
 	}
 

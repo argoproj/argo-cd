@@ -262,7 +262,6 @@ func (ctrl *ApplicationController) shouldBlockAutoSyncForHydrator(app *appv1.App
 		app,
 		syncRevision,
 	)
-
 	if err != nil {
 		// Unexpected error - don't cache, block auto-sync
 		logCtx.WithError(err).Warn("Skipping auto-sync: failed to validate hydrated commit freshness")
