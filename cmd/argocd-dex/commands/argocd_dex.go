@@ -80,7 +80,7 @@ func NewRunDexCommand() *cobra.Command {
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
 
 			if !disableTLS {
-				config, err := tls.CreateServerTLSConfig("/tls/tls.crt", "/tls/tls.key", []string{"localhost", "dexserver"})
+				config, err := tls.CreateServerTLSConfig("/tls/tls.crt", "/tls/tls.key", []string{"localhost", "dexserver"}, "")
 				if err != nil {
 					log.Fatalf("could not create TLS config: %v", err)
 				}
