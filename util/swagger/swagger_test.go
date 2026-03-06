@@ -52,4 +52,18 @@ func TestSwaggerUI(t *testing.T) {
 	require.NoError(t, err)
 	require.Equalf(t, http.StatusOK, resp.StatusCode, "Was expecting status code 200 from swagger-ui, but got %d instead", resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
+
+	// Verify clickjacking protection headers on swagger.json
+	require.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"))
+	require.Equal(t, "frame-ancestors 'none'", resp.Header.Get("Content-Security-Policy"))
+
+	// Verify clickjacking protection headers on swagger-ui
+	uiReq, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server+"/swagger-ui", http.NoBody)
+	require.NoError(t, err)
+
+	uiResp, err := http.DefaultClient.Do(uiReq)
+	require.NoError(t, err)
+	require.Equal(t, "DENY", uiResp.Header.Get("X-Frame-Options"))
+	require.Equal(t, "frame-ancestors 'none'", uiResp.Header.Get("Content-Security-Policy"))
+	require.NoError(t, uiResp.Body.Close())
 }
