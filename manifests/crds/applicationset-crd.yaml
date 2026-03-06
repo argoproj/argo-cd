@@ -23086,6 +23086,8 @@ spec:
                       items:
                         type: string
                       type: array
+                    targetSourcesHash:
+                      type: string
                   required:
                   - application
                   - message
