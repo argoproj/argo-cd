@@ -178,6 +178,8 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 	case gitlab.PushEventPayload:
 		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
 		webURLs = append(webURLs, payload.Project.WebURL)
+		webURLs = append(webURLs, payload.Project.SSHURL)
+		webURLs = append(webURLs, payload.Project.HTTPURL)
 		revision = ParseRevision(payload.Ref)
 		change.shaAfter = ParseRevision(payload.After)
 		change.shaBefore = ParseRevision(payload.Before)
@@ -191,6 +193,8 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
 		// NOTE: this is untested
 		webURLs = append(webURLs, payload.Project.WebURL)
+		webURLs = append(webURLs, payload.Project.SSHURL)
+		webURLs = append(webURLs, payload.Project.HTTPURL)
 		revision = ParseRevision(payload.Ref)
 		change.shaAfter = ParseRevision(payload.After)
 		change.shaBefore = ParseRevision(payload.Before)
