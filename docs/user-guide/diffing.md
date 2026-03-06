@@ -17,6 +17,7 @@ It is possible for an application to be `OutOfSync` even immediately after a suc
 In case it is impossible to fix the upstream issue, Argo CD allows you to optionally ignore differences of problematic resources.
 The diffing customization can be configured for single or multiple application resources or at a system level.
 
+This is commonly used for resources that are intentionally mutated after sync by controllers or admission webhooks and where such differences do not indicate configuration drift.
 ## Application Level Configuration
 
 Argo CD allows ignoring differences at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902) and [JQ path expressions](<https://stedolan.github.io/jq/manual/#path(path_expression)>). It is also possible to ignore differences from fields owned by specific managers defined in `metadata.managedFields` in live resources.
@@ -57,7 +58,7 @@ spec:
         - .spec.template.spec.initContainers[] | select(.name == "injected-init-container")
 ```
 
-To ignore fields owned by specific managers defined in your live resources:
+To ignore fields owned by specific managers defined in your live resources (commonly useful for managers like `kube-controller-manager` that may introduce expected post-sync mutations):
 
 ```yaml
 spec:
