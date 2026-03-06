@@ -5,10 +5,11 @@
 package mocks
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/codecommit"
+	context0 "context"
+
+	"github.com/aws/aws-sdk-go-v2/service/codecommit"
 	mock "github.com/stretchr/testify/mock"
+	"golang.org/x/net/context"
 )
 
 // NewAWSCodeCommitClient creates a new instance of AWSCodeCommitClient. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -38,12 +39,12 @@ func (_m *AWSCodeCommitClient) EXPECT() *AWSCodeCommitClient_Expecter {
 	return &AWSCodeCommitClient_Expecter{mock: &_m.Mock}
 }
 
-// GetFolderWithContext provides a mock function for the type AWSCodeCommitClient
-func (_mock *AWSCodeCommitClient) GetFolderWithContext(v aws.Context, getFolderInput *codecommit.GetFolderInput, options ...request.Option) (*codecommit.GetFolderOutput, error) {
-	// request.Option
-	_va := make([]interface{}, len(options))
-	for _i := range options {
-		_va[_i] = options[_i]
+// GetFolder provides a mock function for the type AWSCodeCommitClient
+func (_mock *AWSCodeCommitClient) GetFolder(v context.Context, getFolderInput *codecommit.GetFolderInput, fns ...func(*codecommit.Options)) (*codecommit.GetFolderOutput, error) {
+	// func(*codecommit.Options)
+	_va := make([]interface{}, len(fns))
+	for _i := range fns {
+		_va[_i] = fns[_i]
 	}
 	var _ca []interface{}
 	_ca = append(_ca, v, getFolderInput)
@@ -51,58 +52,58 @@ func (_mock *AWSCodeCommitClient) GetFolderWithContext(v aws.Context, getFolderI
 	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetFolderWithContext")
+		panic("no return value specified for GetFolder")
 	}
 
 	var r0 *codecommit.GetFolderOutput
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(aws.Context, *codecommit.GetFolderInput, ...request.Option) (*codecommit.GetFolderOutput, error)); ok {
-		return returnFunc(v, getFolderInput, options...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *codecommit.GetFolderInput, ...func(*codecommit.Options)) (*codecommit.GetFolderOutput, error)); ok {
+		return returnFunc(v, getFolderInput, fns...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(aws.Context, *codecommit.GetFolderInput, ...request.Option) *codecommit.GetFolderOutput); ok {
-		r0 = returnFunc(v, getFolderInput, options...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *codecommit.GetFolderInput, ...func(*codecommit.Options)) *codecommit.GetFolderOutput); ok {
+		r0 = returnFunc(v, getFolderInput, fns...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*codecommit.GetFolderOutput)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(aws.Context, *codecommit.GetFolderInput, ...request.Option) error); ok {
-		r1 = returnFunc(v, getFolderInput, options...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *codecommit.GetFolderInput, ...func(*codecommit.Options)) error); ok {
+		r1 = returnFunc(v, getFolderInput, fns...)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// AWSCodeCommitClient_GetFolderWithContext_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetFolderWithContext'
-type AWSCodeCommitClient_GetFolderWithContext_Call struct {
+// AWSCodeCommitClient_GetFolder_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetFolder'
+type AWSCodeCommitClient_GetFolder_Call struct {
 	*mock.Call
 }
 
-// GetFolderWithContext is a helper method to define mock.On call
-//   - v aws.Context
+// GetFolder is a helper method to define mock.On call
+//   - v context.Context
 //   - getFolderInput *codecommit.GetFolderInput
-//   - options ...request.Option
-func (_e *AWSCodeCommitClient_Expecter) GetFolderWithContext(v interface{}, getFolderInput interface{}, options ...interface{}) *AWSCodeCommitClient_GetFolderWithContext_Call {
-	return &AWSCodeCommitClient_GetFolderWithContext_Call{Call: _e.mock.On("GetFolderWithContext",
-		append([]interface{}{v, getFolderInput}, options...)...)}
+//   - fns ...func(*codecommit.Options)
+func (_e *AWSCodeCommitClient_Expecter) GetFolder(v interface{}, getFolderInput interface{}, fns ...interface{}) *AWSCodeCommitClient_GetFolder_Call {
+	return &AWSCodeCommitClient_GetFolder_Call{Call: _e.mock.On("GetFolder",
+		append([]interface{}{v, getFolderInput}, fns...)...)}
 }
 
-func (_c *AWSCodeCommitClient_GetFolderWithContext_Call) Run(run func(v aws.Context, getFolderInput *codecommit.GetFolderInput, options ...request.Option)) *AWSCodeCommitClient_GetFolderWithContext_Call {
+func (_c *AWSCodeCommitClient_GetFolder_Call) Run(run func(v context.Context, getFolderInput *codecommit.GetFolderInput, fns ...func(*codecommit.Options))) *AWSCodeCommitClient_GetFolder_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 aws.Context
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(aws.Context)
+			arg0 = args[0].(context.Context)
 		}
 		var arg1 *codecommit.GetFolderInput
 		if args[1] != nil {
 			arg1 = args[1].(*codecommit.GetFolderInput)
 		}
-		var arg2 []request.Option
-		variadicArgs := make([]request.Option, len(args)-2)
+		var arg2 []func(*codecommit.Options)
+		variadicArgs := make([]func(*codecommit.Options), len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
-				variadicArgs[i] = a.(request.Option)
+				variadicArgs[i] = a.(func(*codecommit.Options))
 			}
 		}
 		arg2 = variadicArgs
@@ -115,22 +116,22 @@ func (_c *AWSCodeCommitClient_GetFolderWithContext_Call) Run(run func(v aws.Cont
 	return _c
 }
 
-func (_c *AWSCodeCommitClient_GetFolderWithContext_Call) Return(getFolderOutput *codecommit.GetFolderOutput, err error) *AWSCodeCommitClient_GetFolderWithContext_Call {
+func (_c *AWSCodeCommitClient_GetFolder_Call) Return(getFolderOutput *codecommit.GetFolderOutput, err error) *AWSCodeCommitClient_GetFolder_Call {
 	_c.Call.Return(getFolderOutput, err)
 	return _c
 }
 
-func (_c *AWSCodeCommitClient_GetFolderWithContext_Call) RunAndReturn(run func(v aws.Context, getFolderInput *codecommit.GetFolderInput, options ...request.Option) (*codecommit.GetFolderOutput, error)) *AWSCodeCommitClient_GetFolderWithContext_Call {
+func (_c *AWSCodeCommitClient_GetFolder_Call) RunAndReturn(run func(v context.Context, getFolderInput *codecommit.GetFolderInput, fns ...func(*codecommit.Options)) (*codecommit.GetFolderOutput, error)) *AWSCodeCommitClient_GetFolder_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// GetRepositoryWithContext provides a mock function for the type AWSCodeCommitClient
-func (_mock *AWSCodeCommitClient) GetRepositoryWithContext(v aws.Context, getRepositoryInput *codecommit.GetRepositoryInput, options ...request.Option) (*codecommit.GetRepositoryOutput, error) {
-	// request.Option
-	_va := make([]interface{}, len(options))
-	for _i := range options {
-		_va[_i] = options[_i]
+// GetRepository provides a mock function for the type AWSCodeCommitClient
+func (_mock *AWSCodeCommitClient) GetRepository(v context.Context, getRepositoryInput *codecommit.GetRepositoryInput, fns ...func(*codecommit.Options)) (*codecommit.GetRepositoryOutput, error) {
+	// func(*codecommit.Options)
+	_va := make([]interface{}, len(fns))
+	for _i := range fns {
+		_va[_i] = fns[_i]
 	}
 	var _ca []interface{}
 	_ca = append(_ca, v, getRepositoryInput)
@@ -138,58 +139,58 @@ func (_mock *AWSCodeCommitClient) GetRepositoryWithContext(v aws.Context, getRep
 	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetRepositoryWithContext")
+		panic("no return value specified for GetRepository")
 	}
 
 	var r0 *codecommit.GetRepositoryOutput
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(aws.Context, *codecommit.GetRepositoryInput, ...request.Option) (*codecommit.GetRepositoryOutput, error)); ok {
-		return returnFunc(v, getRepositoryInput, options...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *codecommit.GetRepositoryInput, ...func(*codecommit.Options)) (*codecommit.GetRepositoryOutput, error)); ok {
+		return returnFunc(v, getRepositoryInput, fns...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(aws.Context, *codecommit.GetRepositoryInput, ...request.Option) *codecommit.GetRepositoryOutput); ok {
-		r0 = returnFunc(v, getRepositoryInput, options...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *codecommit.GetRepositoryInput, ...func(*codecommit.Options)) *codecommit.GetRepositoryOutput); ok {
+		r0 = returnFunc(v, getRepositoryInput, fns...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*codecommit.GetRepositoryOutput)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(aws.Context, *codecommit.GetRepositoryInput, ...request.Option) error); ok {
-		r1 = returnFunc(v, getRepositoryInput, options...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *codecommit.GetRepositoryInput, ...func(*codecommit.Options)) error); ok {
+		r1 = returnFunc(v, getRepositoryInput, fns...)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// AWSCodeCommitClient_GetRepositoryWithContext_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRepositoryWithContext'
-type AWSCodeCommitClient_GetRepositoryWithContext_Call struct {
+// AWSCodeCommitClient_GetRepository_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRepository'
+type AWSCodeCommitClient_GetRepository_Call struct {
 	*mock.Call
 }
 
-// GetRepositoryWithContext is a helper method to define mock.On call
-//   - v aws.Context
+// GetRepository is a helper method to define mock.On call
+//   - v context.Context
 //   - getRepositoryInput *codecommit.GetRepositoryInput
-//   - options ...request.Option
-func (_e *AWSCodeCommitClient_Expecter) GetRepositoryWithContext(v interface{}, getRepositoryInput interface{}, options ...interface{}) *AWSCodeCommitClient_GetRepositoryWithContext_Call {
-	return &AWSCodeCommitClient_GetRepositoryWithContext_Call{Call: _e.mock.On("GetRepositoryWithContext",
-		append([]interface{}{v, getRepositoryInput}, options...)...)}
+//   - fns ...func(*codecommit.Options)
+func (_e *AWSCodeCommitClient_Expecter) GetRepository(v interface{}, getRepositoryInput interface{}, fns ...interface{}) *AWSCodeCommitClient_GetRepository_Call {
+	return &AWSCodeCommitClient_GetRepository_Call{Call: _e.mock.On("GetRepository",
+		append([]interface{}{v, getRepositoryInput}, fns...)...)}
 }
 
-func (_c *AWSCodeCommitClient_GetRepositoryWithContext_Call) Run(run func(v aws.Context, getRepositoryInput *codecommit.GetRepositoryInput, options ...request.Option)) *AWSCodeCommitClient_GetRepositoryWithContext_Call {
+func (_c *AWSCodeCommitClient_GetRepository_Call) Run(run func(v context.Context, getRepositoryInput *codecommit.GetRepositoryInput, fns ...func(*codecommit.Options))) *AWSCodeCommitClient_GetRepository_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 aws.Context
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(aws.Context)
+			arg0 = args[0].(context.Context)
 		}
 		var arg1 *codecommit.GetRepositoryInput
 		if args[1] != nil {
 			arg1 = args[1].(*codecommit.GetRepositoryInput)
 		}
-		var arg2 []request.Option
-		variadicArgs := make([]request.Option, len(args)-2)
+		var arg2 []func(*codecommit.Options)
+		variadicArgs := make([]func(*codecommit.Options), len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
-				variadicArgs[i] = a.(request.Option)
+				variadicArgs[i] = a.(func(*codecommit.Options))
 			}
 		}
 		arg2 = variadicArgs
@@ -202,22 +203,22 @@ func (_c *AWSCodeCommitClient_GetRepositoryWithContext_Call) Run(run func(v aws.
 	return _c
 }
 
-func (_c *AWSCodeCommitClient_GetRepositoryWithContext_Call) Return(getRepositoryOutput *codecommit.GetRepositoryOutput, err error) *AWSCodeCommitClient_GetRepositoryWithContext_Call {
+func (_c *AWSCodeCommitClient_GetRepository_Call) Return(getRepositoryOutput *codecommit.GetRepositoryOutput, err error) *AWSCodeCommitClient_GetRepository_Call {
 	_c.Call.Return(getRepositoryOutput, err)
 	return _c
 }
 
-func (_c *AWSCodeCommitClient_GetRepositoryWithContext_Call) RunAndReturn(run func(v aws.Context, getRepositoryInput *codecommit.GetRepositoryInput, options ...request.Option) (*codecommit.GetRepositoryOutput, error)) *AWSCodeCommitClient_GetRepositoryWithContext_Call {
+func (_c *AWSCodeCommitClient_GetRepository_Call) RunAndReturn(run func(v context.Context, getRepositoryInput *codecommit.GetRepositoryInput, fns ...func(*codecommit.Options)) (*codecommit.GetRepositoryOutput, error)) *AWSCodeCommitClient_GetRepository_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// ListBranchesWithContext provides a mock function for the type AWSCodeCommitClient
-func (_mock *AWSCodeCommitClient) ListBranchesWithContext(v aws.Context, listBranchesInput *codecommit.ListBranchesInput, options ...request.Option) (*codecommit.ListBranchesOutput, error) {
-	// request.Option
-	_va := make([]interface{}, len(options))
-	for _i := range options {
-		_va[_i] = options[_i]
+// ListBranches provides a mock function for the type AWSCodeCommitClient
+func (_mock *AWSCodeCommitClient) ListBranches(v context.Context, listBranchesInput *codecommit.ListBranchesInput, fns ...func(*codecommit.Options)) (*codecommit.ListBranchesOutput, error) {
+	// func(*codecommit.Options)
+	_va := make([]interface{}, len(fns))
+	for _i := range fns {
+		_va[_i] = fns[_i]
 	}
 	var _ca []interface{}
 	_ca = append(_ca, v, listBranchesInput)
@@ -225,58 +226,58 @@ func (_mock *AWSCodeCommitClient) ListBranchesWithContext(v aws.Context, listBra
 	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ListBranchesWithContext")
+		panic("no return value specified for ListBranches")
 	}
 
 	var r0 *codecommit.ListBranchesOutput
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(aws.Context, *codecommit.ListBranchesInput, ...request.Option) (*codecommit.ListBranchesOutput, error)); ok {
-		return returnFunc(v, listBranchesInput, options...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *codecommit.ListBranchesInput, ...func(*codecommit.Options)) (*codecommit.ListBranchesOutput, error)); ok {
+		return returnFunc(v, listBranchesInput, fns...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(aws.Context, *codecommit.ListBranchesInput, ...request.Option) *codecommit.ListBranchesOutput); ok {
-		r0 = returnFunc(v, listBranchesInput, options...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *codecommit.ListBranchesInput, ...func(*codecommit.Options)) *codecommit.ListBranchesOutput); ok {
+		r0 = returnFunc(v, listBranchesInput, fns...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*codecommit.ListBranchesOutput)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(aws.Context, *codecommit.ListBranchesInput, ...request.Option) error); ok {
-		r1 = returnFunc(v, listBranchesInput, options...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *codecommit.ListBranchesInput, ...func(*codecommit.Options)) error); ok {
+		r1 = returnFunc(v, listBranchesInput, fns...)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// AWSCodeCommitClient_ListBranchesWithContext_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBranchesWithContext'
-type AWSCodeCommitClient_ListBranchesWithContext_Call struct {
+// AWSCodeCommitClient_ListBranches_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBranches'
+type AWSCodeCommitClient_ListBranches_Call struct {
 	*mock.Call
 }
 
-// ListBranchesWithContext is a helper method to define mock.On call
-//   - v aws.Context
+// ListBranches is a helper method to define mock.On call
+//   - v context.Context
 //   - listBranchesInput *codecommit.ListBranchesInput
-//   - options ...request.Option
-func (_e *AWSCodeCommitClient_Expecter) ListBranchesWithContext(v interface{}, listBranchesInput interface{}, options ...interface{}) *AWSCodeCommitClient_ListBranchesWithContext_Call {
-	return &AWSCodeCommitClient_ListBranchesWithContext_Call{Call: _e.mock.On("ListBranchesWithContext",
-		append([]interface{}{v, listBranchesInput}, options...)...)}
+//   - fns ...func(*codecommit.Options)
+func (_e *AWSCodeCommitClient_Expecter) ListBranches(v interface{}, listBranchesInput interface{}, fns ...interface{}) *AWSCodeCommitClient_ListBranches_Call {
+	return &AWSCodeCommitClient_ListBranches_Call{Call: _e.mock.On("ListBranches",
+		append([]interface{}{v, listBranchesInput}, fns...)...)}
 }
 
-func (_c *AWSCodeCommitClient_ListBranchesWithContext_Call) Run(run func(v aws.Context, listBranchesInput *codecommit.ListBranchesInput, options ...request.Option)) *AWSCodeCommitClient_ListBranchesWithContext_Call {
+func (_c *AWSCodeCommitClient_ListBranches_Call) Run(run func(v context.Context, listBranchesInput *codecommit.ListBranchesInput, fns ...func(*codecommit.Options))) *AWSCodeCommitClient_ListBranches_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 aws.Context
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(aws.Context)
+			arg0 = args[0].(context.Context)
 		}
 		var arg1 *codecommit.ListBranchesInput
 		if args[1] != nil {
 			arg1 = args[1].(*codecommit.ListBranchesInput)
 		}
-		var arg2 []request.Option
-		variadicArgs := make([]request.Option, len(args)-2)
+		var arg2 []func(*codecommit.Options)
+		variadicArgs := make([]func(*codecommit.Options), len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
-				variadicArgs[i] = a.(request.Option)
+				variadicArgs[i] = a.(func(*codecommit.Options))
 			}
 		}
 		arg2 = variadicArgs
@@ -289,81 +290,81 @@ func (_c *AWSCodeCommitClient_ListBranchesWithContext_Call) Run(run func(v aws.C
 	return _c
 }
 
-func (_c *AWSCodeCommitClient_ListBranchesWithContext_Call) Return(listBranchesOutput *codecommit.ListBranchesOutput, err error) *AWSCodeCommitClient_ListBranchesWithContext_Call {
+func (_c *AWSCodeCommitClient_ListBranches_Call) Return(listBranchesOutput *codecommit.ListBranchesOutput, err error) *AWSCodeCommitClient_ListBranches_Call {
 	_c.Call.Return(listBranchesOutput, err)
 	return _c
 }
 
-func (_c *AWSCodeCommitClient_ListBranchesWithContext_Call) RunAndReturn(run func(v aws.Context, listBranchesInput *codecommit.ListBranchesInput, options ...request.Option) (*codecommit.ListBranchesOutput, error)) *AWSCodeCommitClient_ListBranchesWithContext_Call {
+func (_c *AWSCodeCommitClient_ListBranches_Call) RunAndReturn(run func(v context.Context, listBranchesInput *codecommit.ListBranchesInput, fns ...func(*codecommit.Options)) (*codecommit.ListBranchesOutput, error)) *AWSCodeCommitClient_ListBranches_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// ListRepositoriesWithContext provides a mock function for the type AWSCodeCommitClient
-func (_mock *AWSCodeCommitClient) ListRepositoriesWithContext(v aws.Context, listRepositoriesInput *codecommit.ListRepositoriesInput, options ...request.Option) (*codecommit.ListRepositoriesOutput, error) {
-	// request.Option
-	_va := make([]interface{}, len(options))
-	for _i := range options {
-		_va[_i] = options[_i]
+// ListRepositories provides a mock function for the type AWSCodeCommitClient
+func (_mock *AWSCodeCommitClient) ListRepositories(context1 context0.Context, listRepositoriesInput *codecommit.ListRepositoriesInput, fns ...func(*codecommit.Options)) (*codecommit.ListRepositoriesOutput, error) {
+	// func(*codecommit.Options)
+	_va := make([]interface{}, len(fns))
+	for _i := range fns {
+		_va[_i] = fns[_i]
 	}
 	var _ca []interface{}
-	_ca = append(_ca, v, listRepositoriesInput)
+	_ca = append(_ca, context1, listRepositoriesInput)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ListRepositoriesWithContext")
+		panic("no return value specified for ListRepositories")
 	}
 
 	var r0 *codecommit.ListRepositoriesOutput
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(aws.Context, *codecommit.ListRepositoriesInput, ...request.Option) (*codecommit.ListRepositoriesOutput, error)); ok {
-		return returnFunc(v, listRepositoriesInput, options...)
+	if returnFunc, ok := ret.Get(0).(func(context0.Context, *codecommit.ListRepositoriesInput, ...func(*codecommit.Options)) (*codecommit.ListRepositoriesOutput, error)); ok {
+		return returnFunc(context1, listRepositoriesInput, fns...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(aws.Context, *codecommit.ListRepositoriesInput, ...request.Option) *codecommit.ListRepositoriesOutput); ok {
-		r0 = returnFunc(v, listRepositoriesInput, options...)
+	if returnFunc, ok := ret.Get(0).(func(context0.Context, *codecommit.ListRepositoriesInput, ...func(*codecommit.Options)) *codecommit.ListRepositoriesOutput); ok {
+		r0 = returnFunc(context1, listRepositoriesInput, fns...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*codecommit.ListRepositoriesOutput)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(aws.Context, *codecommit.ListRepositoriesInput, ...request.Option) error); ok {
-		r1 = returnFunc(v, listRepositoriesInput, options...)
+	if returnFunc, ok := ret.Get(1).(func(context0.Context, *codecommit.ListRepositoriesInput, ...func(*codecommit.Options)) error); ok {
+		r1 = returnFunc(context1, listRepositoriesInput, fns...)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// AWSCodeCommitClient_ListRepositoriesWithContext_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListRepositoriesWithContext'
-type AWSCodeCommitClient_ListRepositoriesWithContext_Call struct {
+// AWSCodeCommitClient_ListRepositories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListRepositories'
+type AWSCodeCommitClient_ListRepositories_Call struct {
 	*mock.Call
 }
 
-// ListRepositoriesWithContext is a helper method to define mock.On call
-//   - v aws.Context
+// ListRepositories is a helper method to define mock.On call
+//   - context1 context0.Context
 //   - listRepositoriesInput *codecommit.ListRepositoriesInput
-//   - options ...request.Option
-func (_e *AWSCodeCommitClient_Expecter) ListRepositoriesWithContext(v interface{}, listRepositoriesInput interface{}, options ...interface{}) *AWSCodeCommitClient_ListRepositoriesWithContext_Call {
-	return &AWSCodeCommitClient_ListRepositoriesWithContext_Call{Call: _e.mock.On("ListRepositoriesWithContext",
-		append([]interface{}{v, listRepositoriesInput}, options...)...)}
+//   - fns ...func(*codecommit.Options)
+func (_e *AWSCodeCommitClient_Expecter) ListRepositories(context1 interface{}, listRepositoriesInput interface{}, fns ...interface{}) *AWSCodeCommitClient_ListRepositories_Call {
+	return &AWSCodeCommitClient_ListRepositories_Call{Call: _e.mock.On("ListRepositories",
+		append([]interface{}{context1, listRepositoriesInput}, fns...)...)}
 }
 
-func (_c *AWSCodeCommitClient_ListRepositoriesWithContext_Call) Run(run func(v aws.Context, listRepositoriesInput *codecommit.ListRepositoriesInput, options ...request.Option)) *AWSCodeCommitClient_ListRepositoriesWithContext_Call {
+func (_c *AWSCodeCommitClient_ListRepositories_Call) Run(run func(context1 context0.Context, listRepositoriesInput *codecommit.ListRepositoriesInput, fns ...func(*codecommit.Options))) *AWSCodeCommitClient_ListRepositories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 aws.Context
+		var arg0 context0.Context
 		if args[0] != nil {
-			arg0 = args[0].(aws.Context)
+			arg0 = args[0].(context0.Context)
 		}
 		var arg1 *codecommit.ListRepositoriesInput
 		if args[1] != nil {
 			arg1 = args[1].(*codecommit.ListRepositoriesInput)
 		}
-		var arg2 []request.Option
-		variadicArgs := make([]request.Option, len(args)-2)
+		var arg2 []func(*codecommit.Options)
+		variadicArgs := make([]func(*codecommit.Options), len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
-				variadicArgs[i] = a.(request.Option)
+				variadicArgs[i] = a.(func(*codecommit.Options))
 			}
 		}
 		arg2 = variadicArgs
@@ -376,12 +377,12 @@ func (_c *AWSCodeCommitClient_ListRepositoriesWithContext_Call) Run(run func(v a
 	return _c
 }
 
-func (_c *AWSCodeCommitClient_ListRepositoriesWithContext_Call) Return(listRepositoriesOutput *codecommit.ListRepositoriesOutput, err error) *AWSCodeCommitClient_ListRepositoriesWithContext_Call {
+func (_c *AWSCodeCommitClient_ListRepositories_Call) Return(listRepositoriesOutput *codecommit.ListRepositoriesOutput, err error) *AWSCodeCommitClient_ListRepositories_Call {
 	_c.Call.Return(listRepositoriesOutput, err)
 	return _c
 }
 
-func (_c *AWSCodeCommitClient_ListRepositoriesWithContext_Call) RunAndReturn(run func(v aws.Context, listRepositoriesInput *codecommit.ListRepositoriesInput, options ...request.Option) (*codecommit.ListRepositoriesOutput, error)) *AWSCodeCommitClient_ListRepositoriesWithContext_Call {
+func (_c *AWSCodeCommitClient_ListRepositories_Call) RunAndReturn(run func(context1 context0.Context, listRepositoriesInput *codecommit.ListRepositoriesInput, fns ...func(*codecommit.Options)) (*codecommit.ListRepositoriesOutput, error)) *AWSCodeCommitClient_ListRepositories_Call {
 	_c.Call.Return(run)
 	return _c
 }
