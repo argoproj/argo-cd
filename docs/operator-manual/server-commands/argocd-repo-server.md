@@ -17,6 +17,7 @@ argocd-repo-server [flags]
 ```
       --address string                                 Listen on given address for incoming connections (default "0.0.0.0")
       --allow-oob-symlinks                             Allow out-of-bounds symlinks in repositories (not recommended)
+      --client-ca-path string                          Path to the client CA certificate file for mTLS
       --default-cache-expiration duration              Cache expiration default (default 24h0m0s)
       --disable-helm-manifest-max-extracted-size       Disable maximum size of helm manifest archives when extracted
       --disable-oci-manifest-max-extracted-size        Disable maximum size of oci manifest archives when extracted
