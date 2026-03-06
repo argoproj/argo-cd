@@ -315,6 +315,11 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 )
 
+require (
+	github.com/aws/aws-sdk-go-v2/service/codecommit v1.33.10
+	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.31.8
+)
+
 replace (
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
