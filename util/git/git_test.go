@@ -1116,7 +1116,7 @@ func Test_nativeGitClient_Fetch_Combinations(t *testing.T) {
 			require.NoError(t, err)
 
 			// Add some commits to the origin repo to test depth
-			for i := 0; i < 15; i++ {
+			for i := range 15 {
 				err = runCmd(ctx, tempDir, "git", "commit", "--allow-empty", "-m", fmt.Sprintf("Commit %d", i))
 				require.NoError(t, err)
 			}
@@ -1208,9 +1208,9 @@ func Test_nativeGitClient_Fetch_ShallowAndPartial_Together(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create multiple commits with files
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		testFile := filepath.Join(tempDir, fmt.Sprintf("file%d.txt", i))
-		err = os.WriteFile(testFile, []byte(fmt.Sprintf("content %d", i)), 0o644)
+		err = os.WriteFile(testFile, fmt.Appendf(nil, "content %d", i), 0o644)
 		require.NoError(t, err)
 
 		err = runCmd(ctx, tempDir, "git", "add", fmt.Sprintf("file%d.txt", i))

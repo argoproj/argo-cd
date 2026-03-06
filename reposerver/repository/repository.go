@@ -220,7 +220,7 @@ func getSparseCheckoutPathsFromRepo(ctx context.Context, repoPath string) ([]str
 	}
 
 	var paths []string
-	for _, line := range strings.Split(string(output), "\n") {
+	for line := range strings.SplitSeq(string(output), "\n") {
 		line = strings.TrimSpace(line)
 		if line != "" {
 			paths = append(paths, line)

@@ -316,8 +316,6 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 )
 
-require github.com/argoproj/gitops-engine v0.7.3
-
 require go.uber.org/atomic v1.11.0 // indirect
 
 replace (
