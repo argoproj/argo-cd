@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
+	jsonpatch2 "gomodules.xyz/jsonpatch/v2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -494,7 +496,13 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 		return strategicpatch.CreateThreeWayMergePatch(modifiedJSON, modifiedJSON, originalJSON, lookupPatchMeta, true)
 	}
 
-	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)
+	// Use JSON Patch (RFC 6902).
+	// It provides  granular operations for specific paths,
+	patch, err := jsonpatch2.CreatePatch(originalJSON, modifiedJSON)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(patch)
 }
 
 // applyMergePatch will apply the given patch in the obj and return the patched
@@ -506,12 +514,19 @@ func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObje
 	}
 	var patchedJSON []byte
 	if versionedObject == nil {
-		patchedJSON, err = jsonpatch.MergePatch(originalJSON, patch)
+		decodedPatch, err := jsonpatch.DecodePatch(patch)
+		if err != nil {
+			return nil, err
+		}
+		patchedJSON, err = decodedPatch.Apply(originalJSON)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		patchedJSON, err = strategicpatch.StrategicMergePatch(originalJSON, patch, versionedObject)
-	}
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	patchedObj := &unstructured.Unstructured{}
