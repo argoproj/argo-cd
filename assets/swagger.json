@@ -7193,6 +7193,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "targetsourceshash": {
+          "description": "TargetSourcesHash tracks a hash of app.Spec.GetSources() to detect inline spec\nchanges (e.g. valuesObject) that do not affect the git revision.",
+          "type": "string"
         }
       }
     },
