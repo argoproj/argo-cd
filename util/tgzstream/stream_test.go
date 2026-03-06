@@ -61,7 +61,7 @@ func TestCompressFiles_ExtraFileInjected(t *testing.T) {
 	require.NoError(t, err)
 	defer CloseAndDelete(tgzFile)
 
-	assert.Greater(t, filesWritten, 0)
+	assert.Positive(t, filesWritten)
 	assert.NotEmpty(t, checksum)
 
 	paths := listTarPaths(t, tgzFile)
