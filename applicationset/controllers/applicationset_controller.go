@@ -24,11 +24,13 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -103,15 +105,16 @@ type ApplicationSetReconciler struct {
 	Policy               argov1alpha1.ApplicationsSyncPolicy
 	EnablePolicyOverride bool
 	utils.Renderer
-	ArgoCDNamespace            string
-	ApplicationSetNamespaces   []string
-	EnableProgressiveSyncs     bool
-	SCMRootCAPath              string
-	GlobalPreservedAnnotations []string
-	GlobalPreservedLabels      []string
-	Metrics                    *metrics.ApplicationsetMetrics
-	MaxResourcesStatusCount    int
-	ClusterInformer            *settings.ClusterInformer
+	ArgoCDNamespace              string
+	ApplicationSetNamespaces     []string
+	EnableProgressiveSyncs       bool
+	SCMRootCAPath                string
+	GlobalPreservedAnnotations   []string
+	GlobalPreservedLabels        []string
+	Metrics                      *metrics.ApplicationsetMetrics
+	MaxResourcesStatusCount      int
+	ClusterInformer              *settings.ClusterInformer
+	ConcurrentApplicationUpdates int
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -688,106 +691,136 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 // - For existing application, it will call update
 // The function also adds owner reference to all applications, and uses it to delete them.
 func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, logCtx *log.Entry, applicationSet argov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
-	var firstError error
-	// Creates or updates the application in appList
-	for _, generatedApp := range desiredApplications {
-		appLog := logCtx.WithFields(applog.GetAppLogFields(&generatedApp))
+	concurrency := r.ConcurrentApplicationUpdates
+	if concurrency <= 0 {
+		concurrency = 1
+	}
 
+	// Build the diff config once per reconcile.
+	// Diff config is per applicationset, so generate it once for all applications
+	diffConfig, err := utils.BuildIgnoreDiffConfig(applicationSet.Spec.IgnoreApplicationDifferences, normalizers.IgnoreNormalizerOpts{})
+	if err != nil {
+		return fmt.Errorf("failed to build ignore diff config: %w", err)
+	}
+
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(concurrency)
+
+	var (
+		firstErrorMu sync.Mutex
+		firstError   error
+	)
+
+	for _, generatedApp := range desiredApplications {
 		// Normalize to avoid fighting with the application controller.
 		generatedApp.Spec = *argoutil.NormalizeApplicationSpec(&generatedApp.Spec)
+		g.Go(func() error {
+			appLog := logCtx.WithFields(applog.GetAppLogFields(&generatedApp))
 
-		found := &argov1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      generatedApp.Name,
-				Namespace: generatedApp.Namespace,
-			},
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-		}
-
-		action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, applicationSet.Spec.IgnoreApplicationDifferences, normalizers.IgnoreNormalizerOpts{}, found, func() error {
-			// Copy only the Application/ObjectMeta fields that are significant, from the generatedApp
-			found.Spec = generatedApp.Spec
-
-			// allow setting the Operation field to trigger a sync operation on an Application
-			if generatedApp.Operation != nil {
-				found.Operation = generatedApp.Operation
+			found := &argov1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      generatedApp.Name,
+					Namespace: generatedApp.Namespace,
+				},
+				TypeMeta: metav1.TypeMeta{
+					Kind:       application.ApplicationKind,
+					APIVersion: "argoproj.io/v1alpha1",
+				},
 			}
 
-			preservedAnnotations := make([]string, 0)
-			preservedLabels := make([]string, 0)
+			action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, diffConfig, found, func() error {
+				// Copy only the Application/ObjectMeta fields that are significant, from the generatedApp
+				found.Spec = generatedApp.Spec
 
-			if applicationSet.Spec.PreservedFields != nil {
-				preservedAnnotations = append(preservedAnnotations, applicationSet.Spec.PreservedFields.Annotations...)
-				preservedLabels = append(preservedLabels, applicationSet.Spec.PreservedFields.Labels...)
-			}
-
-			if len(r.GlobalPreservedAnnotations) > 0 {
-				preservedAnnotations = append(preservedAnnotations, r.GlobalPreservedAnnotations...)
-			}
-
-			if len(r.GlobalPreservedLabels) > 0 {
-				preservedLabels = append(preservedLabels, r.GlobalPreservedLabels...)
-			}
-
-			// Preserve specially treated argo cd annotations:
-			// * https://github.com/argoproj/applicationset/issues/180
-			// * https://github.com/argoproj/argo-cd/issues/10500
-			preservedAnnotations = append(preservedAnnotations, defaultPreservedAnnotations...)
-
-			for _, key := range preservedAnnotations {
-				if state, exists := found.Annotations[key]; exists {
-					if generatedApp.Annotations == nil {
-						generatedApp.Annotations = map[string]string{}
-					}
-					generatedApp.Annotations[key] = state
+				// allow setting the Operation field to trigger a sync operation on an Application
+				if generatedApp.Operation != nil {
+					found.Operation = generatedApp.Operation
 				}
-			}
 
-			for _, key := range preservedLabels {
-				if state, exists := found.Labels[key]; exists {
-					if generatedApp.Labels == nil {
-						generatedApp.Labels = map[string]string{}
-					}
-					generatedApp.Labels[key] = state
+				preservedAnnotations := make([]string, 0)
+				preservedLabels := make([]string, 0)
+
+				if applicationSet.Spec.PreservedFields != nil {
+					preservedAnnotations = append(preservedAnnotations, applicationSet.Spec.PreservedFields.Annotations...)
+					preservedLabels = append(preservedLabels, applicationSet.Spec.PreservedFields.Labels...)
 				}
-			}
 
-			// Preserve deleting finalizers and avoid diff conflicts
-			for _, finalizer := range defaultPreservedFinalizers {
-				for _, f := range found.Finalizers {
-					// For finalizers, use prefix matching in case it contains "/" stages
-					if strings.HasPrefix(f, finalizer) {
-						generatedApp.Finalizers = append(generatedApp.Finalizers, f)
+				if len(r.GlobalPreservedAnnotations) > 0 {
+					preservedAnnotations = append(preservedAnnotations, r.GlobalPreservedAnnotations...)
+				}
+
+				if len(r.GlobalPreservedLabels) > 0 {
+					preservedLabels = append(preservedLabels, r.GlobalPreservedLabels...)
+				}
+
+				// Preserve specially treated argo cd annotations:
+				// * https://github.com/argoproj/applicationset/issues/180
+				// * https://github.com/argoproj/argo-cd/issues/10500
+				preservedAnnotations = append(preservedAnnotations, defaultPreservedAnnotations...)
+
+				for _, key := range preservedAnnotations {
+					if state, exists := found.Annotations[key]; exists {
+						if generatedApp.Annotations == nil {
+							generatedApp.Annotations = map[string]string{}
+						}
+						generatedApp.Annotations[key] = state
 					}
 				}
+
+				for _, key := range preservedLabels {
+					if state, exists := found.Labels[key]; exists {
+						if generatedApp.Labels == nil {
+							generatedApp.Labels = map[string]string{}
+						}
+						generatedApp.Labels[key] = state
+					}
+				}
+
+				// Preserve deleting finalizers and avoid diff conflicts
+				for _, finalizer := range defaultPreservedFinalizers {
+					for _, f := range found.Finalizers {
+						// For finalizers, use prefix matching in case it contains "/" stages
+						if strings.HasPrefix(f, finalizer) {
+							generatedApp.Finalizers = append(generatedApp.Finalizers, f)
+						}
+					}
+				}
+
+				found.Annotations = generatedApp.Annotations
+				found.Labels = generatedApp.Labels
+				found.Finalizers = generatedApp.Finalizers
+
+				return controllerutil.SetControllerReference(&applicationSet, found, r.Scheme)
+			})
+			if err != nil {
+				appLog.WithError(err).WithField("action", action).Errorf("failed to %s Application", action)
+				// If the context was canceled or its deadline exceeded, return the error so it propagates through g.Wait().
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return err
+				}
+				firstErrorMu.Lock()
+				if firstError == nil {
+					firstError = err
+				}
+				firstErrorMu.Unlock()
+				return nil
 			}
 
-			found.Annotations = generatedApp.Annotations
-			found.Labels = generatedApp.Labels
-			found.Finalizers = generatedApp.Finalizers
-
-			return controllerutil.SetControllerReference(&applicationSet, found, r.Scheme)
+			if action != controllerutil.OperationResultNone {
+				// Don't pollute etcd with "unchanged Application" events
+				r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, fmt.Sprint(action), "%s Application %q", action, generatedApp.Name)
+				appLog.Logf(log.InfoLevel, "%s Application", action)
+			} else {
+				// "unchanged Application" can be inferred by Reconcile Complete with no action being listed
+				// Or enable debug logging
+				appLog.Logf(log.DebugLevel, "%s Application", action)
+			}
+			return nil
 		})
-		if err != nil {
-			appLog.WithError(err).WithField("action", action).Errorf("failed to %s Application", action)
-			if firstError == nil {
-				firstError = err
-			}
-			continue
-		}
+	}
 
-		if action != controllerutil.OperationResultNone {
-			// Don't pollute etcd with "unchanged Application" events
-			r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, fmt.Sprint(action), "%s Application %q", action, generatedApp.Name)
-			appLog.Logf(log.InfoLevel, "%s Application", action)
-		} else {
-			// "unchanged Application" can be inferred by Reconcile Complete with no action being listed
-			// Or enable debug logging
-			appLog.Logf(log.DebugLevel, "%s Application", action)
-		}
+	if err := g.Wait(); errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return err
 	}
 	return firstError
 }
@@ -849,34 +882,65 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 		m[app.Name] = true
 	}
 
-	// Delete apps that are not in m[string]bool
-	var firstError error
-	for _, app := range current {
-		logCtx = logCtx.WithFields(applog.GetAppLogFields(&app))
-		_, exists := m[app.Name]
+	concurrency := r.ConcurrentApplicationUpdates
+	if concurrency <= 0 {
+		concurrency = 1
+	}
 
-		if !exists {
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(concurrency)
+
+	var (
+		firstErrorMu sync.Mutex
+		firstError   error
+	)
+
+	// Delete apps that are not in m[string]bool
+	for _, app := range current {
+		_, exists := m[app.Name]
+		if exists {
+			continue
+		}
+		appLogCtx := logCtx.WithFields(applog.GetAppLogFields(&app))
+		g.Go(func() error {
 			// Removes the Argo CD resources finalizer if the application contains an invalid target (eg missing cluster)
-			err := r.removeFinalizerOnInvalidDestination(ctx, applicationSet, &app, clusterList, logCtx)
+			err := r.removeFinalizerOnInvalidDestination(ctx, applicationSet, &app, clusterList, appLogCtx)
 			if err != nil {
-				logCtx.WithError(err).Error("failed to update Application")
-				if firstError != nil {
+				appLogCtx.WithError(err).Error("failed to update Application")
+				// If the context was canceled or its deadline exceeded, return the error so it propagates through g.Wait().
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return err
+				}
+				firstErrorMu.Lock()
+				if firstError == nil {
 					firstError = err
 				}
-				continue
+				firstErrorMu.Unlock()
+				return nil
 			}
 
 			err = r.Delete(ctx, &app)
 			if err != nil {
-				logCtx.WithError(err).Error("failed to delete Application")
-				if firstError != nil {
+				appLogCtx.WithError(err).Error("failed to delete Application")
+				// If the context was canceled or its deadline exceeded, return the error so it propagates through g.Wait().
+				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+					return err
+				}
+				firstErrorMu.Lock()
+				if firstError == nil {
 					firstError = err
 				}
-				continue
+				firstErrorMu.Unlock()
+				return nil
 			}
 			r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, "Deleted", "Deleted Application %q", app.Name)
-			logCtx.Log(log.InfoLevel, "Deleted application")
-		}
+			appLogCtx.Log(log.InfoLevel, "Deleted application")
+			return nil
+		})
+	}
+
+	if err := g.Wait(); errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return err
 	}
 	return firstError
 }
