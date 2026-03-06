@@ -130,7 +130,7 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 
 	requestedApps := g.filterApps(appSetGenerator.Git.Directories, allPaths)
 
-	res, err := g.generateParamsFromApps(requestedApps, appSetGenerator, useGoTemplate, goTemplateOptions)
+	res, err := g.generateParamsFromApps(requestedApps, appSetGenerator, useGoTemplate, goTemplateOptions, project)
 	if err != nil {
 		return nil, fmt.Errorf("error generating params from apps: %w", err)
 	}
@@ -202,10 +202,16 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	}
 	sort.Strings(filePaths)
 
+	// Get the commit SHA for the given repo and revision once, as it will be the same for all files.
+	commitSHA, err := g.repos.GetCommitSHA(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project)
+	if err != nil {
+		return nil, fmt.Errorf("error getting commit SHA from repo: %w", err)
+	}
+
 	var allParams []map[string]any
 	for _, filePath := range filePaths {
 		// A JSON / YAML file path can contain multiple sets of parameters (ie it is an array)
-		paramsFromFileArray, err := g.generateParamsFromGitFile(filePath, fileContentMap[filePath], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix)
+		paramsFromFileArray, err := g.generateParamsFromGitFile(filePath, fileContentMap[filePath], appSetGenerator, useGoTemplate, goTemplateOptions, commitSHA)
 		if err != nil {
 			return nil, fmt.Errorf("unable to process file '%s': %w", filePath, err)
 		}
@@ -218,7 +224,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 // generateParamsFromGitFile parses the content of a Git-tracked file and generates a slice of parameter maps.
 // The file can contain a single YAML/JSON object or an array of such objects. Depending on the useGoTemplate flag,
 // it either preserves structure for Go templating or flattens the objects for use as plain key-value parameters.
-func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, values map[string]string, useGoTemplate bool, goTemplateOptions []string, pathParamPrefix string) ([]map[string]any, error) {
+func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, useGoTemplate bool, goTemplateOptions []string, commitSHA string) ([]map[string]any, error) {
 	objectsFound := []map[string]any{}
 
 	// First, we attempt to parse as a single object.
@@ -240,6 +246,8 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 	for _, objectFound := range objectsFound {
 		params := map[string]any{}
 
+		params["commitSHA"] = commitSHA
+
 		if useGoTemplate {
 			maps.Copy(params, objectFound)
 
@@ -251,8 +259,8 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			paramPath["basenameNormalized"] = utils.SanitizeName(path.Base(paramPath["path"].(string)))
 			paramPath["filenameNormalized"] = utils.SanitizeName(path.Base(paramPath["filename"].(string)))
 			paramPath["segments"] = strings.Split(paramPath["path"].(string), "/")
-			if pathParamPrefix != "" {
-				params[pathParamPrefix] = map[string]any{"path": paramPath}
+			if appSetGenerator.Git.PathParamPrefix != "" {
+				params[appSetGenerator.Git.PathParamPrefix] = map[string]any{"path": paramPath}
 			} else {
 				params["path"] = paramPath
 			}
@@ -265,8 +273,8 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 				params[k] = fmt.Sprintf("%v", v)
 			}
 			pathParamName := "path"
-			if pathParamPrefix != "" {
-				pathParamName = pathParamPrefix + "." + pathParamName
+			if appSetGenerator.Git.PathParamPrefix != "" {
+				pathParamName = appSetGenerator.Git.PathParamPrefix + "." + pathParamName
 			}
 			params[pathParamName] = path.Dir(filePath)
 			params[pathParamName+".basename"] = path.Base(params[pathParamName].(string))
@@ -280,7 +288,7 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			}
 		}
 
-		err := appendTemplatedValues(values, params, useGoTemplate, goTemplateOptions)
+		err = appendTemplatedValues(appSetGenerator.Git.Values, params, useGoTemplate, goTemplateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append templated values: %w", err)
 		}
@@ -324,10 +332,17 @@ func (g *GitGenerator) filterApps(directories []argoprojiov1alpha1.GitDirectoryG
 // generateParamsFromApps generates a list of parameter maps based on the given app paths.
 // Each app path is converted into a parameter object with path metadata (basename, segments, etc.).
 // It supports both Go templates and flat key-value parameters.
-func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, useGoTemplate bool, goTemplateOptions []string) ([]map[string]any, error) {
+func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, useGoTemplate bool, goTemplateOptions []string, project string) ([]map[string]any, error) {
+	// Get the commit SHA for the given repo and revision once, as it will be the same.
+	commitSHA, err := g.repos.GetCommitSHA(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project)
+	if err != nil {
+		return nil, fmt.Errorf("error getting commit SHA from repo: %w", err)
+	}
+
 	res := make([]map[string]any, len(requestedApps))
 	for i, a := range requestedApps {
 		params := make(map[string]any, 5)
+		params["commitSHA"] = commitSHA
 
 		if useGoTemplate {
 			paramPath := map[string]any{}
@@ -355,7 +370,7 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGene
 			}
 		}
 
-		err := appendTemplatedValues(appSetGenerator.Git.Values, params, useGoTemplate, goTemplateOptions)
+		err = appendTemplatedValues(appSetGenerator.Git.Values, params, useGoTemplate, goTemplateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append templated values: %w", err)
 		}

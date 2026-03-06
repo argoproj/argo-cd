@@ -175,3 +175,82 @@ func TestNewArgoCDService(t *testing.T) {
 	service := NewArgoCDService(testDB, false, &repo_mocks.Clientset{}, false)
 	assert.NotNil(t, service)
 }
+
+func TestGetCommitSHA(t *testing.T) {
+	type fields struct {
+		getRepository                     func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
+		getRevisionMetadataFromRepoServer func(ctx context.Context, req *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error)
+	}
+	type args struct {
+		ctx      context.Context
+		repoURL  string
+		revision string
+		project  string
+	}
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    string
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "ErrorGettingRepository",
+			fields: fields{
+				getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+					return nil, errors.New("unable to get repository")
+				},
+			},
+			args:    args{},
+			want:    "",
+			wantErr: assert.Error,
+		},
+		{
+			name: "ErrorGettingRevisionMetadata",
+			fields: fields{
+				getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+					return &v1alpha1.Repository{}, nil
+				},
+				getRevisionMetadataFromRepoServer: func(_ context.Context, _ *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
+					return nil, errors.New("unable to get revision metadata")
+				},
+			},
+			args:    args{},
+			want:    "",
+			wantErr: assert.Error,
+		},
+		{
+			name: "HappyCase",
+			fields: fields{
+				getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+					return &v1alpha1.Repository{Repo: "foo"}, nil
+				},
+				getRevisionMetadataFromRepoServer: func(_ context.Context, _ *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
+					return &v1alpha1.RevisionMetadata{SHA: "abc123"}, nil
+				},
+			},
+			args: args{
+				repoURL:  "foo",
+				revision: "HEAD",
+			},
+			want:    "abc123",
+			wantErr: assert.NoError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &argoCDService{
+				getRepository:                     tt.fields.getRepository,
+				getRevisionMetadataFromRepoServer: tt.fields.getRevisionMetadataFromRepoServer,
+			}
+
+			got, err := a.GetCommitSHA(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.project)
+			if !tt.wantErr(t, err, fmt.Sprintf("GetCommitSHA(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.project)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "GetCommitSHA(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.project)
+		})
+	}
+}

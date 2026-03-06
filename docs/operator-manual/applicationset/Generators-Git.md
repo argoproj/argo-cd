@@ -67,6 +67,7 @@ spec:
 
 The generator parameters are:
 
+- `{{.commitSHA}}`: Resolved commit hash for the given revision.
 - `{{.path.path}}`: The directory paths within the Git repository that match the `path` wildcard.
 - `{{index .path.segments n}}`: The directory paths within the Git repository that match the `path` wildcard, split into array elements (`n` - array index)
 - `{{.path.basename}}`: For any directory path within the Git repository that matches the `path` wildcard, the right-most path name is extracted (e.g. `/directory/directory2` would produce `directory2`).
@@ -332,6 +333,7 @@ As with other generators, clusters *must* already be defined within Argo CD, in 
 
 In addition to the flattened key/value pairs from the configuration file, the following generator parameters are provided:
 
+- `{{.commitSHA}}`: Resolved commit hash for the given revision.
 - `{{.path.path}}`: The path to the directory containing matching configuration file within the Git repository. Example: `/clusters/clusterA`, if the config file was `/clusters/clusterA/config.json`
 - `{{index .path.segments n}}`: The path to the matching configuration file within the Git repository, split into array elements (`n` - array index). Example: `index .path.segments 0: clusters`, `index .path.segments 1: clusterA`
 - `{{.path.basename}}`: Basename of the path to the directory containing the configuration file (e.g. `clusterA`, with the above example.)

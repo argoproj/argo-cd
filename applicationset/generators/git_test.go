@@ -27,6 +27,7 @@ foo:
 		useGoTemplate     bool
 		goTemplateOptions []string
 		pathParamPrefix   string
+		commitSHA         string
 	}
 	tests := []struct {
 		name    string
@@ -41,9 +42,11 @@ foo:
 				fileContent:   []byte(""),
 				values:        map[string]string{},
 				useGoTemplate: false,
+				commitSHA:     "commit-sha",
 			},
 			want: []map[string]any{
 				{
+					"commitSHA":               "commit-sha",
 					"path":                    "path/dir",
 					"path.basename":           "dir",
 					"path.filename":           "file_name.yaml",
@@ -61,6 +64,7 @@ foo:
 				fileContent:   []byte("this is not json or yaml"),
 				values:        map[string]string{},
 				useGoTemplate: false,
+				commitSHA:     "commit-sha",
 			},
 			wantErr: true,
 		},
@@ -71,9 +75,11 @@ foo:
 				fileContent:   defaultContent,
 				values:        map[string]string{},
 				useGoTemplate: false,
+				commitSHA:     "commit-sha",
 			},
 			want: []map[string]any{
 				{
+					"commitSHA":               "commit-sha",
 					"foo.bar":                 "baz",
 					"path":                    "path/dir",
 					"path.basename":           "dir",
@@ -93,9 +99,11 @@ foo:
 				values:          map[string]string{},
 				useGoTemplate:   false,
 				pathParamPrefix: "myRepo",
+				commitSHA:       "commit-sha",
 			},
 			want: []map[string]any{
 				{
+					"commitSHA":                      "commit-sha",
 					"foo.bar":                        "baz",
 					"myRepo.path":                    "path/dir",
 					"myRepo.path.basename":           "dir",
@@ -116,9 +124,11 @@ foo:
 					"somekey": "{{.path.basename}}",
 				},
 				useGoTemplate: true,
+				commitSHA:     "commit-sha",
 			},
 			want: []map[string]any{
 				{
+					"commitSHA": "commit-sha",
 					"values": map[string]string{
 						"somekey": "dir",
 					},
@@ -147,9 +157,11 @@ foo:
 				values:          map[string]string{},
 				useGoTemplate:   true,
 				pathParamPrefix: "myRepo",
+				commitSHA:       "commit-sha",
 			},
 			want: []map[string]any{
 				{
+					"commitSHA": "commit-sha",
 					"foo": map[string]any{
 						"bar": "baz",
 					},
@@ -207,7 +219,13 @@ foo:
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			params, err := (*GitGenerator)(nil).generateParamsFromGitFile(tt.args.filePath, tt.args.fileContent, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions, tt.args.pathParamPrefix)
+			appSetGenerator := &v1alpha1.ApplicationSetGenerator{
+				Git: &v1alpha1.GitGenerator{
+					Values:          tt.args.values,
+					PathParamPrefix: tt.args.pathParamPrefix,
+				},
+			}
+			params, err := (*GitGenerator)(nil).generateParamsFromGitFile(tt.args.filePath, tt.args.fileContent, appSetGenerator, tt.args.useGoTemplate, tt.args.goTemplateOptions, tt.args.commitSHA)
 			if tt.wantErr {
 				assert.Error(t, err, "GitGenerator.generateParamsFromGitFile()")
 			} else {
@@ -241,9 +259,18 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				"p1/app4",
 			},
 			expected: []map[string]any{
-				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1"},
-				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "path[0]": "app2"},
-				{"path": "app_3", "path.basename": "app_3", "path.basenameNormalized": "app-3", "path[0]": "app_3"},
+				{
+					"commitSHA": "commit-sha",
+					"path":      "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1",
+				},
+				{
+					"commitSHA": "commit-sha",
+					"path":      "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "path[0]": "app2",
+				},
+				{
+					"commitSHA": "commit-sha",
+					"path":      "app_3", "path.basename": "app_3", "path.basenameNormalized": "app-3", "path[0]": "app_3",
+				},
 			},
 			expectedError: nil,
 		},
@@ -259,9 +286,9 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]any{
-				{"myRepo.path": "app1", "myRepo.path.basename": "app1", "myRepo.path.basenameNormalized": "app1", "myRepo.path[0]": "app1"},
-				{"myRepo.path": "app2", "myRepo.path.basename": "app2", "myRepo.path.basenameNormalized": "app2", "myRepo.path[0]": "app2"},
-				{"myRepo.path": "app_3", "myRepo.path.basename": "app_3", "myRepo.path.basenameNormalized": "app-3", "myRepo.path[0]": "app_3"},
+				{"commitSHA": "commit-sha", "myRepo.path": "app1", "myRepo.path.basename": "app1", "myRepo.path.basenameNormalized": "app1", "myRepo.path[0]": "app1"},
+				{"commitSHA": "commit-sha", "myRepo.path": "app2", "myRepo.path.basename": "app2", "myRepo.path.basenameNormalized": "app2", "myRepo.path[0]": "app2"},
+				{"commitSHA": "commit-sha", "myRepo.path": "app_3", "myRepo.path.basename": "app_3", "myRepo.path.basenameNormalized": "app-3", "myRepo.path[0]": "app_3"},
 			},
 			expectedError: nil,
 		},
@@ -275,8 +302,14 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				"p1/p2/p3/app4",
 			},
 			expected: []map[string]any{
-				{"path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path[2]": "app3", "path.basenameNormalized": "app3"},
+				{
+					"commitSHA": "commit-sha",
+					"path":      "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2",
+				},
+				{
+					"commitSHA": "commit-sha",
+					"path":      "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path[2]": "app3", "path.basenameNormalized": "app3",
+				},
 			},
 			expectedError: nil,
 		},
@@ -292,9 +325,18 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]any{
-				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
-				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3"},
+				{
+					"commitSHA": "commit-sha",
+					"path":      "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1",
+				},
+				{
+					"commitSHA": "commit-sha",
+					"path":      "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2",
+				},
+				{
+					"commitSHA": "commit-sha",
+					"path":      "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3",
+				},
 			},
 			expectedError: nil,
 		},
@@ -310,9 +352,18 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]any{
-				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
-				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3"},
+				{
+					"commitSHA": "commit-sha",
+					"path":      "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1",
+				},
+				{
+					"commitSHA": "commit-sha",
+					"path":      "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2",
+				},
+				{
+					"commitSHA": "commit-sha",
+					"path":      "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3",
+				},
 			},
 			expectedError: nil,
 		},
@@ -330,8 +381,14 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				"no-op": "{{ this-does-not-exist }}",
 			},
 			expected: []map[string]any{
-				{"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "app1", "path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
-				{"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "p1", "path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
+				{
+					"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "app1", "commitSHA": "commit-sha",
+					"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1",
+				},
+				{
+					"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "p1", "commitSHA": "commit-sha",
+					"path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2",
+				},
 			},
 			expectedError: nil,
 		},
@@ -363,6 +420,9 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
+			if testCaseCopy.repoError == nil {
+				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
+			}
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -424,6 +484,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoError: nil,
 			expected: []map[string]any{
 				{
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "app1",
 						"basename":           "app1",
@@ -434,6 +495,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "app2",
 						"basename":           "app2",
@@ -444,6 +506,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "app_3",
 						"basename":           "app_3",
@@ -469,6 +532,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoError: nil,
 			expected: []map[string]any{
 				{
+					"commitSHA": "commit-sha",
 					"myRepo": map[string]any{
 						"path": map[string]any{
 							"path":               "app1",
@@ -481,6 +545,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "commit-sha",
 					"myRepo": map[string]any{
 						"path": map[string]any{
 							"path":               "app2",
@@ -493,6 +558,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "commit-sha",
 					"myRepo": map[string]any{
 						"path": map[string]any{
 							"path":               "app_3",
@@ -519,6 +585,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoError: nil,
 			expected: []map[string]any{
 				{
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "p1/app2",
 						"basename":           "app2",
@@ -530,6 +597,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "p1/p2/app3",
 						"basename":           "app3",
@@ -557,6 +625,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoError: nil,
 			expected: []map[string]any{
 				{
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "app1",
 						"basename":           "app1",
@@ -567,6 +636,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "app2",
 						"basename":           "app2",
@@ -577,6 +647,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "p2/app3",
 						"basename":           "app3",
@@ -603,6 +674,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoError: nil,
 			expected: []map[string]any{
 				{
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "app1",
 						"basename":           "app1",
@@ -613,6 +685,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "app2",
 						"basename":           "app2",
@@ -623,6 +696,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 					},
 				},
 				{
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "p2/app3",
 						"basename":           "app3",
@@ -664,6 +738,9 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
+			if testCaseCopy.repoError == nil {
+				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
+			}
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -753,6 +830,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"key2.key2_1":             "val2_1",
 					"key2.key2_2.key2_2_1":    "val2_2_1",
 					"key3":                    "123",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -765,6 +843,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"cluster.owner":           "foo.bar@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-config/staging",
 					"path.basename":           "staging",
 					"path[0]":                 "cluster-config",
@@ -817,6 +896,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"key2.key2_1":             "val2_1",
 					"key2.key2_2.key2_2_1":    "val2_2_1",
 					"key3":                    "123",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -831,6 +911,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"cluster.owner":           "foo.bar@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-config/staging",
 					"path.basename":           "staging",
 					"path[0]":                 "cluster-config",
@@ -894,6 +975,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
 					"cluster.inner.one":       "two",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -906,6 +988,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -948,6 +1031,7 @@ cluster:
 					"key1":                    "val1",
 					"key2.key2_1":             "val2_1",
 					"key2.key2_2.key2_2_1":    "val2_2_1",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -960,6 +1044,7 @@ cluster:
 					"cluster.owner":           "foo.bar@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-config/staging",
 					"path.basename":           "staging",
 					"path[0]":                 "cluster-config",
@@ -994,6 +1079,7 @@ cluster:
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
 					"cluster.inner.one":       "two",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -1006,6 +1092,7 @@ cluster:
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -1038,6 +1125,10 @@ cluster:
 			argoCDServiceMock := mocks.NewRepos(t)
 			argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
+
+			if testCaseCopy.repoPathsError == nil {
+				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
+			}
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
@@ -1172,6 +1263,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionWithNewGlobbing(t *testing.
 					"key2.key2_1":             "val2_1",
 					"key2.key2_2.key2_2_1":    "val2_2_1",
 					"key3":                    "123",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -1216,6 +1308,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionWithNewGlobbing(t *testing.
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
 					"cluster.inner.one":       "two",
+					"commitSHA":               "commit-sha",
 					"path":                    "p1",
 					"path.basename":           "p1",
 					"path[0]":                 "p1",
@@ -1258,6 +1351,7 @@ cluster:
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-config/engineering/prod",
 					"path.basename":           "prod",
 					"path[0]":                 "cluster-config",
@@ -1297,6 +1391,7 @@ cluster:
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
+					"commitSHA":               "commit-sha",
 					"path":                    "some-path",
 					"path.basename":           "some-path",
 					"path[0]":                 "some-path",
@@ -1334,6 +1429,7 @@ env: testing
 			expected: []map[string]any{
 				{
 					"env":                     "staging",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-charts/cluster1/mychart",
 					"path.filenameNormalized": "values.yaml",
 					"path[0]":                 "cluster-charts",
@@ -1345,6 +1441,7 @@ env: testing
 				},
 				{
 					"env":                     "prod",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-charts/cluster1/myotherchart",
 					"path.filenameNormalized": "values.yaml",
 					"path[0]":                 "cluster-charts",
@@ -1381,6 +1478,9 @@ env: testing
 					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
 			}
 
+			if testCaseCopy.repoPathsError == nil {
+				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
+			}
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1514,6 +1614,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionWithOldGlobbing(t *testing.
 					"key2.key2_1":             "val2_1",
 					"key2.key2_2.key2_2_1":    "val2_2_1",
 					"key3":                    "123",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-config/production",
 					"path.basename":           "production",
 					"path[0]":                 "cluster-config",
@@ -1558,6 +1659,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionWithOldGlobbing(t *testing.
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
 					"cluster.inner.one":       "two",
+					"commitSHA":               "commit-sha",
 					"path":                    "p1",
 					"path.basename":           "p1",
 					"path[0]":                 "p1",
@@ -1600,6 +1702,7 @@ cluster:
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
+					"commitSHA":               "commit-sha",
 					"path":                    "cluster-config/engineering/prod",
 					"path.basename":           "prod",
 					"path[0]":                 "cluster-config",
@@ -1637,6 +1740,7 @@ cluster:
 					"cluster.owner":           "john.doe@example.com",
 					"cluster.name":            "production",
 					"cluster.address":         "https://kubernetes.default.svc",
+					"commitSHA":               "commit-sha",
 					"path":                    "some-path",
 					"path.basename":           "some-path",
 					"path[0]":                 "some-path",
@@ -1648,6 +1752,7 @@ cluster:
 					"cluster.owner":           "foo.bar@example.com",
 					"cluster.name":            "staging",
 					"cluster.address":         "https://kubernetes.default.svc",
+					"commitSHA":               "commit-sha",
 					"path":                    "some-path/staging",
 					"path.basename":           "staging",
 					"path[0]":                 "some-path",
@@ -1718,6 +1823,9 @@ env: testing
 					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
 			}
 
+			if testCaseCopy.repoPathsError == nil {
+				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
+			}
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1838,7 +1946,8 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 							"key2_2_1": "val2_2_1",
 						},
 					},
-					"key3": float64(123),
+					"key3":      float64(123),
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -1912,6 +2021,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 							"one": "two",
 						},
 					},
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "p1",
 						"basename":           "p1",
@@ -1949,6 +2059,9 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
 			}
 
+			if testCaseCopy.repoPathsError == nil {
+				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
+			}
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -2041,7 +2154,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 							"key2_2_1": "val2_2_1",
 						},
 					},
-					"key3": float64(123),
+					"key3":      float64(123),
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -2060,6 +2174,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 						"name":    "staging",
 						"address": "https://kubernetes.default.svc",
 					},
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "cluster-config/staging",
 						"basename":           "staging",
@@ -2129,6 +2244,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 							"one": "two",
 						},
 					},
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -2147,6 +2263,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 						"name":    "staging",
 						"address": "https://kubernetes.default.svc",
 					},
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -2199,6 +2316,7 @@ cluster:
 							"key2_2_1": "val2_2_1",
 						},
 					},
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -2217,6 +2335,7 @@ cluster:
 						"name":    "staging",
 						"address": "https://kubernetes.default.svc",
 					},
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "cluster-config/staging",
 						"basename":           "staging",
@@ -2259,6 +2378,7 @@ cluster:
 							"one": "two",
 						},
 					},
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -2277,6 +2397,7 @@ cluster:
 						"name":    "staging",
 						"address": "https://kubernetes.default.svc",
 					},
+					"commitSHA": "commit-sha",
 					"path": map[string]any{
 						"path":               "cluster-config/production",
 						"basename":           "production",
@@ -2303,6 +2424,10 @@ cluster:
 			argoCDServiceMock := mocks.NewRepos(t)
 			argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
+
+			if testCaseCopy.repoPathsError == nil {
+				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
+			}
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
@@ -2387,8 +2512,11 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				},
 			},
 			callGetDirectories: true,
-			expected:           []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedError:      nil,
+			expected: []map[string]any{{
+				"commitSHA": "commit-sha",
+				"path":      "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar",
+			}},
+			expectedError: nil,
 		},
 		{
 			name: "Signature Verification - Checks for non-templated project field",
@@ -2421,8 +2549,11 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				},
 			},
 			callGetDirectories: false,
-			expected:           []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedError:      errors.New("error getting project project: appprojects.argoproj.io \"project\" not found"),
+			expected: []map[string]any{{
+				"commitSHA": "commit-sha",
+				"path":      "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar",
+			}},
+			expectedError: errors.New("error getting project project: appprojects.argoproj.io \"project\" not found"),
 		},
 		{
 			name: "Project field is not templated - verify that project is passed through to repo-server as-is",
@@ -2461,7 +2592,10 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expected: []map[string]any{{
+				"commitSHA": "commit-sha",
+				"path":      "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar",
+			}},
 			expectedProject: new("project"),
 			expectedError:   nil,
 		},
@@ -2495,39 +2629,47 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expected: []map[string]any{{
+				"commitSHA": "commit-sha",
+				"path":      "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar",
+			}},
 			expectedProject: new(""),
 			expectedError:   nil,
 		},
 	}
 	for _, testCase := range cases {
-		argoCDServiceMock := mocks.NewRepos(t)
+		testCaseCopy := testCase
 
-		if testCase.callGetDirectories {
-			var project any
-			if testCase.expectedProject != nil {
-				project = *testCase.expectedProject
-			} else {
-				project = mock.Anything
+		t.Run(testCaseCopy.name, func(t *testing.T) {
+			argoCDServiceMock := mocks.NewRepos(t)
+
+			if testCaseCopy.callGetDirectories {
+				var project any
+				if testCaseCopy.expectedProject != nil {
+					project = *testCaseCopy.expectedProject
+				} else {
+					project = mock.Anything
+				}
+
+				argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, project, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoPathsError)
+				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
 			}
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "argocd")
 
-			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, project, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
-		}
-		gitGenerator := NewGitGenerator(argoCDServiceMock, "argocd")
-
-		scheme := runtime.NewScheme()
-		err := v1alpha1.AddToScheme(scheme)
-		require.NoError(t, err)
-
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appProject).Build()
-
-		got, err := gitGenerator.GenerateParams(&testCase.appset.Spec.Generators[0], &testCase.appset, client)
-
-		if testCase.expectedError != nil {
-			require.EqualError(t, err, testCase.expectedError.Error())
-		} else {
+			scheme := runtime.NewScheme()
+			err := v1alpha1.AddToScheme(scheme)
 			require.NoError(t, err)
-			assert.Equal(t, testCase.expected, got)
-		}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCaseCopy.appProject).Build()
+
+			got, err := gitGenerator.GenerateParams(&testCaseCopy.appset.Spec.Generators[0], &testCaseCopy.appset, client)
+
+			if testCaseCopy.expectedError != nil {
+				require.EqualError(t, err, testCaseCopy.expectedError.Error())
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, testCaseCopy.expected, got)
+			}
+		})
 	}
 }

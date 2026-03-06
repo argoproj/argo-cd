@@ -1486,3 +1486,309 @@ func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *test
 		When().
 		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
+
+func TestGitDirectoryGeneratorCommitSHAParam(t *testing.T) {
+	repoURL := "https://github.com/argoproj/argocd-example-apps.git"
+	output, err := fixture.Run("", "git", "ls-remote", repoURL, "HEAD")
+	require.NoError(t, err)
+	fields := strings.Fields(output)
+	require.GreaterOrEqual(t, len(fields), 1)
+	headSHA := fields[0]
+
+	generateExpectedApp := func(name string) v1alpha1.Application {
+		return v1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       application.ApplicationKind,
+				APIVersion: "argoproj.io/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       name,
+				Namespace:  "argocd-e2e",
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "default",
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        repoURL,
+					TargetRevision: headSHA,
+					Path:           name,
+				},
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: name,
+				},
+			},
+		}
+	}
+
+	expectedApps := []v1alpha1.Application{
+		generateExpectedApp("kustomize-guestbook"),
+		generateExpectedApp("helm-guestbook"),
+	}
+
+	Given(t).
+		When().
+		Create(v1alpha1.ApplicationSet{
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        repoURL,
+							TargetRevision: "{{commitSHA}}",
+							Path:           "{{path}}",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "{{path.basename}}",
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL: repoURL,
+							Directories: []v1alpha1.GitDirectoryGeneratorItem{
+								{
+									Path: "*guestbook*",
+								},
+							},
+						},
+					},
+				},
+			},
+		}).Then().Expect(ApplicationsExist(expectedApps)).
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+}
+
+func TestGitDirectoryGeneratorGoTemplateCommitSHAParam(t *testing.T) {
+	repoURL := "https://github.com/argoproj/argocd-example-apps.git"
+	output, err := fixture.Run("", "git", "ls-remote", repoURL, "HEAD")
+	require.NoError(t, err)
+	fields := strings.Fields(output)
+	require.GreaterOrEqual(t, len(fields), 1)
+	headSHA := fields[0]
+
+	generateExpectedApp := func(name string) v1alpha1.Application {
+		return v1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       application.ApplicationKind,
+				APIVersion: "argoproj.io/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       name,
+				Namespace:  "argocd-e2e",
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "default",
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        repoURL,
+					TargetRevision: headSHA,
+					Path:           name,
+				},
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: name,
+				},
+			},
+		}
+	}
+
+	expectedApps := []v1alpha1.Application{
+		generateExpectedApp("kustomize-guestbook"),
+		generateExpectedApp("helm-guestbook"),
+	}
+
+	Given(t).
+		When().
+		Create(v1alpha1.ApplicationSet{
+			Spec: v1alpha1.ApplicationSetSpec{
+				GoTemplate: true,
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.path.basename}}"},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        repoURL,
+							TargetRevision: "{{.commitSHA}}",
+							Path:           "{{.path.path}}",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "{{.path.basename}}",
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL: repoURL,
+							Directories: []v1alpha1.GitDirectoryGeneratorItem{
+								{
+									Path: "*guestbook*",
+								},
+							},
+						},
+					},
+				},
+			},
+		}).Then().Expect(ApplicationsExist(expectedApps)).
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+}
+
+func TestGitFilesGeneratorCommitSHAParam(t *testing.T) {
+	repoURL := "https://github.com/argoproj/applicationset.git"
+	output, err := fixture.Run("", "git", "ls-remote", repoURL, "HEAD")
+	require.NoError(t, err)
+	fields := strings.Fields(output)
+	require.GreaterOrEqual(t, len(fields), 1)
+	headSHA := fields[0]
+
+	generateExpectedApp := func(name string) v1alpha1.Application {
+		return v1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       application.ApplicationKind,
+				APIVersion: "argoproj.io/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       name,
+				Namespace:  "argocd-e2e",
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "default",
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					TargetRevision: headSHA,
+					Path:           "guestbook",
+				},
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "guestbook",
+				},
+			},
+		}
+	}
+
+	expectedApps := []v1alpha1.Application{
+		generateExpectedApp("engineering-dev-guestbook"),
+		generateExpectedApp("engineering-prod-guestbook"),
+	}
+
+	Given(t).
+		When().
+		Create(v1alpha1.ApplicationSet{
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "{{commitSHA}}",
+							Path:           "guestbook",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "guestbook",
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL: repoURL,
+							Files: []v1alpha1.GitFileGeneratorItem{
+								{
+									Path: "examples/git-generator-files-discovery/cluster-config/**/config.json",
+								},
+							},
+						},
+					},
+				},
+			},
+		}).Then().Expect(ApplicationsExist(expectedApps)).
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+}
+
+func TestGitFilesGeneratorGoTemplateCommitSHAParam(t *testing.T) {
+	repoURL := "https://github.com/argoproj/applicationset.git"
+	output, err := fixture.Run("", "git", "ls-remote", repoURL, "HEAD")
+	require.NoError(t, err)
+	fields := strings.Fields(output)
+	require.GreaterOrEqual(t, len(fields), 1)
+	headSHA := fields[0]
+
+	generateExpectedApp := func(name string) v1alpha1.Application {
+		return v1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       application.ApplicationKind,
+				APIVersion: "argoproj.io/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       name,
+				Namespace:  "argocd-e2e",
+				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "default",
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					TargetRevision: headSHA,
+					Path:           "guestbook",
+				},
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "guestbook",
+				},
+			},
+		}
+	}
+
+	expectedApps := []v1alpha1.Application{
+		generateExpectedApp("engineering-dev-guestbook"),
+		generateExpectedApp("engineering-prod-guestbook"),
+	}
+
+	Given(t).
+		When().
+		Create(v1alpha1.ApplicationSet{
+			Spec: v1alpha1.ApplicationSetSpec{
+				GoTemplate: true,
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster.name}}-guestbook"},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "{{.commitSHA}}",
+							Path:           "guestbook",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "guestbook",
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL: repoURL,
+							Files: []v1alpha1.GitFileGeneratorItem{
+								{
+									Path: "examples/git-generator-files-discovery/cluster-config/**/config.json",
+								},
+							},
+						},
+					},
+				},
+			},
+		}).Then().Expect(ApplicationsExist(expectedApps)).
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+}

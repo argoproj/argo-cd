@@ -1851,6 +1851,23 @@ func TestGetRevisionMetadata(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, res.SignatureInfo)
+
+	// Test resolving a ref sha and get metadata
+	gitClient.EXPECT().LsRemote("main").Return("test-sha", nil)
+	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &v1alpha1.Repository{},
+		Revision:       "main",
+		CheckSignature: true,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "test", res.Message)
+	assert.Equal(t, now, res.Date.Time)
+	assert.Equal(t, "author", res.Author)
+	assert.Equal(t, []string{"tag1", "tag2"}, res.Tags)
+	assert.NotEmpty(t, res.SignatureInfo)
+	require.Len(t, res.References, 1)
+	require.NotNil(t, res.References[0].Commit)
+	assert.Equal(t, "test-sha", res.References[0].Commit.SHA)
 }
 
 func TestGetSignatureVerificationResult(t *testing.T) {
