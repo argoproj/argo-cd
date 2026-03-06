@@ -1057,7 +1057,7 @@ func TestNewApplicationUnsetCommand_Validation(t *testing.T) {
 		_ = cmd.Execute()
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run=TestNewApplicationUnsetCommand_Validation")
+	cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run=TestNewApplicationUnsetCommand_Validation")
 	cmd.Env = append(os.Environ(), "BE_CRASHER=1")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
