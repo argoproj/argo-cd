@@ -115,7 +115,7 @@ func appendFileToTar(tw *tar.Writer, srcPath, dstPath string) error {
 
 	hdr := &tar.Header{
 		Name:    dstPath,
-		Mode:    0o644,
+		Mode:    0o644, // rw-r--r--
 		Size:    fi.Size(),
 		ModTime: fi.ModTime(),
 	}

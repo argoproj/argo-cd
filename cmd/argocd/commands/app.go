@@ -1319,7 +1319,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				os.Exit(2)
 			}
 
-			if len(localValues) > 0 && !serverSideGenerate {
+			if len(localValues) > 0 && (local == "" || !serverSideGenerate) {
 				errors.Fatal(errors.ErrorGeneric, "--local-values requires --local and --server-side-generate")
 			}
 
@@ -1419,10 +1419,10 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						for _, vf := range localValues {
 							fi, statErr := os.Stat(vf)
 							if statErr != nil {
-								log.Fatalf("--local-values %q: %v", vf, statErr)
+								errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("--local-values %q: %v", vf, statErr))
 							}
 							if fi.IsDir() {
-								log.Fatalf("--local-values %q: must be a file, not a directory", vf)
+								errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("--local-values %q: must be a file, not a directory", vf))
 							}
 						}
 					}
@@ -1432,7 +1432,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					for i, vf := range localValues {
 						absPath, absErr := filepath.Abs(vf)
 						errors.CheckError(absErr)
-						dstPath := fmt.Sprintf("_argocd_extra_values/%d.yaml", i)
+						dstPath := fmt.Sprintf("_argocd_extra_values/%d%s", i, filepath.Ext(vf))
 						extraFiles = append(extraFiles, tgzstream.ExtraFile{
 							DstPath: dstPath,
 							SrcPath: absPath,
