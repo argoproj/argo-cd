@@ -89,6 +89,7 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 		},
 	}
 	command.Flags().StringVarP(&file, "file", "f", "", "")
+	command.PersistentFlags().StringVar(&opts.Namespace, "kube-namespace", "argocd", "Name of the namespace where argocd is running [$KUBE_NAMESPACE]")
 	return command
 }
 
