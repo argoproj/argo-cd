@@ -3217,7 +3217,7 @@ func TestFetch(t *testing.T) {
 	gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
 	gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(true)
 
-	err := fetch(gitClient, []string{revision1, revision2})
+	err := fetch(gitClient, []string{revision1, revision2}, false)
 	require.NoError(t, err)
 }
 
@@ -3253,10 +3253,10 @@ func TestFetchRevisionCanGetNonstandardRefs(t *testing.T) {
 	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
 	require.NoError(t, err)
 
-	err = fetch(gitClient, []string{"does-not-exist"})
+	err = fetch(gitClient, []string{"does-not-exist"}, false)
 	require.Error(t, err)
 
-	err = fetch(gitClient, []string{pullSha})
+	err = fetch(gitClient, []string{pullSha}, false)
 	require.NoError(t, err)
 }
 
@@ -4833,4 +4833,82 @@ func TestGenerateManifest_OCISourceSkipsGitClient(t *testing.T) {
 
 	// verify that newGitClient was never invoked
 	assert.False(t, gitCalled, "GenerateManifest should not invoke Git for OCI sources")
+}
+
+func Test_checkoutRevision_PartialClone_UsesFilteredFetch(t *testing.T) {
+	// Bug: checkoutRevision with enablePartialClone=true should call Fetch with usePartialClone=true
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().IsRevisionPresent("abc123").Return(false)
+	gitClient.EXPECT().ConfigureSparseCheckout([]string{"./mypath"}).Return(nil)
+
+	// The key assertion: Fetch must be called with usePartialClone=true (3rd arg)
+	gitClient.EXPECT().Fetch("abc123", int64(0), true).Return(nil)
+	gitClient.EXPECT().Checkout("abc123", false).Return("", nil)
+
+	err := checkoutRevision(gitClient, "abc123", false, 0, true, []string{"./mypath"})
+	require.NoError(t, err)
+	gitClient.AssertExpectations(t)
+}
+
+func Test_checkoutRevision_NonPartialClone_UsesFullFetch(t *testing.T) {
+	// Without partial clone, Fetch should be called with usePartialClone=false
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().IsRevisionPresent("abc123").Return(false)
+
+	// Full fetch: usePartialClone=false
+	gitClient.EXPECT().Fetch("", int64(0), false).Return(nil)
+	gitClient.EXPECT().Checkout("abc123", false).Return("", nil)
+
+	err := checkoutRevision(gitClient, "abc123", false, 0, false, nil)
+	require.NoError(t, err)
+	gitClient.AssertExpectations(t)
+}
+
+func Test_fetch_PartialClone_UsesFilteredFetch(t *testing.T) {
+	// Bug: fetch() always calls Fetch("", 0, false) even for partial clone repos,
+	// causing a full unfiltered fetch with --tags that times out on large repos.
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().IsRevisionPresent("abc123").Return(false).Once()
+
+	// When partial clone is enabled, fetch should use usePartialClone=true
+	gitClient.EXPECT().Fetch("", int64(0), true).Return(nil)
+	// After fetch, revision is now present
+	gitClient.EXPECT().IsRevisionPresent("abc123").Return(true).Once()
+
+	err := fetch(gitClient, []string{"abc123"}, true)
+	require.NoError(t, err)
+	gitClient.AssertExpectations(t)
+}
+
+func Test_fetch_NonPartialClone_UsesFullFetch(t *testing.T) {
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().IsRevisionPresent("abc123").Return(false).Once()
+
+	// Without partial clone, should use usePartialClone=false (includes --tags)
+	gitClient.EXPECT().Fetch("", int64(0), false).Return(nil)
+	// After fetch, revision is now present
+	gitClient.EXPECT().IsRevisionPresent("abc123").Return(true).Once()
+
+	err := fetch(gitClient, []string{"abc123"}, false)
+	require.NoError(t, err)
+	gitClient.AssertExpectations(t)
+}
+
+func Test_fetch_PartialClone_FallbackToSpecificRevision(t *testing.T) {
+	// When the initial fetch doesn't include the revision, the fallback
+	// should also use the partial clone filter
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().IsRevisionPresent("abc123").Return(false).Once()
+
+	gitClient.EXPECT().Fetch("", int64(0), true).Return(nil)
+	// After the initial fetch, revision is still not present
+	gitClient.EXPECT().IsRevisionPresent("abc123").Return(false).Once()
+	// Fallback fetch should also use partial clone
+	gitClient.EXPECT().Fetch("abc123", int64(0), true).Return(nil)
+
+	err := fetch(gitClient, []string{"abc123"}, true)
+	require.NoError(t, err)
+	gitClient.AssertExpectations(t)
 }

@@ -1106,11 +1106,13 @@ func Test_LsFiles_RaceCondition(t *testing.T) {
 }
 
 type mockCreds struct {
-	environ    []string
-	environErr bool
+	environ      []string
+	environErr   bool
+	environCalls int
 }
 
 func (m *mockCreds) Environ() (io.Closer, []string, error) {
+	m.environCalls++
 	if m.environErr {
 		return nil, nil, errors.New("error getting environment")
 	}
@@ -1457,4 +1459,48 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	changed, err = client.HasFileChanged(filePath)
 	require.NoError(t, err)
 	require.True(t, changed, "expected modified file to be reported as changed")
+}
+
+func Test_nativeGitClient_Checkout_UsesCredentials(t *testing.T) {
+	// This test verifies that Checkout() passes credentials to git, which is
+	// required for partial clone repos where checkout triggers lazy blob fetches.
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	// Add a file and commit so we have something to checkout
+	p := path.Join(tempDir, "testfile")
+	require.NoError(t, os.WriteFile(p, []byte("content"), 0o644))
+	err = runCmd(ctx, tempDir, "git", "add", "testfile")
+	require.NoError(t, err)
+	err = runCmd(ctx, tempDir, "git", "commit", "-m", "add testfile")
+	require.NoError(t, err)
+
+	commitSHA, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	revision := strings.TrimSpace(string(commitSHA))
+
+	creds := &mockCreds{
+		environ: []string{forceBasicAuthHeaderEnv + "=Basic dGVzdDp0ZXN0"},
+	}
+
+	// Use NewClient which creates a separate working dir with 'origin' pointing to tempDir
+	client, err := NewClient("file://"+tempDir, creds, true, false, "", "")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(client.Root()) })
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	err = client.Fetch("", 0, false)
+	require.NoError(t, err)
+
+	// Reset the call count after Init/Fetch so we can track checkout specifically
+	creds.environCalls = 0
+
+	_, err = client.Checkout(revision, false)
+	require.NoError(t, err)
+
+	// Checkout must call Environ() to pass credentials for partial clone lazy fetches
+	assert.Greater(t, creds.environCalls, 0, "Checkout should call creds.Environ() to support partial clone lazy blob fetches")
 }

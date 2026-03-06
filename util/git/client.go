@@ -618,13 +618,15 @@ func (m *nativeGitClient) Submodule() error {
 	return m.runCredentialedCmd(ctx, "submodule", "update", "--init", "--recursive")
 }
 
-// Checkout checks out the specified revision
+// Checkout checks out the specified revision.
+// Uses credentialed command because partial clone repos may trigger lazy blob
+// fetches from the remote during checkout, which require authentication.
 func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (string, error) {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
 	ctx := context.Background()
-	if out, err := m.runCmd(ctx, "checkout", "--force", revision); err != nil {
+	if out, err := m.runCredentialedCmdWithOutput(ctx, "checkout", "--force", revision); err != nil {
 		return out, fmt.Errorf("failed to checkout %s: %w", revision, err)
 	}
 	// We must populate LFS content by using lfs checkout, if we have at least
@@ -1292,9 +1294,17 @@ func (m *nativeGitClient) runCmd(ctx context.Context, args ...string) (string, e
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
 func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, args ...string) error {
+	_, err := m.runCredentialedCmdWithOutput(ctx, args...)
+	return err
+}
+
+// runCredentialedCmdWithOutput runs a git command with credentials and returns the output.
+// This is needed for commands like checkout that may trigger lazy blob fetches in partial
+// clone repos and need credentials to authenticate with the remote.
+func (m *nativeGitClient) runCredentialedCmdWithOutput(ctx context.Context, args ...string) (string, error) {
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer func() { _ = closer.Close() }()
 
@@ -1310,8 +1320,7 @@ func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, args ...string
 
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Env = append(cmd.Env, environ...)
-	_, err = m.runCmdOutput(cmd, runOpts{})
-	return err
+	return m.runCmdOutput(cmd, runOpts{})
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {

@@ -2764,8 +2764,8 @@ func (s *Service) checkoutRevision(gitClient git.Client, revision string, submod
 
 // fetch is a convenience function to fetch revisions
 // We assumed that the caller has already initialized the git repo, i.e. gitClient.Init() has been called
-func (s *Service) fetch(gitClient git.Client, targetRevisions []string) error {
-	err := fetch(gitClient, targetRevisions)
+func (s *Service) fetch(gitClient git.Client, targetRevisions []string, usePartialClone bool) error {
+	err := fetch(gitClient, targetRevisions, usePartialClone)
 	if err != nil {
 		for _, revision := range targetRevisions {
 			s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
@@ -2774,7 +2774,7 @@ func (s *Service) fetch(gitClient git.Client, targetRevisions []string) error {
 	return err
 }
 
-func fetch(gitClient git.Client, targetRevisions []string) error {
+func fetch(gitClient git.Client, targetRevisions []string, usePartialClone bool) error {
 	revisionPresent := true
 	for _, revision := range targetRevisions {
 		revisionPresent = gitClient.IsRevisionPresent(revision)
@@ -2787,7 +2787,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 		return nil
 	}
 	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-	err := gitClient.Fetch("", 0, false)
+	err := gitClient.Fetch("", 0, usePartialClone)
 	if err != nil {
 		return err
 	}
@@ -2798,7 +2798,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 			log.Infof("Failed to fetch revision %s: %v", revision, err)
 			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
-			if err := gitClient.Fetch(revision, 0, false); err != nil {
+			if err := gitClient.Fetch(revision, 0, usePartialClone); err != nil {
 				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 			}
 		}
@@ -3191,7 +3191,7 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 		}
 		defer utilio.Close(closer)
 
-		if err := s.fetch(gitClient, []string{syncedRevision}); err != nil {
+		if err := s.fetch(gitClient, []string{syncedRevision}, repo.EnablePartialClone); err != nil {
 			return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
 		}
 
