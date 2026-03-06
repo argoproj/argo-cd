@@ -18,11 +18,13 @@ type repositoryLock struct {
 }
 
 // Lock acquires lock unless lock is already acquired with the same commit and allowConcurrent is set to true
-func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool, init func(prevNonConcurrent bool) (io.Closer, error)) (io.Closer, error) {
+// The init callback receives `clean` parameter which indicates if repo state must be cleaned after running non-concurrent operation.
+// The first init always runs with `clean` set to true because we cannot be sure about initial repo state.
+func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool, init func(clean bool) (io.Closer, error)) (io.Closer, error) {
 	r.lock.Lock()
 	state, ok := r.stateByKey[path]
 	if !ok {
-		state = &repositoryState{cond: &sync.Cond{L: &sync.Mutex{}}, allowConcurrent: allowConcurrent}
+		state = &repositoryState{cond: &sync.Cond{L: &sync.Mutex{}}}
 		r.stateByKey[path] = state
 	}
 	r.lock.Unlock()

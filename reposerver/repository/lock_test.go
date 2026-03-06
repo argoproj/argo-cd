@@ -176,15 +176,20 @@ func TestLock_CleanForNonConcurrent(t *testing.T) {
 		initClean = clean
 		return utilio.NopCloser, nil
 	}
-	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", false, init)
+	closer, done := lockQuickly(func() (io.Closer, error) {
+		return lock.Lock("myRepo", "1", true, init)
 	})
 
-	if !assert.True(t, done) {
-		return
-	}
-
+	assert.True(t, done)
+	// first time always clean because we cannot be sure about the state of repository
 	assert.True(t, initClean)
+	utilio.Close(closer)
 
-	utilio.Close(closer1)
+	closer, done = lockQuickly(func() (io.Closer, error) {
+		return lock.Lock("myRepo", "1", true, init)
+	})
+
+	assert.True(t, done)
+	assert.False(t, initClean)
+	utilio.Close(closer)
 }
