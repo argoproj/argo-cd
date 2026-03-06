@@ -30510,6 +30510,12 @@ spec:
                       description: Schedule is the time the window will begin, specified
                         in cron format
                       type: string
+                    syncOverrun:
+                      description: |-
+                        SyncOverrun allows ongoing syncs to continue in two scenarios:
+                        For deny windows: allows syncs that started before the deny window became active to continue running
+                        For allow windows: allows syncs that started during the allow window to continue after the window ends
+                      type: boolean
                     timeZone:
                       description: TimeZone of the sync that will be applied to the
                         schedule
