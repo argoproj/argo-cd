@@ -184,8 +184,8 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoOpts.Repo.Insecure = repoOpts.InsecureSkipServerVerification
 			repoOpts.Repo.EnableLFS = repoOpts.EnableLfs
 			repoOpts.Repo.EnableOCI = repoOpts.EnableOci
-			repoOpts.Repo.GithubAppId = repoOpts.GithubAppId
-			repoOpts.Repo.GithubAppInstallationId = repoOpts.GithubAppInstallationId
+			repoOpts.Repo.GithubAppId = repoOpts.GithubAppID
+			repoOpts.Repo.GithubAppInstallationId = repoOpts.GithubAppInstallationID
 			repoOpts.Repo.GitHubAppEnterpriseBaseURL = repoOpts.GitHubAppEnterpriseBaseURL
 			repoOpts.Repo.Proxy = repoOpts.Proxy
 			repoOpts.Repo.NoProxy = repoOpts.NoProxy
