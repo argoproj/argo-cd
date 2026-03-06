@@ -2,12 +2,17 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/argoproj/argo-cd/v3/util/notification/expression/shared"
 
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -17,9 +22,10 @@ import (
 type Service interface {
 	GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error)
 	GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error)
+	GetAppProject(ctx context.Context, projectName string, namespace string) (*unstructured.Unstructured, error)
 }
 
-func NewArgoCDService(clientset kubernetes.Interface, namespace string, repoClientset apiclient.Clientset) (*argoCDService, error) {
+func NewArgoCDService(clientset kubernetes.Interface, dynamicClient dynamic.Interface, namespace string, repoClientset apiclient.Clientset) (*argoCDService, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	settingsMgr := settings.NewSettingsManager(ctx, clientset, namespace)
 	closer, repoClient, err := repoClientset.NewRepoServerClient()
@@ -34,11 +40,12 @@ func NewArgoCDService(clientset kubernetes.Interface, namespace string, repoClie
 			log.Warnf("Failed to close repo server connection: %v", err)
 		}
 	}
-	return &argoCDService{settingsMgr: settingsMgr, namespace: namespace, repoServerClient: repoClient, dispose: dispose}, nil
+	return &argoCDService{clientset: clientset, dynamicClient: dynamicClient, settingsMgr: settingsMgr, namespace: namespace, repoServerClient: repoClient, dispose: dispose}, nil
 }
 
 type argoCDService struct {
 	clientset        kubernetes.Interface
+	dynamicClient    dynamic.Interface
 	namespace        string
 	settingsMgr      *settings.SettingsManager
 	repoServerClient apiclient.RepoServerServiceClient
@@ -116,6 +123,20 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 		Kustomize: appDetail.Kustomize,
 		Directory: appDetail.Directory,
 	}, nil
+}
+
+func (svc *argoCDService) GetAppProject(ctx context.Context, projectName string, namespace string) (*unstructured.Unstructured, error) {
+	if projectName == "" {
+		projectName = "default"
+	}
+
+	resource := v1alpha1.AppProjectSchemaGroupVersionKind.GroupVersion().WithResource(application.AppProjectPlural)
+	obj, err := svc.dynamicClient.Resource(resource).Namespace(namespace).Get(ctx, projectName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("cannot get application project %w", err)
+	}
+
+	return obj, nil
 }
 
 func (svc *argoCDService) Close() {
