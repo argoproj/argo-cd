@@ -1867,10 +1867,10 @@
   dependencies:
     "@types/react" "^16"
 
-"@types/react-form@^2.16.0":
-  version "2.16.2"
-  resolved "https://registry.yarnpkg.com/@types/react-form/-/react-form-2.16.2.tgz#f8f5df0b0f27a1dcca62fe35e32ad42e8a71d273"
-  integrity sha512-hXWSs5M3OdTbgQHk8q5X1/VhttJz/VgOt3B9ZDj5z8mPv9eaaI5O/h/DUmE8EaGSGoZ1pluDPbhqo0sTmTjRew==
+"@types/react-form@^4.0.6":
+  version "4.0.6"
+  resolved "https://registry.yarnpkg.com/@types/react-form/-/react-form-4.0.6.tgz#2b31a177085d2fb893f85357bba41d7e5ddbe973"
+  integrity sha512-gbwxd3fx1O8kuZfgWiQoU4J/gJS4HBJjyH0q4b33TOWBBR06jzVfLFYIHOQq2G5V6k0y0Rv+TzlWuNW/7j3S3w==
   dependencies:
     "@types/react" "*"
 
@@ -7545,7 +7545,12 @@ react-fast-compare@^3.1.1:
   resolved "https://registry.yarnpkg.com/react-fast-compare/-/react-fast-compare-3.2.0.tgz#641a9da81b6a6320f270e89724fb45a0b39e43bb"
   integrity sha512-rtGImPZ0YyLrscKI9xTpV8psd6I8VAtjKCzQDlzyDvqJA8XOW78TXYQwNRNd8g8JZnDu8q9Fu/1v4HPAVwVdHA==
 
-react-form@2.16.3, react-form@^2.16.0:
+react-form@4.0.1:
+  version "4.0.1"
+  resolved "https://registry.yarnpkg.com/react-form/-/react-form-4.0.1.tgz#f442adae7142261a6650a63001c49827e4317ca5"
+  integrity sha512-vhsCuBLZJYjm6vd8TBxIhIWeB/8Jg4mmmiR3Zj+1zIGBM39qJf1CLqekadLp0J9NeW0EsZxUnBtbmEnMeZ/7Pw==
+
+react-form@^2.16.0:
   version "2.16.3"
   resolved "https://registry.yarnpkg.com/react-form/-/react-form-2.16.3.tgz#c45a575483696ea3f99cf271984fcabcf470f1b2"
   integrity sha512-Pp0XFvEUkIWUImEsyi8DQ7j3Ls6h8J7BCXPwIzBOv5ZgOynLFwJX+/gYqQRNtSZbjPP4+3FVA4zW3Qktq7H+lw==
