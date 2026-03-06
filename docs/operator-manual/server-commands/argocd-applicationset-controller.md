@@ -49,6 +49,9 @@ argocd-applicationset-controller [flags]
       --preserved-labels strings                Sets global preserved field values for labels
       --probe-addr string                       The address the probe endpoint binds to. (default ":8081")
       --proxy-url string                        If provided, this URL will be used to connect via proxy
+      --repo-server-ca-cert string              Path to the repo-server CA certificate file
+      --repo-server-client-cert string          Path to the client certificate file for mTLS
+      --repo-server-client-cert-key string      Path to the client certificate key file for mTLS
       --repo-server-plaintext                   Disable TLS on connections to repo server
       --repo-server-strict-tls                  Whether to use strict validation of the TLS cert presented by the repo server
       --repo-server-timeout-seconds int         Repo server RPC call timeout seconds. (default 60)
@@ -56,6 +59,7 @@ argocd-applicationset-controller [flags]
       --scm-no-proxy string                     Comma-separated list of hosts that should bypass the --scm-proxy-url proxy.
       --scm-proxy-url string                    HTTP/HTTPS proxy URL for outbound SCM provider API requests (GitHub, GitLab, etc.). Does NOT affect Kubernetes API server connectivity — use --proxy-url (kubectl flag) for that.
       --scm-root-ca-path string                 Provide Root CA Path for self-signed TLS Certificates
+      --self-generate-client-cert               Self-generate a client certificate for mTLS
       --server string                           The address and port of the Kubernetes API server
       --tls-server-name string                  If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                            Bearer token for authentication to the API server

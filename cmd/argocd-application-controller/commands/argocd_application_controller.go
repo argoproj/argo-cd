@@ -96,7 +96,8 @@ func NewCommand() *cobra.Command {
 		// argocd k8s event logging flag
 		enableK8sEvent []string
 		// feature flag that enables the manifest hydrator controller
-		hydratorEnabled bool
+		hydratorEnabled              bool
+		repoServerClientTLSConfigSrc func() (apiclient.TLSConfiguration, error)
 	)
 	command := cobra.Command{
 		Use:               common.CommandApplicationController,
@@ -146,14 +147,14 @@ func NewCommand() *cobra.Command {
 				resyncDuration = time.Duration(appResyncPeriod) * time.Second
 			}
 
-			tlsConfig := apiclient.TLSConfiguration{
-				DisableTLS:       repoServerPlaintext,
-				StrictValidation: repoServerStrictTLS,
-			}
+			tlsConfig, err := repoServerClientTLSConfigSrc()
+			errors.CheckError(err)
+			tlsConfig.DisableTLS = repoServerPlaintext
+			tlsConfig.StrictValidation = repoServerStrictTLS
 
 			// Load CA information to use for validating connections to the
 			// repository server, if strict TLS validation was requested.
-			if !repoServerPlaintext && repoServerStrictTLS {
+			if !repoServerPlaintext && repoServerStrictTLS && tlsConfig.Certificates == nil {
 				pool, err := tls.LoadX509CertPool(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/controller/tls/tls.crt",
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/controller/tls/ca.crt",
@@ -305,6 +306,7 @@ func NewCommand() *cobra.Command {
 	// argocd k8s event logging flag
 	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
 	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
+	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmd(&command)
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
 			redisClient = client

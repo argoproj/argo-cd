@@ -78,6 +78,7 @@ func NewCommand() *cobra.Command {
 		cmpUseManifestGeneratePaths        bool
 		ociMediaTypes                      []string
 		enableBuiltinGitConfig             bool
+		clientCAPath                       string
 	)
 	command := cobra.Command{
 		Use:               common.CommandRepoServer,
@@ -155,7 +156,7 @@ func NewCommand() *cobra.Command {
 				OCIMediaTypes:                                ociMediaTypes,
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
 				HelmUserAgent:                                helmUserAgent,
-			}, askPassServer)
+			}, askPassServer, clientCAPath)
 			errors.CheckError(err)
 
 			if otlpAddress != "" {
@@ -179,7 +180,33 @@ func NewCommand() *cobra.Command {
 					// connect to itself to make sure repo server is able to serve connection
 					// used by liveness probe to auto restart repo server
 					// see https://github.com/argoproj/argo-cd/issues/5110 for more information
-					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, &apiclient.TLSConfiguration{DisableTLS: disableTLS})
+					healthCheckTLSConfig := apiclient.TLSConfiguration{
+						StrictValidation: false,
+					}
+					// Since this is a local health check, we can self-generate one if not provided.
+					// mTLS is always required now.
+					cert, err := tls.GenerateX509KeyPair(tls.CertOptions{
+						Hosts:        []string{"localhost"},
+						Organization: "Argo CD Health Check",
+					})
+					if err == nil {
+						certPEM, keyPEM := tls.EncodeX509KeyPair(*cert)
+						certFile, _ := os.CreateTemp("", "health-cert")
+						if certFile != nil {
+							certFile.Write(certPEM)
+							certFile.Close()
+							healthCheckTLSConfig.ClientCertFile = certFile.Name()
+							defer os.Remove(certFile.Name())
+						}
+						keyFile, _ := os.CreateTemp("", "health-key")
+						if keyFile != nil {
+							keyFile.Write(keyPEM)
+							keyFile.Close()
+							healthCheckTLSConfig.ClientCertKeyFile = keyFile.Name()
+							defer os.Remove(keyFile.Name())
+						}
+					}
+					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, &healthCheckTLSConfig)
 					if err != nil {
 						return err
 					}
@@ -266,6 +293,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&cmpUseManifestGeneratePaths, "plugin-use-manifest-generate-paths", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS", false), "Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.")
 	command.Flags().StringSliceVar(&ociMediaTypes, "oci-layer-media-types", env.StringsFromEnv("ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES", []string{"application/vnd.oci.image.layer.v1.tar", "application/vnd.oci.image.layer.v1.tar+gzip", "application/vnd.cncf.helm.chart.content.v1.tar+gzip"}, ","), "Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers.")
 	command.Flags().BoolVar(&enableBuiltinGitConfig, "enable-builtin-git-config", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG", true), "Enable builtin git configuration options that are required for correct argocd-repo-server operation.")
+	command.Flags().StringVar(&clientCAPath, "client-ca-path", env.StringFromEnv("ARGOCD_REPO_SERVER_CLIENT_CA_PATH", ""), "Path to the client CA certificate file for mTLS")
+	// mTLS is required and cannot be disabled.
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
