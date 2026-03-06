@@ -49,178 +49,277 @@ spec:
 
 The [Declarative Setup section on Helm](../operator-manual/declarative-setup.md#helm) has more info about how to configure private Helm repositories and private OCI registries.
 
+## Customizing Helm Charts in Argo CD
+
+When deploying Helm charts with Argo CD, you have several options to customize chart values **declaratively** in your Application manifest:
+
+1. **Helm Parameters** – Override specific chart values using `spec.source.helm.parameters` (recommended for simple overrides).
+2. **Inline Values** – Embed complete YAML value objects directly in the Application manifest using `spec.source.helm.values` or `spec.source.helm.valuesObject`.
+3. **Values Files** – Reference external values files stored in your Git repository using `spec.source.helm.valueFiles`.
+4. **File Parameters** – Load file contents as parameters using `spec.source.helm.fileParameters`.
+
+Choose the option that best fits your use case. For example:
+- Use **parameters** for simple, environment-specific overrides (e.g., replica count, service type).
+- Use **inline values** when you need structured YAML objects inline (easier to review in the manifest).
+- Use **values files** to keep values organized in separate files (better for complex configurations).
+
+Values are merged and applied in a specific order; see [Helm Value Precedence](#helm-value-precedence) for details.
+
 ## Values Files
 
-Helm has the ability to use a different, or even multiple "values.yaml" files to derive its
-parameters from. Alternate or multiple values file(s), can be specified using the `--values`
-flag. The flag can be repeated to support multiple values files:
+Helm charts can accept external values files to customize behavior. Argo CD supports referencing values files via the `spec.source.helm.valueFiles` field in your Application manifest.
 
-```bash
-argocd app set helm-guestbook --values values-production.yaml
+### Values Files in the Chart Repository
+
+By default, values files are expected to be located in the chart repository, either at the root or within a relative path from the chart directory:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-app
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/acme/helm-charts
+    path: charts/nginx
+    chart: nginx
+    targetRevision: HEAD
+    helm:
+      valueFiles:
+        - values-production.yaml
+        - values-secrets.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
 ```
-> [!NOTE]
-> Before `v2.6` of Argo CD, Values files must be in the same git repository as the Helm
-> chart. The files can be in a different location in which case it can be accessed using
-> a relative path relative to the root directory of the Helm chart.
-> As of `v2.6`, values files can be sourced from a separate repository than the Helm chart
-> by taking advantage of [multiple sources for Applications](./multiple_sources.md#helm-value-files-from-external-git-repository).
 
-In the declarative syntax:
+In this example, `values-production.yaml` and `values-secrets.yaml` should exist in the `charts/nginx` directory of the Git repository.
+
+### Values Files from External Repositories
+
+Argo CD v2.6 introduced support for `sources` (multiple sources for an Application). Using multiple sources you can reference value files that live in a separate Git repository from the chart (see [multiple_sources.md](./multiple_sources.md#helm-value-files-from-external-git-repository) for details). This is useful when you want to keep Helm charts and environment-specific values in different repositories:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-prod
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/acme/helm-charts
+      path: charts/nginx
+      chart: nginx
+      targetRevision: 1.0.0
+      helm:
+        valueFiles:
+          - $values/nginx/prod/values.yaml
+    - repoURL: https://github.com/acme/gitops-values
+      path: nginx/prod
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+### Handling Missing Values Files
+
+If a values file referenced in `valueFiles` does not exist, Helm will fail with an error. You can ignore missing files using the `ignoreMissingValueFiles` flag, which is useful for implementing optional override patterns:
 
 ```yaml
 source:
   helm:
     valueFiles:
-    - values-production.yaml
-```
-
-If Helm is passed a non-existing value file during template expansion, it will error out. Missing
-values files can be ignored (meaning, not passed to Helm) using the `--ignore-missing-value-files`. This can be
-particularly helpful to implement a [default/override
-pattern](https://github.com/argoproj/argo-cd/issues/7767#issue-1060611415) with [Application
-Sets](./application-set.md).
-
-In the declarative syntax:
-```yaml
-source:
-  helm:
-    valueFiles:
-    - values-common.yaml
-    - values-optional-override.yaml
+      - values-common.yaml          # Always required
+      - values-optional-override.yaml  # May not exist in all cases
     ignoreMissingValueFiles: true
 ```
 
-## Values
+This pattern is particularly helpful with [ApplicationSets](./application-set.md) to implement default/override configurations (see [this discussion](https://github.com/argoproj/argo-cd/issues/7767#issue-1060611415) for details).
 
-Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.valuesObject` key.
+### Values File Precedence
+
+When multiple values files are specified, **the last file listed has the highest precedence** and overrides values from earlier files:
 
 ```yaml
-source:
-  helm:
-    valuesObject:
-      ingress:
-        enabled: true
-        path: /
-        hosts:
-          - mydomain.example.com
-        annotations:
-          kubernetes.io/ingress.class: nginx
-          kubernetes.io/tls-acme: "true"
-        labels: {}
-        tls:
-          - secretName: mydomain-tls
-            hosts:
-              - mydomain.example.com
+valueFiles:
+  - values-defaults.yaml       # Lowest precedence
+  - values-regional.yaml
+  - values-environment.yaml    # Highest precedence
 ```
 
-Alternatively, values can be passed in as a string using the `source.helm.values` key.
+In this example, `values-environment.yaml` will override any matching keys in `values-regional.yaml` and `values-defaults.yaml`.
+
+## Inline Values
+
+Argo CD supports embedding Helm values directly in your Application manifest. This is useful when you have structured YAML configuration that you want to keep alongside your application definition.
+
+### Using valuesObject (Recommended for Structured Data)
+
+The `valuesObject` field allows you to define values as a YAML object structure:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-ingress-app
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes.github.io/ingress-nginx
+    chart: ingress-nginx
+    targetRevision: 4.8.0
+    helm:
+      releaseName: nginx-ingress
+      valuesObject:
+        controller:
+          replicaCount: 2
+          service:
+            type: LoadBalancer
+        ingress:
+          enabled: true
+          className: nginx
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress-nginx
+```
+
+### Using values (String Format)
+
+Alternatively, you can provide values as a YAML string using the `values` field:
 
 ```yaml
 source:
   helm:
     values: |
+      controller:
+        replicaCount: 2
+        service:
+          type: LoadBalancer
       ingress:
         enabled: true
-        path: /
-        hosts:
-          - mydomain.example.com
-        annotations:
-          kubernetes.io/ingress.class: nginx
-          kubernetes.io/tls-acme: "true"
-        labels: {}
-        tls:
-          - secretName: mydomain-tls
-            hosts:
-              - mydomain.example.com
+        className: nginx
 ```
+
+Both `valuesObject` and `values` provide the same functionality; choose the format that is more readable or convenient for your use case.
+
+> [!TIP]
+> **Secrets caution:** Examples in this page may include placeholders like `${DB_PASSWORD}`. Do not store secrets in plaintext in Git. Use sealed secrets, external secret managers, or reference Kubernetes Secrets. See [SealedSecrets](https://github.com/bitnami-labs/sealed-secrets) or external secrets operators for recommended patterns.
 
 ## Helm Parameters
 
-Helm has the ability to set parameter values, which override any values in
-a `values.yaml`. For example, `service.type` is a common parameter which is exposed in a Helm chart:
+Helm parameters allow you to override individual chart values without needing a separate values file. This is useful for simple, environment-specific overrides like replica counts, service types, or feature flags.
 
-```bash
-helm template . --set service.type=LoadBalancer
+### Using Parameters
+
+Parameters are specified as `name=value` pairs in the `spec.source.helm.parameters` field:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-app
+spec:
+  project: default
+  source:
+    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    chart: sealed-secrets
+    targetRevision: 1.16.1
+    helm:
+      parameters:
+        - name: "replicaCount"
+          value: "3"
+        - name: "service.type"
+          value: "LoadBalancer"
+        - name: "ingress.enabled"
+          value: "true"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
 ```
 
-Similarly, Argo CD can override values in the `values.yaml` parameters using `argocd app set` command,
-in the form of `-p PARAM=VALUE`. For example:
+### Multiple Instances of the Same Parameter
 
-```bash
-argocd app set helm-guestbook -p service.type=LoadBalancer
+When the same parameter is specified multiple times, the **last occurrence wins**:
+
+```yaml
+helm:
+  parameters:
+    - name: "replicaCount"
+      value: "2"
+    - name: "replicaCount"
+      value: "5"   # This value will be used
 ```
 
-In the declarative syntax:
+### Combining Parameters with Other Value Sources
+
+Parameters have the highest precedence, so they will override values from `valuesObject`, `values`, and `valueFiles`. This makes parameters ideal for environment-specific overrides that should always take precedence.
+
+## Helm Value Precedence
+
+When you specify values through multiple sources (parameters, inline values, values files), Argo CD merges them in a specific order. **Higher precedence values override lower precedence values.**
+
+### Precedence Order (Highest to Lowest)
+
+```
+1. parameters (highest precedence – always wins)
+2. valuesObject
+3. values
+4. valueFiles
+5. Helm chart's default values.yaml (lowest precedence)
+```
+
+**Example:**
+
+If you define the same key in multiple sources:
 
 ```yaml
 source:
   helm:
-    parameters:
-    - name: "service.type"
-      value: LoadBalancer
+    valueFiles:
+      - values-defaults.yaml    # Sets foo: "from-file"
+    values: |                   # Sets foo: "from-string"
+      foo: "from-string"
+    valuesObject:               # Sets foo: "from-object"
+      foo: "from-object"
+    parameters:                 # Sets foo: "from-parameter"
+      - name: "foo"
+        value: "from-parameter"
 ```
 
-## Helm Value Precedence
-Values injections have the following order of precedence
- `parameters > valuesObject > values > valueFiles > helm repository values.yaml`
- Or rather
+The final value of `foo` will be `"from-parameter"` because **parameters have the highest precedence**.
 
-```
-    lowest  -> valueFiles
-            -> values
-            -> valuesObject
-    highest -> parameters
-```
+### Precedence of Multiple valueFiles
 
-So valuesObject trumps values - therefore values will be ignored, and both valuesObject and values trump valueFiles.
-Parameters trump all of them.
+When multiple files are specified in `valueFiles`, the **last file has the highest precedence**:
 
-Precedence of multiple valueFiles:
-When multiple valueFiles are specified, the last file listed has the highest precedence:
-
-```
+```yaml
 valueFiles:
-  - values-file-2.yaml
-  - values-file-1.yaml
-
-In this case, values-file-1.yaml will override values from values-file-2.yaml.
+  - values-defaults.yaml    # Lowest precedence
+  - values-regional.yaml
+  - values-environment.yaml # Highest precedence (overrides above files)
 ```
 
-When multiple of the same key are found the last one wins i.e 
+### Precedence of Multiple Parameters
 
-```
-e.g. if we only have values-file-1.yaml and it contains
+When the same parameter is specified multiple times, the **last occurrence wins**:
 
-param1: value1
-param1: value3000
-
-we get param1=value3000
-```
-
-```
+```yaml
 parameters:
-  - name: "param1"
-    value: value2
-  - name: "param1"
-    value: value1
-
-the result will be param1=value1
+  - name: "replicaCount"
+    value: "2"
+  - name: "replicaCount"
+    value: "5"  # This value is used
 ```
 
-```
-values: |
-  param1: value2
-  param1: value5
+### Practical Implications
 
-the result will be param1=value5
-```
-
-> [!NOTE]
-> **When valueFiles or values is used**
->
-> The chart is rendered correctly using the set of values from the different possible sources plus any parameters, merged in the expected order as documented here.
-> There is a bug (see [this issue](https://github.com/argoproj/argo-cd/issues/9213)) in the UI that only shows the parameters, i.e. it does not represent the complete set of values.
-> As a workaround, using parameters instead of values/valuesObject will provide a better overview of what will be used for resources.
+- Use **parameters** for values that should always take precedence (e.g., environment-specific overrides).
+- Use **valuesObject** or **values** for moderate complexity.
+- Use **valueFiles** for defaults and can be overridden by parameters or inline values.
+- Do not rely on `valuesObject` and `values` together; use one or the other (or combine with parameters/valueFiles for different purposes).
 
 ## Helm --set-file support
 
@@ -239,6 +338,166 @@ source:
     fileParameters:
       - name: some.key
         path: path/to/file.ext
+```
+
+## Common Helm Configuration Patterns
+
+### Example 1: Deploying a Chart with Default Values (No Customization)
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: redis-app
+spec:
+  project: default
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    chart: redis
+    targetRevision: 18.1.0
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+### Example 2: Using Parameters for Simple Environment-Specific Overrides
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-prod
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes.github.io/ingress-nginx
+    chart: ingress-nginx
+    targetRevision: 4.8.0
+    helm:
+      parameters:
+        - name: "controller.replicaCount"
+          value: "5"
+        - name: "controller.service.type"
+          value: "LoadBalancer"
+        - name: "controller.resources.limits.cpu"
+          value: "500m"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress-nginx
+```
+
+### Example 3: Using Inline Values for Complex Configurations
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgres-db
+spec:
+  project: default
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    chart: postgresql
+    targetRevision: 12.5.0
+    helm:
+      valuesObject:
+        auth:
+          username: dbadmin
+          password: ${DB_PASSWORD}  # Can use environment variables
+        primary:
+          persistence:
+            enabled: true
+            size: 50Gi
+            storageClassName: ebs-gp3
+        metrics:
+          enabled: true
+          serviceMonitor:
+            enabled: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+### Example 4: Using Values Files for Environment-Specific Deployments
+
+Directory structure in your Git repo:
+```
+helm-apps/
+  values-common.yaml
+  values-development.yaml
+  values-staging.yaml
+  values-production.yaml
+  application.yaml
+```
+
+Application for **production** environment:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: myapp-prod
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/acme/helm-apps
+    path: helm-apps
+    chart: myapp
+    targetRevision: HEAD
+    helm:
+      valueFiles:
+        - values-common.yaml      # Common defaults
+        - values-production.yaml  # Production-specific overrides
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+```
+
+Application for **staging** environment:
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: myapp-staging
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/acme/helm-apps
+    path: helm-apps
+    chart: myapp
+    targetRevision: HEAD
+    helm:
+      valueFiles:
+        - values-common.yaml       # Common defaults
+        - values-staging.yaml      # Staging-specific overrides
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staging
+```
+
+### Example 5: Combining Values Files and Parameters for Fine-Grained Control
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus-operator
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 54.0.0
+    helm:
+      valueFiles:
+        - values-monitoring.yaml  # Base monitoring configuration
+      parameters:
+        - name: "prometheus.prometheusSpec.retention"
+          value: "30d"
+        - name: "grafana.adminPassword"
+          value: ${GRAFANA_PASSWORD}  # From environment
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
 ```
 
 ## Helm Release Name
