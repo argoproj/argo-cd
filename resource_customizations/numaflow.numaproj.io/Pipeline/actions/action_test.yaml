@@ -11,6 +11,9 @@ actionTests:
 - action: force-promote
   inputPath: testdata/pipeline.yaml
   expectedOutputPath: testdata/pipeline-force-promote.yaml
+- action: delete
+  inputPath: testdata/pipeline-recyclable.yaml
+  expectedOutputPath: testdata/pipeline-delete.yaml
 
 discoveryTests:
   - inputPath: testdata/pipeline.yaml
@@ -30,6 +33,10 @@ discoveryTests:
         disabled: false
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: delete
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-trash'
+        displayName: 'Delete'
   - inputPath: testdata/pipeline-paused.yaml
     result:
       - name: pause
@@ -47,3 +54,28 @@ discoveryTests:
         disabled: false
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: delete
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-trash'
+        displayName: 'Delete'
+  - inputPath: testdata/pipeline-recyclable.yaml
+    result:
+      - name: pause
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-pause'
+      - name: unpause-gradual
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-play'
+        displayName: 'Unpause (gradual)'
+      - name: unpause-fast
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-play'
+        displayName: 'Unpause (fast)'
+      - name: force-promote
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward'
+        displayName: 'Force Promote'
+      - name: delete
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-trash'
+        displayName: 'Delete'

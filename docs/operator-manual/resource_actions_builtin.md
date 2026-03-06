@@ -52,6 +52,7 @@
 - [numaflow.numaproj.io/MonoVertex/pause](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaflow.numaproj.io/MonoVertex/actions/pause/action.lua)
 - [numaflow.numaproj.io/MonoVertex/unpause-fast](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaflow.numaproj.io/MonoVertex/actions/unpause-fast/action.lua)
 - [numaflow.numaproj.io/MonoVertex/unpause-gradual](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaflow.numaproj.io/MonoVertex/actions/unpause-gradual/action.lua)
+- [numaflow.numaproj.io/Pipeline/delete](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaflow.numaproj.io/Pipeline/actions/delete/action.lua)
 - [numaflow.numaproj.io/Pipeline/force-promote](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaflow.numaproj.io/Pipeline/actions/force-promote/action.lua)
 - [numaflow.numaproj.io/Pipeline/pause](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaflow.numaproj.io/Pipeline/actions/pause/action.lua)
 - [numaflow.numaproj.io/Pipeline/unpause-fast](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaflow.numaproj.io/Pipeline/actions/unpause-fast/action.lua)
