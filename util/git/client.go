@@ -155,6 +155,11 @@ type Client interface {
 	AddAndPushNote(sha string, namespace string, note string) error
 	// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
 	HasFileChanged(filePath string) (bool, error)
+	// CreateWorktree creates a new git worktree at the specified path for the given revision.
+	// This allows checking out multiple revisions of the same repository simultaneously.
+	CreateWorktree(revision string, path string) error
+	// RemoveWorktree removes a git worktree at the specified path.
+	RemoveWorktree(path string) error
 }
 
 type EventHandlers struct {
@@ -618,6 +623,31 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 		return out, fmt.Errorf("failed to clean: %w", err)
 	}
 	return "", nil
+}
+
+// CreateWorktree creates a new git worktree at the specified path for the given revision.
+// This allows checking out multiple revisions of the same repository simultaneously.
+// The worktree shares the git object database with the main repository, making it efficient.
+func (m *nativeGitClient) CreateWorktree(revision string, path string) error {
+	ctx := context.Background()
+	// git worktree add --detach <path> <revision>
+	// --detach creates the worktree with a detached HEAD at the specified revision
+	if out, err := m.runCmd(ctx, "worktree", "add", "--detach", path, revision); err != nil {
+		return fmt.Errorf("failed to create worktree at %s for revision %s: %s, %w", path, revision, out, err)
+	}
+	return nil
+}
+
+// RemoveWorktree removes a git worktree at the specified path.
+// This cleans up both the worktree directory and its administrative files.
+func (m *nativeGitClient) RemoveWorktree(path string) error {
+	ctx := context.Background()
+	// git worktree remove --force <path>
+	// --force is needed if the worktree contains untracked or modified files
+	if out, err := m.runCmd(ctx, "worktree", "remove", "--force", path); err != nil {
+		return fmt.Errorf("failed to remove worktree at %s: %s, %w", path, out, err)
+	}
+	return nil
 }
 
 func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
