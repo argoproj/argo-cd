@@ -915,8 +915,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const overridesCount = getAppOverridesCount(props.app);
     const appNode = {
         kind: props.app.kind,
-        name: props.app.metadata.name, 
-        displayName: getAppDisplayName(props.app), 
+        name: props.app.metadata.name,
+        displayName: getAppDisplayName(props.app),
         namespace: props.app.metadata.namespace,
         resourceVersion: props.app.metadata.resourceVersion,
         group: 'argoproj.io',
