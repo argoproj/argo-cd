@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -2385,4 +2385,23 @@ func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _
 		appEventsCh <- deletedEvent
 	}()
 	return appEventsCh
+}
+
+func (c *fakeAcdClient) WatchApplicationSetWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationSetWatchEvent {
+	appSetEventsCh := make(chan *v1alpha1.ApplicationSetWatchEvent)
+	go func() {
+		defer close(appSetEventsCh)
+		addedEvent := &v1alpha1.ApplicationSetWatchEvent{
+			Type: watch.Added,
+			ApplicationSet: v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					Conditions: []v1alpha1.ApplicationSetCondition{
+						{Type: v1alpha1.ApplicationSetConditionResourcesUpToDate, Status: v1alpha1.ApplicationSetConditionStatusTrue},
+					},
+				},
+			},
+		}
+		appSetEventsCh <- addedEvent
+	}()
+	return appSetEventsCh
 }

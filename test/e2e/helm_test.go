@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 
@@ -356,7 +356,7 @@ func TestKubeVersion(t *testing.T) {
 			kubeVersion := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
 			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
-			assert.LessOrEqual(t, fixture.GetVersions(t).ServerVersion.Format("v%s.%s"), kubeVersion)
+			assert.LessOrEqual(t, fixture.GetVersions(t).ServerVersion.String(), kubeVersion)
 		}).
 		When().
 		// Make sure override works.

@@ -29,4 +29,4 @@ agent-manifests:
 
 .PHONY: generate-mocks
 generate-mocks:
-	go generate -x -v "github.com/argoproj/gitops-engine/pkg/utils/tracing/tracer_testing"
+	go generate -x -v "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing/tracer_testing"

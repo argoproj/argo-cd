@@ -3,6 +3,7 @@ package generators
 import (
 	"context"
 	"fmt"
+	"maps"
 	"path"
 	"sort"
 	"strconv"
@@ -168,9 +169,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 		if err != nil {
 			return nil, err
 		}
-		for absPath, content := range retrievedFiles {
-			fileContentMap[absPath] = content
-		}
+		maps.Copy(fileContentMap, retrievedFiles)
 	}
 
 	// Now remove files matching any exclude pattern
@@ -242,9 +241,7 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 		params := map[string]any{}
 
 		if useGoTemplate {
-			for k, v := range objectFound {
-				params[k] = v
-			}
+			maps.Copy(params, objectFound)
 
 			paramPath := map[string]any{}
 

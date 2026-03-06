@@ -108,7 +108,8 @@ If you want to store webhook data in **another** Kubernetes `Secret`, instead of
 
 Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
 
-> NOTE: Secret must have label `app.kubernetes.io/part-of: argocd`
+> [!NOTE]
+> Secret must have label `app.kubernetes.io/part-of: argocd`
 
 For more information refer to the corresponding section in the [User Management Documentation](user-management/index.md#alternative).
 
