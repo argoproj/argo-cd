@@ -21,6 +21,12 @@
 
     &__actions {
         margin-top: auto;
+
+        .columns {
+            overflow: visible;
+            white-space: normal;
+            text-overflow: unset;
+        }
     }
 
     .argo-table-list__row {
