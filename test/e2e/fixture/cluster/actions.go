@@ -83,7 +83,7 @@ func (a *Actions) CreateWithRBAC() *Actions {
 	}
 	client := kubernetes.NewForConfigOrDie(conf)
 
-	_, err = clusterauth.InstallClusterManagerRBAC(client, "kube-system", []string{}, common.BearerTokenTimeout)
+	_, err = clusterauth.InstallClusterManagerRBAC(client, "kube-system", []string{}, false, "", common.BearerTokenTimeout)
 	if err != nil {
 		a.lastError = err
 		return a
