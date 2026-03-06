@@ -26,8 +26,8 @@ func lockQuickly(action func() (io.Closer, error)) (io.Closer, bool) {
 	}
 }
 
-func numberOfInits(initializedTimes *int) func() (io.Closer, error) {
-	return func() (io.Closer, error) {
+func numberOfInits(initializedTimes *int) func(_ bool) (io.Closer, error) {
+	return func(_ bool) (io.Closer, error) {
 		*initializedTimes++
 		return utilio.NopCloser, nil
 	}
@@ -120,7 +120,7 @@ func TestLock_FailedInitialization(t *testing.T) {
 	lock := NewRepositoryLock()
 
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, func() (io.Closer, error) {
+		return lock.Lock("myRepo", "1", true, func(_ bool) (io.Closer, error) {
 			return utilio.NopCloser, errors.New("failed")
 		})
 	})
@@ -132,7 +132,7 @@ func TestLock_FailedInitialization(t *testing.T) {
 	assert.Nil(t, closer1)
 
 	closer2, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, func() (io.Closer, error) {
+		return lock.Lock("myRepo", "1", true, func(_ bool) (io.Closer, error) {
 			return utilio.NopCloser, nil
 		})
 	})
@@ -165,6 +165,26 @@ func TestLock_SameRevisionFirstNotConcurrent(t *testing.T) {
 	}
 
 	assert.Equal(t, 1, initializedTimes)
+
+	utilio.Close(closer1)
+}
+
+func TestLock_CleanForNonConcurrent(t *testing.T) {
+	lock := NewRepositoryLock()
+	initClean := false
+	init := func(clean bool) (io.Closer, error) {
+		initClean = clean
+		return utilio.NopCloser, nil
+	}
+	closer1, done := lockQuickly(func() (io.Closer, error) {
+		return lock.Lock("myRepo", "1", false, init)
+	})
+
+	if !assert.True(t, done) {
+		return
+	}
+
+	assert.True(t, initClean)
 
 	utilio.Close(closer1)
 }

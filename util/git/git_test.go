@@ -328,7 +328,7 @@ func TestLFSClient(t *testing.T) {
 	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true, true)
 	require.NoError(t, err)
 
 	largeFiles, err := client.LsLargeFiles()
@@ -366,7 +366,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true, true)
 	require.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
@@ -423,7 +423,7 @@ func TestNewFactory(t *testing.T) {
 		err = client.Fetch("", 0)
 		require.NoError(t, err)
 
-		_, err = client.Checkout(commitSHA, true)
+		_, err = client.Checkout(commitSHA, true, true)
 		require.NoError(t, err)
 
 		revisionMetadata, err := client.RevisionMetadata(commitSHA)

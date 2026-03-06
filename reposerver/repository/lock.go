@@ -18,11 +18,11 @@ type repositoryLock struct {
 }
 
 // Lock acquires lock unless lock is already acquired with the same commit and allowConcurrent is set to true
-func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool, init func() (io.Closer, error)) (io.Closer, error) {
+func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool, init func(prevNonConcurrent bool) (io.Closer, error)) (io.Closer, error) {
 	r.lock.Lock()
 	state, ok := r.stateByKey[path]
 	if !ok {
-		state = &repositoryState{cond: &sync.Cond{L: &sync.Mutex{}}}
+		state = &repositoryState{cond: &sync.Cond{L: &sync.Mutex{}}, allowConcurrent: allowConcurrent}
 		r.stateByKey[path] = state
 	}
 	r.lock.Unlock()
@@ -52,7 +52,7 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 		state.cond.L.Lock()
 		if state.revision == "" {
 			// no in progress operation for that repo. Go ahead.
-			initCloser, err := init()
+			initCloser, err := init(!state.allowConcurrent)
 			if err != nil {
 				state.cond.L.Unlock()
 				return nil, fmt.Errorf("failed to initialize repository resources: %w", err)
