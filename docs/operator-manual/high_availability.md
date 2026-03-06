@@ -253,6 +253,11 @@ spec:
   megabytes.
   The default value is 200. You might need to increase this for an Argo CD instance that manages 3000+ applications.
 
+* The `ARGOCD_GLOB_CACHE_SIZE` environment variable controls the maximum number of compiled glob patterns cached for
+  RBAC policy evaluation. Glob pattern compilation is expensive, and caching significantly improves RBAC performance
+  when many applications are managed. The default value is 10000. See [RBAC Glob Matching](rbac.md#glob-matching) for
+  more details.
+
 ### argocd-dex-server, argocd-redis
 
 The `argocd-dex-server` uses an in-memory database, and two or more instances may have inconsistent data.
