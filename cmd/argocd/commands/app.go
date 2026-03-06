@@ -1002,7 +1002,6 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
 
-			sourceName = appOpts.SourceName
 			if sourceName != "" && sourcePosition != -1 {
 				errors.Fatal(errors.ErrorGeneric, "Only one of source-position and source-name can be specified.")
 			}
@@ -1069,6 +1068,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 	command.Flags().BoolVar(&opts.passCredentials, "pass-credentials", false, "Unset passCredentials")
 	command.Flags().BoolVar(&opts.ref, "ref", false, "Unset ref on the source")
 	command.Flags().IntVar(&sourcePosition, "source-position", -1, "Position of the source from the list of sources of the app. Counting starts at 1.")
+	command.Flags().StringVar(&sourceName, "source-name", "", "Name of the source from the list of sources of the app.")
 	return command
 }
 
