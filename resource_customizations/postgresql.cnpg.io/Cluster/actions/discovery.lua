@@ -25,7 +25,7 @@ actions["promote"] = {
     }
 }
 
--- Suspend reconcilliation loop for a cluster
+-- Suspend reconciliation  loop for a cluster
 -- https://cloudnative-pg.io/docs/1.28/failure_modes/#disabling-reconciliation
 local isSuspended = false
 if obj.metadata and obj.metadata.annotations and obj.metadata.annotations["cnpg.io/reconciliationLoop"] == "disabled" then
