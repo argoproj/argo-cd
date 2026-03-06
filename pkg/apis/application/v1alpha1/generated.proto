@@ -2377,6 +2377,9 @@ message RevisionMetadata {
   repeated RevisionReference references = 6;
 
   optional SourceIntegrityCheckResult sourceIntegrityResult = 7;
+
+  // SHA is the commit hash for this revision.
+  optional string sha = 8;
 }
 
 // RevisionReference contains a reference to a some information that is related in some way to another commit. For now,
