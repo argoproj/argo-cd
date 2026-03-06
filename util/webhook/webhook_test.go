@@ -1232,7 +1232,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
   "repository":{
     "type": "repository", 
     "full_name": "{{.owner}}/{{.repo}}",
-    "name": "{{.repo}}", 
+    "name": "{{.name}}", 
     "scm": "git", 
     "links": {
       "self": {"href": "https://api.bitbucket.org/2.0/repositories/{{.owner}}/{{.repo}}"},
@@ -1245,7 +1245,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 		panic(err)
 	}
 
-	bitbucketPushPayload := func(branchName, owner, repo string) bitbucket.RepoPushPayload {
+	bitbucketPushPayload := func(branchName, owner, repo, name string) bitbucket.RepoPushPayload {
 		// The payload's "push.changes[0].new.name" member seems to only have the branch name (based on the example payload).
 		// https://support.atlassian.com/bitbucket-cloud/docs/event-payloads/#EventPayloads-Push
 		var pl bitbucket.RepoPushPayload
@@ -1254,6 +1254,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 			"branch":  branchName,
 			"owner":   owner,
 			"repo":    repo,
+			"name":    name,
 			"oldHash": "abcdef",
 			"newHash": "ghijkl",
 		})
@@ -1276,7 +1277,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 			"bitbucket branch name containing 'refs/heads/'",
 			false,
 			"release-0.0",
-			bitbucketPushPayload("release-0.0", "test-owner", "test-repo"),
+			bitbucketPushPayload("release-0.0", "test-owner", "test-repo", "test-repo"),
 			false,
 			[]string{"guestbook/guestbook-ui-deployment.yaml"},
 			changeInfo{
@@ -1288,7 +1289,55 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 			"bitbucket branch name containing 'main'",
 			false,
 			"main",
-			bitbucketPushPayload("main", "test-owner", "test-repo"),
+			bitbucketPushPayload("main", "test-owner", "test-repo", "test-repo"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is mixed case, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "Test Repo"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is all uppercase, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "TESTREPO"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is all lowercase, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "testrepo"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is all uppercase with spaces, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "TEST REPO"),
 			true,
 			[]string{"guestbook/guestbook-ui-deployment.yaml"},
 			changeInfo{
