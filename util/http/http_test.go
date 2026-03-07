@@ -147,6 +147,56 @@ func TestSetTokenCookie(t *testing.T) {
 	}
 }
 
+func TestClientIP(t *testing.T) {
+	tests := []struct {
+		name       string
+		remoteAddr string
+		headers    map[string]string
+		expected   string
+	}{
+		{
+			name:       "RemoteAddr only",
+			remoteAddr: "192.168.1.1:12345",
+			expected:   "192.168.1.1:12345",
+		},
+		{
+			name:       "X-Forwarded-For single IP",
+			remoteAddr: "10.0.0.1:12345",
+			headers:    map[string]string{"X-Forwarded-For": "203.0.113.50"},
+			expected:   "203.0.113.50",
+		},
+		{
+			name:       "X-Forwarded-For multiple IPs",
+			remoteAddr: "10.0.0.1:12345",
+			headers:    map[string]string{"X-Forwarded-For": "203.0.113.50, 70.41.3.18, 150.172.238.178"},
+			expected:   "203.0.113.50",
+		},
+		{
+			name:       "X-Real-IP",
+			remoteAddr: "10.0.0.1:12345",
+			headers:    map[string]string{"X-Real-IP": "203.0.113.99"},
+			expected:   "203.0.113.99",
+		},
+		{
+			name:       "X-Forwarded-For takes precedence over X-Real-IP",
+			remoteAddr: "10.0.0.1:12345",
+			headers:    map[string]string{"X-Forwarded-For": "203.0.113.50", "X-Real-IP": "203.0.113.99"},
+			expected:   "203.0.113.50",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
+			req.RemoteAddr = tt.remoteAddr
+			for k, v := range tt.headers {
+				req.Header.Set(k, v)
+			}
+			assert.Equal(t, tt.expected, ClientIP(req))
+		})
+	}
+}
+
 // TestRoundTripper just copy request headers to the resposne.
 type TestRoundTripper struct{}
 
