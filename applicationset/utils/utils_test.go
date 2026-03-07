@@ -603,6 +603,22 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 				"value": "non\n compliant\n yaml",
 			},
 		},
+		{
+			name:        "tpl",
+			fieldVal:    "{{ tpl \"{{.value}}\" . }}",
+			expectedVal: "hello world",
+			params: map[string]any{
+				"value": "hello world",
+			},
+		},
+		{
+			name:         "tpl error",
+			fieldVal:     "{{ tpl \"{{ index .DoesNotExist 0 }}\" . }}",
+			errorMessage: "failed to execute go template {{ tpl \"{{ index .DoesNotExist 0 }}\" . }}: template: base:1:3: executing \"base\" at <tpl \"{{ index .DoesNotExist 0 }}\" .>: error calling tpl: error during tpl function execution for \"{{ index .DoesNotExist 0 }}\": template: base:1:3: executing \"base\" at <index .DoesNotExist 0>: error calling index: index of untyped nil",
+			params: map[string]any{
+				"DoesNotExist": nil,
+			},
+		},
 	}
 
 	for _, test := range tests {
