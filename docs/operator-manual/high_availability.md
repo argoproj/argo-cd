@@ -572,7 +572,7 @@ $ go tool pprof http://localhost:8082/debug/pprof/heap
 
 ## Shallow Clone
 
-Monorepos can be large and slow to clone. To speed up the clone process, you can use the `depth: "1"` repository option:
+Repositories with large histories or large files in past revisions can be slow to clone and update. To speed up the clone process, you can use the `depth: "1"` repository option:
 
 ```yaml
 apiVersion: v1
