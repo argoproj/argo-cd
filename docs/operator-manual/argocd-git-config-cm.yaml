@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-git-config-cm
+  labels:
+    app.kubernetes.io/name: argocd-git-config-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  # Configuration to be mounted at /home/argocd/.gitconfig  
+  .gitconfig: |
+    # For example, to mark all repositories as safe:
+    [safe]
+      directory = *
