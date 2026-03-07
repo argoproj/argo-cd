@@ -373,9 +373,17 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		} else {
 			// Set up validation of SSH known hosts for using our ssh_known_hosts
 			// file.
-			auth.HostKeyCallback, err = knownhosts.New(certutil.GetSSHKnownHostsDataPath())
+			knownHostsPath := certutil.GetSSHKnownHostsDataPath()
+			auth.HostKeyCallback, err = knownhosts.New(knownHostsPath)
 			if err != nil {
 				log.Errorf("Could not set-up SSH known hosts callback: %v", err)
+			}
+			// Extract host key algorithms from known_hosts to configure the SSH
+			// client. This is required for go-git 5.16.0+ which doesn't autoconfigure
+			// HostKeyAlgorithms when a custom HostKeyCallback is set.
+			auth.HostKeyAlgorithms, err = certutil.GetHostKeyAlgorithmsFromPath(knownHostsPath)
+			if err != nil {
+				log.Warnf("Could not extract host key algorithms from known hosts: %v", err)
 			}
 		}
 		return auth, nil
