@@ -1550,7 +1550,7 @@ func Test_nativeGitClient_FetchSparseBlobs(t *testing.T) {
 	missingCheck, err := outputCmd(ctx, clientRoot, "git", "rev-list", "--objects", "--no-object-names", "--missing=print", revision, "--", "subdir")
 	require.NoError(t, err)
 	missingCount := 0
-	for _, line := range strings.Split(string(missingCheck), "\n") {
+	for line := range strings.SplitSeq(string(missingCheck), "\n") {
 		if strings.HasPrefix(line, "?") {
 			missingCount++
 		}
@@ -1564,7 +1564,7 @@ func Test_nativeGitClient_FetchSparseBlobs(t *testing.T) {
 	// Verify blobs are now present
 	missingAfter, err := outputCmd(ctx, clientRoot, "git", "rev-list", "--objects", "--no-object-names", "--missing=print", revision, "--", "subdir")
 	require.NoError(t, err)
-	for _, line := range strings.Split(string(missingAfter), "\n") {
+	for line := range strings.SplitSeq(string(missingAfter), "\n") {
 		assert.False(t, strings.HasPrefix(line, "?"), "blob should no longer be missing: %s", line)
 	}
 
@@ -1590,7 +1590,7 @@ func simulatePartialClone(ctx context.Context, t *testing.T, repoDir string, rev
 	require.NoError(t, err)
 	var nonBlobSHAs []string
 	var blobSHAs []string
-	for _, sha := range strings.Split(strings.TrimSpace(string(allOutput)), "\n") {
+	for sha := range strings.SplitSeq(strings.TrimSpace(string(allOutput)), "\n") {
 		if sha == "" {
 			continue
 		}
