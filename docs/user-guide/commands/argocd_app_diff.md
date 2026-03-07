@@ -27,6 +27,7 @@ argocd app diff APPNAME [flags]
       --local string                                      Compare live app to a local manifests
       --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path. (default [*.yaml,*.yml,*.json])
       --local-repo-root string                            Path to the repository root. Used together with --local allows setting the repository root (default "/")
+      --local-values stringArray                          Used with --local --server-side-generate for Helm apps: path(s) to additional values files outside the chart root to include in the diff. Files are bundled into the local tarball and appended to the app's valueFiles for this diff only. Does not affect sync. Can be specified multiple times.
       --refresh                                           Refresh application data when retrieving
       --revision string                                   Compare live app to a particular revision
       --revisions stringArray                             Show manifests at specific revisions for source position in source-positions

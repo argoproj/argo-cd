@@ -36,6 +36,22 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 	return writeFile(srcPath, inclusions, exclusions, gzw)
 }
 
+func WriteDirToTar(tw *tar.Writer, srcPath string, inclusions []string, exclusions []string) (int, error) {
+	if _, err := os.Stat(srcPath); err != nil {
+		return 0, fmt.Errorf("error inspecting srcPath %q: %w", srcPath, err)
+	}
+	t := &tgz{
+		srcPath:    srcPath,
+		inclusions: inclusions,
+		exclusions: exclusions,
+		tarWriter:  tw,
+	}
+	if err := filepath.Walk(srcPath, t.tgzFile); err != nil {
+		return 0, err
+	}
+	return t.filesWritten, nil
+}
+
 // Tar will iterate over all files found in srcPath archiving with Tar. Will invoke every given writer while generating the tar.
 // This is useful to generate checksums. Will exclude files matching the exclusions
 // list blob if exclusions is not nil. Will include only the files matching the

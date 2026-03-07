@@ -4644,3 +4644,115 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, updateCallCount, 2, "Update should be called at least twice (once with conflict, once with success)")
 }
+
+// localValueFilesStream is a test gRPC stream that includes LocalValueFiles
+// in the query, used to test the --local-values flag behaviour.
+type localValueFilesStream struct {
+	ctx             context.Context
+	appName         string
+	localValueFiles []string
+	headerSent      bool
+}
+
+func (s *localValueFilesStream) SetHeader(metadata.MD) error  { return nil }
+func (s *localValueFilesStream) SendHeader(metadata.MD) error { return nil }
+func (s *localValueFilesStream) SetTrailer(metadata.MD)       {}
+func (s *localValueFilesStream) Context() context.Context     { return s.ctx }
+func (s *localValueFilesStream) SendMsg(_ any) error          { return nil }
+func (s *localValueFilesStream) RecvMsg(_ any) error          { return nil }
+func (s *localValueFilesStream) SendAndClose(_ *apiclient.ManifestResponse) error {
+	return nil
+}
+
+func (s *localValueFilesStream) Recv() (*application.ApplicationManifestQueryWithFilesWrapper, error) {
+	if !s.headerSent {
+		s.headerSent = true
+		return &application.ApplicationManifestQueryWithFilesWrapper{
+			Part: &application.ApplicationManifestQueryWithFilesWrapper_Query{
+				Query: &application.ApplicationManifestQueryWithFiles{
+					Name:            &s.appName,
+					Checksum:        new(string),
+					LocalValueFiles: s.localValueFiles,
+				},
+			},
+		}, nil
+	}
+	return nil, io.EOF
+}
+
+func TestGetManifestsWithFiles_LocalValueFiles(t *testing.T) {
+	helmApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "helm-app"
+		app.Spec.Source = &v1alpha1.ApplicationSource{
+			RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+			Path:           "helm-guestbook",
+			TargetRevision: "HEAD",
+			Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"values.yaml"},
+			},
+		}
+	})
+
+	var capturedReq *apiclient.ManifestRequest
+	mockWithFilesClient := &mocks.RepoServerService_GenerateManifestWithFilesClient{}
+	mockWithFilesClient.EXPECT().CloseAndRecv().Return(&apiclient.ManifestResponse{}, nil).Maybe()
+	mockWithFilesClient.EXPECT().Send(mock.MatchedBy(func(r *apiclient.ManifestRequestWithFiles) bool {
+		if req := r.GetRequest(); req != nil {
+			capturedReq = req
+		}
+		return true
+	})).Return(nil).Maybe()
+
+	mockRepoClient := &mocks.RepoServerServiceClient{}
+	mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil).Maybe()
+	mockRepoClient.EXPECT().GetAppDetails(mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil).Maybe()
+	mockRepoClient.EXPECT().TestRepository(mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil).Maybe()
+	mockRepoClient.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil).Maybe()
+	mockRepoClient.EXPECT().GetRevisionChartDetails(mock.Anything, mock.Anything).Return(&v1alpha1.ChartDetails{}, nil).Maybe()
+	mockRepoClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(fakeResolveRevisionResponse(), nil).Maybe()
+	mockRepoClient.EXPECT().GenerateManifestWithFiles(mock.Anything, mock.Anything).Return(mockWithFilesClient, nil)
+
+	appServer := newTestAppServer(t, helmApp)
+	appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoClient}
+
+	//nolint:staticcheck
+	ctx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"admin"}})
+
+	t.Run("appends local value files to helm source", func(t *testing.T) {
+		stream := &localValueFilesStream{
+			ctx:             ctx,
+			appName:         "helm-app",
+			localValueFiles: []string{"_argocd_extra_values/0.yaml"},
+		}
+		err := appServer.GetManifestsWithFiles(stream)
+		require.NoError(t, err)
+		require.NotNil(t, capturedReq, "ManifestRequest should have been sent to repo-server")
+		require.NotNil(t, capturedReq.ApplicationSource.Helm)
+		assert.Contains(t, capturedReq.ApplicationSource.Helm.ValueFiles, "values.yaml",
+			"original value file must be preserved")
+		assert.Contains(t, capturedReq.ApplicationSource.Helm.ValueFiles, "_argocd_extra_values/0.yaml",
+			"extra value file must be appended")
+	})
+
+	t.Run("returns error when local value files set on non-helm app", func(t *testing.T) {
+		plainApp := newTestApp(func(app *v1alpha1.Application) {
+			app.Name = "plain-app"
+			app.Spec.Source = &v1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "guestbook",
+				TargetRevision: "HEAD",
+			}
+		})
+		plainServer := newTestAppServer(t, plainApp)
+		plainServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: mockRepoClient}
+
+		stream := &localValueFilesStream{
+			ctx:             ctx,
+			appName:         "plain-app",
+			localValueFiles: []string{"_argocd_extra_values/0.yaml"},
+		}
+		err := plainServer.GetManifestsWithFiles(stream)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--local-values is only supported for Helm applications")
+	})
+}

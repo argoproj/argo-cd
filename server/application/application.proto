@@ -87,6 +87,7 @@ message ApplicationManifestQueryWithFiles {
 	required string checksum = 2;
 	optional string appNamespace = 3;
 	optional string project = 4;
+	repeated string local_value_files = 5;
 }
 
 message ApplicationManifestQueryWithFilesWrapper {
