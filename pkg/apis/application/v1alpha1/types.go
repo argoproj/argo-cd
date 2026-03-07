@@ -41,6 +41,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/rbac"
@@ -1459,6 +1460,18 @@ func (o SyncOptions) RemoveOption(option string) SyncOptions {
 // HasOption returns true if the list of sync options contains given option
 func (o SyncOptions) HasOption(option string) bool {
 	return slices.Contains(o, option)
+}
+
+// GetOptionValue returns true if the list of sync options contains given option
+// This function only support options that are defined as key=value and not standalone.
+func (o SyncOptions) GetOptionValue(optionKey string) *string {
+	prefix := optionKey + "="
+	for _, i := range o {
+		if val, found := strings.CutPrefix(i, prefix); found {
+			return ptr.To(val)
+		}
+	}
+	return nil
 }
 
 type ManagedNamespaceMetadata struct {

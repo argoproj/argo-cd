@@ -118,6 +118,13 @@ func WithPrune(prune bool) SyncOpt {
 	}
 }
 
+// WithDefaultPruneOption specifies the application level Prune option
+func WithDefaultPruneOption(defaultPruneOption *string) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.defaultPruneOption = defaultPruneOption
+	}
+}
+
 // WithPruneConfirmed specifies if prune is confirmed for resources that require confirmation
 func WithPruneConfirmed(confirmed bool) SyncOpt {
 	return func(ctx *syncContext) {
@@ -370,6 +377,7 @@ type syncContext struct {
 	pruneLast                       bool
 	prunePropagationPolicy          *metav1.DeletionPropagation
 	pruneConfirmed                  bool
+	defaultPruneOption              *string
 	clientSideApplyMigrationManager string
 	enableClientSideApplyMigration  bool
 
@@ -429,7 +437,14 @@ func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) 
 
 	if !sc.pruneConfirmed {
 		tasksToPrune := tasks.Filter(func(task *syncTask) bool {
-			return task.isPrune() && resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm)
+			var pruneOptionValue *string
+			if task.liveObj != nil {
+				pruneOptionValue = resourceutil.GetAnnotationOptionValue(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPrune)
+			}
+			if pruneOptionValue == nil {
+				pruneOptionValue = sc.defaultPruneOption
+			}
+			return task.isPrune() && pruneOptionValue != nil && *pruneOptionValue == common.SyncValueConfirm
 		})
 
 		if len(tasksToPrune) > 0 {
@@ -1389,7 +1404,13 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) (common.ResultCode, string) {
 	if !prune {
 		return common.ResultCodePruneSkipped, "ignored (requires pruning)"
-	} else if resourceutil.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, common.SyncOptionDisablePrune) {
+	}
+
+	pruneOptionValue := resourceutil.GetAnnotationOptionValue(liveObj, common.AnnotationSyncOptions, common.SyncOptionPrune)
+	if pruneOptionValue == nil {
+		pruneOptionValue = sc.defaultPruneOption
+	}
+	if pruneOptionValue != nil && *pruneOptionValue == common.SyncValueFalse {
 		return common.ResultCodePruneSkipped, "ignored (no prune)"
 	}
 	if dryRun {
@@ -1552,7 +1573,14 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 	{
 		if !sc.pruneConfirmed {
 			for _, task := range pruneTasks {
-				if resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm) {
+				var pruneOptionValue *string
+				if task.liveObj != nil {
+					pruneOptionValue = resourceutil.GetAnnotationOptionValue(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPrune)
+				}
+				if pruneOptionValue == nil {
+					pruneOptionValue = sc.defaultPruneOption
+				}
+				if pruneOptionValue != nil && *pruneOptionValue == common.SyncValueConfirm {
 					sc.log.WithValues("task", task).Info("Prune requires confirmation")
 					return pending
 				}

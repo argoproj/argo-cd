@@ -2,6 +2,8 @@ package resource
 
 import (
 	"strings"
+
+	"k8s.io/utils/ptr"
 )
 
 // AnnotationGetter defines the operations required to inspect if a resource
@@ -14,16 +16,18 @@ type AnnotationGetter interface {
 // the given key. If the annotation has comma separated values, the returned
 // list will contain all deduped values.
 func GetAnnotationCSVs(obj AnnotationGetter, key string) []string {
-	// may for de-duping
-	valuesToBool := make(map[string]bool)
+	// map for de-duping
+	seen := make(map[string]bool)
+	var values []string
 	for _, item := range strings.Split(obj.GetAnnotations()[key], ",") {
 		val := strings.TrimSpace(item)
-		if val != "" {
-			valuesToBool[val] = true
+		if val == "" {
+			continue
 		}
-	}
-	var values []string
-	for val := range valuesToBool {
+		if seen[val] {
+			continue
+		}
+		seen[val] = true
 		values = append(values, val)
 	}
 	return values
@@ -38,4 +42,17 @@ func HasAnnotationOption(obj AnnotationGetter, key, val string) bool {
 		}
 	}
 	return false
+}
+
+// GetAnnotationOptionValue will return the value of an option inside the
+// annotation defined as the given key.
+// This function only support options that are defined as key=value and not standalone.
+func GetAnnotationOptionValue(obj AnnotationGetter, annotation, optionKey string) *string {
+	prefix := optionKey + "="
+	for _, item := range GetAnnotationCSVs(obj, annotation) {
+		if val, found := strings.CutPrefix(item, prefix); found {
+			return ptr.To(val)
+		}
+	}
+	return nil
 }
