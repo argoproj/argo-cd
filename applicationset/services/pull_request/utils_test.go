@@ -533,6 +533,164 @@ func TestCreatedUpdatedWithinComboFilter(t *testing.T) {
 	assert.Equal(t, int64(4), pullRequests[1].Number)
 }
 
+func TestCompileFiltersInvalidDurationFormat(t *testing.T) {
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
+				CreatedAt:    time.Now().UTC().Add(-1 * time.Hour),
+				UpdatedAt:    time.Now().UTC().Add(-1 * time.Hour),
+			},
+		},
+		nil,
+	)
+	for _, invalid := range []string{"abc", "1d", "1week", "1.5.5h"} {
+		filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{{CreatedWithin: &invalid}}
+		_, err := ListPullRequests(t.Context(), provider, filters)
+		require.Error(t, err)
+	}
+}
+
+func TestCompileFiltersZeroDuration(t *testing.T) {
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
+				CreatedAt:    time.Now().UTC().Add(-1 * time.Hour),
+				UpdatedAt:    time.Now().UTC().Add(-1 * time.Hour),
+			},
+		},
+		nil,
+	)
+	for _, zero := range []string{"0", "0s", "0h", "0m"} {
+		filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{{CreatedWithin: &zero}}
+		_, err := ListPullRequests(t.Context(), provider, filters)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be greater than 0")
+	}
+	for _, zero := range []string{"0", "0s"} {
+		filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{{UpdatedWithin: &zero}}
+		_, err := ListPullRequests(t.Context(), provider, filters)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be greater than 0")
+	}
+}
+
+func TestCompileFiltersNegativeDuration(t *testing.T) {
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
+				CreatedAt:    time.Now().UTC().Add(-1 * time.Hour),
+				UpdatedAt:    time.Now().UTC().Add(-1 * time.Hour),
+			},
+		},
+		nil,
+	)
+	for _, neg := range []string{"-1h", "-30m", "-1ms"} {
+		filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{{CreatedWithin: &neg}}
+		_, err := ListPullRequests(t.Context(), provider, filters)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be greater than 0")
+
+		filters = []argoprojiov1alpha1.PullRequestGeneratorFilter{{UpdatedWithin: &neg}}
+		_, err = ListPullRequests(t.Context(), provider, filters)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be greater than 0")
+	}
+}
+
+func TestCompileFiltersVeryLargeDuration(t *testing.T) {
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
+				CreatedAt:    time.Now().UTC().Add(-1 * time.Hour),
+				UpdatedAt:    time.Now().UTC().Add(-1 * time.Hour),
+			},
+		},
+		nil,
+	)
+
+	// Duration that overflows time.Duration max
+	overflow := "2562048h"
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{{CreatedWithin: &overflow}}
+	_, err := ListPullRequests(t.Context(), provider, filters)
+	require.Error(t, err)
+}
+
+func TestDurationFilterBoundaryBehavior(t *testing.T) {
+	// PR created at now-1h, PR should not be included by a "1h" CreatedWithin filter.
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
+				CreatedAt:    time.Now().UTC().Add(-1 * time.Hour),
+				UpdatedAt:    time.Now().UTC().Add(-1 * time.Hour),
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			CreatedWithin: new("1h"),
+		},
+	}
+	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 0)
+}
+
+func TestDurationFilterZeroTimeValue(t *testing.T) {
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
+				// CreatedAt and UpdatedAt left as zero time.Time{}
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			CreatedWithin: new("24h"),
+		},
+	}
+	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	require.NoError(t, err)
+	assert.Empty(t, pullRequests)
+}
+
 func TestNoFilters(t *testing.T) {
 	provider, _ := NewFakeService(
 		t.Context(),
