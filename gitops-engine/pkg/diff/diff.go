@@ -210,6 +210,9 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 // fields not managed by the specified manager will be reverted with their state from live, including any webhook mutations.
 // If the given predictedLive does not have the managedFields, an error will be returned.
 func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string) (*unstructured.Unstructured, error) {
+	if gvkParser == nil {
+		return nil, fmt.Errorf("gvkParser is required for removing webhook mutations but was not provided. Please ensure WithGVKParser option is set when using ServerSideDiff with IncludeMutationWebhook")
+	}
 	plManagedFields := predictedLive.GetManagedFields()
 	if len(plManagedFields) == 0 {
 		return nil, fmt.Errorf("predictedLive for resource %s/%s must have the managedFields", predictedLive.GetKind(), predictedLive.GetName())
@@ -219,6 +222,7 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	if pt == nil {
 		return nil, fmt.Errorf("unable to resolve parseableType for GroupVersionKind: %s", gvk)
 	}
+
 
 	typedPredictedLive, err := pt.FromUnstructured(predictedLive.Object)
 	if err != nil {
