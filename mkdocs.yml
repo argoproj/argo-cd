@@ -187,6 +187,7 @@ nav:
   - user-guide/orphaned-resources.md
   - user-guide/compare-options.md
   - user-guide/sync-options.md
+  - user-guide/sync_retry_options.md
   - user-guide/parameters.md
   - user-guide/environment-variables.md
   - user-guide/build-environment.md
