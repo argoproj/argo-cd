@@ -1036,6 +1036,12 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
     }
 
+    // Helper to check if edge should be reversed for correct traffic flow visualization
+    // Gateway API routes reference Gateway via parentRefs, but traffic flows Gateway -> Route
+    const gatewayAPIRouteKinds = new Set(['HTTPRoute', 'GRPCRoute', 'TCPRoute', 'TLSRoute', 'UDPRoute']);
+    const shouldReverseEdge = (source: ResourceTreeNode, target: ResourceTreeNode): boolean =>
+        source.group === 'gateway.networking.k8s.io' && gatewayAPIRouteKinds.has(source.kind) && target.group === 'gateway.networking.k8s.io' && target.kind === 'Gateway';
+
     if (props.useNetworkingHierarchy) {
         // Network view
         const hasParents = new Set<string>();
@@ -1043,24 +1049,30 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         const hiddenNodes: ResourceTreeNode[] = [];
         networkNodes.forEach(parent => {
             findNetworkTargets(networkNodes, parent.networkingInfo).forEach(child => {
-                const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
-                hasParents.add(treeNodeKey(child));
-                const parentId = parent.uid;
+                // For HTTPRoute -> Gateway edges, reverse the relationship
+                // so Gateway appears as the parent (traffic flows Gateway -> HTTPRoute -> Service)
+                const reverseEdge = shouldReverseEdge(parent, child);
+                const actualParent = reverseEdge ? child : parent;
+                const actualChild = reverseEdge ? parent : child;
+
+                const children = childrenByParentKey.get(treeNodeKey(actualParent)) || [];
+                hasParents.add(treeNodeKey(actualChild));
+                const parentId = actualParent.uid;
                 if (nodesHavingChildren.has(parentId)) {
                     nodesHavingChildren.set(parentId, nodesHavingChildren.get(parentId) + children.length);
                 } else {
                     nodesHavingChildren.set(parentId, 1);
                 }
-                if (child.kind !== 'Pod' || !props.showCompactNodes) {
+                if (actualChild.kind !== 'Pod' || !props.showCompactNodes) {
                     if (props.getNodeExpansion(parentId)) {
-                        hasParents.add(treeNodeKey(child));
-                        children.push(child);
-                        childrenByParentKey.set(treeNodeKey(parent), children);
+                        hasParents.add(treeNodeKey(actualChild));
+                        children.push(actualChild);
+                        childrenByParentKey.set(treeNodeKey(actualParent), children);
                     } else {
-                        hiddenNodes.push(child);
+                        hiddenNodes.push(actualChild);
                     }
                 } else {
-                    processPodGroup(parent, child, props);
+                    processPodGroup(actualParent, actualChild, props);
                 }
             });
         });
