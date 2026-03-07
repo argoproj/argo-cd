@@ -663,7 +663,7 @@ func TestDurationFilterBoundaryBehavior(t *testing.T) {
 	}
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
 	require.NoError(t, err)
-	assert.Len(t, pullRequests, 0)
+	assert.Empty(t, pullRequests)
 }
 
 func TestDurationFilterZeroTimeValue(t *testing.T) {
@@ -715,7 +715,7 @@ func TestUpdatedDurationFilterBoundaryBehavior(t *testing.T) {
 	}
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
 	require.NoError(t, err)
-	assert.Len(t, pullRequests, 0)
+	assert.Empty(t, pullRequests)
 }
 
 func TestUpdatedDurationFilterZeroTimeValue(t *testing.T) {
