@@ -392,6 +392,11 @@ func TestGetRelevantGenerators(t *testing.T) {
 }
 
 func TestInterpolateGenerator(t *testing.T) {
+	testGenerators := map[string]Generator{
+		"Clusters": NewClusterGenerator(nil, ""),
+		"Git":      NewGitGenerator(nil, ""),
+	}
+
 	requestedGenerator := &argov1alpha1.ApplicationSetGenerator{
 		Clusters: &argov1alpha1.ClusterGenerator{
 			Selector: metav1.LabelSelector{
@@ -411,7 +416,9 @@ func TestInterpolateGenerator(t *testing.T) {
 		"path[1]":                 "p2",
 		"path.basenameNormalized": "app3",
 	}
-	interpolatedGenerator, err := InterpolateGenerator(requestedGenerator, gitGeneratorParams, false, nil)
+	relGenerators := GetRelevantGenerators(requestedGenerator, testGenerators)
+
+	interpolatedGenerator, err := InterpolateGenerator(relGenerators, requestedGenerator, gitGeneratorParams, false, nil)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return
@@ -436,7 +443,7 @@ func TestInterpolateGenerator(t *testing.T) {
 	clusterGeneratorParams := map[string]any{
 		"name": "production_01/west", "server": "https://production-01.example.com",
 	}
-	interpolatedGenerator, err = InterpolateGenerator(requestedGenerator, clusterGeneratorParams, false, nil)
+	interpolatedGenerator, err = InterpolateGenerator(relGenerators, requestedGenerator, clusterGeneratorParams, false, nil)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return
@@ -446,6 +453,10 @@ func TestInterpolateGenerator(t *testing.T) {
 }
 
 func TestInterpolateGenerator_go(t *testing.T) {
+	testGenerators := map[string]Generator{
+		"Clusters": getMockClusterGenerator(),
+		"Git":      getMockGitGenerator(),
+	}
 	requestedGenerator := &argov1alpha1.ApplicationSetGenerator{
 		Clusters: &argov1alpha1.ClusterGenerator{
 			Selector: metav1.LabelSelector{
@@ -465,7 +476,8 @@ func TestInterpolateGenerator_go(t *testing.T) {
 			"segments": []string{"p1", "p2", "app3"},
 		},
 	}
-	interpolatedGenerator, err := InterpolateGenerator(requestedGenerator, gitGeneratorParams, true, nil)
+	relGenerators := GetRelevantGenerators(requestedGenerator, testGenerators)
+	interpolatedGenerator, err := InterpolateGenerator(relGenerators, requestedGenerator, gitGeneratorParams, true, nil)
 	require.NoError(t, err)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
@@ -491,7 +503,7 @@ func TestInterpolateGenerator_go(t *testing.T) {
 	clusterGeneratorParams := map[string]any{
 		"name": "production_01/west", "server": "https://production-01.example.com",
 	}
-	interpolatedGenerator, err = InterpolateGenerator(requestedGenerator, clusterGeneratorParams, true, nil)
+	interpolatedGenerator, err = InterpolateGenerator(relGenerators, requestedGenerator, clusterGeneratorParams, true, nil)
 	if err != nil {
 		log.WithError(err).WithField("requestedGenerator", requestedGenerator).Error("error interpolating Generator")
 		return
@@ -501,6 +513,10 @@ func TestInterpolateGenerator_go(t *testing.T) {
 }
 
 func TestInterpolateGeneratorError(t *testing.T) {
+	testGenerators := map[string]Generator{
+		"Git": NewGitGenerator(nil, ""),
+	}
+
 	type args struct {
 		requestedGenerator *argov1alpha1.ApplicationSetGenerator
 		params             map[string]any
@@ -528,7 +544,7 @@ func TestInterpolateGeneratorError(t *testing.T) {
 		{name: "Error templating", args: args{
 			requestedGenerator: &argov1alpha1.ApplicationSetGenerator{Git: &argov1alpha1.GitGenerator{
 				RepoURL:  "foo",
-				Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "bar/"}},
+				Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "path/{{ index .rmap (default .override .test) }}"}},
 				Revision: "main",
 				Values: map[string]string{
 					"git_test":  "{{ toPrettyJson . }}",
@@ -542,17 +558,199 @@ func TestInterpolateGeneratorError(t *testing.T) {
 			},
 			useGoTemplate:     true,
 			goTemplateOptions: []string{},
-		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: "failed to replace parameters in generator: failed to execute go template {{ index .rmap (default .override .test) }}: template: base:1:3: executing \"base\" at <index .rmap (default .override .test)>: error calling index: index of untyped nil"},
+		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: "failed to replace parameters in generator: failed to execute go template path/{{ index .rmap (default .override .test) }}: template: base:1:8: executing \"base\" at <index .rmap (default .override .test)>: error calling index: index of untyped nil"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := InterpolateGenerator(tt.args.requestedGenerator, tt.args.params, tt.args.useGoTemplate, tt.args.goTemplateOptions)
+			relGenerators := []Generator{}
+			if tt.args.requestedGenerator != nil {
+				relGenerators = GetRelevantGenerators(tt.args.requestedGenerator, testGenerators)
+			}
+			got, err := InterpolateGenerator(relGenerators, tt.args.requestedGenerator, tt.args.params, tt.args.useGoTemplate, tt.args.goTemplateOptions)
 			if tt.expectedErrStr != "" {
 				require.EqualError(t, err, tt.expectedErrStr)
 			} else {
 				require.NoError(t, err)
 			}
 			assert.Equalf(t, tt.want, got, "InterpolateGenerator(%v, %v, %v, %v)", tt.args.requestedGenerator, tt.args.params, tt.args.useGoTemplate, tt.args.goTemplateOptions)
+		})
+	}
+}
+
+func TestInterpolateGeneratorValuesHandling(t *testing.T) {
+	testGenerators := map[string]Generator{
+		"Git": NewGitGenerator(nil, ""),
+	}
+	applicationSetTemplate := argov1alpha1.ApplicationSetTemplate{
+		ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
+			Labels:      map[string]string{},
+			Annotations: map[string]string{},
+			Finalizers:  []string{},
+		},
+		Spec: argov1alpha1.ApplicationSpec{
+			IgnoreDifferences: argov1alpha1.IgnoreDifferences{},
+			Info:              []argov1alpha1.Info{},
+			Sources:           argov1alpha1.ApplicationSources{},
+		},
+	}
+	type args struct {
+		requestedGenerator *argov1alpha1.ApplicationSetGenerator
+		params             map[string]any
+		useGoTemplate      bool
+		goTemplateOptions  []string
+	}
+	tests := []struct {
+		name           string
+		args           args
+		want           argov1alpha1.ApplicationSetGenerator
+		expectedErrStr string
+	}{
+		{
+			name: "Generator values",
+			args: args{
+				requestedGenerator: &argov1alpha1.ApplicationSetGenerator{
+					Git: &argov1alpha1.GitGenerator{
+						RepoURL:  "https://somewhere.com/per-cluster/{{.name}}.git",
+						Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+						Revision: "main",
+						Values: map[string]string{
+							"appname": "{{ .path.basenameNormalized }}",
+						},
+						Template: applicationSetTemplate,
+					},
+				},
+				params: map[string]any{
+					"name":   "in-cluster",
+					"server": "https://kubernetes.default.svc",
+				},
+				useGoTemplate:     true,
+				goTemplateOptions: []string{},
+			},
+			want: argov1alpha1.ApplicationSetGenerator{
+				Git: &argov1alpha1.GitGenerator{
+					RepoURL:  "https://somewhere.com/per-cluster/in-cluster.git",
+					Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+					Revision: "main",
+					Values: map[string]string{
+						"appname": "{{ .path.basenameNormalized }}",
+					},
+					Directories: []argov1alpha1.GitDirectoryGeneratorItem{},
+					Template:    applicationSetTemplate,
+				},
+			},
+			expectedErrStr: "",
+		},
+		{
+			name: "Generator no values",
+			args: args{
+				requestedGenerator: &argov1alpha1.ApplicationSetGenerator{
+					Git: &argov1alpha1.GitGenerator{
+						RepoURL:  "https://somewhere.com/per-cluster/{{.name}}.git",
+						Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+						Revision: "main",
+						Values:   map[string]string{},
+						Template: applicationSetTemplate,
+					},
+				},
+				params: map[string]any{
+					"name":   "in-cluster",
+					"server": "https://kubernetes.default.svc",
+				},
+				useGoTemplate:     true,
+				goTemplateOptions: []string{},
+			},
+			want: argov1alpha1.ApplicationSetGenerator{
+				Git: &argov1alpha1.GitGenerator{
+					RepoURL:     "https://somewhere.com/per-cluster/in-cluster.git",
+					Files:       []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+					Revision:    "main",
+					Values:      map[string]string{},
+					Directories: []argov1alpha1.GitDirectoryGeneratorItem{},
+					Template:    applicationSetTemplate,
+				},
+			},
+			expectedErrStr: "",
+		},
+		{
+			name: "Generator values no go",
+			args: args{
+				requestedGenerator: &argov1alpha1.ApplicationSetGenerator{
+					Git: &argov1alpha1.GitGenerator{
+						RepoURL:  "https://somewhere.com/per-cluster/{{name}}.git",
+						Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+						Revision: "main",
+						Values: map[string]string{
+							"appname": "{{ .path.basenameNormalized }}",
+						},
+						Template: applicationSetTemplate,
+					},
+				},
+				params: map[string]any{
+					"name":   "in-cluster",
+					"server": "https://kubernetes.default.svc",
+				},
+				useGoTemplate: false,
+			},
+			want: argov1alpha1.ApplicationSetGenerator{
+				Git: &argov1alpha1.GitGenerator{
+					RepoURL:  "https://somewhere.com/per-cluster/in-cluster.git",
+					Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+					Revision: "main",
+					Values: map[string]string{
+						"appname": "{{ .path.basenameNormalized }}",
+					},
+					Directories: []argov1alpha1.GitDirectoryGeneratorItem{},
+					Template:    applicationSetTemplate,
+				},
+			},
+			expectedErrStr: "",
+		},
+		{
+			name: "Generator no values no go",
+			args: args{
+				requestedGenerator: &argov1alpha1.ApplicationSetGenerator{
+					Git: &argov1alpha1.GitGenerator{
+						RepoURL:  "https://somewhere.com/per-cluster/{{name}}.git",
+						Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+						Revision: "main",
+						Values:   map[string]string{},
+						Template: applicationSetTemplate,
+					},
+				},
+				params: map[string]any{
+					"name":   "in-cluster",
+					"server": "https://kubernetes.default.svc",
+				},
+				useGoTemplate: false,
+			},
+			want: argov1alpha1.ApplicationSetGenerator{
+				Git: &argov1alpha1.GitGenerator{
+					RepoURL:     "https://somewhere.com/per-cluster/in-cluster.git",
+					Files:       []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+					Revision:    "main",
+					Values:      map[string]string{},
+					Directories: []argov1alpha1.GitDirectoryGeneratorItem{},
+					Template:    applicationSetTemplate,
+				},
+			},
+			expectedErrStr: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			relGenerators := GetRelevantGenerators(tt.args.requestedGenerator, testGenerators)
+			got, err := InterpolateGenerator(relGenerators, tt.args.requestedGenerator, tt.args.params, tt.args.useGoTemplate, tt.args.goTemplateOptions)
+			if tt.expectedErrStr != "" {
+				require.EqualError(t, err, tt.expectedErrStr)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.want.Git.Values, got.Git.Values)
+			assert.Equal(t, tt.want.Git.Revision, got.Git.Revision)
+			assert.Equal(t, tt.want.Git.RepoURL, got.Git.RepoURL)
+			assert.Equal(t, tt.want.Git.Files, got.Git.Files)
+			assert.Equal(t, tt.want.Git.Directories, got.Git.Directories)
+			assert.Equal(t, tt.want.Git.Template, got.Git.Template)
 		})
 	}
 }

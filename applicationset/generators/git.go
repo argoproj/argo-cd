@@ -111,6 +111,14 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 	return res, nil
 }
 
+// GetValues returns the pointer to the Values map associated with this Generator
+func (g *GitGenerator) GetValues(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *map[string]string {
+	if appSetGenerator != nil && appSetGenerator.Git != nil {
+		return &appSetGenerator.Git.Values
+	}
+	return nil
+}
+
 // generateParamsForGitDirectories generates parameters for an ApplicationSet using a directory-based Git generator.
 // It fetches all directories from the given Git repository and revision, optionally using a revision cache and verifying commits.
 // It then filters the directories based on the generator's configuration and renders parameters for the resulting applications

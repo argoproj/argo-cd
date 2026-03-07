@@ -216,3 +216,56 @@ func (_c *Generator_GetTemplate_Call) RunAndReturn(run func(appSetGenerator *v1a
 	_c.Call.Return(run)
 	return _c
 }
+
+// GetValues provides a mock function for the type Generator
+func (_mock *Generator) GetValues(appSetGenerator *v1alpha1.ApplicationSetGenerator) *map[string]string {
+	ret := _mock.Called(appSetGenerator)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetValues")
+	}
+
+	var r0 *map[string]string
+	if returnFunc, ok := ret.Get(0).(func(*v1alpha1.ApplicationSetGenerator) *map[string]string); ok {
+		r0 = returnFunc(appSetGenerator)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*map[string]string)
+		}
+	}
+	return r0
+}
+
+// Generator_GetValues_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetValues'
+type Generator_GetValues_Call struct {
+	*mock.Call
+}
+
+// GetValues is a helper method to define mock.On call
+//   - appSetGenerator *v1alpha1.ApplicationSetGenerator
+func (_e *Generator_Expecter) GetValues(appSetGenerator interface{}) *Generator_GetValues_Call {
+	return &Generator_GetValues_Call{Call: _e.mock.On("GetValues", appSetGenerator)}
+}
+
+func (_c *Generator_GetValues_Call) Run(run func(appSetGenerator *v1alpha1.ApplicationSetGenerator)) *Generator_GetValues_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 *v1alpha1.ApplicationSetGenerator
+		if args[0] != nil {
+			arg0 = args[0].(*v1alpha1.ApplicationSetGenerator)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Generator_GetValues_Call) Return(stringToString *map[string]string) *Generator_GetValues_Call {
+	_c.Call.Return(stringToString)
+	return _c
+}
+
+func (_c *Generator_GetValues_Call) RunAndReturn(run func(appSetGenerator *v1alpha1.ApplicationSetGenerator) *map[string]string) *Generator_GetValues_Call {
+	_c.Call.Return(run)
+	return _c
+}

@@ -24,6 +24,9 @@ type Generator interface {
 
 	// GetTemplate returns the inline template from the spec if there is any, or an empty object otherwise
 	GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate
+
+	// GetValues returns pointer to the Values field or nil if not set
+	GetValues(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *map[string]string
 }
 
 var (

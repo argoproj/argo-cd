@@ -81,6 +81,14 @@ func (g *SCMProviderGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.A
 	return &appSetGenerator.SCMProvider.Template
 }
 
+// GetValues returns the pointer to the Values map associated with this Generator
+func (g *SCMProviderGenerator) GetValues(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *map[string]string {
+	if appSetGenerator != nil && appSetGenerator.SCMProvider != nil {
+		return &appSetGenerator.SCMProvider.Values
+	}
+	return nil
+}
+
 var ErrSCMProvidersDisabled = errors.New("scm providers are disabled")
 
 type ErrDisallowedSCMProvider struct {

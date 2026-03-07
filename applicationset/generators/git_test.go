@@ -110,13 +110,18 @@ foo:
 		{
 			name: "file parameters are added to params with go template",
 			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   defaultContent,
-				values:        map[string]string{},
+				filePath:    "path/dir/file_name.yaml",
+				fileContent: defaultContent,
+				values: map[string]string{
+					"somekey": "{{.path.basename}}",
+				},
 				useGoTemplate: true,
 			},
 			want: []map[string]any{
 				{
+					"values": map[string]string{
+						"somekey": "dir",
+					},
 					"foo": map[string]any{
 						"bar": "baz",
 					},
@@ -136,6 +141,36 @@ foo:
 		},
 		{
 			name: "path parameter are prefixed with go template",
+			args: args{
+				filePath:        "path/dir/file_name.yaml",
+				fileContent:     defaultContent,
+				values:          map[string]string{},
+				useGoTemplate:   true,
+				pathParamPrefix: "myRepo",
+			},
+			want: []map[string]any{
+				{
+					"foo": map[string]any{
+						"bar": "baz",
+					},
+					"myRepo": map[string]any{
+						"path": map[string]any{
+							"path":               "path/dir",
+							"basename":           "dir",
+							"filename":           "file_name.yaml",
+							"basenameNormalized": "dir",
+							"filenameNormalized": "file-name.yaml",
+							"segments": []string{
+								"path",
+								"dir",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "path parameter are prefixed with go template and values",
 			args: args{
 				filePath:        "path/dir/file_name.yaml",
 				fileContent:     defaultContent,

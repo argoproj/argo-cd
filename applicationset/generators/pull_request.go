@@ -127,6 +127,14 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	return params, nil
 }
 
+// GetValues returns the pointer to the Values map associated with this Generator
+func (g *PullRequestGenerator) GetValues(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *map[string]string {
+	if appSetGenerator != nil && appSetGenerator.PullRequest != nil {
+		return &appSetGenerator.PullRequest.Values
+	}
+	return nil
+}
+
 // selectServiceProvider selects the provider to get pull requests from the configuration
 func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, generatorConfig *argoprojiov1alpha1.PullRequestGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
 	if !g.enableSCMProviders {

@@ -54,8 +54,9 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 		}
 		var params []map[string]any
 		if len(genParams) != 0 {
-			tempInterpolatedGenerator, err := InterpolateGenerator(&requestedGenerator, genParams, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+			tempInterpolatedGenerator, err := InterpolateGenerator(generators, &requestedGenerator, genParams, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 			interpolatedGenerator = &tempInterpolatedGenerator
+
 			if err != nil {
 				log.WithError(err).WithField("genParams", genParams).
 					Error("error interpolating params for generator")
@@ -123,6 +124,32 @@ func GetRelevantGenerators(requestedGenerator *argoprojiov1alpha1.ApplicationSet
 	return res
 }
 
+func getGeneratorValuesPtr(g Generator, in *argoprojiov1alpha1.ApplicationSetGenerator) *map[string]string {
+	if in == nil {
+		return nil
+	}
+	return g.GetValues(in)
+}
+
+func getGeneratorValues(g Generator, in *argoprojiov1alpha1.ApplicationSetGenerator) map[string]string {
+	if in != nil {
+		valPtr := getGeneratorValuesPtr(g, in)
+		if valPtr != nil {
+			return *valPtr
+		}
+	}
+	return nil
+}
+
+func setGeneratorValues(g Generator, in *argoprojiov1alpha1.ApplicationSetGenerator, vals map[string]string) {
+	if in != nil {
+		valPtr := getGeneratorValuesPtr(g, in)
+		if valPtr != nil {
+			*valPtr = vals
+		}
+	}
+}
+
 func flattenParameters(in map[string]any) (map[string]string, error) {
 	flat, err := flatten.Flatten(in, "", flatten.DotStyle)
 	if err != nil {
@@ -149,13 +176,29 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 
 // InterpolateGenerator allows interpolating the matrix's 2nd child generator with values from the 1st child generator
 // "params" parameter is an array, where each index corresponds to a generator. Each index contains a map w/ that generator's parameters.
-func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params map[string]any, useGoTemplate bool, goTemplateOptions []string) (argoprojiov1alpha1.ApplicationSetGenerator, error) {
+func InterpolateGenerator(generators []Generator, requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params map[string]any, useGoTemplate bool, goTemplateOptions []string) (argoprojiov1alpha1.ApplicationSetGenerator, error) {
 	render := utils.Render{}
+
+	keepVals := make([]map[string]string, len(generators))
+	for idx, generator := range generators {
+		keepVals[idx] = getGeneratorValues(generator, requestedGenerator)
+		setGeneratorValues(generator, requestedGenerator, map[string]string{})
+	}
+	log.Infof("requestedGenerator=%v", requestedGenerator)
+	log.Infof("keepVals=%v", keepVals)
+	log.Infof("params=%v", params)
+
 	interpolatedGenerator, err := render.RenderGeneratorParams(requestedGenerator, params, useGoTemplate, goTemplateOptions)
+	for idx, generator := range generators {
+		setGeneratorValues(generator, interpolatedGenerator, keepVals[idx])
+		setGeneratorValues(generator, requestedGenerator, keepVals[idx])
+	}
+
 	if err != nil {
 		log.WithError(err).WithField("interpolatedGenerator", interpolatedGenerator).Error("error interpolating generator with other generator's parameter")
 		return argoprojiov1alpha1.ApplicationSetGenerator{}, err
 	}
 
+	log.Infof("interpolatedGenerator=%v", interpolatedGenerator)
 	return *interpolatedGenerator, nil
 }
