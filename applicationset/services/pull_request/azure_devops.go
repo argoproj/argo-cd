@@ -117,8 +117,8 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 				HeadSHA:      *pr.LastMergeSourceCommit.CommitId,
 				Labels:       azureDevOpsLabels,
 				Author:       strings.Split(*pr.CreatedBy.UniqueName, "@")[0], // Get the part before the @ in the email-address
-				CreatedAt:    pr.CreationDate.Time,
-				UpdatedAt:    pr.LastMergeSourceCommit.Push.Date.Time,
+				CreatedAt:    pr.CreationDate.Time.UTC(),
+				UpdatedAt:    pr.LastMergeSourceCommit.Push.Date.Time.UTC(),
 			})
 		}
 	}
