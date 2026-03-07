@@ -829,6 +829,9 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                         sidebarTarget?.current
                                                                     )}
 
+                                                                    {pref.view === 'summary' ? (
+                                                                        <ApplicationsSummary applications={filteredApps} />
+                                                                    ) : (
                                                                     <Paginate
                                                                         header={filteredApps.length > 1 && <AppSetsStatusBar appSets={filteredApps} />}
                                                                         showHeader={healthBarPrefs.showHealthStatusBar}
@@ -879,6 +882,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                             )
                                                                         }
                                                                     </Paginate>
+                                                                    )}
                                                                 </>
                                                             )}
                                                         </div>
