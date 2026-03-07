@@ -168,7 +168,7 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 				"kind":      obj.GetKind(),
 				"name":      obj.GetName(),
 				"namespace": obj.GetNamespace(),
-			}).Info("No health check defined for resource, considering it healthy")			
+			}).Info("No health check defined for resource, considering it healthy")
 			hookHealth = &health.HealthStatus{
 				Status: health.HealthStatusHealthy,
 			}
