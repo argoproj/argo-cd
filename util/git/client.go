@@ -609,7 +609,7 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool, clean
 			}
 		}
 	}
-	if cleanState {
+	if cleanState || submoduleEnabled {
 		// NOTE
 		// The double “f” in the arguments is not a typo: the first “f” tells
 		// `git clean` to delete untracked files and directories, and the second “f”
