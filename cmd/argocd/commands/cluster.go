@@ -32,8 +32,8 @@ import (
 )
 
 const (
-	// type of the cluster ID is 'name'
-	clusterIdTypeName = "name"
+	// type of the cluster ID is 'server,name'
+	clusterIdTypeServerAndName = "url_name_escaped"
 	// cluster field is 'name'
 	clusterFieldName = "name"
 	// cluster field is 'namespaces'
@@ -234,10 +234,10 @@ func getRestConfig(pathOpts *clientcmd.PathOptions, ctxName string) (*rest.Confi
 // NewClusterSetCommand returns a new instance of an `argocd cluster set` command
 func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		clusterOptions cmdutil.ClusterOptions
-		clusterName    string
-		labels         []string
-		annotations    []string
+		clusterOptions    cmdutil.ClusterOptions
+		clusterServerName string
+		labels            []string
+		annotations       []string
 	)
 	command := &cobra.Command{
 		Use:   "set NAME",
@@ -252,7 +252,7 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 			// name of the cluster whose fields have to be updated.
-			clusterName = args[0]
+			clusterServerName = args[0]
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer utilio.Close(conn)
 			// checks the fields that needs to be updated
@@ -278,8 +278,8 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					},
 					UpdatedFields: updatedFields,
 					Id: &clusterpkg.ClusterID{
-						Type:  clusterIdTypeName,
-						Value: clusterName,
+						Type:  clusterIdTypeServerAndName,
+						Value: clusterServerName,
 					},
 				}
 				_, err := clusterIf.Update(ctx, &clusterUpdateRequest)
@@ -289,7 +289,7 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					}
 					errors.CheckError(err)
 				}
-				fmt.Printf("Cluster '%s' updated.\n", clusterName)
+				fmt.Printf("Cluster '%s' updated.\n", clusterServerName)
 			} else {
 				fmt.Print("Specify the cluster field to be updated.\n")
 			}
@@ -482,11 +482,17 @@ func printClusterTable(clusters []argoappv1.Cluster) {
 // Returns cluster query for getting cluster depending on the cluster selector
 func getQueryBySelector(clusterSelector string) *clusterpkg.ClusterQuery {
 	var query clusterpkg.ClusterQuery
-	isServer, err := regexp.MatchString(`^https?://`, clusterSelector)
-	if isServer || err != nil {
-		query.Server = clusterSelector
-	} else {
-		query.Name = clusterSelector
+	found := false
+	if query.Server, query.Name, found = strings.Cut(clusterSelector, ","); !found {
+		// should not go into this path. just incase still using old version argocd server
+		// may need to delete this logic since parameter already switch to SERVER,NAME?
+		query.Server = ""
+		isServer, err := regexp.MatchString(`^https?://`, clusterSelector)
+		if isServer || err != nil {
+			query.Server = clusterSelector
+		} else {
+			query.Name = clusterSelector
+		}
 	}
 	return &query
 }
