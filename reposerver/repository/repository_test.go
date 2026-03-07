@@ -677,7 +677,9 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 		}, nil
 	}, []string{})
 	require.NoError(t, err)
-	request := &apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true}
+	source := spec.Sources[0]
+	source.Chart = "."
+	request := &apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &source, NoCache: true, RefSources: refSources, HasMultipleSources: true}
 	_, err = service.GenerateManifest(t.Context(), request)
 	require.Error(t, err)
 }

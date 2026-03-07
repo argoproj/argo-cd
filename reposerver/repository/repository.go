@@ -394,7 +394,7 @@ func (s *Service) runRepoOperation(
 		defer utilio.Close(closer)
 
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := apppathutil.CheckOutOfBoundsSymlinks(ociPath)
+			err := apppathutil.CheckOutOfBoundsSymlinks(ociPath, source.Path)
 			if err != nil {
 				oobError := &apppathutil.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
@@ -435,7 +435,7 @@ func (s *Service) runRepoOperation(
 		}
 		defer utilio.Close(closer)
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := apppathutil.CheckOutOfBoundsSymlinks(chartPath)
+			err := apppathutil.CheckOutOfBoundsSymlinks(chartPath, ".")
 			if err != nil {
 				oobError := &apppathutil.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
@@ -464,7 +464,7 @@ func (s *Service) runRepoOperation(
 	defer utilio.Close(closer)
 
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
-		err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
+		err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root(), source.Path)
 		if err != nil {
 			oobError := &apppathutil.OutOfBoundsSymlinkError{}
 			if errors.As(err, &oobError) {
@@ -677,7 +677,7 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 	}
 
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
-		err := apppathutil.CheckOutOfBoundsSymlinks(workDir)
+		err := apppathutil.CheckOutOfBoundsSymlinks(workDir, req.GetApplicationSource().Path)
 		if err != nil {
 			oobError := &apppathutil.OutOfBoundsSymlinkError{}
 			if errors.As(err, &oobError) {
@@ -856,7 +856,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 						// Symlink check must happen after acquiring lock.
 						if !s.initConstants.AllowOutOfBoundsSymlinks {
-							err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
+							err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root(), opContext.appPath)
 							if err != nil {
 								oobError := &apppathutil.OutOfBoundsSymlinkError{}
 								if errors.As(err, &oobError) {

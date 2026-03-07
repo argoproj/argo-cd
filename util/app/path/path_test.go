@@ -55,13 +55,13 @@ func TestPathNotDir(t *testing.T) {
 }
 
 func TestGoodSymlinks(t *testing.T) {
-	err := CheckOutOfBoundsSymlinks("./testdata/goodlink")
+	err := CheckOutOfBoundsSymlinks("./testdata/goodlink", ".")
 	require.NoError(t, err)
 }
 
 // Simple check of leaving the repo
 func TestBadSymlinks(t *testing.T) {
-	err := CheckOutOfBoundsSymlinks("./testdata/badlink")
+	err := CheckOutOfBoundsSymlinks("./testdata/badlink", ".")
 	var oobError *OutOfBoundsSymlinkError
 	require.ErrorAs(t, err, &oobError)
 	assert.Equal(t, "badlink", oobError.File)
@@ -69,7 +69,7 @@ func TestBadSymlinks(t *testing.T) {
 
 // Crazy formatting check
 func TestBadSymlinks2(t *testing.T) {
-	err := CheckOutOfBoundsSymlinks("./testdata/badlink2")
+	err := CheckOutOfBoundsSymlinks("./testdata/badlink2", ".")
 	var oobError *OutOfBoundsSymlinkError
 	require.ErrorAs(t, err, &oobError)
 	assert.Equal(t, "badlink", oobError.File)
@@ -77,10 +77,22 @@ func TestBadSymlinks2(t *testing.T) {
 
 // Make sure no part of the symlink can leave the repo, even if it ultimately targets inside the repo
 func TestBadSymlinks3(t *testing.T) {
-	err := CheckOutOfBoundsSymlinks("./testdata/badlink3")
+	err := CheckOutOfBoundsSymlinks("./testdata/badlink3", ".")
 	var oobError *OutOfBoundsSymlinkError
 	require.ErrorAs(t, err, &oobError)
 	assert.Equal(t, "badlink", oobError.File)
+}
+
+// Make sure symlink cannot point to another symlink that leaves the repo, even if the first symlink is valid
+func TestBadSymlinks4(t *testing.T) {
+	err := CheckOutOfBoundsSymlinks("./testdata/badlink4", "subdir")
+	var oobError *OutOfBoundsSymlinkError
+	require.ErrorAs(t, err, &oobError)
+	assert.Equal(t, "badlink", oobError.File)
+}
+
+func TestCyclicalLinks(t *testing.T) {
+	require.NoError(t, CheckOutOfBoundsSymlinks("./testdata", "cyclical"))
 }
 
 // No absolute symlinks allowed
@@ -94,7 +106,7 @@ func TestAbsSymlink(t *testing.T) {
 	t.Chdir(testDir)
 	require.NoError(t, fileutil.CreateSymlink(t, "/somethingbad", "abslink"))
 	t.Chdir(wd)
-	err = CheckOutOfBoundsSymlinks(testDir)
+	err = CheckOutOfBoundsSymlinks(testDir, ".")
 	var oobError *OutOfBoundsSymlinkError
 	require.ErrorAs(t, err, &oobError)
 	assert.Equal(t, "abslink", oobError.File)

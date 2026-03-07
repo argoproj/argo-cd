@@ -42,55 +42,71 @@ func (e *OutOfBoundsSymlinkError) Error() string {
 	return "out of bounds symlink found"
 }
 
-// CheckOutOfBoundsSymlinks determines if basePath contains any symlinks that
-// are absolute or point to a path outside of the basePath. If found, an
+// CheckOutOfBoundsSymlinks determines if targetPath contains any symlinks that
+// are absolute or point to a path outside the basePath. If found, an
 // OutOfBoundsSymlinkError is returned.
-func CheckOutOfBoundsSymlinks(basePath string) error {
+func CheckOutOfBoundsSymlinks(basePath string, targetPath string) error {
 	absBasePath, err := filepath.Abs(basePath)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
-	return filepath.Walk(absBasePath, func(path string, info os.FileInfo, err error) error {
+	targetAbsPath := targetPath
+	if !filepath.IsAbs(targetPath) {
+		targetAbsPath = filepath.Join(absBasePath, targetPath)
+	}
+
+	return filepath.Walk(targetAbsPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			// Ignore "no such file or directory" errors than can happen with
 			// temporary files such as .git/*.lock
 			if errors.Is(err, os.ErrNotExist) {
 				return nil
 			}
-			return fmt.Errorf("failed to walk for symlinks in %s: %w", absBasePath, err)
+			return fmt.Errorf("failed to walk for symlinks in %s: %w", targetAbsPath, err)
 		}
 		if files.IsSymlink(info) {
-			// We don't use filepath.EvalSymlinks because it fails without returning a path
-			// if the target doesn't exist.
-			linkTarget, err := os.Readlink(path)
-			if err != nil {
-				return fmt.Errorf("failed to read link %s: %w", path, err)
-			}
-			// get the path of the symlink relative to basePath, used for error description
-			linkRelPath, err := filepath.Rel(absBasePath, path)
-			if err != nil {
-				return fmt.Errorf("failed to get relative path for symlink: %w", err)
-			}
-			// deny all absolute symlinks
-			if filepath.IsAbs(linkTarget) {
-				return &OutOfBoundsSymlinkError{File: linkRelPath}
-			}
-			// get the parent directory of the symlink
-			currentDir := filepath.Dir(path)
-
-			// walk each part of the symlink target to make sure it never leaves basePath
-			parts := strings.SplitSeq(linkTarget, string(os.PathSeparator))
-			for part := range parts {
-				newDir := filepath.Join(currentDir, part)
-				rel, err := filepath.Rel(absBasePath, newDir)
+			checked := map[string]bool{}
+			linkPaths := []string{path}
+			for len(linkPaths) > 0 {
+				linkPath := linkPaths[0]
+				linkPaths = linkPaths[1:]
+				checked[linkPath] = true
+				// We don't use filepath.EvalSymlinks because it fails without returning a path
+				// if the target doesn't exist.
+				linkTarget, err := os.Readlink(linkPath)
 				if err != nil {
-					return fmt.Errorf("failed to get relative path for symlink target: %w", err)
+					return fmt.Errorf("failed to read link %s: %w", linkPath, err)
 				}
-				if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
-					// return an error so we don't keep traversing the tree
+				// get the path of the symlink relative to basePath, used for error description
+				linkRelPath, err := filepath.Rel(absBasePath, linkPath)
+				if err != nil {
+					return fmt.Errorf("failed to get relative path for symlink: %w", err)
+				}
+				// deny all absolute symlinks
+				if filepath.IsAbs(linkTarget) {
 					return &OutOfBoundsSymlinkError{File: linkRelPath}
 				}
-				currentDir = newDir
+				// get the parent directory of the symlink
+				currentDir := filepath.Dir(linkPath)
+
+				targetFullPath := filepath.Join(currentDir, linkTarget)
+				if info, err := os.Lstat(targetFullPath); err == nil && files.IsSymlink(info) && !checked[targetFullPath] {
+					linkPaths = append(linkPaths, targetFullPath)
+				}
+				// walk each part of the symlink target to make sure it never leaves basePath
+				parts := strings.SplitSeq(linkTarget, string(os.PathSeparator))
+				for part := range parts {
+					newDir := filepath.Join(currentDir, part)
+					rel, err := filepath.Rel(absBasePath, newDir)
+					if err != nil {
+						return fmt.Errorf("failed to get relative path for symlink target: %w", err)
+					}
+					if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+						// return an error so we don't keep traversing the tree
+						return &OutOfBoundsSymlinkError{File: linkRelPath}
+					}
+					currentDir = newDir
+				}
 			}
 		}
 		return nil
