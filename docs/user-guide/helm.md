@@ -265,7 +265,7 @@ source:
 
 ## Helm Hooks
 
-Helm hooks are similar to [Argo CD hooks](resource_hooks.md). In Helm, a hook
+Helm hooks are similar to [Argo CD hooks](sync-waves.md). In Helm, a hook
 is any normal Kubernetes resource annotated with the `helm.sh/hook` annotation.
 
 Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations:
@@ -306,7 +306,7 @@ Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl a
 * Annotate  `pre-install` and `post-install` with `hook-weight: "-1"`. This will make sure it runs to success before any upgrade hooks.
 * Annotate `pre-upgrade` and `post-upgrade` with `hook-delete-policy: before-hook-creation` to make sure it runs on every sync.
 
-Read more about [Argo hooks](resource_hooks.md) and [Helm hooks](https://helm.sh/docs/topics/charts_hooks/).
+Read more about [Argo hooks](sync-waves.md) and [Helm hooks](https://helm.sh/docs/topics/charts_hooks/).
 
 ## Random Data
 
