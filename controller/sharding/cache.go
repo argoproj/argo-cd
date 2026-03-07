@@ -274,9 +274,9 @@ func (sharding *ClusterSharding) GetAppDistribution() map[string]int {
 // UpdateShard will update the shard of ClusterSharding when the shard has changed.
 func (sharding *ClusterSharding) UpdateShard(shard int) bool {
 	if shard != sharding.Shard {
-		sharding.lock.RLock()
+		sharding.lock.Lock()
 		sharding.Shard = shard
-		sharding.lock.RUnlock()
+		sharding.lock.Unlock()
 		return true
 	}
 	return false
