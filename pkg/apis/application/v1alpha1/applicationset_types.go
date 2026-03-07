@@ -906,6 +906,9 @@ type ApplicationSetApplicationStatus struct {
 	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
 	// TargetRevision tracks the desired revisions the Application should be synced to.
 	TargetRevisions []string `json:"targetRevisions" protobuf:"bytes,6,opt,name=targetrevisions"`
+	// TargetSourcesHash tracks a hash of app.Spec.GetSources() to detect inline spec
+	// changes (e.g. valuesObject) that do not affect the git revision.
+	TargetSourcesHash string `json:"targetSourcesHash,omitempty" protobuf:"bytes,7,opt,name=targetsourceshash"`
 }
 
 // ApplicationSetList contains a list of ApplicationSet

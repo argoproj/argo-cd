@@ -5415,6 +5415,77 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "resets app to Waiting when valuesObject changes but git SHA stays the same",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
+					Step:               "1",
+					TargetRevisions:    []string{"abc123"},
+					TargetSourcesHash:  "oldhash",
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &metav1.Time{Time: time.Now()},
+						Health:       v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+						Sync: v1alpha1.SyncStatus{
+							Status:   v1alpha1.SyncStatusCodeOutOfSync,
+							Revision: "abc123",
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Values: "image: newimage",
+							},
+						},
+					},
+				},
+			},
+			appStepMap: map[string]int{"app1": 0},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application has pending changes, setting status to Waiting",
+					Status:          v1alpha1.ProgressiveSyncWaiting,
+					Step:            "1",
+					TargetRevisions: []string{"abc123"},
+				},
+			},
+		},
+		{
+			name: "does not reset app to Waiting when TargetSourcesHash is empty (migration guard)",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
+					Step:               "1",
+					TargetRevisions:    []string{"abc123"},
+					TargetSourcesHash:  "",
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "abc123", newOperationState(common.OperationSucceeded)),
+			},
+			appStepMap: map[string]int{"app1": 0},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
+					Step:            "1",
+					TargetRevisions: []string{"abc123"},
+				},
+			},
+		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
@@ -5439,9 +5510,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
 				appStatuses[i].LastTransitionTime = nil
+				appStatuses[i].TargetSourcesHash = ""
 			}
 			for i := range cc.expectedAppStatus {
 				cc.expectedAppStatus[i].LastTransitionTime = nil
+				cc.expectedAppStatus[i].TargetSourcesHash = ""
 			}
 
 			require.NoError(t, err, "expected no errors, but errors occurred")
@@ -6192,6 +6265,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
 				appStatuses[i].LastTransitionTime = nil
+				appStatuses[i].TargetSourcesHash = ""
 			}
 
 			require.NoError(t, err, "expected no errors, but errors occurred")
