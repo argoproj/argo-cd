@@ -391,7 +391,7 @@ func (a *Actions) StatusUpdatePlacementDecision(placementDecisionName string, cl
 }
 
 // Delete deletes the ApplicationSet within the context
-func (a *Actions) Delete() *Actions {
+func (a *Actions) Delete(deletionOrder bool) *Actions {
 	a.context.T().Helper()
 
 	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
@@ -408,9 +408,14 @@ func (a *Actions) Delete() *Actions {
 	} else {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}
-
-	deleteProp := metav1.DeletePropagationForeground
-	err := appSetClientSet.Delete(context.Background(), a.context.GetName(), metav1.DeleteOptions{PropagationPolicy: &deleteProp})
+	var deleteOptions metav1.DeleteOptions
+	if deletionOrder {
+		deleteOptions = metav1.DeleteOptions{}
+	} else {
+		deleteProp := metav1.DeletePropagationForeground
+		deleteOptions = metav1.DeleteOptions{PropagationPolicy: &deleteProp}
+	}
+	err := appSetClientSet.Delete(context.Background(), a.context.GetName(), deleteOptions)
 	a.describeAction = fmt.Sprintf("Deleting ApplicationSet '%s/%s' %v", a.context.namespace, a.context.GetName(), err)
 	a.lastOutput, a.lastError = "", err
 	a.verifyAction()
@@ -564,5 +569,37 @@ func (a *Actions) runCli(args ...string) {
 func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
 	a.context.T().Helper()
 	fixture.AddSignedFile(a.context.T(), a.context.path+"/"+fileName, fileContents)
+	return a
+}
+
+func (a *Actions) RemoveFinalizerFromApps(appNames []string, finalizer string) *Actions {
+	a.context.T().Helper()
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
+
+	for _, appName := range appNames {
+		app, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(
+			context.Background(), appName, metav1.GetOptions{})
+		if err != nil {
+			a.lastError = err
+			continue
+		}
+
+		// Remove the finalizer
+		finalizers := []string{}
+		for _, f := range app.Finalizers {
+			if f != finalizer {
+				finalizers = append(finalizers, f)
+			}
+		}
+		app.Finalizers = finalizers
+
+		_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Update(
+			context.Background(), app, metav1.UpdateOptions{})
+		if err != nil {
+			a.lastError = err
+		}
+	}
+	a.describeAction = fmt.Sprintf("removing finalizer '%s' from apps %v", finalizer, appNames)
+	a.verifyAction()
 	return a
 }
