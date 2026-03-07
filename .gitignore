@@ -24,6 +24,9 @@ node_modules/
 .*.swp
 rerunreport.txt
 
+# Claude Code local settings (user-specific permissions)
+.claude/settings.local.json
+
 # ignore built binaries
 cmd/argocd/argocd
 cmd/argocd-application-controller/argocd-application-controller
