@@ -578,7 +578,7 @@ func TestCompileFiltersZeroDuration(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "must be greater than 0")
 	}
-	for _, zero := range []string{"0", "0s"} {
+	for _, zero := range []string{"0", "0s", "0h", "0m"} {
 		filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{{UpdatedWithin: &zero}}
 		_, err := ListPullRequests(t.Context(), provider, filters)
 		require.Error(t, err)
@@ -684,6 +684,58 @@ func TestDurationFilterZeroTimeValue(t *testing.T) {
 	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
 		{
 			CreatedWithin: new("24h"),
+		},
+	}
+	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	require.NoError(t, err)
+	assert.Empty(t, pullRequests)
+}
+
+func TestUpdatedDurationFilterBoundaryBehavior(t *testing.T) {
+	// PR updated at now-1h, PR should not be included by a "1h" UpdatedWithin filter.
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
+				CreatedAt:    time.Now().UTC().Add(-1 * time.Hour),
+				UpdatedAt:    time.Now().UTC().Add(-1 * time.Hour),
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			UpdatedWithin: new("1h"),
+		},
+	}
+	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 0)
+}
+
+func TestUpdatedDurationFilterZeroTimeValue(t *testing.T) {
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
+				// UpdatedAt left as zero time.Time{}
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			UpdatedWithin: new("24h"),
 		},
 	}
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
