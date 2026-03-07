@@ -405,7 +405,7 @@ func TestCreatedWithinFilter(t *testing.T) {
 	)
 	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
 		{
-			CreatedWithin: strp("168h"),
+			CreatedWithin: new("168h"),
 		},
 	}
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
@@ -454,7 +454,7 @@ func TestUpdatedWithinFilter(t *testing.T) {
 	)
 	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
 		{
-			UpdatedWithin: strp("60m"),
+			UpdatedWithin: new("60m"),
 		},
 	}
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
@@ -522,8 +522,8 @@ func TestCreatedUpdatedWithinComboFilter(t *testing.T) {
 	)
 	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
 		{
-			CreatedWithin: strp("72h"),
-			UpdatedWithin: strp("24h"),
+			CreatedWithin: new("72h"),
+			UpdatedWithin: new("24h"),
 		},
 	}
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
