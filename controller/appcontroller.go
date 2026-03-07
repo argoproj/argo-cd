@@ -109,6 +109,7 @@ type ApplicationController struct {
 	kubeClientset        kubernetes.Interface
 	kubectl              kube.Kubectl
 	applicationClientset appclientset.Interface
+	repoClientset        apiclient.Clientset
 	auditLogger          *argo.AuditLogger
 	// queue contains app namespace/name
 	appRefreshQueue workqueue.TypedRateLimitingInterface[string]
@@ -146,6 +147,15 @@ type ApplicationController struct {
 	deploymentInformer                informerv1.DeploymentInformer
 
 	hydrator *hydrator.Hydrator
+
+	// hydratedCommitCache caches validation results for hydrated commits to reduce
+	// repo server calls during auto-sync evaluation. Since auto-sync evaluation runs
+	// on every reconcile loop, caching prevents repeated git operations for the same
+	// sync branch SHA. The cache automatically updates when the sync SHA changes.
+	// Key: "namespace/appName"
+	// Value: most recent validation result (contains syncSHA for freshness check)
+	hydratedCommitCache map[string]*hydratedCommitValidation
+	hydratedCacheLock   sync.RWMutex
 }
 
 // NewApplicationController creates new instance of ApplicationController.
@@ -193,6 +203,7 @@ func NewApplicationController(
 		kubeClientset:                     kubeClientset,
 		kubectl:                           kubectl,
 		applicationClientset:              applicationClientset,
+		repoClientset:                     repoClientset,
 		appRefreshQueue:                   workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_reconciliation_queue"}),
 		appOperationQueue:                 workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_operation_processing_queue"}),
 		projectRefreshQueue:               workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "project_reconciliation_queue"}),
@@ -216,6 +227,7 @@ func NewApplicationController(
 		dynamicClusterDistributionEnabled: dynamicClusterDistributionEnabled,
 		ignoreNormalizerOpts:              ignoreNormalizerOpts,
 		metricsClusterLabels:              metricsClusterLabels,
+		hydratedCommitCache:               make(map[string]*hydratedCommitValidation),
 	}
 	if hydratorEnabled {
 		ctrl.hydrator = hydrator.NewHydrator(&ctrl, appResyncPeriod, commitClientset, repoClientset, db)
@@ -2191,6 +2203,11 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	}
 	if app.DeletionTimestamp != nil && !app.DeletionTimestamp.IsZero() {
 		logCtx.Infof("Skipping auto-sync: deletion in progress")
+		return nil, 0
+	}
+
+	// For hydrator apps, check if we should block auto-sync due to stale hydrated files
+	if ctrl.shouldBlockAutoSyncForHydrator(app, syncStatus.Revision, logCtx) {
 		return nil, 0
 	}
 
