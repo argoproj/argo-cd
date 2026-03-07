@@ -364,8 +364,11 @@ spec:
 * `branchMatch`: A regexp matched against source branch names.
 * `targetBranchMatch`: A regexp matched against target branch names.
 * `titleMatch`: A regexp matched against Pull Request title. 
-* `createdWithin`: A duration that filters PRs created within the specified time range.
-* `updatedWithin`: A duration that filters PRs last updated within the specified time range.
+* `createdWithin`: A duration filtering PRs that are created within the specified time range.
+* `updatedWithin`: A duration filtering PRs that are updated within the specified time range.
+
+> [!NOTE]
+> For time based conditions `createdWithin` and `updatedWithin` if PR creation or update time exactly matches time specified in the conditions, PRs will be excluded. Time duration in conditions cannot be zero or negative. Time duration must be in format of [Go time.Duration](https://pkg.go.dev/time#ParseDuration)
 
 [GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
 

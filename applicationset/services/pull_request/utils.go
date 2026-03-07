@@ -21,6 +21,10 @@ func compileTimeDurationFilter(filterValue *string, output **time.Duration, filt
 		return fmt.Errorf("error parsing %s duration %s: %w", filterName, *filterValue, err)
 	}
 
+	if d <= 0 {
+		return fmt.Errorf("%s duration must be greater than 0, got %s", filterName, *filterValue)
+	}
+
 	*output = &d
 
 	return nil
