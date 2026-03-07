@@ -321,8 +321,16 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	if len(opts.ApplicationNamespaces) > 0 {
 		appInformerNs = ""
 	}
-	projFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(opts.Namespace), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
-	appFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(appInformerNs), appinformer.WithTweakListOptions(func(_ *metav1.ListOptions) {}))
+	// Set resourceVersion=0 for faster initial list from API server cache instead of etcd
+	tweakListOptionsForFastInit := func(options *metav1.ListOptions) {
+		// resourceVersion=0 means use API server's watch cache (faster but may be slightly stale)
+		// This speeds up initial informer sync, especially with large numbers of Applications
+		if options.ResourceVersion == "" {
+			options.ResourceVersion = "0"
+		}
+	}
+	projFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(opts.Namespace), appinformer.WithTweakListOptions(tweakListOptionsForFastInit))
+	appFactory := appinformer.NewSharedInformerFactoryWithOptions(opts.AppClientset, 0, appinformer.WithNamespace(appInformerNs), appinformer.WithTweakListOptions(tweakListOptionsForFastInit))
 
 	projInformer := projFactory.Argoproj().V1alpha1().AppProjects().Informer()
 	projLister := projFactory.Argoproj().V1alpha1().AppProjects().Lister().AppProjects(opts.Namespace)
