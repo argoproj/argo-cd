@@ -57,6 +57,7 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"gopkg.in/yaml.v2"
@@ -1518,6 +1519,14 @@ func replaceBaseHRef(data string, replaceWith string) string {
 }
 
 // Authenticate checks for the presence of a valid token when accessing server-side resources.
+// clientAddress returns the client IP address from the gRPC peer info, or "unknown" if unavailable.
+func clientAddress(ctx context.Context) string {
+	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
+		return p.Addr.String()
+	}
+	return "unknown"
+}
+
 func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error) {
 	var span trace.Span
 	ctx, span = tracer.Start(ctx, "server.ArgoCDServer.Authenticate")
@@ -1545,6 +1554,9 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 	}
 
 	if claimsErr != nil {
+		clientAddr := clientAddress(ctx)
+		log.Warnf("authentication failed: %v (client: %s)", claimsErr, clientAddr)
+
 		argoCDSettings, err := server.settingsMgr.GetSettings()
 		if err != nil {
 			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
