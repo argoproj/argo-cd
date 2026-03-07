@@ -195,11 +195,11 @@ func NewCommand() *cobra.Command {
 						if certFile != nil {
 							_, err := certFile.Write(certPEM)
 							if err != nil {
-								return fmt.Errorf("failed to write health check cert file: %v", err)
+								return fmt.Errorf("failed to write health check cert file: %w", err)
 							}
 							err = certFile.Close()
 							if err != nil {
-								return fmt.Errorf("failed to close health check cert file: %v", err)
+								return fmt.Errorf("failed to close health check cert file: %w", err)
 							}
 							healthCheckTLSConfig.ClientCertFile = certFile.Name()
 							defer func(name string) {
@@ -213,11 +213,11 @@ func NewCommand() *cobra.Command {
 						if keyFile != nil {
 							_, err := keyFile.Write(keyPEM)
 							if err != nil {
-								return fmt.Errorf("failed to write health check key file: %v", err)
+								return fmt.Errorf("failed to write health check key file: %w", err)
 							}
 							err = keyFile.Close()
 							if err != nil {
-								return fmt.Errorf("failed to close health check key file: %v", err)
+								return fmt.Errorf("failed to close health check key file: %w", err)
 							}
 							healthCheckTLSConfig.ClientCertKeyFile = keyFile.Name()
 							defer func(name string) {
