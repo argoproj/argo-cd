@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -126,6 +127,10 @@ type Client interface {
 	Root() string
 	Init() error
 	Fetch(revision string, depth int64, usePartialClone bool) error
+	// FetchSparseBlobs pre-fetches blobs needed for the given sparse checkout paths in a single
+	// batch request. This should be called after a --filter=blob:none fetch and before checkout,
+	// to avoid slow individual lazy-fetch requests during git checkout.
+	FetchSparseBlobs(revision string, paths []string) error
 	ConfigureSparseCheckout(paths []string) error
 	Submodule() error
 	Checkout(revision string, submoduleEnabled bool) (string, error)
@@ -476,7 +481,16 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 		args = append(args, "--tags")
 	}
 
-	args = append(args, "--force", "--prune")
+	args = append(args, "--force")
+
+	// Skip --prune for partial clone fetches. When fetching a specific SHA with
+	// --filter=blob:none, --prune forces a full ref advertisement from the remote
+	// to determine which local refs to remove. This is unnecessary and can take
+	// 30-60s on repos with thousands of tags/branches.
+	if !usePartialClone {
+		args = append(args, "--prune")
+	}
+
 	return m.runCredentialedCmd(ctx, args...)
 }
 
@@ -546,6 +560,54 @@ func (m *nativeGitClient) ConfigureSparseCheckout(paths []string) error {
 	}
 
 	log.Debugf("Configured sparse checkout with paths: %v", paths)
+	return nil
+}
+
+// FetchSparseBlobs pre-fetches blobs needed for the given sparse checkout paths in a single
+// batch request. Call this after a --filter=blob:none fetch and before checkout.
+// This uses "git rev-list --objects --no-object-names" to list all object SHAs under the sparse
+// paths, then pipes them to "git cat-file --batch-check" to identify missing blobs, and finally
+// uses "git fetch origin" to fetch them in one batch from the promisor remote.
+func (m *nativeGitClient) FetchSparseBlobs(revision string, paths []string) error {
+	if len(paths) == 0 || revision == "" {
+		return nil
+	}
+
+	ctx := context.Background()
+
+	// List all objects under the sparse paths and identify which are missing locally.
+	// --missing=print outputs missing objects with a "?" prefix (e.g. "?<sha>"), while
+	// present objects are listed normally. In a --filter=blob:none partial clone, commits
+	// and trees are always present — only blobs are missing. This lets us identify exactly
+	// which blobs need to be fetched without a separate cat-file step.
+	revListArgs := append([]string{"rev-list", "--objects", "--no-object-names", "--missing=print", revision, "--"}, paths...)
+	objectList, err := m.runCmd(ctx, revListArgs...)
+	if err != nil {
+		log.Warnf("Failed to list objects for sparse paths, checkout will lazy-fetch: %v", err)
+		return nil // Non-fatal: checkout will still work via lazy fetching
+	}
+
+	var missingBlobs []string
+	for line := range strings.SplitSeq(strings.TrimSpace(objectList), "\n") {
+		if sha, found := strings.CutPrefix(line, "?"); found && sha != "" {
+			missingBlobs = append(missingBlobs, sha)
+		}
+	}
+
+	if len(missingBlobs) == 0 {
+		log.Debugf("All blobs for sparse paths already present locally")
+		return nil
+	}
+
+	log.Infof("Pre-fetching %d missing blobs for sparse paths", len(missingBlobs))
+
+	// Batch-fetch all missing blobs from the promisor remote in a single request.
+	if err := m.runCredentialedCmd(ctx, slices.Concat([]string{"fetch", "origin"}, missingBlobs)...); err != nil {
+		log.Warnf("Batch blob pre-fetch failed, checkout will lazy-fetch: %v", err)
+		return nil // Non-fatal: checkout will still work via lazy fetching
+	}
+
+	log.Infof("Successfully pre-fetched %d blobs for sparse paths", len(missingBlobs))
 	return nil
 }
 

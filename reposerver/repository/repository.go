@@ -2857,6 +2857,15 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		}
 	}
 
+	// For partial clone repos, pre-fetch blobs for sparse paths in a single batch request
+	// before checkout. Without this, git checkout lazy-fetches blobs individually which is
+	// extremely slow (100+ seconds for directories with many files).
+	if enablePartialClone && len(sparsePaths) > 0 {
+		if prefetchErr := gitClient.FetchSparseBlobs(revision, sparsePaths); prefetchErr != nil {
+			log.Warnf("Sparse blob pre-fetch failed (checkout will still work via lazy fetch): %v", prefetchErr)
+		}
+	}
+
 	_, err = gitClient.Checkout(revision, submoduleEnabled)
 	if err != nil {
 		// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails

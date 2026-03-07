@@ -1502,5 +1502,140 @@ func Test_nativeGitClient_Checkout_UsesCredentials(t *testing.T) {
 	require.NoError(t, err)
 
 	// Checkout must call Environ() to pass credentials for partial clone lazy fetches
-	assert.Greater(t, creds.environCalls, 0, "Checkout should call creds.Environ() to support partial clone lazy blob fetches")
+	assert.Positive(t, creds.environCalls, "Checkout should call creds.Environ() to support partial clone lazy blob fetches")
+}
+
+func Test_nativeGitClient_FetchSparseBlobs(t *testing.T) {
+	ctx := t.Context()
+
+	// Create a source repo with files in a subdirectory
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	err = os.MkdirAll(path.Join(tempDir, "subdir"), 0o755)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "subdir", "file1.txt"), []byte("content1"), 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "subdir", "file2.txt"), []byte("content2"), 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "root.txt"), []byte("root"), 0o644))
+	err = runCmd(ctx, tempDir, "git", "add", ".")
+	require.NoError(t, err)
+	err = runCmd(ctx, tempDir, "git", "commit", "-m", "add files")
+	require.NoError(t, err)
+
+	commitSHA, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	revision := strings.TrimSpace(string(commitSHA))
+
+	// Create a client pointing to the source repo and do a normal fetch
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(client.Root()) })
+
+	err = client.Init()
+	require.NoError(t, err)
+	err = client.Fetch(revision, 0, false)
+	require.NoError(t, err)
+
+	// Simulate a partial clone (--filter=blob:none) state on disk.
+	// The local file:// protocol doesn't support --filter, so we:
+	// 1. Identify non-blob object SHAs (commits, trees)
+	// 2. Pack only those into a promisor pack
+	// 3. Remove the original pack that contains blobs
+	// 4. Configure the remote as a promisor remote
+	// This mirrors what a real --filter=blob:none clone looks like.
+	clientRoot := client.Root()
+	simulatePartialClone(ctx, t, clientRoot, revision)
+
+	// Verify blobs are actually missing now
+	missingCheck, err := outputCmd(ctx, clientRoot, "git", "rev-list", "--objects", "--no-object-names", "--missing=print", revision, "--", "subdir")
+	require.NoError(t, err)
+	missingCount := 0
+	for _, line := range strings.Split(string(missingCheck), "\n") {
+		if strings.HasPrefix(line, "?") {
+			missingCount++
+		}
+	}
+	require.Equal(t, 2, missingCount, "should have 2 missing blobs (file1.txt and file2.txt)")
+
+	// FetchSparseBlobs should detect and fetch the missing blobs
+	err = client.FetchSparseBlobs(revision, []string{"subdir"})
+	require.NoError(t, err)
+
+	// Verify blobs are now present
+	missingAfter, err := outputCmd(ctx, clientRoot, "git", "rev-list", "--objects", "--no-object-names", "--missing=print", revision, "--", "subdir")
+	require.NoError(t, err)
+	for _, line := range strings.Split(string(missingAfter), "\n") {
+		assert.False(t, strings.HasPrefix(line, "?"), "blob should no longer be missing: %s", line)
+	}
+
+	// Checkout should work without needing lazy fetches
+	_, err = client.Checkout(revision, false)
+	require.NoError(t, err)
+
+	// Verify the files exist in the working directory
+	content, err := os.ReadFile(path.Join(clientRoot, "subdir", "file1.txt"))
+	require.NoError(t, err)
+	assert.Equal(t, "content1", string(content))
+}
+
+// simulatePartialClone transforms a fully-fetched repo into a state that looks like
+// a --filter=blob:none partial clone. It packs all non-blob objects into a promisor
+// pack, removes any existing packs, and deletes loose blob objects. This is needed
+// because the local file:// git protocol does not support --filter.
+func simulatePartialClone(ctx context.Context, t *testing.T, repoDir string, revision string) {
+	t.Helper()
+
+	// Categorize all objects into blobs and non-blobs
+	allOutput, err := outputCmd(ctx, repoDir, "git", "rev-list", "--objects", "--no-object-names", revision)
+	require.NoError(t, err)
+	var nonBlobSHAs []string
+	var blobSHAs []string
+	for _, sha := range strings.Split(strings.TrimSpace(string(allOutput)), "\n") {
+		if sha == "" {
+			continue
+		}
+		objType, err := outputCmd(ctx, repoDir, "git", "cat-file", "-t", sha)
+		require.NoError(t, err)
+		if strings.TrimSpace(string(objType)) == "blob" {
+			blobSHAs = append(blobSHAs, sha)
+		} else {
+			nonBlobSHAs = append(nonBlobSHAs, sha)
+		}
+	}
+	require.NotEmpty(t, nonBlobSHAs, "should have non-blob objects")
+	require.NotEmpty(t, blobSHAs, "should have blob objects")
+
+	// Pack all non-blob objects into a promisor pack
+	packDir := filepath.Join(repoDir, ".git", "objects", "pack")
+	packCmd := exec.CommandContext(ctx, "git", "pack-objects", filepath.Join(packDir, "promisor"))
+	packCmd.Dir = repoDir
+	packCmd.Stdin = strings.NewReader(strings.Join(nonBlobSHAs, "\n"))
+	packOutput, err := packCmd.Output()
+	require.NoError(t, err)
+	packHash := strings.TrimSpace(string(packOutput))
+
+	// Mark the new pack as a promisor pack
+	require.NoError(t, os.WriteFile(filepath.Join(packDir, "promisor-"+packHash+".promisor"), []byte(""), 0o644))
+
+	// Remove any original packs (if objects came in as packfiles)
+	entries, err := os.ReadDir(packDir)
+	require.NoError(t, err)
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "pack-") {
+			require.NoError(t, os.Remove(filepath.Join(packDir, entry.Name())))
+		}
+	}
+
+	// Remove loose blob objects
+	objectsDir := filepath.Join(repoDir, ".git", "objects")
+	for _, sha := range blobSHAs {
+		loosePath := filepath.Join(objectsDir, sha[:2], sha[2:])
+		if err := os.Remove(loosePath); err != nil && !os.IsNotExist(err) {
+			t.Fatalf("failed to remove loose blob %s: %v", sha, err)
+		}
+	}
+
+	// Configure the remote as a promisor remote
+	require.NoError(t, runCmd(ctx, repoDir, "git", "config", "remote.origin.promisor", "true"))
+	require.NoError(t, runCmd(ctx, repoDir, "git", "config", "remote.origin.partialclonefilter", "blob:none"))
 }

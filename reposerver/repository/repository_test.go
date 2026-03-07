@@ -112,6 +112,7 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 		gitClient.EXPECT().Init().Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().FetchSparseBlobs(mock.Anything, mock.Anything).Maybe().Return(nil)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().LsRemote(mock.Anything).Return(mock.Anything, nil)
 		gitClient.EXPECT().CommitSHA().Return(mock.Anything, nil)
@@ -4844,6 +4845,8 @@ func Test_checkoutRevision_PartialClone_UsesFilteredFetch(t *testing.T) {
 
 	// The key assertion: Fetch must be called with usePartialClone=true (3rd arg)
 	gitClient.EXPECT().Fetch("abc123", int64(0), true).Return(nil)
+	// Pre-fetch blobs for sparse paths before checkout
+	gitClient.EXPECT().FetchSparseBlobs("abc123", []string{"./mypath"}).Return(nil)
 	gitClient.EXPECT().Checkout("abc123", false).Return("", nil)
 
 	err := checkoutRevision(gitClient, "abc123", false, 0, true, []string{"./mypath"})
@@ -4860,6 +4863,35 @@ func Test_checkoutRevision_NonPartialClone_UsesFullFetch(t *testing.T) {
 	// Full fetch: usePartialClone=false
 	gitClient.EXPECT().Fetch("", int64(0), false).Return(nil)
 	gitClient.EXPECT().Checkout("abc123", false).Return("", nil)
+
+	err := checkoutRevision(gitClient, "abc123", false, 0, false, nil)
+	require.NoError(t, err)
+	gitClient.AssertExpectations(t)
+}
+
+func Test_checkoutRevision_PartialClone_PrefetchesSparseBlobs(t *testing.T) {
+	// Verify that FetchSparseBlobs is called before Checkout for partial clone repos
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().IsRevisionPresent("abc123").Return(false)
+	gitClient.EXPECT().ConfigureSparseCheckout([]string{"./app1", "./app2"}).Return(nil)
+	gitClient.EXPECT().Fetch("abc123", int64(0), true).Return(nil)
+	gitClient.EXPECT().FetchSparseBlobs("abc123", []string{"./app1", "./app2"}).Return(nil)
+	gitClient.EXPECT().Checkout("abc123", false).Return("", nil)
+
+	err := checkoutRevision(gitClient, "abc123", false, 0, true, []string{"./app1", "./app2"})
+	require.NoError(t, err)
+	gitClient.AssertExpectations(t)
+}
+
+func Test_checkoutRevision_NonPartialClone_SkipsPrefetch(t *testing.T) {
+	// Verify that FetchSparseBlobs is NOT called for non-partial-clone repos
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().IsRevisionPresent("abc123").Return(false)
+	gitClient.EXPECT().Fetch("", int64(0), false).Return(nil)
+	gitClient.EXPECT().Checkout("abc123", false).Return("", nil)
+	// FetchSparseBlobs should NOT be called — no expectation set
 
 	err := checkoutRevision(gitClient, "abc123", false, 0, false, nil)
 	require.NoError(t, err)
