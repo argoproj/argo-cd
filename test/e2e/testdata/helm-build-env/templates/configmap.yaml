@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: build-env
+  annotations:
+    resolvedRevision: {{ .Values.resolvedRevision | quote }}
+data: {}

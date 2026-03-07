@@ -42,6 +42,11 @@ endif
 
 DOCKER_SRCDIR?=$(GOPATH)/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
+DOCKER_HOME?=/home/user
+
+# Translate a host KUBECONFIG path into the equivalent container path.
+# The host's $HOME/.kube is mounted at $(DOCKER_HOME)/.kube inside containers.
+DOCKER_KUBECONFIG=$(subst $(HOME)/,$(DOCKER_HOME)/,$(KUBECONFIG))
 
 # Allows you to control which Docker network the test-util containers attach to.
 # This is particularly useful if you are running Kubernetes in Docker (e.g., k3d)
@@ -120,6 +125,7 @@ define run-in-test-server
 		-e ARGOCD_GPG_DATA_PATH=${ARGOCD_GPG_DATA_PATH:-/tmp/argocd-local/gpg/source} \
 		-e ARGOCD_APPLICATION_NAMESPACES \
 		-e GITHUB_TOKEN \
+		-e "KUBECONFIG=$(DOCKER_KUBECONFIG)" \
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
@@ -157,7 +163,7 @@ endef
 
 #
 define exec-in-test-server
-	$(SUDO) $(DOCKER) exec -it -u $(CONTAINER_UID):$(CONTAINER_GID) -e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
+	$(SUDO) $(DOCKER) exec -it -u $(CONTAINER_UID):$(CONTAINER_GID) -e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) -e "TEST_FLAGS=$(TEST_FLAGS)" argocd-test-server $(1)
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -487,7 +493,8 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	DIST_DIR=${DIST_DIR} RERUN_FAILS=$(ARGOCD_E2E_RERUN_FAILS) PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
+	mkdir -p $(CURDIR)/test-results
+	DIST_DIR=${DIST_DIR} RERUN_FAILS=$(ARGOCD_E2E_RERUN_FAILS) PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(CURDIR)/test-results"
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image

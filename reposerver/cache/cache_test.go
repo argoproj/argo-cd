@@ -35,6 +35,31 @@ func newFixtures() *fixtures {
 	return &fixtures{mockCache: mockCache, cache: &MockedCache{Cache: baseCache}}
 }
 
+func TestCache_GetRevisionResolution(t *testing.T) {
+	fixtures := newFixtures()
+	t.Cleanup(fixtures.mockCache.StopRedisCallback)
+	cache := fixtures.cache
+	mockCache := fixtures.mockCache
+	// cache miss
+	_, err := cache.GetRevisionResolution("my-repo-url", "v1.*")
+	require.ErrorIs(t, err, ErrCacheMiss)
+	mockCache.RedisClient.AssertCalled(t, "Get", mock.Anything, mock.Anything)
+	// populate cache
+	err = cache.SetRevisionResolution("my-repo-url", "v1.*", &v1alpha1.RevisionResolution{ResolvedSymbol: "v1.2.3", Constraint: "v1.*", Revision: "abc123"})
+	require.NoError(t, err)
+	// cache miss for different repo
+	_, err = cache.GetRevisionResolution("other-repo-url", "v1.*")
+	require.ErrorIs(t, err, ErrCacheMiss)
+	// cache miss for different constraint
+	_, err = cache.GetRevisionResolution("my-repo-url", "v2.*")
+	require.ErrorIs(t, err, ErrCacheMiss)
+	// cache hit
+	value, err := cache.GetRevisionResolution("my-repo-url", "v1.*")
+	require.NoError(t, err)
+	assert.Equal(t, &v1alpha1.RevisionResolution{ResolvedSymbol: "v1.2.3", Constraint: "v1.*", Revision: "abc123"}, value)
+	mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 4})
+}
+
 func TestCache_GetRevisionMetadata(t *testing.T) {
 	fixtures := newFixtures()
 	t.Cleanup(fixtures.mockCache.StopRedisCallback)

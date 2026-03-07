@@ -156,6 +156,7 @@ func AddHelmOCIRepo(t *testing.T, name string) {
 		"--type", "helm",
 		"--name", name,
 		"--enable-oci",
+		"--insecure-oci-force-http",
 	}
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }

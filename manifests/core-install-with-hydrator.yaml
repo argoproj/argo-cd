@@ -138,6 +138,51 @@ spec:
                     description: Prune specifies to delete resources from the cluster
                       that are no longer tracked in git
                     type: boolean
+                  resolution:
+                    description: |-
+                      Resolution holds the intermediate revision resolution metadata for the primary source,
+                      populated when a semver constraint was resolved to a concrete tag/version.
+                    properties:
+                      constraint:
+                        description: Constraint is the original constraint expression
+                          that was resolved (e.g. "v1.*", ">=1.2.0 <2.0.0").
+                        type: string
+                      resolvedSymbol:
+                        description: |-
+                          ResolvedSymbol is the intermediate resolved reference (e.g. tag "v1.2.3" resolved from
+                          constraint "v1.*") before the final SHA/digest resolution.
+                        type: string
+                      revision:
+                        description: Revision is the final resolved SHA or digest
+                          that the constraint resolved to.
+                        type: string
+                    type: object
+                  resolutions:
+                    description: |-
+                      Resolutions holds the intermediate revision resolution metadata for each source in a
+                      multi-source sync, indexed to match the Sources/Revisions fields.
+                    items:
+                      description: |-
+                        RevisionResolution captures the intermediate result of resolving a revision constraint
+                        (e.g. semver range) to a concrete reference before final SHA/digest resolution.
+                        Only populated when a range or constraint was resolved; nil when the user specified a
+                        branch, concrete SHA, or other non-constraint reference.
+                      properties:
+                        constraint:
+                          description: Constraint is the original constraint expression
+                            that was resolved (e.g. "v1.*", ">=1.2.0 <2.0.0").
+                          type: string
+                        resolvedSymbol:
+                          description: |-
+                            ResolvedSymbol is the intermediate resolved reference (e.g. tag "v1.2.3" resolved from
+                            constraint "v1.*") before the final SHA/digest resolution.
+                          type: string
+                        revision:
+                          description: Revision is the final resolved SHA or digest
+                            that the constraint resolved to.
+                          type: string
+                      type: object
+                    type: array
                   resources:
                     description: Resources describes which resources shall be part
                       of the sync
@@ -3294,6 +3339,53 @@ spec:
                             description: Prune specifies to delete resources from
                               the cluster that are no longer tracked in git
                             type: boolean
+                          resolution:
+                            description: |-
+                              Resolution holds the intermediate revision resolution metadata for the primary source,
+                              populated when a semver constraint was resolved to a concrete tag/version.
+                            properties:
+                              constraint:
+                                description: Constraint is the original constraint
+                                  expression that was resolved (e.g. "v1.*", ">=1.2.0
+                                  <2.0.0").
+                                type: string
+                              resolvedSymbol:
+                                description: |-
+                                  ResolvedSymbol is the intermediate resolved reference (e.g. tag "v1.2.3" resolved from
+                                  constraint "v1.*") before the final SHA/digest resolution.
+                                type: string
+                              revision:
+                                description: Revision is the final resolved SHA or
+                                  digest that the constraint resolved to.
+                                type: string
+                            type: object
+                          resolutions:
+                            description: |-
+                              Resolutions holds the intermediate revision resolution metadata for each source in a
+                              multi-source sync, indexed to match the Sources/Revisions fields.
+                            items:
+                              description: |-
+                                RevisionResolution captures the intermediate result of resolving a revision constraint
+                                (e.g. semver range) to a concrete reference before final SHA/digest resolution.
+                                Only populated when a range or constraint was resolved; nil when the user specified a
+                                branch, concrete SHA, or other non-constraint reference.
+                              properties:
+                                constraint:
+                                  description: Constraint is the original constraint
+                                    expression that was resolved (e.g. "v1.*", ">=1.2.0
+                                    <2.0.0").
+                                  type: string
+                                resolvedSymbol:
+                                  description: |-
+                                    ResolvedSymbol is the intermediate resolved reference (e.g. tag "v1.2.3" resolved from
+                                    constraint "v1.*") before the final SHA/digest resolution.
+                                  type: string
+                                revision:
+                                  description: Revision is the final resolved SHA
+                                    or digest that the constraint resolved to.
+                                  type: string
+                              type: object
+                            type: array
                           resources:
                             description: Resources describes which resources shall
                               be part of the sync
@@ -4211,6 +4303,51 @@ spec:
                               type: string
                             type: object
                         type: object
+                      resolution:
+                        description: |-
+                          Resolution holds the intermediate revision resolution metadata for the primary source,
+                          populated when a semver constraint was resolved to a concrete tag/version.
+                        properties:
+                          constraint:
+                            description: Constraint is the original constraint expression
+                              that was resolved (e.g. "v1.*", ">=1.2.0 <2.0.0").
+                            type: string
+                          resolvedSymbol:
+                            description: |-
+                              ResolvedSymbol is the intermediate resolved reference (e.g. tag "v1.2.3" resolved from
+                              constraint "v1.*") before the final SHA/digest resolution.
+                            type: string
+                          revision:
+                            description: Revision is the final resolved SHA or digest
+                              that the constraint resolved to.
+                            type: string
+                        type: object
+                      resolutions:
+                        description: |-
+                          Resolutions holds the intermediate revision resolution metadata for each source in a
+                          multi-source sync, indexed to match the Sources/Revisions fields.
+                        items:
+                          description: |-
+                            RevisionResolution captures the intermediate result of resolving a revision constraint
+                            (e.g. semver range) to a concrete reference before final SHA/digest resolution.
+                            Only populated when a range or constraint was resolved; nil when the user specified a
+                            branch, concrete SHA, or other non-constraint reference.
+                          properties:
+                            constraint:
+                              description: Constraint is the original constraint expression
+                                that was resolved (e.g. "v1.*", ">=1.2.0 <2.0.0").
+                              type: string
+                            resolvedSymbol:
+                              description: |-
+                                ResolvedSymbol is the intermediate resolved reference (e.g. tag "v1.2.3" resolved from
+                                constraint "v1.*") before the final SHA/digest resolution.
+                              type: string
+                            revision:
+                              description: Revision is the final resolved SHA or digest
+                                that the constraint resolved to.
+                              type: string
+                          type: object
+                        type: array
                       resources:
                         description: Resources contains a list of sync result items
                           for each individual resource in a sync operation
@@ -6978,6 +7115,51 @@ spec:
                     required:
                     - destination
                     type: object
+                  resolution:
+                    description: |-
+                      Resolution holds the intermediate revision resolution metadata for the primary source,
+                      populated when a semver constraint was resolved to a concrete tag/version.
+                    properties:
+                      constraint:
+                        description: Constraint is the original constraint expression
+                          that was resolved (e.g. "v1.*", ">=1.2.0 <2.0.0").
+                        type: string
+                      resolvedSymbol:
+                        description: |-
+                          ResolvedSymbol is the intermediate resolved reference (e.g. tag "v1.2.3" resolved from
+                          constraint "v1.*") before the final SHA/digest resolution.
+                        type: string
+                      revision:
+                        description: Revision is the final resolved SHA or digest
+                          that the constraint resolved to.
+                        type: string
+                    type: object
+                  resolutions:
+                    description: |-
+                      Resolutions holds the intermediate revision resolution metadata for each source in a
+                      multi-source comparison, indexed to match the Revisions field.
+                    items:
+                      description: |-
+                        RevisionResolution captures the intermediate result of resolving a revision constraint
+                        (e.g. semver range) to a concrete reference before final SHA/digest resolution.
+                        Only populated when a range or constraint was resolved; nil when the user specified a
+                        branch, concrete SHA, or other non-constraint reference.
+                      properties:
+                        constraint:
+                          description: Constraint is the original constraint expression
+                            that was resolved (e.g. "v1.*", ">=1.2.0 <2.0.0").
+                          type: string
+                        resolvedSymbol:
+                          description: |-
+                            ResolvedSymbol is the intermediate resolved reference (e.g. tag "v1.2.3" resolved from
+                            constraint "v1.*") before the final SHA/digest resolution.
+                          type: string
+                        revision:
+                          description: Revision is the final resolved SHA or digest
+                            that the constraint resolved to.
+                          type: string
+                      type: object
+                    type: array
                   revision:
                     description: Revision contains information about the revision
                       the comparison has been performed to

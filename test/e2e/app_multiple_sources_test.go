@@ -7,9 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 	. "github.com/argoproj/argo-cd/v3/util/argo"
 )
 
@@ -295,5 +298,91 @@ func TestMultiSourceApptErrorWhenSourceNameAndSourcePosition(t *testing.T) {
 		And(func(_ *Application) {
 			_, err := RunCli("app", "manifests", ctx.GetName(), "--revisions", "0.0.2", "--source-names", sources[0].Name, "--revisions", "0.0.2", "--source-positions", "1")
 			assert.ErrorContains(t, err, "Only one of source-positions and source-names can be specified.")
+		})
+}
+
+// TestMultiSourceRevisionResolutions verifies that .status.sync.resolutions[] and
+// .status.operationState.syncResult.resolutions[] are populated correctly for a
+// multi-source application that exercises every distinct code path:
+//
+//   - sources[0]: OCI Helm semver constraint  → entry populated (constraint resolved)
+//   - sources[1]: OCI Helm pinned version     → entry empty    (versions.IsVersion early-return)
+//   - sources[2]: Git HEAD                    → entry empty    (git non-semver path)
+//
+// The three sources produce non-overlapping resources so the sync succeeds cleanly:
+// sources[0] → ConfigMap my-map, sources[1] → Deployment+Service guestbook-ui,
+// sources[2] → two bare Pods.
+func TestMultiSourceRevisionResolutions(t *testing.T) {
+	repos.PushChartToOCIRegistry(t, "testdata/helm-values", "helm-values", "1.0.0")
+	repos.PushChartToOCIRegistry(t, "testdata/helm-guestbook", "helm-guestbook", "1.0.0")
+
+	sources := []ApplicationSource{
+		{
+			// Semver constraint: resolution IS populated (constraint + resolvedSymbol + revision).
+			RepoURL:        HelmOCIRegistryURL,
+			Chart:          "helm-values",
+			TargetRevision: ">=1.0.0",
+		},
+		{
+			// Pinned OCI version: resolution is NOT populated because versions.IsVersion("1.0.0")
+			// returns true and newHelmClientResolveRevision short-circuits before resolving tags.
+			RepoURL:        HelmOCIRegistryURL,
+			Chart:          "helm-guestbook",
+			TargetRevision: "1.0.0",
+		},
+		{
+			// Plain git HEAD: resolution is NOT populated (newClientResolveRevisionWithResolution
+			// only sets resolution for semver-looking revisions).
+			RepoURL:        RepoURL(RepoURLTypeFile),
+			Path:           "two-nice-pods",
+			TargetRevision: "HEAD",
+		},
+	}
+
+	Given(t).
+		HelmOCIRepoAdded("myrepo").
+		Sources(sources).
+		When().
+		CreateMultiSourceAppFromFile().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			syncResolutions := app.Status.Sync.Resolutions
+			require.Len(t, syncResolutions, 3, "Resolutions must be index-aligned with Sources")
+
+			// sources[0]: semver constraint → full resolution.
+			assert.Equal(t, "1.0.0", syncResolutions[0].ResolvedSymbol)
+			assert.Equal(t, ">=1.0.0", syncResolutions[0].Constraint)
+			assert.Equal(t, "1.0.0", syncResolutions[0].Revision)
+
+			// sources[1]: pinned OCI version → revision only, no constraint resolution.
+			assert.Equal(t, "1.0.0", syncResolutions[1].Revision, "pinned OCI version should have revision")
+			assert.Empty(t, syncResolutions[1].ResolvedSymbol, "pinned OCI version should have no resolvedSymbol")
+			assert.Empty(t, syncResolutions[1].Constraint, "pinned OCI version should have no constraint")
+
+			// sources[2]: git HEAD → revision (SHA) only, no constraint resolution.
+			assert.NotEmpty(t, syncResolutions[2].Revision, "git HEAD should have a resolved SHA")
+			assert.Empty(t, syncResolutions[2].ResolvedSymbol, "git HEAD should have no resolvedSymbol")
+			assert.Empty(t, syncResolutions[2].Constraint, "git HEAD should have no constraint")
+
+			// SyncResult.Resolutions must mirror the same structure.
+			require.NotNil(t, app.Status.OperationState)
+			require.NotNil(t, app.Status.OperationState.SyncResult)
+			syncResultResolutions := app.Status.OperationState.SyncResult.Resolutions
+			require.Len(t, syncResultResolutions, 3, "SyncResult.Resolutions must be index-aligned with Sources")
+
+			assert.Equal(t, "1.0.0", syncResultResolutions[0].ResolvedSymbol)
+			assert.Equal(t, ">=1.0.0", syncResultResolutions[0].Constraint)
+			assert.Equal(t, "1.0.0", syncResultResolutions[0].Revision)
+			assert.Equal(t, "1.0.0", syncResultResolutions[1].Revision, "pinned OCI version should have revision")
+			assert.Empty(t, syncResultResolutions[1].ResolvedSymbol, "pinned OCI version should have no resolvedSymbol")
+			assert.NotEmpty(t, syncResultResolutions[2].Revision, "git HEAD should have a resolved SHA")
+			assert.Empty(t, syncResultResolutions[2].ResolvedSymbol, "git HEAD should have no resolvedSymbol")
+
+			// Singular Resolution must be nil for multi-source apps.
+			assert.Nil(t, app.Status.Sync.Resolution, "singular Resolution must be nil for multi-source apps")
+			assert.Nil(t, app.Status.OperationState.SyncResult.Resolution)
 		})
 }

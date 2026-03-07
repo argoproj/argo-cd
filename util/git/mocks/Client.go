@@ -998,22 +998,24 @@ func (_c *Client_LsRefs_Call) RunAndReturn(run func() (*git.Refs, error)) *Clien
 }
 
 // LsRemote provides a mock function for the type Client
-func (_mock *Client) LsRemote(revision string) (string, error) {
+func (_mock *Client) LsRemote(revision string) (*git.RevisionResolution, error) {
 	ret := _mock.Called(revision)
 
 	if len(ret) == 0 {
 		panic("no return value specified for LsRemote")
 	}
 
-	var r0 string
+	var r0 *git.RevisionResolution
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (string, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) (*git.RevisionResolution, error)); ok {
 		return returnFunc(revision)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) string); ok {
+	if returnFunc, ok := ret.Get(0).(func(string) *git.RevisionResolution); ok {
 		r0 = returnFunc(revision)
 	} else {
-		r0 = ret.Get(0).(string)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*git.RevisionResolution)
+		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
 		r1 = returnFunc(revision)
@@ -1047,12 +1049,12 @@ func (_c *Client_LsRemote_Call) Run(run func(revision string)) *Client_LsRemote_
 	return _c
 }
 
-func (_c *Client_LsRemote_Call) Return(s string, err error) *Client_LsRemote_Call {
-	_c.Call.Return(s, err)
+func (_c *Client_LsRemote_Call) Return(revisionResolution *git.RevisionResolution, err error) *Client_LsRemote_Call {
+	_c.Call.Return(revisionResolution, err)
 	return _c
 }
 
-func (_c *Client_LsRemote_Call) RunAndReturn(run func(revision string) (string, error)) *Client_LsRemote_Call {
+func (_c *Client_LsRemote_Call) RunAndReturn(run func(revision string) (*git.RevisionResolution, error)) *Client_LsRemote_Call {
 	_c.Call.Return(run)
 	return _c
 }

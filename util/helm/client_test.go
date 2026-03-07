@@ -219,6 +219,23 @@ func TestGetTagsFromUrl(t *testing.T) {
 		_, err := client.GetTags("my-chart", true)
 		assert.ErrorIs(t, ErrOCINotEnabled, err)
 	})
+
+	t.Run("should use plain HTTP when InsecureHTTPOnly is true", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, json.NewEncoder(w).Encode(fakeTagsList{Tags: []string{"1.0.0"}}))
+		}))
+		defer server.Close()
+
+		// Strip the http:// prefix so we pass a bare host:port/path URL (matching real usage).
+		repoURL := strings.TrimPrefix(server.URL, "http://")
+		client := NewClient(repoURL, HelmCreds{InsecureHTTPOnly: true}, true, "", "")
+
+		tags, err := client.GetTags("mychart", true)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"1.0.0"}, tags)
+	})
 }
 
 func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {

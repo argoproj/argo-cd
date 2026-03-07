@@ -747,18 +747,59 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			c := newClientWithLock(tt.fields.repoURL, globalLock, tt.fields.repo, tt.fields.tagsFunc, func(_ context.Context) error {
 				return nil
 			}, tt.fields.allowedMediaTypes, WithEventHandlers(fakeEventHandlers(t, tt.fields.repoURL)))
-			got, err := c.ResolveRevision(t.Context(), tt.revision, tt.noCache)
+			res, err := c.ResolveRevision(t.Context(), tt.revision, tt.noCache)
 			if tt.expectedError != nil {
 				require.EqualError(t, err, tt.expectedError.Error())
 				return
 			}
 
 			require.NoError(t, err)
-			if got != tt.expectedDigest {
-				t.Errorf("ResolveRevision() got = %v, expectedDigest %v", got, tt.expectedDigest)
+			require.NotNil(t, res)
+			if res.Revision != tt.expectedDigest {
+				t.Errorf("ResolveRevision() got = %v, expectedDigest %v", res.Revision, tt.expectedDigest)
 			}
 		})
 	}
+}
+
+func Test_nativeOCIClient_ResolveRevision_RevisionResolution(t *testing.T) {
+	store := memory.New()
+	data := []byte("")
+	descriptor := imagev1.Descriptor{
+		MediaType: "",
+		Digest:    digest.FromBytes(data),
+	}
+	require.NoError(t, store.Push(t.Context(), descriptor, bytes.NewReader(data)))
+	require.NoError(t, store.Tag(t.Context(), descriptor, "1.1.0"))
+	require.NoError(t, store.Tag(t.Context(), descriptor, "1.2.0"))
+
+	tagsFunc := func(_ context.Context, _ string) ([]string, error) {
+		return []string{"1.0.0", "1.1.0", "1.2.0"}, nil
+	}
+
+	t.Run("semver constraint populates RevisionResolution", func(t *testing.T) {
+		c := newClientWithLock("", globalLock, store, tagsFunc, func(_ context.Context) error {
+			return nil
+		}, nil, WithEventHandlers(fakeEventHandlers(t, "")))
+		res, err := c.ResolveRevision(t.Context(), "^1.0.0", false)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.Equal(t, "1.2.0", res.ResolvedSymbol)
+		require.Equal(t, "^1.0.0", res.Constraint)
+		require.NotEmpty(t, res.Revision, "Revision should be the resolved digest")
+	})
+
+	t.Run("exact version tag does not populate ResolvedSymbol or Constraint", func(t *testing.T) {
+		c := newClientWithLock("", globalLock, store, tagsFunc, func(_ context.Context) error {
+			return nil
+		}, nil, WithEventHandlers(fakeEventHandlers(t, "")))
+		res, err := c.ResolveRevision(t.Context(), "1.2.0", false)
+		require.NoError(t, err)
+		require.NotNil(t, res)
+		require.NotEmpty(t, res.Revision)
+		require.Empty(t, res.ResolvedSymbol)
+		require.Empty(t, res.Constraint)
+	})
 }
 
 func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {

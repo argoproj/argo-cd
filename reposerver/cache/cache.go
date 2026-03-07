@@ -470,6 +470,26 @@ func (c *Cache) SetRevisionMetadata(repoURL, revision string, item *appv1.Revisi
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
+func revisionResolutionKey(repoURL, constraint string) string {
+	return fmt.Sprintf("revres|%s|%s", repoURL, constraint)
+}
+
+// GetRevisionResolution returns the cached RevisionResolution for the given repository URL
+// and constraint expression (e.g. "v1.*"). Returns ErrCacheMiss when not found.
+func (c *Cache) GetRevisionResolution(repoURL, constraint string) (*appv1.RevisionResolution, error) {
+	item := &appv1.RevisionResolution{}
+	return item, c.cache.GetItem(revisionResolutionKey(repoURL, constraint), item)
+}
+
+// SetRevisionResolution stores the RevisionResolution for the given repository URL and constraint
+// expression. Uses revisionCacheExpiration (default 3 min) so new tags are picked up quickly.
+func (c *Cache) SetRevisionResolution(repoURL, constraint string, item *appv1.RevisionResolution) error {
+	return c.cache.SetItem(
+		revisionResolutionKey(repoURL, constraint),
+		item,
+		&cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
+}
+
 func revisionChartDetailsKey(repoURL, chart, revision string) string {
 	return fmt.Sprintf("chartdetails|%s|%s|%s", repoURL, chart, revision)
 }

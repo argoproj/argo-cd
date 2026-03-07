@@ -5528,6 +5528,24 @@
         }
       }
     },
+    "applicationv1alpha1RevisionResolution": {
+      "description": "RevisionResolution captures the intermediate result of resolving a revision constraint\n(e.g. semver range) to a concrete reference before final SHA/digest resolution.\nOnly populated when a range or constraint was resolved; nil when the user specified a\nbranch, concrete SHA, or other non-constraint reference.",
+      "type": "object",
+      "properties": {
+        "constraint": {
+          "description": "Constraint is the original constraint expression that was resolved (e.g. \"v1.*\", \">=1.2.0 <2.0.0\").",
+          "type": "string"
+        },
+        "resolvedSymbol": {
+          "description": "ResolvedSymbol is the intermediate resolved reference (e.g. tag \"v1.2.3\" resolved from\nconstraint \"v1.*\") before the final SHA/digest resolution.",
+          "type": "string"
+        },
+        "revision": {
+          "description": "Revision is the final resolved SHA or digest that the constraint resolved to.",
+          "type": "string"
+        }
+      }
+    },
     "clusterClusterID": {
       "type": "object",
       "title": "ClusterID holds a cluster server URL or cluster name",
@@ -6097,6 +6115,9 @@
         "namespace": {
           "type": "string"
         },
+        "resolution": {
+          "$ref": "#/definitions/repositoryRevisionResolution"
+        },
         "revision": {
           "type": "string",
           "title": "resolved revision"
@@ -6250,6 +6271,21 @@
     },
     "repositoryRepoResponse": {
       "type": "object"
+    },
+    "repositoryRevisionResolution": {
+      "description": "RevisionResolution captures the intermediate result of resolving a revision constraint\n(e.g. semver range \"v1.*\") to a concrete tag (e.g. \"v1.2.3\") before final SHA/digest resolution.\nOnly populated when a semver constraint was actually resolved; empty for exact tags and SHAs.",
+      "type": "object",
+      "properties": {
+        "constraint": {
+          "type": "string"
+        },
+        "resolvedSymbol": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        }
+      }
     },
     "runtimeError": {
       "type": "object",
@@ -10215,6 +10251,24 @@
         }
       }
     },
+    "v1alpha1RevisionResolution": {
+      "description": "RevisionResolution captures the intermediate result of resolving a revision constraint\n(e.g. semver range) to a concrete reference before final SHA/digest resolution.\nOnly populated when a range or constraint was resolved; nil when the user specified a\nbranch, concrete SHA, or other non-constraint reference.",
+      "type": "object",
+      "properties": {
+        "constraint": {
+          "description": "Constraint is the original constraint expression that was resolved (e.g. \"v1.*\", \">=1.2.0 <2.0.0\").",
+          "type": "string"
+        },
+        "resolvedSymbol": {
+          "description": "ResolvedSymbol is the intermediate resolved reference (e.g. tag \"v1.2.3\" resolved from\nconstraint \"v1.*\") before the final SHA/digest resolution.",
+          "type": "string"
+        },
+        "revision": {
+          "description": "Revision is the final resolved SHA or digest that the constraint resolved to.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1SCMProviderGenerator": {
       "description": "SCMProviderGenerator defines a generator that scrapes a SCMaaS API to find candidate repos.",
       "type": "object",
@@ -10582,6 +10636,16 @@
           "type": "boolean",
           "title": "Prune specifies to delete resources from the cluster that are no longer tracked in git"
         },
+        "resolution": {
+          "$ref": "#/definitions/applicationv1alpha1RevisionResolution"
+        },
+        "resolutions": {
+          "description": "Resolutions holds the intermediate revision resolution metadata for each source in a\nmulti-source sync, indexed to match the Sources/Revisions fields.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationv1alpha1RevisionResolution"
+          }
+        },
         "resources": {
           "type": "array",
           "title": "Resources describes which resources shall be part of the sync",
@@ -10646,6 +10710,16 @@
       "properties": {
         "managedNamespaceMetadata": {
           "$ref": "#/definitions/v1alpha1ManagedNamespaceMetadata"
+        },
+        "resolution": {
+          "$ref": "#/definitions/applicationv1alpha1RevisionResolution"
+        },
+        "resolutions": {
+          "description": "Resolutions holds the intermediate revision resolution metadata for each source in a\nmulti-source sync, indexed to match the Sources/Revisions fields.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationv1alpha1RevisionResolution"
+          }
         },
         "resources": {
           "type": "array",
@@ -10741,6 +10815,16 @@
       "properties": {
         "comparedTo": {
           "$ref": "#/definitions/v1alpha1ComparedTo"
+        },
+        "resolution": {
+          "$ref": "#/definitions/applicationv1alpha1RevisionResolution"
+        },
+        "resolutions": {
+          "description": "Resolutions holds the intermediate revision resolution metadata for each source in a\nmulti-source comparison, indexed to match the Revisions field.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationv1alpha1RevisionResolution"
+          }
         },
         "revision": {
           "type": "string",

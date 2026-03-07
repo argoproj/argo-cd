@@ -271,6 +271,7 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 		CertData:           []byte(repo.TLSClientCertData),
 		KeyData:            []byte(repo.TLSClientCertKey),
 		InsecureSkipVerify: repo.Insecure,
+		InsecureHTTPOnly:   repo.InsecureOCIForceHttp,
 	}
 }
 
