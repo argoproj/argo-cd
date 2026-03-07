@@ -17,26 +17,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/mocks"
 )
 
-func createBoolPtr(x bool) *bool {
-	return &x
-}
-
-func createStringPtr(x string) *string {
-	return &x
-}
-
-func createIntPtr(x int) *int {
-	return &x
-}
-
-func createLabelsPtr(x []core.WebApiTagDefinition) *[]core.WebApiTagDefinition {
-	return &x
-}
-
-func createUniqueNamePtr(x string) *string {
-	return &x
-}
-
 func createDatePtr(x string) *azuredevops.Time {
 	t, _ := time.Parse(time.RFC3339, x)
 	return &azuredevops.Time{
@@ -62,7 +42,7 @@ func TestListPullRequest(t *testing.T) {
 			SourceRefName: new("refs/heads/feature-branch"),
 			TargetRefName: new("refs/heads/main"),
 			LastMergeSourceCommit: &git.GitCommitRef{
-				CommitId: createStringPtr(prHeadSha),
+				CommitId: new(prHeadSha),
 				Push: &git.GitPushRef{
 					Date: createDatePtr(updatedAt),
 				},

@@ -13,10 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func toPtr(s string) *string {
-	return &s
-}
-
 func mockGitHubPRListHandler(t *testing.T) *httptest.Server {
 	t.Helper()
 
