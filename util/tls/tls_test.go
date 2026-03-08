@@ -505,15 +505,15 @@ func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
 		t.Setenv("ARGOCD_REPO_SERVER_CA_CERT", "test-ca-cert")
 		AddClientTLSFlagsToCmdWithPrefix(cmd, "")
 
-		caCert, err := cmd.Flags().GetString("ca-cert")
+		caCert, err := cmd.Flags().GetString("repo-server-ca-cert")
 		require.NoError(t, err)
 		assert.Equal(t, "test-ca-cert", caCert)
 	})
 
 	t.Run("Prefix is used for flag names and environment variables", func(t *testing.T) {
 		cmd := &cobra.Command{}
-		t.Setenv("REPO_SERVER_ARGOCD_REPO_SERVER_CA_CERT", "test-ca-cert-prefixed")
-		AddClientTLSFlagsToCmdWithPrefix(cmd, "repo-server")
+		t.Setenv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CA_CERT", "test-ca-cert-prefixed")
+		AddClientTLSFlagsToCmdWithPrefix(cmd, "APPLICATION_CONTROLLER")
 
 		caCert, err := cmd.Flags().GetString("repo-server-ca-cert")
 		require.NoError(t, err)
