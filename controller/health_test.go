@@ -315,3 +315,186 @@ return hs`,
 		assert.Equal(t, health.HealthStatusHealthy, healthStatus)
 	})
 }
+
+func TestParseHealthAggregateOverrides(t *testing.T) {
+	t.Run("SingleMapping", func(t *testing.T) {
+		result, err := parseHealthAggregateOverrides("Suspended=Healthy")
+		require.NoError(t, err)
+		assert.Equal(t, health.HealthStatusHealthy, result["Suspended"])
+		assert.Len(t, result, 1)
+	})
+
+	t.Run("MultipleMappings", func(t *testing.T) {
+		result, err := parseHealthAggregateOverrides("Suspended=Healthy,Progressing=Degraded")
+		require.NoError(t, err)
+		assert.Equal(t, health.HealthStatusHealthy, result["Suspended"])
+		assert.Equal(t, health.HealthStatusDegraded, result["Progressing"])
+		assert.Len(t, result, 2)
+	})
+
+	t.Run("WithWhitespace", func(t *testing.T) {
+		result, err := parseHealthAggregateOverrides(" Suspended = Healthy , Progressing = Degraded ")
+		require.NoError(t, err)
+		assert.Equal(t, health.HealthStatusHealthy, result["Suspended"])
+		assert.Equal(t, health.HealthStatusDegraded, result["Progressing"])
+		assert.Len(t, result, 2)
+	})
+
+	t.Run("EmptyString", func(t *testing.T) {
+		result, err := parseHealthAggregateOverrides("")
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+
+	t.Run("InvalidFormat_NoEquals", func(t *testing.T) {
+		_, err := parseHealthAggregateOverrides("Suspended")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid mapping format")
+	})
+
+	t.Run("InvalidFormat_MultipleEquals", func(t *testing.T) {
+		_, err := parseHealthAggregateOverrides("Suspended=Healthy=Extra")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid mapping format")
+	})
+
+	t.Run("InvalidFormat_EmptySource", func(t *testing.T) {
+		_, err := parseHealthAggregateOverrides("=Healthy")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "source and target cannot be empty")
+	})
+
+	t.Run("InvalidFormat_EmptyTarget", func(t *testing.T) {
+		_, err := parseHealthAggregateOverrides("Suspended=")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "source and target cannot be empty")
+	})
+}
+
+func TestSetApplicationHealth_WithAggregateAsAnnotation(t *testing.T) {
+	t.Run("AnnotationOverridesStatus", func(t *testing.T) {
+		suspendedJob := resourceFromFile("./testdata/job-suspended.yaml")
+		// Add annotation to override Suspended -> Progressing
+		annotations := suspendedJob.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		annotations["argocd.argoproj.io/health-aggregate-overrides"] = "Suspended=Progressing"
+		suspendedJob.SetAnnotations(annotations)
+
+		resources := []managedResource{{
+			Group: "batch", Version: "v1", Kind: "Job", Live: &suspendedJob,
+		}}
+		resourceStatuses := initStatuses(resources)
+
+		healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+		require.NoError(t, err)
+		// Job is Suspended but annotation maps it to Progressing
+		assert.Equal(t, health.HealthStatusProgressing, healthStatus)
+		assert.Equal(t, health.HealthStatusSuspended, resourceStatuses[0].Health.Status) // Resource status unchanged
+	})
+
+	t.Run("AnnotationWithNoMatchingStatus", func(t *testing.T) {
+		runningPod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+		// Add annotation that doesn't match the pod's status
+		annotations := runningPod.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		annotations["argocd.argoproj.io/health-aggregate-overrides"] = "Suspended=Progressing"
+		runningPod.SetAnnotations(annotations)
+
+		resources := []managedResource{{
+			Group: "", Version: "v1", Kind: "Pod", Live: &runningPod,
+		}}
+		resourceStatuses := initStatuses(resources)
+
+		healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+		require.NoError(t, err)
+		// Pod is Healthy, annotation doesn't match, so use original status
+		assert.Equal(t, health.HealthStatusHealthy, healthStatus)
+	})
+
+	t.Run("InvalidAnnotationReturnsError", func(t *testing.T) {
+		runningPod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+		// Add invalid annotation
+		annotations := runningPod.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		annotations["argocd.argoproj.io/health-aggregate-overrides"] = "InvalidFormat"
+		runningPod.SetAnnotations(annotations)
+
+		resources := []managedResource{{
+			Group: "", Version: "v1", Kind: "Pod", Live: &runningPod,
+		}}
+		resourceStatuses := initStatuses(resources)
+
+		_, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to parse health aggregate overrides annotation")
+		assert.Contains(t, err.Error(), "invalid mapping format")
+	})
+}
+
+func TestSetApplicationHealth_WithLuaAggregateAs(t *testing.T) {
+	t.Run("LuaAggregateAsUsedWhenNoAnnotation", func(t *testing.T) {
+		overrides := lua.ResourceHealthOverrides{
+			lua.GetConfigMapKey(schema.FromAPIVersionAndKind("v1", "Pod")): appv1.ResourceOverride{
+				HealthLua: `
+					hs = {}
+					hs.status = "Suspended"
+					hs.message = "Pod is suspended"
+					hs.aggregateAs = "Healthy"
+					return hs
+				`,
+			},
+		}
+
+		runningPod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+		resources := []managedResource{{
+			Group: "", Version: "v1", Kind: "Pod", Live: &runningPod,
+		}}
+		resourceStatuses := initStatuses(resources)
+
+		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
+		require.NoError(t, err)
+		// Lua returns Suspended but aggregateAs is Healthy
+		assert.Equal(t, health.HealthStatusHealthy, healthStatus)
+		assert.Equal(t, health.HealthStatusSuspended, resourceStatuses[0].Health.Status)
+	})
+
+	t.Run("AnnotationOverridesLuaAggregateAs", func(t *testing.T) {
+		overrides := lua.ResourceHealthOverrides{
+			lua.GetConfigMapKey(schema.FromAPIVersionAndKind("v1", "Pod")): appv1.ResourceOverride{
+				HealthLua: `
+					hs = {}
+					hs.status = "Suspended"
+					hs.message = "Pod is suspended"
+					hs.aggregateAs = "Healthy"
+					return hs
+				`,
+			},
+		}
+
+		runningPod := resourceFromFile("./testdata/pod-running-restart-always.yaml")
+		// Add annotation that overrides status
+		annotations := runningPod.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		annotations["argocd.argoproj.io/health-aggregate-overrides"] = "Suspended=Degraded"
+		runningPod.SetAnnotations(annotations)
+
+		resources := []managedResource{{
+			Group: "", Version: "v1", Kind: "Pod", Live: &runningPod,
+		}}
+		resourceStatuses := initStatuses(resources)
+
+		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
+		require.NoError(t, err)
+		// Annotation maps Suspended -> Degraded, ignoring Lua's aggregateAs
+		assert.Equal(t, health.HealthStatusDegraded, healthStatus)
+		assert.Equal(t, health.HealthStatusSuspended, resourceStatuses[0].Health.Status)
+	})
+}
