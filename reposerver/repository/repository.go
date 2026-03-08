@@ -2806,14 +2806,15 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 			return err
 		},
 		"helm": func() error {
-			if repo.EnableOCI {
+			if repo.EnableOCI || repo.HasOCIPrefix() {
 				if !helm.IsHelmOciRepo(repo.Repo) {
 					return errors.New("OCI Helm repository URL should include hostname and port only")
 				}
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).TestHelmOCI()
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), true, repo.Proxy, repo.NoProxy).TestHelmOCI()
 				return err
 			}
-			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).GetIndex(false, s.initConstants.HelmRegistryMaxIndexSize)
+			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).
+				GetIndex(false, s.initConstants.HelmRegistryMaxIndexSize)
 			return err
 		},
 	}

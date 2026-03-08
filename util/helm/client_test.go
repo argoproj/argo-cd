@@ -143,6 +143,7 @@ func Test_normalizeChartName(t *testing.T) {
 func TestIsHelmOciRepo(t *testing.T) {
 	assert.True(t, IsHelmOciRepo("demo.goharbor.io"))
 	assert.True(t, IsHelmOciRepo("demo.goharbor.io:8080"))
+	assert.True(t, IsHelmOciRepo("oci://ghcr.io/someuser/someapp"))
 	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io"))
 	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io:8080"))
 }
