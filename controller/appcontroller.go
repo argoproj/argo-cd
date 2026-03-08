@@ -43,7 +43,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/utils/ptr"
 
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -206,7 +205,7 @@ func NewApplicationController(
 		statusRefreshJitter:               appResyncJitter,
 		refreshRequestedApps:              make(map[string]CompareWith),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
-		auditLogger:                       argo.NewAuditLogger(kubeClientset, common.CommandApplicationController, enableK8sEvent),
+		auditLogger:                       argo.NewAuditLogger(kubeClientset, namespace, common.CommandApplicationController, enableK8sEvent),
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
 		selfHealBackoff:                   selfHealBackoff,
@@ -2216,7 +2215,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 	}
 
-	source := ptr.To(app.Spec.GetSource())
+	source := new(app.Spec.GetSource())
 	desiredRevisions := []string{syncStatus.Revision}
 	if app.Spec.HasMultipleSources() {
 		source = nil
@@ -2368,7 +2367,7 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 
 	var timeSinceOperation *time.Duration
 	if app.Status.OperationState.FinishedAt != nil {
-		timeSinceOperation = ptr.To(time.Since(app.Status.OperationState.FinishedAt.Time))
+		timeSinceOperation = new(time.Since(app.Status.OperationState.FinishedAt.Time))
 	}
 
 	var retryAfter time.Duration

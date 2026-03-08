@@ -185,7 +185,8 @@ spec:
   backoffLimit: 2
 ```
 
-The following example runs a db migration command before the main sync operation (also in wave -1):
+### Initialize or migrate a database
+The following example runs a db initialization/migration command before the main sync operation (also in wave -1):
 ```yaml
 apiVersion: batch/v1
 kind: Job

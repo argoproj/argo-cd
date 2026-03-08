@@ -125,9 +125,28 @@ export class ApplicationsService {
 
     public watchResourceTree(name: string, appNamespace: string, objectListKind: string): Observable<models.ApplicationTree> {
         const isApplication = objectListKind === 'application';
-        const endpoint = isApplication ? 'applications' : 'applicationsets';
+        // ApplicationSet has no dedicated streaming resource-tree endpoint.
+        // Derive the tree from status.resources via the existing AppSet watch stream.
+        if (!isApplication) {
+            return this.watch(objectListKind, {name, appNamespace}).pipe(
+                map(watchEvent => {
+                    const appset = watchEvent.application;
+                    return {
+                        nodes: (appset.status?.resources || []).map(res => ({
+                            ...res,
+                            parentRefs: [] as models.ResourceRef[],
+                            info: [] as models.InfoItem[],
+                            resourceVersion: '',
+                            uid: ''
+                        })),
+                        orphanedNodes: [],
+                        hosts: []
+                    } as models.ApplicationTree;
+                })
+            );
+        }
         return requests
-            .loadEventSource(`/stream/${endpoint}/${name}/resource-tree?appNamespace=${appNamespace}`)
+            .loadEventSource(`/stream/applications/${name}/resource-tree?appNamespace=${appNamespace}`)
             .pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
     }
 
@@ -249,7 +268,9 @@ export class ApplicationsService {
             .pipe(map(data => JSON.parse(data).result as models.ApplicationWatchEvent))
             .pipe(
                 map(watchEvent => {
-                    watchEvent.application = this.parseAppFields(watchEvent.application, isApplication) as models.Application;
+                    // ApplicationSetWatchEvent has 'applicationSet' field, normalize to 'application'
+                    const rawApp = isApplication ? watchEvent.application : (watchEvent as unknown as models.ApplicationSetWatchEvent).applicationSet;
+                    watchEvent.application = this.parseAppFields(rawApp, isApplication) as models.Application;
                     return watchEvent;
                 })
             );
@@ -622,5 +643,12 @@ export class ApplicationsService {
 
     public async listApplicationSets(): Promise<models.ApplicationSetList> {
         return requests.get(`/applicationsets`).then(res => res.body as models.ApplicationSetList);
+    }
+
+    public appSetEvents(name: string, appNamespace: string): Promise<models.Event[]> {
+        return requests
+            .get(`/applicationsets/${name}/events`)
+            .query({appsetNamespace: appNamespace})
+            .then(res => (res.body as models.EventList).items || []);
     }
 }

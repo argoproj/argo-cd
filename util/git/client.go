@@ -776,6 +776,9 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	// symbolic reference (like HEAD), in which case we will resolve it from the refToHash map
 	refToResolve := ""
 
+	isShortRef := IsShortRef(revision)
+	log.Debugf("Attempting to resolve revision '%s' (is short ref: %t)", revision, isShortRef)
+
 	for _, ref := range refs {
 		refName := ref.Name().String()
 		hash := ref.Hash().String()
@@ -783,7 +786,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 			refToHash[refName] = hash
 		}
 		// log.Debugf("%s\t%s", hash, refName)
-		if ref.Name().Short() == revision || refName == revision {
+		if (isShortRef && ref.Name().Short() == revision) || refName == revision {
 			if ref.Type() == plumbing.HashReference {
 				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
 				return hash, nil
