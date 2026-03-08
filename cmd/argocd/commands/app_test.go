@@ -2481,3 +2481,46 @@ func (c *fakeAcdClient) WatchApplicationSetWithRetry(_ context.Context, _ string
 	}()
 	return appSetEventsCh
 }
+
+func TestFormatPendingResources(t *testing.T) {
+	tests := []struct {
+		name     string
+		pending  []string
+		expected string
+	}{
+		{
+			name:     "empty",
+			pending:  nil,
+			expected: "",
+		},
+		{
+			name:     "single resource",
+			pending:  []string{"apps/Deployment/nginx (sync: OutOfSync, health: Degraded)"},
+			expected: "apps/Deployment/nginx (sync: OutOfSync, health: Degraded)",
+		},
+		{
+			name:     "exactly 10 resources",
+			pending:  makeResources(10),
+			expected: strings.Join(makeResources(10), ", "),
+		},
+		{
+			name:     "more than 10 resources",
+			pending:  makeResources(13),
+			expected: strings.Join(makeResources(10), ", ") + ", ... and 3 more",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, formatPendingResources(tt.pending))
+		})
+	}
+}
+
+func makeResources(n int) []string {
+	res := make([]string, n)
+	for i := range res {
+		res[i] = fmt.Sprintf("apps/Deployment/resource-%d (sync: OutOfSync, health: Degraded)", i)
+	}
+	return res
+}

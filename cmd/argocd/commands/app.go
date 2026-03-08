@@ -2963,11 +2963,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	}
 
 	if len(pending) > 0 {
-		const maxPending = 10
-		summary := strings.Join(pending, ", ")
-		if len(pending) > maxPending {
-			summary = strings.Join(pending[:maxPending], ", ") + fmt.Sprintf(", ... and %d more", len(pending)-maxPending)
-		}
+		summary := formatPendingResources(pending)
 		return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state. resources not ready: %s", timeout, appName, summary)
 	}
 	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
@@ -2976,6 +2972,17 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 // setParameterOverrides updates an existing or appends a new parameter override in the application
 // the app is assumed to be a helm app and is expected to be in the form:
 // param=value
+// formatPendingResources builds a summary string for resources that have not
+// reached the desired state. If there are more than 10 entries the list is
+// truncated and a count of the remaining items is appended.
+func formatPendingResources(pending []string) string {
+	const maxPending = 10
+	if len(pending) > maxPending {
+		return strings.Join(pending[:maxPending], ", ") + fmt.Sprintf(", ... and %d more", len(pending)-maxPending)
+	}
+	return strings.Join(pending, ", ")
+}
+
 func setParameterOverrides(app *argoappv1.Application, parameters []string, sourcePosition int) {
 	if len(parameters) == 0 {
 		return
