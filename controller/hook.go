@@ -176,14 +176,14 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 
 		switch hookHealth.Status {
 		case health.HealthStatusProgressing:
-			logCtx.Infof("Hook %s is progressing", key)
+			logCtx.Debugf("Hook %s is progressing", key)
 			progressingHooksCount++
 		case health.HealthStatusDegraded:
 			logCtx.Warnf("Hook %s is degraded: %s", key, hookHealth.Message)
 			failedHooks = append(failedHooks, fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName()))
 			failedHookObjects = append(failedHookObjects, obj)
 		case health.HealthStatusHealthy:
-			logCtx.Infof("Hook %s is healthy", key)
+			logCtx.Debugf("Hook %s is healthy", key)
 		}
 	}
 
