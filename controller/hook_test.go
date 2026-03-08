@@ -228,8 +228,8 @@ func TestMultiHookOfType(t *testing.T) {
 		})
 	}
 }
-func TestExecuteHooksAlreadyExistsLogic(t *testing.T) {
 
+func TestExecuteHooksAlreadyExistsLogic(t *testing.T) {
 	newObj := func(name string, annot map[string]string) *unstructured.Unstructured {
 		obj := &unstructured.Unstructured{}
 		obj.SetGroupVersionKind(schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "Job"})
