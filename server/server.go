@@ -1518,7 +1518,6 @@ func replaceBaseHRef(data string, replaceWith string) string {
 	return baseHRefRegex.ReplaceAllString(data, replaceWith)
 }
 
-// Authenticate checks for the presence of a valid token when accessing server-side resources.
 // clientAddress returns the client IP address from the gRPC peer info, or "unknown" if unavailable.
 func clientAddress(ctx context.Context) string {
 	if p, ok := peer.FromContext(ctx); ok && p.Addr != nil {
@@ -1527,6 +1526,7 @@ func clientAddress(ctx context.Context) string {
 	return "unknown"
 }
 
+// Authenticate checks for the presence of a valid token when accessing server-side resources.
 func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error) {
 	var span trace.Span
 	ctx, span = tracer.Start(ctx, "server.ArgoCDServer.Authenticate")
@@ -1554,8 +1554,9 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 	}
 
 	if claimsErr != nil {
-		clientAddr := clientAddress(ctx)
-		log.Warnf("authentication failed: %v (client: %s)", claimsErr, clientAddr)
+		log.WithFields(log.Fields{
+			"client": clientAddress(ctx),
+		}).Warnf("authentication failed: %v", claimsErr)
 
 		argoCDSettings, err := server.settingsMgr.GetSettings()
 		if err != nil {
