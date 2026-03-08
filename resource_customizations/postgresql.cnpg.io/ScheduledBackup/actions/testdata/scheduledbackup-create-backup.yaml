@@ -1,0 +1,27 @@
+- k8sOperation: create
+  unstructuredObj:
+    apiVersion: postgresql.cnpg.io/v1
+    kind: Backup
+    metadata:
+      name: test-scheduled-backup-00000000000000
+      namespace: default
+      labels:
+        cnpg.io/cluster: test-cluster
+        cnpg.io/scheduled-backup: test-scheduled-backup
+      ownerReferences:
+      - apiVersion: postgresql.cnpg.io/v1
+        kind: ScheduledBackup
+        name: test-scheduled-backup
+        uid: 12345678-1234-1234-1234-123456789012
+        blockOwnerDeletion: true
+        controller: true
+    spec:
+      cluster:
+        name: test-cluster
+      target: primary
+      method: barman
+      online: true
+      pluginConfiguration:
+        key: value
+      onlineConfiguration:
+        immediateCheckpoint: true

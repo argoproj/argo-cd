@@ -31027,6 +31027,12 @@ rules:
   - workflows
   verbs:
   - create
+- apiGroups:
+  - postgresql.cnpg.io
+  resources:
+  - backups
+  verbs:
+  - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
