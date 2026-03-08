@@ -398,7 +398,7 @@ func TestThreeWayDiffExample1(t *testing.T) {
 // Test for ignoring aggregated cluster roles
 func TestDiffOptionIgnoreAggregateRoles(t *testing.T) {
 	// Test case 1: Ignore option is true, the rules in the role should be ignored
-	{
+	t.Run("IgnoreAggregatedRoles=true, ServerSideDiff=false", func(t *testing.T) {
 		configUn := unmarshalFile("testdata/aggr-clusterrole-config.json")
 		liveUn := unmarshalFile("testdata/aggr-clusterrole-live.json")
 		dr := diff(t, configUn, liveUn, IgnoreAggregatedRoles(true))
@@ -406,9 +406,10 @@ func TestDiffOptionIgnoreAggregateRoles(t *testing.T) {
 		ascii, err := printDiff(t.Context(), dr)
 		require.NoError(t, err)
 		t.Log(ascii)
-	}
+	})
+
 	// Test case 2: Ignore option is false, the aggregation should produce a diff
-	{
+	t.Run("IgnoreAggregatedRoles=false, ServerSideDiff=false", func(t *testing.T) {
 		configUn := unmarshalFile("testdata/aggr-clusterrole-config.json")
 		liveUn := unmarshalFile("testdata/aggr-clusterrole-live.json")
 		dr := diff(t, configUn, liveUn, IgnoreAggregatedRoles(false))
@@ -416,7 +417,107 @@ func TestDiffOptionIgnoreAggregateRoles(t *testing.T) {
 		ascii, err := printDiff(t.Context(), dr)
 		require.NoError(t, err)
 		t.Log(ascii)
-	}
+	})
+
+	t.Run("IgnoreAggregatedRoles=true, ServerSideDiff=true", func(t *testing.T) {
+		configUn := unmarshalFile("testdata/aggr-clusterrole-config.json")
+		liveUn := unmarshalFile("testdata/aggr-clusterrole-live.json")
+		gvkParser := buildGVKParser(t)
+		manager := "argocd-controller"
+		dryRunner := mocks.NewServerSideDryRunner(t)
+
+		liveUnWithManagedFields := liveUn.DeepCopy()
+		liveUnWithManagedFields.SetManagedFields([]metav1.ManagedFieldsEntry{
+			{
+				Manager:   manager,
+				Operation: metav1.ManagedFieldsOperationApply,
+				FieldsV1: &metav1.FieldsV1{
+					Raw: []byte(`{  
+						"f:metadata": {  
+							"f:labels": {  
+								".": {},  
+								"f:rbac.authorization.k8s.io/aggregate-to-test1-admin": {}  
+							}  
+						}  
+					}`)},
+			},
+		})
+		liveBytes, _ := json.Marshal(liveUnWithManagedFields)
+		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+			Return(string(liveBytes), nil)
+
+		opts := []Option{
+			IgnoreAggregatedRoles(true),
+			WithGVKParser(gvkParser),
+			WithManager(manager),
+			WithServerSideDryRunner(dryRunner),
+			WithServerSideDiff(true),
+			WithIgnoreMutationWebhook(false),
+		}
+		dr := diff(t, configUn, liveUn, opts...)
+		assert.False(t, dr.Modified, "aggregationRule should be preserved in server-side diff")
+	})
+
+	t.Run("IgnoreAggregatedRoles=false, ServerSideDiff=true", func(t *testing.T) {
+		configUn := unmarshalFile("testdata/aggr-clusterrole-config.json")
+		liveUn := unmarshalFile("testdata/aggr-clusterrole-live.json")
+		gvkParser := buildGVKParser(t)
+		manager := "argocd-controller"
+		dryRunner := mocks.NewServerSideDryRunner(t)
+
+		predictedLive := configUn.DeepCopy()
+		predictedLive.Object["rules"] = liveUn.Object["rules"]
+
+		liveBytes, _ := json.Marshal(predictedLive)
+		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+			Return(string(liveBytes), nil)
+
+		opts := []Option{
+			IgnoreAggregatedRoles(false),
+			WithGVKParser(gvkParser),
+			WithManager(manager),
+			WithServerSideDryRunner(dryRunner),
+			WithServerSideDiff(true),
+			WithIgnoreMutationWebhook(false),
+		}
+		dr := diff(t, configUn, liveUn, opts...)
+		assert.True(t, dr.Modified, "diff should be detected when ignoreAggregatedRoles=false even with ServerSideDiff")
+	})
+
+	t.Run("empty rules normalized to nil even with ServerSideDiff", func(t *testing.T) {
+		configWithEmptyRules := `{  
+			"apiVersion": "rbac.authorization.k8s.io/v1",  
+			"kind": "ClusterRole",  
+			"metadata": {"name": "test-empty"},  
+			"rules": []  
+		}`
+		liveWithNullRules := `{  
+			"apiVersion": "rbac.authorization.k8s.io/v1",  
+			"kind": "ClusterRole",  
+			"metadata": {"name": "test-empty"},  
+			"rules": null  
+		}`
+		configUn := StrToUnstructured(configWithEmptyRules)
+		liveUn := StrToUnstructured(liveWithNullRules)
+		gvkParser := buildGVKParser(t)
+		manager := "argocd-controller"
+		dryRunner := mocks.NewServerSideDryRunner(t)
+
+		liveBytes, _ := json.Marshal(liveUn)
+		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+			Return(string(liveBytes), nil)
+
+		opts := []Option{
+			IgnoreAggregatedRoles(false),
+			WithGVKParser(gvkParser),
+			WithManager(manager),
+			WithServerSideDryRunner(dryRunner),
+			WithServerSideDiff(true),
+			WithIgnoreMutationWebhook(false),
+		}
+		dr := diff(t, configUn, liveUn, opts...)
+		assert.False(t, dr.Modified, "empty rules should be normalized to nil, avoiding false drift")
+	})
 }
 
 func TestThreeWayDiffExample2(t *testing.T) {
