@@ -531,6 +531,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_SSH_DATA_PATH=$(ARGOCD_E2E_DIR)/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=$(ARGOCD_E2E_DIR)/app/config/tls \
 	ARGOCD_GPG_DATA_PATH=$(ARGOCD_E2E_DIR)/app/config/gpg/source \
+	ARGOCD_SELF_GENERATE_CLIENT_CERT=true \
 	ARGOCD_GNUPGHOME=$(ARGOCD_E2E_DIR)/app/config/gpg/keys \
 	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
 	ARGOCD_PLUGINCONFIGFILEPATH=$(ARGOCD_E2E_DIR)/app/config/plugin \
