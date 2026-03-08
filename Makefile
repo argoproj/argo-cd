@@ -74,7 +74,7 @@ ARGOCD_E2E_APISERVER_PORT?=8080
 ARGOCD_E2E_REPOSERVER_PORT?=8081
 ARGOCD_E2E_REDIS_PORT?=6379
 ARGOCD_E2E_DEX_PORT?=5556
-ARGOCD_E2E_YARN_HOST?=localhost
+ARGOCD_E2E_JS_HOST?=localhost
 ARGOCD_E2E_DISABLE_AUTH?=
 ARGOCD_E2E_DIR?=/tmp/argo-e2e
 
@@ -113,7 +113,7 @@ define run-in-test-server
 		-e GOCACHE=/tmp/go-build-cache \
 		-e ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
 		-e ARGOCD_E2E_TEST=$(ARGOCD_E2E_TEST) \
-		-e ARGOCD_E2E_YARN_HOST=$(ARGOCD_E2E_YARN_HOST) \
+		-e ARGOCD_E2E_JS_HOST=$(ARGOCD_E2E_JS_HOST) \
 		-e ARGOCD_E2E_DISABLE_AUTH=$(ARGOCD_E2E_DISABLE_AUTH) \
 		-e ARGOCD_TLS_DATA_PATH=${ARGOCD_TLS_DATA_PATH:-/tmp/argocd-local/tls} \
 		-e ARGOCD_SSH_DATA_PATH=${ARGOCD_SSH_DATA_PATH:-/tmp/argocd-local/ssh} \
@@ -419,7 +419,7 @@ lint-ui: test-tools-image
 
 .PHONY: lint-ui-local
 lint-ui-local:
-	cd ui && yarn lint
+	cd ui && pnpm lint
 
 # Build all Go code
 .PHONY: build
@@ -663,7 +663,7 @@ dep-ui: test-tools-image
 	$(call run-in-test-client,make dep-ui-local)
 
 dep-ui-local:
-	cd ui && yarn install
+	cd ui && pnpm install
 
 start-test-k8s:
 	go run ./hack/k8s
