@@ -1323,8 +1323,21 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 				chartCannotBeReached := strings.Contains(msg, "is not a valid chart repository or cannot be reached")
 				couldNotDownloadChart := strings.Contains(msg, "could not download")
+				failedToPullOCI := strings.Contains(msg, "failed to pull OCI chart")
+				failedToLoginRegistry := strings.Contains(msg, "failed to login to registry")
+				errorPullingOCI := strings.Contains(msg, "error pulling OCI chart")
+				errorLoggingIntoRegistry := strings.Contains(msg, "error logging into OCI registry")
+				failedToBuildDependencies := strings.Contains(msg, "failed to build dependencies")
+				failedToAddRepository := strings.Contains(msg, "failed to add repository")
+				chartNotFound := strings.Contains(msg, "not found") || strings.Contains(msg, "does not exist") ||
+					strings.Contains(msg, "no such chart") || strings.Contains(msg, "chart version") && strings.Contains(msg, "not found")
 
-				if (chartCannotBeReached || couldNotDownloadChart) && !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
+				// Check permissions for repository access errors, but exclude chart-not-found errors
+				// to avoid false PermissionDenied reports when charts don't exist
+				repositoryAccessError := chartCannotBeReached || (couldNotDownloadChart && !chartNotFound) ||
+					failedToPullOCI || failedToLoginRegistry || errorPullingOCI || errorLoggingIntoRegistry ||
+					failedToBuildDependencies || failedToAddRepository
+				if repositoryAccessError && !isSourcePermitted(repo.Repo, q.ProjectSourceRepos) {
 					reposNotPermitted = append(reposNotPermitted, repo.Repo)
 				}
 			}
