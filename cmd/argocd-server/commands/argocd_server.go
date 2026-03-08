@@ -343,7 +343,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableNewGitFileGlobbing, "appset-enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
 	command.Flags().BoolVar(&enableGitHubAPIMetrics, "appset-enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
 
-	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmd(command)
+	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmdWithPrefix(command, "SERVER")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

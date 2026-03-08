@@ -308,7 +308,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().DurationVar(&cacheSyncPeriod, "cache-sync-period", env.ParseDurationFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CACHE_SYNC_PERIOD", time.Hour*10, 0, time.Hour*24), "Period at which the manager client cache is forcefully resynced with the Kubernetes API server. 0 disables periodic resync.")
 	command.Flags().IntVar(&concurrentApplicationUpdates, "concurrent-application-updates", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_APPLICATION_UPDATES", 1, 1, 200), "Number of concurrent Application create/update/delete operations per ApplicationSet reconcile.")
 
-	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmd(&command)
+	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmdWithPrefix(&command, "APPLICATIONSET_CONTROLLER")
 
 	return &command
 }
