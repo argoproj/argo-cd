@@ -1,0 +1,23 @@
+{
+  "branches": [
+    {
+      "name": "main",
+      "commit": {
+        "hash": "72687815ccba81ef014a96201cc2e846a68789d8"
+      }
+    },
+    {
+      "name": "develop",
+      "commit": {
+        "hash": "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f"
+      }
+    },
+    {
+      "name": "feature-branch",
+      "commit": {
+        "hash": "abc123def456789012345678901234567890abcd"
+      }
+    }
+  ],
+  "next_page_token": ""
+}

@@ -1,0 +1,59 @@
+{
+  "repositories": [
+    {
+      "id": "01989dab-806f-7b1b-9186-f437bb2cf241",
+      "name": "Test Repository",
+      "default_branch": "main",
+      "organization": {
+        "id": "019711c4-14ec-746f-abd4-5968016b9f8v",
+        "slug": "test-org"
+      },
+      "slug": "test-repo",
+      "template_type": "not_a_template",
+      "is_empty": false,
+      "description": "A test repository",
+      "visibility": "public",
+      "clone_url": {
+        "https": "https://git.sourcecraft.com/test-org/test-repo.git",
+        "ssh": "git@git.sourcecraft.com:test-org/test-repo.git"
+      },
+      "web_url": "https://sourcecraft.com/test-org/test-repo",
+      "counters": {
+        "forks": "2",
+        "pull_requests": "5",
+        "issues": "3",
+        "tags": "1",
+        "branches": "3"
+      },
+      "last_updated": "2026-02-03T14:55:49.672167Z"
+    },
+    {
+      "id": "01989dab-806f-7b1b-9186-f437bb2cf242",
+      "name": "Another Repository",
+      "default_branch": "master",
+      "organization": {
+        "id": "019711c4-14ec-746f-abd4-5968016b9f8v",
+        "slug": "test-org"
+      },
+      "slug": "another-repo",
+      "template_type": "not_a_template",
+      "is_empty": false,
+      "description": "Another test repository",
+      "visibility": "private",
+      "clone_url": {
+        "https": "https://git.sourcecraft.com/test-org/another-repo.git",
+        "ssh": "git@git.sourcecraft.com:test-org/another-repo.git"
+      },
+      "web_url": "https://sourcecraft.com/test-org/another-repo",
+      "counters": {
+        "forks": "0",
+        "pull_requests": "1",
+        "issues": "0",
+        "tags": "0",
+        "branches": "2"
+      },
+      "last_updated": "2026-02-02T10:30:00.000000Z"
+    }
+  ],
+  "next_page_token": ""
+}

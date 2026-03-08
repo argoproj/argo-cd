@@ -27,6 +27,8 @@ import (
 	gogsclient "github.com/gogits/go-gogs-client"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v3/util/sourcecraft"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
@@ -72,6 +74,7 @@ type ArgoCDWebhookHandler struct {
 	bitbucketserver        *bitbucketserver.Webhook
 	azuredevops            *azuredevops.Webhook
 	gogs                   *gogs.Webhook
+	sourcecraft            *sourcecraft.Webhook
 	settings               *settings.ArgoCDSettings
 	settingsSrc            settingsSource
 	queue                  chan any
@@ -103,6 +106,10 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	if err != nil {
 		log.Warnf("Unable to init the Azure DevOps webhook")
 	}
+	sourcecraftWebhook, err := sourcecraft.New(sourcecraft.Options.Secret(set.GetWebhookSourceCraftSecret()))
+	if err != nil {
+		log.Warnf("Unable to init the Azure DevOps webhook")
+	}
 
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:                     namespace,
@@ -114,6 +121,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		bitbucketserver:        bitbucketserverWebhook,
 		azuredevops:            azuredevopsWebhook,
 		gogs:                   gogsWebhook,
+		sourcecraft:            sourcecraftWebhook,
 		settingsSrc:            settingsSrc,
 		repoCache:              repoCache,
 		serverCache:            serverCache,
@@ -298,6 +306,25 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 			changedFiles = append(changedFiles, commit.Modified...)
 			changedFiles = append(changedFiles, commit.Removed...)
 		}
+
+	case sourcecraft.PushEventPayload:
+		if payload.RefUpdate != nil {
+			revision = ParseRevision(payload.RefUpdate.Ref)
+			change.shaAfter = ParseRevision(payload.RefUpdate.AfterSha)
+			change.shaBefore = ParseRevision(payload.RefUpdate.BeforeSha)
+		}
+		if payload.Repository != nil {
+			webURLs = append(webURLs, payload.Repository.WebURL)
+		}
+		touchedHead = payload.IsDefaultBranchUpdated
+		for _, commit := range payload.Commits {
+			if commit.FileChanges == nil {
+				continue
+			}
+			changedFiles = append(changedFiles, commit.FileChanges.Added...)
+			changedFiles = append(changedFiles, commit.FileChanges.Modified...)
+			changedFiles = append(changedFiles, commit.FileChanges.Removed...)
+		}
 	}
 	return webURLs, revision, change, touchedHead, changedFiles
 }
@@ -421,7 +448,7 @@ func GetWebURLRegex(webURL string) (*regexp.Regexp, error) {
 	// 6. Required: `:` or `/`
 	// 7. Required: path parsed from `webURL`
 	// 8. Optional: `.git` extension
-	return getURLRegex(webURL, `(?i)^((https?|ssh)://)?(%[1]s@)?((alt)?ssh\.)?%[2]s(:\d+)?[:/]%[3]s(\.git)?$`)
+	return getURLRegex(webURL, `(?i)^((https?|ssh)://)?(%[1]s@)?(((alt)?ssh|git)\.)?%[2]s(:\d+)?[:/]%[3]s(\.git)?$`)
 }
 
 // GetAPIURLRegex compiles a regex that will match any targetRevision referring to the same repo as
@@ -667,6 +694,11 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		payload, err = a.bitbucketserver.Parse(r, bitbucketserver.RepositoryReferenceChangedEvent, bitbucketserver.DiagnosticsPingEvent)
 		if errors.Is(err, bitbucketserver.ErrHMACVerificationFailed) {
 			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket webhook HMAC verification failed")
+		}
+	case r.Header.Get("X-Src-Event") != "":
+		payload, err = a.sourcecraft.Parse(r, sourcecraft.PushEvent, sourcecraft.PingEvent)
+		if errors.Is(err, sourcecraft.ErrHMACVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("SourceCraft webhook HMAC verification failed")
 		}
 	default:
 		log.Debug("Ignoring unknown webhook event")

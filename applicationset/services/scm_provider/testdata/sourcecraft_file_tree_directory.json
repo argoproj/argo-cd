@@ -1,0 +1,15 @@
+{
+  "trees": [
+    {
+      "name": "src",
+      "type": "directory",
+      "path": "src"
+    },
+    {
+      "name": "main.go",
+      "type": "file",
+      "path": "src/main.go"
+    }
+  ],
+  "next_page_token": ""
+}

@@ -31,6 +31,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
 
+	"github.com/argoproj/argo-cd/v3/util/sourcecraft"
+
 	argov1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
@@ -407,6 +409,138 @@ func TestGitLabSystemEvent(t *testing.T) {
 	hook.Reset()
 }
 
+func TestSourceCraftCommitEvent(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler(nil, []string{})
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req.Header.Set("X-Src-Event", "repository.push")
+	eventJSON, err := os.ReadFile("testdata/sourcecraft-commit-event.json")
+	require.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
+	assert.Equal(t, http.StatusOK, w.Code)
+	expectedLogResult := "Received push event repo: https://sourcecraft.dev/org/r1, revision: master, touchedHead: true"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	hook.Reset()
+}
+
+func TestSourceCraftPingEvent(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler(nil, []string{})
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req.Header.Set("X-Src-Event", "webhook.ping")
+	eventJSON, err := os.ReadFile("testdata/sourcecraft-ping-event.json")
+	require.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
+	assert.Equal(t, http.StatusOK, w.Code)
+	expectedLogResult := "Ignoring webhook event"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	hook.Reset()
+}
+
+func TestSourceCraftCommitEvent_AppsInOtherNamespaces(t *testing.T) {
+	hook := test.NewGlobal()
+
+	patchedApps := make([]types.NamespacedName, 0, 3)
+	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchAction := action.(kubetesting.PatchAction)
+		patchedApps = append(patchedApps, types.NamespacedName{Name: patchAction.GetName(), Namespace: patchAction.GetNamespace()})
+		return true, nil, nil
+	}
+
+	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{"end-to-end-tests", "app-team-*"},
+		&v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "app-to-refresh-in-default-namespace",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Sources: v1alpha1.ApplicationSources{
+					{
+						RepoURL: "https://sourcecraft.dev/org/r1",
+						Path:    ".",
+					},
+				},
+			},
+		}, &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "app-to-ignore",
+				Namespace: "kube-system",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Sources: v1alpha1.ApplicationSources{
+					{
+						RepoURL: "https://sourcecraft.dev/org/r1",
+						Path:    ".",
+					},
+				},
+			},
+		}, &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "app-to-refresh-in-exact-match-namespace",
+				Namespace: "end-to-end-tests",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Sources: v1alpha1.ApplicationSources{
+					{
+						RepoURL: "https://sourcecraft.dev/org/r1",
+						Path:    ".",
+					},
+				},
+			},
+		}, &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "app-to-refresh-in-globbed-namespace",
+				Namespace: "app-team-two",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Sources: v1alpha1.ApplicationSources{
+					{
+						RepoURL: "https://sourcecraft.dev/org/r1",
+						Path:    ".",
+					},
+				},
+			},
+		},
+	)
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req.Header.Set("X-Src-Event", "repository.push")
+	eventJSON, err := os.ReadFile("testdata/sourcecraft-commit-event.json")
+	require.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	logMessages := make([]string, 0, len(hook.Entries))
+
+	for _, entry := range hook.Entries {
+		logMessages = append(logMessages, entry.Message)
+	}
+
+	assert.Contains(t, logMessages, "Requested app 'app-to-refresh-in-default-namespace' refresh")
+	assert.Contains(t, logMessages, "Requested app 'app-to-refresh-in-exact-match-namespace' refresh")
+	assert.Contains(t, logMessages, "Requested app 'app-to-refresh-in-globbed-namespace' refresh")
+	assert.NotContains(t, logMessages, "Requested app 'app-to-ignore' refresh")
+
+	assert.Contains(t, patchedApps, types.NamespacedName{Name: "app-to-refresh-in-default-namespace", Namespace: "argocd"})
+	assert.Contains(t, patchedApps, types.NamespacedName{Name: "app-to-refresh-in-exact-match-namespace", Namespace: "end-to-end-tests"})
+	assert.Contains(t, patchedApps, types.NamespacedName{Name: "app-to-refresh-in-globbed-namespace", Namespace: "app-team-two"})
+	assert.NotContains(t, patchedApps, types.NamespacedName{Name: "app-to-ignore", Namespace: "kube-system"})
+	assert.Len(t, patchedApps, 3)
+
+	hook.Reset()
+}
+
 func TestInvalidMethod(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
@@ -545,6 +679,10 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		return gogsclient.PushPayload{Ref: "refs/heads/" + branchName, Repo: &gogsclient.Repository{}}
 	}
 
+	sourcecraftPushPayload := func(branchName string) sourcecraft.PushEventPayload {
+		return sourcecraft.PushEventPayload{RefUpdate: &sourcecraft.RefUpdate{Ref: "refs/heads/" + branchName}}
+	}
+
 	tests := []struct {
 		hasChanged     bool
 		targetRevision string
@@ -579,12 +717,14 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		{true, "has/slashes", bitbucketPushPayload("has/slashes"), "bitbucket push branch name with slashes, targetRevision not prefixed"},
 		{true, "has/slashes", bitbucketRefChangedPayload("has/slashes"), "bitbucket ref changed branch name with slashes, targetRevision not prefixed"},
 		{true, "has/slashes", gogsPushPayload("has/slashes"), "gogs push branch name with slashes, targetRevision not prefixed"},
+		{true, "has/slashes", sourcecraftPushPayload("has/slashes"), "sourcecraft push branch name with slashes, targetRevision not prefixed"},
 
 		{true, "refs/heads/has/slashes", githubPushPayload("has/slashes"), "github push branch name with slashes, targetRevision branch prefixed"},
 		{true, "refs/heads/has/slashes", gitlabPushPayload("has/slashes"), "gitlab push branch name with slashes, targetRevision branch prefixed"},
 		{true, "refs/heads/has/slashes", bitbucketPushPayload("has/slashes"), "bitbucket push branch name with slashes, targetRevision branch prefixed"},
 		{true, "refs/heads/has/slashes", bitbucketRefChangedPayload("has/slashes"), "bitbucket ref changed branch name with slashes, targetRevision branch prefixed"},
 		{true, "refs/heads/has/slashes", gogsPushPayload("has/slashes"), "gogs push branch name with slashes, targetRevision branch prefixed"},
+		{true, "refs/heads/has/slashes", sourcecraftPushPayload("has/slashes"), "sourcecraft push branch name with slashes, targetRevision branch prefixed"},
 
 		// Not testing for refs/tags/has/slashes, because apparently tags can't have slashes: https://stackoverflow.com/a/32850142/684776
 
@@ -594,6 +734,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		{true, "no-slashes", bitbucketPushPayload("no-slashes"), "bitbucket push branch or tag name without slashes, targetRevision not prefixed"},
 		{true, "no-slashes", bitbucketRefChangedPayload("no-slashes"), "bitbucket ref changed branch or tag name without slashes, targetRevision not prefixed"},
 		{true, "no-slashes", gogsPushPayload("no-slashes"), "gogs push branch or tag name without slashes, targetRevision not prefixed"},
+		{true, "no-slashes", sourcecraftPushPayload("no-slashes"), "sourcecraft push branch or tag name without slashes, targetRevision not prefixed"},
 
 		{true, "refs/heads/no-slashes", githubPushPayload("no-slashes"), "github push branch or tag name without slashes, targetRevision branch prefixed"},
 		{true, "refs/heads/no-slashes", gitlabTagPayload("no-slashes"), "gitlab tag branch or tag name without slashes, targetRevision branch prefixed"},
@@ -601,6 +742,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		{true, "refs/heads/no-slashes", bitbucketPushPayload("no-slashes"), "bitbucket push branch or tag name without slashes, targetRevision branch prefixed"},
 		{true, "refs/heads/no-slashes", bitbucketRefChangedPayload("no-slashes"), "bitbucket ref changed branch or tag name without slashes, targetRevision branch prefixed"},
 		{true, "refs/heads/no-slashes", gogsPushPayload("no-slashes"), "gogs push branch or tag name without slashes, targetRevision branch prefixed"},
+		{true, "refs/heads/no-slashes", sourcecraftPushPayload("no-slashes"), "sourcecraft push branch or tag name without slashes, targetRevision branch prefixed"},
 
 		{true, "refs/tags/no-slashes", githubPushPayload("no-slashes"), "github push branch or tag name without slashes, targetRevision tag prefixed"},
 		{true, "refs/tags/no-slashes", gitlabTagPayload("no-slashes"), "gitlab tag branch or tag name without slashes, targetRevision tag prefixed"},
@@ -608,6 +750,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		{true, "refs/tags/no-slashes", bitbucketPushPayload("no-slashes"), "bitbucket push branch or tag name without slashes, targetRevision tag prefixed"},
 		{true, "refs/tags/no-slashes", bitbucketRefChangedPayload("no-slashes"), "bitbucket ref changed branch or tag name without slashes, targetRevision tag prefixed"},
 		{true, "refs/tags/no-slashes", gogsPushPayload("no-slashes"), "gogs push branch or tag name without slashes, targetRevision tag prefixed"},
+		{true, "refs/tags/no-slashes", sourcecraftPushPayload("no-slashes"), "sourcecraft push branch or tag name without slashes, targetRevision tag prefixed"},
 
 		// Tests fix for https://github.com/argoproj/argo-cd/security/advisories/GHSA-wp4p-9pxh-cgx2
 		{true, "test", gogsclient.PushPayload{Ref: "test", Repo: nil}, "gogs push branch with nil repo in payload"},
@@ -676,6 +819,8 @@ func Test_GetWebURLRegex(t *testing.T) {
 		{true, "http://example.com/org/repo", "https://user@example.com/org/repo", "http should match https+username"},
 		{true, "https://example.com/org/repo", "https://user@example.com/org/repo", "https should match https+username"},
 		{true, "https://user@example.com/org/repo", "ssh://example.com/org/repo", "https+username should match ssh"},
+		{true, "https://user@example.com/org/repo", "https://git@git.example.com/org/repo", "https+username should match ssh"},
+		{true, "https://user@example.com/org/repo", "https://git@ssh.example.com/org/repo", "https+username should match ssh"},
 
 		{false, "", "", "empty URLs should not panic"},
 	}

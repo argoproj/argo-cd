@@ -1,11 +1,14 @@
 package generators
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -294,4 +297,61 @@ func TestSCMProviderDisabled_SCMGenerator(t *testing.T) {
 
 	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 	assert.ErrorIs(t, err, ErrSCMProvidersDisabled)
+}
+
+func TestSCMProviderSourceCraft_TokenFetchError(t *testing.T) {
+	fakeClient := fake.NewClientBuilder().Build()
+	scmGenerator := &SCMProviderGenerator{
+		client:    fakeClient,
+		SCMConfig: SCMConfig{enableSCMProviders: true},
+	}
+	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "set", Namespace: "test-ns"},
+		Spec: argoprojiov1alpha1.ApplicationSetSpec{
+			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+				SCMProvider: &argoprojiov1alpha1.SCMProviderGenerator{
+					SourceCraft: &argoprojiov1alpha1.SCMProviderGeneratorSourceCraft{
+						Organization: "test-org",
+						TokenRef: &argoprojiov1alpha1.SecretRef{
+							SecretName: "nonexistent-secret",
+							Key:        "token",
+						},
+					},
+				},
+			}},
+		},
+	}
+
+	_, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "error fetching SourceCraft token")
+}
+
+func TestSCMProviderSourceCraft_ProviderInitialization(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"repositories":[],"next_page_token":""}`))
+	}))
+	defer server.Close()
+
+	scmGenerator := &SCMProviderGenerator{
+		SCMConfig: SCMConfig{enableSCMProviders: true},
+	}
+	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "set", Namespace: "test-ns"},
+		Spec: argoprojiov1alpha1.ApplicationSetSpec{
+			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+				SCMProvider: &argoprojiov1alpha1.SCMProviderGenerator{
+					SourceCraft: &argoprojiov1alpha1.SCMProviderGeneratorSourceCraft{
+						Organization: "test-org",
+						API:          server.URL,
+					},
+				},
+			}},
+		},
+	}
+
+	got, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+	require.NoError(t, err)
+	assert.Empty(t, got)
 }
