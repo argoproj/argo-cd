@@ -279,14 +279,14 @@ func TestExecuteHooksAlreadyExistsLogic(t *testing.T) {
 			name:          "PreDelete (helm+argocd): One of two already exists - should be skipped",
 			hookType:      []HookType{PreDeleteHookType},
 			targetAnnot:   map[string]string{"helm.sh/hook": "pre-delete", "argocd.argoproj.io/hook": "PreDelete"},
-			liveAnnot:     map[string]string{"helm.sh/hook": "pre-delete", },
+			liveAnnot:     map[string]string{"helm.sh/hook": "pre-delete"},
 			expectCreated: false,
 		},
 		{
 			name:          "PreDelete (helm+argocd): One of two already exists - should be skipped",
 			hookType:      []HookType{PreDeleteHookType},
 			targetAnnot:   map[string]string{"helm.sh/hook": "pre-delete", "argocd.argoproj.io/hook": "PreDelete"},
-			liveAnnot:     map[string]string{"argocd.argoproj.io/hook": "PreDelete" },
+			liveAnnot:     map[string]string{"argocd.argoproj.io/hook": "PreDelete"},
 			expectCreated: false,
 		},
 		//  POST DELETE TESTS
@@ -329,14 +329,14 @@ func TestExecuteHooksAlreadyExistsLogic(t *testing.T) {
 			name:          "PostDelete (helm+argocd): One of two already exists - should be skipped",
 			hookType:      []HookType{PostDeleteHookType},
 			targetAnnot:   map[string]string{"helm.sh/hook": "post-delete", "argocd.argoproj.io/hook": "PostDelete"},
-			liveAnnot:     map[string]string{"helm.sh/hook": "post-delete", },
+			liveAnnot:     map[string]string{"helm.sh/hook": "post-delete"},
 			expectCreated: false,
 		},
 		{
 			name:          "PostDelete (helm+argocd): One of two already exists - should be skipped",
 			hookType:      []HookType{PostDeleteHookType},
 			targetAnnot:   map[string]string{"helm.sh/hook": "post-delete", "argocd.argoproj.io/hook": "PostDelete"},
-			liveAnnot:     map[string]string{"argocd.argoproj.io/hook": "PostDelete" },
+			liveAnnot:     map[string]string{"argocd.argoproj.io/hook": "PostDelete"},
 			expectCreated: false,
 		},
 		//  MULTI HOOK TESTS - SKIP LOGIC
@@ -354,7 +354,6 @@ func TestExecuteHooksAlreadyExistsLogic(t *testing.T) {
 			liveAnnot:     map[string]string{"helm.sh/hook": "post-delete,pre-delete"},
 			expectCreated: false,
 		},
-
 	}
 
 	for _, tt := range tests {
