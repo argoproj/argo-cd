@@ -676,6 +676,10 @@ export interface Repository {
     insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
+    azureServicePrincipalClientId?: string;
+    azureServicePrincipalClientSecret?: string;
+    azureServicePrincipalTenantId?: string;
+    azureActiveDirectoryEndpoint?: string;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}

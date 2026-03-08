@@ -88,6 +88,15 @@ func TestGetGitCreds(t *testing.T) {
 			expected: git.NewGoogleCloudCreds("gcp-key", nil),
 		},
 		{
+			name: "Azure Service Principal credentials",
+			repo: &Repository{
+				AzureServicePrincipalClientId:     "client-id",
+				AzureServicePrincipalClientSecret: "client-secret",
+				AzureServicePrincipalTenantId:     "tenant-id",
+			},
+			expected: git.NewAzureServicePrincipalCreds("tenant-id", "client-id", "client-secret", nil),
+		},
+		{
 			name:     "No credentials",
 			repo:     &Repository{},
 			expected: git.NopCreds{},
@@ -130,30 +139,33 @@ func TestGetGitCreds_GitHubApp_InstallationNotFound(t *testing.T) {
 
 func TestSanitizedRepository(t *testing.T) {
 	repo := &Repository{
-		Repo:                       "https://github.com/argoproj/argo-cd.git",
-		Type:                       "git",
-		Name:                       "argo-cd",
-		Username:                   "admin",
-		Password:                   "super-secret-password",
-		SSHPrivateKey:              "-----BEGIN RSA PRIVATE KEY-----",
-		BearerToken:                "eyJhbGciOiJIUzI1NiJ9",
-		TLSClientCertData:          "cert-data",
-		TLSClientCertKey:           "cert-key",
-		GCPServiceAccountKey:       "gcp-key",
-		GithubAppPrivateKey:        "github-app-key",
-		Insecure:                   true,
-		EnableLFS:                  true,
-		EnableOCI:                  true,
-		Proxy:                      "http://proxy:8080",
-		NoProxy:                    "localhost",
-		Project:                    "default",
-		ForceHttpBasicAuth:         true,
-		InheritedCreds:             true,
-		GithubAppId:                12345,
-		GithubAppInstallationId:    67890,
-		GitHubAppEnterpriseBaseURL: "https://ghe.example.com/api/v3",
-		UseAzureWorkloadIdentity:   true,
-		Depth:                      1,
+		Repo:                              "https://github.com/argoproj/argo-cd.git",
+		Type:                              "git",
+		Name:                              "argo-cd",
+		Username:                          "admin",
+		Password:                          "super-secret-password",
+		SSHPrivateKey:                     "-----BEGIN RSA PRIVATE KEY-----",
+		BearerToken:                       "eyJhbGciOiJIUzI1NiJ9",
+		TLSClientCertData:                 "cert-data",
+		TLSClientCertKey:                  "cert-key",
+		GCPServiceAccountKey:              "gcp-key",
+		GithubAppPrivateKey:               "github-app-key",
+		Insecure:                          true,
+		EnableLFS:                         true,
+		EnableOCI:                         true,
+		Proxy:                             "http://proxy:8080",
+		NoProxy:                           "localhost",
+		Project:                           "default",
+		ForceHttpBasicAuth:                true,
+		InheritedCreds:                    true,
+		GithubAppId:                       12345,
+		GithubAppInstallationId:           67890,
+		GitHubAppEnterpriseBaseURL:        "https://ghe.example.com/api/v3",
+		UseAzureWorkloadIdentity:          true,
+		AzureServicePrincipalClientId:     "client-id",
+		AzureServicePrincipalClientSecret: "client-secret",
+		AzureServicePrincipalTenantId:     "tenant-id",
+		Depth:                             1,
 	}
 
 	sanitized := repo.Sanitized()
@@ -174,6 +186,8 @@ func TestSanitizedRepository(t *testing.T) {
 	assert.Equal(t, repo.GithubAppInstallationId, sanitized.GithubAppInstallationId)
 	assert.Equal(t, repo.GitHubAppEnterpriseBaseURL, sanitized.GitHubAppEnterpriseBaseURL)
 	assert.Equal(t, repo.UseAzureWorkloadIdentity, sanitized.UseAzureWorkloadIdentity)
+	assert.Equal(t, repo.AzureServicePrincipalClientId, sanitized.AzureServicePrincipalClientId)
+	assert.Equal(t, repo.AzureServicePrincipalTenantId, sanitized.AzureServicePrincipalTenantId)
 	assert.Equal(t, repo.Depth, sanitized.Depth)
 
 	// Sensitive fields must be stripped
@@ -185,6 +199,7 @@ func TestSanitizedRepository(t *testing.T) {
 	assert.Empty(t, sanitized.TLSClientCertKey)
 	assert.Empty(t, sanitized.GCPServiceAccountKey)
 	assert.Empty(t, sanitized.GithubAppPrivateKey)
+	assert.Empty(t, sanitized.AzureServicePrincipalClientSecret)
 }
 
 func TestSanitizedRepositoryPreservesDepthZero(t *testing.T) {
