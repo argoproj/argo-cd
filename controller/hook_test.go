@@ -246,7 +246,6 @@ func TestExecuteHooksAlreadyExistsLogic(t *testing.T) {
 		liveAnnot     map[string]string // nil -> object doesn't exist in cluster
 		expectCreated bool
 	}{
-
 		//  PRE DELETE TESTS
 		{
 			name:          "PreDelete (argocd): Not in cluster - should be created",
@@ -290,7 +289,6 @@ func TestExecuteHooksAlreadyExistsLogic(t *testing.T) {
 			liveAnnot:     map[string]string{"argocd.argoproj.io/hook": "PreDelete" },
 			expectCreated: false,
 		},
-
 		//  POST DELETE TESTS
 		{
 			name:          "PostDelete (argocd): Not in cluster - should be created",
@@ -341,7 +339,6 @@ func TestExecuteHooksAlreadyExistsLogic(t *testing.T) {
 			liveAnnot:     map[string]string{"argocd.argoproj.io/hook": "PostDelete" },
 			expectCreated: false,
 		},
-
 		//  MULTI HOOK TESTS - SKIP LOGIC
 		{
 			name:          "Multi-hook (argocd): Target is (Pre,Post), Cluster has (Pre,Post) - should be skipped",
