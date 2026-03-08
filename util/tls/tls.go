@@ -477,13 +477,12 @@ func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() 
 
 	if prefix != "" {
 		envPrefix = strings.ReplaceAll(strings.ToUpper(prefix), "-", "_") + "_"
-		prefix = prefix + "-"
 	}
 
-	cmd.Flags().StringVar(&repoServerCACert, prefix+"repo-server-ca-cert", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CA_CERT", ""), "Path to the repo-server CA certificate file")
-	cmd.Flags().StringVar(&tlsConfig.ClientCertFile, prefix+"repo-server-client-cert", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT", ""), "Path to the client certificate file for mTLS")
-	cmd.Flags().StringVar(&tlsConfig.ClientCertKeyFile, prefix+"repo-server-client-cert-key", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT_KEY", ""), "Path to the client certificate key file for mTLS")
-	cmd.Flags().BoolVar(&selfGenerateClientCert, prefix+"self-generate-client-cert", env.ParseBoolFromEnv("ARGOCD_"+envPrefix+"SELF_GENERATE_CLIENT_CERT", false), "Self-generate a client certificate for mTLS")
+	cmd.Flags().StringVar(&repoServerCACert, "repo-server-ca-cert", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CA_CERT", ""), "Path to the repo-server CA certificate file")
+	cmd.Flags().StringVar(&tlsConfig.ClientCertFile, "repo-server-client-cert", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT", ""), "Path to the client certificate file for mTLS")
+	cmd.Flags().StringVar(&tlsConfig.ClientCertKeyFile, "repo-server-client-cert-key", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT_KEY", ""), "Path to the client certificate key file for mTLS")
+	cmd.Flags().BoolVar(&selfGenerateClientCert, "self-generate-client-cert", env.ParseBoolFromEnv("ARGOCD_"+envPrefix+"SELF_GENERATE_CLIENT_CERT", false), "Self-generate a client certificate for mTLS")
 
 	return func() (apiclient.TLSConfiguration, error) {
 		if repoServerCACert != "" {
