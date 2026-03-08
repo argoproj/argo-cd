@@ -177,8 +177,8 @@ func NewCommand() *cobra.Command {
 			mux := http.NewServeMux()
 			healthz.ServeHealthCheck(mux, func(r *http.Request) error {
 				if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
-					// connect to itself to make sure repo server is able to serve connection
-					// used by liveness probe to auto restart repo server
+					// connect to itself to make sure the repo server is able to serve the connection
+					// used by liveness probe to auto-restart repo server
 					// see https://github.com/argoproj/argo-cd/issues/5110 for more information
 					healthCheckTLSConfig := apiclient.TLSConfiguration{
 						StrictValidation: false,
@@ -193,17 +193,39 @@ func NewCommand() *cobra.Command {
 						certPEM, keyPEM := tls.EncodeX509KeyPair(*cert)
 						certFile, _ := os.CreateTemp("", "health-cert")
 						if certFile != nil {
-							certFile.Write(certPEM)
-							certFile.Close()
+							_, err := certFile.Write(certPEM)
+							if err != nil {
+								return fmt.Errorf("failed to write health check cert file: %v", err)
+							}
+							err = certFile.Close()
+							if err != nil {
+								return fmt.Errorf("failed to close health check cert file: %v", err)
+							}
 							healthCheckTLSConfig.ClientCertFile = certFile.Name()
-							defer os.Remove(certFile.Name())
+							defer func(name string) {
+								err := os.Remove(name)
+								if err != nil {
+									log.Warnf("failed to remove health check cert file '%s': %v", name, err)
+								}
+							}(certFile.Name())
 						}
 						keyFile, _ := os.CreateTemp("", "health-key")
 						if keyFile != nil {
-							keyFile.Write(keyPEM)
-							keyFile.Close()
+							_, err := keyFile.Write(keyPEM)
+							if err != nil {
+								return fmt.Errorf("failed to write health check key file: %v", err)
+							}
+							err = keyFile.Close()
+							if err != nil {
+								return fmt.Errorf("failed to close health check key file: %v", err)
+							}
 							healthCheckTLSConfig.ClientCertKeyFile = keyFile.Name()
-							defer os.Remove(keyFile.Name())
+							defer func(name string) {
+								err := os.Remove(name)
+								if err != nil {
+									log.Warnf("failed to remove health check key file '%s': %v", name, err)
+								}
+							}(keyFile.Name())
 						}
 					}
 					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, &healthCheckTLSConfig)
