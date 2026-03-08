@@ -22,7 +22,14 @@ func TestPlugin(t *testing.T) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		_, err := w.Write([]byte(expectedJSON))
+
+		var serviceRequest ServiceRequest
+		err := json.NewDecoder(r.Body).Decode(&serviceRequest)
+		require.NoError(t, err)
+		assert.Equal(t, "plugin-test", serviceRequest.ApplicationSetName)
+		assert.Equal(t, "example-ns", serviceRequest.ApplicationSetNamespace)
+
+		_, err = w.Write([]byte(expectedJSON))
 		if err != nil {
 			assert.NoError(t, fmt.Errorf("Error Write %w", err))
 		}
@@ -30,7 +37,7 @@ func TestPlugin(t *testing.T) {
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
-	client, err := NewPluginService("plugin-test", ts.URL, token, 0)
+	client, err := NewPluginService("plugin-test", "example-ns", ts.URL, token, 0)
 	require.NoError(t, err)
 
 	data, err := client.List(t.Context(), nil)
