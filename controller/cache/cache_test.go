@@ -952,3 +952,141 @@ func Test_asResourceNode_same_namespace_parent(t *testing.T) {
 	assert.Equal(t, "my-deployment", resNode.ParentRefs[0].Name)
 	assert.Equal(t, "my-namespace", resNode.ParentRefs[0].Namespace, "Deployment parent should have same namespace")
 }
+
+// TestGetManagedLiveObjs_ManageOwnedResources verifies that the isManaged callback passed
+// to ClusterCache.GetManagedLiveObjs enforces the correct semantics for the
+// ManageOwnedResources SyncOption.
+//
+// Without the option: only root resources (no ownerRefs) that carry AppName are managed.
+// With the option   : owned resources (ownerRefs present) are also managed when their
+//
+//	TrackingAppName matches the application instance.
+func TestGetManagedLiveObjs_ManageOwnedResources(t *testing.T) {
+	const (
+		appNamespace = "argocd"
+		appName      = "my-app"
+		clusterURL   = "https://mycluster"
+		// InstanceName returns just appName when app.Namespace == settingsMgr.GetNamespace().
+		instanceName = appName
+	)
+
+	makeApp := func(syncOptions appv1.SyncOptions) *appv1.Application {
+		app := &appv1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNamespace},
+			Spec: appv1.ApplicationSpec{
+				Destination: appv1.ApplicationDestination{Server: clusterURL},
+			},
+		}
+		if len(syncOptions) > 0 {
+			app.Spec.SyncPolicy = &appv1.SyncPolicy{SyncOptions: syncOptions}
+		}
+		return app
+	}
+
+	// Resource with no ownerRefs, AppName set (root resource tracked by Argo CD)
+	rootResource := &cache.Resource{
+		Ref: corev1.ObjectReference{Kind: "ConfigMap", Name: "root-cm", Namespace: "default"},
+		Info: &ResourceInfo{
+			AppName:         instanceName,
+			TrackingAppName: instanceName,
+		},
+	}
+
+	// Resource with ownerRefs, only TrackingAppName set (gained ownerRefs after deployment)
+	ownedResource := &cache.Resource{
+		Ref: corev1.ObjectReference{Kind: "ConfigMap", Name: "owned-cm", Namespace: "default"},
+		OwnerRefs: []metav1.OwnerReference{
+			{APIVersion: "v1", Kind: "SomeController", Name: "ctrl", UID: "uid-1"},
+		},
+		Info: &ResourceInfo{
+			// AppName is empty because isRoot=false at cache-refresh time
+			AppName:         "",
+			TrackingAppName: instanceName,
+		},
+	}
+
+	// Resource belonging to a different application
+	otherAppResource := &cache.Resource{
+		Ref: corev1.ObjectReference{Kind: "ConfigMap", Name: "other-cm", Namespace: "default"},
+		Info: &ResourceInfo{
+			AppName:         "argocd_other-app",
+			TrackingAppName: "argocd_other-app",
+		},
+	}
+
+	tests := []struct {
+		name          string
+		syncOptions   appv1.SyncOptions
+		resource      *cache.Resource
+		expectManaged bool
+	}{
+		{
+			name:          "root resource always managed",
+			syncOptions:   nil,
+			resource:      rootResource,
+			expectManaged: true,
+		},
+		{
+			name:          "owned resource excluded without SyncOption",
+			syncOptions:   nil,
+			resource:      ownedResource,
+			expectManaged: false,
+		},
+		{
+			name:          "owned resource included with ManageOwnedResources=true",
+			syncOptions:   appv1.SyncOptions{common.SyncOptionManageOwnedResources},
+			resource:      ownedResource,
+			expectManaged: true,
+		},
+		{
+			name:          "other app resource never managed",
+			syncOptions:   appv1.SyncOptions{common.SyncOptionManageOwnedResources},
+			resource:      otherAppResource,
+			expectManaged: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := makeApp(tt.syncOptions)
+
+			// Capture the isManaged callback passed by GetManagedLiveObjs.
+			var capturedCallback func(r *cache.Resource) bool
+
+			gitopsEngineClusterCache := &mocks.ClusterCache{}
+			gitopsEngineClusterCache.EXPECT().EnsureSynced().Return(nil).Once()
+			gitopsEngineClusterCache.EXPECT().
+				GetManagedLiveObjs(mock.Anything, mock.Anything).
+				Run(func(_ []*unstructured.Unstructured, cb func(r *cache.Resource) bool) {
+					capturedCallback = cb
+				}).
+				Return(map[kube.ResourceKey]*unstructured.Unstructured{}, nil).
+				Once()
+
+			fakeClient := fake.NewClientset()
+			settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, appNamespace)
+
+			db := &dbmocks.ArgoDB{}
+			db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
+
+			lsc := &liveStateCache{
+				clusters: map[string]cache.ClusterCache{
+					clusterURL: gitopsEngineClusterCache,
+				},
+				clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
+				settingsMgr:     settingsMgr,
+			}
+
+			_, err := lsc.GetManagedLiveObjs(
+				&appv1.Cluster{Server: clusterURL},
+				app,
+				[]*unstructured.Unstructured{},
+			)
+			require.NoError(t, err)
+			require.NotNil(t, capturedCallback, "expected isManaged callback to be captured")
+
+			got := capturedCallback(tt.resource)
+			assert.Equal(t, tt.expectManaged, got, "isManaged(%s)", tt.resource.Ref.Name)
+		})
+	}
+}
