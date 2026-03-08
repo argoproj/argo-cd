@@ -94,6 +94,16 @@ type ClientApp struct {
 	secureCookie bool
 	// settings holds Argo CD settings
 	settings *settings.ArgoCDSettings
+	// settingsMgr is used to lazily read the current settings at transport-config time
+	settingsMgr *settings.SettingsManager
+	// transport is the underlying HTTP transport (TLS configured lazily)
+	transport *http.Transport
+	// dexTLSConfig holds the dex TLS configuration for lazy transport setup
+	dexTLSConfig *dex.DexTLSConfig
+	// dexServerAddr holds the dex server address for lazy transport setup
+	dexServerAddr string
+	// transportOnce ensures configureTransport runs exactly once
+	transportOnce sync.Once
 	// encryptionKey holds server encryption key
 	encryptionKey []byte
 	// provider is the OIDC provider
@@ -184,7 +194,7 @@ func GetScopesOrDefault(scopes []string) []string {
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
-func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTLSConfig *dex.DexTLSConfig, baseHRef string, cacheClient cache.CacheClient) (*ClientApp, error) {
+func NewClientApp(settingsMgr *settings.SettingsManager, settings *settings.ArgoCDSettings, dexServerAddr string, dexTLSConfig *dex.DexTLSConfig, baseHRef string, cacheClient cache.CacheClient) (*ClientApp, error) {
 	redirectURL, err := settings.RedirectURL()
 	if err != nil {
 		return nil, err
@@ -192,24 +202,6 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 	encryptionKey, err := settings.GetServerEncryptionKey()
 	if err != nil {
 		return nil, err
-	}
-	a := ClientApp{
-		clientID:                 settings.OAuth2ClientID(),
-		clientSecret:             settings.OAuth2ClientSecret(),
-		usePKCE:                  settings.OAuth2UsePKCE(),
-		useAzureWorkloadIdentity: settings.UseAzureWorkloadIdentity(),
-		redirectURI:              redirectURL,
-		issuerURL:                settings.IssuerURL(),
-		baseHRef:                 baseHRef,
-		encryptionKey:            encryptionKey,
-		clientCache:              cacheClient,
-		azure:                    azureApp{mtx: &sync.RWMutex{}},
-		refreshTokenThreshold:    settings.OIDCRefreshTokenThreshold,
-	}
-	log.Infof("Creating client app (%s)", a.clientID)
-	u, err := url.Parse(settings.URL)
-	if err != nil {
-		return nil, fmt.Errorf("parse redirect-uri: %w", err)
 	}
 
 	transport := &http.Transport{
@@ -229,26 +221,73 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
+
+	a := ClientApp{
+		clientID:                 settings.OAuth2ClientID(),
+		clientSecret:             settings.OAuth2ClientSecret(),
+		usePKCE:                  settings.OAuth2UsePKCE(),
+		useAzureWorkloadIdentity: settings.UseAzureWorkloadIdentity(),
+		redirectURI:              redirectURL,
+		issuerURL:                settings.IssuerURL(),
+		baseHRef:                 baseHRef,
+		encryptionKey:            encryptionKey,
+		clientCache:              cacheClient,
+		azure:                    azureApp{mtx: &sync.RWMutex{}},
+		refreshTokenThreshold:    settings.OIDCRefreshTokenThreshold,
+		settingsMgr:              settingsMgr,
+		transport:                transport,
+		dexTLSConfig:             dexTLSConfig,
+		dexServerAddr:            dexServerAddr,
+	}
+	log.Infof("Creating client app (%s)", a.clientID)
+	u, err := url.Parse(settings.URL)
+	if err != nil {
+		return nil, fmt.Errorf("parse redirect-uri: %w", err)
+	}
+
 	a.client = &http.Client{
 		Transport: transport,
 	}
-
-	if settings.DexConfig != "" && settings.OIDCConfigRAW == "" {
-		transport.TLSClientConfig = dex.TLSConfig(dexTLSConfig)
-		addrWithProto := dex.DexServerAddressWithProtocol(dexServerAddr, dexTLSConfig)
-		a.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, a.client.Transport)
-	} else {
-		transport.TLSClientConfig = settings.OIDCTLSConfig()
-	}
-	if os.Getenv(common.EnvVarSSODebug) == "1" {
-		a.client.Transport = httputil.DebugTransport{T: a.client.Transport}
-	}
+	// Transport TLS is configured lazily in configureTransport() to avoid a
+	// race where DexConfig is not yet present in argocd-cm at startup but
+	// arrives later via a settings update / graceful restart.
 
 	a.provider = NewOIDCProvider(a.issuerURL, a.client)
 	// NOTE: if we ever have replicas of Argo CD, this needs to switch to Redis cache
 	a.secureCookie = bool(u.Scheme == "https")
 	a.settings = settings
 	return &a, nil
+}
+
+// configureTransport sets up TLS and (optionally) Dex rewrite transport on the
+// ClientApp's http.Transport. It is called lazily via sync.Once so that the
+// settings (e.g. DexConfig) can arrive after the ClientApp has been constructed.
+// When settingsMgr is available the latest settings are read from the
+// Kubernetes ConfigMap; otherwise the settings snapshot captured at
+// construction time is used as a fallback.
+func (a *ClientApp) configureTransport() {
+	if a.transport == nil {
+		return
+	}
+	currentSettings := a.settings
+	if a.settingsMgr != nil {
+		s, err := a.settingsMgr.GetSettings()
+		if err != nil {
+			log.Warnf("Failed to read settings for transport configuration: %v", err)
+		} else {
+			currentSettings = s
+		}
+	}
+	if currentSettings.DexConfig != "" && currentSettings.OIDCConfigRAW == "" {
+		a.transport.TLSClientConfig = dex.TLSConfig(a.dexTLSConfig)
+		addrWithProto := dex.DexServerAddressWithProtocol(a.dexServerAddr, a.dexTLSConfig)
+		a.client.Transport = dex.NewDexRewriteURLRoundTripper(addrWithProto, a.transport)
+	} else {
+		a.transport.TLSClientConfig = currentSettings.OIDCTLSConfig()
+	}
+	if os.Getenv(common.EnvVarSSODebug) == "1" {
+		a.client.Transport = httputil.DebugTransport{T: a.client.Transport}
+	}
 }
 
 func (a *ClientApp) getRedirectURIForRequest(req *http.Request) string {
@@ -400,6 +439,7 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 // HandleLogin formulates the proper OAuth2 URL (auth code or implicit) and redirects the user to
 // the IDp login & consent page
 func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	a.transportOnce.Do(a.configureTransport)
 	oidcConf, err := a.provider.ParseConfig()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -492,6 +532,7 @@ func (a *azureApp) getFederatedServiceAccountToken(context.Context) (string, err
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
+	a.transportOnce.Do(a.configureTransport)
 	oauth2Config, err := a.getOauth2ConfigForRedirectURI(a.getRedirectURIForRequest(r))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -706,6 +747,7 @@ func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject st
 	ctx, span = tracer.Start(ctx, "oidc.ClientApp.GetUpdatedOidcTokenFromCache")
 	defer span.End()
 
+	a.transportOnce.Do(a.configureTransport)
 	ctx = gooidc.ClientContext(ctx, a.client)
 	span.SetAttributes(
 		attribute.String("subject", subject),
@@ -904,6 +946,7 @@ func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims,
 	var span trace.Span
 	ctx, span = tracer.Start(ctx, "oidc.ClientApp.GetUserInfo")
 	defer span.End()
+	a.transportOnce.Do(a.configureTransport)
 	sub := jwtutil.StringField(actualClaims, "sub")
 	var claims jwt.MapClaims
 	var encClaims []byte
