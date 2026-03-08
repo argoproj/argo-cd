@@ -21,8 +21,12 @@ local cnpgStatus = {
     ["Cluster cannot proceed to reconciliation due to an unknown plugin being required"] = "Suspended",
     ["Cluster has incomplete or invalid image catalog"] = "Suspended",
     ["Cluster is unrecoverable and needs manual intervention"] = "Suspended",
+    ["Cluster has been hibernated"] = "Suspended",
+    ["Cluster reconciliation is suspended"] = "Degraded",
 }
 
+-- Hibernation: cluster can be put to sleep (Pods removed, PVCs retained).
+-- https://cloudnative-pg.io/docs/1.28/declarative_hibernation
 function hibernating(obj)
     for i, condition in pairs(obj.status.conditions) do
         if condition.type == "cnpg.io/hibernation" then
@@ -32,9 +36,11 @@ function hibernating(obj)
     return nil
 end
 
--- Check if reconciliation is suspended, since this is an explicit user action we return the "suspended" status immediately
-if obj.metadata and obj.metadata.annotations and obj.metadata.annotations["cnpg.io/reconciliation"] == "disabled" then
-    hs.status = "Suspended"
+-- Reconciliation suspension is a user-driven state and can have empty phaseReason.
+-- Return an explicit, stable health message for this case.
+-- https://cloudnative-pg.io/docs/1.28/failure_modes/#disabling-reconciliation
+if obj.metadata and obj.metadata.annotations and obj.metadata.annotations["cnpg.io/reconciliationLoop"] == "disabled" then
+    hs.status = "Degraded"
     hs.message = "Cluster reconciliation is suspended"
     return hs
 end
