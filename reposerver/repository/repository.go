@@ -2624,6 +2624,10 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 
 	var tags []string
 	if enableOCI {
+		if versions.IsDigest(revision) {
+			// This checks avoids unnecessary retrieval of the Helm chart tags from the repo if the revision is a digest
+			return helmClient, revision, nil
+		}
 		var err error
 		tags, err = helmClient.GetTags(chart, noRevisionCache)
 		if err != nil {
