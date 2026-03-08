@@ -751,13 +751,27 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 if (isApplication) {
                                     return {
                                         ...commonProps,
-                                        onNodeClick: (fullName: string) => selectNode(fullName),
+                                        onNodeClick: (fullName: string) => {
+                                            const parts = fullName.split('/');
+                                            const [group, kind, namespace, name] = parts;
+                                            if (group === 'argoproj.io' && kind === 'ApplicationSet' && namespace && name) {
+                                                // Only navigate to AppSet page if this AppSet owns the current Application.
+                                                // If the AppSet is a child resource managed by this Application, open ResourceDetails instead.
+                                                const ownerAppSetRef = AppUtils.getApplicationSetOwnerRef(application as appModels.Application);
+                                                if (ownerAppSetRef && ownerAppSetRef.name === name) {
+                                                    appContext.navigation.goto(`/applicationsets/${namespace}/${name}`);
+                                                    return;
+                                                }
+                                            }
+                                            selectNode(fullName);
+                                        },
                                         nodeMenu: (node: ResourceTreeNode) =>
                                             AppUtils.renderResourceMenu(node, application as appModels.Application, tree, appContext, appChanged.current, () =>
                                                 getApplicationActionMenu(application as appModels.Application, false)
                                             ),
                                         app: application as appModels.Application,
                                         showOrphanedResources: pref.orphanedResources,
+                                        showAppSetParent: pref.showAppSetParent,
                                         useNetworkingHierarchy: pref.view === 'network',
                                         podGroupCount: pref.podGroupCount
                                     };
@@ -1031,6 +1045,18 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                         <i className={classNames('fa fa-object-group fa-fw')} />
                                                                     </a>
                                                                 </Tooltip>
+                                                            )}
+                                                            {isApplication && !!AppUtils.getApplicationSetOwnerRef(application as appModels.Application) && (
+                                                                <a
+                                                                    className={`group-nodes-button group-nodes-button${pref.showAppSetParent ? '-on' : ''}`}
+                                                                    title='Show ApplicationSet parent node'
+                                                                    onClick={() =>
+                                                                        services.viewPreferences.updatePreferences({
+                                                                            appDetails: {...pref, showAppSetParent: !pref.showAppSetParent}
+                                                                        })
+                                                                    }>
+                                                                    <i className='fa fa-sitemap fa-fw' />
+                                                                </a>
                                                             )}
                                                             <span className={`separator`} />
                                                             <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>

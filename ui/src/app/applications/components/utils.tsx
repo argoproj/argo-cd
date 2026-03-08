@@ -1445,6 +1445,14 @@ export function isAppNode(node: appModels.ResourceNode) {
     return node.kind === 'Application' && node.group === 'argoproj.io';
 }
 
+export function isAppSetNode(node: appModels.ResourceNode) {
+    return node.kind === 'ApplicationSet' && node.group === 'argoproj.io';
+}
+
+export function getApplicationSetOwnerRef(application: appModels.Application) {
+    return application.metadata.ownerReferences?.find(ref => ref.kind === 'ApplicationSet');
+}
+
 export function getAppOverridesCount(app: appModels.AbstractApplication) {
     // ApplicationSets don't have overrides
     if (!isApp(app)) {
