@@ -2240,6 +2240,31 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 	}
 }
 
+// flattenValues flattens nested map to dot-notation keys for helm parameters
+func flattenValues(input map[string]any, output map[string]string, prefix string) {
+	for k, v := range input {
+		key := k
+		if prefix != "" {
+			key = prefix + "." + k
+		}
+		switch val := v.(type) {
+		case map[string]any:
+			flattenValues(val, output, key)
+		case []any:
+			for i, item := range val {
+				switch itemVal := item.(type) {
+				case map[string]any:
+					flattenValues(itemVal, output, fmt.Sprintf("%s[%d]", key, i))
+				default:
+					output[fmt.Sprintf("%s[%d]", key, i)] = fmt.Sprintf("%v", item)
+				}
+			}
+		default:
+			output[key] = fmt.Sprintf("%v", val)
+		}
+	}
+}
+
 func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, repoRoot string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths utilio.TempPaths) error {
 	var selectedValueFiles []string
 	var availableValueFiles []string
@@ -2291,6 +2316,26 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	if err != nil {
 		return err
 	}
+
+	// Merge user's inline values into params (overrides chart defaults)
+	if q.Source.Helm != nil && !q.Source.Helm.ValuesIsEmpty() {
+		var raw any
+		if err := yaml.Unmarshal(q.Source.Helm.ValuesYAML(), &raw); err != nil {
+			log.Warnf("failed to parse helm values: %v", err)
+		} else if userVals, ok := raw.(map[string]any); ok {
+			flattenValues(userVals, params, "")
+		} else if raw != nil {
+			log.Warnf("helm values is not a map, got %T", raw)
+		}
+	}
+
+	// Merge --set style parameter overrides (highest precedence)
+	if q.Source.Helm != nil {
+		for _, p := range q.Source.Helm.Parameters {
+			params[p.Name] = p.Value
+		}
+	}
+
 	for k, v := range params {
 		res.Helm.Parameters = append(res.Helm.Parameters, &v1alpha1.HelmParameter{
 			Name:  k,
