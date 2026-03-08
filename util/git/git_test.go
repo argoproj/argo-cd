@@ -722,3 +722,122 @@ func TestAnnotatedTagHandling(t *testing.T) {
 	// Verify tag exists in the list and points to a valid commit SHA
 	assert.Contains(t, refs.Tags, "v1.0.0", "Tag v1.0.0 should exist in refs")
 }
+
+func TestIsShortRef(t *testing.T) {
+	tests := []struct {
+		name     string
+		revision string
+		expected bool
+	}{
+		// Short refs (should return true)
+		{
+			name:     "short branch name",
+			revision: "master",
+			expected: true,
+		},
+		{
+			name:     "short branch name with slashes",
+			revision: "feature/my-feature",
+			expected: true,
+		},
+		{
+			name:     "short branch name with multiple slashes",
+			revision: "release/v1.0/bugfix",
+			expected: true,
+		},
+		{
+			name:     "short tag name",
+			revision: "v1.0.0",
+			expected: true,
+		},
+		{
+			name:     "short tag name without version prefix",
+			revision: "release-1.0",
+			expected: true,
+		},
+		{
+			name:     "simple branch name",
+			revision: "main",
+			expected: true,
+		},
+		{
+			name:     "branch with hyphens",
+			revision: "my-feature-branch",
+			expected: true,
+		},
+		{
+			name:     "branch with underscores",
+			revision: "my_feature_branch",
+			expected: true,
+		},
+		// Full refs (should return false)
+		{
+			name:     "full branch ref",
+			revision: "refs/heads/master",
+			expected: false,
+		},
+		{
+			name:     "full tag ref",
+			revision: "refs/tags/v1.0.0",
+			expected: false,
+		},
+		{
+			name:     "full remote branch ref",
+			revision: "refs/remotes/origin/master",
+			expected: false,
+		},
+		{
+			name:     "full branch ref with slashes in name",
+			revision: "refs/heads/feature/my-feature",
+			expected: false,
+		},
+		{
+			name:     "full tag ref with slashes in name",
+			revision: "refs/tags/release/v1.0.0",
+			expected: false,
+		},
+		{
+			name:     "full remote branch ref with slashes",
+			revision: "refs/remotes/origin/feature/branch",
+			expected: false,
+		},
+		{
+			name:     "full pull request ref",
+			revision: "refs/pull/123/head",
+			expected: false,
+		},
+		{
+			name:     "full notes ref",
+			revision: "refs/notes/commits",
+			expected: false,
+		},
+		// Special cases
+		{
+			name:     "HEAD",
+			revision: "HEAD",
+			expected: true,
+		},
+		{
+			name:     "commit SHA",
+			revision: "9d921f65f3c5373b682e2eb4b37afba6592e8f8b",
+			expected: true,
+		},
+		{
+			name:     "truncated commit SHA",
+			revision: "9d921f6",
+			expected: true,
+		},
+		{
+			name:     "empty string",
+			revision: "",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsShortRef(tt.revision)
+			assert.Equal(t, tt.expected, result, "IsShortRef(%q) = %v, expected %v", tt.revision, result, tt.expected)
+		})
+	}
+}

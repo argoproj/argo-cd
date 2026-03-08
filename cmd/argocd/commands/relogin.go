@@ -13,6 +13,7 @@ import (
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	"github.com/argoproj/argo-cd/v3/util/session"
 )
@@ -60,9 +61,9 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			acdClient := headless.NewClientOrDie(&clientOpts, c)
 			claims, err := configCtx.User.Claims()
 			errors.CheckError(err)
-			if claims.Issuer == session.SessionManagerClaimsIssuer {
-				fmt.Printf("Relogging in as '%s'\n", localconfig.GetUsername(claims.Subject))
-				tokenString = passwordLogin(ctx, acdClient, localconfig.GetUsername(claims.Subject), password)
+			if jwtutil.StringField(claims, "iss") == session.SessionManagerClaimsIssuer {
+				fmt.Printf("Relogging in as '%s'\n", userDisplayName(claims))
+				tokenString = passwordLogin(ctx, acdClient, localconfig.GetUsername(jwtutil.StringField(claims, "sub")), password)
 			} else {
 				fmt.Println("Reinitiating SSO login")
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
@@ -86,7 +87,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			errors.CheckError(err)
 			fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
 		},
-		Example: `  
+		Example: `
 # Reinitiates the login with previous contexts
 argocd relogin
 
