@@ -588,6 +588,14 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		clustercache.SetEventProcessingInterval(clusterCacheEventsProcessingInterval),
 	}
 
+	if cluster.Config.KubeConfigExecProvider != nil {
+		clusterCacheOpts = append(clusterCacheOpts,
+			clustercache.SetConfigProvider(func() (*rest.Config, error) {
+				return cluster.RESTConfig()
+			}),
+		)
+	}
+
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {

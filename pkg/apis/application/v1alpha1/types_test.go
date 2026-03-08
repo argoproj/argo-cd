@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -18,6 +19,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -240,9 +243,209 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			permitted, _ := proj.IsDestinationPermitted(destCluster, data.appDest.Namespace, func(_ string) ([]*Cluster, error) {
 				return []*Cluster{}, nil
 			})
-			assert.Equal(t, data.isPermitted, permitted)
+			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
 		})
 	}
+}
+
+func writeTestKubeconfig(t *testing.T, config clientcmdapi.Config) string {
+	t.Helper()
+	tmpFile := filepath.Join(t.TempDir(), "kubeconfig")
+	err := clientcmd.WriteToFile(config, tmpFile)
+	require.NoError(t, err)
+	return tmpFile
+}
+
+func TestRawRestConfig_KubeConfigExecProvider_HappyPath(t *testing.T) {
+	kubeconfig := clientcmdapi.Config{
+		Clusters: map[string]*clientcmdapi.Cluster{
+			"test-cluster": {
+				Server:                   "https://kubeconfig-server:6443",
+				CertificateAuthorityData: []byte("test-ca-data"),
+			},
+		},
+		AuthInfos: map[string]*clientcmdapi.AuthInfo{
+			"test-user": {
+				Token: "test-bearer-token",
+			},
+		},
+		Contexts: map[string]*clientcmdapi.Context{
+			"test-context": {
+				Cluster:  "test-cluster",
+				AuthInfo: "test-user",
+			},
+		},
+		CurrentContext: "test-context",
+	}
+	kubeconfigPath := writeTestKubeconfig(t, kubeconfig)
+
+	cluster := Cluster{
+		Server: "https://argocd-server:6443",
+		Config: ClusterConfig{
+			KubeConfigExecProvider: &KubeConfigExecProvider{
+				Command: "cp",
+				Args:    []string{kubeconfigPath},
+			},
+		},
+	}
+
+	config, err := cluster.RawRestConfig()
+	require.NoError(t, err)
+
+	assert.Equal(t, "https://argocd-server:6443", config.Host)
+	assert.Equal(t, "test-bearer-token", config.BearerToken)
+	assert.Equal(t, []byte("test-ca-data"), config.TLSClientConfig.CAData)
+}
+
+func TestRawRestConfig_KubeConfigExecProvider_ContextSelection(t *testing.T) {
+	kubeconfig := clientcmdapi.Config{
+		Clusters: map[string]*clientcmdapi.Cluster{
+			"cluster-a": {Server: "https://cluster-a:6443"},
+			"cluster-b": {Server: "https://cluster-b:6443"},
+		},
+		AuthInfos: map[string]*clientcmdapi.AuthInfo{
+			"user-a": {Token: "token-a"},
+			"user-b": {Token: "token-b"},
+		},
+		Contexts: map[string]*clientcmdapi.Context{
+			"context-a": {Cluster: "cluster-a", AuthInfo: "user-a"},
+			"context-b": {Cluster: "cluster-b", AuthInfo: "user-b"},
+		},
+		CurrentContext: "context-a",
+	}
+	kubeconfigPath := writeTestKubeconfig(t, kubeconfig)
+
+	cluster := Cluster{
+		Server: "https://argocd-server:6443",
+		Config: ClusterConfig{
+			KubeConfigExecProvider: &KubeConfigExecProvider{
+				Command: "cp",
+				Args:    []string{kubeconfigPath},
+			},
+			KubeConfigContext: "context-b",
+		},
+	}
+
+	config, err := cluster.RawRestConfig()
+	require.NoError(t, err)
+
+	assert.Equal(t, "https://argocd-server:6443", config.Host)
+	assert.Equal(t, "token-b", config.BearerToken)
+}
+
+func TestRawRestConfig_KubeConfigExecProvider_CommandFailure(t *testing.T) {
+	cluster := Cluster{
+		Server: "https://argocd-server:6443",
+		Config: ClusterConfig{
+			KubeConfigExecProvider: &KubeConfigExecProvider{
+				Command: "sh",
+				Args:    []string{"-c", "echo 'something went wrong' >&2; exit 1; #"},
+			},
+		},
+	}
+
+	config, err := cluster.RawRestConfig()
+	assert.Nil(t, config)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "something went wrong")
+}
+
+func TestRawRestConfig_KubeConfigExecProvider_CommandNotFound(t *testing.T) {
+	cluster := Cluster{
+		Server: "https://argocd-server:6443",
+		Config: ClusterConfig{
+			KubeConfigExecProvider: &KubeConfigExecProvider{
+				Command:     "nonexistent-kubeconfig-fetcher-binary",
+				InstallHint: "Install it from https://example.com",
+			},
+		},
+	}
+
+	config, err := cluster.RawRestConfig()
+	assert.Nil(t, config)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nonexistent-kubeconfig-fetcher-binary")
+	assert.Contains(t, err.Error(), "Install it from https://example.com")
+}
+
+func TestRawRestConfig_KubeConfigExecProvider_WithEnvVars(t *testing.T) {
+	scriptContent := `#!/bin/sh
+cat > "$1" <<EOF
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: https://env-test:6443
+  name: env-cluster
+contexts:
+- context:
+    cluster: env-cluster
+    user: env-user
+  name: env-context
+current-context: env-context
+users:
+- name: env-user
+  user:
+    token: ${MY_TEST_TOKEN}
+EOF
+`
+	scriptDir := t.TempDir()
+	scriptPath := filepath.Join(scriptDir, "gen-kubeconfig.sh")
+	err := os.WriteFile(scriptPath, []byte(scriptContent), 0o755)
+	require.NoError(t, err)
+
+	cluster := Cluster{
+		Server: "https://argocd-server:6443",
+		Config: ClusterConfig{
+			KubeConfigExecProvider: &KubeConfigExecProvider{
+				Command: scriptPath,
+				Env:     map[string]string{"MY_TEST_TOKEN": "env-token-value"},
+			},
+		},
+	}
+
+	config, err := cluster.RawRestConfig()
+	require.NoError(t, err)
+
+	assert.Equal(t, "https://argocd-server:6443", config.Host)
+	assert.Equal(t, "env-token-value", config.BearerToken)
+}
+
+func TestRawRestConfig_KubeConfigExecProvider_PrecedenceOverExecProvider(t *testing.T) {
+	kubeconfig := clientcmdapi.Config{
+		Clusters: map[string]*clientcmdapi.Cluster{
+			"test-cluster": {Server: "https://kubeconfig-server:6443"},
+		},
+		AuthInfos: map[string]*clientcmdapi.AuthInfo{
+			"test-user": {Token: "kubeconfig-token"},
+		},
+		Contexts: map[string]*clientcmdapi.Context{
+			"test-context": {Cluster: "test-cluster", AuthInfo: "test-user"},
+		},
+		CurrentContext: "test-context",
+	}
+	kubeconfigPath := writeTestKubeconfig(t, kubeconfig)
+
+	cluster := Cluster{
+		Server: "https://argocd-server:6443",
+		Config: ClusterConfig{
+			KubeConfigExecProvider: &KubeConfigExecProvider{
+				Command: "cp",
+				Args:    []string{kubeconfigPath},
+			},
+			ExecProviderConfig: &ExecProviderConfig{
+				Command: "some-other-exec",
+				Args:    []string{"get-token"},
+			},
+		},
+	}
+
+	config, err := cluster.RawRestConfig()
+	require.NoError(t, err)
+
+	assert.Equal(t, "https://argocd-server:6443", config.Host)
+	assert.Equal(t, "kubeconfig-token", config.BearerToken)
+	assert.Nil(t, config.ExecProvider)
 }
 
 func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {

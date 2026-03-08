@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -2413,6 +2414,29 @@ type ExecProviderConfig struct {
 	InstallHint string `json:"installHint,omitempty" protobuf:"bytes,5,opt,name=installHint"`
 }
 
+// KubeConfigExecProvider is config used to call an external command to produce a full kubeconfig file.
+// Unlike ExecProviderConfig which only produces credentials, this command produces an entire
+// kubeconfig (server, CA, auth) which ArgoCD reads to build a REST config. ArgoCD creates a
+// temp file and passes its path as the last argument to the command. The command must write a
+// valid kubeconfig to that file.
+type KubeConfigExecProvider struct {
+	// Command to execute
+	Command string `json:"command" protobuf:"bytes,1,opt,name=command"`
+
+	// Arguments to pass to the command when executing it.
+	// The temp file path is appended as the last argument automatically.
+	Args []string `json:"args,omitempty" protobuf:"bytes,2,rep,name=args"`
+
+	// Env defines additional environment variables to expose to the process
+	Env map[string]string `json:"env,omitempty" protobuf:"bytes,3,opt,name=env"`
+
+	// APIVersion is the preferred api version of the kubeconfig output
+	APIVersion string `json:"apiVersion,omitempty" protobuf:"bytes,4,opt,name=apiVersion"`
+
+	// InstallHint is shown to the user when the executable doesn't seem to be present
+	InstallHint string `json:"installHint,omitempty" protobuf:"bytes,5,opt,name=installHint"`
+}
+
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
 // rest.Config with annotations added for marshalling.
 type ClusterConfig struct {
@@ -2439,6 +2463,14 @@ type ClusterConfig struct {
 
 	// ProxyURL is the URL to the proxy to be used for all requests send to the server
 	ProxyUrl string `json:"proxyUrl,omitempty" protobuf:"bytes,8,opt,name=proxyUrl"` //nolint:revive //FIXME(var-naming)
+
+	// KubeConfigExecProvider contains configuration for an external command that produces a full kubeconfig file.
+	// When set, this takes precedence over all other authentication methods.
+	KubeConfigExecProvider *KubeConfigExecProvider `json:"kubeConfigExecProvider,omitempty" protobuf:"bytes,9,opt,name=kubeConfigExecProvider"`
+
+	// KubeConfigContext specifies the context name to use from the kubeconfig produced by KubeConfigExec.
+	// If empty, the default context from the kubeconfig is used.
+	KubeConfigContext string `json:"kubeConfigContext,omitempty" protobuf:"bytes,10,opt,name=kubeConfigContext"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -3700,6 +3732,62 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) { //nolint:revive //FIXME(
 	return u, nil
 }
 
+// runKubeConfigExecProvider executes an external command that produces a full kubeconfig file.
+// It creates a temp file, appends its path as the last argument to the command, runs the command,
+// and loads the resulting kubeconfig to build a rest.Config. The server URL is overridden with
+// the provided serverURL to preserve ArgoCD's cluster identity model.
+func runKubeConfigExecProvider(provider *KubeConfigExecProvider, kubeConfigContext string, serverURL string) (*rest.Config, error) {
+	tmpFile, err := os.CreateTemp("", "argocd-kubeconfig-*")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temp file for kubeconfig: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	tmpFile.Close()
+	defer os.Remove(tmpPath)
+
+	args := make([]string, len(provider.Args)+1)
+	copy(args, provider.Args)
+	args[len(provider.Args)] = tmpPath
+
+	cmd := exec.Command(provider.Command, args...)
+	cmd.Env = os.Environ()
+	for k, v := range provider.Env {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+	}
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		errMsg := fmt.Sprintf("kubeconfig exec provider command %q failed: %v", provider.Command, err)
+		if stderr.Len() > 0 {
+			errMsg += fmt.Sprintf(", stderr: %s", stderr.String())
+		}
+		if provider.InstallHint != "" {
+			errMsg += fmt.Sprintf(" (install hint: %s)", provider.InstallHint)
+		}
+		return nil, fmt.Errorf("%s", errMsg)
+	}
+
+	loadingRules := &clientcmd.ClientConfigLoadingRules{
+		ExplicitPath: tmpPath,
+	}
+	overrides := &clientcmd.ConfigOverrides{}
+	if kubeConfigContext != "" {
+		overrides.CurrentContext = kubeConfigContext
+	}
+
+	clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, overrides)
+	config, err := clientConfig.ClientConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load kubeconfig from exec provider output: %w", err)
+	}
+
+	config.Host = serverURL
+
+	return config, nil
+}
+
 // RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
 func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 	var config *rest.Config
@@ -3737,6 +3825,8 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 			CAData:     c.Config.CAData,
 		}
 		switch {
+		case c.Config.KubeConfigExecProvider != nil:
+			config, err = runKubeConfigExecProvider(c.Config.KubeConfigExecProvider, c.Config.KubeConfigContext, c.Server)
 		case c.Config.AWSAuthConfig != nil:
 			args := []string{"aws", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
 			if c.Config.AWSAuthConfig.RoleARN != "" {

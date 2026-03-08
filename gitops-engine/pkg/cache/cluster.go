@@ -208,10 +208,10 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		eventHandlers:           map[uint64]OnEventHandler{},
 		processEventsHandlers:   map[uint64]OnProcessEventsHandler{},
 		log:                     log,
-		listRetryLimit:      1,
-		listRetryUseBackoff: false,
-		listRetryFunc:       ListRetryFuncNever,
-		parentUIDToChildren: make(map[types.UID][]kube.ResourceKey),
+		listRetryLimit:          1,
+		listRetryUseBackoff:     false,
+		listRetryFunc:           ListRetryFuncNever,
+		parentUIDToChildren:     make(map[types.UID][]kube.ResourceKey),
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -256,6 +256,7 @@ type clusterCache struct {
 	kubectl          kube.Kubectl
 	log              logr.Logger
 	config           *rest.Config
+	configProvider   func() (*rest.Config, error)
 	namespaces       []string
 	clusterResources bool
 	settings         Settings
@@ -520,7 +521,6 @@ func (c *clusterCache) rebuildParentToChildrenIndex() {
 		}
 	}
 }
-
 
 // addToParentUIDToChildren adds a child to the parent-to-children index
 func (c *clusterCache) addToParentUIDToChildren(parentUID types.UID, childKey kube.ResourceKey) {
@@ -1006,6 +1006,13 @@ func (c *clusterCache) sync() error {
 	c.resources = make(map[kube.ResourceKey]*Resource)
 	c.namespacedResources = make(map[schema.GroupKind]bool)
 	c.parentUIDToChildren = make(map[types.UID][]kube.ResourceKey)
+	if c.configProvider != nil {
+		freshConfig, err := c.configProvider()
+		if err != nil {
+			return fmt.Errorf("failed to refresh cluster config: %w", err)
+		}
+		c.config = freshConfig
+	}
 	config := c.config
 	version, err := c.kubectl.GetServerVersion(config)
 	if err != nil {

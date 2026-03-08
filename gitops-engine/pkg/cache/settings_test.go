@@ -72,3 +72,25 @@ func TestSetEventsProcessingInterval(t *testing.T) {
 	cache.Invalidate(SetEventProcessingInterval(interval))
 	assert.Equal(t, interval, cache.eventProcessingInterval)
 }
+
+func TestSetConfigProvider(t *testing.T) {
+	cache := NewClusterCache(&rest.Config{Host: "https://original"}, SetKubectl(&kubetest.MockKubectlCmd{}))
+	assert.Nil(t, cache.configProvider)
+
+	provider := func() (*rest.Config, error) {
+		return &rest.Config{Host: "https://refreshed"}, nil
+	}
+	cache.Invalidate(SetConfigProvider(provider))
+
+	assert.NotNil(t, cache.configProvider)
+	refreshedConfig, err := cache.configProvider()
+	assert.NoError(t, err)
+	assert.Equal(t, "https://refreshed", refreshedConfig.Host)
+}
+
+func TestSetConfigProvider_NilByDefault(t *testing.T) {
+	cache := NewClusterCache(&rest.Config{Host: "https://original"}, SetKubectl(&kubetest.MockKubectlCmd{}))
+	assert.Nil(t, cache.configProvider)
+	// Config should remain unchanged when no provider is set
+	assert.Equal(t, "https://original", cache.config.Host)
+}

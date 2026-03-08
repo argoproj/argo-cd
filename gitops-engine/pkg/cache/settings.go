@@ -80,6 +80,16 @@ func SetConfig(config *rest.Config) UpdateSettingsFunc {
 	}
 }
 
+// SetConfigProvider sets a callback that produces a fresh rest.Config on every cache sync.
+// This is used when cluster credentials are fetched dynamically (e.g. via KubeConfigExecProvider),
+// ensuring that reconnections pick up rotated CA certificates and credentials.
+// If not set, the static config passed to NewClusterCache is used.
+func SetConfigProvider(provider func() (*rest.Config, error)) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.configProvider = provider
+	}
+}
+
 // SetListPageSize sets the page size for list pager.
 func SetListPageSize(listPageSize int64) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
