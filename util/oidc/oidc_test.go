@@ -49,6 +49,65 @@ func setupAzureIdentity(t *testing.T) {
 	t.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
 }
 
+func TestGetDomainHint(t *testing.T) {
+	t.Run("Returns domain hint when OIDC config is set", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: `
+name: Test OIDC
+issuer: https://example.com
+clientID: test-client
+clientSecret: test-secret
+domainHint: example.com
+`,
+		}
+		domainHint := getDomainHint(settings)
+		assert.Equal(t, "example.com", domainHint)
+	})
+
+	t.Run("Returns empty string when domain hint is not set", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: `
+name: Test OIDC
+issuer: https://example.com
+clientID: test-client
+clientSecret: test-secret
+`,
+		}
+		domainHint := getDomainHint(settings)
+		assert.Empty(t, domainHint)
+	})
+
+	t.Run("Returns empty string when OIDC config is nil", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: "",
+		}
+		domainHint := getDomainHint(settings)
+		assert.Empty(t, domainHint)
+	})
+
+	t.Run("Returns empty string when YAML is malformed", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: `{this is not valid yaml at all]`,
+		}
+		domainHint := getDomainHint(settings)
+		assert.Empty(t, domainHint)
+	})
+
+	t.Run("Trims whitespaces from domain hint", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: `
+name: Test OIDC
+issuer: https://example.com
+clientID: test-client
+clientSecret: test-secret
+domainHint: "  example.com  "
+`,
+		}
+		domainHint := getDomainHint(settings)
+		assert.Equal(t, "example.com", domainHint)
+	})
+}
+
 func TestInferGrantType(t *testing.T) {
 	for _, path := range []string{"dex", "okta", "auth0", "onelogin"} {
 		t.Run(path, func(t *testing.T) {
@@ -100,6 +159,33 @@ func TestIDTokenClaims(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.JSONEq(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
+}
+
+func TestHandleLogin_IncludesDomainHint(t *testing.T) {
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL:                       "https://argocd.example.com",
+		OIDCTLSInsecureSkipVerify: true,
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+domainHint: example.com
+requestedScopes: ["openid", "profile", "email", "groups"]`, oidcTestServer.URL),
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+	w := httptest.NewRecorder()
+	app.HandleLogin(w, req)
+
+	assert.Equal(t, http.StatusSeeOther, w.Code)
+	location := w.Header().Get("Location")
+	assert.Contains(t, location, "domain_hint=example.com")
 }
 
 type fakeProvider struct {
