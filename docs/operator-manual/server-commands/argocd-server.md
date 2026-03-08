@@ -33,6 +33,7 @@ argocd-server [flags]
       --appset-enable-github-api-metrics                Enable GitHub API metrics for generators that use the GitHub API
       --appset-enable-new-git-file-globbing             Enable new globbing in Git files generator.
       --appset-enable-scm-providers                     Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true) (default true)
+      --appset-max-matrix-children int                  Max number of child generators allowed in a matrix generator (default 2)
       --appset-scm-root-ca-path string                  Provide Root CA Path for self-signed TLS Certificates
       --as string                                       Username to impersonate for the operation
       --as-group stringArray                            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
