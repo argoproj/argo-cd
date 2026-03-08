@@ -50,6 +50,7 @@ func NewCommand() *cobra.Command {
 		secretName                     string
 		applicationNamespaces          []string
 		selfServiceNotificationEnabled bool
+		repoServerClientTLSConfigSrc   func() (apiclient.TLSConfiguration, error)
 	)
 	command := cobra.Command{
 		Use:   common.CommandNotifications,
@@ -111,11 +112,14 @@ func NewCommand() *cobra.Command {
 				}
 			}()
 
-			tlsConfig := apiclient.TLSConfiguration{
-				DisableTLS:       argocdRepoServerPlaintext,
-				StrictValidation: argocdRepoServerStrictTLS,
+			tlsConfig, err := repoServerClientTLSConfigSrc()
+			if err != nil {
+				return fmt.Errorf("failed to get repo-server client TLS configuration: %w", err)
 			}
-			if !tlsConfig.DisableTLS && tlsConfig.StrictValidation {
+			tlsConfig.DisableTLS = argocdRepoServerPlaintext
+			tlsConfig.StrictValidation = argocdRepoServerStrictTLS
+
+			if !tlsConfig.DisableTLS && tlsConfig.StrictValidation && tlsConfig.Certificates == nil {
 				pool, err := tls.LoadX509CertPool(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/tls.crt",
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/ca.crt",
@@ -174,5 +178,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&secretName, "secret-name", "argocd-notifications-secret", "Set notifications Secret name")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that this controller should send notifications for")
 	command.Flags().BoolVar(&selfServiceNotificationEnabled, "self-service-notification-enabled", env.ParseBoolFromEnv("ARGOCD_NOTIFICATION_CONTROLLER_SELF_SERVICE_NOTIFICATION_ENABLED", false), "Allows the Argo CD notification controller to pull notification config from the namespace that the resource is in. This is useful for self-service notification.")
+	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmdWithPrefix(&command, "NOTIFICATION_CONTROLLER")
 	return &command
 }
