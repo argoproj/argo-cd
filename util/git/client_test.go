@@ -1458,3 +1458,126 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, changed, "expected modified file to be reported as changed")
 }
+
+func Test_nativeGitClient_CreateWorktree(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+
+	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	// Get the current commit SHA
+	commitSHA, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	sha := strings.TrimSpace(string(commitSHA))
+
+	// Create a worktree
+	worktreePath := filepath.Join(os.TempDir(), fmt.Sprintf("test-worktree-%d", time.Now().UnixNano()))
+	t.Cleanup(func() {
+		// Clean up worktree
+		_ = client.RemoveWorktree(worktreePath)
+		os.RemoveAll(worktreePath)
+	})
+
+	err = client.CreateWorktree(sha, worktreePath)
+	require.NoError(t, err)
+
+	// Verify worktree was created
+	_, err = os.Stat(worktreePath)
+	require.NoError(t, err, "worktree directory should exist")
+
+	// Verify it's a valid git worktree by checking for .git file
+	gitFile := filepath.Join(worktreePath, ".git")
+	_, err = os.Stat(gitFile)
+	require.NoError(t, err, ".git file should exist in worktree")
+}
+
+func Test_nativeGitClient_RemoveWorktree(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+
+	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	// Get the current commit SHA
+	commitSHA, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	sha := strings.TrimSpace(string(commitSHA))
+
+	// Create a worktree
+	worktreePath := filepath.Join(os.TempDir(), fmt.Sprintf("test-worktree-%d", time.Now().UnixNano()))
+
+	err = client.CreateWorktree(sha, worktreePath)
+	require.NoError(t, err)
+
+	// Verify worktree exists
+	_, err = os.Stat(worktreePath)
+	require.NoError(t, err)
+
+	// Remove the worktree
+	err = client.RemoveWorktree(worktreePath)
+	require.NoError(t, err)
+
+	// Verify worktree directory is gone
+	_, err = os.Stat(worktreePath)
+	require.True(t, os.IsNotExist(err), "worktree directory should be removed")
+}
+
+func Test_nativeGitClient_CreateWorktree_DifferentRevisions(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tempDir) })
+
+	// Create a second commit
+	err = runCmd(ctx, tempDir, "git", "commit", "-m", "Second commit", "--allow-empty")
+	require.NoError(t, err)
+
+	// Get both commit SHAs
+	firstCommit, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD~1")
+	require.NoError(t, err)
+	firstSHA := strings.TrimSpace(string(firstCommit))
+
+	secondCommit, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	secondSHA := strings.TrimSpace(string(secondCommit))
+
+	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	// Create worktrees for both revisions
+	worktree1 := filepath.Join(os.TempDir(), fmt.Sprintf("test-worktree-1-%d", time.Now().UnixNano()))
+	worktree2 := filepath.Join(os.TempDir(), fmt.Sprintf("test-worktree-2-%d", time.Now().UnixNano()))
+	t.Cleanup(func() {
+		_ = client.RemoveWorktree(worktree1)
+		_ = client.RemoveWorktree(worktree2)
+		os.RemoveAll(worktree1)
+		os.RemoveAll(worktree2)
+	})
+
+	err = client.CreateWorktree(firstSHA, worktree1)
+	require.NoError(t, err)
+
+	err = client.CreateWorktree(secondSHA, worktree2)
+	require.NoError(t, err)
+
+	// Verify both worktrees exist
+	_, err = os.Stat(worktree1)
+	require.NoError(t, err, "first worktree should exist")
+
+	_, err = os.Stat(worktree2)
+	require.NoError(t, err, "second worktree should exist")
+
+	// Verify they have different HEADs
+	head1, err := outputCmd(ctx, worktree1, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	head2, err := outputCmd(ctx, worktree2, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+
+	assert.Equal(t, firstSHA, strings.TrimSpace(string(head1)))
+	assert.Equal(t, secondSHA, strings.TrimSpace(string(head2)))
+}
