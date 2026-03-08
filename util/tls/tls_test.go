@@ -480,8 +480,7 @@ func TestLoadX509CertPool(t *testing.T) {
 func TestAddTLSFlagsToCmdWithPrefix(t *testing.T) {
 	t.Run("Empty prefix uses standard environment variables", func(t *testing.T) {
 		cmd := &cobra.Command{}
-		os.Setenv("ARGOCD_TLS_MIN_VERSION", "1.1")
-		defer os.Unsetenv("ARGOCD_TLS_MIN_VERSION")
+		t.Setenv("ARGOCD_TLS_MIN_VERSION", "1.1")
 		AddTLSFlagsToCmdWithPrefix(cmd, "")
 
 		minVersion, err := cmd.Flags().GetString("tlsminversion")
@@ -491,8 +490,7 @@ func TestAddTLSFlagsToCmdWithPrefix(t *testing.T) {
 
 	t.Run("Prefix is used for flag names and environment variables", func(t *testing.T) {
 		cmd := &cobra.Command{}
-		os.Setenv("SERVER_ARGOCD_TLS_MIN_VERSION", "1.1")
-		defer os.Unsetenv("SERVER_ARGOCD_TLS_MIN_VERSION")
+		t.Setenv("SERVER_ARGOCD_TLS_MIN_VERSION", "1.1")
 		AddTLSFlagsToCmdWithPrefix(cmd, "server")
 
 		minVersion, err := cmd.Flags().GetString("server-tlsminversion")
@@ -504,8 +502,7 @@ func TestAddTLSFlagsToCmdWithPrefix(t *testing.T) {
 func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
 	t.Run("Empty prefix uses standard environment variables", func(t *testing.T) {
 		cmd := &cobra.Command{}
-		os.Setenv("ARGOCD_REPO_SERVER_CA_CERT", "test-ca-cert")
-		defer os.Unsetenv("ARGOCD_REPO_SERVER_CA_CERT")
+		t.Setenv("ARGOCD_REPO_SERVER_CA_CERT", "test-ca-cert")
 		AddClientTLSFlagsToCmdWithPrefix(cmd, "")
 
 		caCert, err := cmd.Flags().GetString("ca-cert")
@@ -515,8 +512,7 @@ func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
 
 	t.Run("Prefix is used for flag names and environment variables", func(t *testing.T) {
 		cmd := &cobra.Command{}
-		os.Setenv("REPO_SERVER_ARGOCD_REPO_SERVER_CA_CERT", "test-ca-cert-prefixed")
-		defer os.Unsetenv("REPO_SERVER_ARGOCD_REPO_SERVER_CA_CERT")
+		t.Setenv("REPO_SERVER_ARGOCD_REPO_SERVER_CA_CERT", "test-ca-cert-prefixed")
 		AddClientTLSFlagsToCmdWithPrefix(cmd, "repo-server")
 
 		caCert, err := cmd.Flags().GetString("repo-server-ca-cert")

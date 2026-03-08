@@ -90,8 +90,3 @@ func TestNewConnection_InsecureConnection(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, conn)
 }
-
-func TestNewConnection_mTLSWithSelfGeneratedCerts(t *testing.T) {
-	// This test doesn't actually connect, but verifies that the TLS config is correctly set up.
-	// We can't easily test the handshake here without a real server.
-}
