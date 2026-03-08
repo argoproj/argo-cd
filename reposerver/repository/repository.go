@@ -1636,6 +1636,110 @@ func shortenRevision(revision string, length int) string {
 	return revision
 }
 
+// buildEnvForRevision builds an Env containing only the revision-derived variables, which are the
+// only ones that can differ between two revisions of the same application source. This is used by
+// buildEnvHasChanged to compare parameter substitution results across revisions without needing a
+// full ManifestRequest.
+func buildEnvForRevision(appSource *v1alpha1.ApplicationSource, repo *v1alpha1.Repository, revision string) *v1alpha1.Env {
+	shortRevision := shortenRevision(revision, 7)
+	shortRevision8 := shortenRevision(revision, 8)
+	repoURL := ""
+	if repo != nil {
+		repoURL = repo.Repo
+	}
+	sourcePath := ""
+	sourceTargetRevision := ""
+	if appSource != nil {
+		sourcePath = appSource.Path
+		sourceTargetRevision = appSource.TargetRevision
+	}
+	return &v1alpha1.Env{
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: revision},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: shortRevision},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT_8", Value: shortRevision8},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: repoURL},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: sourcePath},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: sourceTargetRevision},
+	}
+}
+
+// buildEnvHasChanged returns true if any application source parameter that undergoes environment
+// variable substitution during manifest generation would produce a different value between
+// oldRevision and newRevision. When true, manifest regeneration is required even if no files in
+// the manifest-generate-paths have changed.
+func buildEnvHasChanged(appSource *v1alpha1.ApplicationSource, repo *v1alpha1.Repository, oldRevision, newRevision string) bool {
+	if appSource == nil {
+		return false
+	}
+	oldEnv := buildEnvForRevision(appSource, repo, oldRevision)
+	newEnv := buildEnvForRevision(appSource, repo, newRevision)
+	return appParametersWouldChange(appSource, oldEnv, newEnv)
+}
+
+// appParametersWouldChange checks whether environment substitution would produce different results
+// for any application source parameter between two environment contexts.
+func appParametersWouldChange(appSource *v1alpha1.ApplicationSource, oldEnv, newEnv *v1alpha1.Env) bool {
+	envChanged := func(value string) bool {
+		return oldEnv.Envsubst(value) != newEnv.Envsubst(value)
+	}
+
+	if appSource.Helm != nil {
+		for _, param := range appSource.Helm.Parameters {
+			if envChanged(param.Value) {
+				return true
+			}
+		}
+		for _, fileParam := range appSource.Helm.FileParameters {
+			if envChanged(fileParam.Path) {
+				return true
+			}
+		}
+	}
+
+	if appSource.Kustomize != nil {
+		for _, image := range appSource.Kustomize.Images {
+			if envChanged(string(image)) {
+				return true
+			}
+		}
+		for _, v := range appSource.Kustomize.CommonLabels {
+			if envChanged(v) {
+				return true
+			}
+		}
+		if appSource.Kustomize.CommonAnnotationsEnvsubst {
+			for _, v := range appSource.Kustomize.CommonAnnotations {
+				if envChanged(v) {
+					return true
+				}
+			}
+		}
+	}
+
+	if appSource.Directory != nil && !appSource.Directory.Jsonnet.IsZero() {
+		for _, tla := range appSource.Directory.Jsonnet.TLAs {
+			if envChanged(tla.Value) {
+				return true
+			}
+		}
+		for _, extVar := range appSource.Directory.Jsonnet.ExtVars {
+			if envChanged(extVar.Value) {
+				return true
+			}
+		}
+	}
+
+	if appSource.Plugin != nil {
+		for _, envEntry := range appSource.Plugin.Env {
+			if envChanged(envEntry.Value) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 func newEnvRepoQuery(q *apiclient.RepoServerAppDetailsQuery, revision string) *v1alpha1.Env {
 	return &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
@@ -3231,6 +3335,17 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		return &apiclient.UpdateRevisionForPathsResponse{
 			Changes:  false,
 			Revision: rRevision,
+		}, nil
+	}
+
+	// Even when no files in manifest-generate-paths changed, build environment variables like
+	// $ARGOCD_APP_REVISION that are used in parameters will produce different values for the new
+	// revision, so we must regenerate.
+	if buildEnvHasChanged(request.ApplicationSource, request.GetRepo(), sRevision, rRevision) {
+		logCtx.Debugf("build environment variable changes detected for application %s from revision %s to %s", request.AppName, sRevision, rRevision)
+		return &apiclient.UpdateRevisionForPathsResponse{
+			Revision: rRevision,
+			Changes:  true,
 		}, nil
 	}
 
