@@ -11,6 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -635,4 +636,55 @@ func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+// TestHelmOCIRevisionResolution verifies that when a semver constraint is used as the
+// chart revision for a Helm OCI source, the sync result captures the intermediate
+// resolution — which concrete chart version the constraint resolved to.
+func TestHelmOCIRevisionResolution(t *testing.T) {
+	Given(t).
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
+		HelmOCIRepoAdded("myrepo").
+		RepoURLType(fixture.RepoURLTypeHelmOCI).
+		Chart("helm-values").
+		Revision(">=1.0.0").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState, "OperationState should be set after sync")
+			require.NotNil(t, app.Status.OperationState.SyncResult, "SyncResult should be set after sync")
+			require.NotNil(t, app.Status.OperationState.SyncResult.Resolution,
+				"Resolution should be populated when a semver constraint was resolved")
+			assert.Equal(t, "1.0.0", app.Status.OperationState.SyncResult.Resolution.ResolvedSymbol,
+				"ResolvedSymbol should be the concrete chart version selected by the constraint")
+			assert.Equal(t, ">=1.0.0", app.Status.OperationState.SyncResult.Resolution.Constraint,
+				"Constraint should be the original revision expression")
+		})
+}
+
+// TestHelmOCIPinnedNoResolution verifies that a pinned chart version
+// (not a constraint) produces no RevisionResolution.
+func TestHelmOCIPinnedNoResolution(t *testing.T) {
+	Given(t).
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
+		HelmOCIRepoAdded("myrepo").
+		RepoURLType(fixture.RepoURLTypeHelmOCI).
+		Chart("helm-values").
+		Revision("1.0.0").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState, "OperationState should be set after sync")
+			require.NotNil(t, app.Status.OperationState.SyncResult, "SyncResult should be set after sync")
+			assert.Nil(t, app.Status.OperationState.SyncResult.Resolution,
+				"Resolution should be nil when a pinned version (not a constraint) was specified")
+		})
 }

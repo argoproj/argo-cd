@@ -930,10 +930,20 @@ export function syncStatusMessage(app: appModels.Application) {
     const rev = app.status.sync.revision || (source ? source.targetRevision || 'HEAD' : 'Unknown');
     let message = source ? source?.targetRevision || 'HEAD' : 'Unknown';
 
+    // When a semver constraint was resolved to an intermediate tag, show "via <tag>" before the SHA.
+    // e.g. "v0.1.*" resolved via "v0.1.0" to SHA ea1cbc1 → "v0.1.* via v0.1.0 (ea1cbc1)"
+    // Prefer the sync status resolution (from reconcile loop); fall back to the last operation's
+    // sync result resolution (from explicit sync request), which is always populated after a manual sync.
+    const resolution = app.status.sync.resolution || app.status.operationState?.syncResult?.resolution;
+    const resolvedSymbol = resolution?.resolvedSymbol;
+
     if (revision && source) {
         if (source.chart) {
             message += ' (' + revision + ')';
         } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
+            if (resolvedSymbol) {
+                message += ' via ' + resolvedSymbol;
+            }
             if (source.repoURL.startsWith('oci://')) {
                 // Show "sha256: " plus the first 7 actual characters of the digest.
                 if (revision.startsWith('sha256:')) {

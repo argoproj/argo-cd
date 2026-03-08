@@ -482,6 +482,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize repository: %w", err)
 		}
+		repo.PlainHTTP = c.creds.GetInsecureHTTPOnly()
 		tlsConf, err := newTLSConfig(c.creds)
 		if err != nil {
 			return nil, fmt.Errorf("failed setup tlsConfig: %w", err)

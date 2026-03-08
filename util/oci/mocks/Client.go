@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/oci"
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -301,22 +302,24 @@ func (_c *Client_GetTags_Call) RunAndReturn(run func(ctx context.Context, noCach
 }
 
 // ResolveRevision provides a mock function for the type Client
-func (_mock *Client) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
+func (_mock *Client) ResolveRevision(ctx context.Context, revision string, noCache bool) (*oci.RevisionResolution, error) {
 	ret := _mock.Called(ctx, revision, noCache)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ResolveRevision")
 	}
 
-	var r0 string
+	var r0 *oci.RevisionResolution
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bool) (string, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bool) (*oci.RevisionResolution, error)); ok {
 		return returnFunc(ctx, revision, noCache)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bool) string); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bool) *oci.RevisionResolution); ok {
 		r0 = returnFunc(ctx, revision, noCache)
 	} else {
-		r0 = ret.Get(0).(string)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*oci.RevisionResolution)
+		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, bool) error); ok {
 		r1 = returnFunc(ctx, revision, noCache)
@@ -362,12 +365,12 @@ func (_c *Client_ResolveRevision_Call) Run(run func(ctx context.Context, revisio
 	return _c
 }
 
-func (_c *Client_ResolveRevision_Call) Return(s string, err error) *Client_ResolveRevision_Call {
-	_c.Call.Return(s, err)
+func (_c *Client_ResolveRevision_Call) Return(revisionResolution *oci.RevisionResolution, err error) *Client_ResolveRevision_Call {
+	_c.Call.Return(revisionResolution, err)
 	return _c
 }
 
-func (_c *Client_ResolveRevision_Call) RunAndReturn(run func(ctx context.Context, revision string, noCache bool) (string, error)) *Client_ResolveRevision_Call {
+func (_c *Client_ResolveRevision_Call) RunAndReturn(run func(ctx context.Context, revision string, noCache bool) (*oci.RevisionResolution, error)) *Client_ResolveRevision_Call {
 	_c.Call.Return(run)
 	return _c
 }

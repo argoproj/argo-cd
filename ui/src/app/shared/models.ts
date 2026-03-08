@@ -30,6 +30,12 @@ export interface SyncStrategy {
     hook?: {force?: boolean};
 }
 
+export interface RevisionResolution {
+    resolvedSymbol: string;
+    constraint: string;
+    revision?: string;
+}
+
 export interface SyncOperation {
     revision: string;
     prune: boolean;
@@ -131,6 +137,8 @@ export interface SyncOperationResult {
     resources: ResourceResult[];
     revision: string;
     revisions: string[];
+    resolution?: RevisionResolution;
+    resolutions?: RevisionResolution[];
 }
 
 export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped';
@@ -512,6 +520,8 @@ export interface SyncStatus {
     status: SyncStatusCode;
     revision: string;
     revisions: string[];
+    resolution?: RevisionResolution;
+    resolutions?: RevisionResolution[];
 }
 
 export interface ApplicationCondition {

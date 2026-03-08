@@ -4028,7 +4028,7 @@ func TestServer_ResolveSourceRevisions_MultiSource(t *testing.T) {
 		Revisions:       []string{"HEAD"},
 	}
 
-	revision, displayRevision, sourceRevisions, displayRevisions, err := s.resolveSourceRevisions(ctx, a, syncReq)
+	revision, displayRevision, sourceRevisions, displayRevisions, _, _, err := s.resolveSourceRevisions(ctx, a, syncReq)
 
 	require.NoError(t, err)
 	assert.Empty(t, revision)
@@ -4053,7 +4053,7 @@ func TestServer_ResolveSourceRevisions_SingleSource(t *testing.T) {
 		Revision: new("HEAD"),
 	}
 
-	revision, displayRevision, sourceRevisions, displayRevisions, err := s.resolveSourceRevisions(ctx, a, syncReq)
+	revision, displayRevision, sourceRevisions, displayRevisions, _, _, err := s.resolveSourceRevisions(ctx, a, syncReq)
 
 	require.NoError(t, err)
 	assert.Equal(t, fakeResolveRevisionResponse().Revision, revision)

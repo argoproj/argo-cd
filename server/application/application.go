@@ -2047,7 +2047,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
 	}
 
-	revision, displayRevision, sourceRevisions, displayRevisions, err := s.resolveSourceRevisions(ctx, a, syncReq)
+	revision, displayRevision, sourceRevisions, displayRevisions, resolution, sourceResolutions, err := s.resolveSourceRevisions(ctx, a, syncReq)
 	if err != nil {
 		return nil, err
 	}
@@ -2088,19 +2088,22 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		source = new(a.Spec.GetSource())
 	}
 
+	syncOp := &v1alpha1.SyncOperation{
+		Source:       source,
+		Revision:     revision,
+		Prune:        syncReq.GetPrune(),
+		DryRun:       syncReq.GetDryRun(),
+		SyncOptions:  syncOptions,
+		SyncStrategy: syncReq.Strategy,
+		Resources:    resources,
+		Manifests:    syncReq.Manifests,
+		Sources:      a.Spec.Sources,
+		Revisions:    sourceRevisions,
+		Resolution:   resolution,
+		Resolutions:  sourceResolutions,
+	}
 	op := v1alpha1.Operation{
-		Sync: &v1alpha1.SyncOperation{
-			Source:       source,
-			Revision:     revision,
-			Prune:        syncReq.GetPrune(),
-			DryRun:       syncReq.GetDryRun(),
-			SyncOptions:  syncOptions,
-			SyncStrategy: syncReq.Strategy,
-			Resources:    resources,
-			Manifests:    syncReq.Manifests,
-			Sources:      a.Spec.Sources,
-			Revisions:    sourceRevisions,
-		},
+		Sync:        syncOp,
 		InitiatedBy: v1alpha1.OperationInitiator{Username: session.Username(ctx)},
 		Info:        syncReq.Infos,
 	}
@@ -2132,11 +2135,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	return a, nil
 }
 
-func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Application, syncReq *application.ApplicationSyncRequest) (string, string, []string, []string, error) {
+func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Application, syncReq *application.ApplicationSyncRequest) (string, string, []string, []string, *v1alpha1.RevisionResolution, []v1alpha1.RevisionResolution, error) {
 	requireOverridePrivilegeForRevisionSync, err := s.settingsMgr.RequireOverridePrivilegeForRevisionSync()
 	if err != nil {
 		// give up, and return the error
-		return "", "", nil, nil,
+		return "", "", nil, nil, nil, nil,
 			fmt.Errorf("error getting setting 'RequireOverridePrivilegeForRevisionSync' from configmap: : %w", err)
 	}
 	if a.Spec.HasMultipleSources() {
@@ -2144,9 +2147,10 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 		sourceRevisions := make([]string, numOfSources)
 		displayRevisions := make([]string, numOfSources)
 		desiredRevisions := make([]string, numOfSources)
+		sourceResolutions := make([]v1alpha1.RevisionResolution, numOfSources)
 		for i, pos := range syncReq.SourcePositions {
 			if pos <= 0 || pos > numOfSources {
-				return "", "", nil, nil, errors.New("source position is out of range")
+				return "", "", nil, nil, nil, nil, errors.New("source position is out of range")
 			}
 			desiredRevisions[pos-1] = syncReq.Revisions[i]
 		}
@@ -2156,23 +2160,26 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 				// Enforce that they have the 'override' privilege if the setting is enabled
 				if requireOverridePrivilegeForRevisionSync {
 					if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil {
-						return "", "", nil, nil, err
+						return "", "", nil, nil, nil, nil, err
 					}
 				}
 				if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
-					return "", "", nil, nil, status.Errorf(codes.FailedPrecondition,
+					return "", "", nil, nil, nil, nil, status.Errorf(codes.FailedPrecondition,
 						"Cannot sync source %s to %s: auto-sync currently set to %s",
 						a.Spec.GetSources()[index].RepoURL, desiredRevision, a.Spec.Sources[index].TargetRevision)
 				}
 			}
-			revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq, index)
+			revision, displayRevision, resolution, err := s.resolveRevision(ctx, a, syncReq, index)
 			if err != nil {
-				return "", "", nil, nil, status.Error(codes.FailedPrecondition, err.Error())
+				return "", "", nil, nil, nil, nil, status.Error(codes.FailedPrecondition, err.Error())
 			}
 			sourceRevisions[index] = revision
 			displayRevisions[index] = displayRevision
+			if resolution != nil {
+				sourceResolutions[index] = *resolution
+			}
 		}
-		return "", "", sourceRevisions, displayRevisions, nil
+		return "", "", sourceRevisions, displayRevisions, nil, sourceResolutions, nil
 	}
 	source := a.Spec.GetSource()
 	if syncReq.GetRevision() != "" &&
@@ -2181,20 +2188,20 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 		// Enforce that they have the 'override' privilege if the setting is enabled
 		if requireOverridePrivilegeForRevisionSync {
 			if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil {
-				return "", "", nil, nil, err
+				return "", "", nil, nil, nil, nil, err
 			}
 		}
 		if a.Spec.SyncPolicy != nil &&
 			a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
 			// If the app has auto-sync enabled, we cannot allow syncing to a different revision
-			return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
+			return "", "", nil, nil, nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
 		}
 	}
-	revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq, -1)
+	revision, displayRevision, resolution, err := s.resolveRevision(ctx, a, syncReq, -1)
 	if err != nil {
-		return "", "", nil, nil, status.Error(codes.FailedPrecondition, err.Error())
+		return "", "", nil, nil, nil, nil, status.Error(codes.FailedPrecondition, err.Error())
 	}
-	return revision, displayRevision, nil, nil, nil
+	return revision, displayRevision, nil, nil, resolution, nil, nil
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*v1alpha1.Application, error) {
@@ -2396,9 +2403,11 @@ func getAmbiguousRevision(app *v1alpha1.Application, syncReq *application.Applic
 
 // resolveRevision resolves the revision specified either in the sync request, or the
 // application source, into a concrete revision that will be used for a sync operation.
-func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application, syncReq *application.ApplicationSyncRequest, sourceIndex int) (string, string, error) {
+// The returned RevisionResolution is non-nil when a semver constraint was resolved to a
+// concrete tag/version (e.g. "v1.*" → "v1.2.3").
+func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application, syncReq *application.ApplicationSyncRequest, sourceIndex int) (string, string, *v1alpha1.RevisionResolution, error) {
 	if syncReq.Manifests != nil {
-		return "", "", nil
+		return "", "", nil, nil
 	}
 
 	ambiguousRevision := getAmbiguousRevision(app, syncReq, sourceIndex)
@@ -2410,19 +2419,20 @@ func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application,
 
 	repo, err := s.db.GetRepository(ctx, repoURL, app.Spec.Project)
 	if err != nil {
-		return "", "", fmt.Errorf("error getting repository by URL: %w", err)
+		return "", "", nil, fmt.Errorf("error getting repository by URL: %w", err)
 	}
 	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
 	if err != nil {
-		return "", "", fmt.Errorf("error getting repo server client: %w", err)
+		return "", "", nil, fmt.Errorf("error getting repo server client: %w", err)
 	}
 	defer utilio.Close(conn)
 
 	source := app.Spec.GetSourcePtrByIndex(sourceIndex)
 	if !source.IsHelm() {
 		if git.IsCommitSHA(ambiguousRevision) {
-			// If it's already a commit SHA, then no need to look it up
-			return ambiguousRevision, ambiguousRevision, nil
+			// If it's already a commit SHA, then no need to look it up.
+			// Still return a resolution so resolutions[].revision is always populated.
+			return ambiguousRevision, ambiguousRevision, &v1alpha1.RevisionResolution{Revision: ambiguousRevision}, nil
 		}
 	}
 
@@ -2433,9 +2443,16 @@ func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application,
 		SourceIndex:       int64(sourceIndex),
 	})
 	if err != nil {
-		return "", "", fmt.Errorf("error resolving repo revision: %w", err)
+		return "", "", nil, fmt.Errorf("error resolving repo revision: %w", err)
 	}
-	return resolveRevisionResponse.Revision, resolveRevisionResponse.AmbiguousRevision, nil
+	// Always populate Revision so resolutions[].revision is a reliable mirror of revisions[].
+	// Constraint and ResolvedSymbol are only set when a semver range was actually resolved.
+	resolution := &v1alpha1.RevisionResolution{Revision: resolveRevisionResponse.Revision}
+	if resolveRevisionResponse.Resolution != nil {
+		resolution.ResolvedSymbol = resolveRevisionResponse.Resolution.ResolvedSymbol
+		resolution.Constraint = resolveRevisionResponse.Resolution.Constraint
+	}
+	return resolveRevisionResponse.Revision, resolveRevisionResponse.AmbiguousRevision, resolution, nil
 }
 
 func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.OperationTerminateRequest) (*application.OperationTerminateResponse, error) {

@@ -136,8 +136,9 @@ func (a *Actions) CreateFromFile(handler func(app *v1alpha1.Application), flags 
 		Spec: v1alpha1.ApplicationSpec{
 			Project: a.context.project,
 			Source: &v1alpha1.ApplicationSource{
-				RepoURL: fixture.RepoURL(a.context.repoURLType),
-				Path:    a.context.path,
+				RepoURL:        fixture.RepoURL(a.context.repoURLType),
+				Path:           a.context.path,
+				TargetRevision: a.context.revision,
 			},
 			Destination: v1alpha1.ApplicationDestination{
 				Server:    a.context.destServer,

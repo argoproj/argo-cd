@@ -1881,6 +1881,19 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.ReconciledAt = &now
 	}
 	app.Status.Sync = *compareResult.syncStatus
+	// When the comparison ran against pre-resolved concrete revisions (e.g. "1.0.0" instead of
+	// ">=1.0.0"), the repo server short-circuits constraint resolution and returns nil resolution
+	// metadata. In that case the comparison produces an all-zero Resolutions slice which must not
+	// overwrite the constraint→tag mapping that was recorded during the sync operation itself.
+	// Preserve the resolution from the last sync result as the authoritative source.
+	if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
+		if !anyResolutionPopulated(app.Status.Sync.Resolutions) && anyResolutionPopulated(app.Status.OperationState.SyncResult.Resolutions) {
+			app.Status.Sync.Resolutions = app.Status.OperationState.SyncResult.Resolutions
+		}
+		if app.Status.Sync.Resolution == nil && app.Status.OperationState.SyncResult.Resolution != nil {
+			app.Status.Sync.Resolution = app.Status.OperationState.SyncResult.Resolution
+		}
+	}
 	app.Status.Health.Status = compareResult.healthStatus
 	app.Status.Resources = compareResult.resources
 	sort.Slice(app.Status.Resources, func(i, j int) bool {
@@ -2226,10 +2239,12 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		Sync: &appv1.SyncOperation{
 			Source:      source,
 			Revision:    syncStatus.Revision,
+			Resolution:  syncStatus.Resolution,
 			Prune:       app.Spec.SyncPolicy.Automated.Prune,
 			SyncOptions: app.Spec.SyncPolicy.SyncOptions,
 			Sources:     app.Spec.Sources,
 			Revisions:   syncStatus.Revisions,
+			Resolutions: syncStatus.Resolutions,
 		},
 		InitiatedBy: appv1.OperationInitiator{Automated: true},
 		Retry:       appv1.RetryStrategy{Limit: 5},
