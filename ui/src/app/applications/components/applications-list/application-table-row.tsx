@@ -82,14 +82,14 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                             <Tooltip
                                 content={
                                     <>
-                                        {app.metadata.name}
+                                        {AppUtils.getAppDisplayName(app)}
                                         <br />
                                         <Moment fromNow={true} ago={true}>
                                             {app.metadata.creationTimestamp}
                                         </Moment>
                                     </>
                                 }>
-                                <span>{app.metadata.name}</span>
+                                <span>{AppUtils.getAppDisplayName(app)}</span>
                             </Tooltip>
                             <button
                                 onClick={handleExternalLinkClick}
