@@ -265,6 +265,42 @@ manifest generation requires to change a file in the local repository clone then
 per server instance is allowed. This limitation might significantly slow down Argo CD if you have a monorepo with
 multiple applications (50+).
 
+### Use Fully Qualified Git References
+
+When specifying the `targetRevision` in your Application manifests, using fully qualified Git reference paths instead of short names can significantly improve repo-server performance, especially in large monorepos with hundreds of thousands of commits and tags.
+
+**Performance Impact:**
+
+When resolving a Git reference (e.g., converting `main` to a commit SHA), Argo CD needs to:
+
+1. Load all Git references (branches and tags)
+2. Iterate through all references to find a match
+3. Resolve symbolic references if needed
+
+For repositories with many references, this process is CPU and memory intensive. Using fully qualified references allows Argo CD to optimize the resolution process and leverage caching more effectively.
+
+**Recommended approach:**
+
+```yaml
+# ❌ Less efficient - requires iteration through all refs
+spec:
+  source:
+    targetRevision: main
+
+# ✅ More efficient - directly identifies the reference type
+spec:
+  source:
+    targetRevision: refs/heads/main
+```
+
+**Common fully qualified reference formats:**
+
+* **Branches**: `refs/heads/<branch-name>` (e.g., `refs/heads/main`, `refs/heads/develop`)
+* **Tags**: `refs/tags/<tag-name>` (e.g., `refs/tags/v1.0.0`)
+* **Pull requests** (GitHub): `refs/pull/<pr-number>/head` (e.g., `refs/pull/123/head`)
+* **Merge requests** (GitLab): `refs/merge-requests/<mr-number>/head`
+
+
 ### Enable Concurrent Processing
 
 Argo CD determines if manifest generation might change local files in the local repository clone based on the config
@@ -536,7 +572,7 @@ $ go tool pprof http://localhost:8082/debug/pprof/heap
 
 ## Shallow Clone
 
-Monorepos can be large and slow to clone. To speed up the clone process, you can use the `depth: "1"` repository option:
+Repositories with large histories or large files in past revisions can be slow to clone and update. To speed up the clone process, you can use the `depth: "1"` repository option:
 
 ```yaml
 apiVersion: v1
