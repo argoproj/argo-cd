@@ -81,6 +81,7 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Restore go build and module cache
+        id: go-cache
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: |
@@ -89,7 +90,8 @@ jobs:
           key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-build-v1-
-      - name: Download all Go modules
+      - name: Download Go modules or use cache
+        if: steps.go-cache.outputs.cache-hit != 'true'
         run: |
           go mod download
       - name: Compile all packages
@@ -115,7 +117,7 @@ jobs:
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
         with:
           # renovate: datasource=go packageName=github.com/golangci/golangci-lint/v2 versioning=regex:^v(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)?$
-          version: v2.11.2
+          version: v2.10.1
           args: --verbose
 
   test-go:
@@ -156,6 +158,7 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build and module cache
+        id: go-cache
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: |
@@ -175,7 +178,8 @@ jobs:
         run: |
           git config --global user.name "John Doe"
           git config --global user.email "john.doe@example.com"
-      - name: Download and vendor all required packages
+      - name: Download Go modules or use cache
+        if: steps.go-cache.outputs.cache-hit != 'true'
         run: |
           go mod download
       - name: Run all unit tests
@@ -224,6 +228,7 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build and module cache
+        id: go-cache
         uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: |
@@ -243,7 +248,8 @@ jobs:
         run: |
           git config --global user.name "John Doe"
           git config --global user.email "john.doe@example.com"
-      - name: Download and vendor all required packages
+      - name: Download Go modules or use cache
+        if: steps.go-cache.outputs.cache-hit != 'true'
         run: |
           go mod download
       - name: Run all unit tests
