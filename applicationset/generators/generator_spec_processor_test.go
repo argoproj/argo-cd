@@ -249,6 +249,231 @@ func TestTransForm(t *testing.T) {
 	}
 }
 
+func TestTransFormGoTemplate(t *testing.T) {
+	testCases := []struct {
+		name     string
+		selector *metav1.LabelSelector
+		values   map[string]string
+		expected []map[string]any
+	}{
+		{
+			name: "server filter",
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"server": "https://production-01.example.com"},
+			},
+			expected: []map[string]any{{
+				"name":           "production_01/west",
+				"nameNormalized": "production-01-west",
+				"server":         "https://production-01.example.com",
+				"project":        "",
+				"metadata": map[string]any{
+					"labels": map[string]string{
+						"argocd.argoproj.io/secret-type": "cluster",
+						"environment":                    "production",
+						"org":                            "bar",
+					},
+					"annotations": map[string]string{
+						"foo.argoproj.io": "production",
+					},
+				},
+			}},
+		},
+		{
+			name: "label MatchLabels",
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"metadata.labels.environment": "staging"},
+			},
+			expected: []map[string]any{{
+				"name":           "staging-01",
+				"nameNormalized": "staging-01",
+				"server":         "https://staging-01.example.com",
+				"project":        "",
+				"metadata": map[string]any{
+					"labels": map[string]string{
+						"argocd.argoproj.io/secret-type": "cluster",
+						"environment":                    "staging",
+						"org":                            "foo",
+					},
+					"annotations": map[string]string{
+						"foo.argoproj.io": "staging",
+					},
+				},
+			}},
+		},
+		{
+			name: "label NotIn matchExpression",
+			selector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{
+						Key:      "metadata.labels.environment",
+						Operator: metav1.LabelSelectorOpNotIn,
+						Values:   []string{"staging"},
+					},
+				},
+			},
+			// staging-01 is excluded; production-01, some-really-long-server-url, and
+			// in-cluster (no labels) are all included because NotIn vacuously passes
+			// when the key is absent.
+			expected: []map[string]any{
+				{
+					"name":           "production_01/west",
+					"nameNormalized": "production-01-west",
+					"server":         "https://production-01.example.com",
+					"project":        "",
+					"metadata": map[string]any{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "production",
+							"org":                            "bar",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "production",
+						},
+					},
+				},
+				{
+					"name":           "some-really-long-server-url",
+					"nameNormalized": "some-really-long-server-url",
+					"server":         "https://some-really-long-url-that-will-exceed-63-characters.com",
+					"project":        "",
+					"metadata": map[string]any{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "production",
+							"org":                            "bar",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "production",
+						},
+					},
+				},
+				{
+					// in-cluster (local cluster) has no labels; NotIn vacuously passes.
+					"name":           "in-cluster",
+					"nameNormalized": "in-cluster",
+					"server":         "https://kubernetes.default.svc",
+					"project":        "",
+				},
+			},
+		},
+		{
+			name: "slash key in label",
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"metadata.labels.argocd.argoproj.io/secret-type": "cluster"},
+			},
+			expected: []map[string]any{
+				{
+					"name":           "staging-01",
+					"nameNormalized": "staging-01",
+					"server":         "https://staging-01.example.com",
+					"project":        "",
+					"metadata": map[string]any{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "staging",
+							"org":                            "foo",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "staging",
+						},
+					},
+				},
+				{
+					"name":           "production_01/west",
+					"nameNormalized": "production-01-west",
+					"server":         "https://production-01.example.com",
+					"project":        "",
+					"metadata": map[string]any{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "production",
+							"org":                            "bar",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "production",
+						},
+					},
+				},
+				{
+					"name":           "some-really-long-server-url",
+					"nameNormalized": "some-really-long-server-url",
+					"server":         "https://some-really-long-url-that-will-exceed-63-characters.com",
+					"project":        "",
+					"metadata": map[string]any{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "production",
+							"org":                            "bar",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "production",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "values filter",
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"values.env": "staging"},
+			},
+			values: map[string]string{"env": "{{.metadata.labels.environment}}"},
+			expected: []map[string]any{{
+				"name":           "staging-01",
+				"nameNormalized": "staging-01",
+				"server":         "https://staging-01.example.com",
+				"project":        "",
+				"metadata": map[string]any{
+					"labels": map[string]string{
+						"argocd.argoproj.io/secret-type": "cluster",
+						"environment":                    "staging",
+						"org":                            "foo",
+					},
+					"annotations": map[string]string{
+						"foo.argoproj.io": "staging",
+					},
+				},
+				"values": map[string]string{
+					"env": "staging",
+				},
+			}},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			testGenerators := map[string]Generator{
+				"Clusters": getMockClusterGenerator(),
+			}
+
+			applicationSetInfo := argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					GoTemplate: true,
+				},
+			}
+
+			results, err := Transform(
+				argov1alpha1.ApplicationSetGenerator{
+					Selector: testCase.selector,
+					Clusters: &argov1alpha1.ClusterGenerator{
+						Selector: metav1.LabelSelector{},
+						Template: argov1alpha1.ApplicationSetTemplate{},
+						Values:   testCase.values,
+					},
+				},
+				testGenerators,
+				emptyTemplate(),
+				&applicationSetInfo, nil, nil)
+
+			require.NoError(t, err)
+			assert.ElementsMatch(t, testCase.expected, results[0].Params)
+		})
+	}
+}
+
 func emptyTemplate() argov1alpha1.ApplicationSetTemplate {
 	return argov1alpha1.ApplicationSetTemplate{
 		Spec: argov1alpha1.ApplicationSpec{
