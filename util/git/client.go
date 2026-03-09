@@ -133,7 +133,7 @@ type Client interface {
 	FetchSparseBlobs(revision string, paths []string) error
 	ConfigureSparseCheckout(paths []string) error
 	Submodule() error
-	Checkout(revision string, submoduleEnabled bool) (string, error)
+	Checkout(revision string, submoduleEnabled bool, cleanState bool) (string, error)
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
 	LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error)
@@ -680,10 +680,10 @@ func (m *nativeGitClient) Submodule() error {
 	return m.runCredentialedCmd(ctx, "submodule", "update", "--init", "--recursive")
 }
 
-// Checkout checks out the specified revision.
+// Checkout checks out the specified revision
 // Uses credentialed command because partial clone repos may trigger lazy blob
 // fetches from the remote during checkout, which require authentication.
-func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (string, error) {
+func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool, cleanState bool) (string, error) {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
@@ -711,13 +711,15 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 			}
 		}
 	}
-	// NOTE
-	// The double “f” in the arguments is not a typo: the first “f” tells
-	// `git clean` to delete untracked files and directories, and the second “f”
-	// tells it to clean untracked nested Git repositories (for example a
-	// submodule which has since been removed).
-	if out, err := m.runCmd(ctx, "clean", "-ffdx"); err != nil {
-		return out, fmt.Errorf("failed to clean: %w", err)
+	if cleanState || submoduleEnabled {
+		// NOTE
+		// The double “f” in the arguments is not a typo: the first “f” tells
+		// `git clean` to delete untracked files and directories, and the second “f”
+		// tells it to clean untracked nested Git repositories (for example a
+		// submodule which has since been removed).
+		if out, err := m.runCmd(ctx, "clean", "-ffdx"); err != nil {
+			return out, fmt.Errorf("failed to clean: %w", err)
+		}
 	}
 	return "", nil
 }
@@ -1133,7 +1135,7 @@ func (m *nativeGitClient) SetAuthor(name, email string) (string, error) {
 
 // CheckoutOrOrphan checks out the branch. If the branch does not exist, it creates an orphan branch.
 func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool) (string, error) {
-	out, err := m.Checkout(branch, submoduleEnabled)
+	out, err := m.Checkout(branch, submoduleEnabled, true)
 	if err != nil {
 		// If the branch doesn't exist, create it as an orphan branch.
 		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
@@ -1163,14 +1165,14 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 // CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
 // the base branch.
 func (m *nativeGitClient) CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error) {
-	out, err := m.Checkout(branch, submoduleEnabled)
+	out, err := m.Checkout(branch, submoduleEnabled, true)
 	if err != nil {
 		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
 			return out, fmt.Errorf("failed to checkout branch: %w", err)
 		}
 		// If the branch does not exist, create any empty branch based on the sync branch
 		// First, checkout the sync branch.
-		out, err = m.Checkout(base, submoduleEnabled)
+		out, err = m.Checkout(base, submoduleEnabled, true)
 		if err != nil {
 			return out, fmt.Errorf("failed to checkout sync branch: %w", err)
 		}

@@ -331,7 +331,7 @@ func TestLFSClient(t *testing.T) {
 	err = client.Fetch("", 0, false)
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true, true)
 	require.NoError(t, err)
 
 	largeFiles, err := client.LsLargeFiles()
@@ -369,7 +369,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true, true)
 	require.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
@@ -426,7 +426,7 @@ func TestNewFactory(t *testing.T) {
 		err = client.Fetch("", 0, false)
 		require.NoError(t, err)
 
-		_, err = client.Checkout(commitSHA, true)
+		_, err = client.Checkout(commitSHA, true, true)
 		require.NoError(t, err)
 
 		revisionMetadata, err := client.RevisionMetadata(commitSHA)
@@ -1191,7 +1191,7 @@ func Test_nativeGitClient_Fetch_PartialClone_WithCheckout(t *testing.T) {
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, false)
+	_, err = client.Checkout(commitSHA, false, true)
 	require.NoError(t, err)
 
 	// Verify file was checked out (blob downloaded on demand)
@@ -1247,7 +1247,7 @@ func Test_nativeGitClient_Fetch_ShallowAndPartial_Together(t *testing.T) {
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, false)
+	_, err = client.Checkout(commitSHA, false, true)
 	require.NoError(t, err)
 
 	// Latest file should exist

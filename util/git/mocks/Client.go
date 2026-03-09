@@ -168,8 +168,8 @@ func (_c *Client_ChangedFiles_Call) RunAndReturn(run func(revision string, targe
 }
 
 // Checkout provides a mock function for the type Client
-func (_mock *Client) Checkout(revision string, submoduleEnabled bool) (string, error) {
-	ret := _mock.Called(revision, submoduleEnabled)
+func (_mock *Client) Checkout(revision string, submoduleEnabled bool, cleanState bool) (string, error) {
+	ret := _mock.Called(revision, submoduleEnabled, cleanState)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Checkout")
@@ -177,16 +177,16 @@ func (_mock *Client) Checkout(revision string, submoduleEnabled bool) (string, e
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string, bool) (string, error)); ok {
-		return returnFunc(revision, submoduleEnabled)
+	if returnFunc, ok := ret.Get(0).(func(string, bool, bool) (string, error)); ok {
+		return returnFunc(revision, submoduleEnabled, cleanState)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string, bool) string); ok {
-		r0 = returnFunc(revision, submoduleEnabled)
+	if returnFunc, ok := ret.Get(0).(func(string, bool, bool) string); ok {
+		r0 = returnFunc(revision, submoduleEnabled, cleanState)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(string, bool) error); ok {
-		r1 = returnFunc(revision, submoduleEnabled)
+	if returnFunc, ok := ret.Get(1).(func(string, bool, bool) error); ok {
+		r1 = returnFunc(revision, submoduleEnabled, cleanState)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -201,11 +201,12 @@ type Client_Checkout_Call struct {
 // Checkout is a helper method to define mock.On call
 //   - revision string
 //   - submoduleEnabled bool
-func (_e *Client_Expecter) Checkout(revision interface{}, submoduleEnabled interface{}) *Client_Checkout_Call {
-	return &Client_Checkout_Call{Call: _e.mock.On("Checkout", revision, submoduleEnabled)}
+//   - cleanState bool
+func (_e *Client_Expecter) Checkout(revision interface{}, submoduleEnabled interface{}, cleanState interface{}) *Client_Checkout_Call {
+	return &Client_Checkout_Call{Call: _e.mock.On("Checkout", revision, submoduleEnabled, cleanState)}
 }
 
-func (_c *Client_Checkout_Call) Run(run func(revision string, submoduleEnabled bool)) *Client_Checkout_Call {
+func (_c *Client_Checkout_Call) Run(run func(revision string, submoduleEnabled bool, cleanState bool)) *Client_Checkout_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -215,9 +216,14 @@ func (_c *Client_Checkout_Call) Run(run func(revision string, submoduleEnabled b
 		if args[1] != nil {
 			arg1 = args[1].(bool)
 		}
+		var arg2 bool
+		if args[2] != nil {
+			arg2 = args[2].(bool)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -228,7 +234,7 @@ func (_c *Client_Checkout_Call) Return(s string, err error) *Client_Checkout_Cal
 	return _c
 }
 
-func (_c *Client_Checkout_Call) RunAndReturn(run func(revision string, submoduleEnabled bool) (string, error)) *Client_Checkout_Call {
+func (_c *Client_Checkout_Call) RunAndReturn(run func(revision string, submoduleEnabled bool, cleanState bool) (string, error)) *Client_Checkout_Call {
 	_c.Call.Return(run)
 	return _c
 }

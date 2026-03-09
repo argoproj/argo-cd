@@ -405,7 +405,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.NoError(t, err)
 
 	// Call Checkout() with submoduleEnabled=false.
-	_, err = client.Checkout(commitSHA, false)
+	_, err = client.Checkout(commitSHA, false, true)
 	require.NoError(t, err)
 
 	// Check if submodule url does not exist in .git/config
@@ -413,7 +413,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.Error(t, err)
 
 	// Call Submodule() via Checkout() with submoduleEnabled=true.
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true, true)
 	require.NoError(t, err)
 
 	// Check if the .gitmodule URL is reflected in .git/config
@@ -888,7 +888,7 @@ func Test_nativeGitClient_CommitAndPush(t *testing.T) {
 	err = client.Fetch(branch, 0, false)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false)
+	out, err = client.Checkout(branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// make a file then commit and push
@@ -1309,7 +1309,7 @@ func Test_nativeGitClient_GetCommitNote(t *testing.T) {
 	err = client.Fetch(branch, 0, false)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false)
+	out, err = client.Checkout(branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create and commit a test file
@@ -1367,7 +1367,7 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 	err = client.Fetch(branch, 0, false)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false)
+	out, err = client.Checkout(branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create and commit a test file
@@ -1431,7 +1431,7 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 	err = client.Fetch(branch, 0, false)
 	require.NoError(t, err)
 
-	out, err = client.Checkout(branch, false)
+	out, err = client.Checkout(branch, false, true)
 	require.NoError(t, err, "error output: ", out)
 
 	// Create the file inside repo root
@@ -1498,7 +1498,7 @@ func Test_nativeGitClient_Checkout_UsesCredentials(t *testing.T) {
 	// Reset the call count after Init/Fetch so we can track checkout specifically
 	creds.environCalls = 0
 
-	_, err = client.Checkout(revision, false)
+	_, err = client.Checkout(revision, false, true)
 	require.NoError(t, err)
 
 	// Checkout must call Environ() to pass credentials for partial clone lazy fetches
@@ -1569,7 +1569,7 @@ func Test_nativeGitClient_FetchSparseBlobs(t *testing.T) {
 	}
 
 	// Checkout should work without needing lazy fetches
-	_, err = client.Checkout(revision, false)
+	_, err = client.Checkout(revision, false, true)
 	require.NoError(t, err)
 
 	// Verify the files exist in the working directory
