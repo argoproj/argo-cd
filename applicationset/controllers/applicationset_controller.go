@@ -798,6 +798,10 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return err
 				}
+				// For backwards compatibility with sequential behavior: capture the first error but continue
+				// processing other applications. Returning nil tells the errgroup to keep running other goroutines.
+				// At the end, we return firstError to maintain the original behavior of reporting the first
+				// failure while still processing all applications.
 				firstErrorMu.Lock()
 				if firstError == nil {
 					firstError = err
@@ -911,6 +915,10 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return err
 				}
+				// For backwards compatibility with sequential behavior: capture the first error but continue
+				// processing other applications. Returning nil tells the errgroup to keep running other goroutines.
+				// At the end, we return firstError to maintain the original behavior of reporting the first
+				// failure while still processing all applications.
 				firstErrorMu.Lock()
 				if firstError == nil {
 					firstError = err
