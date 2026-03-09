@@ -199,11 +199,13 @@ func NewCommand() *cobra.Command {
 					// If the server has a TLS configuration, we use it to verify the server's certificate.
 					if srvTLSConfig := server.GetTLSConfig(); srvTLSConfig != nil && len(srvTLSConfig.Certificates) > 0 {
 						serverCert, err := x509.ParseCertificate(srvTLSConfig.Certificates[0].Certificate[0])
-						if err == nil {
-							certPool := x509.NewCertPool()
-							certPool.AddCert(serverCert)
-							healthCheckTLSConfig.Certificates = certPool
+						if err != nil {
+							return fmt.Errorf("failed to parse server certificate: %w", err)
 						}
+						certPool := x509.NewCertPool()
+						certPool.AddCert(serverCert)
+						healthCheckTLSConfig.Certificates = certPool
+
 						// Use the server's own certificate as the client certificate for health checks
 						// to ensure it's trusted when mTLS is enabled.
 						healthCheckTLSConfig.ClientCertificates = srvTLSConfig.Certificates
@@ -316,14 +318,6 @@ func generateSelfSignedCerts() (apiclient.TLSConfiguration, error) {
 	healthCheckTLSConfig := apiclient.TLSConfiguration{
 		StrictValidation: false,
 	}
-
-	healthCheckCertMutex.RLock()
-	if healthCheckCert != nil {
-		healthCheckTLSConfig.ClientCertificates = []ctls.Certificate{*healthCheckCert}
-		healthCheckCertMutex.RUnlock()
-		return healthCheckTLSConfig, nil
-	}
-	healthCheckCertMutex.RUnlock()
 
 	healthCheckCertMutex.Lock()
 	defer healthCheckCertMutex.Unlock()
