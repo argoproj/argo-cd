@@ -35,9 +35,10 @@ import (
 type ArgoCDRepoServer struct {
 	repoService *repository.Service
 	opts        []grpc.ServerOption
+	tlsConfig   *tls.Config
 }
 
-// The hostnames to generate self-signed issues with
+// The hostnames to generate self-signed certificates with
 var tlsHostList = []string{"localhost", "reposerver"}
 
 // NewServer returns a new instance of the Argo CD Repo server
@@ -103,6 +104,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	return &ArgoCDRepoServer{
 		opts:        serverOpts,
 		repoService: repoService,
+		tlsConfig:   tlsConfig,
 	}, nil
 }
 
@@ -121,4 +123,9 @@ func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	reflection.Register(server)
 
 	return server
+}
+
+// GetTLSConfig returns the TLS configuration of the server
+func (a *ArgoCDRepoServer) GetTLSConfig() *tls.Config {
+	return a.tlsConfig
 }
