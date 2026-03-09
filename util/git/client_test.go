@@ -481,6 +481,46 @@ func Test_IsRevisionPresent(t *testing.T) {
 	assert.False(t, revisionPresent)
 }
 
+func Test_IsRevisionPresent_NoLazyFetch(t *testing.T) {
+	ctx := t.Context()
+
+	// Create a source repo with a file
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "file.txt"), []byte("hello"), 0o644))
+	require.NoError(t, runCmd(ctx, tempDir, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tempDir, "git", "commit", "-m", "add file"))
+
+	commitSHA, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	revision := strings.TrimSpace(string(commitSHA))
+
+	// Get a blob SHA to test against
+	blobSHABytes, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD:file.txt")
+	require.NoError(t, err)
+	blobSHA := strings.TrimSpace(string(blobSHABytes))
+
+	// Clone and simulate partial clone (blobs removed, promisor remote configured)
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(client.Root()) })
+
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(revision, 0, false))
+
+	simulatePartialClone(ctx, t, client.Root(), revision)
+
+	// Commit objects are kept locally in partial clones, so this should be true
+	// without triggering any network request.
+	assert.True(t, client.IsRevisionPresent(revision))
+
+	// Blob objects are removed in partial clones. Without GIT_NO_LAZY_FETCH=1,
+	// git cat-file would attempt a lazy-fetch from the promisor remote (which
+	// could hang without credentials). With the env var set, it returns immediately.
+	assert.False(t, client.IsRevisionPresent(blobSHA))
+}
+
 func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
 	tempDir := t.TempDir()
 	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")

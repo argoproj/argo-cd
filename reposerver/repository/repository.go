@@ -1450,27 +1450,6 @@ func getResolvedValueFiles(
 
 func getResolvedRefValueFile(rawValueFile string, env *v1alpha1.Env, allowedValueFilesSchemas []string, refSourceRepo string, repo v1alpha1.Repository, gitRepoPaths utilio.TempPaths) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
-	/*
-		normalizedURL := git.NormalizeGitURL(refSourceRepo)
-		cacheValue := gitRepoPaths.GetPathIfExists(normalizedURL)
-		if cacheValue == "" {
-			return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
-		}
-
-		var pathMap map[string]string
-		if err := json.Unmarshal([]byte(cacheValue), &pathMap); err != nil {
-			return "", fmt.Errorf("failed to unmarshal cache entry for %s: %w", normalizedURL, err)
-		}
-
-		var pathSHA string
-		if repo.EnablePartialClone && len(repo.SparsePaths) > 0 {
-			pathSHA = git.ComputePathHash(repo.SparsePaths)
-		}
-
-
-		repoPath := pathMap[pathSHA]
-	*/
-
 	var pathsSHA string
 
 	// We want a unique checkout per unique path permutation if partial clones are enabled and paths have been set.

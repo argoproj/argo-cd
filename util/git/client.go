@@ -495,12 +495,15 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 }
 
 // IsRevisionPresent checks to see if the given revision already exists locally.
+// GIT_NO_LAZY_FETCH=1 prevents partial clone repos from triggering a network
+// round-trip to the promisor remote, which can hang or timeout without credentials.
 func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 	if revision == "" {
 		return false
 	}
 
 	cmd := exec.CommandContext(context.Background(), "git", "cat-file", "-t", revision)
+	cmd.Env = append(cmd.Env, "GIT_NO_LAZY_FETCH=1")
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	if out == "commit" && err == nil {
 		return true
