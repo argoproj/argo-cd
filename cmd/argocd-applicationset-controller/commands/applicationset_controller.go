@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/argoproj/pkg/v2/stats"
@@ -136,19 +138,15 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			// If the wildcard "*" is present we cannot restrict the Secret cache to specific
-			// namespaces — fall back to the previous cluster-wide cache behaviour so that
-			// controller-runtime does not attempt to watch a namespace literally named "*".
-			hasWildcard := false
-			for _, ns := range applicationSetNamespaces {
-				if ns == "*" {
-					hasWildcard = true
-					break
-				}
-			}
-
+			// Restrict the cache to only the namespaces managed by this controller.
+			// If applicationSetNamespaces contains any glob/regex pattern, ByObject cannot be used
+			// In that case we fall back to the cluster-wide cache. 
 			cacheOpt := ctrlcache.Options{SyncPeriod: &cacheSyncPeriod}
-			if !hasWildcard {
+			hasPattern := slices.ContainsFunc(applicationSetNamespaces, func(ns string) bool {
+				return strings.ContainsAny(ns, "*?[") ||
+					(strings.HasPrefix(ns, "/") && strings.HasSuffix(ns, "/"))
+			})
+			if !hasPattern {
 				appSetNsConfig := make(map[string]ctrlcache.Config, len(applicationSetNamespaces))
 				for _, ns := range applicationSetNamespaces {
 					appSetNsConfig[ns] = ctrlcache.Config{}
@@ -159,8 +157,7 @@ func NewCommand() *cobra.Command {
 					},
 				}
 			} else {
-				log.Warn("applicationset-namespaces contains '*': Secret cache will be cluster-wide. " +
-					"Ensure the controller ServiceAccount has a ClusterRole with secrets list/watch permission.")
+				log.Warn("applicationset-namespaces contains a glob or regex pattern")
 			}
 
 			cfg := ctrl.GetConfigOrDie()
