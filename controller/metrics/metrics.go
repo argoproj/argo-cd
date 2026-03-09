@@ -62,10 +62,6 @@ var (
 	// app label is a label on the app manifest
 	allowedAppLabels          []string
 	emitLabelsOnAllAppMetrics bool
-
-	descAppLabels     *prometheus.Desc
-	descAppConditions *prometheus.Desc
-	descAppInfo       *prometheus.Desc
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
@@ -79,6 +75,9 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	emitLabelsOnAllAppMetrics = emitLabelsOnAllMetrics
 	metricLabels := make([]string, len(defaultMetricLabels))
 	copy(metricLabels, defaultMetricLabels)
+
+	var descAppLabels *prometheus.Desc
+	var descAppConditions *prometheus.Desc
 
 	if len(appLabels) > 0 {
 		normalizedLabels := metricsutil.NormalizeLabels("label", appLabels)
@@ -107,7 +106,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		)
 	}
 
-	descAppInfo = prometheus.NewDesc(
+	descAppInfo := prometheus.NewDesc(
 		"argocd_app_info",
 		"Information about application.",
 		append(metricLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
@@ -215,7 +214,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
 
-	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db))
+	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db, descAppLabels, descAppConditions, descAppInfo))
 	registry.MustRegister(syncCounter)
 	registry.MustRegister(syncDuration)
 	registry.MustRegister(k8sRequestCounter)
@@ -384,33 +383,39 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 }
 
 type appCollector struct {
-	store         applister.ApplicationLister
-	appFilter     func(obj any) bool
-	appLabels     []string
-	appConditions []string
-	db            db.ArgoDB
+	store             applister.ApplicationLister
+	appFilter         func(obj any) bool
+	appLabels         []string
+	appConditions     []string
+	db                db.ArgoDB
+	descAppLabels     *prometheus.Desc
+	descAppConditions *prometheus.Desc
+	descAppInfo       *prometheus.Desc
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB, descAppLabels *prometheus.Desc, descAppConditions *prometheus.Desc, descAppInfo *prometheus.Desc) prometheus.Collector {
 	return &appCollector{
-		store:         appLister,
-		appFilter:     appFilter,
-		appLabels:     appLabels,
-		appConditions: appConditions,
-		db:            db,
+		store:             appLister,
+		appFilter:         appFilter,
+		appLabels:         appLabels,
+		appConditions:     appConditions,
+		db:                db,
+		descAppLabels:     descAppLabels,
+		descAppConditions: descAppConditions,
+		descAppInfo:       descAppInfo,
 	}
 }
 
 // Describe implements the prometheus.Collector interface
 func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 	if len(c.appLabels) > 0 {
-		ch <- descAppLabels
+		ch <- c.descAppLabels
 	}
 	if len(c.appConditions) > 0 {
-		ch <- descAppConditions
+		ch <- c.descAppConditions
 	}
-	ch <- descAppInfo
+	ch <- c.descAppInfo
 }
 
 // Collect implements the prometheus.Collector interface
@@ -470,7 +475,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 
 	labelValues := getMetricLabelValues(app, emitLabelsOnAllAppMetrics)
 
-	addGauge(descAppInfo, 1,
+	addGauge(c.descAppInfo, 1,
 		append(
 			slices.Clone(labelValues),
 			strconv.FormatBool(autoSyncEnabled),
@@ -482,7 +487,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 			operation)...)
 
 	if len(c.appLabels) > 0 {
-		addGauge(descAppLabels, 1, getMetricLabelValues(app, true)...)
+		addGauge(c.descAppLabels, 1, getMetricLabelValues(app, true)...)
 	}
 
 	if len(c.appConditions) > 0 {
@@ -494,7 +499,7 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		}
 
 		for conditionType, count := range conditionCount {
-			addGauge(descAppConditions, float64(count), append(slices.Clone(labelValues), conditionType)...)
+			addGauge(c.descAppConditions, float64(count), append(slices.Clone(labelValues), conditionType)...)
 		}
 	}
 }
