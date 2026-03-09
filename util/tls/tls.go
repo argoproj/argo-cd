@@ -330,6 +330,13 @@ func GenerateX509KeyPair(opts CertOptions) (*tls.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(cert.Certificate) > 0 {
+		leaf, err := x509.ParseCertificate(cert.Certificate[0])
+		if err != nil {
+			return nil, fmt.Errorf("error parsing generated certificate: %w", err)
+		}
+		cert.Leaf = leaf
+	}
 	return &cert, nil
 }
 
@@ -446,6 +453,13 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string, clien
 		if err != nil {
 			return nil, fmt.Errorf("unable to initialize TLS configuration with cert=%s and key=%s: %w", tlsCertPath, tlsKeyPath, err)
 		}
+		if len(c.Certificate) > 0 {
+			leaf, err := x509.ParseCertificate(c.Certificate[0])
+			if err != nil {
+				return nil, fmt.Errorf("error parsing loaded certificate: %w", err)
+			}
+			c.Leaf = leaf
+		}
 		cert = &c
 	}
 
@@ -458,8 +472,6 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string, clien
 		}
 		tlsConfig.ClientCAs = pool
 		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
-	} else if !tlsCertExists || !tlsKeyExists {
-		tlsConfig.ClientAuth = tls.RequireAnyClientCert
 	}
 
 	return tlsConfig, nil
@@ -495,7 +507,6 @@ func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() 
 		}
 
 		if selfGenerateClientCert && (tlsConfig.ClientCertFile == "" || tlsConfig.ClientCertKeyFile == "") {
-			log.Info("Self-generating client certificate for mTLS")
 			cert, err := GenerateX509KeyPair(CertOptions{
 				Hosts:        []string{"localhost"},
 				Organization: "Argo CD Client",
@@ -503,26 +514,8 @@ func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() 
 			if err != nil {
 				return tlsConfig, fmt.Errorf("error generating client certificate: %w", err)
 			}
-			certPEM, keyPEM := EncodeX509KeyPair(*cert)
-			certFile, err := os.CreateTemp("", "client-cert")
-			if err != nil {
-				return tlsConfig, fmt.Errorf("error creating temp file for client cert: %w", err)
-			}
-			if _, err := certFile.Write(certPEM); err != nil {
-				return tlsConfig, fmt.Errorf("error writing client cert to temp file: %w", err)
-			}
-			tlsConfig.ClientCertFile = certFile.Name()
-			log.Infof("Self-generated client certificate at %s", tlsConfig.ClientCertFile)
-
-			keyFile, err := os.CreateTemp("", "client-key")
-			if err != nil {
-				return tlsConfig, fmt.Errorf("error creating temp file for client key: %w", err)
-			}
-			if _, err := keyFile.Write(keyPEM); err != nil {
-				return tlsConfig, fmt.Errorf("error writing client key to temp file: %w", err)
-			}
-			tlsConfig.ClientCertKeyFile = keyFile.Name()
-			log.Infof("Self-generated client key at %s", tlsConfig.ClientCertKeyFile)
+			tlsConfig.ClientCertificates = []tls.Certificate{*cert}
+			log.Info("Self-generated in-memory client certificate for mTLS")
 		}
 
 		return tlsConfig, nil

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"crypto/x509"
 	"fmt"
 	"math"
 	"net"
@@ -20,23 +21,31 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
+	reposervercache "github.com/argoproj/argo-cd/v3/reposerver/cache"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/reposerver"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	reposervercache "github.com/argoproj/argo-cd/v3/reposerver/cache"
 	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v3/reposerver/repository"
 	"github.com/argoproj/argo-cd/v3/util/askpass"
-	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
-	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/profile"
 	"github.com/argoproj/argo-cd/v3/util/tls"
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
+
+	ctls "crypto/tls"
+)
+
+var (
+	healthCheckCert      *ctls.Certificate
+	healthCheckCertMutex sync.RWMutex
 )
 
 var (
@@ -63,7 +72,6 @@ func NewCommand() *cobra.Command {
 		tlsConfigCustomizer                tls.ConfigCustomizer
 		tlsConfigCustomizerSrc             func() (tls.ConfigCustomizer, error)
 		redisClient                        *redis.Client
-		disableTLS                         bool
 		maxCombinedDirectoryManifestsSize  string
 		cmpTarExcludedGlobs                []string
 		allowOutOfBoundsSymlinks           bool
@@ -106,11 +114,9 @@ func NewCommand() *cobra.Command {
 				}
 			}()
 
-			if !disableTLS {
-				var err error
-				tlsConfigCustomizer, err = tlsConfigCustomizerSrc()
-				errors.CheckError(err)
-			}
+			var err error
+			tlsConfigCustomizer, err = tlsConfigCustomizerSrc()
+			errors.CheckError(err)
 
 			cache, err := cacheSrc()
 			errors.CheckError(err)
@@ -136,6 +142,12 @@ func NewCommand() *cobra.Command {
 			askPassServer := askpass.NewServer(askpass.SocketPath)
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer, nil)
+			if clientCAPath != "" {
+				if _, err := os.Stat(clientCAPath); err != nil {
+					return fmt.Errorf("client CA path does not exist or is not readable: %w", err)
+				}
+			}
+
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
 				ParallelismLimit: parallelismLimit,
 				PauseGenerationAfterFailedGenerationAttempts: pauseGenerationAfterFailedGenerationAttempts,
@@ -181,53 +193,28 @@ func NewCommand() *cobra.Command {
 					// used by liveness probe to auto-restart repo server
 					// see https://github.com/argoproj/argo-cd/issues/5110 for more information
 					healthCheckTLSConfig := apiclient.TLSConfiguration{
-						StrictValidation: false,
+						StrictValidation: true,
 					}
-					// Since this is a local health check, we can self-generate one if not provided.
-					// mTLS is always required now.
-					cert, err := tls.GenerateX509KeyPair(tls.CertOptions{
-						Hosts:        []string{"localhost"},
-						Organization: "Argo CD Health Check",
-					})
-					if err == nil {
-						certPEM, keyPEM := tls.EncodeX509KeyPair(*cert)
-						certFile, _ := os.CreateTemp("", "health-cert")
-						if certFile != nil {
-							_, err := certFile.Write(certPEM)
-							if err != nil {
-								return fmt.Errorf("failed to write health check cert file: %w", err)
-							}
-							err = certFile.Close()
-							if err != nil {
-								return fmt.Errorf("failed to close health check cert file: %w", err)
-							}
-							healthCheckTLSConfig.ClientCertFile = certFile.Name()
-							defer func(name string) {
-								err := os.Remove(name)
-								if err != nil {
-									log.Warnf("failed to remove health check cert file '%s': %v", name, err)
-								}
-							}(certFile.Name())
+
+					// If the server has a TLS configuration, we use it to verify the server's certificate.
+					if srvTLSConfig := server.GetTLSConfig(); srvTLSConfig != nil && len(srvTLSConfig.Certificates) > 0 {
+						serverCert, err := x509.ParseCertificate(srvTLSConfig.Certificates[0].Certificate[0])
+						if err == nil {
+							certPool := x509.NewCertPool()
+							certPool.AddCert(serverCert)
+							healthCheckTLSConfig.Certificates = certPool
 						}
-						keyFile, _ := os.CreateTemp("", "health-key")
-						if keyFile != nil {
-							_, err := keyFile.Write(keyPEM)
-							if err != nil {
-								return fmt.Errorf("failed to write health check key file: %w", err)
-							}
-							err = keyFile.Close()
-							if err != nil {
-								return fmt.Errorf("failed to close health check key file: %w", err)
-							}
-							healthCheckTLSConfig.ClientCertKeyFile = keyFile.Name()
-							defer func(name string) {
-								err := os.Remove(name)
-								if err != nil {
-									log.Warnf("failed to remove health check key file '%s': %v", name, err)
-								}
-							}(keyFile.Name())
+						// Use the server's own certificate as the client certificate for health checks
+						// to ensure it's trusted when mTLS is enabled.
+						healthCheckTLSConfig.ClientCertificates = srvTLSConfig.Certificates
+					} else {
+						healthCheckTLSConfigFromCerts, err := generateSelfSignedCerts()
+						if err != nil {
+							return err
 						}
+						healthCheckTLSConfig.ClientCertificates = healthCheckTLSConfigFromCerts.ClientCertificates
 					}
+
 					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, &healthCheckTLSConfig)
 					if err != nil {
 						return err
@@ -300,7 +287,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
 	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_REPO_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
 	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_REPO_SERVER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
-	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS on the gRPC endpoint")
 	command.Flags().StringVar(&maxCombinedDirectoryManifestsSize, "max-combined-directory-manifests-size", env.StringFromEnv("ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE", "10M"), "Max combined size of manifest files in a directory-type Application")
 	command.Flags().StringArrayVar(&cmpTarExcludedGlobs, "plugin-tar-exclude", env.StringsFromEnv("ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS", []string{}, ";"), "Globs to filter when sending tarballs to plugins.")
 	command.Flags().BoolVar(&allowOutOfBoundsSymlinks, "allow-oob-symlinks", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS", false), "Allow out-of-bounds symlinks in repositories (not recommended)")
@@ -324,4 +310,36 @@ func NewCommand() *cobra.Command {
 		},
 	})
 	return &command
+}
+
+func generateSelfSignedCerts() (apiclient.TLSConfiguration, error) {
+	healthCheckTLSConfig := apiclient.TLSConfiguration{
+		StrictValidation: false,
+	}
+
+	healthCheckCertMutex.RLock()
+	if healthCheckCert != nil {
+		healthCheckTLSConfig.ClientCertificates = []ctls.Certificate{*healthCheckCert}
+		healthCheckCertMutex.RUnlock()
+		return healthCheckTLSConfig, nil
+	}
+	healthCheckCertMutex.RUnlock()
+
+	healthCheckCertMutex.Lock()
+	defer healthCheckCertMutex.Unlock()
+
+	if healthCheckCert != nil {
+		healthCheckTLSConfig.ClientCertificates = []ctls.Certificate{*healthCheckCert}
+		return healthCheckTLSConfig, nil
+	}
+
+	cert, err := tls.GenerateX509KeyPair(tls.CertOptions{
+		Hosts:        []string{"localhost"},
+		Organization: "Argo CD Health Check",
+	})
+	if err == nil {
+		healthCheckCert = cert
+		healthCheckTLSConfig.ClientCertificates = []ctls.Certificate{*healthCheckCert}
+	}
+	return healthCheckTLSConfig, err
 }
