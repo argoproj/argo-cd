@@ -57,53 +57,96 @@ const (
 // Follow Prometheus naming practices
 // https://prometheus.io/docs/practices/naming/
 var (
-	descAppDefaultLabels = []string{"namespace", "name", "project"}
+	// metric label is a label that is set on a metric
+	defaultMetricLabels = []string{"namespace", "name", "project"}
+	// app label is a label on the app manifest
+	allowedAppLabels          []string
+	emitLabelsOnAllAppMetrics bool
 
 	descAppLabels     *prometheus.Desc
 	descAppConditions *prometheus.Desc
+	descAppInfo       *prometheus.Desc
+)
+
+// NewMetricsServer returns a new prometheus server which collects application metrics
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, emitLabelsOnAllMetrics bool, appLabels []string, appConditions []string, db db.ArgoDB) (*MetricsServer, error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, err
+	}
+
+	allowedAppLabels = appLabels
+	emitLabelsOnAllAppMetrics = emitLabelsOnAllMetrics
+	metricLabels := make([]string, len(defaultMetricLabels))
+	copy(metricLabels, defaultMetricLabels)
+
+	if len(appLabels) > 0 {
+		normalizedLabels := metricsutil.NormalizeLabels("label", appLabels)
+		combinedLabels := make([]string, len(defaultMetricLabels))
+		copy(combinedLabels, defaultMetricLabels)
+		combinedLabels = append(combinedLabels, normalizedLabels...)
+
+		descAppLabels = prometheus.NewDesc(
+			"argocd_app_labels",
+			"Argo Application labels converted to Prometheus labels",
+			combinedLabels,
+			nil,
+		)
+		// if the flag is set then metricLabels will be appended with the allowed list of labels
+		if emitLabelsOnAllMetrics {
+			metricLabels = combinedLabels
+		}
+	}
+
+	if len(appConditions) > 0 {
+		descAppConditions = prometheus.NewDesc(
+			"argocd_app_condition",
+			"Report application conditions.",
+			append(metricLabels, "condition"),
+			nil,
+		)
+	}
 
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
 		"Information about application.",
-		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
+		append(metricLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
 		nil,
 	)
 
-	syncCounter = prometheus.NewCounterVec(
+	syncCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_app_sync_total",
 			Help: "Number of application syncs.",
 		},
-		append(descAppDefaultLabels, "dest_server", "phase", "dry_run"),
+		append(metricLabels, "dest_server", "phase", "dry_run"),
 	)
 
-	syncDuration = prometheus.NewCounterVec(
+	syncDuration := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_app_sync_duration_seconds_total",
 			Help: "Application sync performance in seconds total.",
 		},
-		append(descAppDefaultLabels, "dest_server"),
+		append(metricLabels, "dest_server"),
 	)
 
-	k8sRequestCounter = prometheus.NewCounterVec(
+	k8sRequestCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_app_k8s_request_total",
 			Help: "Number of kubernetes requests executed during application reconciliation.",
 		},
-		append(descAppDefaultLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace", "dry_run"),
+		append(metricLabels, "server", "response_code", "verb", "resource_kind", "resource_namespace", "dry_run"),
 	)
 
-	kubectlExecCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "argocd_kubectl_exec_total",
-		Help: "Number of kubectl executions",
-	}, []string{"hostname", "command"})
+	orphanedResourcesGauge := prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "argocd_app_orphaned_resources_count",
+			Help: "Number of orphaned resources per application",
+		},
+		metricLabels,
+	)
 
-	kubectlExecPendingGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "argocd_kubectl_exec_pending",
-		Help: "Number of pending kubectl executions",
-	}, []string{"hostname", "command"})
-
-	reconcileHistogram = prometheus.NewHistogramVec(
+	reconcileHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "argocd_app_reconcile",
 			Help: "Application reconciliation performance in seconds.",
@@ -113,12 +156,22 @@ var (
 		[]string{"namespace", "dest_server"},
 	)
 
-	clusterEventsCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+	kubectlExecCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_kubectl_exec_total",
+		Help: "Number of kubectl executions",
+	}, []string{"hostname", "command"})
+
+	kubectlExecPendingGauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "argocd_kubectl_exec_pending",
+		Help: "Number of pending kubectl executions",
+	}, []string{"hostname", "command"})
+
+	clusterEventsCounter := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "argocd_cluster_events_total",
 		Help: "Number of processes k8s resource events.",
 	}, append(descClusterDefaultLabels, "group", "kind"))
 
-	redisRequestCounter = prometheus.NewCounterVec(
+	redisRequestCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_redis_request_total",
 			Help: "Number of redis requests executed during application reconciliation.",
@@ -126,7 +179,7 @@ var (
 		[]string{"hostname", "initiator", "failed"},
 	)
 
-	redisRequestHistogram = prometheus.NewHistogramVec(
+	redisRequestHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "argocd_redis_request_duration",
 			Help:    "Redis requests duration.",
@@ -135,15 +188,7 @@ var (
 		[]string{"hostname", "initiator"},
 	)
 
-	orphanedResourcesGauge = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "argocd_app_orphaned_resources_count",
-			Help: "Number of orphaned resources per application",
-		},
-		descAppDefaultLabels,
-	)
-
-	resourceEventsProcessingHistogram = prometheus.NewHistogramVec(
+	resourceEventsProcessingHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "argocd_resource_events_processing",
 			Help:    "Time to process resource events in seconds.",
@@ -152,40 +197,14 @@ var (
 		[]string{"server"},
 	)
 
-	resourceEventsNumberGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+	resourceEventsNumberGauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "argocd_resource_events_processed_in_batch",
 		Help: "Number of resource events processed in batch",
 	}, []string{"server"})
-)
-
-// NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, db db.ArgoDB) (*MetricsServer, error) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(appLabels) > 0 {
-		normalizedLabels := metricsutil.NormalizeLabels("label", appLabels)
-		descAppLabels = prometheus.NewDesc(
-			"argocd_app_labels",
-			"Argo Application labels converted to Prometheus labels",
-			append(descAppDefaultLabels, normalizedLabels...),
-			nil,
-		)
-	}
-
-	if len(appConditions) > 0 {
-		descAppConditions = prometheus.NewDesc(
-			"argocd_app_condition",
-			"Report application conditions.",
-			append(descAppDefaultLabels, "condition"),
-			nil,
-		)
-	}
 
 	mux := http.NewServeMux()
-	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions, db)
+	// new registry for app metrics
+	registry := prometheus.NewRegistry()
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
@@ -196,6 +215,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
 
+	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db))
 	registry.MustRegister(syncCounter)
 	registry.MustRegister(syncDuration)
 	registry.MustRegister(k8sRequestCounter)
@@ -251,13 +271,21 @@ func (m *MetricsServer) IncSync(app *argoappv1.Application, destServer string, s
 		return
 	}
 	isDryRun := app.Operation != nil && app.Operation.DryRun()
-	m.syncCounter.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), destServer, string(state.Phase), strconv.FormatBool(isDryRun)).Inc()
+	values := append(
+		getMetricLabelValues(app, emitLabelsOnAllAppMetrics),
+		destServer,
+		string(state.Phase),
+		strconv.FormatBool(isDryRun))
+	m.syncCounter.WithLabelValues(values...).Inc()
 }
 
 // IncAppSyncDuration observes app sync duration
 func (m *MetricsServer) IncAppSyncDuration(app *argoappv1.Application, destServer string, state *argoappv1.OperationState) {
 	if state.FinishedAt != nil {
-		m.syncDuration.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject(), destServer).
+		values := append(
+			getMetricLabelValues(app, emitLabelsOnAllAppMetrics),
+			destServer)
+		m.syncDuration.WithLabelValues(values...).
 			Add(float64(time.Duration(state.FinishedAt.Unix() - state.StartedAt.Unix())))
 	}
 }
@@ -275,7 +303,7 @@ func (m *MetricsServer) DecKubectlExecPending(command string) {
 }
 
 func (m *MetricsServer) SetOrphanedResourcesMetric(app *argoappv1.Application, numOrphanedResources int) {
-	m.orphanedResourcesGauge.WithLabelValues(app.Namespace, app.Name, app.Spec.GetProject()).Set(float64(numOrphanedResources))
+	m.orphanedResourcesGauge.WithLabelValues(getMetricLabelValues(app, emitLabelsOnAllAppMetrics)...).Set(float64(numOrphanedResources))
 }
 
 // IncClusterEventsCount increments the number of cluster events
@@ -285,18 +313,19 @@ func (m *MetricsServer) IncClusterEventsCount(server, group, kind string) {
 
 // IncKubernetesRequest increments the kubernetes requests counter for an application
 func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server, statusCode, verb, resourceKind, resourceNamespace string) {
-	var namespace, name, project string
 	isDryRun := false
 	if app != nil {
-		namespace = app.Namespace
-		name = app.Name
-		project = app.Spec.GetProject()
 		isDryRun = app.Operation != nil && app.Operation.DryRun()
 	}
-	m.k8sRequestCounter.WithLabelValues(
-		namespace, name, project, server, statusCode,
-		verb, resourceKind, resourceNamespace, strconv.FormatBool(isDryRun),
-	).Inc()
+	values := append(
+		getMetricLabelValues(app, emitLabelsOnAllAppMetrics),
+		server,
+		statusCode,
+		verb,
+		resourceKind,
+		resourceNamespace,
+		strconv.FormatBool(isDryRun))
+	m.k8sRequestCounter.WithLabelValues(values...).Inc()
 }
 
 func (m *MetricsServer) IncRedisRequest(failed bool) {
@@ -373,13 +402,6 @@ func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj a
 	}
 }
 
-// NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) *prometheus.Registry {
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db))
-	return registry
-}
-
 // Describe implements the prometheus.Collector interface
 func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 	if len(c.appLabels) > 0 {
@@ -423,8 +445,6 @@ func boolFloat64(b bool) float64 {
 
 func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application, destServer string) {
 	addConstMetric := func(desc *prometheus.Desc, t prometheus.ValueType, v float64, lv ...string) {
-		project := app.Spec.GetProject()
-		lv = append([]string{app.Namespace, app.Name, project}, lv...)
 		ch <- prometheus.MustNewConstMetric(desc, t, v, lv...)
 	}
 	addGauge := func(desc *prometheus.Desc, v float64, lv ...string) {
@@ -448,15 +468,21 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 
 	autoSyncEnabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled()
 
-	addGauge(descAppInfo, 1, strconv.FormatBool(autoSyncEnabled), git.NormalizeGitURL(app.Spec.GetSource().RepoURL), destServer, app.Spec.Destination.Namespace, string(syncStatus), string(healthStatus), operation)
+	labelValues := getMetricLabelValues(app, emitLabelsOnAllAppMetrics)
+
+	addGauge(descAppInfo, 1,
+		append(
+			slices.Clone(labelValues),
+			strconv.FormatBool(autoSyncEnabled),
+			git.NormalizeGitURL(app.Spec.GetSource().RepoURL),
+			destServer,
+			app.Spec.Destination.Namespace,
+			string(syncStatus),
+			string(healthStatus),
+			operation)...)
 
 	if len(c.appLabels) > 0 {
-		labelValues := []string{}
-		for _, desiredLabel := range c.appLabels {
-			value := app.GetLabels()[desiredLabel]
-			labelValues = append(labelValues, value)
-		}
-		addGauge(descAppLabels, 1, labelValues...)
+		addGauge(descAppLabels, 1, getMetricLabelValues(app, true)...)
 	}
 
 	if len(c.appConditions) > 0 {
@@ -468,7 +494,37 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 		}
 
 		for conditionType, count := range conditionCount {
-			addGauge(descAppConditions, float64(count), conditionType)
+			addGauge(descAppConditions, float64(count), append(slices.Clone(labelValues), conditionType)...)
 		}
 	}
+}
+
+// getMetricLabelValues returns the base label values for app metrics and appends the whitelisted labels if enabled
+func getMetricLabelValues(app *argoappv1.Application, appendAllowedAppLabels bool) []string {
+	// get the default metric label values
+	var namespace, name, project string
+	if app != nil {
+		namespace = app.Namespace
+		name = app.Name
+		project = app.Spec.GetProject()
+	}
+	values := []string{namespace, name, project}
+	if appendAllowedAppLabels {
+		values = append(values, resolveAppLabelValues(allowedAppLabels, app)...)
+	}
+
+	return values
+}
+
+// resolveAppLabelValues extracts the values for the given label names from the
+// application's labels. Returns empty strings for labels not found or if app is nil.
+func resolveAppLabelValues(labelNames []string, app *argoappv1.Application) []string {
+	values := make([]string, len(labelNames))
+	if app != nil {
+		appLabels := app.GetLabels()
+		for i, name := range labelNames {
+			values[i] = appLabels[name]
+		}
+	}
+	return values
 }

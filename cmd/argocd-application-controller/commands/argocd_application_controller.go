@@ -74,8 +74,9 @@ func NewCommand() *cobra.Command {
 		glogLevel                        int
 		metricsPort                      int
 		metricsCacheExpiration           time.Duration
-		metricsApplicationLabels         []string
-		metricsApplicationConditions     []string
+		emitLabelsToAllMetrics           bool
+		metricsAplicationLabels          []string
+		metricsAplicationConditions      []string
 		metricsClusterLabels             []string
 		kubectlParallelismLimit          int64
 		cacheSource                      func() (*appstatecache.Cache, error)
@@ -207,8 +208,9 @@ func NewCommand() *cobra.Command {
 				time.Duration(repoErrorGracePeriod)*time.Second,
 				metricsPort,
 				metricsCacheExpiration,
-				metricsApplicationLabels,
-				metricsApplicationConditions,
+				emitLabelsToAllMetrics,
+				metricsAplicationLabels,
+				metricsAplicationConditions,
 				metricsClusterLabels,
 				kubectlParallelismLimit,
 				persistResourceHealth,
@@ -282,9 +284,10 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	errors.CheckError(command.Flags().MarkDeprecated("repo-server-strict-tls", "use --repo-server-ca-cert-path instead"))
-	command.Flags().StringSliceVar(&metricsApplicationLabels, "metrics-application-labels", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_LABELS", []string{}, ","), "List of Application labels that will be added to the argocd_app_labels metric")
-	command.Flags().StringSliceVar(&metricsApplicationConditions, "metrics-application-conditions", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_CONDITIONS", []string{}, ","), "List of Application conditions that will be added to the argocd_app_condition metric")
-	command.Flags().StringSliceVar(&metricsClusterLabels, "metrics-cluster-labels", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS", []string{}, ","), "List of Cluster labels that will be added to the argocd_cluster_labels metric")
+	command.Flags().BoolVar(&emitLabelsToAllMetrics, "emit-labels-to-all-metrics", env.ParseBoolFromEnv("EMIT_LABELS_TO_ALL_METRICS", false), "Emits the allowed list of app labels in metrics-application-labels to all app metrics")
+	command.Flags().StringSliceVar(&metricsAplicationLabels, "metrics-application-labels", []string{}, "List of Application labels that will be added to the argocd_application_labels metric")
+	command.Flags().StringSliceVar(&metricsAplicationConditions, "metrics-application-conditions", []string{}, "List of Application conditions that will be added to the argocd_application_conditions metric")
+	command.Flags().StringSliceVar(&metricsClusterLabels, "metrics-cluster-labels", []string{}, "List of Cluster labels that will be added to the argocd_cluster_labels metric")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
 	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
