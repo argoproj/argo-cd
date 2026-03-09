@@ -3559,14 +3559,14 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				q := queryTemplate
 				// Add a second ref source but do NOT reference it in ValueFiles.
 				q.RefSources = map[string]*v1alpha1.RefTarget{
-					refName: &v1alpha1.RefTarget{
+					refName: {
 						Repo: v1alpha1.Repository{
 							Type: "git",
 							Repo: refRepoURL,
 						},
 						TargetRevision: refTargetRevision,
 					},
-					refNameUnused: &v1alpha1.RefTarget{
+					refNameUnused: {
 						Repo: v1alpha1.Repository{
 							Type: "git",
 							Repo: unusedRefRepoURL,
