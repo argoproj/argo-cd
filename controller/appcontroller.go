@@ -1367,11 +1367,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 
 	if !app.CascadedDeletion() && !app.HasPostDeleteFinalizer() && !app.HasPreDeleteFinalizer() {
-		if err := ctrl.cache.SetAppManagedResources(app.Name, nil); err != nil {
+		if err := ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), nil); err != nil {
 			return err
 		}
 
-		if err := ctrl.cache.SetAppResourcesTree(app.Name, nil); err != nil {
+		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), nil); err != nil {
 			return err
 		}
 		ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, app.Spec.GetProject()))
