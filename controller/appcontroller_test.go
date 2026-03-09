@@ -9,24 +9,23 @@ import (
 	"testing"
 	"time"
 
-	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	clustercache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 
-	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache/mocks"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	appsv1 "k8s.io/api/apps/v1"
@@ -66,16 +65,17 @@ type namespacedResource struct {
 }
 
 type fakeData struct {
-	apps                           []runtime.Object
-	manifestResponse               *apiclient.ManifestResponse
-	manifestResponses              []*apiclient.ManifestResponse
-	managedLiveObjs                map[kube.ResourceKey]*unstructured.Unstructured
-	namespacedResources            map[kube.ResourceKey]namespacedResource
-	configMapData                  map[string]string
-	metricsCacheExpiration         time.Duration
-	applicationNamespaces          []string
-	updateRevisionForPathsResponse *apiclient.UpdateRevisionForPathsResponse
-	additionalObjs                 []runtime.Object
+	apps                            []runtime.Object
+	manifestResponse                *apiclient.ManifestResponse
+	manifestResponses               []*apiclient.ManifestResponse
+	managedLiveObjs                 map[kube.ResourceKey]*unstructured.Unstructured
+	namespacedResources             map[kube.ResourceKey]namespacedResource
+	configMapData                   map[string]string
+	metricsCacheExpiration          time.Duration
+	applicationNamespaces           []string
+	updateRevisionForPathsResponse  *apiclient.UpdateRevisionForPathsResponse
+	updateRevisionForPathsResponses []*apiclient.UpdateRevisionForPathsResponse
+	additionalObjs                  []runtime.Object
 }
 
 type MockKubectl struct {
@@ -125,10 +125,20 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		}
 	}
 
-	if revisionPathsErr != nil {
-		mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(nil, revisionPathsErr)
+	if len(data.updateRevisionForPathsResponses) > 0 {
+		for _, response := range data.updateRevisionForPathsResponses {
+			if revisionPathsErr != nil {
+				mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(response, revisionPathsErr)
+			} else {
+				mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(response, nil)
+			}
+		}
 	} else {
-		mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
+		if revisionPathsErr != nil {
+			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(nil, revisionPathsErr)
+		} else {
+			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
+		}
 	}
 
 	mockRepoClientset := &mockrepoclient.Clientset{RepoServerServiceClient: mockRepoClient}
@@ -159,6 +169,8 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	runtimeObjs = append(runtimeObjs, data.additionalObjs...)
 	kubeClient := fake.NewClientset(runtimeObjs...)
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClient, test.FakeArgoCDNamespace)
+	// Initialize the settings manager to ensure cluster cache is ready
+	_ = settingsMgr.ResyncInformers()
 	kubectl := &MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
@@ -177,7 +189,6 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		time.Second,
 		time.Minute,
 		nil,
-		time.Minute,
 		0,
 		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
@@ -2301,6 +2312,93 @@ func TestFinalizeProjectDeletion_DoesNotHaveApplications(t *testing.T) {
 	}, receivedPatch)
 }
 
+func TestFinalizeProjectDeletion_HasApplicationInOtherNamespace(t *testing.T) {
+	app := newFakeApp()
+	app.Namespace = "team-a"
+	proj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceNamespaces: []string{"team-a"},
+		},
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:                  []runtime.Object{app, proj},
+		applicationNamespaces: []string{"team-a"},
+	}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	patched := false
+	fakeAppCs.PrependReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, &v1alpha1.AppProject{}, nil
+	})
+
+	err := ctrl.finalizeProjectDeletion(proj)
+	require.NoError(t, err)
+	assert.False(t, patched)
+}
+
+func TestFinalizeProjectDeletion_IgnoresAppsInUnmonitoredNamespace(t *testing.T) {
+	app := newFakeApp()
+	app.Namespace = "team-b"
+	proj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:                  []runtime.Object{app, proj},
+		applicationNamespaces: []string{"team-a"},
+	}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]any{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.AppProject{}, nil
+	})
+
+	err := ctrl.finalizeProjectDeletion(proj)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"metadata": map[string]any{
+			"finalizers": nil,
+		},
+	}, receivedPatch)
+}
+
+func TestFinalizeProjectDeletion_IgnoresAppsNotPermittedByProject(t *testing.T) {
+	app := newFakeApp()
+	app.Namespace = "team-b"
+	proj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceNamespaces: []string{"team-a"},
+		},
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:                  []runtime.Object{app, proj},
+		applicationNamespaces: []string{"team-a", "team-b"},
+	}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]any{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.AppProject{}, nil
+	})
+
+	err := ctrl.finalizeProjectDeletion(proj)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"metadata": map[string]any{
+			"finalizers": nil,
+		},
+	}, receivedPatch)
+}
+
 func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Project = "default"
@@ -2441,7 +2539,7 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailedBackoff(t *testing.
 			Limit: 1,
 			Backoff: &v1alpha1.Backoff{
 				Duration:    "1h",
-				Factor:      ptr.To(int64(100)),
+				Factor:      new(int64(100)),
 				MaxDuration: "1h",
 			},
 		},
@@ -2545,6 +2643,41 @@ func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 	assert.Equal(t, CompareWithLatestForceResolve, level)
 }
 
+func TestProcessRequestedAppAutomatedOperation_Successful(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "default"
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+		InitiatedBy: v1alpha1.OperationInitiator{
+			Automated: true,
+		},
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponses: []*apiclient.ManifestResponse{{
+			Manifests: []string{},
+		}},
+	}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]any{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
+	assert.Equal(t, string(synccommon.OperationSucceeded), phase)
+	assert.Equal(t, "successfully synced (no more tasks)", message)
+	ok, level := ctrl.isRefreshRequested(ctrl.toAppKey(app.Name))
+	assert.True(t, ok)
+	assert.Equal(t, CompareWithLatest, level)
+}
+
 func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 	testCases := []struct {
 		name            string
@@ -2608,7 +2741,7 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 				StartedAt: metav1.NewTime(time.Now().Add(-tc.startedSince)),
 			}
 			if tc.retryAttempt > 0 {
-				app.Status.OperationState.FinishedAt = ptr.To(metav1.NewTime(time.Now().Add(-tc.startedSince)))
+				app.Status.OperationState.FinishedAt = new(metav1.NewTime(time.Now().Add(-tc.startedSince)))
 				app.Status.OperationState.RetryCount = int64(tc.retryAttempt)
 			}
 
@@ -3090,17 +3223,17 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 		shouldSelfHeal   bool
 	}{{
 		attempts:         0,
-		finishedAt:       ptr.To(metav1.Now()),
+		finishedAt:       new(metav1.Now()),
 		expectedDuration: 0,
 		shouldSelfHeal:   true,
 	}, {
 		attempts:         1,
-		finishedAt:       ptr.To(metav1.Now()),
+		finishedAt:       new(metav1.Now()),
 		expectedDuration: 2 * time.Second,
 		shouldSelfHeal:   false,
 	}, {
 		attempts:         2,
-		finishedAt:       ptr.To(metav1.Now()),
+		finishedAt:       new(metav1.Now()),
 		expectedDuration: 6 * time.Second,
 		shouldSelfHeal:   false,
 	}, {
@@ -3125,7 +3258,7 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 		shouldSelfHeal:   false,
 	}, {
 		attempts:         6,
-		finishedAt:       ptr.To(metav1.Now()),
+		finishedAt:       new(metav1.Now()),
 		expectedDuration: 120 * time.Second,
 		shouldSelfHeal:   false,
 	}, {
@@ -3145,47 +3278,4 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 			assertDurationAround(t, tc.expectedDuration, duration)
 		})
 	}
-}
-
-func TestSelfHealBackoffCooldownElapsed(t *testing.T) {
-	cooldown := time.Second * 30
-	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
-	ctrl.selfHealBackoffCooldown = cooldown
-
-	app := &v1alpha1.Application{
-		Status: v1alpha1.ApplicationStatus{
-			OperationState: &v1alpha1.OperationState{
-				Phase: synccommon.OperationSucceeded,
-			},
-		},
-	}
-
-	t.Run("operation not completed", func(t *testing.T) {
-		app := app.DeepCopy()
-		app.Status.OperationState.FinishedAt = nil
-		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
-		assert.True(t, elapsed)
-	})
-
-	t.Run("successful operation finised after cooldown", func(t *testing.T) {
-		app := app.DeepCopy()
-		app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now().Add(-cooldown)}
-		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
-		assert.True(t, elapsed)
-	})
-
-	t.Run("unsuccessful operation finised after cooldown", func(t *testing.T) {
-		app := app.DeepCopy()
-		app.Status.OperationState.Phase = synccommon.OperationFailed
-		app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now().Add(-cooldown)}
-		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
-		assert.False(t, elapsed)
-	})
-
-	t.Run("successful operation finised before cooldown", func(t *testing.T) {
-		app := app.DeepCopy()
-		app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now()}
-		elapsed := ctrl.selfHealBackoffCooldownElapsed(app)
-		assert.False(t, elapsed)
-	})
 }

@@ -21,7 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
+	clustercache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes/fake"

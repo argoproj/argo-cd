@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/common"

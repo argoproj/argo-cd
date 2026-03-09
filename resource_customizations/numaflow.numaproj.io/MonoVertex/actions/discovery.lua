@@ -45,7 +45,7 @@ end
 
 -- force-promote
 local forcePromote = false
-if (obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/upgrade-state"] == "in-progress") then
+if obj.metadata.labels ~= nil and (obj.metadata.labels["numaplane.numaproj.io/upgrade-state"] == "in-progress" or obj.metadata.labels["numaplane.numaproj.io/upgrade-state"] == "trial") then
   forcePromote = true
 end
 if (obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/force-promote"] == "true") then
