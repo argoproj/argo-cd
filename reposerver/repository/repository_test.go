@@ -466,14 +466,17 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	cacheMocks := newCacheMocks()
 	t.Cleanup(func() {
 		cacheMocks.mockCache.StopRedisCallback()
-		err := filepath.WalkDir(dir,
+		// Best-effort: make all files writable so t.TempDir() can clean up.
+		// Ignore errors (e.g. git object files with restrictive permissions in CI)
+		// to avoid failing the test in the cleanup phase rather than the logic phase.
+		_ = filepath.WalkDir(dir,
 			func(path string, _ fs.DirEntry, err error) error {
-				if err == nil {
-					return os.Chmod(path, 0o777)
+				if err != nil {
+					return nil
 				}
-				return err
+				_ = os.Chmod(path, 0o777)
+				return nil
 			})
-		require.NoError(t, err)
 	})
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, repopath)
 	var gitClient git.Client
