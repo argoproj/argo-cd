@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -2273,11 +2274,19 @@ func (s *Service) populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, 
 	defer h.Dispose()
 
 	if len(q.RefSources) > 0 {
+		refSources := map[string]repoRef{}
 		var mainRepoURL string
 		if q.Repo.Type == "git" {
 			mainRepoURL = git.NormalizeGitURL(q.Repo.Repo)
 		}
-		for refName, refSource := range q.RefSources {
+
+		refNames := []string{}
+		for refName := range q.RefSources {
+			refNames = append(refNames, refName)
+		}
+		sort.Strings(refNames)
+		for _, refName := range refNames {
+			refSource := q.RefSources[refName]
 			if refSource.Repo.Type != "git" {
 				continue
 			}
@@ -2286,8 +2295,21 @@ func (s *Service) populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, 
 			if err != nil {
 				return fmt.Errorf("error setting up git client for %s and resolving revision %s: %w", refSource.Repo.Repo, refSource.TargetRevision, err)
 			}
-			if mainRepoURL == git.NormalizeGitURL(refSource.Repo.Repo) && refSHA != commitSHA {
+			refNormalizedURL := git.NormalizeGitURL(refSource.Repo.Repo)
+			if mainRepoURL == refNormalizedURL && refSHA != commitSHA {
 				return fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refName, refSource.TargetRevision, refSHA, revision, commitSHA)
+			}
+			prevRef, ok := refSources[refNormalizedURL]
+			if ok {
+				if prevRef.commitSHA != refSHA {
+					return fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q which resolves to %q while %s references %q which resolves to %q)", refName, refSource.TargetRevision, refSHA, prevRef.key, prevRef.revision, prevRef.commitSHA)
+				}
+			} else {
+				refSources[refNormalizedURL] = repoRef{
+					revision:  refSource.TargetRevision,
+					commitSHA: refSHA,
+					key:       refName,
+				}
 			}
 			closer, err := s.repoLock.Lock(gitClient.Root(), refSHA, true, func() (goio.Closer, error) {
 				return s.checkoutRevision(gitClient, refSHA, s.initConstants.SubmoduleEnabled, refSource.Repo.Depth)
@@ -2296,6 +2318,9 @@ func (s *Service) populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, 
 				return fmt.Errorf("failed to acquire lock for referenced repo %q: %w", refSource.Repo.Repo, err)
 			}
 			defer utilio.Close(closer)
+			// no need to call the CheckOutOfBoundsSymlinks scan here because
+			// all referenced values files are retrieved via the ResolveValueFilePathOrUrl()
+			// which ensures that the file is inside the repo directory
 			log.Debugf("Checked out referenced repo %s", refSource.Repo.Repo)
 		}
 	}
