@@ -2310,7 +2310,8 @@ func (s *Service) populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, 
 				continue
 			}
 			log.Debugf("Checking out repos for ref source %s  -> %s [%s]", refName, refSource.Repo.Repo, refSource.TargetRevision)
-			gitClient, refSHA, err := s.newClientResolveRevision(&refSource.Repo, refSource.TargetRevision)
+			gitClient, refSHA, err := s.newClientResolveRevision(&refSource.Repo, refSource.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+
 			if err != nil {
 				return fmt.Errorf("error setting up git client for %s and resolving revision %s: %w", refSource.Repo.Repo, refSource.TargetRevision, err)
 			}
