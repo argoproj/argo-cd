@@ -140,7 +140,7 @@ func NewCommand() *cobra.Command {
 
 			// Restrict the cache to only the namespaces managed by this controller.
 			// If applicationSetNamespaces contains any glob/regex pattern, ByObject cannot be used
-			// In that case we fall back to the cluster-wide cache. 
+			// In that case we fall back to the cluster-wide cache.
 			cacheOpt := ctrlcache.Options{SyncPeriod: &cacheSyncPeriod}
 			hasPattern := slices.ContainsFunc(applicationSetNamespaces, func(ns string) bool {
 				return strings.ContainsAny(ns, "*?[") ||
