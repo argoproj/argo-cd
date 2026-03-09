@@ -3542,7 +3542,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 					},
 				},
 			},
-			expectedErr: true,
+			expectedErr: true, // path out of repository
 		},
 		{
 			name:    "env var prefix",
@@ -3569,7 +3569,8 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			resolvedPaths, err := getResolvedValueFiles(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), tcc.env, []string{}, []string{tcc.rawPath}, tcc.refSources, paths, false)
+			appPath := path.Join(tempDir, "main-repo")
+			resolvedPaths, err := getResolvedValueFiles(appPath, appPath, tcc.env, []string{}, []string{tcc.rawPath}, tcc.refSources, paths, false)
 			if !tcc.expectedErr {
 				require.NoError(t, err)
 				require.Len(t, resolvedPaths, 1)
@@ -3578,6 +3579,68 @@ func Test_getResolvedValueFiles(t *testing.T) {
 				require.Error(t, err)
 				assert.Empty(t, resolvedPaths)
 			}
+		})
+	}
+}
+
+func Test_getReferencedSource(t *testing.T) {
+	t.Parallel()
+
+	refTarget := &v1alpha1.RefTarget{
+		Repo: v1alpha1.Repository{
+			Repo: "https://github.com/org/repo1",
+		},
+	}
+	tests := []struct {
+		name         string
+		rawValueFile string
+		refSources   map[string]*v1alpha1.RefTarget
+		expected     *v1alpha1.RefTarget
+	}{
+		{
+			name:         "ref with file path found in map",
+			rawValueFile: "$ref/values.yaml",
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": refTarget,
+			},
+			expected: refTarget,
+		},
+		{
+			name:         "ref with file path not in map",
+			rawValueFile: "$ref/values.yaml",
+			refSources:   map[string]*v1alpha1.RefTarget{},
+			expected:     nil,
+		},
+		{
+			name:         "bare ref without file path found in map",
+			rawValueFile: "$ref",
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": refTarget,
+			},
+			expected: refTarget,
+		},
+		{
+			name:         "empty string returns nil",
+			rawValueFile: "",
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": refTarget,
+			},
+			expected: nil,
+		},
+		{
+			name:         "no $ prefix returns nil",
+			rawValueFile: "values.yaml",
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": refTarget,
+			},
+			expected: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := getReferencedSource(tt.rawValueFile, tt.refSources)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
