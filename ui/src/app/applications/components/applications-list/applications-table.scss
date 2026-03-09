@@ -45,26 +45,22 @@
         }
     }
 
-    .applications-list__external-link {
-        button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 0;
-            margin: 0;
-            color: inherit;
-
-            &:hover {
-                color: $argo-color-teal-5;
-            }
-
-            i {
-                font-size: 14px;
-            }
-        }
+    .applications-table__name-cell {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
     }
 
-    .applications-list__table-row button.managed-by-url-invalid {
+    .applications-table__favorite-button {
+        margin: 0 7px 0 0;
+    }
+
+    // In list view, only add extra spacing when URL dropdown caret exists.
+    .applications-list__external-links-icon-container--multiple {
+        margin-left: 4px;
+    }
+
+    .applications-list__table-row .applications-list__icon-action.managed-by-url-invalid {
         color: #f4c030;
 
         &:hover {

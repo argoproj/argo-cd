@@ -64,8 +64,12 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
 
     return (
         ((externalLinks || []).length > 0 && (
-            <div className='applications-list__external-links-icon-container'>
+            <div
+                className={`applications-list__external-links-icon-container ${
+                    externalLinks.length > 1 ? 'applications-list__external-links-icon-container--multiple' : ''
+                }`}>
                 <a
+                    className='applications-list__icon-action'
                     title={externalLinks[0].title}
                     onClick={e => {
                         e.stopPropagation();
