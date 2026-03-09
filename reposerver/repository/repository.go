@@ -14,10 +14,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	gosync "sync"
 	"time"
 
 	"github.com/TomOnTime/utfutil"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
+	gocache "github.com/patrickmn/go-cache"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
@@ -94,6 +96,8 @@ type Service struct {
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
+	// stores cached symlink validation results
+	symlinksState *gocache.Cache
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
 	now func() time.Time
 }
@@ -155,6 +159,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		ociPaths:           ociRandomizedPaths,
 		gitRepoInitializer: directoryPermissionInitializer,
 		rootDir:            rootDir,
+		symlinksState:      gocache.New(12*time.Hour, time.Hour),
 	}
 }
 
@@ -394,7 +399,7 @@ func (s *Service) runRepoOperation(
 		defer utilio.Close(closer)
 
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := apppathutil.CheckOutOfBoundsSymlinks(ociPath)
+			err := s.checkOutOfBoundsSymlinks(ociPath, revision, settings.noCache)
 			if err != nil {
 				oobError := &apppathutil.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
@@ -435,7 +440,7 @@ func (s *Service) runRepoOperation(
 		}
 		defer utilio.Close(closer)
 		if !s.initConstants.AllowOutOfBoundsSymlinks {
-			err := apppathutil.CheckOutOfBoundsSymlinks(chartPath)
+			err := s.checkOutOfBoundsSymlinks(chartPath, revision, settings.noCache)
 			if err != nil {
 				oobError := &apppathutil.OutOfBoundsSymlinkError{}
 				if errors.As(err, &oobError) {
@@ -464,7 +469,7 @@ func (s *Service) runRepoOperation(
 	defer utilio.Close(closer)
 
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
-		err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
+		err := s.checkOutOfBoundsSymlinks(gitClient.Root(), revision, settings.noCache, ".git")
 		if err != nil {
 			oobError := &apppathutil.OutOfBoundsSymlinkError{}
 			if errors.As(err, &oobError) {
@@ -586,6 +591,25 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 		}
 	}
 	return repoRefs, nil
+}
+
+// checkOutOfBoundsSymlinks validates symlinks and caches validation result in memory
+func (s *Service) checkOutOfBoundsSymlinks(rootPath string, version string, noCache bool, skipPaths ...string) error {
+	key := rootPath + "/" + version + "/" + strings.Join(skipPaths, ",")
+	ok := false
+	var checker any
+	if !noCache {
+		checker, ok = s.symlinksState.Get(key)
+	}
+
+	if !ok {
+		checker = gosync.OnceValue(func() error {
+			return apppathutil.CheckOutOfBoundsSymlinks(rootPath, skipPaths...)
+		})
+		s.symlinksState.Set(key, checker, gocache.DefaultExpiration)
+	}
+
+	return checker.(func() error)()
 }
 
 func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
@@ -856,7 +880,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 						// Symlink check must happen after acquiring lock.
 						if !s.initConstants.AllowOutOfBoundsSymlinks {
-							err := apppathutil.CheckOutOfBoundsSymlinks(gitClient.Root())
+							err := s.checkOutOfBoundsSymlinks(gitClient.Root(), commitSHA, q.NoCache, ".git")
 							if err != nil {
 								oobError := &apppathutil.OutOfBoundsSymlinkError{}
 								if errors.As(err, &oobError) {
