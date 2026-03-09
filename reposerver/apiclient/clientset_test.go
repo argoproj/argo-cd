@@ -1,6 +1,7 @@
 package apiclient_test
 
 import (
+	"crypto/tls"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -86,6 +87,19 @@ func TestNewConnection_InsecureConnection(t *testing.T) {
 	}
 
 	conn, err := apiclient.NewConnection("example.com:80", 10, &tlsConfig)
+
+	require.NoError(t, err)
+	assert.NotNil(t, conn)
+}
+
+func TestNewConnection_InMemoryCertificates(t *testing.T) {
+	tlsConfig := apiclient.TLSConfiguration{
+		DisableTLS:         false,
+		StrictValidation:   false,
+		ClientCertificates: []tls.Certificate{{}},
+	}
+
+	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
 
 	require.NoError(t, err)
 	assert.NotNil(t, conn)

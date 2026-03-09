@@ -36,6 +36,8 @@ type TLSConfiguration struct {
 	ClientCertFile string
 	// ClientCertKeyFile is the path to the client certificate key file
 	ClientCertKeyFile string
+	// ClientCertificates are the client certificates to be used for TLS
+	ClientCertificates []tls.Certificate
 }
 
 // Clientset represents repository server api clients
@@ -87,6 +89,8 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 			return nil, fmt.Errorf("failed to load client certificate: %w", err)
 		}
 		tlsC.Certificates = []tls.Certificate{cert}
+	} else if len(tlsConfig.ClientCertificates) > 0 {
+		tlsC.Certificates = tlsConfig.ClientCertificates
 	}
 	opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsC)))
 

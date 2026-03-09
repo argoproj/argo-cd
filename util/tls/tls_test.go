@@ -380,7 +380,7 @@ func TestCreateServerTLSConfig(t *testing.T) {
 		c, err := x509.ParseCertificate(tlsc.Certificates[0].Certificate[0])
 		require.NoError(t, err)
 		assert.Equal(t, []string{"Argo CD"}, c.Subject.Organization)
-		assert.Equal(t, tls.RequireAnyClientCert, tlsc.ClientAuth)
+		assert.Equal(t, tls.NoClientCert, tlsc.ClientAuth)
 	})
 
 	t.Run("Self-signed creation fails due to hosts being nil", func(t *testing.T) {
@@ -402,10 +402,10 @@ func TestCreateServerTLSConfig(t *testing.T) {
 		assert.Equal(t, tls.RequireAndVerifyClientCert, tlsc.ClientAuth)
 	})
 
-	t.Run("Self-signed creation with RequireAnyClientCert when no ClientCA", func(t *testing.T) {
+	t.Run("Self-signed creation with NoClientCert when no ClientCA", func(t *testing.T) {
 		tlsc, err := CreateServerTLSConfig("testdata/nonexistent.crt", "testdata/nonexistent.key", []string{"localhost"}, "")
 		require.NoError(t, err)
-		assert.Equal(t, tls.RequireAnyClientCert, tlsc.ClientAuth)
+		assert.Equal(t, tls.NoClientCert, tlsc.ClientAuth)
 		assert.Nil(t, tlsc.ClientCAs)
 	})
 }
@@ -518,6 +518,18 @@ func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
 		caCert, err := cmd.Flags().GetString("repo-server-ca-cert")
 		require.NoError(t, err)
 		assert.Equal(t, "test-ca-cert-prefixed", caCert)
+	})
+
+	t.Run("Self-generate client certificate", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		t.Setenv("ARGOCD_SELF_GENERATE_CLIENT_CERT", "true")
+		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+		config, err := configSrc()
+		require.NoError(t, err)
+		assert.Len(t, config.ClientCertificates, 1)
+		assert.Empty(t, config.ClientCertFile)
+		assert.Empty(t, config.ClientCertKeyFile)
 	})
 }
 
