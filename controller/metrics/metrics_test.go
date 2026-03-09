@@ -283,7 +283,7 @@ func newFakeLister(ctx context.Context, fakeAppYAMLs ...string) (context.CancelF
 
 func testApp(t *testing.T, fakeAppYAMLs []string, expectedResponse string) {
 	t.Helper()
-	testMetricServer(t, fakeAppYAMLs, expectedResponse, []string{}, []string{})
+	testMetricServer(t, fakeAppYAMLs, expectedResponse, false, []string{}, []string{})
 }
 
 type fakeClusterInfo struct {
@@ -297,6 +297,7 @@ func (f *fakeClusterInfo) GetClustersInfo() []gitopsCache.ClusterInfo {
 type TestMetricServerConfig struct {
 	FakeAppYAMLs     []string
 	ExpectedResponse string
+	emitLabelsOnAllAppMetrics bool
 	AppLabels        []string
 	AppConditions    []string
 	ClusterLabels    []string
@@ -304,11 +305,12 @@ type TestMetricServerConfig struct {
 	ClusterLister    ClusterLister
 }
 
-func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string, appConditions []string) {
+func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, emitLabelsOnAllAppMetrics bool, appLabels []string, appConditions []string) {
 	t.Helper()
 	cfg := TestMetricServerConfig{
 		FakeAppYAMLs:     fakeAppYAMLs,
 		ExpectedResponse: expectedResponse,
+		emitLabelsOnAllAppMetrics: emitLabelsOnAllAppMetrics,
 		AppLabels:        appLabels,
 		AppConditions:    appConditions,
 		ClusterLabels:    []string{},
@@ -324,7 +326,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	mockDB := mocks.NewArgoDB(t)
 	mockDB.EXPECT().GetClusterServersByName(mock.Anything, "cluster1").Return([]string{"https://localhost:6443"}, nil).Maybe()
 	mockDB.EXPECT().GetCluster(mock.Anything, "https://localhost:6443").Return(&argoappv1.Cluster{Name: "cluster1", Server: "https://localhost:6443"}, nil).Maybe()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, false, cfg.AppLabels, cfg.AppConditions, mockDB)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.emitLabelsOnAllAppMetrics, cfg.AppLabels, cfg.AppConditions, mockDB)
 	require.NoError(t, err)
 
 	if len(cfg.ClustersInfo) > 0 {
@@ -411,7 +413,38 @@ argocd_app_labels{label_non_existing="",name="my-app-3",namespace="argocd",proje
 
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
-			testMetricServer(t, c.applications, c.responseContains, c.metricLabels, []string{})
+			testMetricServer(t, c.applications, c.responseContains, false, c.metricLabels, []string{})
+		})
+	}
+}
+
+func TestMetricLabelEmitted(t *testing.T) {
+	type testCases struct {
+		testCombination
+		description  string
+		metricLabels []string
+	}
+	cases := []testCases{
+		{
+			description:  "allowed labels will be emitted to all metrics",
+			metricLabels: []string{"team-name", "team-bu", "argoproj.io/cluster"},
+			testCombination: testCombination{
+				applications: []string{fakeApp, fakeApp2},
+				responseContains: `
+# TYPE argocd_app_labels gauge
+argocd_app_labels{label_argoproj_io_cluster="test-cluster",label_team_bu="bu-id",label_team_name="my-team",name="my-app",namespace="argocd",project="important-project"} 1
+argocd_app_labels{label_argoproj_io_cluster="test-cluster",label_team_bu="bu-id",label_team_name="my-team",name="my-app-2",namespace="argocd",project="important-project"} 1
+# TYPE argocd_app_info gauge
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",label_argoproj_io_cluster="test-cluster",label_team_bu="bu-id",label_team_name="my-team",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",label_argoproj_io_cluster="test-cluster",label_team_bu="bu-id",label_team_name="my-team",name="my-app-2",namespace="argocd",operation="sync",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+`,
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.description, func(t *testing.T) {
+			testMetricServer(t, c.applications, c.responseContains, true, c.metricLabels, []string{})
 		})
 	}
 }
@@ -464,7 +497,7 @@ argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespa
 
 	for _, c := range cases {
 		t.Run(c.description, func(t *testing.T) {
-			testMetricServer(t, c.applications, c.responseContains, []string{}, c.metricConditions)
+			testMetricServer(t, c.applications, c.responseContains, false, []string{}, c.metricConditions)
 		})
 	}
 }
