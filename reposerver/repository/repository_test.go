@@ -3379,7 +3379,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client.EXPECT().Root().Return(refRoot)
 				client.EXPECT().Init().Return(nil)
 				client.EXPECT().IsRevisionPresent(refSha).Return(true)
-				client.EXPECT().Checkout(refSha, false).Return("", nil)
+				client.EXPECT().Checkout(refSha, false, true).Return("", nil)
 				return &client, nil
 			},
 
@@ -3408,7 +3408,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client.EXPECT().Root().Return(refRoot)
 				client.EXPECT().Init().Return(nil)
 				client.EXPECT().IsRevisionPresent(refSha).Return(true)
-				client.EXPECT().Checkout(refSha, false).Return("", fmt.Errorf("%s", dummyErrMsg))
+				client.EXPECT().Checkout(refSha, false, true).Return("", fmt.Errorf("%s", dummyErrMsg))
 				// one error is not enough: checkout falls back to fetch specific revision
 				client.EXPECT().Fetch(refSha, int64(0)).Return(fmt.Errorf("%s", dummyErrMsg))
 				return &client, nil
@@ -3489,8 +3489,8 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client.EXPECT().Init().Return(nil)
 				client.EXPECT().IsRevisionPresent(refSha).Return(true)
 				client.EXPECT().IsRevisionPresent(refSha2).Return(true)
-				client.EXPECT().Checkout(refSha, false).Return("", nil)
-				client.EXPECT().Checkout(refSha2, false).Return("", nil)
+				client.EXPECT().Checkout(refSha, false, true).Return("", nil)
+				client.EXPECT().Checkout(refSha2, false, true).Return("", nil)
 				return &client, nil
 			},
 
