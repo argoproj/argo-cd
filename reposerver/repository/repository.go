@@ -2804,7 +2804,9 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 	if !revisionPresent {
 		switch {
 		case enablePartialClone && len(sparsePaths) > 0:
-			// Use partial clone (--filter=blob:none) for minimal network transfer
+			// Use partial clone (--filter=blob:none) for minimal network transfer.
+			// When depth > 0, both flags are combined for maximum bandwidth savings
+			// (no blobs + limited history).
 			log.Infof("Using partial clone with %d sparse paths for revision %s", len(sparsePaths), revision)
 
 			// Configure sparse checkout before fetching
@@ -2817,11 +2819,11 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 					err = gitClient.Fetch("", depth, false)
 				}
 			} else {
-				// Perform partial fetch
+				// Perform partial fetch, passing depth through to combine with --filter
 				if revision != "" {
-					err = gitClient.Fetch(revision, 0, true)
+					err = gitClient.Fetch(revision, depth, true)
 				} else {
-					err = gitClient.Fetch("", 0, true)
+					err = gitClient.Fetch("", depth, true)
 				}
 			}
 		case depth > 0:
