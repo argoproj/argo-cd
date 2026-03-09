@@ -1435,13 +1435,33 @@ func getResolvedRefValueFile(
 	return resolvedPath, nil
 }
 
-func getReferencedSource(rawValueFile string, refSources map[string]*v1alpha1.RefTarget) *v1alpha1.RefTarget {
+func getReferencedSources(rawValueFiles []string, refSources map[string]*v1alpha1.RefTarget) map[string]*v1alpha1.RefTarget {
+	result := make(map[string]*v1alpha1.RefTarget, len(refSources))
+	for _, rawValueFile := range rawValueFiles {
+		refName := getReferencedSourceName(rawValueFile)
+		if refName != "" {
+			refSource := refSources[refName]
+			if refSource != nil {
+				result[refName] = refSource
+			}
+		}
+	}
+	return result
+}
+
+func getReferencedSourceName(rawValueFile string) string {
 	if !strings.HasPrefix(rawValueFile, "$") {
+		return ""
+	}
+	return strings.Split(rawValueFile, "/")[0]
+}
+
+func getReferencedSource(rawValueFile string, refSources map[string]*v1alpha1.RefTarget) *v1alpha1.RefTarget {
+	refName := getReferencedSourceName(rawValueFile)
+	if refName == "" {
 		return nil
 	}
-	refVar := strings.Split(rawValueFile, "/")[0]
-	referencedSource := refSources[refVar]
-	return referencedSource
+	return refSources[refName]
 }
 
 func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v1alpha1.RepoCreds {
@@ -2279,9 +2299,8 @@ func (s *Service) populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, 
 		if q.Repo.Type == "git" {
 			mainRepoURL = git.NormalizeGitURL(q.Repo.Repo)
 		}
-
 		refNames := []string{}
-		for refName := range q.RefSources {
+		for refName := range getReferencedSources(selectedValueFiles, q.RefSources) {
 			refNames = append(refNames, refName)
 		}
 		sort.Strings(refNames)
