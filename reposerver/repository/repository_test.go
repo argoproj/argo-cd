@@ -3322,12 +3322,14 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 	dummyErrMsg := "dummy error"
 	repoURL := "https://github.com/foo/bar"
 	refRepoURL := "https://github.com/foo/baz"
+	unusedRefRepoURL := "https://github.com/unused/baz"
 	ociRepoURL := "oci://foocr.io"
 	repoRoot := "./testdata/my-chart/"
 	refRoot := "./testdata/values-files/"
 	refName := "$values"
 	refNameA := "$valuesA"
 	refNameB := "$valuesB"
+	refNameUnused := "$valuesU"
 	targetRevision := "main"
 	sha := "888839659e542ed7de0c170a4fcc1c571b288888"
 	refTargetRevision := targetRevision
@@ -3549,6 +3551,55 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			testResults: func(t *testing.T) {
 				t.Helper()
 				require.Error(t, fmt.Errorf("failed to find repo %q", ociRepoURL))
+			},
+		},
+		{
+			name: "unused_refsource_is_not_checked_out",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				q := queryTemplate
+				// Add a second ref source but do NOT reference it in ValueFiles.
+				q.RefSources = map[string]*v1alpha1.RefTarget{
+					refName: &v1alpha1.RefTarget{
+						Repo: v1alpha1.Repository{
+							Type: "git",
+							Repo: refRepoURL,
+						},
+						TargetRevision: refTargetRevision,
+					},
+					refNameUnused: &v1alpha1.RefTarget{
+						Repo: v1alpha1.Repository{
+							Type: "git",
+							Repo: unusedRefRepoURL,
+						},
+						TargetRevision: "main",
+					},
+				}
+				// Keep ValueFiles referencing only $values
+				q.Source.Helm.ValueFiles = []string{"$values/dir/values.yaml"}
+				return q
+			},
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPathIfExists(refRepoURL).Return(refRoot)
+				// No expectations for "https://github.com/foo/unused" on purpose: it should not be used.
+			},
+			newGitClient: func(repo string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (git.Client, error) {
+				if repo == unusedRefRepoURL {
+					return nil, fmt.Errorf("newGitClient should not be called for unused ref source: %s", repo)
+				}
+
+				client := gitmocks.Client{}
+				client.EXPECT().LsRemote(refTargetRevision).Return(refSha, nil)
+				client.EXPECT().Root().Return(refRoot)
+				client.EXPECT().Init().Return(nil)
+				client.EXPECT().IsRevisionPresent(refSha).Return(true)
+				client.EXPECT().Checkout(refSha, false, true).Return("", nil)
+				return &client, nil
+			},
+			testResults: func(t *testing.T) {
+				t.Helper()
+				require.NoError(t, err)
+				assert.Len(t, res.Helm.Parameters, 1)
 			},
 		},
 	}
