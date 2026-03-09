@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/utils/ptr"
 
@@ -37,8 +38,13 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	initLocalCluster.Do(func() {
 		info, err := db.kubeclientset.Discovery().ServerVersion()
 		if err == nil {
-			//nolint:staticcheck
-			localCluster.ServerVersion = fmt.Sprintf("%s.%s", info.Major, info.Minor)
+			ver, verErr := version.ParseGeneric(info.GitVersion)
+			if verErr == nil {
+				//nolint:staticcheck
+				localCluster.ServerVersion = ver.String()
+			} else {
+				log.Warnf("Failed to parse Kubernetes server version: %v", verErr)
+			}
 			//nolint:staticcheck
 			localCluster.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 		} else {
