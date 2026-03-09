@@ -15,8 +15,9 @@ on:
   pull_request:
     # Skip CodeQL for documentation-only changes
     paths-ignore:
-      - '**.md'
-      - 'docs/**'
+      - '*.md'
+      - '**/*.md'
+      - 'docs/assets/**'
   schedule:
     - cron: '0 19 * * 0'
 
