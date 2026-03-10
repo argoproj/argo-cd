@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,11 +25,10 @@ const (
 
 // hydratedCommitValidation represents a cached validation result for an app
 type hydratedCommitValidation struct {
-	syncSHA     string    // The sync branch SHA that was validated
-	rootDrySHA  string    // DrySHA from root metadata (expected/fresh)
-	pathDrySHA  string    // DrySHA from path metadata (actual)
-	isValid     bool      // Whether path matches root (fresh=true, stale=false)
-	validatedAt time.Time // When validation was performed
+	syncSHA    string // The sync branch SHA that was validated
+	rootDrySHA string // DrySHA from root metadata (expected/fresh)
+	pathDrySHA string // DrySHA from path metadata (actual)
+	isValid    bool   // Whether path matches root (fresh=true, stale=false)
 }
 
 /**
@@ -271,11 +269,10 @@ func (ctrl *ApplicationController) shouldBlockAutoSyncForHydrator(app *appv1.App
 	// Cache successful validation result (both fresh and stale states)
 	ctrl.hydratedCacheLock.Lock()
 	ctrl.hydratedCommitCache[cacheKey] = &hydratedCommitValidation{
-		syncSHA:     syncRevision,
-		rootDrySHA:  rootDrySHA,
-		pathDrySHA:  pathDrySHA,
-		isValid:     isValid,
-		validatedAt: time.Now(),
+		syncSHA:    syncRevision,
+		rootDrySHA: rootDrySHA,
+		pathDrySHA: pathDrySHA,
+		isValid:    isValid,
 	}
 	ctrl.hydratedCacheLock.Unlock()
 

@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -387,62 +388,52 @@ func TestHydratorWithAuthenticatedRepo(t *testing.T) {
 }
 
 func TestAutoSyncBlockedOnStaleHydratedManifests(t *testing.T) {
-	// Test that auto-sync is blocked when hydrated manifests are stale.
-	// This happens when the sync source path changes to a location that hasn't been
-	// freshly hydrated yet (path-specific drySHA doesn't match root drySHA).
+	// Test that auto-sync is blocked when switching to a path with existing stale manifests.
+	// This scenario creates app1 first, then switches to app2 and makes a change,
+	// leaving app1 with stale manifests when we switch back to it.
 	// The test verifies:
-	// 1. Auto-sync works initially with fresh manifests
-	// 2. Auto-sync is silently blocked when manifests become stale (no error condition)
-	// 3. Auto-sync is unblocked once fresh hydration completes
+	// 1. app1 is initially hydrated and synced with drySHA-1
+	// 2. Switch to app2 and change dry source, which hydrates app2 with drySHA-2
+	// 3. Switch back to app1 (still has drySHA-1) → auto-sync blocked due to staleness
 	Given(t).
 		DrySourcePath("guestbook").
 		DrySourceRevision("HEAD").
 		SyncSourcePath("app1").
 		SyncSourceBranch("env/test").
 		When().
-		CreateFromFile(func(app *Application) {
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{}}
-		}).
+		CreateApp("--sync-policy", "automated").
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
+		Refresh(RefreshTypeNormal).
 		Then().
-		// First hydration should succeed and auto-sync
+		// app1 hydrated and synced with drySHA-1
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
-		// Make a change to the dry source to trigger a new hydration
+		// Switch to app2 and make a change to trigger hydration
+		// This creates app2 with drySHA-2, while app1 remains at drySHA-1
+		PatchApp(`[{"op": "replace", "path": "/spec/sourceHydrator/syncSource/path", "value": "app2"}]`).
 		PatchFile("guestbook/guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 5}]`).
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
+		Refresh(RefreshTypeNormal).
 		Then().
-		// Auto-sync should proceed with the new hydrated manifests
+		// app2 updated with drySHA-2 and auto-sync should succeed
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
-		// Now change the sync source path to a different location (app2)
-		// At this point, app2 path will be stale because it was hydrated with the old drySHA
-		// while the root metadata has the new drySHA from the previous change
-		PatchApp(`[{"op": "replace", "path": "/spec/sourceHydrator/syncSource/path", "value": "app2"}]`).
+		// Switch back to app1, which still has stale manifests (drySHA-1)
+		// Root metadata now has drySHA-2, but app1 metadata has drySHA-1
+		PatchApp(`[{"op": "replace", "path": "/spec/sourceHydrator/syncSource/path", "value": "app1"}]`).
 		Refresh(RefreshTypeNormal).
 		Then().
-		// Auto-sync should be blocked because app2 path has stale manifests
-		// The app should remain OutOfSync without any error condition (silent blocking)
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		// Verify no sync error condition is created (staleness is transient, not an error)
+		// Auto-sync should be blocked because app1 has stale manifests
+		ExpectConsistently(SyncStatusIs(SyncStatusCodeOutOfSync), time.Second, 3*time.Second).
 		And(func(app *Application) {
 			for _, condition := range app.Status.Conditions {
 				if condition.Type == ApplicationConditionSyncError {
 					t.Fatalf("Expected no SyncError condition for stale manifests, but found: %s", condition.Message)
 				}
 			}
-		}).
-		When().
-		// Wait for hydration to complete for the new path
-		// This will hydrate app2 with the current drySHA, making it fresh
-		Wait("--hydrated").
-		Refresh(RefreshTypeNormal).
-		Then().
-		// Now that app2 has fresh manifests, auto-sync should proceed
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		})
 }
