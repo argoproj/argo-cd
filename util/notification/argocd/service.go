@@ -107,6 +107,8 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 
 	var refSources v1alpha1.RefTargetRevisionMapping
 	if app.Spec.HasMultipleSources() {
+		// Pass empty revisions slice so each ref source uses its spec.TargetRevision.
+		// Unlike sync operations, we have no resolved revisions to override with.
 		refSources, err = argo.GetRefSources(ctx, app.Spec.Sources, app.Spec.Project, argocdDB.GetRepository, []string{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to get ref sources: %w", err)
