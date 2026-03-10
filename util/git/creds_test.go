@@ -662,9 +662,9 @@ func TestGitHubAppGetAccessToken_TLSErrors(t *testing.T) {
 		token, err := creds.getAccessToken()
 
 		require.Error(t, err)
-		assert.Empty(t, token)
+		require.Empty(t, token)
 		errLower := strings.ToLower(err.Error())
-		assert.True(t,
+		require.True(t,
 			strings.Contains(errLower, "failed to verify certificate") &&
 				strings.Contains(errLower, "certificate signed by unknown authority") &&
 				strings.Contains(errLower, "x509"),
@@ -680,7 +680,8 @@ func TestGitHubAppGetAccessToken_TLSErrors(t *testing.T) {
 		})
 
 		// Create a TCP listener that accepts but never sends TLS handshake data.
-		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		lcfg := &net.ListenConfig{}
+		ln, err := lcfg.Listen(t.Context(), "tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 		defer ln.Close()
 
@@ -712,13 +713,13 @@ func TestGitHubAppGetAccessToken_TLSErrors(t *testing.T) {
 		elapsed := time.Since(start)
 
 		require.Error(t, tokenErr)
-		assert.Empty(t, token)
+		require.Empty(t, token)
 		errLower := strings.ToLower(tokenErr.Error())
-		assert.True(t,
+		require.True(t,
 			strings.Contains(errLower, "timeout") ||
 				strings.Contains(errLower, "tls handshake"),
 			"error should indicate timeout during TLS handshake, got: %s", tokenErr.Error())
-		assert.Less(t, elapsed, 20*time.Second,
+		require.Less(t, elapsed, 20*time.Second,
 			"should not hang indefinitely")
 	})
 }
@@ -769,9 +770,9 @@ func TestGitHubAppGetAccessToken_InvalidPrivateKey(t *testing.T) {
 			token, err := creds.getAccessToken()
 
 			require.Error(t, err, "should fail with invalid private key")
-			assert.Empty(t, token)
+			require.Empty(t, token)
 			for _, want := range tt.wantErrContains {
-				assert.Contains(t, strings.ToLower(err.Error()), strings.ToLower(want),
+				require.Contains(t, strings.ToLower(err.Error()), strings.ToLower(want),
 					"error should contain %q for diagnostics", want)
 			}
 		})
@@ -790,7 +791,8 @@ func TestGitHubAppGetAccessToken_TCPConnectionErrors(t *testing.T) {
 	t.Run("connection refused - no server listening", func(t *testing.T) {
 		t.Parallel()
 		// Grab a port then close it so nothing is listening.
-		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		lcfg := &net.ListenConfig{}
+		ln, err := lcfg.Listen(t.Context(), "tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 		addr := ln.Addr().String()
 		ln.Close()
@@ -799,15 +801,16 @@ func TestGitHubAppGetAccessToken_TCPConnectionErrors(t *testing.T) {
 		token, tokenErr := creds.getAccessToken()
 
 		require.Error(t, tokenErr)
-		assert.Empty(t, token)
-		assert.Contains(t, strings.ToLower(tokenErr.Error()), "connection refused",
+		require.Empty(t, token)
+		require.Contains(t, strings.ToLower(tokenErr.Error()), "connection refused",
 			"error should clearly indicate the connection was refused")
 	})
 
 	t.Run("connection reset by peer", func(t *testing.T) {
 		t.Parallel()
 		// Accept then immediately RST-close the connection.
-		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		lcfg := &net.ListenConfig{}
+		ln, err := lcfg.Listen(t.Context(), "tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 		defer ln.Close()
 
@@ -818,7 +821,8 @@ func TestGitHubAppGetAccessToken_TCPConnectionErrors(t *testing.T) {
 					return
 				}
 				if tcp, ok := conn.(*net.TCPConn); ok {
-					tcp.SetLinger(0) // trigger RST
+					err := tcp.SetLinger(0) // trigger RST
+					require.NoError(t, err)
 				}
 				conn.Close()
 			}
@@ -828,9 +832,9 @@ func TestGitHubAppGetAccessToken_TCPConnectionErrors(t *testing.T) {
 		token, tokenErr := creds.getAccessToken()
 
 		require.Error(t, tokenErr)
-		assert.Empty(t, token)
+		require.Empty(t, token)
 		errLower := strings.ToLower(tokenErr.Error())
-		assert.True(t,
+		require.True(t,
 			strings.Contains(errLower, "connection reset") ||
 				strings.Contains(errLower, "eof") ||
 				strings.Contains(errLower, "broken pipe"),
@@ -847,9 +851,9 @@ func TestGitHubAppGetAccessToken_TCPConnectionErrors(t *testing.T) {
 		token, err := creds.getAccessToken()
 
 		require.Error(t, err)
-		assert.Empty(t, token)
+		require.Empty(t, token)
 		errLower := strings.ToLower(err.Error())
-		assert.True(t,
+		require.True(t,
 			strings.Contains(errLower, "no such host") ||
 				strings.Contains(errLower, "dns") ||
 				strings.Contains(errLower, "lookup"),
@@ -894,11 +898,11 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 		token, err := creds.getAccessToken()
 
 		// This SHOULD fail with a timeout error
-		assert.Error(t, err,
+		require.Error(t, err,
 			"gitClientTimeout (1s) should cause timeout for a 3s response, but "+
 				"it does not because only the transport is passed to ghinstallation")
 		if err == nil {
-			assert.Equal(t, "ghs_despite_timeout", token,
+			require.Equal(t, "ghs_despite_timeout", token,
 				"token was returned despite delay exceeding gitClientTimeout")
 		}
 	})
@@ -922,7 +926,7 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 		token, err := creds.getAccessToken()
 
 		require.NoError(t, err, "should succeed when response arrives within timeout")
-		assert.Equal(t, "ghs_slow_ok", token)
+		require.Equal(t, "ghs_slow_ok", token)
 	})
 }
 
@@ -978,8 +982,8 @@ func TestGitHubAppGetAccessToken_DialerDefaultTimeout(t *testing.T) {
 		elapsed := time.Since(start)
 
 		require.NoError(t, err)
-		assert.Equal(t, "ghs_dialer_ok", token)
-		assert.Less(t, elapsed, 5*time.Second,
+		require.Equal(t, "ghs_dialer_ok", token)
+		require.Less(t, elapsed, 5*time.Second,
 			"reachable server should connect well within dialer's 30s timeout")
 	})
 }
