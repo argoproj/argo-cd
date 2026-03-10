@@ -129,6 +129,16 @@ func Test_GetChangePasswordSSOTokenMaxAge(t *testing.T) {
 			expectedMaxAge: DefaultChangePasswordSSOTokenMaxAge,
 		},
 		{
+			name:           "Zero duration - fallback to default",
+			envValue:       "0s",
+			expectedMaxAge: DefaultChangePasswordSSOTokenMaxAge,
+		},
+		{
+			name:           "Negative duration - fallback to default",
+			envValue:       "-1m",
+			expectedMaxAge: DefaultChangePasswordSSOTokenMaxAge,
+		},
+		{
 			name:           "Different valid duration",
 			envValue:       "30s",
 			expectedMaxAge: time.Second * 30,
@@ -141,9 +151,7 @@ func Test_GetChangePasswordSSOTokenMaxAge(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.envValue != "" {
-				t.Setenv(EnvChangePasswordSSOTokenMaxAge, tc.envValue)
-			}
+			t.Setenv(EnvChangePasswordSSOTokenMaxAge, tc.envValue)
 
 			maxAge := GetChangePasswordSSOTokenMaxAge()
 			assert.Equal(t, tc.expectedMaxAge, maxAge)

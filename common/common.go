@@ -504,7 +504,12 @@ func GetChangePasswordSSOTokenMaxAge() time.Duration {
 	if val := os.Getenv(EnvChangePasswordSSOTokenMaxAge); val != "" {
 		duration, err := time.ParseDuration(val)
 		if err != nil {
-			logrus.Warnf("failed to parse SSO token max age configuration: %v, using default(5m)", err)
+			logrus.Warnf("failed to parse SSO token max age configuration from env %s, using default(5m)", EnvChangePasswordSSOTokenMaxAge)
+			return DefaultChangePasswordSSOTokenMaxAge
+		}
+		// Reject non-positive values to avoid unintentionally failing all password changes.
+		if duration <= 0 {
+			logrus.Warnf("invalid non-positive SSO token max age configured in %s, using default(5m)", EnvChangePasswordSSOTokenMaxAge)
 			return DefaultChangePasswordSSOTokenMaxAge
 		}
 		// Cap at maximum limit to prevent extreme values
