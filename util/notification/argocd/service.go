@@ -85,9 +85,6 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 		return nil, fmt.Errorf("source index %d out of range (application has %d sources)", sourceIndex, len(sources))
 	}
 	appSource := app.Spec.GetSourcePtrByIndex(sourceIndex)
-	if appSource == nil {
-		return nil, fmt.Errorf("application source at index %d is nil", sourceIndex)
-	}
 
 	argocdDB := db.NewDB(svc.namespace, svc.settingsMgr, svc.clientset)
 	repo, err := argocdDB.GetRepository(ctx, appSource.RepoURL, app.Spec.Project)

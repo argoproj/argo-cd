@@ -95,4 +95,14 @@ func TestGetAppDetails_SourceIndexValidation(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "source index 5 out of range")
 	})
+
+	t.Run("returns error when app has no sources", func(t *testing.T) {
+		appWithNoSources := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "empty-app", Namespace: "default"},
+			Spec:       v1alpha1.ApplicationSpec{Project: "default"},
+		}
+		_, err := svc.GetAppDetails(context.Background(), appWithNoSources, 0)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "application has no sources")
+	})
 }
