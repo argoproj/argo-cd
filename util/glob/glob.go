@@ -6,6 +6,7 @@ import (
 	"github.com/gobwas/glob"
 	"github.com/golang/groupcache/lru"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -23,7 +24,8 @@ var (
 	// This prevents memory exhaustion from potentially untrusted RBAC patterns
 	// while still providing significant performance benefits.
 	globCache     *lru.Cache
-	globCacheLock sync.RWMutex
+	globCacheLock sync.Mutex
+	compileGroup  singleflight.Group
 	compileGlob   compileFn = glob.Compile
 )
 
@@ -52,33 +54,35 @@ func cacheKey(pattern string, separators ...rune) globCacheKey {
 }
 
 // getOrCompile returns a cached compiled glob pattern, compiling and caching it if necessary.
-// It uses a double-check pattern: read lock for cache hits, compile outside the lock,
-// then write lock to store the result. This avoids serializing expensive compilations
-// across goroutines for unrelated patterns.
+// Cache hits are a brief lock + map lookup. On cache miss, singleflight ensures each
+// unique pattern is compiled exactly once even under concurrent access, while unrelated
+// patterns compile in parallel.
+// lru.Cache.Get() promotes entries (mutating), so a Mutex is used rather than RWMutex.
 func getOrCompile(pattern string, compiler compileFn, separators ...rune) (glob.Glob, error) {
 	key := cacheKey(pattern, separators...)
-
-	globCacheLock.RLock()
-	if cached, ok := globCache.Get(key); ok {
-		globCacheLock.RUnlock()
-		return cached.(glob.Glob), nil
-	}
-	globCacheLock.RUnlock()
-
-	compiled, err := compiler(pattern, separators...)
-	if err != nil {
-		return nil, err
-	}
 
 	globCacheLock.Lock()
 	if cached, ok := globCache.Get(key); ok {
 		globCacheLock.Unlock()
 		return cached.(glob.Glob), nil
 	}
-	globCache.Add(key, compiled)
 	globCacheLock.Unlock()
 
-	return compiled, nil
+	sfKey := key.Pattern + "\x00" + key.Separators
+	v, err, _ := compileGroup.Do(sfKey, func() (any, error) {
+		compiled, err := compiler(pattern, separators...)
+		if err != nil {
+			return nil, err
+		}
+		globCacheLock.Lock()
+		globCache.Add(key, compiled)
+		globCacheLock.Unlock()
+		return compiled, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return v.(glob.Glob), nil
 }
 
 // Match tries to match a text with a given glob pattern.
