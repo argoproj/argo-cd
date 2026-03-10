@@ -69,3 +69,30 @@ func TestGetAppProject(t *testing.T) {
 		assert.Nil(t, result)
 	})
 }
+
+func TestGetAppDetails_SourceIndexValidation(t *testing.T) {
+	svc, _ := newTestService(t)
+
+	multiSourceApp := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "default"},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "default",
+			Sources: v1alpha1.ApplicationSources{
+				{RepoURL: "https://github.com/foo/values.git", Ref: "values"},
+				{RepoURL: "oci://registry.example.com/helm", Chart: "my-chart", TargetRevision: "1.0.0"},
+			},
+		},
+	}
+
+	t.Run("returns error when source index is negative", func(t *testing.T) {
+		_, err := svc.GetAppDetails(context.Background(), multiSourceApp, -1)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "source index -1 out of range")
+	})
+
+	t.Run("returns error when source index out of range", func(t *testing.T) {
+		_, err := svc.GetAppDetails(context.Background(), multiSourceApp, 5)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "source index 5 out of range")
+	})
+}

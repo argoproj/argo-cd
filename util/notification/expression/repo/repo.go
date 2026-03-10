@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
@@ -112,10 +113,16 @@ func NewExprs(argocdService service.Service, app *unstructured.Unstructured) map
 				switch v := optionalSourceIndex[0].(type) {
 				case int:
 					sourceIndex = v
+				case int32:
+					sourceIndex = int(v)
 				case int64:
+					sourceIndex = int(v)
+				case float32:
 					sourceIndex = int(v)
 				case float64:
 					sourceIndex = int(v)
+				default:
+					panic(fmt.Sprintf("GetAppDetails: source index must be an integer (int, int32, int64, float32, float64), got %T", optionalSourceIndex[0]))
 				}
 			}
 			appDetails, err := getAppDetails(app, argocdService, sourceIndex)
