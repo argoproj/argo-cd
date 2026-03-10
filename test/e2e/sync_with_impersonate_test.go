@@ -146,7 +146,6 @@ func TestSyncWithMissingServiceAccount(t *testing.T) {
 		// With the impersonation feature enabled, Application sync must fail
 		// when there is a valid match found in the available destination service accounts configured in AppProject,
 		// but the matching service account is missing.
-		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeOutOfSync)).
 		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeOutOfSync), WaitDuration, TimeoutDuration).
 		Expect(OperationMessageContains("one or more objects failed to apply"))
 }
