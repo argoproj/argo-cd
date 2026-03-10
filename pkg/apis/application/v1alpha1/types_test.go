@@ -5036,8 +5036,8 @@ func TestSyncPolicyAutomatedAllowEmptySerialisation(t *testing.T) {
 	tests := []struct {
 		name        string
 		automated   SyncPolicyAutomated
-		wantPresent bool   // whether "allowEmpty" key should appear in JSON
-		wantValue   bool   // expected value when present
+		wantPresent bool // whether "allowEmpty" key should appear in JSON
+		wantValue   bool // expected value when present
 	}{
 		{
 			name:        "nil pointer omits field",
