@@ -429,7 +429,6 @@ func TestAutoSyncBlockedOnStaleHydratedManifests(t *testing.T) {
 		Then().
 		// Auto-sync should be blocked because app1 has stale manifests
 		// Verify it stays OutOfSync (auto-sync is blocked)
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		ExpectConsistently(SyncStatusIs(SyncStatusCodeOutOfSync), time.Second, 10*time.Second).
 		And(func(app *Application) {
 			for _, condition := range app.Status.Conditions {
