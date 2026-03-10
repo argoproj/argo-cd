@@ -59,11 +59,12 @@ Hooks can be deleted in an automatic fashion using the annotation: argocd.argopr
 	    argocd.argoproj.io/hook: PostSync
 	    argocd.argoproj.io/hook-delete-policy: HookSucceeded
 
+Hook deletion policies are governed by sync success and failure. A successful sync operation requires all hooks to complete successfully. A sync will fail if _any_ hooks fail.
 The following policies define when the hook will be deleted.
 
-  - HookSucceeded - the hook resource is deleted after the hook succeeded (e.g. Job/Workflow completed successfully).
-  - HookFailed - the hook resource is deleted after the hook failed.
-  - BeforeHookCreation - any existing hook resource is deleted before the new one is created
+  - HookSucceeded - the hook resource is deleted if the sync succeeds
+  - HookFailed - the hook resource is deleted if the sync fails.
+  - BeforeHookCreation - the hook resource is deleted if it exist at the start of the sync.
 
 # Sync Waves
 
@@ -99,6 +100,6 @@ in-sync and healthy.
 
 # Example
 
-Find real-life example in https://github.com/argoproj/gitops-engine/blob/master/pkg/engine/engine.go
+Find real-life example in https://github.com/argoproj/argo-cd/gitops-engine/blob/master/pkg/engine/engine.go
 */
 package sync

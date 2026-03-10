@@ -19,7 +19,7 @@ which might cause health check to return `Progressing` state instead of `Healthy
 
 * `Ingress` is considered healthy if `status.loadBalancer.ingress` list is non-empty, with at least one value
   for `hostname` or `IP`. Some ingress controllers
-  ([contour](https://github.com/heptio/contour/issues/403)
+  ([contour](https://github.com/projectcontour/contour/issues/403)
   , [traefik](https://github.com/argoproj/argo-cd/issues/968#issuecomment-451082913)) don't update
   `status.loadBalancer.ingress` field which causes `Ingress` to stuck in `Progressing` state forever.
 
@@ -311,7 +311,7 @@ Argo CD default installation is now configured to automatically enable Redis aut
 If for some reason authenticated Redis does not work for you and you want to use non-authenticated Redis, here are the steps:
 
 1. You need to have your own Redis installation.
-2. Configure Argo CD to use your own Redis instance. See this [doc](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cmd-params-cm-yaml/) for the Argo CD configuration.
+2. Configure Argo CD to use your own Redis instance, as shown in the [example configuration](operator-manual/argocd-cmd-params-cm-yaml.md).
 3. If you already installed Redis shipped with Argo CD, you also need to clean up the existing components:
 
     * When HA Redis is used:
@@ -441,3 +441,33 @@ If you can avoid using these features, you can avoid triggering the error. The o
    Excluding mutation webhooks from the diff could cause undesired diffing behavior.
 3. **Disable mutation webhooks when using server-side diff**: see [server-side diff docs](user-guide/diff-strategies.md#mutation-webhooks)
    for details about that feature. Disabling mutation webhooks may have undesired effects on sync behavior.
+
+### How do I fix `grpc: error while marshaling: string field contains invalid UTF-8`?
+
+On Kubernetes v1.34.x clusters, Argo CD components may stop working and pods may 
+fail to start with errors such as:
+
+```
+Error: grpc: error while marshaling: string field contains invalid UTF-8
+```
+This issue typically affects pods that reference Kubernetes secrets via environment variables, e.g. 
+```yaml
+env:
+  - name: REDIS_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: argocd-redis
+        key: auth
+        optional: false
+```
+Kubernetes environment variables must be valid UTF-8 strings. In affected clusters, the argocd-redis Secret contained non-UTF-8 (binary) data, while other clusters used
+ASCII-only values.
+
+#### How do I fix the issue?
+Inspect the decoded Redis password
+```bash
+kubectl get -n argocd secret argocd-redis -o json \
+    | jq -r '.data.auth' | base64 --decode | xxd
+```
+If the output contains non-printable characters or bytes outside the UTF-8 range, the Secret is invalid for use as an
+environment variable. It is recommended to regenerate the secret using a UTF-8-safe password.

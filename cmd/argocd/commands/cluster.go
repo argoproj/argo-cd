@@ -91,7 +91,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	)
 	command := &cobra.Command{
 		Use:   "add CONTEXT",
-		Short: cliName + " cluster add CONTEXT",
+		Short: common.CommandCLI + " cluster add CONTEXT",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -380,8 +380,7 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("Cluster information\n\n")
 		fmt.Printf("  Server URL:            %s\n", cluster.Server)
 		fmt.Printf("  Server Name:           %s\n", strWithDefault(cluster.Name, "-"))
-		//nolint:staticcheck
-		fmt.Printf("  Server Version:        %s\n", cluster.ServerVersion)
+		fmt.Printf("  Server Version:        %s\n", cluster.Info.ServerVersion)
 		fmt.Printf("  Namespaces:        	 %s\n", formatNamespaces(cluster))
 		fmt.Printf("\nTLS configuration\n\n")
 		fmt.Printf("  Client cert:           %v\n", len(cluster.Config.CertData) != 0)
@@ -475,8 +474,7 @@ func printClusterTable(clusters []argoappv1.Cluster) {
 		if len(c.Namespaces) > 0 {
 			server = fmt.Sprintf("%s (%d namespaces)", c.Server, len(c.Namespaces))
 		}
-		//nolint:staticcheck
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", server, c.Name, c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message, c.Project)
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", server, c.Name, c.Info.ServerVersion, c.Info.ConnectionState.Status, c.Info.ConnectionState.Message, c.Project)
 	}
 	_ = w.Flush()
 }
@@ -551,7 +549,7 @@ argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "rotate-auth SERVER/NAME",
-		Short: cliName + " cluster rotate-auth SERVER/NAME",
+		Short: common.CommandCLI + " cluster rotate-auth SERVER/NAME",
 		Example: `argocd cluster rotate-auth https://12.34.567.89
 argocd cluster rotate-auth cluster-name`,
 		Run: func(c *cobra.Command, args []string) {

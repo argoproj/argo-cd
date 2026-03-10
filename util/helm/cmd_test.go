@@ -90,7 +90,7 @@ func TestRegistryLogin(t *testing.T) {
 			repo:        "my.registry.com/repo",
 			creds:       &HelmCreds{},
 			execErr:     errors.New("exit status 1"),
-			expectedErr: errors.New("failed to login to registry: failed to get command args to log: exit status 1"),
+			expectedErr: errors.New("failed to login to registry: failed running helm: exit status 1"),
 		},
 		{
 			name:        "invalid repo",
