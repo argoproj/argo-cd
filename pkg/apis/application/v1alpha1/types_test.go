@@ -90,6 +90,9 @@ func TestAppProject_IsNegatedSourcePermitted(t *testing.T) {
 		projSources: []string{"https://github.com/argoproj/test1.git", "*"}, appSource: "https://github.com/argoproj/test2.git", isPermitted: true,
 	}, {
 		projSources: []string{"!https://github.com/argoproj/*.git", "*"}, appSource: "https://github.com/argoproj1/test2.git", isPermitted: true,
+	}, {
+		// Deny rules alone cannot permit; source requires explicit allow rule
+		projSources: []string{"!https://github.com/argoproj/*"}, appSource: "https://github.com/other/repo.git", isPermitted: false,
 	}}
 
 	for _, data := range testData {

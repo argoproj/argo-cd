@@ -470,7 +470,11 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 
 		matched := globMatch(normalized, srcNormalized, true, '/')
 		if matched {
-			anySourceMatched = true
+			// Deny rules can only reject, never permit. Per documentation, a source
+			// requires an explicit allow rule to match; deny rules alone must not expand permissions.
+			if !isDenyPattern(normalized) {
+				anySourceMatched = true
+			}
 		} else if !matched && isDenyPattern(normalized) {
 			return false
 		}
