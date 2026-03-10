@@ -300,8 +300,11 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			if updateRevisionResult.Revision != "" {
 				revision = updateRevisionResult.Revision
 			}
-		} else if !source.IsRef() {
-			// revisionsMayHaveChanges is set to true if at least one revision is not possible to be updated
+		} else if !source.IsRef() && !(syncedRevision != "" && syncedRevision == revision) {
+			// revisionsMayHaveChanges is set to true whenever the revision could have changed.
+			// The only case where it is safe to skip this is when both syncedRevision and revision
+			// are the same non-empty (resolved) commit SHA i.e. we are comparing against the
+			// exact same commit we last compared against (no new commits).
 			revisionsMayHaveChanges = true
 		}
 
