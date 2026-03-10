@@ -20,6 +20,7 @@ import (
 type AuditLogger struct {
 	kIf            kubernetes.Interface
 	component      string
+	namespace      string
 	enableEventLog map[string]bool
 }
 
@@ -63,6 +64,22 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 		logCtx = logCtx.WithField("name", objMeta.Name)
 	}
 	t := metav1.Time{Time: time.Now()}
+
+	// Determine which namespace to create the event in
+	eventNamespace := objMeta.Namespace
+	// For resource events (non-Application, non-AppProject, non-ApplicationSet),
+	// create events in the ArgoCD namespace to support multi-cluster
+	if gvk.Kind != application.ApplicationKind &&
+		gvk.Kind != application.AppProjectKind &&
+		gvk.Kind != application.ApplicationSetKind {
+		eventNamespace = l.namespace
+		// Add the original namespace to annotations for reference
+		if logFields == nil {
+			logFields = make(map[string]string)
+		}
+		logFields["resource-namespace"] = objMeta.Namespace
+	}
+
 	event := corev1.Event{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        fmt.Sprintf("%v.%x", objMeta.Name, t.UnixNano()),
@@ -75,7 +92,7 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 		InvolvedObject: corev1.ObjectReference{
 			Kind:            gvk.Kind,
 			Name:            objMeta.Name,
-			Namespace:       objMeta.Namespace,
+			Namespace:       objMeta.Namespace, // Keep the original namespace in InvolvedObject
 			ResourceVersion: objMeta.ResourceVersion,
 			APIVersion:      gvk.GroupVersion().String(),
 			UID:             objMeta.UID,
@@ -88,7 +105,7 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 		Reason:         info.Reason,
 	}
 	logCtx.Info(message)
-	_, err := l.kIf.CoreV1().Events(objMeta.Namespace).Create(context.Background(), &event, metav1.CreateOptions{})
+	_, err := l.kIf.CoreV1().Events(eventNamespace).Create(context.Background(), &event, metav1.CreateOptions{})
 	if err != nil {
 		logCtx.Errorf("Unable to create audit event: %v", err)
 		return
@@ -178,10 +195,11 @@ func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo,
 	l.logEvent(objectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, nil, nil)
 }
 
-func NewAuditLogger(kIf kubernetes.Interface, component string, enableK8sEvent []string) *AuditLogger {
+func NewAuditLogger(kIf kubernetes.Interface, namespace, component string, enableK8sEvent []string) *AuditLogger {
 	return &AuditLogger{
 		kIf:            kIf,
 		component:      component,
+		namespace:      namespace,
 		enableEventLog: setK8sEventList(enableK8sEvent),
 	}
 }

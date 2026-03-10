@@ -1,12 +1,15 @@
 package commands
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"slices"
 	"strings"
 	"testing"
@@ -1045,6 +1048,39 @@ func TestPrintApplicationNames(t *testing.T) {
 	})
 	expectation := "test\ntest\n"
 	require.Equalf(t, output, expectation, "Incorrect print params output %q, should be %q", output, expectation)
+}
+
+func TestNewApplicationUnsetCommand_Validation(t *testing.T) {
+	if os.Getenv("BE_CRASHER") == "1" {
+		cmd := NewApplicationUnsetCommand(nil)
+		cmd.SetArgs([]string{"my-app", "--source-position", "1", "--source-name", "test"})
+		_ = cmd.Execute()
+	}
+
+	cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run=TestNewApplicationUnsetCommand_Validation")
+	cmd.Env = append(os.Environ(), "BE_CRASHER=1")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	if e, ok := errors.AsType[*exec.ExitError](err); ok && !e.Success() {
+		assert.Contains(t, stderr.String(), "Only one of source-position and source-name can be specified.")
+		return
+	}
+	t.Fatalf("process ran with err %v, want exit status 1", err)
+}
+
+func TestNewApplicationUnsetCommand_Flags(t *testing.T) {
+	cmd := NewApplicationUnsetCommand(nil)
+	assert.NotNil(t, cmd)
+
+	flag := cmd.Flags().Lookup("source-name")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "source-name", flag.Name)
+
+	flag = cmd.Flags().Lookup("source-position")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "source-position", flag.Name)
 }
 
 func Test_unset(t *testing.T) {
