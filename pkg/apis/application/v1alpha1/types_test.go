@@ -5023,3 +5023,64 @@ func TestIgnoreDifferences_Equals(t *testing.T) {
 		})
 	}
 }
+
+// TestSyncPolicyAutomatedAllowEmptySerialisation verifies that an explicit
+// allowEmpty: false is not omitted from JSON.  This is the key regression
+// guard for the *bool change: with the old `bool` type the zero value was
+// dropped by omitempty, making it impossible to reset allowEmpty from true
+// back to false via GitOps.
+func TestSyncPolicyAutomatedAllowEmptySerialisation(t *testing.T) {
+	f := false
+	tr := true
+
+	tests := []struct {
+		name        string
+		automated   SyncPolicyAutomated
+		wantPresent bool   // whether "allowEmpty" key should appear in JSON
+		wantValue   bool   // expected value when present
+	}{
+		{
+			name:        "nil pointer omits field",
+			automated:   SyncPolicyAutomated{AllowEmpty: nil},
+			wantPresent: false,
+		},
+		{
+			name:        "explicit false is serialised",
+			automated:   SyncPolicyAutomated{AllowEmpty: &f},
+			wantPresent: true,
+			wantValue:   false,
+		},
+		{
+			name:        "explicit true is serialised",
+			automated:   SyncPolicyAutomated{AllowEmpty: &tr},
+			wantPresent: true,
+			wantValue:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.automated)
+			require.NoError(t, err)
+
+			var raw map[string]any
+			require.NoError(t, json.Unmarshal(data, &raw))
+
+			val, present := raw["allowEmpty"]
+			assert.Equal(t, tt.wantPresent, present, "field presence mismatch in JSON: %s", string(data))
+			if tt.wantPresent {
+				assert.Equal(t, tt.wantValue, val, "field value mismatch in JSON: %s", string(data))
+			}
+
+			// Round-trip: unmarshal back and confirm pointer semantics are preserved.
+			var got SyncPolicyAutomated
+			require.NoError(t, json.Unmarshal(data, &got))
+			if tt.automated.AllowEmpty == nil {
+				assert.Nil(t, got.AllowEmpty)
+			} else {
+				require.NotNil(t, got.AllowEmpty)
+				assert.Equal(t, *tt.automated.AllowEmpty, *got.AllowEmpty)
+			}
+		})
+	}
+}
