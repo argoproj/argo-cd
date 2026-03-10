@@ -13,7 +13,7 @@ It covers how the plugin mechanism works, its benefits, motivations, and the goa
 ## Prerequisites
 
 You need to have a working `argocd` binary installed locally. You can follow
-the [cli installation documentation](https://argo-cd.readthedocs.io/en/stable/cli_installation/) to install the binary.
+the [cli installation documentation](../cli_installation.md) to install the binary.
 
 ## Create `argocd` plugins
 

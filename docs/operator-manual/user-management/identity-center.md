@@ -28,8 +28,8 @@ A working Single Sign-On configuration using Identity Center (AWS SSO) has been 
 
 4. Configure Attribute mappings.
 
-    !!! note "Group attribute mapping is not officially!"
-        Group attribute mapping is not officially supported in the AWS docs, however the workaround is currently working.
+> [!NOTE]
+> Group attribute mapping is not officially supported in the AWS docs, however the workaround is currently working.
 
 ![Identity Center SAML App 4](../../assets/identity-center-4.png)
 
@@ -37,9 +37,10 @@ A working Single Sign-On configuration using Identity Center (AWS SSO) has been 
 
 <!-- markdownlint-enable MD046 -->
 
-5. Download the CA certificate to use in the `argocd-cm` configuration.
+1. Download the CA certificate to use in the `argocd-cm` configuration.
 
-    * If using the `caData` field, you'll need to base64-encode the entire certificate, including the `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----` stanzas (e.g., `base64 my_cert.pem`).
+    * If using the `caData` field, you'll need to base64-encode the entire certificate, including the `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----` stanzas 
+      (e.g., `base64 my_cert.pem`).
 
     * If using the `ca` field and storing the CA certificate separately as a secret, you will need to mount the secret onto the `dex` container in the `argocd-dex-server` Deployment.
 

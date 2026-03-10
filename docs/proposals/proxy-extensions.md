@@ -417,9 +417,9 @@ verbs for example, an enhancement can be created to extend this
 functionality. If this requirement becomes necessary, it won't be a
 breaking change as it will be more restrictive.
 
-[1]: https://argo-cd.readthedocs.io/en/stable/developer-guide/ui-extensions/
+[1]: ../developer-guide/ui-extensions.md
 [2]: https://github.com/argoproj-labs/argocd-extensions
 [3]: https://github.com/argoproj/argo-cd/blob/a23bfc3acaa464cbdeafdbbe66d05a121d5d1fb3/server/rbacpolicy/rbacpolicy.go#L17-L25
-[4]: https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cm.yaml
+[4]: ../operator-manual/argocd-cm-yaml.md
 [5]: https://kubernetes.io/docs/tasks/extend-kubernetes/configure-aggregation-layer/#authentication-flow
 [6]: https://github.com/argoproj/argo-cd/pull/10435#discussion_r986941880
