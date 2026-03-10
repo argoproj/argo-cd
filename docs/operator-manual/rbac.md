@@ -322,7 +322,7 @@ When the `example-user` executes the `extensions/DaemonSet/test` action, the fol
 4. The value `default/my-app` matches `default/*`.
 
 > [!TIP]
-> For performance tuning of glob pattern matching, see the `ARGOCD_GLOB_CACHE_SIZE` environment variable in
+> For performance tuning of glob pattern matching, see the `server.glob.cache.size` config key in
 > [High Availability - argocd-server](high_availability.md#argocd-server).
 
 ## Using SSO Users/Groups

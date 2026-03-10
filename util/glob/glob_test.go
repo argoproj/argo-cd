@@ -264,6 +264,23 @@ func Test_InvalidGlobNotCached(t *testing.T) {
 	require.False(t, isPatternCached(invalidPattern), "invalid pattern should not be cached after MatchWithError")
 }
 
+func Test_SetCacheSize(t *testing.T) {
+	resetGlobCacheForTest()
+
+	customSize := 5
+	SetCacheSize(customSize)
+	defer SetCacheSize(DefaultGlobCacheSize)
+
+	for i := range customSize + 3 {
+		Match(fmt.Sprintf("setsize-%d-*", i), "setsize-0-test")
+	}
+
+	require.Equal(t, customSize, globCacheLen(), "cache size should respect the custom size set via SetCacheSize")
+
+	require.False(t, isPatternCached("setsize-0-*"), "oldest pattern should be evicted with custom cache size")
+	require.True(t, isPatternCached(fmt.Sprintf("setsize-%d-*", customSize+2)), "most recent pattern should be cached")
+}
+
 // BenchmarkMatch_WithCache benchmarks Match with caching (cache hit)
 func BenchmarkMatch_WithCache(b *testing.B) {
 	pattern := "proj:*/app-*"

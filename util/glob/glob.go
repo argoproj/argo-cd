@@ -1,20 +1,14 @@
 package glob
 
 import (
-	"math"
 	"sync"
 
 	"github.com/gobwas/glob"
 	"github.com/golang/groupcache/lru"
 	log "github.com/sirupsen/logrus"
-
-	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 const (
-	// EnvGlobCacheSize is the environment variable name for configuring glob cache size.
-	EnvGlobCacheSize = "ARGOCD_GLOB_CACHE_SIZE"
-
 	// DefaultGlobCacheSize is the default maximum number of compiled glob patterns to cache.
 	// This limit prevents memory exhaustion from untrusted RBAC patterns.
 	// 10,000 patterns should be sufficient for most deployments while limiting
@@ -34,7 +28,15 @@ var (
 )
 
 func init() {
-	globCache = lru.New(env.ParseNumFromEnv(EnvGlobCacheSize, DefaultGlobCacheSize, 1, math.MaxInt))
+	globCache = lru.New(DefaultGlobCacheSize)
+}
+
+// SetCacheSize reinitializes the glob cache with the given maximum number of entries.
+// This should be called early during process startup, before concurrent access begins.
+func SetCacheSize(maxEntries int) {
+	globCacheLock.Lock()
+	defer globCacheLock.Unlock()
+	globCache = lru.New(maxEntries)
 }
 
 // globCacheKey uniquely identifies a compiled glob pattern.
