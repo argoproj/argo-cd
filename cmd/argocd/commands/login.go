@@ -98,7 +98,7 @@ argocd login cd.argoproj.io --core`,
 					}
 				}
 			}
-			clientOpts := argocdclient.ClientOptions{
+			loginOpts := argocdclient.ClientOptions{
 				ConfigPath:           "",
 				ServerAddr:           server,
 				Insecure:             clientOpts.Insecure,
@@ -116,8 +116,8 @@ argocd login cd.argoproj.io --core`,
 
 			if ctxName == "" {
 				ctxName = server
-				if clientOpts.GRPCWebRootPath != "" {
-					rootPath := strings.TrimRight(strings.TrimLeft(clientOpts.GRPCWebRootPath, "/"), "/")
+				if loginOpts.GRPCWebRootPath != "" {
+					rootPath := strings.TrimRight(strings.TrimLeft(loginOpts.GRPCWebRootPath, "/"), "/")
 					ctxName = fmt.Sprintf("%s/%s", server, rootPath)
 				}
 			}
@@ -126,7 +126,7 @@ argocd login cd.argoproj.io --core`,
 			var tokenString string
 			var refreshToken string
 			if !clientOpts.Core {
-				acdClient := headless.NewClientOrDie(&clientOpts, c)
+				acdClient := headless.NewClientOrDie(&loginOpts, c)
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
 				defer utilio.Close(setConn)
 				if !sso {

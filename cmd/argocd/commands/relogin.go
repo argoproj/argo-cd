@@ -47,7 +47,7 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			var tokenString string
 			var refreshToken string
-			clientOpts := argocdclient.ClientOptions{
+			reloginOpts := argocdclient.ClientOptions{
 				ConfigPath:        "",
 				ServerAddr:        configCtx.Server.Server,
 				Insecure:          configCtx.Server.Insecure,
@@ -58,7 +58,7 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				PlainText:         configCtx.Server.PlainText,
 				Headers:           clientOpts.Headers,
 			}
-			acdClient := headless.NewClientOrDie(&clientOpts, c)
+			acdClient := headless.NewClientOrDie(&reloginOpts, c)
 			claims, err := configCtx.User.Claims()
 			errors.CheckError(err)
 			if jwtutil.StringField(claims, "iss") == session.SessionManagerClaimsIssuer {
