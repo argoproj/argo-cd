@@ -33,7 +33,6 @@ func TestSyncWithFeatureDisabled(t *testing.T) {
 		Then().
 		// With the impersonation feature disabled, Application sync should continue to use
 		// the control plane service account for the sync operation and the sync should succeed.
-		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced)).
 		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeSynced), WaitDuration, TimeoutDuration).
 		Expect(OperationMessageContains("successfully synced"))
 }
