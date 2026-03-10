@@ -19,6 +19,7 @@ import (
 	"time"
 
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
+	"github.com/argoproj/argo-cd/v3/util/oci"
 
 	"github.com/argoproj/pkg/v2/sync"
 	log "github.com/sirupsen/logrus"
@@ -439,7 +440,7 @@ func IsHelmOciRepo(repoURL string) bool {
 	if repoURL == "" {
 		return false
 	}
-	if strings.HasPrefix(repoURL, "oci://") {
+	if oci.HasOCIPrefix(repoURL) {
 		return true
 	}
 	parsed, err := url.Parse(repoURL)

@@ -43,6 +43,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v3/util/oci"
+
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -315,7 +317,7 @@ func (source *ApplicationSource) AllowsConcurrentProcessing() bool {
 }
 
 func (source *ApplicationSource) IsOCI() bool {
-	return strings.HasPrefix(source.RepoURL, "oci://")
+	return oci.HasOCIPrefix(source.RepoURL)
 }
 
 // IsRef returns true when the application source is of type Ref

@@ -374,7 +374,7 @@ func (repo *Repository) Normalize() *Repository {
 }
 
 func (repo *Repository) HasOCIPrefix() bool {
-	return strings.HasPrefix(repo.Repo, "oci://")
+	return oci.HasOCIPrefix(repo.Repo)
 }
 
 // Repositories defines a list of Repository configurations
