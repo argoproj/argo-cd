@@ -362,6 +362,7 @@ func (repo *Repository) Sanitized() *Repository {
 		GithubAppInstallationId:    repo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
 		UseAzureWorkloadIdentity:   repo.UseAzureWorkloadIdentity,
+		Depth:                      repo.Depth,
 	}
 }
 

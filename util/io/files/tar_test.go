@@ -208,20 +208,24 @@ func TestUntgz(t *testing.T) {
 		// given
 		tmpDir := createTmpDir(t)
 		defer deleteTmpDir(t, tmpDir)
-		tgzFile := createTgz(t, filepath.Join(getTestDataDir(t), "executable"), tmpDir)
+
+		scriptFileName := "script.sh"
+		srcDir := filepath.Join(getTestDataDir(t), "executable")
+		srcScriptFileInfo, err := os.Stat(path.Join(srcDir, scriptFileName))
+		require.NoError(t, err)
+
+		tgzFile := createTgz(t, srcDir, tmpDir)
 		defer tgzFile.Close()
 
 		destDir := filepath.Join(tmpDir, "untgz1")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64, true)
+		err = files.Untgz(destDir, tgzFile, math.MaxInt64, true)
 		require.NoError(t, err)
-
 		// then
-
-		scriptFileInfo, err := os.Stat(path.Join(destDir, "script.sh"))
+		scriptFileInfo, err := os.Stat(path.Join(destDir, scriptFileName))
 		require.NoError(t, err)
-		assert.Equal(t, os.FileMode(0o755), scriptFileInfo.Mode())
+		assert.Equal(t, srcScriptFileInfo.Mode(), scriptFileInfo.Mode())
 	})
 	t.Run("relativizes symlinks", func(t *testing.T) {
 		// given

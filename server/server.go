@@ -360,7 +360,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		staticFS = utilio.NewComposableFS(staticFS, root.FS())
 	}
 
-	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.Namespace, opts.RepoClientset)
+	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.DynamicClientset, opts.Namespace, opts.RepoClientset)
 	errorsutil.CheckError(err)
 
 	secretInformer := k8s.NewSecretInformer(opts.KubeClientset, opts.Namespace, "argocd-notifications-secret")
@@ -1061,6 +1061,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.AppClientset,
 		a.appsetInformer,
 		a.appsetLister,
+		nil,
 		a.Namespace,
 		projectLock,
 		a.ApplicationNamespaces,
