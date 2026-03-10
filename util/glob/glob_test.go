@@ -296,14 +296,18 @@ func BenchmarkMatch_WithCache(b *testing.B) {
 }
 
 // BenchmarkMatch_WithoutCache simulates the OLD behavior (compile every time)
+// by calling glob.Compile + Match directly, bypassing the cache entirely.
 func BenchmarkMatch_WithoutCache(b *testing.B) {
+	pattern := "proj:*/app-*"
 	text := "proj:myproject/app-frontend"
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		// Use unique pattern each iteration to force recompilation (simulates no cache)
-		pattern := fmt.Sprintf("proj:*/app-%d", i)
-		Match(pattern, text)
+		compiled, err := extglob.Compile(pattern)
+		if err != nil {
+			b.Fatal(err)
+		}
+		compiled.Match(text)
 	}
 }
 
