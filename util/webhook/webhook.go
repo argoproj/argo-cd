@@ -766,8 +766,7 @@ func isParsingPayloadError(err error) bool {
 // claimed the request, and any error from parsing. When handled is false, the
 // caller should fall through to SCM webhook processing.
 func (a *ArgoCDWebhookHandler) processRegistryWebhook(r *http.Request) (*RegistryEvent, bool, error) {
-	switch {
-	case a.ghcrHandler.CanHandle(r):
+	if a.ghcrHandler.CanHandle(r) {
 		event, err := a.ghcrHandler.ProcessWebhook(r)
 		return event, true, err
 		// TODO: add dockerhub, ecr handler cases in future

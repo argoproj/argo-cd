@@ -2,7 +2,7 @@
 
 ## Overview
 
-Argo CD polls Git repositories every three minutes to detect changes to the manifests. To eliminate
+Argo CD polls Git/OCI/Helm repositories every three minutes to detect changes to the manifests. To eliminate
 this delay from polling, the API server can be configured to receive webhook events.
 
 ### Git Webhooks
