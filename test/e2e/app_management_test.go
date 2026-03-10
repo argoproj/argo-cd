@@ -3108,9 +3108,6 @@ func TestDeletionConfirmation(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().Delete(true).
 		Then().
-		Expect(App(func(app *Application) bool {
-			return app.DeletionTimestamp != nil
-		})).
 		ExpectConsistently(App(func(app *Application) bool {
 			return app.DeletionTimestamp != nil
 		}), time.Second, 5*time.Second).
