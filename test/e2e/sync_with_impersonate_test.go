@@ -96,7 +96,6 @@ func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
 		Then().
 		// With the impersonation feature enabled, Application sync should succeed
 		// as there is a valid match found in the available destination service accounts configured in AppProject
-		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced)).
 		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeSynced), WaitDuration, TimeoutDuration).
 		Expect(OperationMessageContains("successfully synced"))
 }
