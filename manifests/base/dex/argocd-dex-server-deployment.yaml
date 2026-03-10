@@ -33,6 +33,7 @@ spec:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          runAsUser: 1001
           seccompProfile:
             type: RuntimeDefault
       containers:
@@ -70,7 +71,7 @@ spec:
               configMapKeyRef:
                 name: argocd-cmd-params-cm
                 key: dexserver.connector.failure.continue
-                optional: false
+                optional: true
         securityContext:
           capabilities:
             drop:
