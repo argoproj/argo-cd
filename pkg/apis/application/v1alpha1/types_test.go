@@ -261,7 +261,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 			Server: "https://kubernetes.default.svc", Namespace: "!default",
 		}},
 		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
-		isPermitted: true,
+		isPermitted: false,
 	}, {
 		projDest: []ApplicationDestination{{
 			Server: "!https://my-cluster", Namespace: "default",
@@ -297,7 +297,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 			Server: "https://kubernetes.default.svc", Namespace: "!test-*",
 		}},
 		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
-		isPermitted: true,
+		isPermitted: false,
 	}, {
 		projDest: []ApplicationDestination{{
 			Server: "", Namespace: "*", Name: "!test",
@@ -318,6 +318,22 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		}},
 		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
 		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{
+			{Server: "*", Namespace: "allowed-ns"},
+			{Server: "*", Namespace: "!kyverno"},
+			{Server: "*", Namespace: "!argocd"},
+		},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "not-allowed-ns"},
+		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{
+			{Server: "*", Namespace: "allowed-ns"},
+			{Server: "*", Namespace: "!kyverno"},
+			{Server: "*", Namespace: "!argocd"},
+		},
+		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "allowed-ns"},
+		isPermitted: true,
 	}, {
 		projDest: []ApplicationDestination{{
 			Server: "*", Namespace: "*",
