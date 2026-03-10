@@ -100,8 +100,10 @@ type ClientApp struct {
 	provider Provider
 	// clientCache represent a cache of sso artifact
 	clientCache cache.CacheClient
-	// properties for azure workload identity.
-	azure azureApp
+	// domainHint is an optional hint to the identity provider about the domain the user belongs to.
+	// Used to pre-fill or streamline the login experience (e.g., for Azure AD multi-tenant scenarios).
+	domainHint string
+	azure      azureApp
 	// preemptive token refresh threshold
 	refreshTokenThreshold time.Duration
 }
@@ -182,6 +184,14 @@ func GetScopesOrDefault(scopes []string) []string {
 	return scopes
 }
 
+func getDomainHint(settings *settings.ArgoCDSettings) string {
+	oidcConfig := settings.OIDCConfig()
+	if oidcConfig != nil {
+		return strings.TrimSpace(oidcConfig.DomainHint)
+	}
+	return ""
+}
+
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
 // object which has HTTP handlers for handling the HTTP responses for login and callback
 func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTLSConfig *dex.DexTLSConfig, baseHRef string, cacheClient cache.CacheClient) (*ClientApp, error) {
@@ -193,6 +203,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 	if err != nil {
 		return nil, err
 	}
+	domainHint := getDomainHint(settings)
 	a := ClientApp{
 		clientID:                 settings.OAuth2ClientID(),
 		clientSecret:             settings.OAuth2ClientSecret(),
@@ -204,6 +215,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 		encryptionKey:            encryptionKey,
 		clientCache:              cacheClient,
 		azure:                    azureApp{mtx: &sync.RWMutex{}},
+		domainHint:               domainHint,
 		refreshTokenThreshold:    settings.OIDCRefreshTokenThreshold,
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
@@ -421,6 +433,9 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	if !isValidRedirectURL(returnURL, append([]string{a.settings.URL}, a.settings.AdditionalURLs...)) {
 		http.Error(w, "Invalid redirect URL: the protocol and host (including port) must match and the path must be within allowed URLs if provided", http.StatusBadRequest)
 		return
+	}
+	if a.domainHint != "" {
+		opts = append(opts, oauth2.SetAuthURLParam("domain_hint", a.domainHint))
 	}
 	if a.usePKCE {
 		pkceVerifier = oauth2.GenerateVerifier()
