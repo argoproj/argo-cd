@@ -32085,7 +32085,6 @@ spec:
             - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
-          runAsUser: 1001
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
