@@ -548,12 +548,11 @@ func (m *nativeGitClient) ConfigureSparseCheckout(paths []string) error {
 
 	ctx := context.Background()
 
-	// Initialize sparse-checkout
-	if _, err := m.runCmd(ctx, "sparse-checkout", "init", "--cone"); err != nil {
-		log.Warnf("Failed to initialize sparse-checkout in cone mode, trying without cone: %v", err)
-		if _, err := m.runCmd(ctx, "sparse-checkout", "init"); err != nil {
-			return fmt.Errorf("failed to initialize sparse-checkout: %w", err)
-		}
+	// Initialize sparse-checkout with cone mode and sparse index.
+	// --sparse-index collapses out-of-cone directories to single index entries,
+	// dramatically reducing index size and speeding up git status/checkout/diff operations.
+	if _, err := m.runCmd(ctx, "sparse-checkout", "init", "--cone", "--sparse-index"); err != nil {
+		return fmt.Errorf("failed to initialize sparse-checkout: %w", err)
 	}
 
 	// Set the sparse-checkout paths
