@@ -5,11 +5,10 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -18,8 +17,8 @@ import (
 )
 
 func TestAutoSyncSelfHealDisabled(t *testing.T) {
-	Given(t).
-		Path(guestbookPath).
+	ctx := Given(t)
+	ctx.Path(guestbookPath).
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
@@ -36,7 +35,7 @@ func TestAutoSyncSelfHealDisabled(t *testing.T) {
 		// app should not be auto-synced if k8s change detected
 		When().
 		And(func() {
-			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Patch(t.Context(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), metav1.PatchOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
@@ -45,8 +44,8 @@ func TestAutoSyncSelfHealDisabled(t *testing.T) {
 }
 
 func TestAutoSyncSelfHealEnabled(t *testing.T) {
-	Given(t).
-		Path(guestbookPath).
+	ctx := Given(t)
+	ctx.Path(guestbookPath).
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
@@ -61,7 +60,7 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		When().
 		// app should be auto-synced once k8s change detected
 		And(func() {
-			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(fixture.DeploymentNamespace()).Patch(t.Context(),
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Patch(t.Context(),
 				"guestbook-ui", types.MergePatchType, []byte(`{"spec": {"revisionHistoryLimit": 0}}`), metav1.PatchOptions{}))
 		}).
 		Refresh(RefreshTypeNormal).
@@ -109,7 +108,7 @@ func TestAutoSyncRetryAndRefreshEnabled(t *testing.T) {
 					Refresh: true,
 					Backoff: &Backoff{
 						Duration:    time.Second.String(),
-						Factor:      ptr.To(int64(1)),
+						Factor:      new(int64(1)),
 						MaxDuration: time.Second.String(),
 					},
 				},
@@ -149,7 +148,7 @@ func TestAutoSyncRetryAndRefreshEnabledChangedSource(t *testing.T) {
 					Refresh: true,
 					Backoff: &Backoff{
 						Duration:    time.Second.String(),
-						Factor:      ptr.To(int64(1)),
+						Factor:      new(int64(1)),
 						MaxDuration: time.Second.String(),
 					},
 				},

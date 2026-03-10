@@ -139,7 +139,7 @@ $ argocd app set guestbook --sync-option ApplyOutOfSyncOnly=true
 
 By default, extraneous resources get pruned using the foreground deletion policy. The propagation policy can be controlled
 using the `PrunePropagationPolicy` sync option. Supported policies are background, foreground, and orphan.
-More information about those policies can be found [here](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#controlling-how-the-garbage-collector-deletes-dependents).
+More information about those policies can be found in the Kubernetes [Garbage Collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) documentation.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -233,7 +233,7 @@ However, there are some cases where you want to use `kubectl apply --server-side
 - Use a more declarative approach, which tracks a user's field management, rather than a user's last
   applied state.
 
-If the `ServerSideApply=true` sync option is set, Argo CD will use the `kubectl apply --server-side`
+If the `ServerSideApply=true` sync option is set, Argo CD will use the `kubectl apply --server-side --force-conflicts`
 command to apply changes.
 
 It can be enabled at the application level like in the example below:
@@ -293,7 +293,7 @@ spec:
     - Validate=false
 ```
 
-In this case, Argo CD will use the `kubectl apply --server-side --validate=false` command
+In this case, Argo CD will use the `kubectl apply --server-side --force-conflicts --validate=false` command
 to apply changes.
 
 Note: [`Replace=true`](#replace-resource-instead-of-applying-changes) takes precedence over `ServerSideApply=true`.
@@ -330,11 +330,12 @@ This is useful when you have other operators managing resources that are no long
 When client-side apply migration is enabled:
 1. Argo CD will use the specified field manager (or default if not specified) to perform migration
 2. During a server-side apply sync operation, it will:
-   - Perform a client-side-apply with the specified field manager
-   - Move the 'last-applied-configuration' annotation to be managed by the specified manager
-   - Perform the server-side apply, which will auto migrate all the fields under the manager that owns the 'last-applied-configuration' annotation.
+   - Check if the specified field manager exists in the resource's `managedFields` with `operation: Update` (indicating client-side apply)
+   - Patch the `managedFields`, transferring field ownership from the client-side apply manager to Argo CD's server-side apply manager (`argocd-controller`)
+   - Remove the client-side apply manager entry from `managedFields`
+   - Perform the server-side apply with the migrated field ownership
 
-This feature is based on Kubernetes' [client-side apply migration KEP](https://github.com/alexzielenski/enhancements/blob/03df8820b9feca6d2cab78e303c99b2c9c0c4c5c/keps/sig-cli/3517-kubectl-client-side-apply-migration/README.md), which provides the auto migration from client-side to server-side apply.
+This feature is based on Kubernetes' [client-side to server-side apply migration](https://kubernetes.io/docs/reference/using-api/server-side-apply/#migration-between-client-side-and-server-side-apply).
 
 ## Fail the sync if a shared resource is found
 
@@ -417,26 +418,22 @@ spec:
 
 In order for Argo CD to manage the labels and annotations on the namespace, `CreateNamespace=true` needs to be set as a
 sync option, otherwise nothing will happen. If the namespace doesn't already exist, or if it already exists and doesn't
-already have labels and/or annotations set on it, you're good to go. Using `managedNamespaceMetadata` will also set the
-resource tracking label (or annotation) on the namespace, so you can easily track which namespaces are managed by Argo CD.
+already have labels and/or annotations set on it, you're good to go.
 
-In the case you do not have any custom annotations or labels but would nonetheless want to have resource tracking set on
-your namespace, that can be done by setting `managedNamespaceMetadata` with an empty `labels` and/or `annotations` map,
-like the example below:
+The generated namespace is normally not tracked with Argo CD. You can use `managedNamespaceMetadata` to
+set a tracking annotation on the generated namespace, which sets the namespace to be *owned* by Argo CD.
+
+Once a namespace is owned by Argo CD, it will be managed by ArgoCD, including the possibility to delete it, which Argo CD normally does not do:
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  namespace: test
-spec:
-  syncPolicy:
-    managedNamespaceMetadata:
-      labels: # The labels to set on the application namespace
-      annotations: # The annotations to set on the application namespace
-    syncOptions:
-    - CreateNamespace=true
+managedNamespaceMetadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: "your-application-name:/Namespace:/your-namespace-name"
 ```
+
+> [!NOTE]
+> This is the only scenario in which manually adding the Argo CD resource-tracking annotation or label to a namespace can be considered a reasonable workaround, and it is done strictly at the user’s own risk. In all other cases, manually managing the tracking metadata on a namespace is strongly discouraged, as it interferes with Argo CD’s internal resource-tracking and ownership logic.
+> By default, namespaces are not managed with resource tracking because a namespace is a cluster-scoped resource and may be shared across multiple applications. Incorrectly assigning ownership can therefore lead to unsafe behavior, including unintended deletion or reconciliation of a shared namespace.
 
 In the case where Argo CD is "adopting" an existing namespace which already has metadata set on it, you should first
 [upgrade the resource to server-side apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/#upgrading-from-client-side-apply-to-server-side-apply)

@@ -5,8 +5,8 @@
 package mocks
 
 import (
-	"github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	mock "github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -563,7 +563,7 @@ func (_c *ClusterCache_IsNamespaced_Call) RunAndReturn(run func(gk schema.GroupK
 	return _c
 }
 
-// IterateHierarchyV2 provides a mock function for the type ClusterCache
+// IterateHierarchyV2 provides a mock function with given fields: keys, action, orphanedResourceNamespace
 func (_mock *ClusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(resource *cache.Resource, namespaceResources map[kube.ResourceKey]*cache.Resource) bool) {
 	_mock.Called(keys, action)
 	return

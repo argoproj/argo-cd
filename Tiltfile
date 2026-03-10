@@ -52,6 +52,7 @@ local_resource(
     'build',
     'CGO_ENABLED=0 GOOS=linux GOARCH=' + arch + ' go build -gcflags="all=-N -l" -mod=readonly -o .tilt-bin/argocd_linux cmd/main.go',
     deps = code_deps,
+    ignore = ['**/*_test.go'],
     allow_parallel=True,
 )
 
@@ -60,7 +61,7 @@ k8s_yaml(kustomize('manifests/dev-tilt'))
 
 # build dev image
 docker_build_with_restart(
-    'argocd', 
+    'quay.io/argoproj/argocd:latest', 
     context='.',
     dockerfile='Dockerfile.tilt',
     entrypoint=[

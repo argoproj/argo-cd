@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	lua "github.com/yuin/gopher-lua"
@@ -1075,5 +1075,10 @@ func Test_getHealthScriptPaths(t *testing.T) {
 
 	// This test will fail any time a glob pattern is added to the health script paths. We don't expect that to happen
 	// often.
-	assert.Equal(t, []string{"_.cnrm.cloud.google.com/_", "_.crossplane.io/_", "_.upbound.io/_"}, paths)
+	assert.Equal(t, []string{
+		"_.cnrm.cloud.google.com/_",
+		"_.crossplane.io/_",
+		"_.upbound.io/_",
+		"grafana-org-operator.kubitus-project.gitlab.io/_",
+	}, paths)
 }

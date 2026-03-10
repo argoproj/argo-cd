@@ -152,7 +152,6 @@ func ParseTLSCertificatesFromStream(stream io.Reader) ([]string, error) {
 
 	certificateList := make([]string, 0)
 
-	// TODO: Implement maximum amount of data to parse
 	// TODO: Implement error heuristics
 
 	for scanner.Scan() {
@@ -169,6 +168,9 @@ func ParseTLSCertificatesFromStream(stream io.Reader) ([]string, error) {
 			if strings.HasPrefix(scanner.Text(), CertificateEndMarker) {
 				inCertData = false
 				certificateList = append(certificateList, pemData)
+				if len(certificateList) > CertificateMaxEntriesPerStream {
+					return nil, errors.New("limit exceeded")
+				}
 				pemData = ""
 			}
 		}
@@ -217,6 +219,9 @@ func ParseSSHKnownHostsFromStream(stream io.Reader) ([]string, error) {
 		if IsValidSSHKnownHostsEntry(lineData) {
 			numEntries++
 			knownHostsLists = append(knownHostsLists, lineData)
+			if len(knownHostsLists) > CertificateMaxEntriesPerStream {
+				return nil, errors.New("limit exceeded")
+			}
 		}
 	}
 

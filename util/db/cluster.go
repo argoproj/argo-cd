@@ -16,8 +16,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -26,9 +26,11 @@ import (
 
 var (
 	localCluster = appv1.Cluster{
-		Name:            "in-cluster",
-		Server:          appv1.KubernetesInternalAPIServerAddr,
-		ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
+		Name:   "in-cluster",
+		Server: appv1.KubernetesInternalAPIServerAddr,
+		Info: appv1.ClusterInfo{
+			ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
+		},
 	}
 	initLocalCluster sync.Once
 )
@@ -37,13 +39,15 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	initLocalCluster.Do(func() {
 		info, err := db.kubeclientset.Discovery().ServerVersion()
 		if err == nil {
-			//nolint:staticcheck
-			localCluster.ServerVersion = fmt.Sprintf("%s.%s", info.Major, info.Minor)
-			//nolint:staticcheck
-			localCluster.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
+			ver, verErr := version.ParseGeneric(info.GitVersion)
+			if verErr == nil {
+				localCluster.Info.ServerVersion = ver.String()
+			} else {
+				log.Warnf("Failed to parse Kubernetes server version: %v", verErr)
+			}
+			localCluster.Info.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 		} else {
-			//nolint:staticcheck
-			localCluster.ConnectionState = appv1.ConnectionState{
+			localCluster.Info.ConnectionState = appv1.ConnectionState{
 				Status:  appv1.ConnectionStatusFailed,
 				Message: err.Error(),
 			}
@@ -51,8 +55,7 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	})
 	cluster := localCluster.DeepCopy()
 	now := metav1.Now()
-	//nolint:staticcheck
-	cluster.ConnectionState.ModifiedAt = &now
+	cluster.Info.ConnectionState.ModifiedAt = &now
 	return cluster
 }
 
@@ -407,7 +410,7 @@ func SecretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 	}
 
 	var namespaces []string
-	for _, ns := range strings.Split(string(s.Data["namespaces"]), ",") {
+	for ns := range strings.SplitSeq(string(s.Data["namespaces"]), ",") {
 		if ns = strings.TrimSpace(ns); ns != "" {
 			namespaces = append(namespaces, ns)
 		}
@@ -426,7 +429,7 @@ func SecretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 		if val, err := strconv.Atoi(string(shardStr)); err != nil {
 			log.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
 		} else {
-			shard = ptr.To(int64(val))
+			shard = new(int64(val))
 		}
 	}
 
