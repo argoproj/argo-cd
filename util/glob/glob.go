@@ -37,13 +37,16 @@ func init() {
 	globCache = lru.New(env.ParseNumFromEnv(EnvGlobCacheSize, DefaultGlobCacheSize, 1, math.MaxInt))
 }
 
-// cacheKey returns a key combining pattern and separators, since the same
-// pattern compiled with different separators produces different globs.
-func cacheKey(pattern string, separators ...rune) string {
-	if len(separators) == 0 {
-		return pattern
-	}
-	return pattern + "\x00" + string(separators)
+// globCacheKey uniquely identifies a compiled glob pattern.
+// The same pattern compiled with different separators produces different globs,
+// so both fields are needed.
+type globCacheKey struct {
+	Pattern    string
+	Separators string
+}
+
+func cacheKey(pattern string, separators ...rune) globCacheKey {
+	return globCacheKey{Pattern: pattern, Separators: string(separators)}
 }
 
 // getOrCompile returns a cached compiled glob pattern, compiling and caching it if necessary.
@@ -52,8 +55,6 @@ func getOrCompile(pattern string, compiler compileFn, separators ...rune) (glob.
 	defer globCacheLock.Unlock()
 
 	key := cacheKey(pattern, separators...)
-
-	// Check cache first
 	if cached, ok := globCache.Get(key); ok {
 		return cached.(glob.Glob), nil
 	}
