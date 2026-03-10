@@ -10,7 +10,7 @@ approvers:
   - TBD
 
 creation-date: 2026-01-15
-last-updated: 2026-01-15
+last-updated: 2026-03-10
 ---
 
 # Health Aggregation Overrides
@@ -29,12 +29,66 @@ Currently, Argo CD aggregates resource health into Application health using a "w
 
 **User Impact**: Users will be able to prevent suspended Jobs/CronJobs from marking their Applications as suspended, ignore certain resource types from health aggregation, and map resource health statuses to different values for aggregation purposes.
 
+## Requirements
+
+This proposal aims to satisfy the following key requirements:
+
+### R1: Distinct Health States for Resource and Aggregation
+
+**Requirement**: The resource tree must show the individual resource's actual health state (e.g., "Suspended", "Degraded") with the correct icon and status, while allowing that resource to contribute a different health state (e.g., "Healthy") to the Application's aggregated health.
+
+**Rationale**: Users need visibility into the actual state of individual resources for monitoring and debugging purposes. However, certain states (like "Suspended" for a CronJob during maintenance) should not cause the entire Application to be marked as unhealthy. This is a critical distinction that cannot be achieved by simply remapping the resource's health status.
+
+**Examples**:
+
+- A suspended CronJob should display as "Suspended" in the resource tree (so operators know it's suspended), but contribute "Healthy" to the Application's aggregated health (so the Application remains healthy)
+- A Deployment with zero replicas might show as "Suspended" in the resource tree, but contribute "Healthy" to aggregation if this is an intentional scale-down
+
+### R2: Default Behavior for Common Cases
+
+**Requirement**: Argo CD should ship with sensible defaults for common resource types (Jobs, CronJobs) so that users don't need to configure every resource individually.
+
+**Rationale**: The current behavior where suspended Jobs/CronJobs mark Applications as "Suspended" is a common pain point reported in multiple issues (#19126, #24428, #25551). Providing good defaults improves the out-of-box experience.
+
+**Examples**:
+
+- Suspended Jobs should default to contributing "Healthy" to aggregation
+- Suspended CronJobs should default to contributing "Healthy" to aggregation
+
+### R3: Per-Resource Override Capability
+
+**Requirement**: Users must be able to override the default or Kind-level behavior for specific resource instances using annotations.
+
+**Rationale**: While defaults work for most cases, some resources may need different behavior. For example, a critical Job that should affect Application health even when suspended.
+
+**Examples**:
+
+- Most Jobs use the default (Suspended → Healthy), but one critical Job is annotated to use original behavior (Suspended → Suspended)
+
+### R4: Kind-Level Configuration
+
+**Requirement**: Users must be able to configure health aggregation behavior for all resources of a specific Kind without annotating each resource individually.
+
+**Rationale**: When managing many resources of the same type, per-resource annotations become impractical. Kind-level configuration provides a scalable solution.
+
+**Examples**:
+
+- Configure all Jobs in the cluster to treat Suspended as Healthy
+- Configure all custom resources of a specific Kind to ignore certain health states
+
+### R5: Backward Compatibility
+
+**Requirement**: Existing Applications must continue to work without changes. The feature should be opt-in or have carefully considered defaults.
+
+**Rationale**: Breaking existing Applications would disrupt users. Any default behavior changes must be well-justified and documented.
+
+**Note**: While R2 suggests shipping with defaults for Jobs/CronJobs, this represents a behavior change that needs community consensus. The implementation must support both enabling and disabling these defaults.
+
 ## Motivation
 
 ### Problems with Current Behavior
 
 1. **Suspended Jobs/CronJobs** ([#19126](https://github.com/argoproj/argo-cd/issues/19126)): When Jobs or CronJobs have `spec.suspend: true` (introduced in K8s v1.24), the Application becomes "Suspended" even though this is intentional and desired behavior. This affects:
-
    - DR/emergency jobs deployed alongside services
    - Jobs managed by external controllers
    - Monitoring alerts that trigger incorrectly
@@ -43,6 +97,68 @@ Currently, Argo CD aggregates resource health into Application health using a "w
 2. **Resources Without Health Significance**: Some resources don't have meaningful health at the Application level, but currently affect Application health, requiring an annotation on each resource.
 
 3. **Operational Intent Mismatch**: Zero-replica Deployments, suspended CronJobs, and similar intentional states are treated as unhealthy when they represent valid operational states.
+
+**User Quotes from Issues**:
+
+> "We have Jobs that are suspended by default and can be manually triggered. These Jobs mark our Application as Suspended, which triggers false alerts in our monitoring system." - Issue #19126
+
+> "During maintenance windows, we suspend CronJobs. This causes all our Applications to show as Suspended, making it impossible to distinguish between Applications that are actually having issues and those that are just in maintenance." - Issue #24428
+
+> "I want to see in the UI that my CronJob is suspended (so I know it's not running), but I don't want the Application health to be affected because the suspension is intentional." - Issue #19126
+
+These quotes demonstrate that users explicitly need **both** visibility into resource state **and** correct Application health - exactly what R1 requires.
+
+### Why Existing Mechanisms Are Insufficient
+
+| Mechanism                         | Limitation                                          | Missing Capability                                                      |
+| --------------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------- |
+| **Custom Health Check**           | Remaps resource health status                       | Cannot maintain distinct display vs aggregation health (R1)             |
+| **ignore-healthcheck annotation** | Completely removes resource from health calculation | Resource won't affect health even if it becomes Degraded; no visibility |
+| **No configuration**              | Uses default "worst health wins"                    | Suspended Jobs/CronJobs incorrectly mark Application as Suspended       |
+
+### Visual Example: The Key Difference
+
+Consider an Application with a Deployment, a Service, and a suspended CronJob:
+
+**Current Behavior (No Configuration)**:
+
+```
+Application: my-app
+├─ Status: Suspended ❌ (INCORRECT - app is not suspended)
+├─ Deployment: web
+│  └─ Health: Healthy ✅
+├─ Service: web-svc
+│  └─ Health: Healthy ✅
+└─ CronJob: backup
+   └─ Health: Suspended ⏸️
+```
+
+**Alternative 3 (Custom Health Check Override)**:
+
+```
+Application: my-app
+├─ Status: Healthy ✅ (correct)
+├─ Deployment: web
+│  └─ Health: Healthy ✅
+├─ Service: web-svc
+│  └─ Health: Healthy ✅
+└─ CronJob: backup
+   └─ Health: Healthy ❤️ (MISLEADING - operator can't see it's suspended)
+```
+
+**This Proposal (Alternative 1 or 2)**:
+
+```
+Application: my-app
+├─ Status: Healthy ✅ (correct)
+├─ Deployment: web
+│  └─ Health: Healthy ✅
+├─ Service: web-svc
+│  └─ Health: Healthy ✅
+└─ CronJob: backup
+   └─ Health: Suspended ⏸️ (correct - operator can see actual state)
+   └─ Aggregation: Healthy (used for Application health)
+```
 
 ### Goals
 
@@ -62,45 +178,127 @@ Currently, Argo CD aggregates resource health into Application health using a "w
 
 ## Proposal
 
-This proposal presents **two alternative approaches**:
+This proposal presents **three alternative approaches**:
 
 1. **Alternative 1 (ConfigMap-based)**: Introduces a new ConfigMap key `resource.customizations.health-aggregation.<group>_<kind>` for simple status mappings
 2. **Alternative 2 (Lua-based, recommended)**: Extends existing Lua health checks to return an optional `aggregationHealth` field
+3. **Alternative 3 (Custom Health Check Override)**: Use existing custom health check mechanism with annotations to remap health statuses
 
-Both alternatives support per-resource annotation overrides. **Alternative 2 is recommended** because it:
+Alternatives 1 and 2 support per-resource annotation overrides. **Alternative 2 is recommended** because it:
 
 - Reuses existing health check mechanism (simpler architecture)
 - Allows defaults to be shipped in `resource_customizations/` folder
 - Provides more flexibility for conditional logic
 - Keeps health calculation and aggregation configuration in one place
+- **Satisfies R1**: Maintains distinct health states for resource display and aggregation
+
+**Alternative 3 does not satisfy R1** (the critical requirement for distinct health states) and is included only for comparison purposes.
 
 See detailed comparison in the implementation sections below.
 
 ### Use Cases
 
-#### Use Case 1: Suspended Jobs for DR Scenarios
+The following use cases demonstrate how this proposal satisfies the requirements, particularly **R1 (distinct health states)**.
 
-As an operator, I deploy a MySQL database with a suspended backup Job. The Job is part of my Helm chart and can be manually triggered during DR scenarios. I want my Application to show as "Healthy" even though the Job is suspended, because suspension is intentional.
+#### Use Case 1: Suspended Jobs for DR Scenarios (Addresses R1, R2, R4)
 
-**Solution**: Configure Kind-level mapping for Jobs to treat Suspended as Healthy.
+**Scenario**: As an operator, I deploy a MySQL database with a suspended backup Job. The Job is part of my Helm chart and can be manually triggered during DR scenarios. I want my Application to show as "Healthy" even though the Job is suspended, because suspension is intentional.
 
-#### Use Case 2: Suspended CronJobs for Maintenance Windows
+**Current Problem**:
 
-As a developer, I have CronJobs that run periodic tasks. During maintenance windows, I suspend these CronJobs. I don't want my Application to show as "Suspended" during this time.
+- Application health: Suspended ❌ (incorrect - Application is not actually suspended)
+- Job display in resource tree: Suspended ⏸️ (correct)
 
-**Solution**: Configure Kind-level mapping for CronJobs to treat Suspended as Healthy.
+**Desired Behavior (R1)**:
 
-#### Use Case 3: Ignoring a specific Kind Health
+- Application health: Healthy ✅ (Job suspension doesn't affect Application)
+- Job display in resource tree: Suspended ⏸️ (operators can see the Job is suspended)
 
-As a platform engineer, I have custom resources that are dynamically created/deleted. I don't want missing these resources to affect Application health.
+**Solution**: Configure Kind-level mapping for Jobs to treat Suspended as Healthy for aggregation purposes.
 
-**Solution**: Add `argocd.argoproj.io/ignore-healthcheck: "true"` annotation to the resource, or configure them to have no health check in the first place.
+**Why Alternative 3 Fails**: Custom health check would show Job as "Healthy" in resource tree, hiding the fact that it's suspended.
 
-#### Use Case 4: Per-Resource Override
+#### Use Case 2: Suspended CronJobs for Maintenance Windows (Addresses R1, R2, R4)
 
-As a developer, most of my Jobs should affect health normally, but one specific Job is a manual-trigger Job that should be treated as healthy when suspended.
+**Scenario**: As a developer, I have CronJobs that run periodic tasks. During maintenance windows, I suspend these CronJobs. I don't want my Application to show as "Suspended" during this time.
+
+**Current Problem**:
+
+- Application health: Suspended ❌ (incorrect - Application is operational)
+- CronJob display in resource tree: Suspended ⏸️ (correct)
+
+**Desired Behavior (R1)**:
+
+- Application health: Healthy ✅ (CronJob suspension is intentional)
+- CronJob display in resource tree: Suspended ⏸️ (operators can see which CronJobs are suspended)
+
+**Solution**: Configure Kind-level mapping for CronJobs to treat Suspended as Healthy for aggregation purposes.
+
+**Why Alternative 3 Fails**: Custom health check would show CronJob as "Healthy" in resource tree, making it impossible to see which CronJobs are currently suspended.
+
+#### Use Case 3: Progressing HPA During Scale Operations (Addresses R1)
+
+**Scenario**: As a platform engineer, I have HorizontalPodAutoscalers that show as "Progressing" during normal scale operations. I don't want my Application to show as "Progressing" every time the HPA adjusts replica counts, as this is normal behavior.
+
+**Current Problem**:
+
+- Application health: Progressing ⚠️ (misleading - this is normal operation)
+- HPA display in resource tree: Progressing (correct - HPA is actively scaling)
+
+**Desired Behavior (R1)**:
+
+- Application health: Healthy ✅ (HPA scaling is normal operation)
+- HPA display in resource tree: Progressing ⚠️ (operators can see HPA is actively scaling)
+
+**Solution**: Configure Kind-level mapping for HPAs to treat Progressing as Healthy for aggregation purposes.
+
+**Why Alternative 3 Fails**: Custom health check would show HPA as "Healthy" in resource tree, hiding the fact that it's actively scaling.
+
+**Note**: This use case can be addressed with existing mechanisms (`argocd.argoproj.io/ignore-healthcheck: "true"`), but this proposal provides a more nuanced solution that preserves visibility while controlling aggregation.
+
+#### Use Case 4: Per-Resource Override for Critical Jobs (Addresses R1, R3)
+
+**Scenario**: As a developer, most of my Jobs should affect health normally, but one specific Job is a manual-trigger Job that should be treated as healthy when suspended.
+
+**Current Problem**: Cannot have different behavior for different Jobs of the same Kind without custom health checks that hide the actual state.
+
+**Desired Behavior (R1)**:
+
+- Application health: Healthy ✅ (manual Job suspension doesn't affect Application)
+- Manual Job display in resource tree: Suspended ⏸️ (operators can see it's suspended)
+- Other Jobs: Use default behavior (Suspended → Suspended if that's the default)
 
 **Solution**: Add annotation to that specific Job to override its health aggregation. The annotation will be merged with Kind-level configuration, with annotation values taking precedence.
+
+**Why Alternative 3 Fails**: Would require complex Lua logic to read annotations and conditionally remap health, and would still hide the actual state in the resource tree.
+
+#### Use Case 5: Critical Job That Must Affect Health (Addresses R3)
+
+**Scenario**: As an operator, I have a default configuration where suspended Jobs don't affect Application health. However, one specific Job is critical and should affect Application health even when suspended.
+
+**Current Problem**: With default configuration, all suspended Jobs are treated as healthy for aggregation.
+
+**Desired Behavior (R1)**:
+
+- Application health: Suspended ❌ (critical Job is suspended)
+- Critical Job display in resource tree: Suspended ⏸️ (operators can see it's suspended)
+- Other Jobs: Use default behavior (Suspended → Healthy)
+
+**Solution**: Add annotation to the critical Job to override the default:
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: critical-job
+  annotations:
+    # Override default: this Job should affect health even when suspended
+    argocd.argoproj.io/health-aggregation: 'Suspended=Suspended'
+spec:
+  suspend: true
+```
+
+This demonstrates the **precedence model**: Annotation > Kind-level config > Default behavior.
 
 ### Implementation Details/Notes/Constraints
 
@@ -642,17 +840,151 @@ end
 return hs
 ```
 
-### Comparison with Alternative 1
+---
 
-| Aspect                     | Alternative 1 (ConfigMap)                              | Alternative 2 (Lua)                                                |
-| -------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------ |
-| **Configuration location** | New `resource.customizations.health-aggregation.*` key | Existing `resource.customizations.health.*` Lua scripts            |
-| **Default configuration**  | Must be in argocd-cm ConfigMap                         | Can be in `resource_customizations/` folder (shipped with Argo CD) |
-| **Flexibility**            | Simple string mapping only                             | Can include conditional logic                                      |
-| **Learning curve**         | New mechanism to learn                                 | Reuses existing health check pattern                               |
-| **Wildcard support**       | Yes, via ConfigMap keys                                | Yes, via file structure (same as health checks)                    |
-| **Annotation override**    | Yes                                                    | Yes                                                                |
-| **Code complexity**        | Medium (new parsing, wildcard matching)                | Low (extend existing Lua execution)                                |
+## Alternative 3: Custom Health Check Override (Does Not Meet Requirements)
+
+This approach uses the existing custom health check mechanism to remap health statuses.
+
+### How It Works
+
+Users can already override health checks using custom Lua scripts in the ConfigMap or via the `resource.customizations.health.<group>_<kind>` key. To "solve" the suspended CronJob problem, a user could write:
+
+```lua
+-- Custom health check that treats suspended as healthy
+hs = {}
+if obj.spec.suspend ~= nil and obj.spec.suspend == true then
+  hs.status = "Healthy"  -- Remap Suspended to Healthy
+  hs.message = "CronJob is suspended"
+else
+  hs.status = "Healthy"
+end
+return hs
+```
+
+Or, for a more complex case with Jobs:
+
+```lua
+hs = {}
+if obj.status ~= nil then
+  if obj.status.succeeded ~= nil and obj.status.succeeded > 0 then
+    hs.status = "Healthy"
+  elseif obj.spec.suspend ~= nil and obj.spec.suspend == true then
+    hs.status = "Healthy"  -- Remap Suspended to Healthy
+    hs.message = "Job is suspended"
+  elseif obj.status.failed ~= nil and obj.status.failed > 0 then
+    hs.status = "Degraded"
+  else
+    hs.status = "Progressing"
+  end
+end
+return hs
+```
+
+### Per-Resource Override with Annotation
+
+To enable per-resource overrides, users could add an annotation-based custom health check:
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup-job
+  annotations:
+    # Use existing ignore-healthcheck annotation
+    argocd.argoproj.io/ignore-healthcheck: 'true'
+spec:
+  suspend: true
+  # ... rest of spec
+```
+
+Or use a custom health check that reads annotations to decide behavior.
+
+### Critical Limitation: Does Not Satisfy R1
+
+**This approach fundamentally fails to meet Requirement R1** because it remaps the resource's actual health status. This means:
+
+❌ **Loss of Resource State Visibility**: The resource tree will show "Healthy" (with a green heart icon) instead of "Suspended" (with the appropriate suspended icon). Operators lose visibility into the actual state of the resource.
+
+❌ **Misleading Resource Information**: A suspended CronJob showing as "Healthy" gives the false impression that the CronJob is running normally, when it's actually suspended.
+
+❌ **No Distinction Between Actual and Aggregated Health**: The resource's displayed health is the same as what contributes to aggregation. There's no way to show "this resource is Suspended, but that's okay for the Application."
+
+❌ **Debugging Difficulty**: When troubleshooting, operators cannot distinguish between resources that are genuinely healthy and resources that are in a non-healthy state but have been remapped.
+
+### Example Comparison
+
+Consider a suspended CronJob:
+
+| Approach               | Resource Tree Display | Application Health | Satisfies R1?                                    |
+| ---------------------- | --------------------- | ------------------ | ------------------------------------------------ |
+| **Current Behavior**   | Suspended (⏸️ icon)   | Suspended          | ❌ No (Application incorrectly marked Suspended) |
+| **Alternative 3**      | Healthy (❤️ icon)     | Healthy            | ❌ No (Resource state is hidden)                 |
+| **Alternative 1 or 2** | Suspended (⏸️ icon)   | Healthy            | ✅ Yes (Distinct states preserved)               |
+
+### Why This Matters: Real-World Scenarios
+
+**Scenario 1: Monitoring and Alerting**
+
+An operator is investigating why an Application is not behaving as expected. They open the resource tree:
+
+- **With Alternative 3**: All resources show as "Healthy". The operator doesn't realize that several CronJobs are suspended and not running their scheduled tasks.
+- **With Alternative 1/2**: Resources correctly show as "Suspended". The operator immediately sees which CronJobs are not running and can investigate if this is intentional or a problem.
+
+**Scenario 2: Operational Visibility**
+
+A team wants to see which CronJobs are currently suspended for maintenance:
+
+- **With Alternative 3**: Impossible to determine from the UI. The health status has been remapped to "Healthy", hiding the actual state.
+- **With Alternative 1/2**: Suspended CronJobs are clearly visible in the resource tree with the suspended icon, while the Application remains healthy.
+
+**Scenario 3: Debugging a Broken Job**
+
+A Job is suspended but also has failures in its status:
+
+- **With Alternative 3**: The custom health check might show "Healthy" (hiding both the suspension and the failures), or it might show "Degraded" (but you can't tell if it's suspended or not).
+- **With Alternative 1/2**: The Job shows its actual health state (e.g., "Degraded" with details about failures), and the aggregation behavior can be configured independently.
+
+### Additional Drawbacks
+
+Beyond failing R1, this approach has other significant drawbacks:
+
+1. **No Default Behavior (R2)**: Cannot ship sensible defaults in `resource_customizations/` without changing the displayed health status for all users. This would be a breaking change.
+
+2. **Requires Overriding Built-in Health Checks**: Users must completely replace the built-in health check logic, which means:
+   - Losing future improvements to built-in health checks
+   - Maintaining custom Lua code for every resource type
+   - Risk of bugs in custom health check logic
+
+3. **Cannot Conditionally Apply**: If you want some suspended Jobs to affect health and others not to, you need complex Lua logic that reads annotations, making the health check script very complicated.
+
+4. **Ignoring Resources Too Broad**: Using `argocd.argoproj.io/ignore-healthcheck: "true"` completely removes the resource from health calculation, which means:
+   - The resource won't affect health even if it becomes Degraded
+   - No visibility into the resource's health at all
+   - Cannot distinguish between "intentionally suspended" and "broken"
+
+### Conclusion: Why Alternative 3 Is Insufficient
+
+While Alternative 3 (custom health check override) is technically possible with existing Argo CD functionality, it **fundamentally fails to meet the core requirement** of maintaining distinct health states for resource display and aggregation. This limitation makes it unsuitable for the use cases described in this proposal.
+
+The value of Alternatives 1 and 2 is precisely that they **preserve resource state visibility** while allowing flexible aggregation behavior. This is not achievable through custom health checks alone.
+
+---
+
+### Comparison of All Alternatives
+
+| Aspect                             | Alternative 1 (ConfigMap)                              | Alternative 2 (Lua)                                                | Alternative 3 (Custom Health Check)                     |
+| ---------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------- |
+| **Satisfies R1** (Distinct States) | ✅ Yes                                                 | ✅ Yes                                                             | ❌ No                                                   |
+| **Configuration location**         | New `resource.customizations.health-aggregation.*` key | Existing `resource.customizations.health.*` Lua scripts            | Existing `resource.customizations.health.*` Lua scripts |
+| **Default configuration**          | Must be in argocd-cm ConfigMap                         | Can be in `resource_customizations/` folder (shipped with Argo CD) | Cannot ship without breaking changes                    |
+| **Flexibility**                    | Simple string mapping only                             | Can include conditional logic                                      | Full Lua flexibility                                    |
+| **Learning curve**                 | New mechanism to learn                                 | Reuses existing health check pattern                               | Reuses existing health check pattern                    |
+| **Wildcard support**               | Yes, via ConfigMap keys                                | Yes, via file structure (same as health checks)                    | Yes, via ConfigMap keys                                 |
+| **Annotation override**            | Yes                                                    | Yes                                                                | Via ignore-healthcheck only                             |
+| **Code complexity**                | Medium (new parsing, wildcard matching)                | Low (extend existing Lua execution)                                | None (already exists)                                   |
+| **Resource Tree Accuracy**         | ✅ Shows actual health                                 | ✅ Shows actual health                                             | ❌ Shows remapped health                                |
+| **Operational Visibility**         | ✅ Full visibility                                     | ✅ Full visibility                                                 | ❌ Hidden state                                         |
 
 ### Security Considerations
 
@@ -782,22 +1114,144 @@ to find out why. With aggregation health overrides, this might be more complex a
 
 ## Summary of Key Decisions
 
-1. ✅ **Two alternatives proposed**: ConfigMap-based (Alternative 1) vs Lua-based (Alternative 2, recommended)
-2. ✅ **Ship with defaults**: Job and CronJob get suspended → healthy mapping by default
-3. ✅ **Breaking change accepted**: This fixes incorrect behavior per community feedback in #19126
-4. ✅ **Ignoring resources**: Use existing `argocd.argoproj.io/ignore-healthcheck` annotation (no special mapping syntax)
-5. ✅ **Clear precedence**: Annotation > Lua/ConfigMap > Default status (in that order)
-6. ✅ **Downgrade safe**: No data loss, behavior simply reverts to original
-7. ✅ **Consistent with existing patterns**: Alternative 2 reuses existing health check mechanism
+1. ✅ **Three alternatives evaluated**: ConfigMap-based (Alternative 1), Lua-based (Alternative 2, recommended), and Custom Health Check Override (Alternative 3, insufficient)
+2. ✅ **Critical requirement identified (R1)**: Must maintain distinct health states for resource display and aggregation
+3. ✅ **Alternative 3 rejected**: Does not satisfy R1 - remaps resource health status, hiding actual state from operators
+4. ✅ **Ship with defaults**: Job and CronJob get suspended → healthy mapping by default
+5. ✅ **Breaking change accepted**: This fixes incorrect behavior per community feedback in #19126
+6. ✅ **Ignoring resources**: Use existing `argocd.argoproj.io/ignore-healthcheck` annotation (no special mapping syntax)
+7. ✅ **Clear precedence**: Annotation > Lua/ConfigMap > Default status (in that order)
+8. ✅ **Downgrade safe**: No data loss, behavior simply reverts to original
+9. ✅ **Consistent with existing patterns**: Alternative 2 reuses existing health check mechanism
 
 ### Recommendation: Alternative 2 (Lua-based)
 
 **Rationale**:
 
+- **Satisfies all requirements (R1-R5)**: Particularly R1 (distinct health states) and R2 (default configuration)
 - **Solves the open question**: Defaults can be shipped in `resource_customizations/` folder
 - **Simpler architecture**: Extends existing mechanism instead of adding new ConfigMap keys
 - **More flexible**: Lua can implement conditional logic if needed
 - **Better developer experience**: One place to configure both health calculation and aggregation
 - **Easier to maintain**: Built-in health checks are versioned with the codebase
+- **Preserves operational visibility**: Resource tree shows actual health state while Application uses aggregated health
 
 **Trade-off**: Requires Lua knowledge for customization, but this is already required for custom health checks.
+
+**Why Not Alternative 3**: While Alternative 3 (custom health check override) requires no new code, it fundamentally fails to meet the core requirement (R1) of maintaining distinct health states for resource display and aggregation. This makes it unsuitable for the use cases described in this proposal, where operators need to see the actual resource state while having different aggregation behavior.
+
+## Frequently Asked Questions
+
+### Q: Why not just use custom health checks to remap statuses?
+
+**A**: Custom health checks remap the resource's displayed health status, which means operators lose visibility into the actual state of the resource. This proposal maintains **two separate health states**: one for display (actual resource state) and one for aggregation (contribution to Application health). This distinction is critical for operational visibility and debugging.
+
+See **Alternative 3** section for detailed examples of why custom health checks are insufficient.
+
+### Q: Can't users just add `argocd.argoproj.io/ignore-healthcheck: "true"` to resources they want to ignore?
+
+**A**: The `ignore-healthcheck` annotation completely removes the resource from health calculation, which means:
+
+- The resource won't affect Application health even if it becomes Degraded or fails
+- No visibility into the resource's health at all in some contexts
+- Cannot distinguish between "intentionally suspended" and "broken"
+
+This proposal provides more nuanced control: a suspended CronJob can still affect Application health if it becomes Degraded, but suspension itself is treated as healthy.
+
+### Q: Is this just about CronJobs and Jobs?
+
+**A**: While suspended Jobs/CronJobs are the most common use case (and the motivation from issues #19126, #24428), this proposal solves a broader problem:
+
+- HPAs showing as "Progressing" during normal scale operations
+- Custom resources with domain-specific health states
+- Any scenario where a resource's health state has different meanings for display vs aggregation
+
+The goal is to provide a general mechanism that works for any resource type.
+
+### Q: Won't this hide real health issues?
+
+**A**: No, because:
+
+1. **Resource health is still visible**: The resource tree shows the actual health state with the correct icon
+2. **Aggregation is configurable**: Users explicitly choose which statuses to remap
+3. **Degraded states still bubble up**: By default, only specific states (like Suspended) are remapped; Degraded and other failure states still affect Application health
+
+Example: A suspended CronJob that also has failures would show as "Degraded" (not "Suspended"), and Degraded would still affect Application health unless explicitly configured otherwise.
+
+### Q: What if I want to restore the original behavior?
+
+**A**: Easy:
+
+- **Alternative 1**: Remove or empty the ConfigMap key for the resource type
+- **Alternative 2**: Override the built-in Lua script with one that doesn't set `aggregationHealth`
+- **Per-resource**: Add annotation to override the default behavior
+
+The feature is designed to be fully reversible without data loss.
+
+### Q: How does this affect performance?
+
+**A**: Minimal impact:
+
+- **Alternative 1**: Simple string map lookup during health aggregation (already happening)
+- **Alternative 2**: Lua scripts already execute for health checks; just extracts one additional field
+- **Annotation parsing**: Simple string operations, only when annotation is present
+
+Health aggregation is not a hot path, so the additional overhead is negligible.
+
+### Q: Will this work with existing custom health checks?
+
+**A**: Yes:
+
+- **Alternative 1**: Works independently of health checks; operates on the health status after it's calculated
+- **Alternative 2**: Extends existing health checks with an optional field; existing health checks continue to work without changes
+
+### Q: What about backward compatibility?
+
+**A**: Fully backward compatible:
+
+- Existing Applications continue to work without changes
+- The feature is opt-in via configuration
+- If we ship with defaults for Jobs/CronJobs, users can override or disable them
+
+The only "breaking change" is fixing the incorrect behavior where suspended Jobs/CronJobs mark Applications as Suspended, which is widely considered a bug per community feedback.
+
+### Q: Can I have different behavior for different instances of the same Kind?
+
+**A**: Yes, using per-resource annotations:
+
+- Set a Kind-level default in ConfigMap or Lua script
+- Override specific instances with `argocd.argoproj.io/health-aggregation` annotation
+- Annotation takes precedence over Kind-level configuration
+
+See **Use Case 4** and **Use Case 5** for examples.
+
+### Q: How does this interact with `ignore-healthcheck`?
+
+**A**: They work together:
+
+- `ignore-healthcheck: "true"` completely removes the resource from health calculation (existing behavior)
+- Health aggregation overrides (this proposal) allow the resource to participate in health calculation but with remapped status
+- If both are present, `ignore-healthcheck` takes precedence (resource is completely ignored)
+
+### Q: What happens if I configure an invalid mapping?
+
+**A**:
+
+- Invalid status names should be rejected with clear error messages
+- Invalid mappings are logged and ignored (fall back to default behavior)
+- Application health calculation continues to work (fail-safe)
+
+### Q: Can I use wildcards to match multiple resource types?
+
+**A**:
+
+- **Alternative 1**: Yes, using underscore `_` as wildcard in ConfigMap keys (e.g., `batch_*` matches all batch resources)
+- **Alternative 2**: Yes, via file structure in `resource_customizations/` (same as existing health checks)
+
+### Q: How do I know which health status a resource is contributing to the Application?
+
+**A**: This is a UI/UX question that should be addressed in implementation:
+
+- Resource tree could show both "Health: Suspended" and "Aggregates as: Healthy"
+- Application health details could list which resources contributed to the aggregated health
+- This is out of scope for this proposal but should be considered in implementation
