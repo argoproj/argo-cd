@@ -208,6 +208,5 @@ func TestSyncWithValidSAButDisallowedDestination(t *testing.T) {
 		// With the impersonation feature enabled, Application sync must fail
 		// as there is a valid match found in the available destination service accounts configured in AppProject
 		// but the destination namespace is now disallowed.
-		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeUnknown)).
 		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeUnknown), WaitDuration, TimeoutDuration)
 }
