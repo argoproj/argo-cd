@@ -79,6 +79,8 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 	if len(sources) == 0 {
 		return nil, fmt.Errorf("application has no sources")
 	}
+	// Explicit bounds check is required because GetSourcePtrByIndex does not validate the index:
+	// it silently falls back to Sources[0] for any index <= 0 and panics for out-of-range positive indices.
 	if sourceIndex < 0 || sourceIndex >= len(sources) {
 		return nil, fmt.Errorf("source index %d out of range (application has %d sources)", sourceIndex, len(sources))
 	}
