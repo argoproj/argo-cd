@@ -446,20 +446,6 @@ Revoked tokens cannot be used for API calls, even if they haven't expired yet. T
 - Token reuse if a token is compromised
 - Security gaps with Dex SSO where tokens are not automatically invalidated
 
-#### Redis Requirement for Token Revocation
-
-> [!IMPORTANT]
-> Token revocation requires **Redis** to be configured in production environments with multiple Argo CD server instances.
-
-**For single-instance deployments:**
-- Token revocation works in-memory without Redis
-- Tokens are revoked immediately on logout
-
-**For multi-instance (HA) deployments:**
-- Redis is **required** for token revocation to work across all server instances
-- Without Redis, a revoked token on one server instance may still be accepted by another instance
-- Redis is used to share the revocation list across all server instances with TTL matching token expiration
-
 #### Graceful Degradation
 
 The `argocd logout` command will gracefully handle scenarios where the server is unreachable:
@@ -474,14 +460,9 @@ This allows users to logout locally even if the server is down, though the token
 
 #### Security Best Practices
 
-1. **Configure Redis for HA deployments**: Ensure Redis is properly configured when running multiple Argo CD server instances
-2. **Use short-lived tokens**: Configure reasonable token expiration times to limit the window of exposure
-3. **Enable logout URLs**: Configure `logoutURL` for your OIDC provider to ensure SSO sessions are also terminated
-4. **Monitor token usage**: Use Argo CD's audit logging to track token creation and revocation events
-
-#### Dex-Specific Behavior
-
-Dex tokens do not include a standard `jti` (JWT ID) claim. Argo CD uses the `at_hash` (access token hash) claim as a unique identifier for Dex tokens during revocation. This is a pragmatic workaround that maintains security while supporting Dex SSO.
+1.**Use short-lived tokens**: Configure reasonable token expiration times in the OIDC provider to limit the window of exposure
+2.**Enable logout URLs**: Configure `logoutURL` in `oidc.config` for your OIDC provider to ensure SSO sessions are also terminated
+3.**Monitor token usage**: Use Argo CD's audit logging to track token creation and revocation events
 
 ### Configuring a custom root CA certificate for communicating with the OIDC provider
 

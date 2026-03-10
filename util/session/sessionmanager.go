@@ -287,12 +287,12 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		return nil, "", fmt.Errorf("account %s does not have '%s' capability", subject, capability)
 	}
 
-	switch {
-	case id == "":
+	if id == "" {
 		return nil, "", errors.New("token does not have a unique identifier (jti claim) and cannot be validated")
-	case mgr.storage.IsTokenRevoked(id):
+	}
+	if mgr.storage.IsTokenRevoked(id) {
 		return nil, "", errors.New("token is revoked, please re-login")
-	case capability == settings.AccountCapabilityApiKey && account.TokenIndex(id) == -1:
+	} else if capability == settings.AccountCapabilityApiKey && account.TokenIndex(id) == -1 {
 		return nil, "", fmt.Errorf("account %s does not have token with id %s", subject, id)
 	}
 
