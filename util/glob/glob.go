@@ -23,7 +23,7 @@ var (
 	// This prevents memory exhaustion from potentially untrusted RBAC patterns
 	// while still providing significant performance benefits.
 	globCache     *lru.Cache
-	globCacheLock sync.Mutex
+	globCacheLock sync.RWMutex
 	compileGlob   compileFn = glob.Compile
 )
 
@@ -52,22 +52,32 @@ func cacheKey(pattern string, separators ...rune) globCacheKey {
 }
 
 // getOrCompile returns a cached compiled glob pattern, compiling and caching it if necessary.
+// It uses a double-check pattern: read lock for cache hits, compile outside the lock,
+// then write lock to store the result. This avoids serializing expensive compilations
+// across goroutines for unrelated patterns.
 func getOrCompile(pattern string, compiler compileFn, separators ...rune) (glob.Glob, error) {
-	globCacheLock.Lock()
-	defer globCacheLock.Unlock()
-
 	key := cacheKey(pattern, separators...)
+
+	globCacheLock.RLock()
 	if cached, ok := globCache.Get(key); ok {
+		globCacheLock.RUnlock()
 		return cached.(glob.Glob), nil
 	}
+	globCacheLock.RUnlock()
 
-	// Compile and cache
 	compiled, err := compiler(pattern, separators...)
 	if err != nil {
 		return nil, err
 	}
 
+	globCacheLock.Lock()
+	if cached, ok := globCache.Get(key); ok {
+		globCacheLock.Unlock()
+		return cached.(glob.Glob), nil
+	}
 	globCache.Add(key, compiled)
+	globCacheLock.Unlock()
+
 	return compiled, nil
 }
 
