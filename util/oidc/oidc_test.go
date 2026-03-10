@@ -179,7 +179,7 @@ requestedScopes: ["openid", "profile", "email", "groups"]`, oidcTestServer.URL),
 	app, err := NewClientApp(cdSettings, "", nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
 	w := httptest.NewRecorder()
 	app.HandleLogin(w, req)
 
