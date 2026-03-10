@@ -620,6 +620,16 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 		if err != nil {
 			return nil, "", err
 		}
+
+		// Reject tokens whose OIDC session was revoked via backchannel logout.
+		if sid := jwtutil.StringField(claims, "sid"); sid != "" {
+			if mgr.storage.IsOIDCSessionRevoked(sid) {
+				err = errors.New("user session has been revoked")
+				span.SetStatus(otel_codes.Error, err.Error())
+				return nil, "", err
+			}
+		}
+
 		return claims, "", nil
 	}
 }
@@ -641,6 +651,13 @@ func (mgr *SessionManager) provider() (oidcutil.Provider, error) {
 
 func (mgr *SessionManager) RevokeToken(ctx context.Context, id string, expiringAt time.Duration) error {
 	return mgr.storage.RevokeToken(ctx, id, expiringAt)
+}
+
+// RevokeOIDCSession revokes the OIDC session identified by sid, preventing any token carrying
+// that sid from being accepted. expiration should be set to the remaining lifetime of the
+// longest-lived token associated with this session (e.g. the token's exp - now).
+func (mgr *SessionManager) RevokeOIDCSession(ctx context.Context, sid string, expiration time.Duration) error {
+	return mgr.storage.RevokeOIDCSession(ctx, sid, expiration)
 }
 
 func LoggedIn(ctx context.Context) bool {

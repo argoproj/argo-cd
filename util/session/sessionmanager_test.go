@@ -1565,3 +1565,69 @@ func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
 		}
 	})
 }
+func TestSessionManager_VerifyToken_RevokedOIDCSID(t *testing.T) {
+	oidcTestServer := utiltest.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	redis, closer := test.NewInMemoryRedis()
+	defer closer()
+
+	const clientID = "argo-test-client"
+	const sessionID = "sid-to-revoke-abc"
+
+	dexConfig := map[string]string{
+		"url": "",
+		"oidc.config": fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: %s
+clientSecret: secret
+requestedScopes: ["openid"]`, oidcTestServer.URL, clientID),
+	}
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClientWithConfig(dexConfig, nil), "argocd")
+	storage := NewUserStateStorage(redis)
+	storage.Init(t.Context())
+
+	mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, storage)
+	mgr.verificationDelayNoiseEnabled = false
+	// Use the test server's TLS client so the self-signed certificate is accepted.
+	mgr.client = oidcTestServer.Client()
+
+	makeToken := func() string {
+		t.Helper()
+		claims := jwt.MapClaims{
+			"iss": oidcTestServer.URL,
+			"aud": clientID,
+			"sub": "user1",
+			"iat": time.Now().Unix(),
+			"exp": time.Now().Add(time.Hour).Unix(),
+			"sid": sessionID,
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, claims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(utiltest.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+		return tokenString
+	}
+
+	t.Run("token is valid before session is revoked", func(t *testing.T) {
+		_, _, err := mgr.VerifyToken(t.Context(), makeToken())
+		// Verification may succeed or fail for other OIDC-level reasons; what matters is that
+		// we do NOT get a revocation error before the session is revoked.
+		if err != nil {
+			assert.NotContains(t, err.Error(), "has been revoked")
+		}
+	})
+
+	// Revoke the session in the storage, simulating a backchannel logout.
+	err := storage.RevokeOIDCSession(t.Context(), sessionID, time.Hour)
+	require.NoError(t, err)
+
+	t.Run("token is rejected after session is revoked", func(t *testing.T) {
+		_, _, err := mgr.VerifyToken(t.Context(), makeToken())
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "has been revoked")
+	})
+}

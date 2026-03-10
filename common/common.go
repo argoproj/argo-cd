@@ -164,6 +164,8 @@ const (
 	LoginEndpoint = "/auth/login"
 	// LogoutEndpoint is Argo CD's shorthand logout endpoint which invalidates OIDC session after logout
 	LogoutEndpoint = "/auth/logout"
+	// BackchannelLogoutEndpoint is Argo CD's endpoint for receiving OIDC backchannel logout requests from the IdP
+	BackchannelLogoutEndpoint = "/auth/backchannel-logout"
 	// CallbackEndpoint is Argo CD's final callback endpoint we reach after OAuth 2.0 login flow has been completed
 	CallbackEndpoint = "/auth/callback"
 	// DexCallbackEndpoint is Argo CD's final callback endpoint when Dex is configured

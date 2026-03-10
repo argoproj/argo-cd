@@ -464,6 +464,53 @@ This allows users to logout locally even if the server is down, though the token
 2.**Enable logout URLs**: Configure `logoutURL` in `oidc.config` for your OIDC provider to ensure SSO sessions are also terminated
 3.**Monitor token usage**: Use Argo CD's audit logging to track token creation and revocation events
 
+### Backchannel logout (server-side session termination)
+
+Argo CD supports [OIDC Back-Channel Logout](https://openid.net/specs/openid-connect-backchannel-1_0.html), which allows your IdP to immediately terminate active ArgoCD sessions when a user logs out at the IdP level — without requiring the user's browser to visit ArgoCD.
+
+When the IdP sends a logout notification, ArgoCD verifies the signed logout token and revokes the corresponding session server-side. Any subsequent API request carrying that session's token will be rejected, even if the JWT has not yet expired.
+
+#### Requirements
+
+* An **external OIDC provider** configured under `oidc.config` (Dex is not supported, as it does not issue `sid` claims).
+* The IdP must send a `sid` (session ID) claim in ID tokens **and** in logout tokens.
+* Redis must be available (the revocation state is replicated across all `argocd-server` replicas via Redis pub/sub).
+
+#### Configuring the IdP
+
+Register the following URL as the backchannel logout URI in your IdP's client settings:
+
+```
+https://<your-argocd-host>/auth/backchannel-logout
+```
+
+The IdP must `POST` a signed `logout_token` (as `application/x-www-form-urlencoded`) to this endpoint when a session ends.
+
+#### IdP-specific notes
+
+**Keycloak**
+
+In the client settings, enable *Backchannel logout* and set the *Backchannel logout URL* to the endpoint above. Ensure *Backchannel logout session required* is enabled so that the `sid` claim is included.
+
+**Microsoft Entra ID (Azure AD)**
+
+Entra ID supports backchannel logout for confidential clients. Register the logout URL in the app registration under *Authentication → Front-channel logout URL* (note: Entra's backchannel support is separate). Refer to [Microsoft's documentation](https://learn.microsoft.com/en-us/entra/identity-platform/logout-openid-connect) for details.
+
+**Okta**
+
+In the Okta admin console, navigate to *Security → API → Authorization Servers*, select your server, then add a backchannel logout policy. Set the *Back-channel Logout URI* to the endpoint above.
+
+#### How it works
+
+1. The user logs out from the IdP (directly, or via another application).
+2. The IdP sends a `POST /auth/backchannel-logout` request to Argo CD with a signed logout token.
+3. Argo CD verifies the token's signature, issuer, audience, and required claims (`events`, `sid`).
+4. The `sid` is stored as revoked in Redis (replicated to all replicas via pub/sub), with a TTL of 24 hours.
+5. Any Argo CD API request whose OIDC token carries that `sid` is rejected with an authentication error, prompting re-login.
+
+> [!NOTE]
+> The `exp` claim is optional in logout tokens per the OIDC Backchannel Logout spec (§2.4). Argo CD accepts logout tokens without `exp`, and only enforces expiry when the claim is present.
+
 ### Configuring a custom root CA certificate for communicating with the OIDC provider
 
 If your OIDC provider is setup with a certificate which is not signed by one of the well known certificate authorities
