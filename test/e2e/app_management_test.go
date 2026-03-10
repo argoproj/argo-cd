@@ -3102,13 +3102,18 @@ func TestDeletionConfirmation(t *testing.T) {
 		When().
 		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/metadata/annotations", "value": { "argocd.argoproj.io/sync-options": "Delete=confirm" }}]`).
 		CreateApp().Sync().
-		Then().ExpectConsistently(OperationPhaseIs(OperationRunning), time.Second, 5*time.Second).
+		Then().
+		Expect(OperationPhaseIs(OperationRunning)).
+		ExpectConsistently(OperationPhaseIs(OperationRunning), time.Second, 5*time.Second).
 		When().ConfirmDeletion().
 		Then().Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		When().Delete(true).
 		Then().
+		Expect(App(func(app *Application) bool {
+			return app.DeletionTimestamp != nil
+		})).
 		ExpectConsistently(App(func(app *Application) bool {
 			return app.DeletionTimestamp != nil
 		}), time.Second, 5*time.Second).

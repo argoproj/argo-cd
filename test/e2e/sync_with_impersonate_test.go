@@ -33,6 +33,7 @@ func TestSyncWithFeatureDisabled(t *testing.T) {
 		Then().
 		// With the impersonation feature disabled, Application sync should continue to use
 		// the control plane service account for the sync operation and the sync should succeed.
+		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced)).
 		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeSynced), WaitDuration, TimeoutDuration).
 		Expect(OperationMessageContains("successfully synced"))
 }
@@ -48,6 +49,7 @@ func TestSyncWithNoDestinationServiceAccountsInProject(t *testing.T) {
 		Then().
 		// With the impersonation feature enabled, Application sync must fail
 		// when there are no destination service accounts configured in AppProject
+		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeOutOfSync)).
 		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeOutOfSync), WaitDuration, TimeoutDuration).
 		Expect(OperationMessageContains("failed to find a matching service account to impersonate"))
 }
@@ -96,6 +98,7 @@ func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
 		Then().
 		// With the impersonation feature enabled, Application sync should succeed
 		// as there is a valid match found in the available destination service accounts configured in AppProject
+		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced)).
 		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeSynced), WaitDuration, TimeoutDuration).
 		Expect(OperationMessageContains("successfully synced"))
 }
@@ -145,6 +148,7 @@ func TestSyncWithMissingServiceAccount(t *testing.T) {
 		// With the impersonation feature enabled, Application sync must fail
 		// when there is a valid match found in the available destination service accounts configured in AppProject,
 		// but the matching service account is missing.
+		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeOutOfSync)).
 		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeOutOfSync), WaitDuration, TimeoutDuration).
 		Expect(OperationMessageContains("one or more objects failed to apply"))
 }
@@ -204,5 +208,6 @@ func TestSyncWithValidSAButDisallowedDestination(t *testing.T) {
 		// With the impersonation feature enabled, Application sync must fail
 		// as there is a valid match found in the available destination service accounts configured in AppProject
 		// but the destination namespace is now disallowed.
+		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeUnknown)).
 		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeUnknown), WaitDuration, TimeoutDuration)
 }
