@@ -181,7 +181,7 @@ Application: my-app
 This proposal presents **three alternative approaches**:
 
 1. **Alternative 1 (ConfigMap-based)**: Introduces a new ConfigMap key `resource.customizations.health-aggregation.<group>_<kind>` for simple status mappings
-2. **Alternative 2 (Lua-based, recommended)**: Extends existing Lua health checks to return an optional `aggregationHealth` field
+2. **Alternative 2 (Lua-based, recommended)**: Extends existing Lua health checks to return an optional `healthAggregation` field
 3. **Alternative 3 (Custom Health Check Override)**: Use existing custom health check mechanism with annotations to remap health statuses
 
 Alternatives 1 and 2 support per-resource annotation overrides. **Alternative 2 is recommended** because it:
@@ -609,7 +609,7 @@ data:
 
 ## Alternative 2: Lua-Based Health Aggregation (Recommended)
 
-This approach extends the existing Lua health check mechanism to allow scripts to return a separate `aggregationHealth` field. This is **simpler, more consistent, and solves the open question** about providing defaults via `resource_customizations/`.
+This approach extends the existing Lua health check mechanism to allow scripts to return a separate `healthAggregation` field. This is **simpler, more consistent, and solves the open question** about providing defaults via `resource_customizations/`.
 
 ### Key Advantages
 
@@ -640,7 +640,7 @@ spec:
 
 **Kind-Level Configuration via Lua Health Check**:
 
-Instead of a new ConfigMap key, extend existing health Lua scripts to return `aggregationHealth`:
+Instead of a new ConfigMap key, extend existing health Lua scripts to return `healthAggregation`:
 
 ```lua
 -- resource_customizations/batch/Job/health.lua
@@ -651,7 +651,7 @@ if obj.status ~= nil then
   elseif obj.spec.suspend ~= nil and obj.spec.suspend == true then
     hs.status = "Suspended"
     -- NEW: Override aggregation health
-    hs.aggregationHealth = "Healthy"
+    hs.healthAggregation = "Healthy"
   elseif obj.status.failed ~= nil and obj.status.failed > 0 then
     hs.status = "Degraded"
   else
@@ -664,7 +664,7 @@ return hs
 **Configuration Precedence** (highest to lowest):
 
 1. **Per-resource annotation** - `argocd.argoproj.io/health-aggregation` on the resource
-2. **Lua script `aggregationHealth`** - returned by custom health check script
+2. **Lua script `healthAggregation`** - returned by custom health check script
 3. **Default behavior** - Use `hs.status` for aggregation (backward compatible)
 
 ### Code Changes
@@ -676,13 +676,13 @@ type HealthStatus struct {
     Status  HealthStatusCode `json:"status,omitempty"`
     Message string           `json:"message,omitempty"`
     // NEW: Optional override for aggregation purposes
-    AggregationHealth HealthStatusCode `json:"aggregationHealth,omitempty"`
+    HealthAggregation HealthStatusCode `json:"healthAggregation,omitempty"`
 }
 ```
 
 **2. Lua Health Check Execution** (`util/lua/lua.go`):
 
-Modify the Lua health check execution to extract the optional `aggregationHealth` field:
+Modify the Lua health check execution to extract the optional `healthAggregation` field:
 
 ```go
 func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*health.HealthStatus, error) {
@@ -697,18 +697,18 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
     // Extract message (existing)
     message, _ := vm.GetField("message", lua.LTString)
 
-    // NEW: Extract optional aggregationHealth
-    aggregationHealth, _ := vm.GetField("aggregationHealth", lua.LTString)
+    // NEW: Extract optional healthAggregation
+    healthAggregation, _ := vm.GetField("healthAggregation", lua.LTString)
 
     healthStatus := &health.HealthStatus{
         Status:  health.HealthStatusCode(status),
         Message: message,
-        AggregationHealth:  health.HealthStatusCode(status),
+        HealthAggregation:  health.HealthStatusCode(status),
     }
 
     // NEW: Set aggregation health if provided
-    if aggregationHealth != "" {
-        healthStatus.AggregationHealth = health.HealthStatusCode(aggregationHealth)
+    if healthAggregation != "" {
+        healthStatus.HealthAggregation = health.HealthStatusCode(healthAggregation)
     }
 
     return healthStatus, nil
@@ -737,7 +737,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
         }
 
         // NEW: Determine aggregation health with proper precedence
-        aggregationStatus := healthStatus.AggregationHealth // Default: use status
+        aggregationStatus := healthStatus.HealthAggregation // Default: use status
 
         // Step 1: Check for per-resource annotation override (highest precedence)
         if res.Live != nil && res.Live.GetAnnotations() != nil {
@@ -767,7 +767,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 
 #### Example 1: Default Configuration via resource_customizations/
 
-Argo CD ships with built-in health checks that set `aggregationHealth`:
+Argo CD ships with built-in health checks that set `healthAggregation`:
 
 **File: `resource_customizations/batch/Job/health.lua`**
 
@@ -778,7 +778,7 @@ if obj.status ~= nil then
     hs.status = "Healthy"
   elseif obj.spec.suspend ~= nil and obj.spec.suspend == true then
     hs.status = "Suspended"
-    hs.aggregationHealth = "Healthy"  -- Suspended Jobs don't affect app health
+    hs.healthAggregation = "Healthy"  -- Suspended Jobs don't affect app health
   elseif obj.status.failed ~= nil and obj.status.failed > 0 then
     hs.status = "Degraded"
   else
@@ -794,18 +794,18 @@ return hs
 hs = {}
 if obj.spec.suspend ~= nil and obj.spec.suspend == true then
   hs.status = "Suspended"
-  hs.aggregationHealth = "Healthy"  -- Suspended CronJobs don't affect app health
+  hs.healthAggregation = "Healthy"  -- Suspended CronJobs don't affect app health
 else
   hs.status = "Healthy"
 end
 return hs
 ```
 
-**To restore original behavior**: Users can override with their own Lua script that doesn't set `aggregationHealth`.
+**To restore original behavior**: Users can override with their own Lua script that doesn't set `healthAggregation`.
 
 #### Example 2: Per-Resource Annotation Override
 
-Same as Alternative 1 - annotation overrides Lua-provided `aggregationHealth`:
+Same as Alternative 1 - annotation overrides Lua-provided `healthAggregation`:
 
 ```yaml
 apiVersion: batch/v1
@@ -831,7 +831,7 @@ if obj.status ~= nil then
     hs.status = "Suspended"
     -- Only treat as healthy if paused by operator (has annotation)
     if obj.metadata.annotations ~= nil and obj.metadata.annotations["paused-by"] == "operator" then
-      hs.aggregationHealth = "Healthy"
+      hs.healthAggregation = "Healthy"
     end
   elseif obj.status.phase == "Running" then
     hs.status = "Healthy"
@@ -1022,7 +1022,7 @@ to find out why. With aggregation health overrides, this might be more complex a
 
 **Risk 4 (Alternative 2 only): Lua scripts become more complex**
 
-- _Mitigation_: `aggregationHealth` is optional; most scripts won't need it. Clear documentation and examples provided.
+- _Mitigation_: `healthAggregation` is optional; most scripts won't need it. Clear documentation and examples provided.
 
 ## Drawbacks
 
@@ -1082,32 +1082,32 @@ to find out why. With aggregation health overrides, this might be more complex a
 
 #### Phase 1: Core Implementation
 
-1. Add `AggregationHealth` field to `HealthStatus` struct in `util/health/health.go`
+1. Add `HealthAggregation` field to `HealthStatus` struct in `util/health/health.go`
 2. Add `AnnotationHealthAggregation` constant in `common/common.go`
 3. Modify `ExecuteHealthLua()` in `util/lua/lua.go`:
-   - Extract optional `aggregationHealth` field from Lua return value
-   - Set `HealthStatus.AggregationHealth` if provided
+   - Extract optional `healthAggregation` field from Lua return value
+   - Set `HealthStatus.HealthAggregation` if provided
 4. Implement parsing function in `controller/health.go`:
    - `parseHealthAggregationAnnotation()` for annotation format (equals separator, comma-separated)
 5. Modify `setApplicationHealth()` in `controller/health.go`:
-   - Use `healthStatus.AggregationHealth` if set, otherwise use `healthStatus.Status`
+   - Use `healthStatus.HealthAggregation` if set, otherwise use `healthStatus.Status`
    - Apply annotation override if present (highest precedence)
 6. Unit tests:
-   - Lua script returning `aggregationHealth`
+   - Lua script returning `healthAggregation`
    - Annotation parsing and override behavior
-   - Precedence: annotation > Lua aggregationHealth > status
+   - Precedence: annotation > Lua healthAggregation > status
 
 #### Phase 2: Default Configuration
 
 1. Update built-in health checks in `resource_customizations/`:
-   - `resource_customizations/batch/Job/health.lua` - add `hs.aggregationHealth = "Healthy"` when suspended
-   - `resource_customizations/batch/CronJob/health.lua` - add `hs.aggregationHealth = "Healthy"` when suspended
+   - `resource_customizations/batch/Job/health.lua` - add `hs.healthAggregation = "Healthy"` when suspended
+   - `resource_customizations/batch/CronJob/health.lua` - add `hs.healthAggregation = "Healthy"` when suspended
 2. E2E tests
 
 #### Phase 3: Documentation
 
 1. Update `docs/operator-manual/health.md`:
-   - Document `aggregationHealth` field in Lua health checks
+   - Document `healthAggregation` field in Lua health checks
    - Add examples for common use cases
    - Document precedence order clearly
 2. Add migration guide for users with custom health checks
@@ -1183,7 +1183,7 @@ Example: A suspended CronJob that also has failures would show as "Degraded" (no
 **A**: Easy:
 
 - **Alternative 1**: Remove or empty the ConfigMap key for the resource type
-- **Alternative 2**: Override the built-in Lua script with one that doesn't set `aggregationHealth`
+- **Alternative 2**: Override the built-in Lua script with one that doesn't set `healthAggregation`
 - **Per-resource**: Add annotation to override the default behavior
 
 The feature is designed to be fully reversible without data loss.
