@@ -445,7 +445,7 @@ func (a *Actions) ConfirmDeletion() *Actions {
 
 	// Always sleep a few seconds after the confirmation so the timestamp
 	// is not valid for immediate subsequent operations.
-	// Kubernetes containers may clocks with a few seconds difference, and we want to avoid race conditions.
+	// Kubernetes containers may have clocks with a few seconds difference, and we want to avoid race conditions.
 	time.Sleep(3 * time.Second)
 
 	return a
