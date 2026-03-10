@@ -26,6 +26,7 @@ const (
 // hydratedCommitValidation represents a cached validation result for an app
 type hydratedCommitValidation struct {
 	syncSHA    string // The sync branch SHA that was validated
+	syncPath   string // The sync source path that was validated
 	rootDrySHA string // DrySHA from root metadata (expected/fresh)
 	pathDrySHA string // DrySHA from path metadata (actual)
 	isValid    bool   // Whether path matches root (fresh=true, stale=false)
@@ -236,6 +237,7 @@ func (ctrl *ApplicationController) shouldBlockAutoSyncForHydrator(app *appv1.App
 		return false
 	}
 
+	syncPath := app.Spec.SourceHydrator.SyncSource.Path
 	cacheKey := fmt.Sprintf("%s/%s", app.Namespace, app.Name)
 
 	// Check in-memory cache first
@@ -243,8 +245,8 @@ func (ctrl *ApplicationController) shouldBlockAutoSyncForHydrator(app *appv1.App
 	cached, exists := ctrl.hydratedCommitCache[cacheKey]
 	ctrl.hydratedCacheLock.RUnlock()
 
-	// Use cached result if it's for the same sync SHA
-	if exists && cached.syncSHA == syncRevision {
+	// Use cached result if it's for the same sync SHA and path
+	if exists && cached.syncSHA == syncRevision && cached.syncPath == syncPath {
 		if !cached.isValid {
 			logCtx.Infof("Skipping auto-sync: hydrated files at %s are stale (path drySHA: %s, root drySHA: %s)",
 				syncRevision, cached.pathDrySHA, cached.rootDrySHA)
@@ -270,6 +272,7 @@ func (ctrl *ApplicationController) shouldBlockAutoSyncForHydrator(app *appv1.App
 	ctrl.hydratedCacheLock.Lock()
 	ctrl.hydratedCommitCache[cacheKey] = &hydratedCommitValidation{
 		syncSHA:    syncRevision,
+		syncPath:   syncPath,
 		rootDrySHA: rootDrySHA,
 		pathDrySHA: pathDrySHA,
 		isValid:    isValid,
