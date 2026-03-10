@@ -325,7 +325,7 @@ func TestLFSClient(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch("")
 	require.NoError(t, err)
 
 	_, err = client.Checkout(commitSHA, true, true)
@@ -354,14 +354,14 @@ func TestLFSClient(t *testing.T) {
 func TestVerifyCommitSignature(t *testing.T) {
 	p := t.TempDir()
 
-	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "", "")
+	// Use shallow fetch to avoid timeout fetching the entire repo
+	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "", "", WithDepth(1))
 	require.NoError(t, err)
 
 	err = client.Init()
 	require.NoError(t, err)
 
-	// Use shallow fetch to avoid timeout fetching the entire repo
-	err = client.Fetch("", 1)
+	err = client.Fetch("")
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -373,9 +373,9 @@ func TestVerifyCommitSignature(t *testing.T) {
 	// Fetch the specific commits needed for signature verification
 	signedCommit := "28027897aad1262662096745f2ce2d4c74d02b7f"
 	unsignedCommit := "85d660f0b967960becce3d49bd51c678ba2a5d24"
-	err = client.Fetch(signedCommit, 1)
+	err = client.Fetch(signedCommit)
 	require.NoError(t, err)
-	err = client.Fetch(unsignedCommit, 1)
+	err = client.Fetch(unsignedCommit)
 	require.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
@@ -425,11 +425,11 @@ func TestNewFactory(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
-		err = client.Fetch("", 0)
+		err = client.Fetch("")
 		require.NoError(t, err)
 
 		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-		err = client.Fetch("", 0)
+		err = client.Fetch("")
 		require.NoError(t, err)
 
 		_, err = client.Checkout(commitSHA, true, true)

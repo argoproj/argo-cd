@@ -2807,7 +2807,9 @@ func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (
 	}
 	opts = append(opts,
 		git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)),
-		git.WithBuiltinGitConfig(s.initConstants.EnableBuiltinGitConfig))
+		git.WithBuiltinGitConfig(s.initConstants.EnableBuiltinGitConfig),
+		git.WithDepth(repo.Depth),
+	)
 	return s.newGitClient(repo.Repo, repoPath, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.EnableLFS, repo.Proxy, repo.NoProxy, opts...)
 }
 
@@ -2933,7 +2935,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 		return nil
 	}
 	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-	err := gitClient.Fetch("", 0)
+	err := gitClient.Fetch("")
 	if err != nil {
 		return err
 	}
@@ -2944,7 +2946,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 			log.Infof("Failed to fetch revision %s: %v", revision, err)
 			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
-			if err := gitClient.Fetch(revision, 0); err != nil {
+			if err := gitClient.Fetch(revision); err != nil {
 				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 			}
 		}
@@ -2967,10 +2969,10 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 	// Fetching can be skipped if the revision is already present locally.
 	if !revisionPresent {
 		if depth > 0 {
-			err = gitClient.Fetch(revision, depth)
+			err = gitClient.Fetch(revision)
 		} else {
 			// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-			err = gitClient.Fetch("", depth)
+			err = gitClient.Fetch("")
 		}
 
 		if err != nil {
@@ -2984,7 +2986,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		// for the given revision, try explicitly fetching it.
 		log.Infof("Failed to checkout revision %s: %v", revision, err)
 		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
-		err = gitClient.Fetch(revision, depth)
+		err = gitClient.Fetch(revision)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
@@ -3081,7 +3083,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
 		}, nil
 	}
-	gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
+	gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy, git.WithDepth(repo.Depth))
 	if err != nil {
 		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 	}

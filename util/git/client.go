@@ -125,7 +125,7 @@ type gitRefCache interface {
 type Client interface {
 	Root() string
 	Init() error
-	Fetch(revision string, depth int64) error
+	Fetch(revision string) error
 	Submodule() error
 	Checkout(revision string, submoduleEnabled bool, cleanState bool) (string, error)
 	LsRefs() (*Refs, error)
@@ -187,6 +187,8 @@ type nativeGitClient struct {
 	noProxy string
 	// git configuration environment variables
 	gitConfigEnv []string
+	// depth is the clone depth
+	depth int64
 }
 
 type runOpts struct {
@@ -247,6 +249,13 @@ func WithBuiltinGitConfig(enable bool) ClientOpts {
 func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.EventHandlers = handlers
+	}
+}
+
+// WithDepth sets Git the clone depth.
+func WithDepth(depth int64) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.depth = depth
 	}
 }
 
@@ -457,14 +466,14 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
 
-func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int64) error {
+func (m *nativeGitClient) fetch(ctx context.Context, revision string) error {
 	args := []string{"fetch", "origin"}
 	if revision != "" {
 		args = append(args, revision)
 	}
 
-	if depth > 0 {
-		args = append(args, "--depth", strconv.FormatInt(depth, 10))
+	if m.depth > 0 {
+		args = append(args, "--depth", strconv.FormatInt(m.depth, 10))
 	} else {
 		args = append(args, "--tags")
 	}
@@ -487,14 +496,14 @@ func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
 }
 
 // Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch(revision string, depth int64) error {
+func (m *nativeGitClient) Fetch(revision string) error {
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()
 	}
 	ctx := context.Background()
 
-	err := m.fetch(ctx, revision, depth)
+	err := m.fetch(ctx, revision)
 
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if err == nil && m.IsLFSEnabled() {
@@ -576,7 +585,13 @@ func (m *nativeGitClient) Submodule() error {
 	if err := m.runCredentialedCmd(ctx, "submodule", "sync", "--recursive"); err != nil {
 		return err
 	}
-	return m.runCredentialedCmd(ctx, "submodule", "update", "--init", "--recursive")
+
+	args := []string{"submodule", "update", "--init", "--recursive"}
+	if m.depth > 0 {
+		args = append(args, "--depth", strconv.FormatInt(m.depth, 10))
+	}
+
+	return m.runCredentialedCmd(ctx, args...)
 }
 
 // Checkout checks out the specified revision
