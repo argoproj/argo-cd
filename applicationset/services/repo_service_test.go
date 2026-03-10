@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -35,13 +36,13 @@ func TestGetDirectories(t *testing.T) {
 		fields  fields
 		args    args
 		want    []string
-		wantErr assert.ErrorAssertionFunc
+		wantErr require.ErrorAssertionFunc
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
 			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return nil, errors.New("unable to get repos")
 			},
-		}, args: args{}, want: nil, wantErr: assert.Error},
+		}, args: args{}, want: nil, wantErr: require.Error},
 		{name: "ErrorGettingDirs", fields: fields{
 			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
@@ -49,7 +50,7 @@ func TestGetDirectories(t *testing.T) {
 			getGitDirectories: func(_ context.Context, _ *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				return nil, errors.New("unable to get dirs")
 			},
-		}, args: args{}, want: nil, wantErr: assert.Error},
+		}, args: args{}, want: nil, wantErr: require.Error},
 		{name: "HappyCase", fields: fields{
 			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{
@@ -63,7 +64,7 @@ func TestGetDirectories(t *testing.T) {
 			},
 		}, args: args{
 			repoURL: "foo",
-		}, want: []string{"foo", "foo/bar", "bar/foo"}, wantErr: assert.NoError},
+		}, want: []string{"foo", "foo/bar", "bar/foo"}, wantErr: require.NoError},
 		{name: "ErrorVerifyingCommit", fields: fields{
 			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
@@ -71,7 +72,7 @@ func TestGetDirectories(t *testing.T) {
 			getGitDirectories: func(_ context.Context, _ *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				return nil, errors.New("revision HEAD is not signed")
 			},
-		}, args: args{}, want: nil, wantErr: assert.Error},
+		}, args: args{}, want: nil, wantErr: require.Error},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -81,9 +82,7 @@ func TestGetDirectories(t *testing.T) {
 				getGitDirectoriesFromRepoServer: tt.fields.getGitDirectories,
 			}
 			got, err := a.GetDirectories(tt.args.ctx, tt.args.repoURL, tt.args.revision, "", tt.args.noRevisionCache, tt.args.verifyCommit)
-			if !tt.wantErr(t, err, fmt.Sprintf("GetDirectories(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.noRevisionCache)) {
-				return
-			}
+			tt.wantErr(t, err, fmt.Sprintf("GetDirectories(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.noRevisionCache))
 			assert.Equalf(t, tt.want, got, "GetDirectories(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.noRevisionCache)
 		})
 	}
@@ -108,13 +107,13 @@ func TestGetFiles(t *testing.T) {
 		fields  fields
 		args    args
 		want    map[string][]byte
-		wantErr assert.ErrorAssertionFunc
+		wantErr require.ErrorAssertionFunc
 	}{
 		{name: "ErrorGettingRepos", fields: fields{
 			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return nil, errors.New("unable to get repos")
 			},
-		}, args: args{}, want: nil, wantErr: assert.Error},
+		}, args: args{}, want: nil, wantErr: require.Error},
 		{name: "ErrorGettingFiles", fields: fields{
 			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
@@ -122,7 +121,7 @@ func TestGetFiles(t *testing.T) {
 			getGitFiles: func(_ context.Context, _ *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 				return nil, errors.New("unable to get files")
 			},
-		}, args: args{}, want: nil, wantErr: assert.Error},
+		}, args: args{}, want: nil, wantErr: require.Error},
 		{name: "HappyCase", fields: fields{
 			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{
@@ -142,7 +141,7 @@ func TestGetFiles(t *testing.T) {
 		}, want: map[string][]byte{
 			"foo.json": []byte("hello: world!"),
 			"bar.yaml": []byte("yay: appsets"),
-		}, wantErr: assert.NoError},
+		}, wantErr: require.NoError},
 		{name: "ErrorVerifyingCommit", fields: fields{
 			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
 				return &v1alpha1.Repository{}, nil
@@ -150,7 +149,7 @@ func TestGetFiles(t *testing.T) {
 			getGitFiles: func(_ context.Context, _ *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 				return nil, errors.New("revision HEAD is not signed")
 			},
-		}, args: args{}, want: nil, wantErr: assert.Error},
+		}, args: args{}, want: nil, wantErr: require.Error},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -160,9 +159,7 @@ func TestGetFiles(t *testing.T) {
 				getGitFilesFromRepoServer: tt.fields.getGitFiles,
 			}
 			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, "", tt.args.noRevisionCache, tt.args.verifyCommit)
-			if !tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache)) {
-				return
-			}
+			tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache))
 			assert.Equalf(t, tt.want, got, "GetFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache)
 		})
 	}
@@ -193,7 +190,7 @@ func TestGetCommitSHA(t *testing.T) {
 		fields  fields
 		args    args
 		want    string
-		wantErr assert.ErrorAssertionFunc
+		wantErr require.ErrorAssertionFunc
 	}{
 		{
 			name: "ErrorGettingRepository",
@@ -204,7 +201,7 @@ func TestGetCommitSHA(t *testing.T) {
 			},
 			args:    args{},
 			want:    "",
-			wantErr: assert.Error,
+			wantErr: require.Error,
 		},
 		{
 			name: "ErrorGettingRevisionMetadata",
@@ -218,7 +215,7 @@ func TestGetCommitSHA(t *testing.T) {
 			},
 			args:    args{},
 			want:    "",
-			wantErr: assert.Error,
+			wantErr: require.Error,
 		},
 		{
 			name: "HappyCase",
@@ -235,7 +232,7 @@ func TestGetCommitSHA(t *testing.T) {
 				revision: "HEAD",
 			},
 			want:    "abc123",
-			wantErr: assert.NoError,
+			wantErr: require.NoError,
 		},
 	}
 
@@ -247,9 +244,7 @@ func TestGetCommitSHA(t *testing.T) {
 			}
 
 			got, err := a.GetCommitSHA(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.project)
-			if !tt.wantErr(t, err, fmt.Sprintf("GetCommitSHA(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.project)) {
-				return
-			}
+			tt.wantErr(t, err, fmt.Sprintf("GetCommitSHA(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.project))
 			assert.Equalf(t, tt.want, got, "GetCommitSHA(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.project)
 		})
 	}

@@ -2638,20 +2638,18 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 		},
 	}
 	for _, testCase := range cases {
-		testCaseCopy := testCase
-
-		t.Run(testCaseCopy.name, func(t *testing.T) {
+		t.Run(testCase.name, func(t *testing.T) {
 			argoCDServiceMock := mocks.NewRepos(t)
 
-			if testCaseCopy.callGetDirectories {
+			if testCase.callGetDirectories {
 				var project any
-				if testCaseCopy.expectedProject != nil {
-					project = *testCaseCopy.expectedProject
+				if testCase.expectedProject != nil {
+					project = *testCase.expectedProject
 				} else {
 					project = mock.Anything
 				}
 
-				argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, project, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoPathsError)
+				argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, project, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
 				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
 			}
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "argocd")
@@ -2660,15 +2658,15 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 			err := v1alpha1.AddToScheme(scheme)
 			require.NoError(t, err)
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCaseCopy.appProject).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appProject).Build()
 
-			got, err := gitGenerator.GenerateParams(&testCaseCopy.appset.Spec.Generators[0], &testCaseCopy.appset, client)
+			got, err := gitGenerator.GenerateParams(&testCase.appset.Spec.Generators[0], &testCase.appset, client)
 
-			if testCaseCopy.expectedError != nil {
-				require.EqualError(t, err, testCaseCopy.expectedError.Error())
+			if testCase.expectedError != nil {
+				require.EqualError(t, err, testCase.expectedError.Error())
 			} else {
 				require.NoError(t, err)
-				assert.Equal(t, testCaseCopy.expected, got)
+				assert.Equal(t, testCase.expected, got)
 			}
 		})
 	}
