@@ -295,26 +295,26 @@ func (f *fakeClusterInfo) GetClustersInfo() []gitopsCache.ClusterInfo {
 }
 
 type TestMetricServerConfig struct {
-	FakeAppYAMLs     []string
-	ExpectedResponse string
+	FakeAppYAMLs              []string
+	ExpectedResponse          string
 	emitLabelsOnAllAppMetrics bool
-	AppLabels        []string
-	AppConditions    []string
-	ClusterLabels    []string
-	ClustersInfo     []gitopsCache.ClusterInfo
-	ClusterLister    ClusterLister
+	AppLabels                 []string
+	AppConditions             []string
+	ClusterLabels             []string
+	ClustersInfo              []gitopsCache.ClusterInfo
+	ClusterLister             ClusterLister
 }
 
 func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, emitLabelsOnAllAppMetrics bool, appLabels []string, appConditions []string) {
 	t.Helper()
 	cfg := TestMetricServerConfig{
-		FakeAppYAMLs:     fakeAppYAMLs,
-		ExpectedResponse: expectedResponse,
+		FakeAppYAMLs:              fakeAppYAMLs,
+		ExpectedResponse:          expectedResponse,
 		emitLabelsOnAllAppMetrics: emitLabelsOnAllAppMetrics,
-		AppLabels:        appLabels,
-		AppConditions:    appConditions,
-		ClusterLabels:    []string{},
-		ClustersInfo:     []gitopsCache.ClusterInfo{},
+		AppLabels:                 appLabels,
+		AppConditions:             appConditions,
+		ClusterLabels:             []string{},
+		ClustersInfo:              []gitopsCache.ClusterInfo{},
 	}
 	runTest(t, cfg)
 }
