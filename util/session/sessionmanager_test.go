@@ -1565,6 +1565,7 @@ func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
 		}
 	})
 }
+
 func TestSessionManager_VerifyToken_RevokedOIDCSID(t *testing.T) {
 	oidcTestServer := utiltest.GetOIDCTestServer(t, nil)
 	t.Cleanup(oidcTestServer.Close)

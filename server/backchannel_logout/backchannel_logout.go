@@ -97,6 +97,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// context.Background() is intentional: revocation must complete even if the IdP's
+	// HTTP connection drops or times out before we respond.
 	if err := h.revokeOIDCSession(context.Background(), claims.Sid, defaultRevocationTTL); err != nil {
 		log.Errorf("backchannel-logout: failed to revoke OIDC session (sid=%s sub=%s): %v", claims.Sid, claims.Sub, err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)

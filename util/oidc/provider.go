@@ -236,7 +236,7 @@ func (p *providerImpl) verifyLogoutTokenSignature(ctx context.Context, clientID,
 		return nil, err
 	}
 	config := &gooidc.Config{
-		ClientID:         clientID,
+		ClientID:          clientID,
 		SkipClientIDCheck: skipClientIDCheck,
 		// exp is OPTIONAL in logout tokens (OIDC Back-Channel Logout spec §2.4).
 		// We enforce expiry ourselves below when the claim is present.
