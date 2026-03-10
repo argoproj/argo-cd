@@ -667,7 +667,7 @@ connectors:
 	}
 	argocd = NewServer(t.Context(), argoCDOpts, ApplicationSetOpts{})
 	var err error
-	argocd.ssoClientApp, err = oidc.NewClientApp(argocd.settings, argocd.DexServerAddr, argocd.DexTLSConfig, argocd.BaseHRef, cache.NewInMemoryCache(24*time.Hour))
+	argocd.ssoClientApp, err = oidc.NewClientApp(argocd.settingsMgr, argocd.settings, argocd.DexServerAddr, argocd.DexTLSConfig, argocd.BaseHRef, cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 	return argocd, oidcServer.URL
 }
