@@ -2280,7 +2280,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	}
 	ts.AddCheckpoint("already_attempted_check_ms")
 
-	if app.Spec.SyncPolicy.Automated.Prune && !app.Spec.SyncPolicy.Automated.AllowEmpty {
+	if app.Spec.SyncPolicy.Automated.Prune && (app.Spec.SyncPolicy.Automated.AllowEmpty == nil || !*app.Spec.SyncPolicy.Automated.AllowEmpty) {
 		bAllNeedPrune := true
 		for _, r := range resources {
 			if !r.RequiresPruning {

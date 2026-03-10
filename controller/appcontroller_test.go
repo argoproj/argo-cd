@@ -728,7 +728,8 @@ func TestAutoSyncNotAllowEmpty(t *testing.T) {
 func TestAutoSyncAllowEmpty(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.SyncPolicy.Automated.Prune = true
-	app.Spec.SyncPolicy.Automated.AllowEmpty = true
+	allowEmpty := true
+	app.Spec.SyncPolicy.Automated.AllowEmpty = &allowEmpty
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	syncStatus := v1alpha1.SyncStatus{
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,

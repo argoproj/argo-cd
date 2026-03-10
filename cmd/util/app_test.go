@@ -301,12 +301,14 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("allow-empty", "true"))
 		require.NotNil(t, f.spec.SyncPolicy.Automated.Enabled)
 		assert.False(t, *f.spec.SyncPolicy.Automated.Enabled)
-		assert.True(t, f.spec.SyncPolicy.Automated.AllowEmpty)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.AllowEmpty)
+		assert.True(t, *f.spec.SyncPolicy.Automated.AllowEmpty)
 
 		*f.spec.SyncPolicy.Automated.Enabled = true
 		require.NoError(t, f.SetFlag("allow-empty", "false"))
 		assert.True(t, *f.spec.SyncPolicy.Automated.Enabled)
-		assert.False(t, f.spec.SyncPolicy.Automated.AllowEmpty)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.AllowEmpty)
+		assert.False(t, *f.spec.SyncPolicy.Automated.AllowEmpty)
 	})
 	t.Run("RetryLimit", func(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-retry-limit", "5"))

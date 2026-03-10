@@ -1563,7 +1563,7 @@ type SyncPolicyAutomated struct {
 	// SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)
 	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
-	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
+	AllowEmpty *bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 	// Enable allows apps to explicitly control automated sync
 	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enabled"`
 }

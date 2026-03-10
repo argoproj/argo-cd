@@ -301,7 +301,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
 		}
 		if flags.Changed("allow-empty") {
-			spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
+			spec.SyncPolicy.Automated.AllowEmpty = &appOpts.allowEmpty
 		}
 	}
 	return visited
