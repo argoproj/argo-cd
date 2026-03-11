@@ -318,8 +318,8 @@ require (
 require (
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/codecommit v1.33.9
-    github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.31.7
+	github.com/aws/aws-sdk-go-v2/service/codecommit v1.33.10
+    github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.31.8
 )
 
 require go.uber.org/atomic v1.11.0 // indirect
