@@ -32019,7 +32019,7 @@ spec:
             configMapKeyRef:
               key: dexserver.connector.failure.continue
               name: argocd-cmd-params-cm
-              optional: false
+              optional: true
         image: ghcr.io/dexidp/dex:v2.45.0
         imagePullPolicy: Always
         name: dex
@@ -32034,6 +32034,7 @@ spec:
             - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          runAsUser: 1001
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
