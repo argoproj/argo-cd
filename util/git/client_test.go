@@ -1465,7 +1465,6 @@ func Test_nativeGitClient_HasFileChanged(t *testing.T) {
 }
 
 func Test_LsSignatures_Error(t *testing.T) {
-
 	ctx := t.Context()
 	tempDir, err := _createEmptyGitRepo(ctx)
 	require.NoError(t, err)

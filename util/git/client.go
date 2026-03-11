@@ -1118,7 +1118,6 @@ func evaluateGpgSignStatus(cmdErr error, tagGpgOut string) (result GPGVerificati
 }
 
 func (m *nativeGitClient) LsSignatures(unresolvedRevision string, deep bool) ([]RevisionSignatureInfo, error) {
-
 	// Resolve eventual semantic tag constraint before annotated tag detection
 	if versions.IsConstraint(unresolvedRevision) {
 		refs, err := m.getRefs()
@@ -1145,7 +1144,7 @@ func (m *nativeGitClient) LsSignatures(unresolvedRevision string, deep bool) ([]
 		}
 	}
 
-	_, err := m.Checkout(unresolvedRevision, true)
+	_, err := m.Checkout(unresolvedRevision, true, true)
 	if err != nil {
 		return nil, err
 	}

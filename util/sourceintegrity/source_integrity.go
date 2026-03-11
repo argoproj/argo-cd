@@ -83,7 +83,7 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (policies []*v1alpha1.SourceIntegrityGitPolicy) {
 	for _, p := range si.Policies {
 		for _, r := range p.Repos {
-			if r.Url == "*" || glob.Match(r.Url, repoURL) {
+			if r.URL == "*" || glob.Match(r.URL, repoURL) {
 				policies = append(policies, p)
 			}
 		}
