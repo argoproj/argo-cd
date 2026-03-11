@@ -86,6 +86,7 @@ nav:
       - operator-manual/notifications/services/googlechat.md
       - operator-manual/notifications/services/grafana.md
       - operator-manual/notifications/services/mattermost.md
+      - operator-manual/notifications/services/nats.md
       - operator-manual/notifications/services/newrelic.md
       - operator-manual/notifications/services/opsgenie.md
       - operator-manual/notifications/services/overview.md
@@ -94,6 +95,7 @@ nav:
       - operator-manual/notifications/services/pushover.md
       - operator-manual/notifications/services/rocketchat.md
       - operator-manual/notifications/services/slack.md
+      - operator-manual/notifications/services/teams-workflows.md
       - operator-manual/notifications/services/teams.md
       - operator-manual/notifications/services/telegram.md
       - operator-manual/notifications/services/webex.md
@@ -134,6 +136,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/3.3-3.4.md
     - operator-manual/upgrading/3.2-3.3.md
     - operator-manual/upgrading/3.1-3.2.md
     - operator-manual/upgrading/3.0-3.1.md
@@ -211,6 +214,7 @@ nav:
   - Development Environment: developer-guide/development-environment.md
   - Development Cycle: developer-guide/development-cycle.md
   - Submit Your PR: developer-guide/submit-your-pr.md
+  - Backport Your Fix: developer-guide/backporting-fixes.md
   - Architecture:
     - developer-guide/architecture/authz-authn.md
     - developer-guide/architecture/components.md

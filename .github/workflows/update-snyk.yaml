@@ -14,10 +14,10 @@ jobs:
       pull-requests: write
     if: github.repository == 'argoproj/argo-cd'
     name: Update Snyk report in the docs directory
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build reports

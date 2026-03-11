@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"maps"
 	"math"
 	"math/rand"
 	"net/http"
@@ -16,12 +17,12 @@ import (
 	"sync"
 	"time"
 
-	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	clustercache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
@@ -42,7 +43,6 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/utils/ptr"
 
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -205,7 +205,7 @@ func NewApplicationController(
 		statusRefreshJitter:               appResyncJitter,
 		refreshRequestedApps:              make(map[string]CompareWith),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
-		auditLogger:                       argo.NewAuditLogger(kubeClientset, common.ApplicationController, enableK8sEvent),
+		auditLogger:                       argo.NewAuditLogger(kubeClientset, namespace, common.CommandApplicationController, enableK8sEvent),
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
 		selfHealBackoff:                   selfHealBackoff,
@@ -927,14 +927,14 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	go func() { errors.CheckError(ctrl.stateCache.Run(ctx)) }()
 	go func() { errors.CheckError(ctrl.metricsServer.ListenAndServe()) }()
 
-	for i := 0; i < statusProcessors; i++ {
+	for range statusProcessors {
 		go wait.Until(func() {
 			for ctrl.processAppRefreshQueueItem() {
 			}
 		}, time.Second, ctx.Done())
 	}
 
-	for i := 0; i < operationProcessors; i++ {
+	for range operationProcessors {
 		go wait.Until(func() {
 			for ctrl.processAppOperationQueueItem() {
 			}
@@ -1137,13 +1137,13 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 }
 
 func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProject) error {
-	apps, err := ctrl.appLister.Applications(ctrl.namespace).List(labels.Everything())
+	apps, err := ctrl.appLister.List(labels.Everything())
 	if err != nil {
 		return fmt.Errorf("error listing applications: %w", err)
 	}
 	appsCount := 0
 	for i := range apps {
-		if apps[i].Spec.GetProject() == proj.Name {
+		if apps[i].Spec.GetProject() == proj.Name && ctrl.isAppNamespaceAllowed(apps[i]) && proj.IsAppNamespacePermitted(apps[i], ctrl.namespace) {
 			appsCount++
 		}
 	}
@@ -1367,11 +1367,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 
 	if !app.CascadedDeletion() && !app.HasPostDeleteFinalizer() && !app.HasPreDeleteFinalizer() {
-		if err := ctrl.cache.SetAppManagedResources(app.Name, nil); err != nil {
+		if err := ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), nil); err != nil {
 			return err
 		}
 
-		if err := ctrl.cache.SetAppResourcesTree(app.Name, nil); err != nil {
+		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), nil); err != nil {
 			return err
 		}
 		ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, app.Spec.GetProject()))
@@ -1559,8 +1559,18 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information
 		if _, err := cache.MetaNamespaceKeyFunc(app); err == nil {
-			// force app refresh with using CompareWithLatest comparison type and trigger app reconciliation loop
-			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatestForceResolve.Pointer(), nil)
+			var compareWith CompareWith
+			if state.Operation.InitiatedBy.Automated {
+				// Do not force revision resolution on automated operations because
+				// this would cause excessive Ls-Remote requests on monorepo commits
+				compareWith = CompareWithLatest
+			} else {
+				// Force app refresh with using most recent resolved revision after sync,
+				// so UI won't show a just synced application being out of sync if it was
+				// synced after commit but before app. refresh (see #18153)
+				compareWith = CompareWithLatestForceResolve
+			}
+			ctrl.requestAppRefresh(app.QualifiedName(), compareWith.Pointer(), nil)
 		} else {
 			logCtx.WithError(err).Warn("Fails to requeue application")
 		}
@@ -2131,9 +2141,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	var newAnnotations map[string]string
 	if orig.GetAnnotations() != nil {
 		newAnnotations = make(map[string]string)
-		for k, v := range orig.GetAnnotations() {
-			newAnnotations[k] = v
-		}
+		maps.Copy(newAnnotations, orig.GetAnnotations())
 		delete(newAnnotations, appv1.AnnotationKeyRefresh)
 		delete(newAnnotations, appv1.AnnotationKeyHydrate)
 	}
@@ -2207,7 +2215,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 	}
 
-	source := ptr.To(app.Spec.GetSource())
+	source := new(app.Spec.GetSource())
 	desiredRevisions := []string{syncStatus.Revision}
 	if app.Spec.HasMultipleSources() {
 		source = nil
@@ -2359,7 +2367,7 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 
 	var timeSinceOperation *time.Duration
 	if app.Status.OperationState.FinishedAt != nil {
-		timeSinceOperation = ptr.To(time.Since(app.Status.OperationState.FinishedAt.Time))
+		timeSinceOperation = new(time.Since(app.Status.OperationState.FinishedAt.Time))
 	}
 
 	var retryAfter time.Duration
@@ -2374,7 +2382,7 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 		backOff.Steps = selfHealAttemptsCount
 		var delay time.Duration
 		steps := backOff.Steps
-		for i := 0; i < steps; i++ {
+		for range steps {
 			delay = backOff.Step()
 		}
 		if timeSinceOperation == nil {
