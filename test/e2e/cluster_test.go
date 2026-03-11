@@ -23,7 +23,7 @@ func TestClusterList(t *testing.T) {
 
 	last := ""
 	expected := fmt.Sprintf(`SERVER                          NAME        VERSION  STATUS      MESSAGE  PROJECT
-https://kubernetes.default.svc  in-cluster  %v     Successful           `, fixture.GetVersions(t).ServerVersion)
+https://kubernetes.default.svc  in-cluster  %v  Successful           `, fixture.GetVersions(t).ServerVersion.String())
 
 	ctx := clusterFixture.Given(t)
 	ctx.Project(fixture.ProjectName)
@@ -64,7 +64,7 @@ func TestClusterAdd(t *testing.T) {
 		List().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, fixture.NormalizeOutput(output), fmt.Sprintf(`https://kubernetes.default.svc %s %v Successful %s`, ctx.GetName(), fixture.GetVersions(t).ServerVersion, fixture.ProjectName))
+			assert.Contains(t, fixture.NormalizeOutput(output), fmt.Sprintf(`https://kubernetes.default.svc %s %v Successful %s`, ctx.GetName(), fixture.GetVersions(t).ServerVersion.String(), fixture.ProjectName))
 		})
 }
 
@@ -119,7 +119,7 @@ func TestClusterAddAllowed(t *testing.T) {
 		List().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, fixture.NormalizeOutput(output), fmt.Sprintf(`https://kubernetes.default.svc %s %v Successful %s`, ctx.GetName(), fixture.GetVersions(t).ServerVersion, fixture.ProjectName))
+			assert.Contains(t, fixture.NormalizeOutput(output), fmt.Sprintf(`https://kubernetes.default.svc %s %v Successful %s`, ctx.GetName(), fixture.GetVersions(t).ServerVersion.String(), fixture.ProjectName))
 		})
 }
 
@@ -175,7 +175,7 @@ func TestClusterGet(t *testing.T) {
 
 	assert.Contains(t, output, "name: in-cluster")
 	assert.Contains(t, output, "server: https://kubernetes.default.svc")
-	assert.Contains(t, output, fmt.Sprintf(`serverVersion: "%v"`, fixture.GetVersions(t).ServerVersion))
+	assert.Contains(t, output, fmt.Sprintf(`serverVersion: %v`, fixture.GetVersions(t).ServerVersion.String()))
 	assert.Contains(t, output, `config:
   tlsClientConfig:
     insecure: false`)

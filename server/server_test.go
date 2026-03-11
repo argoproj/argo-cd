@@ -1487,7 +1487,7 @@ func TestCacheControlHeaders(t *testing.T) {
 			handler := argocd.newStaticAssetsHandler()
 
 			rr := httptest.NewRecorder()
-			req := httptest.NewRequest("", "/"+testCase.filename, http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), "", "/"+testCase.filename, http.NoBody)
 
 			fp := filepath.Join(argocd.TmpAssetsDir, testCase.filename)
 
@@ -1643,7 +1643,7 @@ func Test_enforceContentTypes(t *testing.T) {
 		t.Parallel()
 
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
-		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 		w := httptest.NewRecorder()
 		handler(w, req)
 		resp := w.Result()
@@ -1654,20 +1654,20 @@ func Test_enforceContentTypes(t *testing.T) {
 		t.Parallel()
 
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
-		req := httptest.NewRequest(http.MethodPost, "/", http.NoBody)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 		w := httptest.NewRecorder()
 		handler(w, req)
 		resp := w.Result()
 		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "didn't provide a content type, should have gotten an error")
 
-		req = httptest.NewRequest(http.MethodPost, "/", http.NoBody)
+		req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 		req.Header = map[string][]string{"Content-Type": {"application/json"}}
 		w = httptest.NewRecorder()
 		handler(w, req)
 		resp = w.Result()
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "should have passed, since an allowed content type was provided")
 
-		req = httptest.NewRequest(http.MethodPost, "/", http.NoBody)
+		req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 		req.Header = map[string][]string{"Content-Type": {"not-allowed"}}
 		w = httptest.NewRecorder()
 		handler(w, req)
@@ -1696,7 +1696,7 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	require.NoError(t, err)
 
 	// Make a request to get the file from the /assets endpoint
-	req := httptest.NewRequest(http.MethodGet, "/link.txt", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/link.txt", http.NoBody)
 	w := httptest.NewRecorder()
 	argocd.newStaticAssetsHandler()(w, req)
 	resp := w.Result()
@@ -1706,7 +1706,7 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	normalFilePath := filepath.Join(argocd.StaticAssetsDir, "normal.txt")
 	err = os.WriteFile(normalFilePath, []byte("normal"), 0o644)
 	require.NoError(t, err)
-	req = httptest.NewRequest(http.MethodGet, "/normal.txt", http.NoBody)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/normal.txt", http.NoBody)
 	w = httptest.NewRecorder()
 	argocd.newStaticAssetsHandler()(w, req)
 	resp = w.Result()

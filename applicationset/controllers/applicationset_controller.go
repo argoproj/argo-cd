@@ -38,7 +38,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -244,11 +243,6 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
 	}
 
-	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get update resources status for application set: %w", err)
-	}
-
 	// appSyncMap tracks which apps will be synced during this reconciliation.
 	appSyncMap := map[string]bool{}
 
@@ -370,6 +364,16 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			)
 			return ctrl.Result{}, err
 		}
+	}
+
+	// Update resources status after create/update/delete so it reflects the actual cluster state.
+	currentApplications, err = r.getCurrentApplications(ctx, applicationSetInfo)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
+	}
+	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to update resources status for application set: %w", err)
 	}
 
 	if applicationSetInfo.RefreshRequired() {
@@ -1583,7 +1587,7 @@ func (r *ApplicationSetReconciler) syncDesiredApplications(logCtx *log.Entry, ap
 		// ensure that Applications generated with RollingSync do not have an automated sync policy, since the AppSet controller will handle triggering the sync operation instead
 		if desiredApplications[i].Spec.SyncPolicy != nil && desiredApplications[i].Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			pruneEnabled = desiredApplications[i].Spec.SyncPolicy.Automated.Prune
-			desiredApplications[i].Spec.SyncPolicy.Automated.Enabled = ptr.To(false)
+			desiredApplications[i].Spec.SyncPolicy.Automated.Enabled = new(false)
 		}
 
 		appSetStatusPending := false
