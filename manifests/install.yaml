@@ -30475,10 +30475,16 @@ spec:
                               - mode
                               type: object
                             repos:
-                              description: List of repository glob patterns restricting
+                              description: List of repository criteria restricting
                                 repositories the policy will apply to
                               items:
-                                type: string
+                                properties:
+                                  url:
+                                    description: URL specifier, glob.
+                                    type: string
+                                required:
+                                - url
+                                type: object
                               type: array
                           required:
                           - gpg

@@ -59,7 +59,7 @@ var sourceIntegrityReqStrict = &v1alpha1.SourceIntegrity{
 	Git: &v1alpha1.SourceIntegrityGit{
 		Policies: []*v1alpha1.SourceIntegrityGitPolicy{
 			{
-				Repos: []string{"*"},
+				Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{Url: "*"}},
 				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
 					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
 					Keys: []string{"f24e21389b25a3c1", "ffffffffff25a3c1"},
