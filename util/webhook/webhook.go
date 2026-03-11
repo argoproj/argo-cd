@@ -189,10 +189,8 @@ func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
 
 // startRefreshWorkers starts worker goroutines to process app refresh requests from the refresh queue
 func (a *ArgoCDWebhookHandler) startRefreshWorkers(count int) {
-	for i := 0; i < count; i++ {
-		a.Add(1)
-		go func() {
-			defer a.Done()
+	for range count {
+		a.Go(func() {
 			for {
 				item, shutdown := a.refreshQueue.Get()
 				if shutdown {
@@ -201,7 +199,7 @@ func (a *ArgoCDWebhookHandler) startRefreshWorkers(count int) {
 				guard.RecoverAndLog(func() { a.processAppRefresh(item) }, log.WithField("component", "api-server-webhook-refresh"), panicMsgServer)
 				a.refreshQueue.Done(item)
 			}
-		}()
+		})
 	}
 }
 
