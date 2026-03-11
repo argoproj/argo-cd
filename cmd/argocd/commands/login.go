@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/base64"
 	"fmt"
 	"html"
@@ -154,14 +155,37 @@ argocd login cd.argoproj.io --core`,
 			if localCfg == nil {
 				localCfg = &localconfig.LocalConfig{}
 			}
-			localCfg.UpsertServer(localconfig.Server{
+
+			serverConfig := localconfig.Server{
 				Server:          server,
 				PlainText:       globalClientOpts.PlainText,
 				Insecure:        globalClientOpts.Insecure,
 				GRPCWeb:         globalClientOpts.GRPCWeb,
 				GRPCWebRootPath: globalClientOpts.GRPCWebRootPath,
 				Core:            globalClientOpts.Core,
-			})
+			}
+
+			if globalClientOpts.ClientCertFile != "" && globalClientOpts.ClientCertKeyFile != "" {
+				clientCert, err := tls.LoadX509KeyPair(globalClientOpts.ClientCertFile, globalClientOpts.ClientCertKeyFile)
+				errors.CheckError(err)
+
+				certPEM := base64.StdEncoding.EncodeToString(clientCert.Certificate[0])
+				keyPEM := base64.StdEncoding.EncodeToString(clientCert.PrivateKey.(*tls.Certificate).Certificate[0])
+
+				serverConfig.ClientCertificateData = certPEM
+				serverConfig.ClientCertificateKeyData = keyPEM
+				log.Debugf("Loaded client certificate from %s and %s", globalClientOpts.ClientCertFile, globalClientOpts.ClientCertKeyFile)
+			}
+
+			if globalClientOpts.CertFile != "" {
+				certData, err := os.ReadFile(globalClientOpts.CertFile)
+				errors.CheckError(err)
+				serverConfig.CACertificateAuthorityData = base64.StdEncoding.EncodeToString(certData)
+				log.Debugf("Loaded CA certificate from %s", globalClientOpts.CertFile)
+			}
+
+			localCfg.UpsertServer(serverConfig)
+
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,
 				AuthToken:    tokenString,
