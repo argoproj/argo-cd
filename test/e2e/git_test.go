@@ -167,7 +167,6 @@ func TestAutomatedSelfHealingAgainstAnnotatedTag(t *testing.T) {
 			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: true, SelfHeal: false}}
 		}).
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		ExpectConsistently(SyncStatusIs(SyncStatusCodeSynced), WaitDuration, time.Second*10).
 		When().
 		// Update the annotated tag to a new git commit, that has a new revisionHistoryLimit.
@@ -220,7 +219,6 @@ func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
 			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: true, SelfHeal: false}}
 		}).
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		ExpectConsistently(SyncStatusIs(SyncStatusCodeSynced), WaitDuration, time.Second*10).
 		When().
 		// Update the annotated tag to a new git commit, that has a new revisionHistoryLimit.
