@@ -305,18 +305,17 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 }
 
 // Generator types that have Value field
-var filtered_generator_types = getFilteredGeneratorTypes()
+var filteredGeneratorTypes = getFilteredGeneratorTypes()
 
 // find generator types that have Values field
 func getFilteredGeneratorTypes() map[string]bool {
 	result := map[string]bool{}
 	t := reflect.TypeFor[argoappsv1.ApplicationSetGenerator]()
-	for genIdx := 0; genIdx < t.NumField(); genIdx++ {
-		genPtrType := t.Field(genIdx).Type
+	for field := range t.Fields() {
+		genPtrType := field.Type
 		if genPtrType.Kind() == reflect.Ptr && strings.HasSuffix(genPtrType.String(), "Generator") {
 			genType := genPtrType.Elem()
-			for idx := 0; idx < genType.NumField(); idx++ {
-				field := genType.Field(idx)
+			for field := range genType.Fields() {
 				if field.Name == "Values" && field.Type.String() == "map[string]string" {
 					result[genType.Name()] = true
 				}
@@ -339,12 +338,11 @@ func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, 
 	destination := reflect.New(original.Type()).Elem()
 
 	filter := func(destination, original, parent reflect.Value, field reflect.StructField) (bool, error) {
-		if field.Name == "Values" && field.Type.String() == "map[string]string" && filtered_generator_types[parent.Type().Name()] {
-			if destination.CanSet() {
-				destination.Set(original)
-			} else {
-				return false, fmt.Errorf("Cannot copy %s.Values, this cannot happen!", parent.Type().Name())
+		if field.Name == "Values" && field.Type.String() == "map[string]string" && filteredGeneratorTypes[parent.Type().Name()] {
+			if !destination.CanSet() {
+				return false, fmt.Errorf("cannot copy %s.Values, this cannot happen", parent.Type().Name())
 			}
+			destination.Set(original)
 			return true, nil
 		}
 		return false, nil
