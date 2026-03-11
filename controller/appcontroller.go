@@ -2206,15 +2206,15 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return nil, 0
 	}
 
-	// For hydrator apps, check if we should block auto-sync due to stale hydrated files
-	if ctrl.shouldBlockAutoSyncForHydrator(app, syncStatus.Revision, logCtx) {
-		return nil, 0
-	}
-
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
 		logCtx.Infof("Skipping auto-sync: application status is %s", syncStatus.Status)
+		return nil, 0
+	}
+
+	// For hydrator apps, check if we should block auto-sync due to stale hydrated files
+	if ctrl.shouldBlockAutoSyncForHydrator(app, syncStatus.Revision, logCtx) {
 		return nil, 0
 	}
 
