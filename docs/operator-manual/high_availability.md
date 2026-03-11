@@ -502,6 +502,32 @@ To configure the jitter you can set the following environment variables:
 
 * `ARGOCD_RECONCILIATION_JITTER` - The jitter to apply to the sync timeout. Disabled when value is 0. Defaults to 60.
 
+### Webhook Reconciliation Jitter
+
+When a webhook event arrives (e.g. after a bulk merge to a monorepo), Argo CD may simultaneously enqueue refreshes for
+a large number of applications, causing a spike in load on the repo-server. To spread these refreshes out over time you
+can configure a random jitter that is applied before each webhook-triggered refresh is processed.
+
+The following `argocd-cm` ConfigMap keys control this behaviour:
+
+* `webhook.reconciliation.jitter` – The maximum duration of the random delay added before each webhook-triggered
+  application refresh. For example, if set to `60s`, each refresh will wait between 0 and 60 seconds before being
+  processed. Disabled when the value is `0` (default).
+* `webhook.reconciliation.jitter.threshold` – The minimum number of applications that must be affected by a single
+  webhook event before jitter is applied. This prevents unnecessary delays for small events. For example, if set to
+  `10` (the default), jitter is only applied when more than 10 applications are affected.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  # Apply up to 60s of jitter when more than 10 applications are affected
+  webhook.reconciliation.jitter: "60s"
+  webhook.reconciliation.jitter.threshold: "10"
+```
+
 ## Rate Limiting Application Reconciliations
 
 To prevent high controller resource usage or sync loops caused either due to misbehaving apps or other environment
