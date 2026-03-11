@@ -1218,7 +1218,7 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 // This enables traversing from cluster-scoped parents to their namespaced children across namespace boundaries.
 // It also handles multi-level hierarchies where cluster-scoped resources own other cluster-scoped resources
 // that in turn own namespaced resources (e.g., Provider -> ProviderRevision -> Deployment in Crossplane).
-// The processing map tracks keys currently in the recursive call stack to prevent infinite recursion
+// The processing map tracks which keys have already been processed to prevent infinite recursion
 // from circular ownerReferences (e.g., a resource that owns itself).
 func (c *clusterCache) processCrossNamespaceChildren(
 	clusterScopedKeys []kube.ResourceKey,
@@ -1236,7 +1236,6 @@ func (c *clusterCache) processCrossNamespaceChildren(
 		// Get cluster-scoped resource to access its UID
 		clusterResource := c.resources[clusterKey]
 		if clusterResource == nil {
-			processing[clusterKey] = false
 			continue
 		}
 
@@ -1283,7 +1282,6 @@ func (c *clusterCache) processCrossNamespaceChildren(
 				visited[childKey] = 2
 			}
 		}
-		processing[clusterKey] = false
 	}
 }
 
