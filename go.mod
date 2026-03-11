@@ -316,13 +316,10 @@ require (
 )
 
 require (
-	github.com/oklog/ulid/v2 v2.1.1 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/codecommit v1.33.10
-    github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.31.8
+	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.31.8
+	github.com/oklog/ulid/v2 v2.1.1 // indirect
 )
-
-require go.uber.org/atomic v1.11.0 // indirect
 
 replace (
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
