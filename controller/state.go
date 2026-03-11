@@ -22,6 +22,7 @@ import (
 	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/syncwaves"
 	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 
 	log "github.com/sirupsen/logrus"
