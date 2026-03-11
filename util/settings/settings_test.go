@@ -2641,7 +2641,7 @@ func TestSettingsManager_GetWebhookRefreshJitter(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			configMap := map[string]string{}
 			if !tt.notConfigured {
-				configMap["webhook.reconciliation.jitter"] = tt.input
+				configMap["webhook.refresh.jitter"] = tt.input
 			}
 			_, settingsManager := fixtures(t.Context(), configMap)
 			jitter := settingsManager.GetWebhookRefreshJitter()
