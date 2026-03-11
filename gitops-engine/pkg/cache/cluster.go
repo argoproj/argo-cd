@@ -1188,9 +1188,9 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 
 	// Track whether action() has been called on each resource: 0=unvisited, 1=in progress, 2=completed.
 	// This is shared across processNamespaceHierarchy and processCrossNamespaceChildren.
-	// Note: This is distinct from the 'processed' map in processCrossNamespaceChildren, which tracks
+	// Note: This is distinct from 'crossNSTraversed' in processCrossNamespaceChildren, which tracks
 	// whether we've traversed a cluster-scoped key's cross-namespace children.
-	visited := make(map[kube.ResourceKey]int)
+	actionCallState := make(map[kube.ResourceKey]int)
 
 	// Group keys by namespace for efficient processing
 	keysPerNamespace := make(map[string][]kube.ResourceKey)
@@ -1206,17 +1206,17 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 	for namespace, namespaceKeys := range keysPerNamespace {
 		nsNodes := c.nsIndex[namespace]
 		graph := buildGraph(nsNodes)
-		c.processNamespaceHierarchy(namespaceKeys, nsNodes, graph, visited, action)
+		c.processNamespaceHierarchy(namespaceKeys, nsNodes, graph, actionCallState, action)
 	}
 
 	// Process pre-computed cross-namespace children
 	if clusterKeys, ok := keysPerNamespace[""]; ok {
 		// Track which cluster-scoped keys have had their cross-namespace children traversed.
-		// This is distinct from 'visited' - a resource may have had action() called (visited=2)
-		// but not yet had its cross-namespace children traversed. This prevents infinite
-		// recursion when resources have circular ownerReferences.
-		processed := make(map[kube.ResourceKey]bool)
-		c.processCrossNamespaceChildren(clusterKeys, visited, processed, action)
+		// This is distinct from 'actionCallState' - a resource may have had action() called
+		// (actionCallState=2) but not yet had its cross-namespace children traversed. This
+		// prevents infinite recursion when resources have circular ownerReferences.
+		crossNSTraversed := make(map[kube.ResourceKey]bool)
+		c.processCrossNamespaceChildren(clusterKeys, actionCallState, crossNSTraversed, action)
 	}
 }
 
@@ -1224,20 +1224,20 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 // This enables traversing from cluster-scoped parents to their namespaced children across namespace boundaries.
 // It also handles multi-level hierarchies where cluster-scoped resources own other cluster-scoped resources
 // that in turn own namespaced resources (e.g., Provider -> ProviderRevision -> Deployment in Crossplane).
-// The processed map tracks which keys have already been processed to prevent infinite recursion
+// The crossNSTraversed map tracks which keys have already been processed to prevent infinite recursion
 // from circular ownerReferences (e.g., a resource that owns itself).
 func (c *clusterCache) processCrossNamespaceChildren(
 	clusterScopedKeys []kube.ResourceKey,
-	visited map[kube.ResourceKey]int,
-	processed map[kube.ResourceKey]bool,
+	actionCallState map[kube.ResourceKey]int,
+	crossNSTraversed map[kube.ResourceKey]bool,
 	action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool,
 ) {
 	for _, clusterKey := range clusterScopedKeys {
 		// Skip if already processed (cycle detection)
-		if processed[clusterKey] {
+		if crossNSTraversed[clusterKey] {
 			continue
 		}
-		processed[clusterKey] = true
+		crossNSTraversed[clusterKey] = true
 
 		// Get cluster-scoped resource to access its UID
 		clusterResource := c.resources[clusterKey]
@@ -1253,17 +1253,17 @@ func (c *clusterCache) processCrossNamespaceChildren(
 				continue
 			}
 
-			alreadyVisited := visited[childKey] != 0
+			alreadyProcessed := actionCallState[childKey] != 0
 
-			// If child is cluster-scoped and was already visited by processNamespaceHierarchy,
+			// If child is cluster-scoped and action() was already called by processNamespaceHierarchy,
 			// we still need to recursively check for its cross-namespace children.
 			// This handles multi-level hierarchies like: ClusterScoped -> ClusterScoped -> Namespaced
 			// (e.g., Crossplane's Provider -> ProviderRevision -> Deployment)
-			if alreadyVisited {
+			if alreadyProcessed {
 				if childKey.Namespace == "" {
 					// Recursively process cross-namespace children of this cluster-scoped child
-					// The processed map prevents infinite recursion on circular ownerReferences
-					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, visited, processed, action)
+					// The crossNSTraversed map prevents infinite recursion on circular ownerReferences
+					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, actionCallState, crossNSTraversed, action)
 				}
 				continue
 			}
@@ -1276,16 +1276,16 @@ func (c *clusterCache) processCrossNamespaceChildren(
 
 			// Process this child
 			if action(child, nsNodes) {
-				visited[childKey] = 1
+				actionCallState[childKey] = 1
 				// Recursively process descendants using index-based traversal
-				c.iterateChildrenUsingIndex(child, nsNodes, visited, action)
+				c.iterateChildrenUsingIndex(child, nsNodes, actionCallState, action)
 
 				// If this child is also cluster-scoped, recursively process its cross-namespace children
 				if childKey.Namespace == "" {
-					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, visited, processed, action)
+					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, actionCallState, crossNSTraversed, action)
 				}
 
-				visited[childKey] = 2
+				actionCallState[childKey] = 2
 			}
 		}
 	}
@@ -1296,14 +1296,14 @@ func (c *clusterCache) processCrossNamespaceChildren(
 func (c *clusterCache) iterateChildrenUsingIndex(
 	parent *Resource,
 	nsNodes map[kube.ResourceKey]*Resource,
-	visited map[kube.ResourceKey]int,
+	actionCallState map[kube.ResourceKey]int,
 	action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool,
 ) {
 	// Look up direct children of this parent using the index
 	childKeys := c.parentUIDToChildren[parent.Ref.UID]
 	for _, childKey := range childKeys {
-		if visited[childKey] != 0 {
-			continue // Already visited or in progress
+		if actionCallState[childKey] != 0 {
+			continue // action() already called or in progress
 		}
 
 		child := c.resources[childKey]
@@ -1318,10 +1318,10 @@ func (c *clusterCache) iterateChildrenUsingIndex(
 		}
 
 		if action(child, nsNodes) {
-			visited[childKey] = 1
+			actionCallState[childKey] = 1
 			// Recursively process this child's descendants
-			c.iterateChildrenUsingIndex(child, nsNodes, visited, action)
-			visited[childKey] = 2
+			c.iterateChildrenUsingIndex(child, nsNodes, actionCallState, action)
+			actionCallState[childKey] = 2
 		}
 	}
 }
@@ -1331,22 +1331,22 @@ func (c *clusterCache) processNamespaceHierarchy(
 	namespaceKeys []kube.ResourceKey,
 	nsNodes map[kube.ResourceKey]*Resource,
 	graph map[kube.ResourceKey]map[types.UID]*Resource,
-	visited map[kube.ResourceKey]int,
+	actionCallState map[kube.ResourceKey]int,
 	action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool,
 ) {
 	for _, key := range namespaceKeys {
-		visited[key] = 0
+		actionCallState[key] = 0
 	}
 	for _, key := range namespaceKeys {
 		res := c.resources[key]
-		if visited[key] == 2 || !action(res, nsNodes) {
+		if actionCallState[key] == 2 || !action(res, nsNodes) {
 			continue
 		}
-		visited[key] = 1
+		actionCallState[key] = 1
 		if _, ok := graph[key]; ok {
 			for _, child := range graph[key] {
-				if visited[child.ResourceKey()] == 0 && action(child, nsNodes) {
-					child.iterateChildrenV2(graph, nsNodes, visited, func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool {
+				if actionCallState[child.ResourceKey()] == 0 && action(child, nsNodes) {
+					child.iterateChildrenV2(graph, nsNodes, actionCallState, func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool {
 						if err != nil {
 							c.log.V(2).Info(err.Error())
 							return false
@@ -1356,7 +1356,7 @@ func (c *clusterCache) processNamespaceHierarchy(
 				}
 			}
 		}
-		visited[key] = 2
+		actionCallState[key] = 2
 	}
 }
 
