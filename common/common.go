@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -15,12 +16,23 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
-// Component names
+// Argo CD component names
 const (
-	ApplicationController    = "argocd-application-controller"
-	ApplicationSetController = "argocd-applicationset-controller"
+	CommandCLI                      = "argocd"
+	CommandApplicationController    = "argocd-application-controller"
+	CommandApplicationSetController = "argocd-applicationset-controller"
+	CommandServer                   = "argocd-server"
+	CommandCMPServer                = "argocd-cmp-server"
+	CommandCommitServer             = "argocd-commit-server"
+	CommandGitAskPass               = "argocd-git-ask-pass"
+	CommandNotifications            = "argocd-notifications"
+	CommandK8sAuth                  = "argocd-k8s-auth"
+	CommandDex                      = "argocd-dex"
+	CommandRepoServer               = "argocd-repo-server"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -108,7 +120,6 @@ const (
 
 // Argo CD application related constants
 const (
-
 	// ArgoCDAdminUsername is the username of the 'admin' user
 	ArgoCDAdminUsername = "admin"
 	// ArgoCDUserAgentName is the default user-agent name used by the gRPC API client library and grpc-gateway
@@ -361,6 +372,12 @@ const (
 	BearerTokenTimeout = 30 * time.Second
 )
 
+// TokenRevocationTimeout is the maximum time allowed for a server-side token revocation call during logout.
+const TokenRevocationTimeout = 10 * time.Second
+
+// TokenRevocationClientTimeout is the maximum time the CLI waits for the server to complete token revocation.
+const TokenRevocationClientTimeout = 15 * time.Second
+
 const (
 	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
 	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s
@@ -465,6 +482,8 @@ const TokenVerificationError = "failed to verify the token"
 var ErrTokenVerification = errors.New(TokenVerificationError)
 
 var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
+
+var WatchAPIBufferSize = env.ParseNumFromEnv(EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 
 // Redis password consts
 const (

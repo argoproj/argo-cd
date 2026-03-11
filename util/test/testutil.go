@@ -134,6 +134,20 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
   "claims_supported": ["sub", "aud", "exp"]
 }`, url)
 			require.NoError(t, err)
+		case "/api/dex/keys":
+			pubKey, err := jwt.ParseRSAPublicKeyFromPEM(Cert)
+			require.NoError(t, err)
+			jwks := jose.JSONWebKeySet{
+				Keys: []jose.JSONWebKey{
+					{
+						Key: pubKey,
+					},
+				},
+			}
+			out, err := json.Marshal(jwks)
+			require.NoError(t, err)
+			_, err = w.Write(out)
+			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}

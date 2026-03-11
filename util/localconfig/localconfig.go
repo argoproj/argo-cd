@@ -66,14 +66,14 @@ type User struct {
 }
 
 // Claims returns the standard claims from the JWT claims
-func (u *User) Claims() (*jwt.RegisteredClaims, error) {
+func (u *User) Claims() (jwt.MapClaims, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
-	claims := jwt.RegisteredClaims{}
+	claims := jwt.MapClaims{}
 	_, _, err := parser.ParseUnverified(u.AuthToken, &claims)
 	if err != nil {
 		return nil, err
 	}
-	return &claims, nil
+	return claims, nil
 }
 
 // ReadLocalConfig loads up the local configuration file. Returns nil if config does not exist
@@ -92,6 +92,9 @@ func ReadLocalConfig(path string) (*LocalConfig, error) {
 	err = config.UnmarshalLocalFile(path, &localconfig)
 	if os.IsNotExist(err) {
 		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse config file: %w", err)
 	}
 	err = ValidateLocalConfig(localconfig)
 	if err != nil {
@@ -214,6 +217,16 @@ func (l *LocalConfig) RemoveUser(serverName string) bool {
 		}
 	}
 	return false
+}
+
+// GetToken returns the token stored in the local file for the given server name
+func (l *LocalConfig) GetToken(serverName string) string {
+	for _, u := range l.Users {
+		if u.Name == serverName {
+			return u.AuthToken
+		}
+	}
+	return ""
 }
 
 // Returns true if user was removed successfully
