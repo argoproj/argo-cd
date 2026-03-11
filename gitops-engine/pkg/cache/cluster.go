@@ -1186,7 +1186,10 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	// Track visited resources to avoid cycles
+	// Track whether action() has been called on each resource: 0=unvisited, 1=in progress, 2=completed.
+	// This is shared across processNamespaceHierarchy and processCrossNamespaceChildren.
+	// Note: This is distinct from the 'processed' map in processCrossNamespaceChildren, which tracks
+	// whether we've traversed a cluster-scoped key's cross-namespace children.
 	visited := make(map[kube.ResourceKey]int)
 
 	// Group keys by namespace for efficient processing
@@ -1208,7 +1211,10 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 
 	// Process pre-computed cross-namespace children
 	if clusterKeys, ok := keysPerNamespace[""]; ok {
-		// Track which keys have been processed to detect cycles
+		// Track which cluster-scoped keys have had their cross-namespace children traversed.
+		// This is distinct from 'visited' - a resource may have had action() called (visited=2)
+		// but not yet had its cross-namespace children traversed. This prevents infinite
+		// recursion when resources have circular ownerReferences.
 		processed := make(map[kube.ResourceKey]bool)
 		c.processCrossNamespaceChildren(clusterKeys, visited, processed, action)
 	}
