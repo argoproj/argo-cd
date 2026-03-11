@@ -112,7 +112,7 @@ func TestPullRequestEventAggregate_TypeSwitch(t *testing.T) {
 			payloadBytes, err := os.ReadFile(tc.filename)
 			assert.NoError(err)
 
-			req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewReader(payloadBytes))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/webhook", bytes.NewReader(payloadBytes))
 			req.Header.Set("X-Src-Event", tc.eventHeader)
 			req.Header.Set("Content-Type", "application/json")
 
@@ -195,7 +195,7 @@ func TestPullRequestEventAggregate_SingleCaseHandling(t *testing.T) {
 		payloadBytes, err := os.ReadFile(tc.filename)
 		assert.NoError(err)
 
-		req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewReader(payloadBytes))
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/webhook", bytes.NewReader(payloadBytes))
 		req.Header.Set("X-Src-Event", tc.eventHeader)
 		req.Header.Set("Content-Type", "application/json")
 
@@ -301,7 +301,7 @@ func TestPullRequestEventAggregate_EventType(t *testing.T) {
 			payloadBytes, err := os.ReadFile(tc.filename)
 			assert.NoError(err)
 
-			req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewReader(payloadBytes))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/webhook", bytes.NewReader(payloadBytes))
 			req.Header.Set("X-Src-Event", tc.eventHeader)
 			req.Header.Set("Content-Type", "application/json")
 

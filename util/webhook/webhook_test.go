@@ -412,7 +412,7 @@ func TestGitLabSystemEvent(t *testing.T) {
 func TestSourceCraftCommitEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Src-Event", "repository.push")
 	eventJSON, err := os.ReadFile("testdata/sourcecraft-commit-event.json")
 	require.NoError(t, err)
@@ -430,7 +430,7 @@ func TestSourceCraftCommitEvent(t *testing.T) {
 func TestSourceCraftPingEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Src-Event", "webhook.ping")
 	eventJSON, err := os.ReadFile("testdata/sourcecraft-ping-event.json")
 	require.NoError(t, err)
@@ -510,7 +510,7 @@ func TestSourceCraftCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 			},
 		},
 	)
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Src-Event", "repository.push")
 	eventJSON, err := os.ReadFile("testdata/sourcecraft-commit-event.json")
 	require.NoError(t, err)

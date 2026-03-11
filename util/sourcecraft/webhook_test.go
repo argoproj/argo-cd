@@ -2,7 +2,6 @@ package sourcecraft
 
 import (
 	"bytes"
-	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -95,7 +94,6 @@ func TestBadRequests(t *testing.T) {
 
 	for _, tt := range tests {
 		tc := tt
-		client := &http.Client{}
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			var parseError error
@@ -103,12 +101,12 @@ func TestBadRequests(t *testing.T) {
 				_, parseError = hook.Parse(r, tc.event)
 			})
 			defer server.Close()
-			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL+path, tc.payload)
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, server.URL+path, tc.payload)
 			assert.NoError(err)
 			req.Header = tc.headers
 			req.Header.Set("Content-Type", "application/json")
 
-			resp, err := client.Do(req)
+			resp, err := server.Client().Do(req)
 			assert.NoError(err)
 			assert.Equal(http.StatusOK, resp.StatusCode)
 			assert.Error(parseError)
@@ -185,7 +183,6 @@ func TestPullRequestEventAggregateStruct(t *testing.T) {
 
 	for _, tt := range tests {
 		tc := tt
-		client := &http.Client{}
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			payload, err := os.ReadFile(tc.filename)
@@ -198,7 +195,7 @@ func TestPullRequestEventAggregateStruct(t *testing.T) {
 			})
 			defer server.Close()
 
-			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL+path, bytes.NewReader(payload))
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, server.URL+path, bytes.NewReader(payload))
 			assert.NoError(err)
 			req.Header.Set("X-Src-Event", tc.eventHeader)
 
@@ -207,7 +204,7 @@ func TestPullRequestEventAggregateStruct(t *testing.T) {
 			req.Header.Set("X-Src-Signature", hex.EncodeToString(mac.Sum(nil)))
 			req.Header.Set("Content-Type", "application/json")
 
-			resp, err := client.Do(req)
+			resp, err := server.Client().Do(req)
 			assert.NoError(err)
 			assert.Equal(http.StatusOK, resp.StatusCode)
 			assert.NoError(parseError)
@@ -260,7 +257,6 @@ func TestNonPullRequestEventsDoNotReturnPRPayload(t *testing.T) {
 
 	for _, tt := range tests {
 		tc := tt
-		client := &http.Client{}
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			payload, err := os.ReadFile(tc.filename)
@@ -273,7 +269,7 @@ func TestNonPullRequestEventsDoNotReturnPRPayload(t *testing.T) {
 			})
 			defer server.Close()
 
-			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL+path, bytes.NewReader(payload))
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, server.URL+path, bytes.NewReader(payload))
 			assert.NoError(err)
 			req.Header.Set("X-Src-Event", string(tc.event))
 
@@ -282,7 +278,7 @@ func TestNonPullRequestEventsDoNotReturnPRPayload(t *testing.T) {
 			req.Header.Set("X-Src-Signature", hex.EncodeToString(mac.Sum(nil)))
 			req.Header.Set("Content-Type", "application/json")
 
-			resp, err := client.Do(req)
+			resp, err := server.Client().Do(req)
 			assert.NoError(err)
 			assert.Equal(http.StatusOK, resp.StatusCode)
 			assert.NoError(parseError)
@@ -407,7 +403,6 @@ func TestWebhooks(t *testing.T) {
 
 	for _, tt := range tests {
 		tc := tt
-		client := &http.Client{}
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			assert := require.New(t)
@@ -421,7 +416,7 @@ func TestWebhooks(t *testing.T) {
 			})
 			defer server.Close()
 
-			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL+path, bytes.NewReader(payload))
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, server.URL+path, bytes.NewReader(payload))
 			assert.NoError(err)
 			req.Header = tc.headers
 			mac := hmac.New(sha256.New, []byte(hook.secret))
@@ -431,7 +426,7 @@ func TestWebhooks(t *testing.T) {
 
 			req.Header.Set("Content-Type", "application/json")
 
-			resp, err := client.Do(req)
+			resp, err := server.Client().Do(req)
 			assert.NoError(err)
 			assert.Equal(http.StatusOK, resp.StatusCode)
 			assert.NoError(parseError)
@@ -518,7 +513,6 @@ func TestWebhook_PullRequestAggregate(t *testing.T) {
 
 	for _, tt := range tests {
 		tc := tt
-		client := &http.Client{}
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			payload, err := os.ReadFile(tc.filename)
@@ -531,7 +525,7 @@ func TestWebhook_PullRequestAggregate(t *testing.T) {
 			})
 			defer server.Close()
 
-			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL+path, bytes.NewReader(payload))
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, server.URL+path, bytes.NewReader(payload))
 			assert.NoError(err)
 			req.Header.Set("X-Src-Event", tc.eventHeader)
 			req.Header.Set("Content-Type", "application/json")
@@ -540,7 +534,7 @@ func TestWebhook_PullRequestAggregate(t *testing.T) {
 			mac.Write(payload)
 			req.Header.Set("X-Src-Signature", hex.EncodeToString(mac.Sum(nil)))
 
-			resp, err := client.Do(req)
+			resp, err := server.Client().Do(req)
 			assert.NoError(err)
 			assert.Equal(http.StatusOK, resp.StatusCode)
 			assert.NoError(parseError, "Should successfully parse with PullRequestAggregate")
@@ -589,7 +583,6 @@ func TestWebhook_PullRequestAggregateDoesNotMatchNonPREvents(t *testing.T) {
 
 	for _, tt := range tests {
 		tc := tt
-		client := &http.Client{}
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			payload, err := os.ReadFile(tc.filename)
@@ -602,7 +595,7 @@ func TestWebhook_PullRequestAggregateDoesNotMatchNonPREvents(t *testing.T) {
 			})
 			defer server.Close()
 
-			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL+path, bytes.NewReader(payload))
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, server.URL+path, bytes.NewReader(payload))
 			assert.NoError(err)
 			req.Header.Set("X-Src-Event", tc.eventHeader)
 			req.Header.Set("Content-Type", "application/json")
@@ -611,7 +604,7 @@ func TestWebhook_PullRequestAggregateDoesNotMatchNonPREvents(t *testing.T) {
 			mac.Write(payload)
 			req.Header.Set("X-Src-Signature", hex.EncodeToString(mac.Sum(nil)))
 
-			resp, err := client.Do(req)
+			resp, err := server.Client().Do(req)
 			assert.NoError(err)
 			assert.Equal(http.StatusOK, resp.StatusCode)
 
@@ -635,13 +628,13 @@ func TestNew_WithFailingOption(t *testing.T) {
 }
 
 func TestParse_NoEventsSpecified(t *testing.T) {
-	r := httptest.NewRequest(http.MethodPost, "/webhooks", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/webhooks", http.NoBody)
 	_, err := hook.Parse(r)
 	require.ErrorIs(t, err, ErrEventNotSpecifiedToParse)
 }
 
 func TestParse_NonPostMethod(t *testing.T) {
-	r := httptest.NewRequest(http.MethodGet, "/webhooks", http.NoBody)
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/webhooks", http.NoBody)
 	_, err := hook.Parse(r, PushEvent)
 	require.ErrorIs(t, err, ErrInvalidHTTPMethod)
 }
@@ -650,7 +643,7 @@ func TestParse_PullRequestRefreshAggregate(t *testing.T) {
 	payload, err := os.ReadFile("testdata/pull-request-refresh.json")
 	require.NoError(t, err)
 
-	r := httptest.NewRequest(http.MethodPost, "/webhooks", bytes.NewReader(payload))
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/webhooks", bytes.NewReader(payload))
 	r.Header.Set("X-Src-Event", string(PullRequestRefreshEvent))
 
 	mac := hmac.New(sha256.New, []byte(hook.secret))
@@ -667,7 +660,7 @@ func TestParse_PullRequestRefreshAggregate(t *testing.T) {
 
 func TestParse_UnknownEventInAggregate(t *testing.T) {
 	payload := []byte(`{"foo":"bar"}`)
-	r := httptest.NewRequest(http.MethodPost, "/webhooks", bytes.NewReader(payload))
+	r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/webhooks", bytes.NewReader(payload))
 	r.Header.Set("X-Src-Event", "pull_request.unknown_type")
 
 	mac := hmac.New(sha256.New, []byte(hook.secret))
@@ -764,7 +757,6 @@ func TestWebhook_MultipleSecretsSupport(t *testing.T) {
 
 	for _, tt := range tests {
 		tc := tt
-		client := &http.Client{}
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -782,7 +774,7 @@ func TestWebhook_MultipleSecretsSupport(t *testing.T) {
 			})
 			defer server.Close()
 
-			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, server.URL+path, bytes.NewReader(payload))
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, server.URL+path, bytes.NewReader(payload))
 			assert.NoError(err)
 			req.Header.Set("X-Src-Event", tc.eventHeader)
 			req.Header.Set("Content-Type", "application/json")
@@ -792,7 +784,7 @@ func TestWebhook_MultipleSecretsSupport(t *testing.T) {
 			mac.Write(payload)
 			req.Header.Set("X-Src-Signature", hex.EncodeToString(mac.Sum(nil)))
 
-			resp, err := client.Do(req)
+			resp, err := server.Client().Do(req)
 			assert.NoError(err)
 			assert.Equal(http.StatusOK, resp.StatusCode)
 
