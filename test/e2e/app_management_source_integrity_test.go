@@ -158,6 +158,7 @@ func TestSyncToUnsignedBranch(t *testing.T) {
 		GPGPublicKeyAdded().
 		Sleep(2).
 		When().
+		AddFile("test.yaml", "TestSyncToUnsignedBranch").
 		IgnoreErrors().
 		CreateApp().
 		Sync().
