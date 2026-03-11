@@ -1208,9 +1208,9 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 
 	// Process pre-computed cross-namespace children
 	if clusterKeys, ok := keysPerNamespace[""]; ok {
-		// Track which keys are currently being processed to detect cycles
-		processing := make(map[kube.ResourceKey]bool)
-		c.processCrossNamespaceChildren(clusterKeys, visited, processing, action)
+		// Track which keys have been processed to detect cycles
+		processed := make(map[kube.ResourceKey]bool)
+		c.processCrossNamespaceChildren(clusterKeys, visited, processed, action)
 	}
 }
 
@@ -1218,20 +1218,20 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 // This enables traversing from cluster-scoped parents to their namespaced children across namespace boundaries.
 // It also handles multi-level hierarchies where cluster-scoped resources own other cluster-scoped resources
 // that in turn own namespaced resources (e.g., Provider -> ProviderRevision -> Deployment in Crossplane).
-// The processing map tracks which keys have already been processed to prevent infinite recursion
+// The processed map tracks which keys have already been processed to prevent infinite recursion
 // from circular ownerReferences (e.g., a resource that owns itself).
 func (c *clusterCache) processCrossNamespaceChildren(
 	clusterScopedKeys []kube.ResourceKey,
 	visited map[kube.ResourceKey]int,
-	processing map[kube.ResourceKey]bool,
+	processed map[kube.ResourceKey]bool,
 	action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool,
 ) {
 	for _, clusterKey := range clusterScopedKeys {
-		// Skip if already being processed (cycle detection)
-		if processing[clusterKey] {
+		// Skip if already processed (cycle detection)
+		if processed[clusterKey] {
 			continue
 		}
-		processing[clusterKey] = true
+		processed[clusterKey] = true
 
 		// Get cluster-scoped resource to access its UID
 		clusterResource := c.resources[clusterKey]
@@ -1256,8 +1256,8 @@ func (c *clusterCache) processCrossNamespaceChildren(
 			if alreadyVisited {
 				if childKey.Namespace == "" {
 					// Recursively process cross-namespace children of this cluster-scoped child
-					// The processing map prevents infinite recursion on circular ownerReferences
-					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, visited, processing, action)
+					// The processed map prevents infinite recursion on circular ownerReferences
+					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, visited, processed, action)
 				}
 				continue
 			}
@@ -1276,7 +1276,7 @@ func (c *clusterCache) processCrossNamespaceChildren(
 
 				// If this child is also cluster-scoped, recursively process its cross-namespace children
 				if childKey.Namespace == "" {
-					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, visited, processing, action)
+					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, visited, processed, action)
 				}
 
 				visited[childKey] = 2
