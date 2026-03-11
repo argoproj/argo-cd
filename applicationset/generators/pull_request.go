@@ -96,15 +96,9 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	var shortSHALength int
 	var shortSHALength7 int
 	for _, pull := range pulls {
-		shortSHALength = 8
-		if len(pull.HeadSHA) < 8 {
-			shortSHALength = len(pull.HeadSHA)
-		}
+		shortSHALength = min(len(pull.HeadSHA), 8)
 
-		shortSHALength7 = 7
-		if len(pull.HeadSHA) < 7 {
-			shortSHALength7 = len(pull.HeadSHA)
-		}
+		shortSHALength7 = min(len(pull.HeadSHA), 7)
 
 		paramMap := map[string]any{
 			"number":             strconv.FormatInt(pull.Number, 10),

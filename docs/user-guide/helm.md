@@ -3,7 +3,7 @@
 ## Declarative
 
 You can install Helm charts through the UI, or in the declarative GitOps way.  
-Helm is [only used to inflate charts with `helm template`](../../faq#after-deploying-my-helm-application-with-argo-cd-i-cannot-see-it-with-helm-ls-and-other-helm-commands). The lifecycle of the application is handled by Argo CD instead of Helm.
+Helm is [only used to inflate charts with `helm template`](../faq.md#after-deploying-my-helm-application-with-argo-cd-i-cannot-see-it-with-helm-ls-and-other-helm-commands). The lifecycle of the application is handled by Argo CD instead of Helm.
 Here is an example:
 
 ```yaml
@@ -45,9 +45,9 @@ spec:
 > [!NOTE]
 > **When using Helm there are multiple ways to provide values**
 >
-> Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml` (see [Here](./helm.md#helm-value-precedence) for a more detailed example)
+> Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml`. [Value precedence](./helm.md#helm-value-precedence) has a more detailed example.
 
-See [here](../operator-manual/declarative-setup.md#helm) for more info about how to configure private Helm repositories and private OCI registries.
+The [Declarative Setup section on Helm](../operator-manual/declarative-setup.md#helm) has more info about how to configure private Helm repositories and private OCI registries.
 
 ## Values Files
 
