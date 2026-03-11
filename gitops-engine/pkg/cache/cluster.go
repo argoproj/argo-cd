@@ -1208,7 +1208,9 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 
 	// Process pre-computed cross-namespace children
 	if clusterKeys, ok := keysPerNamespace[""]; ok {
-		c.processCrossNamespaceChildren(clusterKeys, visited, action)
+		// Track which keys are currently being processed to detect cycles
+		processing := make(map[kube.ResourceKey]bool)
+		c.processCrossNamespaceChildren(clusterKeys, visited, processing, action)
 	}
 }
 
@@ -1216,15 +1218,25 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 // This enables traversing from cluster-scoped parents to their namespaced children across namespace boundaries.
 // It also handles multi-level hierarchies where cluster-scoped resources own other cluster-scoped resources
 // that in turn own namespaced resources (e.g., Provider -> ProviderRevision -> Deployment in Crossplane).
+// The processing map tracks keys currently in the recursive call stack to prevent infinite recursion
+// from circular ownerReferences (e.g., a resource that owns itself).
 func (c *clusterCache) processCrossNamespaceChildren(
 	clusterScopedKeys []kube.ResourceKey,
 	visited map[kube.ResourceKey]int,
+	processing map[kube.ResourceKey]bool,
 	action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool,
 ) {
 	for _, clusterKey := range clusterScopedKeys {
+		// Skip if already being processed (cycle detection)
+		if processing[clusterKey] {
+			continue
+		}
+		processing[clusterKey] = true
+
 		// Get cluster-scoped resource to access its UID
 		clusterResource := c.resources[clusterKey]
 		if clusterResource == nil {
+			processing[clusterKey] = false
 			continue
 		}
 
@@ -1245,7 +1257,8 @@ func (c *clusterCache) processCrossNamespaceChildren(
 			if alreadyVisited {
 				if childKey.Namespace == "" {
 					// Recursively process cross-namespace children of this cluster-scoped child
-					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, visited, action)
+					// The processing map prevents infinite recursion on circular ownerReferences
+					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, visited, processing, action)
 				}
 				continue
 			}
@@ -1264,12 +1277,13 @@ func (c *clusterCache) processCrossNamespaceChildren(
 
 				// If this child is also cluster-scoped, recursively process its cross-namespace children
 				if childKey.Namespace == "" {
-					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, visited, action)
+					c.processCrossNamespaceChildren([]kube.ResourceKey{childKey}, visited, processing, action)
 				}
 
 				visited[childKey] = 2
 			}
 		}
+		processing[clusterKey] = false
 	}
 }
 
