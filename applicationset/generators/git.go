@@ -203,7 +203,9 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	sort.Strings(filePaths)
 
 	// Get the commit SHA for the given repo and revision once, as it will be the same for all files.
-	commitSHA, err := g.repos.GetCommitSHA(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project)
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+	commitSHA, err := g.repos.GetCommitSHA(ctx, appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project)
 	if err != nil {
 		return nil, fmt.Errorf("error getting commit SHA from repo: %w", err)
 	}
@@ -334,7 +336,9 @@ func (g *GitGenerator) filterApps(directories []argoprojiov1alpha1.GitDirectoryG
 // It supports both Go templates and flat key-value parameters.
 func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, useGoTemplate bool, goTemplateOptions []string, project string) ([]map[string]any, error) {
 	// Get the commit SHA for the given repo and revision once, as it will be the same.
-	commitSHA, err := g.repos.GetCommitSHA(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project)
+	ctx, cancel := context.WithTimeout(context.TODO(), 30*time.Second)
+	defer cancel()
+	commitSHA, err := g.repos.GetCommitSHA(ctx, appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, project)
 	if err != nil {
 		return nil, fmt.Errorf("error getting commit SHA from repo: %w", err)
 	}
