@@ -1338,10 +1338,10 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	if err := mgr.updateSettingsFromSecret(&settings, argoCDSecret, secrets); err != nil {
 		errs = append(errs, err)
 	}
+	updateSettingsFromConfigMap(&settings, argoCDCM)
 	if len(errs) > 0 {
 		return &settings, errors.Join(errs...)
 	}
-	updateSettingsFromConfigMap(&settings, argoCDCM)
 
 	return &settings, nil
 }

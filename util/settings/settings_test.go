@@ -209,6 +209,38 @@ func TestInClusterServerAddressEnabledByDefault(t *testing.T) {
 	assert.True(t, settings.InClusterEnabled)
 }
 
+func TestGetSettings_InClusterIsEnabledWithMissingServerSecretKey(t *testing.T) {
+	kubeClient := fake.NewClientset(
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"admin.password": nil,
+			},
+		},
+	)
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+	settings, err := settingsManager.GetSettings()
+	require.Error(t, err)
+	require.NotNil(t, settings)
+	assert.True(t, settings.InClusterEnabled)
+}
+
 func TestGetAppInstanceLabelKey(t *testing.T) {
 	t.Run("should get custom instanceLabelKey", func(t *testing.T) {
 		_, settingsManager := fixtures(t.Context(), map[string]string{
