@@ -86,3 +86,29 @@ at that URL. If the `path` field is not set, Argo CD will use the repository sol
 
 > [!NOTE]
 > Even when the `ref` field is configured with the `path` field, `$value` still represents the root of sources with the `ref` field. Consequently, `valueFiles` must be specified as relative paths from the root of sources.
+
+## Kustomize components from external Git repository
+
+Similar to Helm value files, Kustomize components can also reference external Git repositories. This allows you to use components from other repositories in your Kustomize configurations.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  sources:
+  - repoURL: 'https://github.com/mycompany/main-app.git'
+    path: kustomize-app
+    targetRevision: main
+    kustomize:
+      components:
+      - $components/common/monitoring
+      - $components/common/logging
+  - repoURL: 'https://github.com/mycompany/kustomize-components.git'
+    targetRevision: main
+    ref: components
+```
+
+In the above example, the Kustomize application will use components from the `github.com/mycompany/kustomize-components.git` repository. The `ref: components` parameter maps to the variable `$components`, which resolves to the root of the components repository.
+
+Components with ref prefixes work the same way as Helm value files with ref prefixes. The component path must be specified relative to the root of the referenced repository.
+
