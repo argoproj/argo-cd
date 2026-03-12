@@ -274,13 +274,15 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("auto-prune", "true"))
 		require.NotNil(t, f.spec.SyncPolicy.Automated.Enabled)
 		assert.False(t, *f.spec.SyncPolicy.Automated.Enabled)
-		assert.True(t, f.spec.SyncPolicy.Automated.Prune)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.Prune)
+		assert.True(t, *f.spec.SyncPolicy.Automated.Prune)
 
 		// automated.enabled = true
 		*f.spec.SyncPolicy.Automated.Enabled = true
 		require.NoError(t, f.SetFlag("auto-prune", "false"))
 		assert.True(t, *f.spec.SyncPolicy.Automated.Enabled)
-		assert.False(t, f.spec.SyncPolicy.Automated.Prune)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.Prune)
+		assert.False(t, *f.spec.SyncPolicy.Automated.Prune)
 	})
 	t.Run("SelfHealFlag", func(t *testing.T) {
 		f := newAppOptionsFixture()
@@ -288,12 +290,14 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("self-heal", "true"))
 		require.NotNil(t, f.spec.SyncPolicy.Automated.Enabled)
 		assert.False(t, *f.spec.SyncPolicy.Automated.Enabled)
-		assert.True(t, f.spec.SyncPolicy.Automated.SelfHeal)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.SelfHeal)
+		assert.True(t, *f.spec.SyncPolicy.Automated.SelfHeal)
 
 		*f.spec.SyncPolicy.Automated.Enabled = true
 		require.NoError(t, f.SetFlag("self-heal", "false"))
 		assert.True(t, *f.spec.SyncPolicy.Automated.Enabled)
-		assert.False(t, f.spec.SyncPolicy.Automated.SelfHeal)
+		require.NotNil(t, f.spec.SyncPolicy.Automated.SelfHeal)
+		assert.False(t, *f.spec.SyncPolicy.Automated.SelfHeal)
 	})
 	t.Run("AllowEmptyFlag", func(t *testing.T) {
 		f := newAppOptionsFixture()

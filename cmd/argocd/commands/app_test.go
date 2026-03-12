@@ -443,7 +443,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 			},
@@ -461,7 +461,7 @@ func TestFormatConditionSummary(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 			},
@@ -674,18 +674,18 @@ func TestPrintAppSummaryTable(t *testing.T) {
 				Namespace: "argocd",
 			},
 			Spec: v1alpha1.ApplicationSpec{
-				SyncPolicy: &v1alpha1.SyncPolicy{
-					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
-					},
-				},
-				Project:     "default",
-				Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
-				Source: &v1alpha1.ApplicationSource{
-					RepoURL:        "test",
-					TargetRevision: "master",
-					Path:           "/test",
-					Helm: &v1alpha1.ApplicationSourceHelm{
+		SyncPolicy: &v1alpha1.SyncPolicy{
+			Automated: &v1alpha1.SyncPolicyAutomated{
+				Prune: new(true),
+			},
+		},
+		Project:     "default",
+		Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+		Source: &v1alpha1.ApplicationSource{
+			RepoURL:        "test",
+			TargetRevision: "master",
+			Path:           "/test",
+			Helm: &v1alpha1.ApplicationSourceHelm{
 						ValueFiles: []string{"path1", "path2"},
 					},
 					Kustomize: &v1alpha1.ApplicationSourceKustomize{NamePrefix: "prefix"},
@@ -762,14 +762,14 @@ func TestPrintAppSummaryTable_MultipleSources(t *testing.T) {
 				Namespace: "argocd",
 			},
 			Spec: v1alpha1.ApplicationSpec{
-				SyncPolicy: &v1alpha1.SyncPolicy{
-					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
-					},
+			SyncPolicy: &v1alpha1.SyncPolicy{
+				Automated: &v1alpha1.SyncPolicyAutomated{
+					Prune: new(true),
 				},
-				Project:     "default",
-				Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
-				Sources: v1alpha1.ApplicationSources{
+			},
+			Project:     "default",
+			Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+			Sources: v1alpha1.ApplicationSources{
 					{
 						RepoURL:        "test",
 						TargetRevision: "master",
@@ -2115,7 +2115,7 @@ func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.Applicat
 		Spec: v1alpha1.ApplicationSpec{
 			SyncPolicy: &v1alpha1.SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
-					Prune: true,
+					Prune: new(true),
 				},
 			},
 			Project:     "default",
