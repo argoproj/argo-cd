@@ -152,6 +152,10 @@ data:
   server.webhook.parallelism.limit: "50"
   # Maximum number of compiled glob patterns to cache for RBAC evaluation (default 10000)
   server.glob.cache.size: "10000"
+  # Number of concurrent workers processing webhook-triggered app refresh requests (default 20).
+  # Increase this value when webhook events affect large numbers of applications to reduce refresh latency.
+  # Works together with webhook.refresh.jitter / webhook.refresh.jitter.threshold in argocd-cm.
+  server.webhook.refresh.workers: "20"
   # Whether to allow sync with replace checked to go through. Resource-level annotation to replace override this setting, i.e. it's only enforced on the API server level.
   server.sync.replace.allowed: "true"
 

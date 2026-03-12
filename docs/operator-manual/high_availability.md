@@ -528,6 +528,19 @@ data:
   webhook.refresh.jitter.threshold: "10"
 ```
 
+You can also tune the number of concurrent workers that process the refresh queue using the
+`server.webhook.refresh.workers` key in `argocd-cmd-params-cm` (default: `20`). Under high webhook load it may be
+beneficial to raise this value alongside the jitter settings to drain the queue faster once the jitter delay expires.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  server.webhook.refresh.workers: "40"
+```
+
 ## Rate Limiting Application Reconciliations
 
 To prevent high controller resource usage or sync loops caused either due to misbehaving apps or other environment

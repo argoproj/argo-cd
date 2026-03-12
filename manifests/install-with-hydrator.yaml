@@ -33054,6 +33054,10 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.glob.cache.size
+        - name: ARGOCD_SERVER_WEBHOOK_REFRESH_WORKERS
+          valueFrom:
+            configMapKeyRef:
+              key: server.webhook.refresh.workers
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
