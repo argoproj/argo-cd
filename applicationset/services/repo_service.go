@@ -108,11 +108,11 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, p
 func (a *argoCDService) GetCommitSHA(ctx context.Context, repoURL string, revision string, project string) (string, error) {
 	repo, err := a.getRepository(ctx, repoURL, project)
 	if err != nil {
-		return "", fmt.Errorf("error in getRepository: %w", err)
+		return "", fmt.Errorf("error getting repository %s : %w", repoURL, err)
 	}
 	repoMetadata, err := a.getRevisionMetadataFromRepoServer(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, Revision: revision})
 	if err != nil {
-		return "", fmt.Errorf("error in getRevisionMetadataFromRepoServer: %w", err)
+		return "", fmt.Errorf("error getting revision metadata for repo %s at revision %s: %w", repoURL, revision, err)
 	}
 	return repoMetadata.SHA, nil
 }
