@@ -2,7 +2,11 @@ package git
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path"
 	"regexp"
@@ -514,4 +518,400 @@ func TestAzureWorkloadIdentityCreds_ReuseTokenIfExistingIsNotExpired(t *testing.
 
 func resetAzureTokenCache() {
 	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
+}
+
+const fakeGitHubAppPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
+MIIEogIBAAKCAQEA2KHkp2fe0ReHqAt9BimWEec2ryWZIyg9jvB3BdP3mzFf0bOt
+WlHm1FAETFxH4h5jYASUaaWEwRNNyGlT1GhTp+jOMC4xhOSb5/SnI2dt2EITkudQ
+FKsSFUdJAndqOzkjrP2pL4fi4b7JWhuLDO36ufAP4l2m3tnAseGSSTIccWvzLFFU
+s3wsHOHxOcJGCP1Z7rizxl6mTKYL/Z+GHqN17OJslDf901uPXsUeDCYL2iigGPhD
+Ao6k8POsfbpqLG7poCDTK50FLnS5qEocjxt+J4ZjBEWTU/DOFXWYstzfbhm8OZPQ
+pSSEiBCxpg+zjtkQfCyZxXB5RQ84CY78fXOI9QIDAQABAoIBAG8jL0FLIp62qZvm
+uO9ualUo/37/lP7aaCpq50UQJ9lwjS3yNh8+IWQO4QWj2iUBXg4mi1Vf2ymKk78b
+eixgkXp1D0Lcj/8ToYBwnUami04FKDGXhhf0Y8SS27vuM4vKlqjrQd7modkangYi
+V0X82UKHDD8fuLpfkGIxzXDLypfMzjMuVpSntnWaf2YX3VR/0/66yEp9GejftF2k
+wqhGoWM6r68pN5XuCqWd5PRluSoDy/o4BAFMhYCSfp9PjgZE8aoeWHgYzlZ3gUyn
+r+HaDDNWbibhobXk/9h8lwAJ6KCZ5RZ+HFfh0HuwIxmocT9OCFgy/S0g1p+o3m9K
+VNd5AMkCgYEA5fbS5UK7FBzuLoLgr1hktmbLJhpt8y8IPHNABHcUdE+O4/1xTQNf
+pMUwkKjGG1MtrGjLOIoMGURKKn8lR1GMZueOTSKY0+mAWUGvSzl6vwtJwvJruT8M
+otEO03o0tPnRKGxbFjqxkp2b6iqJ8MxCRZ3lSidc4mdi7PHzv9lwgvsCgYEA8Siq
+7weCri9N6y+tIdORAXgRzcW54BmJyqB147c72RvbMacb6rN28KXpM3qnRXyp3Llb
+yh81TW3FH10GqrjATws7BK8lP9kkAw0Z/7kNiS1NgH3pUbO+5H2kAa/6QW35nzRe
+Jw2lyfYGWqYO4hYXH14ML1kjgS1hgd3XHOQ64M8CgYAKcjDYSzS2UC4dnMJaFLjW
+dErsGy09a7iDDnUs/r/GHMsP3jZkWi/hCzgOiiwdl6SufUAl/FdaWnjH/2iRGco3
+7nLPXC/3CFdVNp+g2iaSQRADtAFis9N+HeL/hkCYq/RtUqa8lsP0NgacF3yWnKCy
+Ct8chDc67ZlXzBHXeCgdOwKBgHHGFPbWXUHeUW1+vbiyvrupsQSanznp8oclMtkv
+Dk48hSokw9fzuU6Jh77gw9/Vk7HtxS9Tj+squZA1bDrJFPl1u+9WzkUUJZhG6xgp
+bwhj1iejv5rrKUlVOTYOlwudXeJNa4oTNz9UEeVcaLMjZt9GmIsSC90a0uDZD26z
+AlAjAoGAEoqm2DcNN7SrH6aVFzj1EVOrNsHYiXj/yefspeiEmf27PSAslP+uF820
+SDpz4h+Bov5qTKkzcxuu1QWtA4M0K8Iy6IYLwb83DZEm1OsAf4i0pODz21PY/I+O
+VHzjB10oYgaInHZgMUdyb6F571UdiYSB6a/IlZ3ngj5touy3VIM=
+-----END RSA PRIVATE KEY-----`
+
+// ---------------------------------------------------------------------------
+// GitHub App based authentication
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// 1. TLS Errors
+// ---------------------------------------------------------------------------
+func TestGitHubAppGetAccessToken_TLSErrors(t *testing.T) {
+	t.Run("self-signed certificate rejected when insecure=false", func(t *testing.T) {
+		t.Cleanup(func() {
+			githubAppTokenCache.Flush()
+		})
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusCreated)
+			fmt.Fprint(w, githubTokenResponse("ghs_tls"))
+		}))
+		defer server.Close()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, server.URL,
+			func(c *GitHubAppCreds) { c.insecure = false })
+		token, err := creds.getAccessToken()
+
+		require.Error(t, err)
+		require.Empty(t, token)
+		errLower := strings.ToLower(err.Error())
+		require.True(t,
+			strings.Contains(errLower, "failed to verify certificate") &&
+				strings.Contains(errLower, "certificate signed by unknown authority") &&
+				strings.Contains(errLower, "x509"),
+			"error should indicate TLS/certificate verification failure, got: %s", err.Error())
+	})
+
+	t.Run("TLS handshake timeout - server never completes handshake", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("skipping slow TLS handshake timeout test (~15s)")
+		}
+		t.Cleanup(func() {
+			githubAppTokenCache.Flush()
+		})
+
+		// Create a TCP listener that accepts but never sends TLS handshake data.
+		lcfg := &net.ListenConfig{}
+		ln, err := lcfg.Listen(t.Context(), "tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer ln.Close()
+
+		go func() {
+			for {
+				conn, err := ln.Accept()
+				if err != nil {
+					return
+				}
+				// Hold the connection open; never respond with TLS ServerHello.
+				go func(c net.Conn) {
+					defer c.Close()
+					buf := make([]byte, 1024)
+					for {
+						if _, err := c.Read(buf); err != nil {
+							return
+						}
+					}
+				}(conn)
+			}
+		}()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey,
+			"https://"+ln.Addr().String(),
+			func(c *GitHubAppCreds) { c.insecure = true })
+
+		start := time.Now()
+		token, tokenErr := creds.getAccessToken()
+		elapsed := time.Since(start)
+
+		require.Error(t, tokenErr)
+		require.Empty(t, token)
+		errLower := strings.ToLower(tokenErr.Error())
+		require.True(t,
+			strings.Contains(errLower, "timeout") ||
+				strings.Contains(errLower, "tls handshake"),
+			"error should indicate timeout during TLS handshake, got: %s", tokenErr.Error())
+		require.Less(t, elapsed, 20*time.Second,
+			"should not hang indefinitely")
+	})
+}
+
+// ---------------------------------------------------------------------------
+// 2. Invalid Private key
+// ---------------------------------------------------------------------------
+func TestGitHubAppGetAccessToken_InvalidPrivateKey(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		privateKey      string
+		wantErrContains []string
+	}{
+		{
+			name:            "empty private key",
+			privateKey:      "",
+			wantErrContains: []string{"private key"},
+		},
+		{
+			name:            "random garbage as private key",
+			privateKey:      "this-is-not-a-valid-key",
+			wantErrContains: []string{"private key"},
+		},
+		{
+			name:            "truncated PEM block",
+			privateKey:      "-----BEGIN RSA PRIVATE KEY-----\nMIIE\n-----END RSA PRIVATE KEY-----",
+			wantErrContains: []string{"private key"},
+		},
+		{
+			name:            "PEM with wrong type marker",
+			privateKey:      "-----BEGIN CERTIFICATE-----\nMIIE\n-----END CERTIFICATE-----",
+			wantErrContains: []string{"private key"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusCreated)
+				fmt.Fprint(w, githubTokenResponse("ghs_unused"))
+			}))
+			defer server.Close()
+
+			creds := newTestGitHubAppCreds(12345, 67890, tt.privateKey, server.URL)
+			token, err := creds.getAccessToken()
+
+			require.Error(t, err, "should fail with invalid private key")
+			require.Empty(t, token)
+			for _, want := range tt.wantErrContains {
+				require.Contains(t, strings.ToLower(err.Error()), strings.ToLower(want),
+					"error should contain %q for diagnostics", want)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// 3. TCP Connection Errors
+// ---------------------------------------------------------------------------
+
+func TestGitHubAppGetAccessToken_TCPConnectionErrors(t *testing.T) {
+	t.Parallel()
+	t.Cleanup(func() {
+		githubAppTokenCache.Flush()
+	})
+	t.Run("connection refused - no server listening", func(t *testing.T) {
+		t.Parallel()
+		// Grab a port then close it so nothing is listening.
+		lcfg := &net.ListenConfig{}
+		ln, err := lcfg.Listen(t.Context(), "tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		addr := ln.Addr().String()
+		ln.Close()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, "http://"+addr)
+		token, tokenErr := creds.getAccessToken()
+
+		require.Error(t, tokenErr)
+		require.Empty(t, token)
+		require.Contains(t, strings.ToLower(tokenErr.Error()), "connection refused",
+			"error should clearly indicate the connection was refused")
+	})
+
+	t.Run("connection reset by peer", func(t *testing.T) {
+		t.Parallel()
+		// Accept then immediately RST-close the connection.
+		lcfg := &net.ListenConfig{}
+		ln, err := lcfg.Listen(t.Context(), "tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer ln.Close()
+
+		go func() {
+			for {
+				conn, err := ln.Accept()
+				if err != nil {
+					return
+				}
+				if tcp, ok := conn.(*net.TCPConn); ok {
+					err := tcp.SetLinger(0) // trigger RST
+					require.NoError(t, err)
+				}
+				conn.Close()
+			}
+		}()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, "http://"+ln.Addr().String())
+		token, tokenErr := creds.getAccessToken()
+
+		require.Error(t, tokenErr)
+		require.Empty(t, token)
+		errLower := strings.ToLower(tokenErr.Error())
+		require.True(t,
+			strings.Contains(errLower, "connection reset") ||
+				strings.Contains(errLower, "eof") ||
+				strings.Contains(errLower, "broken pipe"),
+			"error should indicate connection reset, got: %s", tokenErr.Error())
+	})
+
+	t.Run("DNS resolution failure", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("skipping DNS failure test (~15s due to hardcoded context timeout)")
+		}
+		t.Parallel()
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey,
+			"http://this-host-does-not-exist-anywhere.invalid:8080")
+		token, err := creds.getAccessToken()
+
+		require.Error(t, err)
+		require.Empty(t, token)
+		errLower := strings.ToLower(err.Error())
+		require.True(t,
+			strings.Contains(errLower, "no such host") ||
+				strings.Contains(errLower, "dns") ||
+				strings.Contains(errLower, "lookup"),
+			"error should indicate DNS resolution failure, got: %s", err.Error())
+	})
+}
+
+// ---------------------------------------------------------------------------
+// 4. Timeout and Latency
+// ---------------------------------------------------------------------------
+
+func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
+	// These tests mutate gitClientTimeout so they must NOT run in parallel
+	// with each other.
+	t.Cleanup(func() {
+		// Reset gitClientTimeout back to default value
+		gitClientTimeout = 15 * time.Second
+	})
+
+	t.Run("gitClientTimeout must be honoured for for token requests as well", func(t *testing.T) {
+		gitClientTimeout = 1 * time.Second // Very short — should cause timeout but won't
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/access_tokens") {
+				time.Sleep(3 * time.Second) // 3× the gitClientTimeout
+				w.WriteHeader(http.StatusCreated)
+				fmt.Fprint(w, githubTokenResponse("ghs_despite_timeout"))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, server.URL)
+		token, err := creds.getAccessToken()
+
+		// This SHOULD fail with a timeout error
+		require.Error(t, err,
+			"gitClientTimeout (1s) should cause timeout for a 3s response, but "+
+				"it does not because only the transport is passed to ghinstallation")
+		if err == nil {
+			require.Equal(t, "ghs_despite_timeout", token,
+				"token was returned despite delay exceeding gitClientTimeout")
+		}
+	})
+
+	t.Run("slow response within timeout succeeds", func(t *testing.T) {
+		gitClientTimeout = 5 * time.Second
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/access_tokens") {
+				time.Sleep(1 * time.Second) // within 5s timeout
+				w.WriteHeader(http.StatusCreated)
+				fmt.Fprint(w, githubTokenResponse("ghs_slow_ok"))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, server.URL)
+		token, err := creds.getAccessToken()
+
+		require.NoError(t, err, "should succeed when response arrives within timeout")
+		require.Equal(t, "ghs_slow_ok", token)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// 5. Dialer Default Timeout (30 seconds)
+// ---------------------------------------------------------------------------
+
+func TestGitHubAppGetAccessToken_DialerDefaultTimeout(t *testing.T) {
+	t.Run("dialer 30s timeout governs when connecting to unreachable host", func(t *testing.T) {
+		if testing.Short() {
+			t.Skip("skipping slow dialer timeout test (~30s)")
+		}
+
+		githubAppTokenCache.Flush()
+		t.Cleanup(func() {
+			githubAppTokenCache.Flush()
+			gitClientTimeout = 15 * time.Second
+		})
+		// Set a timeout value higher than the default dial context timeout 30s
+		gitClientTimeout = 35 * time.Second
+		// Use the transport directly (as ghinstallation does internally)
+		// without any context deadline, isolating the dialer's 30s timeout.
+		const unreachableAddr = "192.0.2.1:12345"
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, "http://"+unreachableAddr)
+		token, err := creds.getAccessToken()
+		require.Empty(t, token)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), fmt.Sprintf("dial tcp %s: i/o timeout", unreachableAddr))
+	})
+
+	t.Run("successful connection completes well within dialer 30s timeout", func(t *testing.T) {
+		githubAppTokenCache.Flush()
+		t.Cleanup(func() {
+			githubAppTokenCache.Flush()
+			gitClientTimeout = 15 * time.Second
+		})
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/access_tokens") {
+				w.WriteHeader(http.StatusCreated)
+				fmt.Fprint(w, githubTokenResponse("ghs_dialer_ok"))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, server.URL)
+
+		start := time.Now()
+		token, err := creds.getAccessToken()
+		elapsed := time.Since(start)
+
+		require.NoError(t, err)
+		require.Equal(t, "ghs_dialer_ok", token)
+		require.Less(t, elapsed, 5*time.Second,
+			"reachable server should connect well within dialer's 30s timeout")
+	})
+}
+
+// newTestGitHubAppCreds creates GitHubAppCreds pointed at a test server.
+// By default, insecure=true so plain-HTTP test servers work without TLS issues.
+func newTestGitHubAppCreds(appID, installID int64, privateKey, baseURL string, opts ...func(*GitHubAppCreds)) GitHubAppCreds {
+	creds := GitHubAppCreds{
+		appID:        appID,
+		appInstallId: installID,
+		privateKey:   privateKey,
+		baseURL:      baseURL,
+		insecure:     true,
+		store:        &NoopCredsStore{},
+	}
+	for _, opt := range opts {
+		opt(&creds)
+	}
+	return creds
+}
+
+// githubTokenResponse returns a JSON body that ghinstallation accepts as a
+// valid access-token response.
+func githubTokenResponse(token string) string {
+	b, _ := json.Marshal(map[string]string{
+		"token":      token,
+		"expires_at": time.Now().Add(1 * time.Hour).Format(time.RFC3339),
+	})
+	return string(b)
 }
