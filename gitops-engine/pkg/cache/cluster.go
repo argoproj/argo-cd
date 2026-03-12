@@ -1345,9 +1345,6 @@ func (c *clusterCache) processNamespaceHierarchy(
 	action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool,
 ) {
 	for _, key := range namespaceKeys {
-		actionCallState[key] = notCalled
-	}
-	for _, key := range namespaceKeys {
 		res := c.resources[key]
 		if actionCallState[key] == completed || !action(res, nsNodes) {
 			continue
