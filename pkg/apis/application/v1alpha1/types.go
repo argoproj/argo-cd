@@ -152,7 +152,7 @@ func NewEnvEntry(text string) (*EnvEntry, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected env entry of the form: param=value but received: %s", text)
 	}
-	return &EnvEntry{ Name: name, Value: value }, nil
+	return &EnvEntry{Name: name, Value: value}, nil
 }
 
 // splitOnce splits a string on the first '=' and returns the left and right
