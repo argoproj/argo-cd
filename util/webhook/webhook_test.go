@@ -1859,5 +1859,4 @@ func TestProcessAppRefresh(t *testing.T) {
 
 		assert.Contains(t, hook.LastEntry().Message, "Requested app 'test-app' hydration")
 	})
-
 }
