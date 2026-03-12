@@ -216,7 +216,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 		clientCache:              cacheClient,
 		azure:                    azureApp{mtx: &sync.RWMutex{}},
 		domainHint:               domainHint,
-		refreshTokenThreshold:    settings.OIDCRefreshTokenThreshold,
+		refreshTokenThreshold:    settings.RefreshTokenThreshold(),
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
