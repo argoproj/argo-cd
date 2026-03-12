@@ -63,10 +63,12 @@ type ManifestRequest struct {
 	// argocd.argoproj.io/manifest-generate-paths annotation value of the Application to allow optimize which resources propagated to cmpserver
 	AnnotationManifestGeneratePaths string `protobuf:"bytes,26,opt,name=annotationManifestGeneratePaths,proto3" json:"annotationManifestGeneratePaths,omitempty"`
 	// Holds instance installation id
-	InstallationID       string   `protobuf:"bytes,27,opt,name=installationID,proto3" json:"installationID,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	InstallationID string `protobuf:"bytes,27,opt,name=installationID,proto3" json:"installationID,omitempty"`
+	// ManifestGeneratePolicy controls how manifest generation is constrained (e.g. "strict")
+	ManifestGeneratePolicy string   `protobuf:"bytes,28,opt,name=manifestGeneratePolicy,proto3" json:"manifestGeneratePolicy,omitempty"`
+	XXX_NoUnkeyedLiteral   struct{} `json:"-"`
+	XXX_unrecognized       []byte   `json:"-"`
+	XXX_sizecache          int32    `json:"-"`
 }
 
 func (m *ManifestRequest) Reset()         { *m = ManifestRequest{} }
@@ -266,6 +268,13 @@ func (m *ManifestRequest) GetAnnotationManifestGeneratePaths() string {
 func (m *ManifestRequest) GetInstallationID() string {
 	if m != nil {
 		return m.InstallationID
+	}
+	return ""
+}
+
+func (m *ManifestRequest) GetManifestGeneratePolicy() string {
+	if m != nil {
+		return m.ManifestGeneratePolicy
 	}
 	return ""
 }

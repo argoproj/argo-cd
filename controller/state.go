@@ -44,6 +44,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/manifestgen"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/stats"
 )
@@ -198,6 +199,16 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		return nil, nil, false, fmt.Errorf("failed to get installation ID: %w", err)
 	}
 
+	globalManifestGeneratePolicy, err := m.settingsMgr.GetManifestGeneratePolicy()
+	if err != nil {
+		return nil, nil, false, fmt.Errorf("failed to get manifest generate policy: %w", err)
+	}
+	resolvedManifestGeneratePolicy := manifestgen.ResolveManifestGeneratePolicy(
+		app.Spec.ManifestGeneratePolicy,
+		proj.Spec.ManifestGeneratePolicy,
+		globalManifestGeneratePolicy,
+	)
+
 	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.db)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get destination cluster: %w", err)
@@ -268,14 +279,16 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			// just reading pre-generated manifests is comparable to updating revisions time-wise
 			app.Status.SourceType != v1alpha1.ApplicationSourceTypeDirectory
 
-		if updateRevisions && repo.Depth == 0 && syncedRevision != "" && !source.IsRef() && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" && (syncedRevision != revision || app.Spec.HasMultipleSources()) {
-			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
+		isStrictPolicy := resolvedManifestGeneratePolicy == v1alpha1.ManifestGeneratePolicyStrict
+		hasAnnotationPaths := keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != ""
+		if updateRevisions && repo.Depth == 0 && syncedRevision != "" && !source.IsRef() && (isStrictPolicy || hasAnnotationPaths) && (syncedRevision != revision || app.Spec.HasMultipleSources()) {
+			// Validate the manifest-generate-path annotation (or source.Path when strict) to avoid generating manifests if it has not changed.
 			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 				Repo:               repo,
 				Revision:           revision,
 				SyncedRevision:     syncedRevision,
 				NoRevisionCache:    noRevisionCache,
-				Paths:              path.GetSourceRefreshPaths(app, source),
+				Paths:              path.GetSourceRefreshPaths(app, source, resolvedManifestGeneratePolicy),
 				AppLabelKey:        appLabelKey,
 				AppName:            app.InstanceName(m.namespace),
 				Namespace:          appNamespace,
@@ -342,6 +355,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			ProjectSourceRepos:              proj.Spec.SourceRepos,
 			AnnotationManifestGeneratePaths: app.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
 			InstallationID:                  installationID,
+			ManifestGeneratePolicy:          string(resolvedManifestGeneratePolicy),
 		})
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)

@@ -100,7 +100,23 @@ type ApplicationSpec struct {
 
 	// SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
 	SourceHydrator *SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,9,opt,name=sourceHydrator"`
+
+	// ManifestGeneratePolicy controls how manifest generation is constrained.
+	// When set to "strict", disables overlays, ignores manifest-generate-paths annotation,
+	// limits change detection to sources[].path, and rejects Kustomize/Jsonnet source types.
+	ManifestGeneratePolicy *ManifestGeneratePolicy `json:"manifestGeneratePolicy,omitempty" protobuf:"bytes,10,opt,name=manifestGeneratePolicy"`
 }
+
+// ManifestGeneratePolicy defines how manifest generation is constrained.
+type ManifestGeneratePolicy string
+
+const (
+	// ManifestGeneratePolicyNone applies no additional constraints on manifest generation.
+	ManifestGeneratePolicyNone ManifestGeneratePolicy = ""
+	// ManifestGeneratePolicyStrict disables overlays, ignores manifest-generate-paths annotation,
+	// limits change detection to sources[].path, and rejects Kustomize/Jsonnet source types.
+	ManifestGeneratePolicyStrict ManifestGeneratePolicy = "strict"
+)
 
 type IgnoreDifferences []ResourceIgnoreDifferences
 
@@ -2761,6 +2777,10 @@ type AppProjectSpec struct {
 	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
 	// DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
 	DestinationServiceAccounts []ApplicationDestinationServiceAccount `json:"destinationServiceAccounts,omitempty" protobuf:"bytes,14,name=destinationServiceAccounts"`
+
+	// ManifestGeneratePolicy controls how manifest generation is constrained for all applications in this project.
+	// Can be overridden at the application level.
+	ManifestGeneratePolicy *ManifestGeneratePolicy `json:"manifestGeneratePolicy,omitempty" protobuf:"bytes,15,opt,name=manifestGeneratePolicy"`
 }
 
 // ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist

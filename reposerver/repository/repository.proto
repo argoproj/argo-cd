@@ -42,6 +42,8 @@ message ManifestRequest {
     string annotationManifestGeneratePaths = 26;
     // Holds instance installation id
     string installationID = 27;
+    // ManifestGeneratePolicy controls how manifest generation is constrained (e.g. "strict")
+    string manifestGeneratePolicy = 28;
 }
 
 message ManifestRequestWithFiles {

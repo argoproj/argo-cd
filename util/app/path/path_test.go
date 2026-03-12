@@ -234,7 +234,41 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		ttc := tt
 		t.Run(ttc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.ElementsMatch(t, ttc.expectedPaths, GetSourceRefreshPaths(ttc.app, ttc.source), "GetAppRefreshPath()")
+			assert.ElementsMatch(t, ttc.expectedPaths, GetSourceRefreshPaths(ttc.app, ttc.source, ""), "GetAppRefreshPath()")
 		})
 	}
+}
+
+func TestGetSourceRefreshPaths_StrictPolicy(t *testing.T) {
+	app := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				v1alpha1.AnnotationKeyManifestGeneratePaths: ".;/other-path",
+			},
+		},
+	}
+	source := v1alpha1.ApplicationSource{
+		Path: "my-app",
+	}
+
+	// With strict policy, annotation should be ignored and only source.Path returned
+	paths := GetSourceRefreshPaths(app, source, v1alpha1.ManifestGeneratePolicyStrict)
+	assert.Equal(t, []string{"my-app"}, paths)
+}
+
+func TestGetSourceRefreshPaths_NonStrictUsesAnnotation(t *testing.T) {
+	app := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				v1alpha1.AnnotationKeyManifestGeneratePaths: ".;/other-path",
+			},
+		},
+	}
+	source := v1alpha1.ApplicationSource{
+		Path: "my-app",
+	}
+
+	// Without strict policy, annotation paths should be used
+	paths := GetSourceRefreshPaths(app, source, "")
+	assert.ElementsMatch(t, []string{"my-app", "other-path"}, paths)
 }

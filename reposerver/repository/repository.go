@@ -1508,10 +1508,16 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	env := newEnv(q, revision)
 
-	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, repoRoot, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs, env.Environ())
+	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, repoRoot, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs, env.Environ(), q.ManifestGeneratePolicy)
 	if err != nil {
 		return nil, fmt.Errorf("error getting app source type: %w", err)
 	}
+	if q.ManifestGeneratePolicy == "strict" {
+		if err := validatePathBoundaries(appSourceType, appPath, repoRoot, q); err != nil {
+			return nil, fmt.Errorf("manifest generate policy violation: %w", err)
+		}
+	}
+
 	repoURL := ""
 	if q.Repo != nil {
 		repoURL = q.Repo.Repo
@@ -1707,10 +1713,12 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type.
 // Overrides are applied as a side effect on the given source.
-func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, appPath, repoPath, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string) (v1alpha1.ApplicationSourceType, error) {
-	err := mergeSourceParameters(source, appPath, appName)
-	if err != nil {
-		return "", fmt.Errorf("error while parsing source parameters: %w", err)
+func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, appPath, repoPath, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string, manifestGeneratePolicy string) (v1alpha1.ApplicationSourceType, error) {
+	if manifestGeneratePolicy != "strict" {
+		err := mergeSourceParameters(source, appPath, appName)
+		if err != nil {
+			return "", fmt.Errorf("error while parsing source parameters: %w", err)
+		}
 	}
 
 	appSourceType, err := source.ExplicitType()
@@ -2192,7 +2200,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 		env := newEnvRepoQuery(q, revision)
 
-		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, repoRoot, q.AppName, q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs, env.Environ())
+		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, repoRoot, q.AppName, q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs, env.Environ(), "")
 		if err != nil {
 			return err
 		}
