@@ -3087,11 +3087,9 @@ func TestDeletionConfirmation(t *testing.T) {
 				t.Context(), &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-configmap",
-						Labels: map[string]string{
-							common.LabelKeyAppInstance: ctx.AppName(),
-						},
 						Annotations: map[string]string{
-							AnnotationSyncOptions: "Prune=confirm",
+							common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.GetName(), ctx.DeploymentNamespace()),
+							AnnotationSyncOptions:           "Prune=confirm",
 						},
 					},
 				}, metav1.CreateOptions{})
@@ -3102,7 +3100,8 @@ func TestDeletionConfirmation(t *testing.T) {
 		When().
 		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/metadata/annotations", "value": { "argocd.argoproj.io/sync-options": "Delete=confirm" }}]`).
 		CreateApp().Sync().
-		Then().ExpectConsistently(OperationPhaseIs(OperationRunning), time.Second, 5*time.Second).
+		Then().
+		ExpectConsistently(OperationPhaseIs(OperationRunning), time.Second, 5*time.Second).
 		When().ConfirmDeletion().
 		Then().Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
