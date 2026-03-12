@@ -789,6 +789,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 		repoFileContents map[string][]byte
 		// if repoPathsError is non-nil, the call to GetPaths(...) will return this error value
 		repoPathsError error
+		// if commitSHAError is non-nil, the call to GetCommitSHA(...) will return this error value
+		commitSHAError error
 		values         map[string]string
 		expected       []map[string]any
 		expectedError  error
@@ -1114,6 +1116,17 @@ cluster:
 			expected:       []map[string]any{},
 			expectedError:  nil,
 		},
+		{
+			name:  "GetCommitSHA returns an error",
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.json": []byte(`{"cluster": {"name": "production"}}`),
+			},
+			repoPathsError: nil,
+			commitSHAError: errors.New("could not resolve revision"),
+			expected:       nil,
+			expectedError:  errors.New("error generating params from git: error getting commit SHA from repo: could not resolve revision"),
+		},
 	}
 
 	for _, testCase := range cases {
@@ -1127,7 +1140,11 @@ cluster:
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			if testCaseCopy.repoPathsError == nil {
-				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
+				commitSHA := "commit-sha"
+				if testCaseCopy.commitSHAError != nil {
+					commitSHA = ""
+				}
+				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(commitSHA, testCaseCopy.commitSHAError)
 			}
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
