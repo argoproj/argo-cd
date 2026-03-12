@@ -531,6 +531,22 @@ func (sc *syncContext) Sync() {
 	multiStep := tasks.multiStep()
 	runningTasks := tasks.Filter(func(t *syncTask) bool { return (multiStep || t.isHook()) && t.running() })
 	if runningTasks.Len() > 0 {
+		// check if any of the running task's resources are missing to prevent infinite loop of waiting for healthy
+		for _, task := range runningTasks {
+			if task.liveObj == nil {
+				liveObj, err := sc.getResource(task)
+				if err != nil && !apierrors.IsNotFound(err) {
+					sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("Failed to get live resource %v", err))
+					continue
+				}
+				if liveObj != nil {
+					continue
+				}
+
+				sc.setResourceResult(task, common.ResultCodeSyncFailed, common.OperationError, fmt.Sprintf("Resource %s/%s/%s is missing, it might have been deleted", task.group(), task.kind(), task.name()))
+			}
+		}
+
 		sc.setRunningPhase(runningTasks, false)
 		return
 	}
