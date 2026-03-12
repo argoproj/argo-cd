@@ -1568,6 +1568,30 @@ type SyncPolicyAutomated struct {
 	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enabled"`
 }
 
+// GetPrune returns the value of Prune, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetPrune() bool {
+	if a == nil || a.Prune == nil {
+		return false
+	}
+	return *a.Prune
+}
+
+// GetSelfHeal returns the value of SelfHeal, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetSelfHeal() bool {
+	if a == nil || a.SelfHeal == nil {
+		return false
+	}
+	return *a.SelfHeal
+}
+
+// GetAllowEmpty returns the value of AllowEmpty, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetAllowEmpty() bool {
+	if a == nil || a.AllowEmpty == nil {
+		return false
+	}
+	return *a.AllowEmpty
+}
+
 // SyncStrategy controls the manner in which a sync is performed
 type SyncStrategy struct {
 	// Apply will perform a `kubectl apply` to perform the sync.

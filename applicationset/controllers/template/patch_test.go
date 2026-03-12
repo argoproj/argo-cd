@@ -94,16 +94,16 @@ func Test_ApplyTemplatePatch(t *testing.T) {
 						Server:    "https://kubernetes.default.svc",
 						Namespace: "guestbook",
 					},
-				SyncPolicy: &appv1.SyncPolicy{
-					Automated: &appv1.SyncPolicyAutomated{
-						Prune: new(true),
+					SyncPolicy: &appv1.SyncPolicy{
+						Automated: &appv1.SyncPolicyAutomated{
+							Prune: new(true),
+						},
 					},
 				},
 			},
 		},
-	},
-	{
-		name: "patch with YAML",
+		{
+			name: "patch with YAML",
 			appTemplate: &appv1.Application{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Application",
@@ -170,16 +170,16 @@ spec:
 						Server:    "https://kubernetes.default.svc",
 						Namespace: "guestbook",
 					},
-				SyncPolicy: &appv1.SyncPolicy{
-					Automated: &appv1.SyncPolicyAutomated{
-						Prune: new(true),
+					SyncPolicy: &appv1.SyncPolicy{
+						Automated: &appv1.SyncPolicyAutomated{
+							Prune: new(true),
+						},
 					},
 				},
 			},
 		},
-	},
-	{
-		name: "project field isn't overwritten",
+		{
+			name: "project field isn't overwritten",
 			appTemplate: &appv1.Application{
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "Application",

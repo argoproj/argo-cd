@@ -25,7 +25,7 @@ func TestNSAutoSyncSelfHealDisabled(t *testing.T) {
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
 			selfHeal := false
-		app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: &selfHeal}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: &selfHeal}}
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).

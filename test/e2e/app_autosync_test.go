@@ -24,7 +24,7 @@ func TestAutoSyncSelfHealDisabled(t *testing.T) {
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
 			selfHeal := false
-		app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: &selfHeal}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: &selfHeal}}
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -206,7 +206,7 @@ func TestAutoSyncAllowEmptyCanBeDisabled(t *testing.T) {
 			assert.True(t, *app.Spec.SyncPolicy.Automated.AllowEmpty)
 		}).
 		When().
-		AppSet("--allow-empty", "false").
+		AppSet("--allow-empty=false").
 		Then().
 		And(func(app *Application) {
 			require.NotNil(t, app.Spec.SyncPolicy.Automated.AllowEmpty, "allowEmpty should not be nil after being explicitly set to false")

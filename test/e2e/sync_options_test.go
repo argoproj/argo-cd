@@ -132,7 +132,7 @@ func TestSyncWithStatusIgnored(t *testing.T) {
 		}).
 		CreateFromFile(func(app *Application) {
 			selfHeal := true
-		app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: &selfHeal}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: &selfHeal}}
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -182,7 +182,7 @@ func TestSyncWithSkipHook(t *testing.T) {
 		When().
 		CreateFromFile(func(app *Application) {
 			selfHeal := true
-		app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: &selfHeal}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: &selfHeal}}
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
