@@ -691,11 +691,6 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 // - For existing application, it will call update
 // The function also adds owner reference to all applications, and uses it to delete them.
 func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, logCtx *log.Entry, applicationSet argov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
-	concurrency := r.ConcurrentApplicationUpdates
-	if concurrency <= 0 {
-		concurrency = 1
-	}
-
 	// Build the diff config once per reconcile.
 	// Diff config is per applicationset, so generate it once for all applications
 	diffConfig, err := utils.BuildIgnoreDiffConfig(applicationSet.Spec.IgnoreApplicationDifferences, normalizers.IgnoreNormalizerOpts{})
@@ -704,12 +699,11 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
+	concurrency := r.concurrency()
 	g.SetLimit(concurrency)
 
-	var (
-		firstErrorMu sync.Mutex
-		firstError   error
-	)
+	var appErrorsMu sync.Mutex
+	appErrors := map[string]error{}
 
 	for _, generatedApp := range desiredApplications {
 		// Normalize to avoid fighting with the application controller.
@@ -798,15 +792,12 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return err
 				}
-				// For backwards compatibility with sequential behavior: capture the first error but continue
-				// processing other applications. Returning nil tells the errgroup to keep running other goroutines.
-				// At the end, we return firstError to maintain the original behavior of reporting the first
-				// failure while still processing all applications.
-				firstErrorMu.Lock()
-				if firstError == nil {
-					firstError = err
-				}
-				firstErrorMu.Unlock()
+				// For backwards compatibility with sequential behavior: continue processing other applications
+				// but record the error keyed by app name so we can deterministically return the error from
+				// the lexicographically first failing app, regardless of goroutine scheduling order.
+				appErrorsMu.Lock()
+				appErrors[generatedApp.Name] = err
+				appErrorsMu.Unlock()
 				return nil
 			}
 
@@ -826,7 +817,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 	if err := g.Wait(); errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
-	return firstError
+	return firstAppError(appErrors)
 }
 
 // createInCluster will filter from the desiredApplications only the application that needs to be created
@@ -886,18 +877,12 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 		m[app.Name] = true
 	}
 
-	concurrency := r.ConcurrentApplicationUpdates
-	if concurrency <= 0 {
-		concurrency = 1
-	}
-
 	g, ctx := errgroup.WithContext(ctx)
+	concurrency := r.concurrency()
 	g.SetLimit(concurrency)
 
-	var (
-		firstErrorMu sync.Mutex
-		firstError   error
-	)
+	var appErrorsMu sync.Mutex
+	appErrors := map[string]error{}
 
 	// Delete apps that are not in m[string]bool
 	for _, app := range current {
@@ -915,15 +900,12 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return err
 				}
-				// For backwards compatibility with sequential behavior: capture the first error but continue
-				// processing other applications. Returning nil tells the errgroup to keep running other goroutines.
-				// At the end, we return firstError to maintain the original behavior of reporting the first
-				// failure while still processing all applications.
-				firstErrorMu.Lock()
-				if firstError == nil {
-					firstError = err
-				}
-				firstErrorMu.Unlock()
+				// For backwards compatibility with sequential behavior: continue processing other applications
+				// but record the error keyed by app name so we can deterministically return the error from
+				// the lexicographically first failing app, regardless of goroutine scheduling order.
+				appErrorsMu.Lock()
+				appErrors[app.Name] = err
+				appErrorsMu.Unlock()
 				return nil
 			}
 
@@ -934,11 +916,9 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 				if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 					return err
 				}
-				firstErrorMu.Lock()
-				if firstError == nil {
-					firstError = err
-				}
-				firstErrorMu.Unlock()
+				appErrorsMu.Lock()
+				appErrors[app.Name] = err
+				appErrorsMu.Unlock()
 				return nil
 			}
 			r.Recorder.Eventf(&applicationSet, corev1.EventTypeNormal, "Deleted", "Deleted Application %q", app.Name)
@@ -950,7 +930,31 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 	if err := g.Wait(); errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
-	return firstError
+	return firstAppError(appErrors)
+}
+
+// concurrency returns the configured number of concurrent application updates, defaulting to 1.
+func (r *ApplicationSetReconciler) concurrency() int {
+	if r.ConcurrentApplicationUpdates <= 0 {
+		return 1
+	}
+	return r.ConcurrentApplicationUpdates
+}
+
+// firstAppError returns the error associated with the lexicographically smallest application name
+// in the provided map. This gives a deterministic result when multiple goroutines may have
+// recorded errors concurrently, matching the behavior of the original sequential loop where the
+// first application in iteration order would determine the returned error.
+func firstAppError(appErrors map[string]error) error {
+	if len(appErrors) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(appErrors))
+	for name := range appErrors {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return appErrors[names[0]]
 }
 
 // removeFinalizerOnInvalidDestination removes the Argo CD resources finalizer if the application contains an invalid target (eg missing cluster)

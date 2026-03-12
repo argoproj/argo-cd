@@ -7754,6 +7754,40 @@ func TestIsRollingSyncStrategy(t *testing.T) {
 	}
 }
 
+func TestFirstAppError(t *testing.T) {
+	errA := errors.New("error from app-a")
+	errB := errors.New("error from app-b")
+	errC := errors.New("error from app-c")
+
+	t.Run("returns nil for empty map", func(t *testing.T) {
+		assert.NoError(t, firstAppError(map[string]error{}))
+	})
+
+	t.Run("returns the single error", func(t *testing.T) {
+		assert.ErrorIs(t, firstAppError(map[string]error{"app-a": errA}), errA)
+	})
+
+	t.Run("returns error from lexicographically first app name", func(t *testing.T) {
+		appErrors := map[string]error{
+			"app-c": errC,
+			"app-a": errA,
+			"app-b": errB,
+		}
+		assert.ErrorIs(t, firstAppError(appErrors), errA)
+	})
+
+	t.Run("result is stable across multiple calls with same input", func(t *testing.T) {
+		appErrors := map[string]error{
+			"app-c": errC,
+			"app-a": errA,
+			"app-b": errB,
+		}
+		for range 10 {
+			assert.ErrorIs(t, firstAppError(appErrors), errA, "firstAppError must return the same error on every call")
+		}
+	})
+}
+
 func TestSyncApplication(t *testing.T) {
 	tests := []struct {
 		name     string
