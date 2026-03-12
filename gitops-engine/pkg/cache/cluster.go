@@ -1222,8 +1222,9 @@ func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(r
 	if clusterKeys, ok := keysPerNamespace[""]; ok {
 		// Track which cluster-scoped keys have had their cross-namespace children traversed.
 		// This is distinct from 'actionCallState' - a resource may have had action() called
-		// (actionCallState=2) but not yet had its cross-namespace children traversed. This
-		// prevents infinite recursion when resources have circular ownerReferences.
+		// (i.e., its actionCallState is in the completed state) but not yet had its cross-namespace
+		// children traversed. This prevents infinite recursion when resources have circular
+		// ownerReferences.
 		crossNSTraversed := make(map[kube.ResourceKey]bool)
 		c.processCrossNamespaceChildren(clusterKeys, actionCallState, crossNSTraversed, action)
 	}
