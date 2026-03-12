@@ -2638,7 +2638,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 }
 
 func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-	gitClient, err := s.newClient(q.Repo)
+	gitClient, err := s.newClient(q.Repo, git.WithCache(s.cache, true))
 	if err != nil {
 		return nil, fmt.Errorf("error initializing git client: %w", err)
 	}

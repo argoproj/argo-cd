@@ -1870,6 +1870,51 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, "test-sha", res.References[0].Commit.SHA)
 }
 
+func TestGetRevisionMetadata_CachesNonSHARevision(t *testing.T) {
+	service, gitMocks, mockCache := newServiceWithMocks(t, "../..", false)
+	now := time.Now()
+
+	gitMocks.EXPECT().RevisionMetadata(mock.Anything).Return(&git.RevisionMetadata{
+		Message: "test",
+		Author:  "author",
+		Date:    now,
+		Tags:    []string{},
+	}, nil).Once()
+
+	res, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &v1alpha1.Repository{},
+		Revision:       "main",
+		CheckSignature: false,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "author", res.Author)
+	assert.Equal(t, "test", res.Message)
+	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+		ExternalSets: 1,
+		ExternalGets: 1,
+	})
+	gitMocks.AssertCalled(t, "LsRemote", "main")
+	gitMocks.AssertCalled(t, "Fetch", mock.Anything, mock.Anything)
+
+	// Second call with the same revision should be a cache hit: no additional Fetch or RevisionMetadata calls.
+	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:           &v1alpha1.Repository{},
+		Revision:       "main",
+		CheckSignature: false,
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, "author", res.Author)
+	assert.Equal(t, "test", res.Message)
+	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
+		ExternalSets: 1,
+		ExternalGets: 2,
+	})
+	gitMocks.AssertNumberOfCalls(t, "Fetch", 1)
+	gitMocks.AssertNumberOfCalls(t, "RevisionMetadata", 1)
+}
+
 func TestGetSignatureVerificationResult(t *testing.T) {
 	// Commit with signature and verification requested
 	{
