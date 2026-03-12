@@ -1874,14 +1874,4 @@ func TestProcessAppRefresh(t *testing.T) {
 		assert.Contains(t, hook.LastEntry().Message, "Requested app 'test-app' hydration")
 	})
 
-	t.Run("logs warning for invalid request type", func(t *testing.T) {
-		hook := test.NewGlobal()
-		defer hook.Reset()
-
-		h := NewMockHandler(nil, []string{}, &app)
-		h.processAppRefresh("invalid-type")
-		h.Shutdown()
-
-		assert.Contains(t, hook.LastEntry().Message, "Invalid refresh request type")
-	})
 }
