@@ -114,5 +114,8 @@ func (a *argoCDService) GetCommitSHA(ctx context.Context, repoURL string, revisi
 	if err != nil {
 		return "", fmt.Errorf("error getting revision metadata for repo %s at revision %s: %w", repoURL, revision, err)
 	}
+	if repoMetadata.SHA == "" {
+		return "", fmt.Errorf("revision metadata for repo %s at revision %s returned empty SHA", repoURL, revision)
+	}
 	return repoMetadata.SHA, nil
 }

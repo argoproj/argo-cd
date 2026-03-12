@@ -1487,6 +1487,142 @@ func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *test
 		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
+func TestGitDirectoryGeneratorCommitSHAParamNonExistentRevision(t *testing.T) {
+	repoURL := "https://github.com/argoproj/argocd-example-apps.git"
+	nonExistentRevision := "nonexistent-revision-do-not-create"
+
+	expectedConditions := []v1alpha1.ApplicationSetCondition{
+		{
+			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
+			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			Message: "error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Internal desc = unable to resolve git revision : unable to resolve 'nonexistent-revision-do-not-create' to a commit SHA",
+			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		},
+		{
+			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
+			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			Message: "error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Internal desc = unable to resolve git revision : unable to resolve 'nonexistent-revision-do-not-create' to a commit SHA",
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
+		},
+		{
+			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			Message: "error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Internal desc = unable to resolve git revision : unable to resolve 'nonexistent-revision-do-not-create' to a commit SHA",
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
+		},
+	}
+
+	expectedApps := []v1alpha1.Application{
+		{ObjectMeta: metav1.ObjectMeta{Name: "kustomize-guestbook", Namespace: "argocd-e2e"}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "helm-guestbook", Namespace: "argocd-e2e"}},
+	}
+
+	Given(t).
+		When().
+		Create(v1alpha1.ApplicationSet{
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}"},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        repoURL,
+							TargetRevision: "{{commitSHA}}",
+							Path:           "{{path}}",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "{{path.basename}}",
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL:  repoURL,
+							Revision: nonExistentRevision,
+							Directories: []v1alpha1.GitDirectoryGeneratorItem{
+								{Path: "*guestbook*"},
+							},
+						},
+					},
+				},
+			},
+		}).
+		Then().Expect(ApplicationsDoNotExist(expectedApps)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+}
+
+func TestGitFilesGeneratorCommitSHAParamNonExistentRevision(t *testing.T) {
+	repoURL := "https://github.com/argoproj/applicationset.git"
+	nonExistentRevision := "nonexistent-revision-do-not-create"
+
+	expectedConditions := []v1alpha1.ApplicationSetCondition{
+		{
+			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
+			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			Message: "error generating params from git: error retrieving Git files: rpc error: code = Internal desc = unable to resolve git revision : unable to resolve 'nonexistent-revision-do-not-create' to a commit SHA",
+			Reason:  v1alpha1.ApplicationSetReasonApplicationParamsGenerationError,
+		},
+		{
+			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
+			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			Message: "error generating params from git: error retrieving Git files: rpc error: code = Internal desc = unable to resolve git revision : unable to resolve 'nonexistent-revision-do-not-create' to a commit SHA",
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
+		},
+		{
+			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			Message: "error generating params from git: error retrieving Git files: rpc error: code = Internal desc = unable to resolve git revision : unable to resolve 'nonexistent-revision-do-not-create' to a commit SHA",
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
+		},
+	}
+
+	expectedApps := []v1alpha1.Application{
+		{ObjectMeta: metav1.ObjectMeta{Name: "engineering-dev-guestbook", Namespace: "argocd-e2e"}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "engineering-prod-guestbook", Namespace: "argocd-e2e"}},
+	}
+
+	Given(t).
+		When().
+		Create(v1alpha1.ApplicationSet{
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster.name}}-guestbook"},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "{{commitSHA}}",
+							Path:           "guestbook",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "guestbook",
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL:  repoURL,
+							Revision: nonExistentRevision,
+							Files: []v1alpha1.GitFileGeneratorItem{
+								{Path: "examples/git-generator-files-discovery/cluster-config/**/config.json"},
+							},
+						},
+					},
+				},
+			},
+		}).
+		Then().Expect(ApplicationsDoNotExist(expectedApps)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+}
+
 func TestGitDirectoryGeneratorCommitSHAParam(t *testing.T) {
 	repoURL := "https://github.com/argoproj/argocd-example-apps.git"
 	output, err := fixture.Run("", "git", "ls-remote", repoURL, "HEAD")

@@ -218,6 +218,20 @@ func TestGetCommitSHA(t *testing.T) {
 			wantErr: require.Error,
 		},
 		{
+			name: "EmptySHAInRevisionMetadata",
+			fields: fields{
+				getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+					return &v1alpha1.Repository{Repo: "foo"}, nil
+				},
+				getRevisionMetadataFromRepoServer: func(_ context.Context, _ *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
+					return &v1alpha1.RevisionMetadata{SHA: ""}, nil
+				},
+			},
+			args:    args{repoURL: "foo", revision: "HEAD"},
+			want:    "",
+			wantErr: require.Error,
+		},
+		{
 			name: "HappyCase",
 			fields: fields{
 				getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
