@@ -173,8 +173,7 @@ func parseMapString(value string) (map[string]string, error) {
 	if value == "" {
 		return mapValues, nil
 	}
-	keyValues := strings.Split(value, ",")
-	for _, kv := range keyValues {
+	for kv := range strings.SplitSeq(value, ",") {
 		k, v, ok := splitOnce(kv)
 		if !ok {
 			return nil, fmt.Errorf("invalid map format: %s", kv)
