@@ -238,7 +238,7 @@ func TestGetSettings_InClusterIsEnabledWithMissingServerSecretKey(t *testing.T) 
 	settings, err := settingsManager.GetSettings()
 	require.Error(t, err)
 	require.NotNil(t, settings)
-	assert.True(t, settings.InClusterEnabled)
+	require.True(t, settings.InClusterEnabled)
 }
 
 func TestGetAppInstanceLabelKey(t *testing.T) {
