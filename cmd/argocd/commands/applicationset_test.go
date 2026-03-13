@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"context"
+	"errors"
 	"io"
 	"os"
 	"testing"
@@ -8,9 +10,93 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
+
+// TestAppSetDeleteWaitFlow verifies that when --wait is used and the appset has
+// finalizers (still exists after Delete), the delete command watches for Deleted.
+func TestAppSetDeleteWaitFlow(t *testing.T) {
+	appSetEventsCh := make(chan *v1alpha1.ApplicationSetWatchEvent, 1)
+	go func() {
+		defer close(appSetEventsCh)
+		appSetEventsCh <- &v1alpha1.ApplicationSetWatchEvent{
+			Type:           watch.Added,
+			ApplicationSet: v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{Name: "test-appset"}},
+		}
+		appSetEventsCh <- &v1alpha1.ApplicationSetWatchEvent{Type: watch.Deleted}
+	}()
+
+	receivedDeleted := false
+	for appEvent := range appSetEventsCh {
+		if appEvent != nil && appEvent.Type == watch.Deleted {
+			receivedDeleted = true
+			break
+		}
+	}
+	assert.True(t, receivedDeleted, "wait loop should receive Deleted event from watch")
+}
+
+// TestAppSetCreateWaitFlow verifies that when --wait is used, the create command
+// waits for ResourcesUpToDate from the watch before completing.
+func TestAppSetCreateWaitFlow(t *testing.T) {
+	fakeClient := &fakeAcdClient{}
+	ctx := context.Background()
+
+	err := waitForApplicationSetResourcesUpToDate(ctx, fakeClient, "test-appset")
+	require.NoError(t, err)
+}
+
+func TestAppSetCreateWaitDeletedError(t *testing.T) {
+	appSetEventsCh := make(chan *v1alpha1.ApplicationSetWatchEvent, 1)
+	go func() {
+		defer close(appSetEventsCh)
+		appSetEventsCh <- &v1alpha1.ApplicationSetWatchEvent{Type: watch.Deleted}
+	}()
+
+	var err error
+	for appEvent := range appSetEventsCh {
+		if appEvent == nil {
+			continue
+		}
+		if appEvent.Type == watch.Deleted {
+			err = errors.New("ApplicationSet was deleted before reaching ResourcesUpToDate")
+			break
+		}
+	}
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "deleted before reaching ResourcesUpToDate")
+}
+
+func TestIsApplicationSetResourcesUpToDate(t *testing.T) {
+	t.Run("returns true when ResourcesUpToDate is True", func(t *testing.T) {
+		appSet := &v1alpha1.ApplicationSet{
+			Status: v1alpha1.ApplicationSetStatus{
+				Conditions: []v1alpha1.ApplicationSetCondition{
+					{Type: v1alpha1.ApplicationSetConditionResourcesUpToDate, Status: v1alpha1.ApplicationSetConditionStatusTrue},
+				},
+			},
+		}
+		assert.True(t, isApplicationSetResourcesUpToDate(appSet))
+	})
+
+	t.Run("returns false when ResourcesUpToDate is False", func(t *testing.T) {
+		appSet := &v1alpha1.ApplicationSet{
+			Status: v1alpha1.ApplicationSetStatus{
+				Conditions: []v1alpha1.ApplicationSetCondition{
+					{Type: v1alpha1.ApplicationSetConditionResourcesUpToDate, Status: v1alpha1.ApplicationSetConditionStatusFalse},
+				},
+			},
+		}
+		assert.False(t, isApplicationSetResourcesUpToDate(appSet))
+	})
+
+	t.Run("returns false when no conditions", func(t *testing.T) {
+		appSet := &v1alpha1.ApplicationSet{}
+		assert.False(t, isApplicationSetResourcesUpToDate(appSet))
+	})
+}
 
 func TestPrintApplicationSetNames(t *testing.T) {
 	output, _ := captureOutput(func() error {

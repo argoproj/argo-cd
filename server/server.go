@@ -360,7 +360,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		staticFS = utilio.NewComposableFS(staticFS, root.FS())
 	}
 
-	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.Namespace, opts.RepoClientset)
+	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.DynamicClientset, opts.Namespace, opts.RepoClientset)
 	errorsutil.CheckError(err)
 
 	secretInformer := k8s.NewSecretInformer(opts.KubeClientset, opts.Namespace, "argocd-notifications-secret")
@@ -1061,6 +1061,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.AppClientset,
 		a.appsetInformer,
 		a.appsetLister,
+		nil,
 		a.Namespace,
 		projectLock,
 		a.ApplicationNamespaces,
@@ -1582,14 +1583,15 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	}
 
 	finalClaims := claims
-	if server.settings.IsSSOConfigured() {
+	oidcConfig := server.settings.OIDCConfig()
+	if oidcConfig != nil || server.settings.IsDexConfigured() {
 		updatedClaims, err := server.ssoClientApp.SetGroupsFromUserInfo(ctx, claims, util_session.SessionManagerClaimsIssuer)
 		if err != nil {
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 		}
 		finalClaims = updatedClaims
 		// OIDC tokens are automatically refreshed here prior to expiration
-		refreshedToken, err := server.ssoClientApp.CheckAndRefreshToken(ctx, updatedClaims, server.settings.OIDCRefreshTokenThreshold)
+		refreshedToken, err := server.ssoClientApp.CheckAndRefreshToken(ctx, updatedClaims, server.settings.RefreshTokenThresholdWithConfig(oidcConfig))
 		if err != nil {
 			log.Errorf("error checking and refreshing token: %v", err)
 		}

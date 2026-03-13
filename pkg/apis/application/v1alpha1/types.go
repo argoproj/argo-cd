@@ -2273,7 +2273,7 @@ type Cluster struct {
 	// The embedded metav1.ObjectMeta field is purely here to please the informer when converting from a v1.Secret to a Cluster.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
-	metav1.ObjectMeta `json:"-,omitempty"`
+	metav1.ObjectMeta `json:"-"`
 }
 
 func (c *Cluster) Sanitized() *Cluster {
