@@ -122,6 +122,7 @@ const syncOptions: Array<(props: ApplicationSyncOptionProps) => React.ReactNode>
     props => booleanOption('ApplyOutOfSyncOnly', 'Apply Out of Sync Only', false, props, false),
     props => booleanOption('RespectIgnoreDifferences', 'Respect Ignore Differences', false, props, false),
     props => booleanOption('ServerSideApply', 'Server-Side Apply', false, props, false),
+    props => booleanOption('RunHooksOnPartialSync', 'Run Hooks on Partial Sync', false, props, false),
     props => selectOption('PrunePropagationPolicy', 'Prune Propagation Policy', 'foreground', ['foreground', 'background', 'orphan'], props)
 ];
 
