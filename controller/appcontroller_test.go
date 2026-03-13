@@ -2985,6 +2985,21 @@ func Test_syncDeleteOption(t *testing.T) {
 		cmObj.SetAnnotations(map[string]string{"helm.sh/resource-policy": "keep"})
 		assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
 	})
+
+	t.Run("delete set on the app level", func(t *testing.T) {
+		newApp := app.DeepCopy()
+		newApp.Spec.SyncPolicy.SyncOptions = []string{"Delete=false"}
+		cmObj := kube.MustToUnstructured(&cm)
+		cmObj.SetAnnotations(map[string]string{})
+		assert.False(t, ctrl.shouldBeDeleted(newApp, cmObj))
+	})
+	t.Run("delete should be overridden on the resource", func(t *testing.T) {
+		newApp := app.DeepCopy()
+		newApp.Spec.SyncPolicy.SyncOptions = []string{"Delete=false"}
+		cmObj := kube.MustToUnstructured(&cm)
+		cmObj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=foo"})
+		assert.True(t, ctrl.shouldBeDeleted(newApp, cmObj))
+	})
 }
 
 func TestAddControllerNamespace(t *testing.T) {
