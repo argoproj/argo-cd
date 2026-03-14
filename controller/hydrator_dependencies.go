@@ -50,7 +50,7 @@ func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, origApp *app
 	delete(app.Annotations, appv1.AnnotationKeyManifestGeneratePaths)
 
 	// FIXME: use cache and revision cache
-	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, false, project, false)
+	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, nil, project, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}
