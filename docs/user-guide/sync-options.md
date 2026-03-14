@@ -14,6 +14,20 @@ metadata:
     argocd.argoproj.io/sync-options: Prune=false
 ```
 
+It is also possible to set this option as a default option on the application level:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Prune=false
+```
+
+Note that setting a Prune sync option on the resource will always override a
+Prune sync policy defined in the Application.
+
 The sync-status panel shows that pruning was skipped, and why:
 
 ![sync option no prune](../assets/sync-option-no-prune-sync-status.png)
@@ -38,6 +52,21 @@ If a resource with `Prune=confirm` has been pruned, the sync operation will rema
 confirmed. The UI will look similar to this, with the "Confirm Pruning" button available to complete the sync:
 
 ![Screenshot of the Argo CD Application UI. The "Last Sync" section shows that the operation is still Syncing. The row of gray action buttons includes an extra "Confirm Pruning" button.](../assets/confirm-prune.png)
+
+It is also possible to set this option as a default option on the application level:
+
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Prune=confirm
+```
+
+Note that setting a Prune sync option on the resource will always override a
+Prune sync policy defined in the Application.
 
 ## Disable Kubectl Validation
 
@@ -92,6 +121,21 @@ metadata:
     argocd.argoproj.io/sync-options: Delete=false
 ```
 
+It is also possible to set this option as a default option on the application level:
+
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Delete=false
+```
+
+Note that setting a Delete sync option on the resource will always override a
+Delete sync policy defined in the Application.
+
 ## Resource Deletion With Confirmation
 
 Resources such as Namespaces are critical and should not be deleted without confirmation. You can set the `Delete=confirm`
@@ -105,6 +149,20 @@ metadata:
 
 To confirm the deletion you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
 annotation to the application.
+
+It is also possible to set this option as a default option on the application level:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Delete=confirm
+```
+
+Note that setting a Delete sync option on the resource will always override a
+Delete sync policy defined in the Application.
 
 ## Selective Sync
 

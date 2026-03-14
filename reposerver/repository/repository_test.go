@@ -469,14 +469,23 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 		// Best-effort: make all files writable so t.TempDir() can clean up.
 		// Ignore errors (e.g. git object files with restrictive permissions in CI)
 		// to avoid failing the test in the cleanup phase rather than the logic phase.
-		_ = filepath.WalkDir(dir,
-			func(path string, _ fs.DirEntry, err error) error {
-				if err != nil {
-					return nil
-				}
-				_ = os.Chmod(path, 0o777)
-				return nil
-			})
+		// We chmod *before* descending so that directories with restrictive permissions
+		// (e.g. git object dirs set to 0444) become accessible prior to listing their
+		// entries. filepath.WalkDir cannot be used here because it reads directory
+		// entries before calling the callback, so a dir with 0000/0444 perms would
+		// already fail before we get a chance to fix it.
+		var fixPerms func(string)
+		fixPerms = func(path string) {
+			_ = os.Chmod(path, 0o777)
+			entries, err := os.ReadDir(path)
+			if err != nil {
+				return
+			}
+			for _, e := range entries {
+				fixPerms(filepath.Join(path, e.Name()))
+			}
+		}
+		fixPerms(dir)
 	})
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, repopath)
 	var gitClient git.Client
