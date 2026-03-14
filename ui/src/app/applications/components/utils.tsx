@@ -891,16 +891,49 @@ export function renderResourceActionMenu(menuItems: ActionMenuItem[]): React.Rea
     );
 }
 
-export function renderResourceButtons(
-    resource: ResourceTreeNode,
-    application: appModels.AbstractApplication,
-    tree: appModels.AbstractApplicationTree,
-    apis: ContextApis,
-    appChanged: BehaviorSubject<appModels.AbstractApplication>
-): React.ReactNode {
-    const menuItems: Observable<ActionMenuItem[]> = getActionItems(resource, application, tree, apis, appChanged, true);
+interface ResourceButtonsProps {
+    resource: ResourceTreeNode;
+    application: appModels.AbstractApplication;
+    tree: appModels.AbstractApplicationTree;
+    apis: ContextApis;
+    appChanged: BehaviorSubject<appModels.AbstractApplication>;
+}
+
+interface ResourceButtonsInput {
+    resource: ResourceTreeNode;
+    application: appModels.AbstractApplication;
+    tree: appModels.AbstractApplicationTree;
+    apisId: number;
+    appChangedId: number;
+}
+
+const objectIds = new WeakMap<object, number>();
+let nextObjectId = 1;
+
+function getObjectId(value: object) {
+    let id = objectIds.get(value);
+    if (id === undefined) {
+        id = nextObjectId++;
+        objectIds.set(value, id);
+    }
+    return id;
+}
+
+// Keep quickstart action loading stable across unrelated PodView rerenders.
+const ResourceButtons = React.memo(({resource, application, tree, apis, appChanged}: ResourceButtonsProps) => {
+    const input = React.useMemo(
+        () => ({
+            resource,
+            application,
+            tree,
+            apisId: getObjectId(apis),
+            appChangedId: getObjectId(appChanged)
+        }),
+        [resource, application, tree, apis, appChanged]
+    );
+
     return (
-        <DataLoader load={() => menuItems}>
+        <DataLoader input={input} load={(value: ResourceButtonsInput) => getActionItems(value.resource, value.application, value.tree, apis, appChanged, true)}>
             {items => (
                 <div className='pod-view__node__quick-start-actions'>
                     {items.map((item, i) => (
@@ -922,6 +955,17 @@ export function renderResourceButtons(
             )}
         </DataLoader>
     );
+});
+ResourceButtons.displayName = 'ResourceButtons';
+
+export function renderResourceButtons(
+    resource: ResourceTreeNode,
+    application: appModels.AbstractApplication,
+    tree: appModels.AbstractApplicationTree,
+    apis: ContextApis,
+    appChanged: BehaviorSubject<appModels.AbstractApplication>
+): React.ReactNode {
+    return <ResourceButtons resource={resource} application={application} tree={tree} apis={apis} appChanged={appChanged} />;
 }
 
 export function syncStatusMessage(app: appModels.Application) {
