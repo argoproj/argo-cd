@@ -938,10 +938,13 @@ const ResourceButtons = React.memo(({resource, application, tree, apis, appChang
             isManaged,
             childResourceKeys,
             hasLogsTarget,
-            apisId: getObjectId(apis),
+            popupId: getObjectId(apis.popup),
+            notificationsId: getObjectId(apis.notifications),
+            navigationId: getObjectId(apis.navigation),
+            baseHref: apis.baseHref,
             appChangedId: getObjectId(appChanged)
         }),
-        [resource, application, isManaged, childResourceKeys, hasLogsTarget, apis, appChanged]
+        [resource, application, isManaged, childResourceKeys, hasLogsTarget, apis.popup, apis.notifications, apis.navigation, apis.baseHref, appChanged]
     );
 
     return (

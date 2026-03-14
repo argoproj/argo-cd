@@ -164,4 +164,31 @@ describe('renderResourceButtons', () => {
             subscription.unsubscribe();
         }
     });
+
+    it('does not reload quickstart actions when the apis wrapper object changes without changing the underlying managers', () => {
+        const canISpy = jest.spyOn(services.accounts, 'canI').mockResolvedValue(false);
+        const appChanged = new BehaviorSubject<AbstractApplication>(application);
+        const subscription: Subscription = appChanged.subscribe(() => undefined);
+        const refreshedApis = {
+            popup: apis.popup,
+            notifications: apis.notifications,
+            navigation: apis.navigation,
+            baseHref: apis.baseHref
+        } as unknown as ContextApis;
+        let rendered: renderer.ReactTestRenderer | undefined;
+
+        try {
+            renderer.act(() => {
+                rendered = renderer.create(<div>{renderResourceButtons(resource, application, tree, apis, appChanged)}</div>);
+            });
+
+            renderer.act(() => {
+                rendered!.update(<div>{renderResourceButtons(resource, application, tree, refreshedApis, appChanged)}</div>);
+            });
+
+            expect(canISpy).toHaveBeenCalledTimes(1);
+        } finally {
+            subscription.unsubscribe();
+        }
+    });
 });
