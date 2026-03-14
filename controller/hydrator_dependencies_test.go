@@ -121,3 +121,226 @@ func TestGetHydratorCommitMessageTemplate(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, tmpl)
 }
+
+func TestValidateHydratedCommitFreshness_NoHydrator(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SourceHydrator = nil
+
+	data := fakeData{}
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	isValid, rootDrySHA, pathDrySHA, err := ctrl.ValidateHydratedCommitFreshness(t.Context(), app, "abc123")
+	require.NoError(t, err)
+	assert.True(t, isValid)
+	assert.Empty(t, rootDrySHA)
+	assert.Empty(t, pathDrySHA)
+}
+
+func TestValidateHydratedCommitFreshness_Fresh(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://github.com/example/dry-repo",
+			TargetRevision: "main",
+			Path:           ".",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "hydrated",
+			Path:         "app1",
+		},
+	}
+
+	rootMetadata := map[string]any{
+		"drySHA": "dry-sha-123",
+	}
+	pathMetadata := map[string]any{
+		"drySHA": "dry-sha-123",
+	}
+
+	rootMetadataBytes, _ := json.Marshal(rootMetadata)
+	pathMetadataBytes, _ := json.Marshal(pathMetadata)
+
+	data := fakeData{
+		gitFilesResponse: map[string][]byte{
+			HydratorMetadataFile:           rootMetadataBytes,
+			"app1/" + HydratorMetadataFile: pathMetadataBytes,
+		},
+	}
+
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	isValid, rootDrySHA, pathDrySHA, err := ctrl.ValidateHydratedCommitFreshness(t.Context(), app, "hydrated-sha-456")
+	require.NoError(t, err)
+	assert.True(t, isValid)
+	assert.Equal(t, "dry-sha-123", rootDrySHA)
+	assert.Equal(t, "dry-sha-123", pathDrySHA)
+}
+
+func TestValidateHydratedCommitFreshness_Stale(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://github.com/example/dry-repo",
+			TargetRevision: "main",
+			Path:           ".",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "hydrated",
+			Path:         "app1",
+		},
+	}
+
+	rootMetadata := map[string]any{
+		"drySHA": "dry-sha-new",
+	}
+	pathMetadata := map[string]any{
+		"drySHA": "dry-sha-old",
+	}
+
+	rootMetadataBytes, _ := json.Marshal(rootMetadata)
+	pathMetadataBytes, _ := json.Marshal(pathMetadata)
+
+	data := fakeData{
+		gitFilesResponse: map[string][]byte{
+			HydratorMetadataFile:           rootMetadataBytes,
+			"app1/" + HydratorMetadataFile: pathMetadataBytes,
+		},
+	}
+
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	isValid, rootDrySHA, pathDrySHA, err := ctrl.ValidateHydratedCommitFreshness(t.Context(), app, "hydrated-sha-456")
+	require.NoError(t, err)
+	assert.False(t, isValid)
+	assert.Equal(t, "dry-sha-new", rootDrySHA)
+	assert.Equal(t, "dry-sha-old", pathDrySHA)
+}
+
+func TestValidateHydratedCommitFreshness_MissingRootMetadata(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://github.com/example/dry-repo",
+			TargetRevision: "main",
+			Path:           ".",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "hydrated",
+			Path:         "app1",
+		},
+	}
+
+	data := fakeData{
+		gitFilesResponse: map[string][]byte{},
+	}
+
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	isValid, rootDrySHA, pathDrySHA, err := ctrl.ValidateHydratedCommitFreshness(t.Context(), app, "hydrated-sha-456")
+	require.NoError(t, err) // Missing files are not errors, just stale
+	assert.False(t, isValid)
+	assert.Empty(t, rootDrySHA)
+	assert.Empty(t, pathDrySHA)
+}
+
+func TestValidateHydratedCommitFreshness_MissingPathMetadata(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://github.com/example/dry-repo",
+			TargetRevision: "main",
+			Path:           ".",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "hydrated",
+			Path:         "app1",
+		},
+	}
+
+	rootMetadata := map[string]any{
+		"drySHA": "dry-sha-123",
+	}
+
+	rootMetadataBytes, _ := json.Marshal(rootMetadata)
+
+	data := fakeData{
+		gitFilesResponse: map[string][]byte{
+			HydratorMetadataFile: rootMetadataBytes,
+		},
+	}
+
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	isValid, rootDrySHA, pathDrySHA, err := ctrl.ValidateHydratedCommitFreshness(t.Context(), app, "hydrated-sha-456")
+	require.NoError(t, err) // Missing files are not errors, just stale
+	assert.False(t, isValid)
+	assert.Equal(t, "dry-sha-123", rootDrySHA)
+	assert.Empty(t, pathDrySHA)
+}
+
+func TestValidateHydratedCommitFreshness_MalformedRootMetadata(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://github.com/example/dry-repo",
+			TargetRevision: "main",
+			Path:           ".",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "hydrated",
+			Path:         "app1",
+		},
+	}
+
+	data := fakeData{
+		gitFilesResponse: map[string][]byte{
+			HydratorMetadataFile: []byte("invalid json"),
+		},
+	}
+
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	isValid, rootDrySHA, pathDrySHA, err := ctrl.ValidateHydratedCommitFreshness(t.Context(), app, "hydrated-sha-456")
+	require.Error(t, err) // Malformed metadata is an error
+	assert.False(t, isValid)
+	assert.Empty(t, rootDrySHA)
+	assert.Empty(t, pathDrySHA)
+	assert.Contains(t, err.Error(), "failed to parse root metadata")
+}
+
+func TestValidateHydratedCommitFreshness_MalformedPathMetadata(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://github.com/example/dry-repo",
+			TargetRevision: "main",
+			Path:           ".",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "hydrated",
+			Path:         "app1",
+		},
+	}
+
+	rootMetadata := map[string]any{
+		"drySHA": "dry-sha-123",
+	}
+
+	rootMetadataBytes, _ := json.Marshal(rootMetadata)
+
+	data := fakeData{
+		gitFilesResponse: map[string][]byte{
+			HydratorMetadataFile:           rootMetadataBytes,
+			"app1/" + HydratorMetadataFile: []byte("invalid json"),
+		},
+	}
+
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	isValid, rootDrySHA, pathDrySHA, err := ctrl.ValidateHydratedCommitFreshness(t.Context(), app, "hydrated-sha-456")
+	require.Error(t, err) // Malformed metadata is an error
+	assert.False(t, isValid)
+	assert.Equal(t, "dry-sha-123", rootDrySHA)
+	assert.Empty(t, pathDrySHA)
+	assert.Contains(t, err.Error(), "failed to parse path metadata")
+}

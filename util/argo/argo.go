@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -628,6 +629,16 @@ func validateSourceHydrator(hydrator *argoappv1.SourceHydrator) []argoappv1.Appl
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: "when spec.sourceHydrator.hydrateTo is set, spec.sourceHydrator.hydrateTo.path is required",
+		})
+	}
+	// Validate that syncSource.path is not at the repository root
+	// Hydrating to root would overwrite or delete files at the top level of the repo,
+	// which can break other applications or shared configuration.
+	syncPath := filepath.Clean(hydrator.SyncSource.Path)
+	if syncPath == "" || syncPath == "." || syncPath == string(filepath.Separator) {
+		conditions = append(conditions, argoappv1.ApplicationCondition{
+			Type:    argoappv1.ApplicationConditionInvalidSpecError,
+			Message: fmt.Sprintf("spec.sourceHydrator.syncSource.path cannot be at the repository root (path: %q). Each hydrated app must write into a subdirectory.", hydrator.SyncSource.Path),
 		})
 	}
 	return conditions

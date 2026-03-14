@@ -2,16 +2,35 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"path/filepath"
+
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"github.com/argoproj/argo-cd/v3/util/hydrator"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
+
+const (
+	// HydratorMetadataFile is the filename for hydrator metadata
+	HydratorMetadataFile = "hydrator.metadata"
+)
+
+// hydratedCommitValidation represents a cached validation result for an app
+type hydratedCommitValidation struct {
+	syncSHA    string // The sync branch SHA that was validated
+	syncPath   string // The sync source path that was validated
+	rootDrySHA string // DrySHA from root metadata (expected/fresh)
+	pathDrySHA string // DrySHA from path metadata (actual)
+	isValid    bool   // Whether path matches root (fresh=true, stale=false)
+}
 
 /**
 This file implements the hydrator.Dependencies interface for the ApplicationController.
@@ -121,4 +140,151 @@ func (ctrl *ApplicationController) GetCommitAuthorEmail() (string, error) {
 		return "", fmt.Errorf("failed to get commit author email: %w", err)
 	}
 	return authorEmail, nil
+}
+
+// ValidateHydratedCommitFreshness checks if the hydrated commit at the sync source
+// was produced for the current dry source SHA by comparing hydrator.metadata files.
+//
+// Strategy:
+//   - Root hydrator.metadata contains the "expected" drySHA (from latest hydration)
+//   - Path-specific hydrator.metadata contains the "actual" drySHA for that path
+//   - If they match, the path is fresh; if they differ, the path is stale
+//
+// Missing metadata files are treated as stale (isValid=false) rather than errors,
+// as this is an expected state for an hydrator source configuration.
+//
+// Returns:
+//   - isValid: true if path metadata matches root (fresh), false if mismatch (stale) or missing files
+//   - rootDrySHA: the drySHA from root metadata (expected/fresh value)
+//   - pathDrySHA: the drySHA from path metadata (actual value)
+//   - err: error only for unexpected failures (repo access, client creation, etc.)
+func (ctrl *ApplicationController) ValidateHydratedCommitFreshness(
+	ctx context.Context,
+	app *appv1.Application,
+	syncBranchSHA string,
+) (isValid bool, rootDrySHA string, pathDrySHA string, err error) {
+	if app.Spec.SourceHydrator == nil {
+		return true, "", "", nil
+	}
+
+	syncSource := app.Spec.SourceHydrator.GetSyncSource()
+
+	// Get repository credentials
+	repo, err := ctrl.db.GetRepository(ctx, syncSource.RepoURL, app.Spec.Project)
+	if err != nil {
+		return false, "", "", fmt.Errorf("failed to get repository: %w", err)
+	}
+
+	// Fetch hydrator.metadata files from sync branch
+	closer, repoClient, err := ctrl.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return false, "", "", fmt.Errorf("failed to create repo client: %w", err)
+	}
+	defer utilio.Close(closer)
+
+	// Use GetGitFiles to fetch all hydrator.metadata files
+	resp, err := repoClient.GetGitFiles(ctx, &apiclient.GitFilesRequest{
+		Repo:                      repo,
+		Revision:                  syncBranchSHA,
+		Path:                      "**/" + HydratorMetadataFile,
+		NewGitFileGlobbingEnabled: true,
+	})
+	if err != nil {
+		return false, "", "", fmt.Errorf("failed to fetch %s: %w", HydratorMetadataFile, err)
+	}
+
+	// Parse root metadata (contains the expected/fresh drySHA)
+	rootMetadata, rootExists := resp.Map[HydratorMetadataFile]
+	if !rootExists {
+		// Missing root metadata is expected during initial hydration - treat as stale, not error
+		return false, "", "", nil
+	}
+
+	var rootMeta hydrator.HydratorCommitMetadata
+	if err := json.Unmarshal(rootMetadata, &rootMeta); err != nil {
+		// Malformed metadata is unexpected - return error
+		return false, "", "", fmt.Errorf("failed to parse root metadata: %w", err)
+	}
+
+	// Parse path-specific metadata (contains the actual drySHA for this path)
+	pathMetadataKey := filepath.Join(syncSource.Path, HydratorMetadataFile)
+	pathMetadata, pathExists := resp.Map[pathMetadataKey]
+	if !pathExists {
+		// Missing path metadata is expected when path hasn't been hydrated yet - treat as stale, not error
+		return false, rootMeta.DrySHA, "", nil
+	}
+
+	var pathMeta hydrator.HydratorCommitMetadata
+	if err := json.Unmarshal(pathMetadata, &pathMeta); err != nil {
+		// Malformed metadata is unexpected - return error
+		return false, rootMeta.DrySHA, "", fmt.Errorf("failed to parse path metadata: %w", err)
+	}
+
+	// Compare: if path drySHA matches root drySHA, the path is fresh
+	isValid = pathMeta.DrySHA == rootMeta.DrySHA
+
+	return isValid, rootMeta.DrySHA, pathMeta.DrySHA, nil
+}
+
+// shouldBlockAutoSyncForHydrator checks if auto-sync should be blocked for a hydrator app
+// due to stale hydrated files. It validates that the path-specific hydrator.metadata drySHA
+// matches the root hydrator.metadata drySHA. Uses in-memory cache to avoid repeated repo
+// server calls during reconcile loops.
+//
+// Returns true if auto-sync should be blocked (stale or validation error), false otherwise.
+func (ctrl *ApplicationController) shouldBlockAutoSyncForHydrator(app *appv1.Application, syncRevision string, logCtx *log.Entry) bool {
+	if app.Spec.SourceHydrator == nil {
+		return false
+	}
+
+	syncPath := app.Spec.SourceHydrator.SyncSource.Path
+	cacheKey := fmt.Sprintf("%s/%s", app.Namespace, app.Name)
+
+	// Check in-memory cache first
+	ctrl.hydratedCacheLock.RLock()
+	cached, exists := ctrl.hydratedCommitCache[cacheKey]
+	ctrl.hydratedCacheLock.RUnlock()
+
+	// Use cached result if it's for the same sync SHA and path
+	if exists && cached.syncSHA == syncRevision && cached.syncPath == syncPath {
+		if !cached.isValid {
+			logCtx.Infof("Skipping auto-sync: hydrated files at %s are stale (path drySHA: %s, root drySHA: %s)",
+				syncRevision, cached.pathDrySHA, cached.rootDrySHA)
+			return true
+		}
+		logCtx.Debugf("Using cached validation for sync commit %s (fresh)", syncRevision)
+		return false
+	}
+
+	// Cache miss or different SHA - validate now
+	isValid, rootDrySHA, pathDrySHA, err := ctrl.ValidateHydratedCommitFreshness(
+		context.TODO(),
+		app,
+		syncRevision,
+	)
+	if err != nil {
+		// Unexpected error - don't cache, block auto-sync
+		logCtx.WithError(err).Warn("Skipping auto-sync: failed to validate hydrated commit freshness")
+		return true
+	}
+
+	// Cache successful validation result (both fresh and stale states)
+	ctrl.hydratedCacheLock.Lock()
+	ctrl.hydratedCommitCache[cacheKey] = &hydratedCommitValidation{
+		syncSHA:    syncRevision,
+		syncPath:   syncPath,
+		rootDrySHA: rootDrySHA,
+		pathDrySHA: pathDrySHA,
+		isValid:    isValid,
+	}
+	ctrl.hydratedCacheLock.Unlock()
+
+	if !isValid {
+		logCtx.Infof("Skipping auto-sync: hydrated files at %s are stale (path drySHA: %s, root drySHA: %s)",
+			syncRevision, pathDrySHA, rootDrySHA)
+		return true
+	}
+
+	logCtx.Debugf("Validated sync commit %s is fresh (drySHA: %s)", syncRevision, rootDrySHA)
+	return false
 }

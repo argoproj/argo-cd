@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -384,4 +385,56 @@ func TestHydratorWithAuthenticatedRepo(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestAutoSyncBlockedOnStaleHydratedManifests(t *testing.T) {
+	// Test that auto-sync is blocked when switching to a path with existing stale manifests.
+	// This scenario creates app1 first, then switches to app2 and makes a change,
+	// leaving app1 with stale manifests when we switch back to it.
+	// The test verifies:
+	// 1. app1 is initially hydrated and synced with drySHA-1
+	// 2. Switch to app2 and change dry source, which hydrates app2 with drySHA-2
+	// 3. Switch back to app1 (still has drySHA-1) → auto-sync blocked due to staleness
+	Given(t).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("app1").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp("--sync-policy", "automated").
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Refresh(RefreshTypeNormal).
+		Then().
+		// app1 hydrated and synced with drySHA-1
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		// Switch to app2 and make a change to trigger hydration
+		// This creates app2 with drySHA-2, while app1 remains at drySHA-1
+		PatchApp(`[{"op": "replace", "path": "/spec/sourceHydrator/syncSource/path", "value": "app2"}]`).
+		PatchFile("guestbook/guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 5}]`).
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Refresh(RefreshTypeNormal).
+		Then().
+		// app2 updated with drySHA-2 and auto-sync should succeed
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		// Switch back to app1, which still has stale manifests (drySHA-1)
+		// Root metadata now has drySHA-2, but app1 metadata has drySHA-1
+		PatchApp(`[{"op": "replace", "path": "/spec/sourceHydrator/syncSource/path", "value": "app1"}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// Auto-sync should be blocked because app1 has stale manifests
+		// Verify it stays OutOfSync (auto-sync is blocked)
+		ExpectConsistently(SyncStatusIs(SyncStatusCodeOutOfSync), time.Second, 10*time.Second).
+		And(func(app *Application) {
+			for _, condition := range app.Status.Conditions {
+				if condition.Type == ApplicationConditionSyncError {
+					t.Fatalf("Expected no SyncError condition for stale manifests, but found: %s", condition.Message)
+				}
+			}
+		})
 }
