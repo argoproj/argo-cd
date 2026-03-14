@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- argocd-clusterprofile-controller-rolebinding.yaml
+- argocd-clusterprofile-controller-sa.yaml
+- argocd-clusterprofile-controller-deployment.yaml
+- argocd-clusterprofile-controller-role.yaml
+- argocd-clusterprofile-controller-service.yaml
+- argocd-clusterprofile-controller-network-policy.yaml

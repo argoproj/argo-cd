@@ -10,6 +10,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	fakedisco "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/rest"
@@ -128,6 +129,40 @@ func TestNewKubeConfig_TLSServerName(t *testing.T) {
 	}
 	kubeConfig = NewKubeConfig(restConfig, "")
 	assert.Equal(t, tlsServerName, kubeConfig.Clusters[host].TLSServerName)
+}
+
+func TestNewKubeConfig_ExecProviderConfig(t *testing.T) {
+	const host = "https://cluster1.example.com:6443"
+
+	restConfig := &rest.Config{
+		Host: host,
+		ExecProvider: &clientcmdapi.ExecConfig{
+			APIVersion: "client.authentication.k8s.io/v1",
+			Command:    "aws",
+		},
+	}
+	kubeConfig := NewKubeConfig(restConfig, "")
+	assert.Nil(t, kubeConfig.Clusters[host].Extensions)
+
+	configBytes, err := json.Marshal(map[string]string{"clusterName": "cluster1"})
+	require.NoError(t, err)
+	restConfig = &rest.Config{
+		Host: host,
+		ExecProvider: &clientcmdapi.ExecConfig{
+			APIVersion:         "client.authentication.k8s.io/v1",
+			Command:            "cp-creds",
+			ProvideClusterInfo: true,
+			Config: &runtime.Unknown{
+				Raw:         configBytes,
+				ContentType: runtime.ContentTypeJSON,
+			},
+		},
+	}
+	kubeConfig = NewKubeConfig(restConfig, "")
+	assert.NotNil(t, kubeConfig.Clusters[host].Extensions)
+	assert.NotNil(t, kubeConfig.Clusters[host].Extensions[clusterExecExtensionKey])
+	unknown := kubeConfig.Clusters[host].Extensions[clusterExecExtensionKey].(*runtime.Unknown)
+	assert.JSONEq(t, `{"clusterName":"cluster1"}`, string(unknown.Raw))
 }
 
 func TestGetDeploymentReplicas(t *testing.T) {
