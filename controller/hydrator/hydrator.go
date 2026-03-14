@@ -384,7 +384,6 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	var mu sync.Mutex
 
 	for _, app := range apps[1:] {
-		app := app
 		eg.Go(func() error {
 			_, pathDetails, err = h.getManifests(ctx, app, targetRevision, projects[app.Spec.Project])
 			mu.Lock()
