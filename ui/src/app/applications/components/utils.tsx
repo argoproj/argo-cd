@@ -693,6 +693,15 @@ export async function getResourceActionsMenuItems(resource: ResourceTreeNode, me
         .catch(() => [] as ActionMenuItem[]);
 }
 
+function isTopLevelResource(resource: ResourceTreeNode, application: appModels.AbstractApplication): boolean {
+    const resourceID = `/${resource.namespace}/${resource.group}/${resource.kind}/${resource.name}`;
+    return (
+        application.status?.resources?.some(
+            (resourceStatus: appModels.ResourceStatus) => `/${resourceStatus.namespace}/${resourceStatus.group}/${resourceStatus.kind}/${resourceStatus.name}` === resourceID
+        ) || false
+    );
+}
+
 function getActionItems(
     resource: ResourceTreeNode,
     application: appModels.AbstractApplication,
@@ -701,14 +710,6 @@ function getActionItems(
     appChanged: BehaviorSubject<appModels.AbstractApplication>,
     isQuickStart: boolean
 ): Observable<ActionMenuItem[]> {
-    function isTopLevelResource(res: ResourceTreeNode, app: appModels.AbstractApplication): boolean {
-        const uniqRes = `/${res.namespace}/${res.group}/${res.kind}/${res.name}`;
-        return (
-            app.status?.resources?.some((resStatus: appModels.ResourceStatus) => `/${resStatus.namespace}/${resStatus.group}/${resStatus.kind}/${resStatus.name}` === uniqRes) ||
-            false
-        );
-    }
-
     const isPod = resource.kind === 'Pod';
     const isManaged = isTopLevelResource(resource, application);
     const childResources = isApp(application) ? findChildResources(resource, tree as appModels.ApplicationTree) : [];
@@ -899,14 +900,6 @@ interface ResourceButtonsProps {
     appChanged: BehaviorSubject<appModels.AbstractApplication>;
 }
 
-interface ResourceButtonsInput {
-    resource: ResourceTreeNode;
-    application: appModels.AbstractApplication;
-    tree: appModels.AbstractApplicationTree;
-    apisId: number;
-    appChangedId: number;
-}
-
 const objectIds = new WeakMap<object, number>();
 let nextObjectId = 1;
 
@@ -921,19 +914,38 @@ function getObjectId(value: object) {
 
 // Keep quickstart action loading stable across unrelated PodView rerenders.
 const ResourceButtons = React.memo(({resource, application, tree, apis, appChanged}: ResourceButtonsProps) => {
+    const isManaged = React.useMemo(() => isTopLevelResource(resource, application), [resource, application]);
+    const childResourceKeys = React.useMemo(
+        () =>
+            isApp(application)
+                ? findChildResources(resource, tree as appModels.ApplicationTree)
+                      .map(node => nodeKey(node))
+                      .sort()
+                : [],
+        [resource, application, tree]
+    );
+    const hasLogsTarget = React.useMemo(
+        () => resource.kind === 'Pod' || (isApp(application) && !!findChildPod(resource, tree as appModels.ApplicationTree)),
+        [resource, application, tree]
+    );
     const input = React.useMemo(
         () => ({
-            resource,
-            application,
-            tree,
+            resourceKey: nodeKey(resource),
+            applicationKind: application.kind,
+            applicationName: application.metadata.name,
+            applicationNamespace: application.metadata.namespace,
+            applicationProject: isApp(application) ? application.spec.project : '',
+            isManaged,
+            childResourceKeys,
+            hasLogsTarget,
             apisId: getObjectId(apis),
             appChangedId: getObjectId(appChanged)
         }),
-        [resource, application, tree, apis, appChanged]
+        [resource, application, isManaged, childResourceKeys, hasLogsTarget, apis, appChanged]
     );
 
     return (
-        <DataLoader input={input} load={(value: ResourceButtonsInput) => getActionItems(value.resource, value.application, value.tree, apis, appChanged, true)}>
+        <DataLoader input={input} load={() => getActionItems(resource, application, tree, apis, appChanged, true)}>
             {items => (
                 <div className='pod-view__node__quick-start-actions'>
                     {items.map((item, i) => (
