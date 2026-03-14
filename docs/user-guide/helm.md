@@ -268,7 +268,7 @@ source:
 Helm hooks are similar to [Argo CD hooks](resource_hooks.md). In Helm, a hook
 is any normal Kubernetes resource annotated with the `helm.sh/hook` annotation.
 
-Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations:
+Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations. This is annotation compatibility, not a guarantee that hook lifecycle semantics are identical to Helm's:
 
 | Helm Annotation                 | Notes                                                                                         |
 | ------------------------------- |-----------------------------------------------------------------------------------------------|
@@ -283,7 +283,7 @@ Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Ar
 | `helm.sh/hook: post-rollback`   | Not supported. Never used in Helm stable.                                                     |
 | `helm.sh/hook: test-success`    | Not supported. No equivalent in Argo CD.                                                      |
 | `helm.sh/hook: test-failure`    | Not supported. No equivalent in Argo CD.                                                      |
-| `helm.sh/hook-delete-policy`    | Supported. See also `argocd.argoproj.io/hook-delete-policy`).                                 |
+| `helm.sh/hook-delete-policy`    | Supported. Cleanup still follows Argo CD sync semantics, which can differ from Helm's hook event lifecycle. See also `argocd.argoproj.io/hook-delete-policy`. |
 | `helm.sh/hook-delete-timeout`   | Not supported. Never used in Helm stable                                                      |
 | `helm.sh/hook-weight`           | Supported as equivalent to `argocd.argoproj.io/sync-wave`.                                    |
 | `helm.sh/resource-policy: keep` | Supported as equivalent to `argocd.argoproj.io/sync-options: Delete=false`.                   |
@@ -299,6 +299,11 @@ Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl a
 > **'install' vs 'upgrade' vs 'sync'**
 >
 > Argo CD cannot know if it is running a first-time "install" or an "upgrade" - every operation is a "sync'. This means that, by default, apps that have `pre-install` and `pre-upgrade` will have those hooks run at the same time.
+
+> [!NOTE]
+> **Hook delete semantics differ from Helm**
+>
+> Helm hook annotations are mapped onto Argo CD hooks, but deletion policies are still evaluated using Argo CD sync phases and sync result semantics. This differs from Helm's per-hook-event lifecycle. In particular, passive resources such as `ServiceAccount` do not have a Kubernetes completion state like `Job` or `Workflow`, so `hook-succeeded`/`HookSucceeded` may be evaluated at a different point than you would observe with Helm.
 
 ### Hook Tips
 
