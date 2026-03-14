@@ -302,6 +302,8 @@ data:
   dexserver.log.level: "info"
   # Disable TLS on the HTTP endpoint
   dexserver.disable.tls: "false"
+  # To fail the entire auth flow in case of a connector failure, set this to "false".
+  dexserver.connector.failure.continue: "false"
 
   ## ApplicationSet Controller Properties
   # Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.
@@ -391,6 +393,8 @@ data:
   notificationscontroller.log.level: "info"
   # Set the logging format. One of: json|text (default "json")
   notificationscontroller.log.format: "json"
+  # Number of notification processors (default 1)
+  notificationscontroller.processors.count: "1"
   # Enable self-service notifications config. Used in conjunction with apps-in-any-namespace. (default "false")
   notificationscontroller.selfservice.enabled: "false"
   # Disable TLS on connections to repo server
