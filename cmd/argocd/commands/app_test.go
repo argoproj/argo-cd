@@ -443,7 +443,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 			},
@@ -461,7 +461,7 @@ func TestFormatConditionSummary(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 			},
@@ -676,7 +676,7 @@ func TestPrintAppSummaryTable(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 				Project:     "default",
@@ -764,7 +764,7 @@ func TestPrintAppSummaryTable_MultipleSources(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 				Project:     "default",
@@ -2115,7 +2115,7 @@ func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.Applicat
 		Spec: v1alpha1.ApplicationSpec{
 			SyncPolicy: &v1alpha1.SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
-					Prune: true,
+					Prune: new(true),
 				},
 			},
 			Project:     "default",
