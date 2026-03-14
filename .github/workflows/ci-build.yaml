@@ -90,8 +90,7 @@ jobs:
           key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-build-v1-
-      - name: Download Go modules or use cache
-        if: steps.go-cache.outputs.cache-hit != 'true'
+      - name: Download Go modules
         run: |
           go mod download
       - name: Compile all packages
@@ -178,8 +177,7 @@ jobs:
         run: |
           git config --global user.name "John Doe"
           git config --global user.email "john.doe@example.com"
-      - name: Download Go modules or use cache
-        if: steps.go-cache.outputs.cache-hit != 'true'
+      - name: Download Go modules
         run: |
           go mod download
       - name: Run all unit tests
@@ -248,8 +246,7 @@ jobs:
         run: |
           git config --global user.name "John Doe"
           git config --global user.email "john.doe@example.com"
-      - name: Download Go modules or use cache
-        if: steps.go-cache.outputs.cache-hit != 'true'
+      - name: Download Go modules
         run: |
           go mod download
       - name: Run all unit tests
@@ -512,8 +509,7 @@ jobs:
       - name: Add ./dist to PATH
         run: |
           echo "$(pwd)/dist" >> $GITHUB_PATH
-      - name: Download Go modules or use cache
-        if: steps.go-cache.outputs.cache-hit != 'true'
+      - name: Download Go modules
         run: |
           go mod download
       - name: Install goreman
