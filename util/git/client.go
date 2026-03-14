@@ -140,7 +140,7 @@ type Client interface {
 	// LsSignatures gets a list of revisions including their GPG signature info.
 	// If revision is an annotated tag or a semantic constraint matching an annotated tag, its signature is reported as wll
 	// If deep==true, list the commits backwards in history until a signed "seal commit" or repo init commit. The listing includes those seal commits.
-	// If deep==false, examines the revisionSha only, and the.
+	// If deep==false, examines the revision only. Checking the annotated tag signature if the revision is an annotated tag, commit signature otherwise.
 	LsSignatures(revision string, deep bool) ([]RevisionSignatureInfo, error)
 	// IsAnnotatedTag determines if the revision is, or resolves to an annotated tag.
 	IsAnnotatedTag(revision string) bool
@@ -1047,12 +1047,13 @@ func validateGpgKey(key string, revision string) error {
 		return nil
 	}
 
-	return fmt.Errorf("gpg failed interpretting reported signing key for %q: %q", revision, key)
+	return fmt.Errorf("gpg failed interpreting reported signing key for %q: %q", revision, key)
 }
 
 func (m *nativeGitClient) tagSignature(tagRevision string) (*RevisionSignatureInfo, error) {
 	ctx := context.Background()
-	// Unlike for tags, there is no nice way to slurp all signature info for tag. So this extracts parts from 2 different commands.
+	// Unlike for commits, there is no elegant way to slurp all signature info for tag. So this extracts details needed
+	// for RevisionSignatureInfo from 2 different git invocations.
 	cmd := m.cmdWithGPG(ctx, "for-each-ref", "refs/tags/"+tagRevision, `--format=%(taggerdate),%(taggername) "%(taggeremail)"`)
 	tagOut, err := m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
@@ -1073,7 +1074,7 @@ func (m *nativeGitClient) tagSignature(tagRevision string) (*RevisionSignatureIn
 	})
 	status, keyId, err := evaluateGpgSignStatus(err, tagGpgOut)
 	if err != nil {
-		return nil, fmt.Errorf("gpg failed veriying git tag %q: %s", tagRevision, err.Error())
+		return nil, fmt.Errorf("gpg failed verifying git tag %q: %s", tagRevision, err.Error())
 	}
 	if err := validateGpgKey(keyId, tagRevision); err != nil {
 		return nil, err
@@ -1225,7 +1226,7 @@ func (m *nativeGitClient) listRawSignatures(deep bool) (string, error) {
 		commitFilterArgs = []string{revisionSha, "-1", "--"}
 	}
 
-	// Find all commits until the most recent seal commits(s), including
+	// Find all commits until the criteria, including
 	lsArgs := append([]string{"rev-list", `--pretty=format:%H,%G?,%GK,"%aD","%an <%ae>"`, "--no-commit-header"}, commitFilterArgs...)
 	commitSignaturesRawOut, err := m.runCmdOutput(m.cmdWithGPG(ctx, lsArgs...), runOpts{})
 	if err != nil {
@@ -1234,6 +1235,7 @@ func (m *nativeGitClient) listRawSignatures(deep bool) (string, error) {
 	return commitSignaturesRawOut, nil
 }
 
+// getSealRevListFilter create arguments for `git rev-list` to search the history all the way until the seal commits found.
 func (m *nativeGitClient) getSealRevListFilter(revision string, sealCommitsRawOut string) ([]string, error) {
 	// Keep only seal commits with a valid signature
 	var sealCommits []string

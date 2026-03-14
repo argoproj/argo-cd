@@ -10571,7 +10571,7 @@
           "type": "string"
         },
         "problems": {
-          "description": "Problems is a list of messages explaining why the check failed. Empty list means success.",
+          "description": "Problems is a list of messages explaining why the check failed. Empty list means the check has succeeded.",
           "type": "array",
           "items": {
             "type": "string"

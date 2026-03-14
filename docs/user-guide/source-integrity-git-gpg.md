@@ -21,7 +21,7 @@ Verify that commits in the source repository are correctly signed with one of th
 > See below on how to convert the legacy `signatureKeys` configuration to `sourceIntegrity`.
 
 Verification of GnuPG signatures is only supported with Git repositories. It is
-not possible when using Helm or OCI repositories.
+not possible when using Helm or OCI application sources.
 
 The GnuPG verification requires populating the Argo CD GnuPG keyring, and configuring source integrity policies for your repositories.
 
@@ -213,7 +213,7 @@ Such commits can have the following organization-level semantics:
 - "From now on, we are going to GnuPG sign all commits in this repository. There is no point in verifying the unsigned ones from before."
 - "I merge these changes from untrusted external contributor, and I approve of them."
 - "I am removing the GnuPG key of Bob. All his previous commits are trusted, but no new ones will be. Happy retirement, Bob!"
-- "I am replacing my old key with a new one. Trust my commit signed with the old one before this commit, trust my new one from now on."
+- "I am replacing my old key with a new one. Trust my commits signed with the old key before this seal commit, but only trust my new key after this seal commit."
 
 To create a seal commit, run `git commit --signoff --gpg-sign --trailer="Argocd-gpg-seal: <justification>"` and push to branch pulled by Argo CD.
 Using seal commits is preferable to rewriting git history as it eliminates the room for eventual rebasing mistakes that would jeopardize either source integrity or correctness of the repository data.
@@ -243,7 +243,7 @@ Though it is advised to perform the migration as source integrity config allows 
 
 ## Downgrade from Source Integrity Verification
 
-At downgrade time, reintroduce `.spec.signatureKeys` in any AppProject and populate it will all the keys from `.spec.sourceIntegrity.git.policies` at the same time.
+At downgrade time, reintroduce `.spec.signatureKeys` in any AppProject, populate it will all the keys from `.spec.sourceIntegrity.git.policies`, and then delete the `.spec.sourceIntegrity` secrion.
 Mind the legacy functionality lacks many of the new features—it will be all "head" mode for all project repositories.
 
 As an alternative to downgrade, consult the troubleshooting section here.

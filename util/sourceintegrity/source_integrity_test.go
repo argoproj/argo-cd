@@ -371,7 +371,7 @@ func TestDescribeProblems(t *testing.T) {
 				// the rest is cut off
 				sig("OMG", git.GPGVerificationResultBad),
 				sig("nope", git.GPGVerificationResultBad),
-				sig("you_gott_be_kidding_me", git.GPGVerificationResultBad),
+				sig("you_gotta_be_kidding_me", git.GPGVerificationResultBad),
 			},
 			expected: []string{
 				"Failed verifying revision " + r + " by '" + a + "': signed with revoked key (key_id=revoked)",

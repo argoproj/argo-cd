@@ -325,7 +325,7 @@ func (s *Service) runRepoOperation(
 	source *v1alpha1.ApplicationSource,
 	sourceIntegrity *v1alpha1.SourceIntegrity,
 	cacheFn func(cacheKey string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error),
-	operation func(repoRoot string, commitSHA string, cacheKey string, ctxSrc operationContextSrc) error,
+	operation func(repoRoot, commitSHA, cacheKey string, ctxSrc operationContextSrc) error,
 	settings operationSettings,
 	hasMultipleSources bool,
 	refSources map[string]*v1alpha1.RefTarget,
@@ -341,7 +341,7 @@ func (s *Service) runRepoOperation(
 	var err error
 	gitClientOpts := git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache)
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
-	originalRevision := revision
+	unresolvedRevision := revision
 
 	switch {
 	case source.IsOCI():
@@ -500,16 +500,19 @@ func (s *Service) runRepoOperation(
 	// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
 	// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
 	return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
-		appPath, err := apppathutil.Path(gitClient.Root(), source.Path)
+		// Pass in the originalRevision to have access to the eventual tag name. Use resolved revision only if the originalRevision is unspecified.
+		var rev string
+		if unresolvedRevision != "" {
+			rev = unresolvedRevision
+		} else {
+			rev = revision
+		}
+		sourceIntegrityResult, err := sourceintegrity.VerifyGit(sourceIntegrity, gitClient, rev)
 		if err != nil {
 			return nil, err
 		}
 
-		// Validate the originalRevision to have access to the eventual tag name. Use resolved revision only if the originalRevision is unspecified.
-		if originalRevision == "" {
-			originalRevision = revision
-		}
-		sourceIntegrityResult, err := sourceintegrity.VerifyGit(sourceIntegrity, gitClient, originalRevision)
+		appPath, err := apppathutil.Path(gitClient.Root(), source.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -2409,7 +2412,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	}
 	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Revision)
 	if err == nil {
-		// The SourceIntegrity criteria could have changed sync this was cached - it could have been added, removed, or changed.
+		// The SourceIntegrity criteria could have changed since this was cached - it could have been added, removed, or changed.
 		// If present in request or the cached version, treat this as a cache miss.
 		if q.SourceIntegrity == nil && metadata.SourceIntegrityResult == nil {
 			log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)

@@ -190,7 +190,7 @@ func NewProjectAddSignatureKeyCommand(clientOpts *argocdclient.ClientOptions) *c
 			# Add GnuPG signature key KEY-ID to project PROJECT
 			argocd proj add-signature-key PROJECT KEY-ID
 		`),
-		Deprecated: "Managing project signature keys in CLI is deprecated, manage its changes through AppProject manifest",
+		Deprecated: "Managing project signature keys through CLI is deprecated, migrate to Source Integrity defined in AppProject manifest",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -234,7 +234,7 @@ func NewProjectRemoveSignatureKeyCommand(clientOpts *argocdclient.ClientOptions)
 			# Remove GnuPG signature key KEY-ID from project PROJECT
 			argocd proj remove-signature-key PROJECT KEY-ID
 		`),
-		Deprecated: "Managing project signature keys in CLI is deprecated, manage its changes through AppProject manifest",
+		Deprecated: "Managing project signature keys through CLI is deprecated, migrate to Source Integrity defined in AppProject manifest",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

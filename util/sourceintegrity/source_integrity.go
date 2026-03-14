@@ -148,6 +148,7 @@ func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verif
 }
 
 // describeProblems reports 10 most recent problematic signatures or unsigned commits.
+// The number is limited not to flood the UI and logs with too many problems. Problems related to the same signing key are squashed.
 func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfos []git.RevisionSignatureInfo) []string {
 	reportedKeys := make(map[string]any)
 	var problems []string

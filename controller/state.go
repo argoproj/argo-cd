@@ -361,9 +361,9 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		if sourceCount > 1 {
 			var sourceId string
 			if source.Name != "" {
-				sourceId = fmt.Sprintf("source %s: ", source.Name)
+				sourceId = "source " + source.Name
 			} else {
-				sourceId = fmt.Sprintf("source %d of %d: ", i+1, sourceCount)
+				sourceId = fmt.Sprintf("source %d of %d", i+1, sourceCount)
 			}
 			manifestInfo.SourceIntegrityResult.InjectSourceName(sourceId)
 		}

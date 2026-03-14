@@ -2773,11 +2773,13 @@ type AppProjectSpec struct {
 	// DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
 	DestinationServiceAccounts []ApplicationDestinationServiceAccount `json:"destinationServiceAccounts,omitempty" protobuf:"bytes,14,name=destinationServiceAccounts"`
 	// SourceIntegrity represents a constraint on manifest sources integrity to be met before they can be used.
-	SourceIntegrity *SourceIntegrity `json:"sourceIntegrity,omitempty" protobuf:"bytes,15,name=sourceIntegrity"` // Do not access directly, use SourceIntegrity()
+	// Do not access directly, use EffectiveSourceIntegrity() for correct backwards compatibility handling.
+	SourceIntegrity *SourceIntegrity `json:"sourceIntegrity,omitempty" protobuf:"bytes,15,name=sourceIntegrity"`
 }
 
 // EffectiveSourceIntegrity incorporates the legacy SignatureKeys into SourceIntegrity, if possible
-// SignatureKeys are added as a Git GPG policy for repos specified with `*`. If such a policy exists, the SignatureKeys are ignored.
+// SignatureKeys are added as a Git GPG policy for repos specified with `*`. If such a policy exists, the SignatureKeys
+// are ignored with warning.
 func (proj *AppProject) EffectiveSourceIntegrity() *SourceIntegrity {
 	var legacyKeys []string
 	for _, k := range proj.Spec.SignatureKeys {
@@ -2785,7 +2787,7 @@ func (proj *AppProject) EffectiveSourceIntegrity() *SourceIntegrity {
 	}
 
 	if len(legacyKeys) == 0 {
-		// The modern version or nil
+		// Already using the modern version
 		return proj.Spec.SourceIntegrity
 	}
 
@@ -2799,21 +2801,21 @@ func (proj *AppProject) EffectiveSourceIntegrity() *SourceIntegrity {
 		}},
 	}
 
-	if proj.Spec.SourceIntegrity != nil {
-		if proj.Spec.SourceIntegrity.Git != nil {
-			log.Warnf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Ignoring SignatureKeys. Migrate them to SourceIntegrity.", proj.Name)
-			return proj.Spec.SourceIntegrity
-		}
-
-		// Preserve non-git checks without modifying project - use deep-copy and amend
-		log.Warnf("Merging SourceIntegrity with legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
-		deepCopy := proj.Spec.SourceIntegrity.DeepCopy()
-		deepCopy.Git = migratedGit
-		return deepCopy
+	if proj.Spec.SourceIntegrity == nil {
+		log.Warnf("Creating project SourceIntegrity from legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
+		return &SourceIntegrity{Git: migratedGit}
 	}
 
-	log.Warnf("Creating project SourceIntegrity from legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
-	return &SourceIntegrity{Git: migratedGit}
+	if proj.Spec.SourceIntegrity.Git != nil {
+		log.Errorf("Both SourceIntegrity and SignatureKeys specified in %s AppProject. Ignoring SignatureKeys. Migrate them to SourceIntegrity.", proj.Name)
+		return proj.Spec.SourceIntegrity
+	}
+
+	log.Warnf("Merging SourceIntegrity with legacy SignatureKeys specified in %s AppProject. Migrate them to SourceIntegrity.", proj.Name)
+	// Merge with non-git checks without modifying the AppProject - use deep-copy and amend
+	deepCopy := proj.Spec.SourceIntegrity.DeepCopy()
+	deepCopy.Git = migratedGit
+	return deepCopy
 }
 
 // ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist
