@@ -683,7 +683,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 	// So our Sync Revisions and SyncStatus Revisions should deep equal
 	t.Run("ClusterObjectChangeShouldNotTriggerAutoSync", func(t *testing.T) {
 		app := newFakeMultiSourceApp()
-		app.Spec.SyncPolicy.Automated.SelfHeal = false
+		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
 		app.Status.OperationState.SyncResult.Revisions = []string{"z", "x", "v"}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
@@ -698,7 +698,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 	})
 	t.Run("NewRevisionChangeShouldTriggerAutoSync", func(t *testing.T) {
 		app := newFakeMultiSourceApp()
-		app.Spec.SyncPolicy.Automated.SelfHeal = false
+		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
 		app.Status.OperationState.SyncResult.Revisions = []string{"z", "x", "v"}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
@@ -715,7 +715,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 
 func TestAutoSyncNotAllowEmpty(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.SyncPolicy.Automated.Prune = true
+	app.Spec.SyncPolicy.Automated.Prune = new(true)
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	syncStatus := v1alpha1.SyncStatus{
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -727,8 +727,8 @@ func TestAutoSyncNotAllowEmpty(t *testing.T) {
 
 func TestAutoSyncAllowEmpty(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.SyncPolicy.Automated.Prune = true
-	app.Spec.SyncPolicy.Automated.AllowEmpty = true
+	app.Spec.SyncPolicy.Automated.Prune = new(true)
+	app.Spec.SyncPolicy.Automated.AllowEmpty = new(true)
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	syncStatus := v1alpha1.SyncStatus{
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,

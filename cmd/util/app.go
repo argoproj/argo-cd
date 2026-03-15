@@ -295,13 +295,13 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		}
 
 		if flags.Changed("auto-prune") {
-			spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
+			spec.SyncPolicy.Automated.Prune = &appOpts.autoPrune
 		}
 		if flags.Changed("self-heal") {
-			spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
+			spec.SyncPolicy.Automated.SelfHeal = &appOpts.selfHeal
 		}
 		if flags.Changed("allow-empty") {
-			spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
+			spec.SyncPolicy.Automated.AllowEmpty = &appOpts.allowEmpty
 		}
 	}
 	return visited

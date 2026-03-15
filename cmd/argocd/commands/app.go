@@ -717,7 +717,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	var syncPolicy string
 	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 		syncPolicy = "Automated"
-		if app.Spec.SyncPolicy.Automated.Prune {
+		if app.Spec.SyncPolicy.Automated.GetPrune() {
 			syncPolicy += " (Prune)"
 		}
 	} else {
@@ -1918,7 +1918,7 @@ func formatSyncPolicy(app argoappv1.Application) string {
 		return "Manual"
 	}
 	policy := "Auto"
-	if app.Spec.SyncPolicy.Automated.Prune {
+	if app.Spec.SyncPolicy.Automated.GetPrune() {
 		policy = policy + "-Prune"
 	}
 	return policy

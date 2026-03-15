@@ -5,6 +5,7 @@ import (
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"k8s.io/utils/ptr"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -13,7 +14,7 @@ import (
 
 var oneShotSync = func(app *Application) {
 	app.Spec.SyncPolicy = &SyncPolicy{
-		Automated: &SyncPolicyAutomated{SelfHeal: true},
+		Automated: &SyncPolicyAutomated{SelfHeal: ptr.To(true)},
 		Retry:     &RetryStrategy{Limit: 0},
 	}
 }
