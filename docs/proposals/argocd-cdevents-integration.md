@@ -10,21 +10,15 @@ approvers:
   - TBD
 
 creation-date: 2025-06-21
-last-updated: 2025-10-04
+last-updated: 2026-03-14
 ---
 
 
-> ⚠️ **Proposal Idea Only**
+> **Draft Proposal — Under Active Development**
 >
-> ---
->
-> **This section is a *temporary idea space* and *not a formal proposal*.**  
-> The concepts here have been debated elsewhere and are *not currently considered viable* in their present form.  
-> For historical discussions and context, see: [argoproj/argo-cd#13723](https://github.com/argoproj/argo-cd/pull/13723).
->
-> ---
->
-> *Please treat this as exploratory thinking, not an actionable or recommended direction.*
+> This proposal is being actively developed with a working reference implementation.
+> For the demo, see: [argo-cdviz](https://github.com/argo-multiverse-labs/local-cluster/tree/main/argo-cdviz)
+> For historical discussions: [argoproj/argo-cd#13723](https://github.com/argoproj/argo-cd/pull/13723)
 
 # ArgoCD to cdEvents Integration
 
@@ -69,7 +63,7 @@ Currently, ArgoCD's notifications are Argo-specific and tied to a set of service
 ### Non-Goals
 
 * Replace the existing notification system entirely
-* Support cdEvents consumption (ArgoCD as event consumer)
+* Support cdEvents consumption (ArgoCD as event consumer) — out of scope for this proposal. See Phase 3 under Future Enhancement Opportunities for preliminary discussion.
 * Add dependencies on external event brokers or message queues
 
 ## Background
@@ -132,33 +126,33 @@ As a DevOps engineer, I want to trigger automated rollback procedures when ArgoC
   send: [app-health-degraded]
 ```
 
-### cdEvents Specification (v0.4.1)
+### cdEvents Specification (v0.5.0)
 
-> **Note**: This proposal uses cdEvents v0.4.1 with event types at v0.2.0, which are currently stable and validated in a demo reference implementation. Future versions should maintain backward compatibility following semantic versioning.
+> **Note**: This proposal targets CDEvents v0.5.0 with event types at v0.3.0. The v0.6.0-draft introduces additional optional fields (chainId, links, schemaUri) planned for Phase 2.
 
 **Continuous Deployment Event Types:**
-- `dev.cdevents.service.deployed.0.2.0` - Service deployed to environment (new instance)
-- `dev.cdevents.service.upgraded.0.2.0` - Service upgraded to new version (existing instance)
-- `dev.cdevents.service.removed.0.2.0` - Service removed from environment
-- `dev.cdevents.service.published.0.2.0` - Service published and accessible
-- `dev.cdevents.service.rolledback.0.2.0` - Service rolled back to previous version
-- `dev.cdevents.environment.created.0.2.0` - Environment created
-- `dev.cdevents.environment.modified.0.2.0` - Environment modified
-- `dev.cdevents.environment.deleted.0.2.0` - Environment deleted
+- `dev.cdevents.service.deployed.0.3.0` - Service deployed to environment (new instance)
+- `dev.cdevents.service.upgraded.0.3.0` - Service upgraded to new version (existing instance)
+- `dev.cdevents.service.removed.0.3.0` - Service removed from environment
+- `dev.cdevents.service.published.0.3.0` - Service published and accessible
+- `dev.cdevents.service.rolledback.0.3.0` - Service rolled back to previous version
+- `dev.cdevents.environment.created.0.3.0` - Environment created
+- `dev.cdevents.environment.modified.0.3.0` - Environment modified
+- `dev.cdevents.environment.deleted.0.3.0` - Environment deleted
 
 **Continuous Operations Event Types:**
-- `dev.cdevents.incident.detected.0.2.0` - Incident detected in environment
-- `dev.cdevents.incident.reported.0.2.0` - Incident reported through ticketing
-- `dev.cdevents.incident.resolved.0.2.0` - Incident resolved
+- `dev.cdevents.incident.detected.0.3.0` - Incident detected in environment
+- `dev.cdevents.incident.reported.0.3.0` - Incident reported through ticketing
+- `dev.cdevents.incident.resolved.0.3.0` - Incident resolved
 
 **cdEvents Structure:**
 ```json
 {
   "context": {
-    "version": "0.4.1",
+    "specversion": "0.5.0",
     "id": "271069a8-fc18-44f1-b38f-9d70a1695819",
     "source": "/argocd/production",
-    "type": "dev.cdevents.service.deployed.0.2.0",
+    "type": "dev.cdevents.service.deployed.0.3.0",
     "timestamp": "2025-01-20T14:27:05.315384Z"
   },
   "subject": {
@@ -190,8 +184,8 @@ cdEvents can be transmitted using CloudEvents HTTP headers alongside the JSON bo
 ```http
 POST /webhook/cdevents HTTP/1.1
 Content-Type: application/json
-Ce-Specversion: 0.4.1
-Ce-Type: dev.cdevents.service.deployed.0.2.0
+Ce-Specversion: 1.0
+Ce-Type: dev.cdevents.service.deployed.0.3.0
 Ce-Source: argocd/production
 Ce-Id: 271069a8-fc18-44f1-b38f-9d70a1695819
 
@@ -217,20 +211,20 @@ This approach separates protocol metadata (in headers) from event payload (in bo
 
 | ArgoCD Trigger | cdEvents Type | Condition | Description |
 |---|---|---|---|
-| `on-deployed` (first deployment) | `service.deployed.0.2.0` | New application, no previous sync | Initial deployment of service |
-| `on-deployed` (upgrade) | `service.upgraded.0.2.0` | Application with previous successful sync | Service upgraded to new version |
-| `on-sync-succeeded` | `service.upgraded.0.2.0` | Sync completed with new revision | Alternative upgrade detection |
-| `on-deleted` | `service.removed.0.2.0` | Application being deleted | Service removal from environment |
-| `on-created` | `environment.created.0.2.0` | Namespace-scoped app creation | Environment lifecycle (optional) |
-| `on-deleted` | `environment.deleted.0.2.0` | Namespace-scoped app deletion | Environment lifecycle (optional) |
+| `on-deployed` (first deployment) | `service.deployed.0.3.0` | New application, no previous sync | Initial deployment of service |
+| `on-deployed` (upgrade) | `service.upgraded.0.3.0` | Application with previous successful sync | Service upgraded to new version |
+| `on-sync-succeeded` | `service.upgraded.0.3.0` | Sync completed with new revision | Alternative upgrade detection |
+| `on-deleted` | `service.removed.0.3.0` | Application being deleted | Service removal from environment |
+| `on-created` | `environment.created.0.3.0` | Namespace-scoped app creation | Environment lifecycle (optional) |
+| `on-deleted` | `environment.deleted.0.3.0` | Namespace-scoped app deletion | Environment lifecycle (optional) |
 
 #### Continuous Operations Event Mappings
 
 | ArgoCD Trigger | cdEvents Type | Condition | Description |
 |---|---|---|---|
-| `on-health-degraded` | `incident.detected.0.2.0` | Health transitions to Degraded | Service health incident |
-| `on-sync-failed` | `incident.detected.0.2.0` | Sync operation fails | Deployment incident |
-| `on-sync-status-unknown` | `incident.detected.0.2.0` | Sync status becomes unknown | Operational incident |
+| `on-health-degraded` | `incident.detected.0.3.0` | Health transitions to Degraded | Service health incident |
+| `on-sync-failed` | `incident.detected.0.3.0` | Sync operation fails | Deployment incident |
+| `on-sync-status-unknown` | `incident.detected.0.3.0` | Sync status becomes unknown | Operational incident |
 
 ### Subject and Data Mapping Logic
 
@@ -238,12 +232,12 @@ This approach separates protocol metadata (in headers) from event payload (in bo
 ```yaml
 # ArgoCD Application → cdEvents Service
 subject:
-  id: "{app.metadata.namespace}/{app.metadata.name}"
+  id: "{app.spec.destination.namespace}/{app.metadata.name}"
   type: "service"
-  source: "/argocd/{app.metadata.namespace}"
+  source: "/argocd/{app.spec.destination.namespace}"
   content:
     environment:
-      id: "{app.metadata.namespace}"
+      id: "{app.spec.destination.namespace}"
       source: "{cluster-context}"
     artifactId: "pkg:git/{repo-url}@{git-commit-sha}"
 ```
@@ -252,11 +246,11 @@ subject:
 ```yaml
 # Kubernetes Namespace → cdEvents Environment
 subject:
-  id: "{app.metadata.namespace}"
+  id: "{app.spec.destination.namespace}"
   type: "environment"
   source: "/argocd/{cluster-context}"
   content:
-    name: "{app.metadata.namespace}"
+    name: "{app.spec.destination.namespace}"
     url: "{cluster-api-server-url}"
 ```
 
@@ -264,15 +258,15 @@ subject:
 ```yaml
 # ArgoCD Health/Sync Issues → cdEvents Incident
 subject:
-  id: "incident-{app.metadata.namespace}-{app.metadata.name}-{timestamp}"
+  id: "incident-{app.spec.destination.namespace}-{app.metadata.name}-{timestamp}"
   type: "incident"
-  source: "/argocd/{app.metadata.namespace}"
+  source: "/argocd/{app.spec.destination.namespace}"
   content:
     description: "{health.status} - {sync.status}"
     environment:
-      id: "{app.metadata.namespace}"
+      id: "{app.spec.destination.namespace}"
     service:
-      id: "{app.metadata.namespace}/{app.metadata.name}"
+      id: "{app.spec.destination.namespace}/{app.metadata.name}"
     artifactId: "pkg:git/{repo-url}@{git-commit-sha}"
 ```
 
@@ -359,10 +353,10 @@ If organizational hierarchy becomes necessary (e.g., multiple tools from the sam
 ```json
 {
   "context": {
-    "version": "0.5.0-draft",
+    "specversion": "0.5.0",
     "id": "argocd-deployment-uuid",
     "source": "argocd/production-cluster",
-    "type": "dev.cdevents.service.deployed.0.3.0-draft",
+    "type": "dev.cdevents.service.deployed.0.3.0",
     "timestamp": "2025-01-21T14:27:05.315384Z"
   },
   "subject": {
@@ -382,10 +376,10 @@ If organizational hierarchy becomes necessary (e.g., multiple tools from the sam
 ```json
 {
   "context": {
-    "version": "0.5.0-draft", 
+    "specversion": "0.5.0",
     "id": "argocd-incident-uuid",
     "source": "argocd/production-cluster",
-    "type": "dev.cdevents.incident.detected.0.3.0-draft",
+    "type": "dev.cdevents.incident.detected.0.3.0",
     "timestamp": "2025-01-21T14:30:12.123456Z"
   },
   "subject": {
@@ -439,7 +433,7 @@ The Phase 1 implementation leverages ArgoCD's existing notification engine with 
 
   # Trigger binding
   trigger.on-deployed-cdevents: |
-    - when: app.status.operationState != nil asnd app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+    - when: app.status.operationState != nil and app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
       send: [cdevents-service-deployed]
       oncePer: app.status.operationState?.syncResult?.revision
 ```
