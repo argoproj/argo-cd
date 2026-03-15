@@ -96,6 +96,10 @@ func SendRepoStream(ctx context.Context, appPath, rootPath string, sender Stream
 	defer tgzstream.CloseAndDelete(tgz)
 	err = sender.Send(mr)
 	if err != nil {
+		// include ctx.Err() in the message to make cancellations/deadlines visible
+		if ctx != nil && ctx.Err() != nil {
+			return fmt.Errorf("error sending generate manifest metadata to cmp-server: %w (stream ctx err: %w)", err, ctx.Err())
+		}
 		return fmt.Errorf("error sending generate manifest metadata to cmp-server: %w", err)
 	}
 

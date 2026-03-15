@@ -1028,7 +1028,7 @@ func TestRaceConditionInRepoCredsOperations(t *testing.T) {
 	errChan := make(chan error, concurrentOps*2) // Channel to collect errors
 
 	// Launch goroutines that perform concurrent operations
-	for i := 0; i < concurrentOps; i++ {
+	for range concurrentOps {
 		wg.Add(2)
 
 		// One goroutine converts from RepoCreds to Secret
@@ -1111,7 +1111,7 @@ func TestRaceConditionInRepositoryOperations(t *testing.T) {
 	errChan := make(chan error, concurrentOps*2) // Channel to collect errors
 
 	// Launch goroutines that perform concurrent operations
-	for i := 0; i < concurrentOps; i++ {
+	for range concurrentOps {
 		wg.Add(2)
 
 		// One goroutine converts from Repository to Secret

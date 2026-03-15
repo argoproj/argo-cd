@@ -14,6 +14,20 @@ metadata:
     argocd.argoproj.io/sync-options: Prune=false
 ```
 
+It is also possible to set this option as a default option on the application level:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Prune=false
+```
+
+Note that setting a Prune sync option on the resource will always override a
+Prune sync policy defined in the Application.
+
 The sync-status panel shows that pruning was skipped, and why:
 
 ![sync option no prune](../assets/sync-option-no-prune-sync-status.png)
@@ -38,6 +52,21 @@ If a resource with `Prune=confirm` has been pruned, the sync operation will rema
 confirmed. The UI will look similar to this, with the "Confirm Pruning" button available to complete the sync:
 
 ![Screenshot of the Argo CD Application UI. The "Last Sync" section shows that the operation is still Syncing. The row of gray action buttons includes an extra "Confirm Pruning" button.](../assets/confirm-prune.png)
+
+It is also possible to set this option as a default option on the application level:
+
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Prune=confirm
+```
+
+Note that setting a Prune sync option on the resource will always override a
+Prune sync policy defined in the Application.
 
 ## Disable Kubectl Validation
 
@@ -92,6 +121,21 @@ metadata:
     argocd.argoproj.io/sync-options: Delete=false
 ```
 
+It is also possible to set this option as a default option on the application level:
+
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Delete=false
+```
+
+Note that setting a Delete sync option on the resource will always override a
+Delete sync policy defined in the Application.
+
 ## Resource Deletion With Confirmation
 
 Resources such as Namespaces are critical and should not be deleted without confirmation. You can set the `Delete=confirm`
@@ -105,6 +149,20 @@ metadata:
 
 To confirm the deletion you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
 annotation to the application.
+
+It is also possible to set this option as a default option on the application level:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - Delete=confirm
+```
+
+Note that setting a Delete sync option on the resource will always override a
+Delete sync policy defined in the Application.
 
 ## Selective Sync
 
@@ -139,7 +197,7 @@ $ argocd app set guestbook --sync-option ApplyOutOfSyncOnly=true
 
 By default, extraneous resources get pruned using the foreground deletion policy. The propagation policy can be controlled
 using the `PrunePropagationPolicy` sync option. Supported policies are background, foreground, and orphan.
-More information about those policies can be found [here](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#controlling-how-the-garbage-collector-deletes-dependents).
+More information about those policies can be found in the Kubernetes [Garbage Collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) documentation.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -330,11 +388,12 @@ This is useful when you have other operators managing resources that are no long
 When client-side apply migration is enabled:
 1. Argo CD will use the specified field manager (or default if not specified) to perform migration
 2. During a server-side apply sync operation, it will:
-   - Perform a client-side-apply with the specified field manager
-   - Move the 'last-applied-configuration' annotation to be managed by the specified manager
-   - Perform the server-side apply, which will auto migrate all the fields under the manager that owns the 'last-applied-configuration' annotation.
+   - Check if the specified field manager exists in the resource's `managedFields` with `operation: Update` (indicating client-side apply)
+   - Patch the `managedFields`, transferring field ownership from the client-side apply manager to Argo CD's server-side apply manager (`argocd-controller`)
+   - Remove the client-side apply manager entry from `managedFields`
+   - Perform the server-side apply with the migrated field ownership
 
-This feature is based on Kubernetes' [client-side apply migration KEP](https://github.com/alexzielenski/enhancements/blob/03df8820b9feca6d2cab78e303c99b2c9c0c4c5c/keps/sig-cli/3517-kubectl-client-side-apply-migration/README.md), which provides the auto migration from client-side to server-side apply.
+This feature is based on Kubernetes' [client-side to server-side apply migration](https://kubernetes.io/docs/reference/using-api/server-side-apply/#migration-between-client-side-and-server-side-apply).
 
 ## Fail the sync if a shared resource is found
 

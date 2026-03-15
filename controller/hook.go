@@ -3,12 +3,13 @@ package controller
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -43,8 +44,12 @@ func isHookOfType(obj *unstructured.Unstructured, hookType HookType) bool {
 	}
 
 	for k, v := range hookTypeAnnotations[hookType] {
-		if val, ok := obj.GetAnnotations()[k]; ok && val == v {
-			return true
+		if val, ok := obj.GetAnnotations()[k]; ok {
+			if slices.ContainsFunc(strings.Split(val, ","), func(item string) bool {
+				return strings.TrimSpace(item) == v
+			}) {
+				return true
+			}
 		}
 	}
 	return false

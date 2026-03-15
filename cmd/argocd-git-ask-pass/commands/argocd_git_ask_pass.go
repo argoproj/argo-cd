@@ -9,20 +9,16 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/askpass"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
-const (
-	// cliName is the name of the CLI
-	cliName = "argocd-git-ask-pass"
-)
-
 func NewCommand() *cobra.Command {
 	command := cobra.Command{
-		Use:               cliName,
+		Use:               common.CommandGitAskPass,
 		Short:             "Argo CD git credential helper",
 		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, _ []string) {
