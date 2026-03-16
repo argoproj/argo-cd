@@ -139,7 +139,7 @@ window.addEventListener("DOMContentLoaded", function() {
   var headerHeight = document.getElementsByClassName("md-header")[0].offsetHeight;
   const currentVersion = getCurrentVersion();
   if (currentVersion && currentVersion !== "stable") {
-    var stablePath = window.location.pathname.replace(VERSION_REGEX, '/en/stable/');
+    var stablePath = 'https://argo-cd.readthedocs.io' + window.location.pathname.replace(VERSION_REGEX, '/en/stable/');
     if (currentVersion === "latest") {
       document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for an unreleased version of Argo CD, <a href='" + stablePath + "'>view the latest stable version.</a></div>";
     } else {
