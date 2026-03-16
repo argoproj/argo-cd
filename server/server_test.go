@@ -1759,4 +1759,16 @@ func TestClientAddress(t *testing.T) {
 	t.Run("returns unknown when no peer", func(t *testing.T) {
 		assert.Equal(t, "unknown", clientAddress(context.Background()))
 	})
+
+	t.Run("returns unknown when peer has nil Addr", func(t *testing.T) {
+		ctx := peer.NewContext(context.Background(), &peer.Peer{Addr: nil})
+		assert.Equal(t, "unknown", clientAddress(ctx))
+	})
+
+	t.Run("returns IPv6 address", func(t *testing.T) {
+		ctx := peer.NewContext(context.Background(), &peer.Peer{
+			Addr: &net.TCPAddr{IP: net.ParseIP("::1"), Port: 443},
+		})
+		assert.Equal(t, "[::1]:443", clientAddress(ctx))
+	})
 }
