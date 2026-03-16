@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"os/signal"
@@ -162,7 +163,7 @@ func NewCommand() *cobra.Command {
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
-	command.Flags().IntVar(&processorsCount, "processors-count", 1, "Processors count.")
+	command.Flags().IntVar(&processorsCount, "processors-count", env.ParseNumFromEnv("ARGOCD_NOTIFICATION_CONTROLLER_PROCESSORS_COUNT", 1, 1, math.MaxInt32), "Processors count.")
 	command.Flags().StringVar(&appLabelSelector, "app-label-selector", "", "App label selector.")
 	command.Flags().StringVar(&logLevel, "loglevel", env.StringFromEnv("ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&logFormat, "logformat", env.StringFromEnv("ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")

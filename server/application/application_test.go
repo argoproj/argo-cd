@@ -2547,8 +2547,8 @@ func TestSyncRBACOverrideNotRequired_DiffRevisionWithAutosyncPrevented(t *testin
 	testApp := newTestApp()
 	testApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
 		Automated: &v1alpha1.SyncPolicyAutomated{
-			Prune:    true,
-			SelfHeal: true,
+			Prune:    new(true),
+			SelfHeal: new(true),
 		},
 	}
 	app, err := appServer.Create(ctx, &application.ApplicationCreateRequest{Application: testApp})
@@ -2566,8 +2566,8 @@ func TestSyncRBACOverrideNotRequired_DiffRevisionWithAutosyncPrevented(t *testin
 	multiSourceApp := newMultiSourceTestApp()
 	multiSourceApp.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
 		Automated: &v1alpha1.SyncPolicyAutomated{
-			Prune:    true,
-			SelfHeal: true,
+			Prune:    new(true),
+			SelfHeal: new(true),
 		},
 	}
 

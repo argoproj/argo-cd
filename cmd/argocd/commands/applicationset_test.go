@@ -260,7 +260,7 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 	appSetTemplateSpecSyncPolicy := baseAppSet.DeepCopy()
 	appSetTemplateSpecSyncPolicy.Spec.Template.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
 		Automated: &v1alpha1.SyncPolicyAutomated{
-			SelfHeal: true,
+			SelfHeal: new(true),
 		},
 	}
 
@@ -270,7 +270,7 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 	}
 	appSetBothSyncPolicies.Spec.Template.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
 		Automated: &v1alpha1.SyncPolicyAutomated{
-			SelfHeal: true,
+			SelfHeal: new(true),
 		},
 	}
 

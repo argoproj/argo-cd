@@ -1168,8 +1168,13 @@ func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject
 
 // shouldBeDeleted returns whether a given resource obj should be deleted on cascade delete of application app
 func (ctrl *ApplicationController) shouldBeDeleted(app *appv1.Application, obj *unstructured.Unstructured) bool {
+	deleteOption := resourceutil.GetAnnotationOptionValue(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDelete)
+	if deleteOption == nil && app.Spec.SyncPolicy != nil {
+		deleteOption = app.Spec.SyncPolicy.SyncOptions.GetOptionValue(synccommon.SyncOptionDelete)
+	}
+
 	return !kube.IsCRD(obj) && !isSelfReferencedApp(app, kube.GetObjectRef(obj)) &&
-		!resourceutil.HasAnnotationOption(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDisableDeletion) &&
+		(deleteOption == nil || *deleteOption != synccommon.SyncValueFalse) &&
 		!resourceutil.HasAnnotationOption(obj, helm.ResourcePolicyAnnotation, helm.ResourcePolicyKeep)
 }
 
@@ -1367,11 +1372,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	}
 
 	if !app.CascadedDeletion() && !app.HasPostDeleteFinalizer() && !app.HasPreDeleteFinalizer() {
-		if err := ctrl.cache.SetAppManagedResources(app.Name, nil); err != nil {
+		if err := ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), nil); err != nil {
 			return err
 		}
 
-		if err := ctrl.cache.SetAppResourcesTree(app.Name, nil); err != nil {
+		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), nil); err != nil {
 			return err
 		}
 		ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, app.Spec.GetProject()))
@@ -2201,7 +2206,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return nil, 0
 	}
 
-	if !app.Spec.SyncPolicy.Automated.Prune {
+	if !app.Spec.SyncPolicy.Automated.GetPrune() {
 		requirePruneOnly := true
 		for _, r := range resources {
 			if r.Status != appv1.SyncStatusCodeSynced && !r.RequiresPruning {
@@ -2226,7 +2231,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		Sync: &appv1.SyncOperation{
 			Source:      source,
 			Revision:    syncStatus.Revision,
-			Prune:       app.Spec.SyncPolicy.Automated.Prune,
+			Prune:       app.Spec.SyncPolicy.Automated.GetPrune(),
 			SyncOptions: app.Spec.SyncPolicy.SyncOptions,
 			Sources:     app.Spec.Sources,
 			Revisions:   syncStatus.Revisions,
@@ -2250,7 +2255,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 			message := fmt.Sprintf("Failed last sync attempt to %s: %s", lastAttemptedRevisions, app.Status.OperationState.Message)
 			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
 		}
-		if !app.Spec.SyncPolicy.Automated.SelfHeal {
+		if !app.Spec.SyncPolicy.Automated.GetSelfHeal() {
 			logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredRevisions)
 			return nil, 0
 		}
@@ -2280,7 +2285,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	}
 	ts.AddCheckpoint("already_attempted_check_ms")
 
-	if app.Spec.SyncPolicy.Automated.Prune && !app.Spec.SyncPolicy.Automated.AllowEmpty {
+	if app.Spec.SyncPolicy.Automated.GetPrune() && !app.Spec.SyncPolicy.Automated.GetAllowEmpty() {
 		bAllNeedPrune := true
 		for _, r := range resources {
 			if !r.RequiresPruning {
@@ -2613,14 +2618,14 @@ func automatedSyncEnabled(oldApp *appv1.Application, newApp *appv1.Application) 
 	oldSelfHealEnabled := false
 	if oldApp.Spec.SyncPolicy != nil && oldApp.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 		oldEnabled = true
-		oldSelfHealEnabled = oldApp.Spec.SyncPolicy.Automated.SelfHeal
+		oldSelfHealEnabled = oldApp.Spec.SyncPolicy.Automated.GetSelfHeal()
 	}
 
 	newEnabled := false
 	newSelfHealEnabled := false
 	if newApp.Spec.SyncPolicy != nil && newApp.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 		newEnabled = true
-		newSelfHealEnabled = newApp.Spec.SyncPolicy.Automated.SelfHeal
+		newSelfHealEnabled = newApp.Spec.SyncPolicy.Automated.GetSelfHeal()
 	}
 	if !oldEnabled && newEnabled {
 		return true

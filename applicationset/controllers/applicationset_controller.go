@@ -1586,7 +1586,7 @@ func (r *ApplicationSetReconciler) syncDesiredApplications(logCtx *log.Entry, ap
 
 		// ensure that Applications generated with RollingSync do not have an automated sync policy, since the AppSet controller will handle triggering the sync operation instead
 		if desiredApplications[i].Spec.SyncPolicy != nil && desiredApplications[i].Spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			pruneEnabled = desiredApplications[i].Spec.SyncPolicy.Automated.Prune
+			pruneEnabled = desiredApplications[i].Spec.SyncPolicy.Automated.GetPrune()
 			desiredApplications[i].Spec.SyncPolicy.Automated.Enabled = new(false)
 		}
 
