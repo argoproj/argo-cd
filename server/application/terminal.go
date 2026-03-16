@@ -215,14 +215,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var findContainer bool
-	for _, c := range pod.Spec.Containers {
-		if container == c.Name {
-			findContainer = true
-			break
-		}
-	}
-	if !findContainer {
+	if !ContainerExists(pod, container) {
 		fieldLog.Warn("terminal container not found")
 		http.Error(w, "Cannot find container", http.StatusBadRequest)
 		return
@@ -270,6 +263,18 @@ func podExists(treeNodes []appv1.ResourceNode, podName, namespace string) bool {
 			return true
 		}
 	}
+	return false
+}
+
+func ContainerExists(pod *corev1.Pod, containerName string) bool {
+	allContainers := slices.Concat(pod.Spec.Containers, pod.Spec.InitContainers)
+
+	for _, c := range allContainers {
+		if containerName == c.Name {
+			return true
+		}
+	}
+
 	return false
 }
 

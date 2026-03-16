@@ -8,6 +8,7 @@ import (
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
@@ -74,6 +75,49 @@ func TestPodExists(t *testing.T) {
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
 			result := podExists(tcase.treeNodes, tcase.podName, tcase.namespace)
+			assert.Equalf(t, tcase.expectedResult, result, "Expected result %v, but got %v", tcase.expectedResult, result)
+		})
+	}
+}
+
+func TestContainerExist(t *testing.T) {
+	for _, tcase := range []struct {
+		name           string
+		pod            *corev1.Pod
+		containerName  string
+		expectedResult bool
+	}{
+		{
+			name:           "empty container",
+			pod:            &corev1.Pod{},
+			containerName:  "",
+			expectedResult: false,
+		},
+		{
+			name:           "container not found",
+			pod:            &corev1.Pod{},
+			containerName:  "not-found",
+			expectedResult: false,
+		},
+		{
+			name: "container exists",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "test", Image: "test"}}},
+			},
+			containerName:  "test",
+			expectedResult: true,
+		},
+		{
+			name: "container exists",
+			pod: &corev1.Pod{
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "test", Image: "test"}}, InitContainers: []corev1.Container{{Name: "test-init", Image: "test"}}},
+			},
+			containerName:  "test-init",
+			expectedResult: true,
+		},
+	} {
+		t.Run(tcase.name, func(t *testing.T) {
+			result := ContainerExists(tcase.pod, tcase.containerName)
 			assert.Equalf(t, tcase.expectedResult, result, "Expected result %v, but got %v", tcase.expectedResult, result)
 		})
 	}
