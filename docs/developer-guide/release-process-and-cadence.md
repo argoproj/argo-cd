@@ -21,8 +21,8 @@ These are the upcoming releases dates:
 | v3.1    | Monday, Jun. 16, 2025 | Monday, Aug. 4, 2025 | [Christian Hernandez](https://github.com/christianh814)  | [Alexandre Gaudreault](https://github.com/agaudreault) | [checklist](https://github.com/argoproj/argo-cd/issues/23347) |
 | v3.2    | Monday, Sep. 15, 2025 | Monday, Nov. 3, 2025 | [Nitish Kumar](https://github.com/nitishfy)              |  [Michael Crenshaw](https://github.com/crenshaw-dev) | [checklist](https://github.com/argoproj/argo-cd/issues/24539) |
 | v3.3    | Monday, Dec. 15, 2025 | Monday, Feb. 2, 2026 | [Peter Jiang](https://github.com/pjiang-dev)             | [Regina Voloshin](https://github.com/reggie-k)         | [checklist](https://github.com/argoproj/argo-cd/issues/25211) |
-| v3.4    | Monday, Mar. 16, 2026 | Monday, May. 4, 2026 | [Codey Jenkins](https://github.com/FourFifthsCode)       | [Regina Voloshin](https://github.com/reggie-k) | [checklist](https://github.com/argoproj/argo-cd/issues/26527) |
-| v3.5    | Monday, Jun. 15, 2026 | Monday, Aug. 3, 2026 | [Patroklos Papapetrou](https://github.com/ppapapetrou76) | [Regina Voloshin](https://github.com/reggie-k) | [checklist](https://github.com/argoproj/argo-cd/issues/26746) |
+| v3.4    | Monday, Mar. 16, 2026 | Tuesday, May. 5, 2026 | [Codey Jenkins](https://github.com/FourFifthsCode)       | [Regina Voloshin](https://github.com/reggie-k) | [checklist](https://github.com/argoproj/argo-cd/issues/26527) |
+| v3.5    | Tuesday, Jun. 16, 2026 | Tuesday, Aug. 4, 2026 | [Patroklos Papapetrou](https://github.com/ppapapetrou76) | [Regina Voloshin](https://github.com/reggie-k) | [checklist](https://github.com/argoproj/argo-cd/issues/26746) |
 
 Actual release dates might differ from the plan by a few days.
 
@@ -36,10 +36,10 @@ effectively means that there is a seven-week feature freeze.
 
 These are the approximate release dates:
 
-* The first Monday of February
-* The first Monday of May
-* The first Monday of August
-* The first Monday of November
+* The first Tuesday of February
+* The first Tuesday of May
+* The first Tuesday of August
+* The first Tuesday of November
 
 Dates may be shifted slightly to accommodate holidays. Those shifts should be minimal.
 
