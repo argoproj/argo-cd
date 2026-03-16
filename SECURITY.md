@@ -48,6 +48,23 @@ otherwise very intrusive, and there's a workaround available, we may decide to
 provide a forward-fix only, e.g. to be released the next minor release, instead
 of releasing it within a patch branch for the currently supported releases.
 
+## Dependency Upgrade Policy
+
+Argo CD relies on certain binaries and libraries that might appear in security scanners.
+
+Upgrading certain dependencies, such as Helm, Kustomize, and git, may have negative impacts
+on users, as they may include breaking changes or changes in behavior. For this reason,
+we will only upgrade to new patch versions within the same minor version series within
+a supported Argo CD version. For example, if we are currently on Helm 3.12.0 and Argo CD
+3.4.0, we will only upgrade to Helm 3.12.x within Argo CD 3.4.x, and not to Helm 3.13.0 
+or later.
+
+If there is a critical, _exploitable_ vulnerability in a dependency that will not be fixed
+in a patch release, we will evaluate the impact of the vulnerability and the risk of not
+upgrading the dependency. We ask that, if you believe a version bump is justified, please
+open an issue _describing how the vulnerability is exploitable in the context of Argo CD_,
+and we will evaluate it and decide whether or not to upgrade the dependency.
+
 ## Reporting a Vulnerability
 
 If you find a security related bug in Argo CD, we kindly ask you for responsible
