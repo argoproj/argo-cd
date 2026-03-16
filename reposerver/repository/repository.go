@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -252,8 +253,8 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
+	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func(clean bool) (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repository lock: %w", err)
@@ -454,8 +455,8 @@ func (s *Service) runRepoOperation(
 			return &operationContext{chartPath, ""}, nil
 		})
 	}
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth)
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func(clean bool) (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth, clean)
 	})
 	if err != nil {
 		return err
@@ -839,8 +840,8 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							ch.errCh <- fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refVar, refSourceMapping.TargetRevision, referencedCommitSHA, q.Revision, commitSHA)
 							return
 						}
-						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func() (goio.Closer, error) {
-							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
+						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func(clean bool) (goio.Closer, error) {
+							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
 						})
 						if err != nil {
 							log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
@@ -1434,13 +1435,33 @@ func getResolvedRefValueFile(
 	return resolvedPath, nil
 }
 
-func getReferencedSource(rawValueFile string, refSources map[string]*v1alpha1.RefTarget) *v1alpha1.RefTarget {
+func getReferencedSources(rawValueFiles []string, refSources map[string]*v1alpha1.RefTarget) map[string]*v1alpha1.RefTarget {
+	result := make(map[string]*v1alpha1.RefTarget, len(refSources))
+	for _, rawValueFile := range rawValueFiles {
+		refName := getReferencedSourceName(rawValueFile)
+		if refName != "" {
+			refSource := refSources[refName]
+			if refSource != nil {
+				result[refName] = refSource
+			}
+		}
+	}
+	return result
+}
+
+func getReferencedSourceName(rawValueFile string) string {
 	if !strings.HasPrefix(rawValueFile, "$") {
+		return ""
+	}
+	return strings.Split(rawValueFile, "/")[0]
+}
+
+func getReferencedSource(rawValueFile string, refSources map[string]*v1alpha1.RefTarget) *v1alpha1.RefTarget {
+	refName := getReferencedSourceName(rawValueFile)
+	if refName == "" {
 		return nil
 	}
-	refVar := strings.Split(rawValueFile, "/")[0]
-	referencedSource := refSources[refVar]
-	return referencedSource
+	return refSources[refName]
 }
 
 func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v1alpha1.RepoCreds {
@@ -2201,7 +2222,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 		switch appSourceType {
 		case v1alpha1.ApplicationSourceTypeHelm:
-			if err := populateHelmAppDetails(res, opContext.appPath, repoRoot, q, s.gitRepoPaths); err != nil {
+			if err := s.populateHelmAppDetails(res, opContext.appPath, repoRoot, commitSHA, revision, q, s.gitRepoPaths); err != nil {
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypeKustomize:
@@ -2240,7 +2261,7 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 	}
 }
 
-func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath string, repoRoot string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths utilio.TempPaths) error {
+func (s *Service) populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath, repoRoot, commitSHA, revision string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths utilio.TempPaths) error {
 	var selectedValueFiles []string
 	var availableValueFiles []string
 
@@ -2272,6 +2293,56 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 	}
 	defer h.Dispose()
 
+	if len(q.RefSources) > 0 {
+		refSources := map[string]repoRef{}
+		var mainRepoURL string
+		if q.Repo.Type == "git" {
+			mainRepoURL = git.NormalizeGitURL(q.Repo.Repo)
+		}
+		refNames := []string{}
+		for refName := range getReferencedSources(selectedValueFiles, q.RefSources) {
+			refNames = append(refNames, refName)
+		}
+		sort.Strings(refNames)
+		for _, refName := range refNames {
+			refSource := q.RefSources[refName]
+			if refSource.Repo.Type != "git" {
+				continue
+			}
+			log.Debugf("Checking out repos for ref source %s  -> %s [%s]", refName, refSource.Repo.Repo, refSource.TargetRevision)
+			gitClient, refSHA, err := s.newClientResolveRevision(&refSource.Repo, refSource.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+			if err != nil {
+				return fmt.Errorf("error setting up git client for %s and resolving revision %s: %w", refSource.Repo.Repo, refSource.TargetRevision, err)
+			}
+			refNormalizedURL := git.NormalizeGitURL(refSource.Repo.Repo)
+			if mainRepoURL == refNormalizedURL && refSHA != commitSHA {
+				return fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refName, refSource.TargetRevision, refSHA, revision, commitSHA)
+			}
+			prevRef, ok := refSources[refNormalizedURL]
+			if ok {
+				if prevRef.commitSHA != refSHA {
+					return fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q which resolves to %q while %s references %q which resolves to %q)", refName, refSource.TargetRevision, refSHA, prevRef.key, prevRef.revision, prevRef.commitSHA)
+				}
+			} else {
+				refSources[refNormalizedURL] = repoRef{
+					revision:  refSource.TargetRevision,
+					commitSHA: refSHA,
+					key:       refName,
+				}
+			}
+			closer, err := s.repoLock.Lock(gitClient.Root(), refSHA, true, func(clean bool) (goio.Closer, error) {
+				return s.checkoutRevision(gitClient, refSHA, s.initConstants.SubmoduleEnabled, refSource.Repo.Depth, clean)
+			})
+			if err != nil {
+				return fmt.Errorf("failed to acquire lock for referenced repo %q: %w", refSource.Repo.Repo, err)
+			}
+			defer utilio.Close(closer)
+			// no need to call the CheckOutOfBoundsSymlinks scan here because
+			// all referenced values files are retrieved via the ResolveValueFilePathOrUrl()
+			// which ensures that the file is inside the repo directory
+			log.Debugf("Checked out referenced repo %s", refSource.Repo.Repo)
+		}
+	}
 	if resolvedValuesPath, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
 		if err := loadFileIntoIfExists(resolvedValuesPath, &res.Helm.Values); err != nil {
 			return err
@@ -2445,8 +2516,8 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth)
+	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func(clean bool) (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
@@ -2672,9 +2743,9 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64) (goio.Closer, error) {
+func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64, clean bool) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
-	err := checkoutRevision(gitClient, revision, submoduleEnabled, depth)
+	err := checkoutRevision(gitClient, revision, submoduleEnabled, depth, clean)
 	if err != nil {
 		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
 	}
@@ -2725,7 +2796,7 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 	return nil
 }
 
-func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64) error {
+func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64, cleanState bool) error {
 	err := gitClient.Init()
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -2751,7 +2822,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		}
 	}
 
-	_, err = gitClient.Checkout(revision, submoduleEnabled)
+	_, err = gitClient.Checkout(revision, submoduleEnabled, cleanState)
 	if err != nil {
 		// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
 		// for the given revision, try explicitly fetching it.
@@ -2762,7 +2833,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
 
-		_, err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
+		_, err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled, cleanState)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 		}
@@ -2904,8 +2975,8 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	// cache miss, generate the results
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth)
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, clean)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
@@ -2986,8 +3057,8 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	// cache miss, generate the results
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth)
+	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, clean)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
@@ -3067,8 +3138,8 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 		s.metricsServer.IncPendingRepoRequest(repo.Repo)
 		defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
-		closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
-			return s.checkoutRevision(gitClient, revision, false, 0)
+		closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
+			return s.checkoutRevision(gitClient, revision, false, 0, clean)
 		})
 		if err != nil {
 			return files, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)

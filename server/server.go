@@ -1583,14 +1583,15 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	}
 
 	finalClaims := claims
-	if server.settings.IsSSOConfigured() {
+	oidcConfig := server.settings.OIDCConfig()
+	if oidcConfig != nil || server.settings.IsDexConfigured() {
 		updatedClaims, err := server.ssoClientApp.SetGroupsFromUserInfo(ctx, claims, util_session.SessionManagerClaimsIssuer)
 		if err != nil {
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 		}
 		finalClaims = updatedClaims
 		// OIDC tokens are automatically refreshed here prior to expiration
-		refreshedToken, err := server.ssoClientApp.CheckAndRefreshToken(ctx, updatedClaims, server.settings.OIDCRefreshTokenThreshold)
+		refreshedToken, err := server.ssoClientApp.CheckAndRefreshToken(ctx, updatedClaims, server.settings.RefreshTokenThresholdWithConfig(oidcConfig))
 		if err != nil {
 			log.Errorf("error checking and refreshing token: %v", err)
 		}
