@@ -220,7 +220,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		listRetryLimit:      1,
 		listRetryUseBackoff: false,
 		listRetryFunc:       ListRetryFuncNever,
-		parentUIDToChildren: make(map[types.UID][]kube.ResourceKey),
+		parentUIDToChildren: make(map[types.UID]map[kube.ResourceKey]struct{}),
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -281,9 +281,10 @@ type clusterCache struct {
 	respectRBAC int
 
 	// Parent-to-children index for O(1) hierarchy traversal
-	// Maps any resource's UID to its direct children's ResourceKeys
+	// Maps any resource's UID to a set of its direct children's ResourceKeys
+	// Using a set eliminates O(k) duplicate checking on insertions
 	// Eliminates need for O(n) graph building during hierarchy traversal
-	parentUIDToChildren map[types.UID][]kube.ResourceKey
+	parentUIDToChildren map[types.UID]map[kube.ResourceKey]struct{}
 }
 
 type clusterCacheSync struct {
@@ -517,7 +518,7 @@ func (c *clusterCache) setNode(n *Resource) {
 // This is called after initial sync to ensure all parent-child relationships are tracked
 func (c *clusterCache) rebuildParentToChildrenIndex() {
 	// Clear existing index
-	c.parentUIDToChildren = make(map[types.UID][]kube.ResourceKey)
+	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
 
 	// Rebuild parent-to-children index from all resources with owner refs
 	for _, resource := range c.resources {
@@ -533,31 +534,29 @@ func (c *clusterCache) rebuildParentToChildrenIndex() {
 
 // addToParentUIDToChildren adds a child to the parent-to-children index
 func (c *clusterCache) addToParentUIDToChildren(parentUID types.UID, childKey kube.ResourceKey) {
-	// Check if child is already in the list to avoid duplicates
-	children := c.parentUIDToChildren[parentUID]
-	for _, existing := range children {
-		if existing == childKey {
-			return // Already exists, no need to add
-		}
+	// Get or create the set for this parent
+	childrenSet := c.parentUIDToChildren[parentUID]
+	if childrenSet == nil {
+		childrenSet = make(map[kube.ResourceKey]struct{})
+		c.parentUIDToChildren[parentUID] = childrenSet
 	}
-	c.parentUIDToChildren[parentUID] = append(children, childKey)
+	// Add child to set (O(1) operation, automatically handles duplicates)
+	childrenSet[childKey] = struct{}{}
 }
 
 // removeFromParentUIDToChildren removes a child from the parent-to-children index
 func (c *clusterCache) removeFromParentUIDToChildren(parentUID types.UID, childKey kube.ResourceKey) {
-	children := c.parentUIDToChildren[parentUID]
-	for i, existing := range children {
-		if existing == childKey {
-			// Remove by swapping with last element and truncating
-			children[i] = children[len(children)-1]
-			c.parentUIDToChildren[parentUID] = children[:len(children)-1]
+	childrenSet := c.parentUIDToChildren[parentUID]
+	if childrenSet == nil {
+		return
+	}
 
-			// Clean up empty entries
-			if len(c.parentUIDToChildren[parentUID]) == 0 {
-				delete(c.parentUIDToChildren, parentUID)
-			}
-			return
-		}
+	// Remove child from set (O(1) operation)
+	delete(childrenSet, childKey)
+
+	// Clean up empty sets to avoid memory leaks
+	if len(childrenSet) == 0 {
+		delete(c.parentUIDToChildren, parentUID)
 	}
 }
 
@@ -1014,7 +1013,7 @@ func (c *clusterCache) sync() error {
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.resources = make(map[kube.ResourceKey]*Resource)
 	c.namespacedResources = make(map[schema.GroupKind]bool)
-	c.parentUIDToChildren = make(map[types.UID][]kube.ResourceKey)
+	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
 	config := c.config
 	version, err := c.kubectl.GetServerVersion(config)
 	if err != nil {
@@ -1256,8 +1255,8 @@ func (c *clusterCache) processCrossNamespaceChildren(
 		}
 
 		// Use parent-to-children index for O(1) lookup of direct children
-		childKeys := c.parentUIDToChildren[clusterResource.Ref.UID]
-		for _, childKey := range childKeys {
+		childrenSet := c.parentUIDToChildren[clusterResource.Ref.UID]
+		for childKey := range childrenSet {
 			child := c.resources[childKey]
 			if child == nil {
 				continue
@@ -1310,8 +1309,8 @@ func (c *clusterCache) iterateChildrenUsingIndex(
 	action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool,
 ) {
 	// Look up direct children of this parent using the index
-	childKeys := c.parentUIDToChildren[parent.Ref.UID]
-	for _, childKey := range childKeys {
+	childrenSet := c.parentUIDToChildren[parent.Ref.UID]
+	for childKey := range childrenSet {
 		if actionCallState[childKey] != notCalled {
 			continue // action() already called or in progress
 		}
