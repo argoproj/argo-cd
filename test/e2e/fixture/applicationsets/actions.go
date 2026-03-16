@@ -391,7 +391,7 @@ func (a *Actions) StatusUpdatePlacementDecision(placementDecisionName string, cl
 }
 
 // Delete deletes the ApplicationSet within the context
-func (a *Actions) Delete(deletionOrder bool) *Actions {
+func (a *Actions) Delete(skipForegroundDeletion bool) *Actions {
 	a.context.T().Helper()
 
 	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
@@ -409,7 +409,7 @@ func (a *Actions) Delete(deletionOrder bool) *Actions {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}
 	var deleteOptions metav1.DeleteOptions
-	if deletionOrder {
+	if skipForegroundDeletion {
 		deleteOptions = metav1.DeleteOptions{}
 	} else {
 		deleteProp := metav1.DeletePropagationForeground

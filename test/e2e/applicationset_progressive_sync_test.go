@@ -494,7 +494,7 @@ func TestProgressiveSyncMultipleAppsPerStepWithReverseDeletionOrder(t *testing.T
 		RemoveFinalizerFromApps(stagingApps, testFinalizer).
 		Then().
 		And(func() {
-			t.Log("removed finalizer from staging apps, confirm prod apps deleted")
+			t.Log("removed finalizer from staging apps, confirm staging apps deleted")
 			t.Log("Wave 3: Verifying dev apps (prog-sketch, prog-build) are deleted last")
 		}).
 		// Wave 3: Dev apps deleted last

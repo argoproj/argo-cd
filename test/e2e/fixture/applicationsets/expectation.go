@@ -340,8 +340,8 @@ func ApplicationSetHasApplicationStatus(expectedApplicationStatusLength int) Exp
 // ApplicationsBeingDeletedOrGone checks that at least one app from specified apps either have DeletionTimestamp set or no longer exist
 // Controlling the order of app deletion within step is hard, and reverse Deletion Order deletes one app at a time.
 func ApplicationsBeingDeletedOrGone(appNames []string) Expectation {
-	anyapp := false
 	return func(c *Consequences) (state, string) {
+		anyapp := false
 		for _, appName := range appNames {
 			app := c.app(appName)
 			if (app != nil && app.DeletionTimestamp != nil) || app == nil {
@@ -351,7 +351,7 @@ func ApplicationsBeingDeletedOrGone(appNames []string) Expectation {
 		if !anyapp {
 			return pending, "no app in this step is being deleted yet"
 		}
-		return succeeded, fmt.Sprintf("all apps %v are being deleted or gone", appNames)
+		return succeeded, fmt.Sprintf("atleasr one app in %v is being deleted or gone", appNames)
 	}
 }
 
