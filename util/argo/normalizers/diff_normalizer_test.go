@@ -293,3 +293,90 @@ func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
 	})
 	assert.Contains(t, out, "fromjson cannot be applied")
 }
+
+func TestNormalizeNestedArrayFieldPattern(t *testing.T) {
+	// Test case for Gateway API HTTPRoute/GRPCRoute weight fields
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
+		Group:             "gateway.networking.k8s.io",
+		Kind:              "HTTPRoute",
+		JQPathExpressions: []string{".spec.rules[].backendRefs[].weight"},
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
+
+	require.NoError(t, err)
+
+	// Create a mock HTTPRoute with nested arrays using int64 for proper type handling
+	httpRoute := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "gateway.networking.k8s.io/v1",
+			"kind":       "HTTPRoute",
+			"metadata": map[string]any{
+				"name":      "test-route",
+				"namespace": "default",
+			},
+			"spec": map[string]any{
+				"rules": []any{
+					map[string]any{
+						"backendRefs": []any{
+							map[string]any{
+								"name":   "service1",
+								"port":   int64(80),
+								"weight": int64(100),
+							},
+							map[string]any{
+								"name":   "service2",
+								"port":   int64(80),
+								"weight": int64(0),
+							},
+						},
+					},
+					map[string]any{
+						"backendRefs": []any{
+							map[string]any{
+								"name":   "service3",
+								"port":   int64(8080),
+								"weight": int64(50),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Verify weight fields exist before normalization
+	rules, _, err := unstructured.NestedSlice(httpRoute.Object, "spec", "rules")
+	require.NoError(t, err)
+	require.Len(t, rules, 2)
+
+	// First rule should have weights
+	rule0 := rules[0].(map[string]any)
+	backendRefs0 := rule0["backendRefs"].([]any)
+	backend0 := backendRefs0[0].(map[string]any)
+	_, hasWeight := backend0["weight"]
+	assert.True(t, hasWeight)
+
+	// Apply normalization
+	err = normalizer.Normalize(httpRoute)
+	require.NoError(t, err)
+
+	// Verify weight fields are removed
+	rules, _, err = unstructured.NestedSlice(httpRoute.Object, "spec", "rules")
+	require.NoError(t, err)
+	require.Len(t, rules, 2)
+
+	// Check that weight fields are deleted from all backendRefs
+	for i, rule := range rules {
+		ruleMap := rule.(map[string]any)
+		backendRefs := ruleMap["backendRefs"].([]any)
+		for j, backend := range backendRefs {
+			backendMap := backend.(map[string]any)
+			_, hasWeight := backendMap["weight"]
+			assert.False(t, hasWeight, "weight should be deleted from rule %d, backendRef %d", i, j)
+			// Verify other fields are preserved
+			_, hasName := backendMap["name"]
+			assert.True(t, hasName, "name should be preserved in rule %d, backendRef %d", i, j)
+			_, hasPort := backendMap["port"]
+			assert.True(t, hasPort, "port should be preserved in rule %d, backendRef %d", i, j)
+		}
+	}
+}

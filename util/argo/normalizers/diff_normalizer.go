@@ -106,6 +106,46 @@ type ignoreNormalizer struct {
 	patches []normalizerPatch
 }
 
+// transformJQPathExpression converts simple nested array field patterns to proper JQ deletion syntax
+// For example: .spec.rules[].backendRefs[].weight -> del(.. | select(has("weight")).weight)
+func transformJQPathExpression(pathExpression string) (string, error) {
+	// Check if this is a simple field path with array iterators (e.g., .field[].subfield[].property)
+	// Pattern: ends with a field name, contains [], and doesn't have pipes, select, or other JQ operations
+
+	// If expression already contains pipes, select, or parentheses, don't transform it
+	if strings.Contains(pathExpression, "|") ||
+		strings.Contains(pathExpression, "select") ||
+		strings.Contains(pathExpression, "(") {
+		return pathExpression, nil
+	}
+
+	// Check if expression contains [] indicating array iteration
+	if !strings.Contains(pathExpression, "[]") {
+		return pathExpression, nil
+	}
+
+	// Split the path into segments
+	segments := strings.Split(pathExpression, ".")
+	if len(segments) < 2 {
+		return pathExpression, nil
+	}
+
+	// Build the transformation: use walk() to recursively delete the field
+	// Extract the final field name
+	lastSegment := segments[len(segments)-1]
+
+	// Check if the last segment is a simple field name (no brackets)
+	if strings.Contains(lastSegment, "[") {
+		return pathExpression, nil
+	}
+
+	// Use walk() to recursively find and delete the field from all objects that have it
+	// This handles arbitrary nesting levels
+	transformedExpr := fmt.Sprintf(`walk(if type == "object" and has("%s") then del(.%s) else . end)`, lastSegment, lastSegment)
+
+	return transformedExpr, nil
+}
+
 type IgnoreNormalizerOpts struct {
 	JQExecutionTimeout time.Duration
 }
@@ -159,7 +199,21 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 			})
 		}
 		for _, pathExpression := range ignore[i].JQPathExpressions {
-			jqDeletionQuery, err := gojq.Parse(fmt.Sprintf("del(%s)", pathExpression))
+			// Transform nested array field patterns to proper JQ syntax
+			transformedExpr, err := transformJQPathExpression(pathExpression)
+			if err != nil {
+				return nil, err
+			}
+
+			// For walk() expressions, don't wrap with del() as they already handle deletion
+			var jqQuery string
+			if strings.HasPrefix(transformedExpr, "walk(") {
+				jqQuery = transformedExpr
+			} else {
+				jqQuery = fmt.Sprintf("del(%s)", transformedExpr)
+			}
+
+			jqDeletionQuery, err := gojq.Parse(jqQuery)
 			if err != nil {
 				return nil, err
 			}
