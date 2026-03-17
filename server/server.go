@@ -494,11 +494,11 @@ func (server *ArgoCDServer) logInClusterWarnings() error {
 	}
 	if len(inClusterSecrets) > 0 {
 		// Don't make this call unless we actually have in-cluster secrets, to save time.
-		dbSettings, err := server.settingsMgr.GetSettings()
+		inClusterEnabled, err := server.settingsMgr.IsInClusterEnabled()
 		if err != nil {
-			return fmt.Errorf("could not get DB settings: %w", err)
+			return fmt.Errorf("could not check if in-cluster is enabled: %w", err)
 		}
-		if !dbSettings.InClusterEnabled {
+		if !inClusterEnabled {
 			for _, clusterName := range inClusterSecrets {
 				log.Warnf("cluster %q uses in-cluster server address but it's disabled in Argo CD settings", clusterName)
 			}

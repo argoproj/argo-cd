@@ -119,8 +119,6 @@ type ArgoCDSettings struct {
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 	// BinaryUrls contains the URLs for downloading argocd binaries
 	BinaryUrls map[string]string `json:"binaryUrls,omitempty"`
-	// InClusterEnabled indicates whether to allow in-cluster server address
-	InClusterEnabled bool `json:"inClusterEnabled"`
 	// ServerRBACLogEnforceEnable temporary var indicates whether rbac will be enforced on logs
 	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
 	// MaxPodLogsToRender the maximum number of pod logs to render
@@ -1531,7 +1529,6 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 			settings.MaxPodLogsToRender = val
 		}
 	}
-	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
 	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
 	execShells := argoCDCM.Data[execShellsKey]
 	if execShells != "" {
@@ -2425,4 +2422,17 @@ func (mgr *SettingsManager) GetAllowedNodeLabels() []string {
 		labelKeys = append(labelKeys, k)
 	}
 	return labelKeys
+}
+
+// IsInClusterEnabled returns false if in-cluster is explicitly disabled in argocd-cm configmap, true otherwise
+func (mgr *SettingsManager) IsInClusterEnabled() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return true, fmt.Errorf("error checking %s property in configmap: %w", inClusterEnabledKey, err)
+	}
+	if inClusterEnabled, ok := argoCDCM.Data[inClusterEnabledKey]; ok {
+		return inClusterEnabled != "false", nil
+	}
+	// default value when flag is not explicitly set by user
+	return true, nil
 }
