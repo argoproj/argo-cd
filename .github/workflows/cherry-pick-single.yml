@@ -66,6 +66,13 @@ jobs:
 
           # Create new branch for cherry-pick
           CHERRY_PICK_BRANCH="cherry-pick-${{ inputs.pr_number }}-to-${TARGET_BRANCH}"
+
+          # Remove existing remote branch if it exists (e.g. from a previous failed run)
+          if git show-ref --verify --quiet "refs/remotes/origin/$CHERRY_PICK_BRANCH"; then
+            echo "🗑️ Removing existing branch '$CHERRY_PICK_BRANCH'"
+            git push origin --delete "$CHERRY_PICK_BRANCH"
+          fi
+
           git checkout -b "$CHERRY_PICK_BRANCH" "origin/$TARGET_BRANCH"
 
           # Perform cherry-pick
