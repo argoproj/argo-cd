@@ -832,56 +832,56 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                     {pref.view === 'summary' ? (
                                                                         <ApplicationsSummary applications={filteredApps} />
                                                                     ) : (
-                                                                    <Paginate
-                                                                        header={filteredApps.length > 1 && <AppSetsStatusBar appSets={filteredApps} />}
-                                                                        showHeader={healthBarPrefs.showHealthStatusBar}
-                                                                        preferencesKey='applications-list'
-                                                                        page={pref.page}
-                                                                        emptyState={() => (
-                                                                            <EmptyState icon='fa fa-search'>
-                                                                                <h4>No matching application sets found</h4>
-                                                                                <h5>
-                                                                                    Change filter criteria or&nbsp;
-                                                                                    <a
-                                                                                        onClick={() => {
-                                                                                            AppSetsListPreferences.clearFilters(appSetPref);
-                                                                                            onAppSetFilterPrefChanged(ctx, appSetPref);
-                                                                                        }}>
-                                                                                        clear filters
-                                                                                    </a>
-                                                                                </h5>
-                                                                            </EmptyState>
-                                                                        )}
-                                                                        sortOptions={[
-                                                                            {
-                                                                                title: 'Name',
-                                                                                compare: (a, b) => a.metadata.name.localeCompare(b.metadata.name, undefined, {numeric: true})
-                                                                            },
-                                                                            {
-                                                                                title: 'Created At',
-                                                                                compare: (b, a) => a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp)
+                                                                        <Paginate
+                                                                            header={filteredApps.length > 1 && <AppSetsStatusBar appSets={filteredApps} />}
+                                                                            showHeader={healthBarPrefs.showHealthStatusBar}
+                                                                            preferencesKey='applications-list'
+                                                                            page={pref.page}
+                                                                            emptyState={() => (
+                                                                                <EmptyState icon='fa fa-search'>
+                                                                                    <h4>No matching application sets found</h4>
+                                                                                    <h5>
+                                                                                        Change filter criteria or&nbsp;
+                                                                                        <a
+                                                                                            onClick={() => {
+                                                                                                AppSetsListPreferences.clearFilters(appSetPref);
+                                                                                                onAppSetFilterPrefChanged(ctx, appSetPref);
+                                                                                            }}>
+                                                                                            clear filters
+                                                                                        </a>
+                                                                                    </h5>
+                                                                                </EmptyState>
+                                                                            )}
+                                                                            sortOptions={[
+                                                                                {
+                                                                                    title: 'Name',
+                                                                                    compare: (a, b) => a.metadata.name.localeCompare(b.metadata.name, undefined, {numeric: true})
+                                                                                },
+                                                                                {
+                                                                                    title: 'Created At',
+                                                                                    compare: (b, a) => a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp)
+                                                                                }
+                                                                            ]}
+                                                                            data={filteredApps}
+                                                                            onPageChange={page => ctx.navigation.goto('.', {page})}>
+                                                                            {data =>
+                                                                                (pref.view === 'tiles' && (
+                                                                                    <ApplicationTiles
+                                                                                        applications={data}
+                                                                                        syncApplication={() => {}}
+                                                                                        refreshApplication={() => {}}
+                                                                                        deleteApplication={() => {}}
+                                                                                    />
+                                                                                )) || (
+                                                                                    <ApplicationsTable
+                                                                                        applications={data}
+                                                                                        syncApplication={() => {}}
+                                                                                        refreshApplication={() => {}}
+                                                                                        deleteApplication={() => {}}
+                                                                                    />
+                                                                                )
                                                                             }
-                                                                        ]}
-                                                                        data={filteredApps}
-                                                                        onPageChange={page => ctx.navigation.goto('.', {page})}>
-                                                                        {data =>
-                                                                            (pref.view === 'tiles' && (
-                                                                                <ApplicationTiles
-                                                                                    applications={data}
-                                                                                    syncApplication={() => {}}
-                                                                                    refreshApplication={() => {}}
-                                                                                    deleteApplication={() => {}}
-                                                                                />
-                                                                            )) || (
-                                                                                <ApplicationsTable
-                                                                                    applications={data}
-                                                                                    syncApplication={() => {}}
-                                                                                    refreshApplication={() => {}}
-                                                                                    deleteApplication={() => {}}
-                                                                                />
-                                                                            )
-                                                                        }
-                                                                    </Paginate>
+                                                                        </Paginate>
                                                                     )}
                                                                 </>
                                                             )}
