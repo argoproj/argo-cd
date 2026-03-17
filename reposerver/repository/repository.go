@@ -253,7 +253,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func(clean bool) (goio.Closer, error) {
+	closer, err := s.repoLock.Lock(ctx, gitClient.Root(), commitSHA, true, func(clean bool) (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
 	})
 	if err != nil {
@@ -455,7 +455,7 @@ func (s *Service) runRepoOperation(
 			return &operationContext{chartPath, ""}, nil
 		})
 	}
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func(clean bool) (goio.Closer, error) {
+	closer, err := s.repoLock.Lock(ctx, gitClient.Root(), revision, settings.allowConcurrent, func(clean bool) (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth, clean)
 	})
 	if err != nil {
@@ -840,7 +840,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							ch.errCh <- fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refVar, refSourceMapping.TargetRevision, referencedCommitSHA, q.Revision, commitSHA)
 							return
 						}
-						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func(clean bool) (goio.Closer, error) {
+						closer, err := s.repoLock.Lock(ctx, gitClient.Root(), referencedCommitSHA, true, func(clean bool) (goio.Closer, error) {
 							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
 						})
 						if err != nil {
@@ -2222,7 +2222,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 
 		switch appSourceType {
 		case v1alpha1.ApplicationSourceTypeHelm:
-			if err := s.populateHelmAppDetails(res, opContext.appPath, repoRoot, commitSHA, revision, q, s.gitRepoPaths); err != nil {
+			if err := s.populateHelmAppDetails(ctx, res, opContext.appPath, repoRoot, commitSHA, revision, q, s.gitRepoPaths); err != nil {
 				return err
 			}
 		case v1alpha1.ApplicationSourceTypeKustomize:
@@ -2261,7 +2261,7 @@ func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsR
 	}
 }
 
-func (s *Service) populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath, repoRoot, commitSHA, revision string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths utilio.TempPaths) error {
+func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.RepoAppDetailsResponse, appPath, repoRoot, commitSHA, revision string, q *apiclient.RepoServerAppDetailsQuery, gitRepoPaths utilio.TempPaths) error {
 	var selectedValueFiles []string
 	var availableValueFiles []string
 
@@ -2330,7 +2330,7 @@ func (s *Service) populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, 
 					key:       refName,
 				}
 			}
-			closer, err := s.repoLock.Lock(gitClient.Root(), refSHA, true, func(clean bool) (goio.Closer, error) {
+			closer, err := s.repoLock.Lock(ctx, gitClient.Root(), refSHA, true, func(clean bool) (goio.Closer, error) {
 				return s.checkoutRevision(gitClient, refSHA, s.initConstants.SubmoduleEnabled, refSource.Repo.Depth, clean)
 			})
 			if err != nil {
@@ -2481,7 +2481,7 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	return nil
 }
 
-func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
+func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
 	if !git.IsCommitSHA(q.Revision) && !git.IsTruncatedCommitSHA(q.Revision) {
 		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
 	}
@@ -2516,7 +2516,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func(clean bool) (goio.Closer, error) {
+	closer, err := s.repoLock.Lock(ctx, gitClient.Root(), q.Revision, true, func(clean bool) (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
 	})
 	if err != nil {
@@ -2940,7 +2940,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	}, nil
 }
 
-func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
 	repo := request.GetRepo()
 	revision := request.GetRevision()
 	gitPath := request.GetPath()
@@ -2975,7 +2975,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	// cache miss, generate the results
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
+	closer, err := s.repoLock.Lock(ctx, gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, clean)
 	})
 	if err != nil {
@@ -3028,7 +3028,7 @@ func verifyCommitSignature(verifyCommit bool, gitClient git.Client, revision str
 	return nil
 }
 
-func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
+func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 	repo := request.GetRepo()
 	revision := request.GetRevision()
 	noRevisionCache := request.GetNoRevisionCache()
@@ -3057,7 +3057,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	// cache miss, generate the results
-	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
+	closer, err := s.repoLock.Lock(ctx, gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, clean)
 	})
 	if err != nil {
@@ -3106,7 +3106,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	}, nil
 }
 
-func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, syncedRevision string, refreshPaths []string, gitClientOpts git.ClientOpts) (string, string, bool, error) {
+func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Repository, revision, syncedRevision string, refreshPaths []string, gitClientOpts git.ClientOpts) (string, string, bool, error) {
 	if repo == nil {
 		return revision, syncedRevision, true, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
@@ -3138,7 +3138,7 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 		s.metricsServer.IncPendingRepoRequest(repo.Repo)
 		defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
-		closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
+		closer, err := s.repoLock.Lock(ctx, gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
 			return s.checkoutRevision(gitClient, revision, false, 0, clean)
 		})
 		if err != nil {
@@ -3189,7 +3189,7 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 //
 // Example: cache contains manifest "x" under revision "a1a1a1". If the revision moves to "b2b2b2"
 // and no relevant files have changed, "x" will be stored again under the new revision key.
-func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.UpdateRevisionForPathsRequest) (*apiclient.UpdateRevisionForPathsResponse, error) {
+func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient.UpdateRevisionForPathsRequest) (*apiclient.UpdateRevisionForPathsResponse, error) {
 	logCtx := log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace})
 
 	// Store resolved revisions for cache update
@@ -3219,7 +3219,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 
 	if repo.Type == "git" {
 		if request.SyncedRevision != request.Revision {
-			resolvedRevision, syncedRevision, sourceHasChanges, err := s.gitSourceHasChanges(request.Repo, request.Revision, request.SyncedRevision, refreshPaths, gitClientOpts)
+			resolvedRevision, syncedRevision, sourceHasChanges, err := s.gitSourceHasChanges(ctx, request.Repo, request.Revision, request.SyncedRevision, refreshPaths, gitClientOpts)
 			if err != nil {
 				return nil, err
 			}
@@ -3274,7 +3274,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		var err error
 
 		if sRefSource.TargetRevision != request.RefSources[refName].TargetRevision {
-			resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(&sRefSource.Repo, request.RefSources[refName].TargetRevision, sRefSource.TargetRevision, refreshPaths, gitClientOpts)
+			resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(ctx, &sRefSource.Repo, request.RefSources[refName].TargetRevision, sRefSource.TargetRevision, refreshPaths, gitClientOpts)
 			if err != nil {
 				return nil, err
 			}

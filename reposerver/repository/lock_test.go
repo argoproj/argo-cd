@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"io"
 	"testing"
@@ -38,7 +39,7 @@ func TestLock_SameRevision(t *testing.T) {
 	initializedTimes := 0
 	init := numberOfInits(&initializedTimes)
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, init)
+		return lock.Lock(context.Background(), "myRepo", "1", true, init)
 	})
 
 	if !assert.True(t, done) {
@@ -46,7 +47,7 @@ func TestLock_SameRevision(t *testing.T) {
 	}
 
 	closer2, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, init)
+		return lock.Lock(context.Background(), "myRepo", "1", true, init)
 	})
 
 	if !assert.True(t, done) {
@@ -66,7 +67,7 @@ func TestLock_DifferentRevisions(t *testing.T) {
 	init := numberOfInits(&initializedTimes)
 
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, init)
+		return lock.Lock(context.Background(), "myRepo", "1", true, init)
 	})
 
 	if !assert.True(t, done) {
@@ -74,7 +75,7 @@ func TestLock_DifferentRevisions(t *testing.T) {
 	}
 
 	_, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "2", true, init)
+		return lock.Lock(context.Background(), "myRepo", "2", true, init)
 	})
 
 	if !assert.False(t, done) {
@@ -84,7 +85,7 @@ func TestLock_DifferentRevisions(t *testing.T) {
 	utilio.Close(closer1)
 
 	_, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "2", true, init)
+		return lock.Lock(context.Background(), "myRepo", "2", true, init)
 	})
 
 	if !assert.True(t, done) {
@@ -98,7 +99,7 @@ func TestLock_NoConcurrentWithSameRevision(t *testing.T) {
 	init := numberOfInits(&initializedTimes)
 
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", false, init)
+		return lock.Lock(context.Background(), "myRepo", "1", false, init)
 	})
 
 	if !assert.True(t, done) {
@@ -106,7 +107,7 @@ func TestLock_NoConcurrentWithSameRevision(t *testing.T) {
 	}
 
 	_, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", false, init)
+		return lock.Lock(context.Background(), "myRepo", "1", false, init)
 	})
 
 	if !assert.False(t, done) {
@@ -120,7 +121,7 @@ func TestLock_FailedInitialization(t *testing.T) {
 	lock := NewRepositoryLock()
 
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, func(_ bool) (io.Closer, error) {
+		return lock.Lock(context.Background(), "myRepo", "1", true, func(_ bool) (io.Closer, error) {
 			return utilio.NopCloser, errors.New("failed")
 		})
 	})
@@ -132,7 +133,7 @@ func TestLock_FailedInitialization(t *testing.T) {
 	assert.Nil(t, closer1)
 
 	closer2, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, func(_ bool) (io.Closer, error) {
+		return lock.Lock(context.Background(), "myRepo", "1", true, func(_ bool) (io.Closer, error) {
 			return utilio.NopCloser, nil
 		})
 	})
@@ -149,7 +150,7 @@ func TestLock_SameRevisionFirstNotConcurrent(t *testing.T) {
 	initializedTimes := 0
 	init := numberOfInits(&initializedTimes)
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", false, init)
+		return lock.Lock(context.Background(), "myRepo", "1", false, init)
 	})
 
 	if !assert.True(t, done) {
@@ -157,7 +158,7 @@ func TestLock_SameRevisionFirstNotConcurrent(t *testing.T) {
 	}
 
 	_, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, init)
+		return lock.Lock(context.Background(), "myRepo", "1", true, init)
 	})
 
 	if !assert.False(t, done) {
@@ -177,7 +178,7 @@ func TestLock_CleanForNonConcurrent(t *testing.T) {
 		return utilio.NopCloser, nil
 	}
 	closer, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, init)
+		return lock.Lock(context.Background(), "myRepo", "1", true, init)
 	})
 
 	assert.True(t, done)
@@ -186,7 +187,7 @@ func TestLock_CleanForNonConcurrent(t *testing.T) {
 	utilio.Close(closer)
 
 	closer, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, init)
+		return lock.Lock(context.Background(), "myRepo", "1", true, init)
 	})
 
 	assert.True(t, done)
