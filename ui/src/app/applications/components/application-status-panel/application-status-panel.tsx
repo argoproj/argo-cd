@@ -135,9 +135,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                         <div className='application-status-panel__item-value' style={{color: getProgressiveSyncStatusColor(appResource.status)}}>
                             {getProgressiveSyncStatusIcon({status: appResource.status})}&nbsp;{appResource.status}
                         </div>
-                        {appResource?.step !== undefined && (
-                            <div className='application-status-panel__item-value'>Step: {formatApplicationSetProgressiveSyncStep(appResource.step)}</div>
-                        )}
+                        {appResource?.step !== undefined && <div className='application-status-panel__item-value'>{formatApplicationSetProgressiveSyncStep(appResource.step)}</div>}
                         {lastTransitionTime && (
                             <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                                 Last Transition: <br />
