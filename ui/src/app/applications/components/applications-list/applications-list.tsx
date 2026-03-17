@@ -529,7 +529,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                         breadcrumbs: [
                                             {
                                                 title: isListOfApplications ? 'Applications' : 'ApplicationSets',
-                                                path: isListOfApplications ? '/applications' : '/applicationsets'
+                                                path: props.match.url
                                             }
                                         ]
                                     }}
