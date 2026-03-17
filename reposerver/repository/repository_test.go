@@ -3422,7 +3422,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client.EXPECT().IsRevisionPresent(refSha).Return(true)
 				client.EXPECT().Checkout(refSha, false, true).Return("", fmt.Errorf("%s", dummyErrMsg))
 				// one error is not enough: checkout falls back to fetch specific revision
-				client.EXPECT().Fetch(refSha, int64(0)).Return(fmt.Errorf("%s", dummyErrMsg))
+				client.EXPECT().Fetch(refSha, int64(0), false).Return(fmt.Errorf("%s", dummyErrMsg))
 				return &client, nil
 			},
 
