@@ -25,6 +25,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
@@ -1078,6 +1079,70 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			},
 		},
 		{
+			name: "Ensure that unnormalized live spec does not cause a spurious patch",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "project",
+						},
+					},
+				},
+			},
+			existingApps: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       application.ApplicationKind,
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "2",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+						// Without normalizing the live object, the equality check
+						// sees &SyncPolicy{} vs nil and issues an unnecessary patch.
+						SyncPolicy: &v1alpha1.SyncPolicy{},
+					},
+				},
+			},
+			desiredApps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "namespace",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project:    "project",
+						SyncPolicy: nil,
+					},
+				},
+			},
+			expected: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       application.ApplicationKind,
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "2",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project:    "project",
+						SyncPolicy: &v1alpha1.SyncPolicy{},
+					},
+				},
+			},
+		},
+		{
 			name: "Ensure that argocd pre-delete and post-delete finalizers are preserved from an existing app",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1184,6 +1249,374 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreateOrUpdateInCluster_Concurrent(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "namespace",
+		},
+	}
+
+	t.Run("all apps are created correctly with concurrency > 1", func(t *testing.T) {
+		desiredApps := make([]v1alpha1.Application, 5)
+		for i := range desiredApps {
+			desiredApps[i] = v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("app%d", i),
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSpec{Project: "project"},
+			}
+		}
+
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(&appSet).
+			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+			Build()
+		metrics := appsetmetrics.NewFakeAppsetMetrics()
+
+		r := ApplicationSetReconciler{
+			Client:                       fakeClient,
+			Scheme:                       scheme,
+			Recorder:                     record.NewFakeRecorder(10),
+			Metrics:                      metrics,
+			ConcurrentApplicationUpdates: 5,
+		}
+
+		err = r.createOrUpdateInCluster(t.Context(), log.NewEntry(log.StandardLogger()), appSet, desiredApps)
+		require.NoError(t, err)
+
+		for _, desired := range desiredApps {
+			got := &v1alpha1.Application{}
+			require.NoError(t, fakeClient.Get(t.Context(), crtclient.ObjectKey{Namespace: desired.Namespace, Name: desired.Name}, got))
+			assert.Equal(t, desired.Spec.Project, got.Spec.Project)
+		}
+	})
+
+	t.Run("non-context errors from concurrent goroutines are collected and one is returned", func(t *testing.T) {
+		existingApps := make([]v1alpha1.Application, 5)
+		initObjs := []crtclient.Object{&appSet}
+		for i := range existingApps {
+			existingApps[i] = v1alpha1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       application.ApplicationKind,
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            fmt.Sprintf("app%d", i),
+					Namespace:       "namespace",
+					ResourceVersion: "1",
+				},
+				Spec: v1alpha1.ApplicationSpec{Project: "old"},
+			}
+			app := existingApps[i].DeepCopy()
+			require.NoError(t, controllerutil.SetControllerReference(&appSet, app, scheme))
+			initObjs = append(initObjs, app)
+		}
+
+		desiredApps := make([]v1alpha1.Application, 5)
+		for i := range desiredApps {
+			desiredApps[i] = v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("app%d", i),
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSpec{Project: "new"},
+			}
+		}
+
+		patchErr := errors.New("some patch error")
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(initObjs...).
+			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Patch: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ crtclient.Patch, _ ...crtclient.PatchOption) error {
+					return patchErr
+				},
+			}).
+			Build()
+		metrics := appsetmetrics.NewFakeAppsetMetrics()
+
+		r := ApplicationSetReconciler{
+			Client:                       fakeClient,
+			Scheme:                       scheme,
+			Recorder:                     record.NewFakeRecorder(10),
+			Metrics:                      metrics,
+			ConcurrentApplicationUpdates: 5,
+		}
+
+		err = r.createOrUpdateInCluster(t.Context(), log.NewEntry(log.StandardLogger()), appSet, desiredApps)
+		require.ErrorIs(t, err, patchErr)
+	})
+}
+
+func TestCreateOrUpdateInCluster_ContextCancellation(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "namespace",
+		},
+	}
+	existingApp := v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "app1",
+			Namespace:       "namespace",
+			ResourceVersion: "1",
+		},
+		Spec: v1alpha1.ApplicationSpec{Project: "old"},
+	}
+	desiredApp := v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app1",
+			Namespace: "namespace",
+		},
+		Spec: v1alpha1.ApplicationSpec{Project: "new"},
+	}
+
+	t.Run("context canceled on patch is returned directly", func(t *testing.T) {
+		initObjs := []crtclient.Object{&appSet}
+		app := existingApp.DeepCopy()
+		err = controllerutil.SetControllerReference(&appSet, app, scheme)
+		require.NoError(t, err)
+		initObjs = append(initObjs, app)
+
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(initObjs...).
+			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Patch: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ crtclient.Patch, _ ...crtclient.PatchOption) error {
+					return context.Canceled
+				},
+			}).
+			Build()
+		metrics := appsetmetrics.NewFakeAppsetMetrics()
+
+		r := ApplicationSetReconciler{
+			Client:   fakeClient,
+			Scheme:   scheme,
+			Recorder: record.NewFakeRecorder(10),
+			Metrics:  metrics,
+		}
+
+		err = r.createOrUpdateInCluster(t.Context(), log.NewEntry(log.StandardLogger()), appSet, []v1alpha1.Application{desiredApp})
+		require.ErrorIs(t, err, context.Canceled)
+	})
+
+	t.Run("context deadline exceeded on patch is returned directly", func(t *testing.T) {
+		initObjs := []crtclient.Object{&appSet}
+		app := existingApp.DeepCopy()
+		err = controllerutil.SetControllerReference(&appSet, app, scheme)
+		require.NoError(t, err)
+		initObjs = append(initObjs, app)
+
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(initObjs...).
+			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Patch: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ crtclient.Patch, _ ...crtclient.PatchOption) error {
+					return context.DeadlineExceeded
+				},
+			}).
+			Build()
+		metrics := appsetmetrics.NewFakeAppsetMetrics()
+
+		r := ApplicationSetReconciler{
+			Client:   fakeClient,
+			Scheme:   scheme,
+			Recorder: record.NewFakeRecorder(10),
+			Metrics:  metrics,
+		}
+
+		err = r.createOrUpdateInCluster(t.Context(), log.NewEntry(log.StandardLogger()), appSet, []v1alpha1.Application{desiredApp})
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+	})
+
+	t.Run("non-context error is collected and returned after all goroutines finish", func(t *testing.T) {
+		initObjs := []crtclient.Object{&appSet}
+		app := existingApp.DeepCopy()
+		err = controllerutil.SetControllerReference(&appSet, app, scheme)
+		require.NoError(t, err)
+		initObjs = append(initObjs, app)
+
+		patchErr := errors.New("some patch error")
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(initObjs...).
+			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Patch: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ crtclient.Patch, _ ...crtclient.PatchOption) error {
+					return patchErr
+				},
+			}).
+			Build()
+		metrics := appsetmetrics.NewFakeAppsetMetrics()
+
+		r := ApplicationSetReconciler{
+			Client:   fakeClient,
+			Scheme:   scheme,
+			Recorder: record.NewFakeRecorder(10),
+			Metrics:  metrics,
+		}
+
+		err = r.createOrUpdateInCluster(t.Context(), log.NewEntry(log.StandardLogger()), appSet, []v1alpha1.Application{desiredApp})
+		require.ErrorIs(t, err, patchErr)
+	})
+
+	t.Run("context canceled on create is returned directly", func(t *testing.T) {
+		initObjs := []crtclient.Object{&appSet}
+
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(initObjs...).
+			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Create: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ ...crtclient.CreateOption) error {
+					return context.Canceled
+				},
+			}).
+			Build()
+		metrics := appsetmetrics.NewFakeAppsetMetrics()
+
+		r := ApplicationSetReconciler{
+			Client:   fakeClient,
+			Scheme:   scheme,
+			Recorder: record.NewFakeRecorder(10),
+			Metrics:  metrics,
+		}
+
+		newApp := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "newapp", Namespace: "namespace"},
+			Spec:       v1alpha1.ApplicationSpec{Project: "default"},
+		}
+		err = r.createOrUpdateInCluster(t.Context(), log.NewEntry(log.StandardLogger()), appSet, []v1alpha1.Application{newApp})
+		require.ErrorIs(t, err, context.Canceled)
+	})
+}
+
+func TestDeleteInCluster_ContextCancellation(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	err = corev1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "namespace",
+		},
+	}
+	existingApp := v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "delete-me",
+			Namespace:       "namespace",
+			ResourceVersion: "1",
+		},
+		Spec: v1alpha1.ApplicationSpec{Project: "project"},
+	}
+
+	makeReconciler := func(t *testing.T, fakeClient crtclient.Client) ApplicationSetReconciler {
+		t.Helper()
+		kubeclientset := kubefake.NewClientset()
+		clusterInformer, err := settings.NewClusterInformer(kubeclientset, "namespace")
+		require.NoError(t, err)
+		cancel := startAndSyncInformer(t, clusterInformer)
+		t.Cleanup(cancel)
+		return ApplicationSetReconciler{
+			Client:          fakeClient,
+			Scheme:          scheme,
+			Recorder:        record.NewFakeRecorder(10),
+			KubeClientset:   kubeclientset,
+			Metrics:         appsetmetrics.NewFakeAppsetMetrics(),
+			ClusterInformer: clusterInformer,
+		}
+	}
+
+	t.Run("context canceled on delete is returned directly", func(t *testing.T) {
+		app := existingApp.DeepCopy()
+		err = controllerutil.SetControllerReference(&appSet, app, scheme)
+		require.NoError(t, err)
+
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(&appSet, app).
+			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Delete: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ ...crtclient.DeleteOption) error {
+					return context.Canceled
+				},
+			}).
+			Build()
+
+		r := makeReconciler(t, fakeClient)
+		err = r.deleteInCluster(t.Context(), log.NewEntry(log.StandardLogger()), appSet, []v1alpha1.Application{})
+		require.ErrorIs(t, err, context.Canceled)
+	})
+
+	t.Run("context deadline exceeded on delete is returned directly", func(t *testing.T) {
+		app := existingApp.DeepCopy()
+		err = controllerutil.SetControllerReference(&appSet, app, scheme)
+		require.NoError(t, err)
+
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(&appSet, app).
+			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Delete: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ ...crtclient.DeleteOption) error {
+					return context.DeadlineExceeded
+				},
+			}).
+			Build()
+
+		r := makeReconciler(t, fakeClient)
+		err = r.deleteInCluster(t.Context(), log.NewEntry(log.StandardLogger()), appSet, []v1alpha1.Application{})
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+	})
+
+	t.Run("non-context delete error is collected and returned", func(t *testing.T) {
+		app := existingApp.DeepCopy()
+		err = controllerutil.SetControllerReference(&appSet, app, scheme)
+		require.NoError(t, err)
+
+		deleteErr := errors.New("delete failed")
+		fakeClient := fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(&appSet, app).
+			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+			WithInterceptorFuncs(interceptor.Funcs{
+				Delete: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ ...crtclient.DeleteOption) error {
+					return deleteErr
+				},
+			}).
+			Build()
+
+		r := makeReconciler(t, fakeClient)
+		err = r.deleteInCluster(t.Context(), log.NewEntry(log.StandardLogger()), appSet, []v1alpha1.Application{})
+		require.ErrorIs(t, err, deleteErr)
+	})
 }
 
 func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
@@ -7319,6 +7752,40 @@ func TestIsRollingSyncStrategy(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestFirstAppError(t *testing.T) {
+	errA := errors.New("error from app-a")
+	errB := errors.New("error from app-b")
+	errC := errors.New("error from app-c")
+
+	t.Run("returns nil for empty map", func(t *testing.T) {
+		assert.NoError(t, firstAppError(map[string]error{}))
+	})
+
+	t.Run("returns the single error", func(t *testing.T) {
+		assert.ErrorIs(t, firstAppError(map[string]error{"app-a": errA}), errA)
+	})
+
+	t.Run("returns error from lexicographically first app name", func(t *testing.T) {
+		appErrors := map[string]error{
+			"app-c": errC,
+			"app-a": errA,
+			"app-b": errB,
+		}
+		assert.ErrorIs(t, firstAppError(appErrors), errA)
+	})
+
+	t.Run("result is stable across multiple calls with same input", func(t *testing.T) {
+		appErrors := map[string]error{
+			"app-c": errC,
+			"app-a": errA,
+			"app-b": errB,
+		}
+		for range 10 {
+			assert.ErrorIs(t, firstAppError(appErrors), errA, "firstAppError must return the same error on every call")
+		}
+	})
 }
 
 func TestSyncApplication(t *testing.T) {
