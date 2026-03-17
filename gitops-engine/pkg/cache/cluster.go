@@ -505,17 +505,30 @@ func (c *clusterCache) setNode(n *Resource) {
 		for k, v := range ns {
 			// update child resource owner references
 			if n.isInferredParentOf != nil && mightHaveInferredOwner(v) {
-				v.setOwnerRef(n.toOwnerRef(), n.isInferredParentOf(k))
+				shouldBeParent := n.isInferredParentOf(k)
+				v.setOwnerRef(n.toOwnerRef(), shouldBeParent)
+				// Update index inline for inferred ref
+				if shouldBeParent && n.Ref.UID != "" {
+					c.addToParentUIDToChildren(n.Ref.UID, k)
+				}
 			}
 			if mightHaveInferredOwner(n) && v.isInferredParentOf != nil {
-				n.setOwnerRef(v.toOwnerRef(), v.isInferredParentOf(n.ResourceKey()))
+				childKey := n.ResourceKey()
+				shouldBeParent := v.isInferredParentOf(childKey)
+				n.setOwnerRef(v.toOwnerRef(), shouldBeParent)
+				// Update index inline for inferred ref
+				if shouldBeParent && v.Ref.UID != "" {
+					c.addToParentUIDToChildren(v.Ref.UID, childKey)
+				}
 			}
 		}
 	}
 }
 
-// rebuildParentToChildrenIndex rebuilds the parent-to-children index after a full sync
-// This is called after initial sync to ensure all parent-child relationships are tracked
+// rebuildParentToChildrenIndex rebuilds the parent-to-children index from scratch.
+// NOTE: This function is no longer called during normal operation.
+// The index is now maintained incrementally via inline updates in setNode() and onNodeRemoved().
+// Kept for debugging and potential manual repairs.
 func (c *clusterCache) rebuildParentToChildrenIndex() {
 	// Clear existing index
 	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
@@ -1112,9 +1125,6 @@ func (c *clusterCache) sync() error {
 		return fmt.Errorf("failed to sync cluster %s: %w", c.config.Host, err)
 	}
 
-	// Rebuild orphaned children index after all resources are loaded
-	c.rebuildParentToChildrenIndex()
-
 	c.log.Info("Cluster successfully synced")
 	return nil
 }
@@ -1630,6 +1640,10 @@ func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 				for k, v := range ns {
 					if mightHaveInferredOwner(v) && existing.isInferredParentOf(k) {
 						v.setOwnerRef(existing.toOwnerRef(), false)
+						// Update index inline when removing inferred ref
+						if existing.Ref.UID != "" {
+							c.removeFromParentUIDToChildren(existing.Ref.UID, k)
+						}
 					}
 				}
 			}

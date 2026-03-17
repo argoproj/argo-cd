@@ -416,6 +416,127 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 	}
 }
 
+// TestStatefulSetPVC_ParentToChildrenIndex verifies that inferred StatefulSet → PVC
+// relationships are correctly captured in the parentUIDToChildren index.
+//
+// This test would FAIL if rebuildParentToChildrenIndex() were removed, because:
+// 1. During setNode(), updateParentUIDToChildren() runs BEFORE the inferred parent logic
+// 2. The inferred parent logic (lines 494-505 in cluster.go) adds owner refs AFTER
+// 3. Without the rebuild, those inferred relationships would be missing from the index
+//
+// See cluster.go:490-522 for the sequence that makes this rebuild necessary.
+func TestStatefulSetPVC_ParentToChildrenIndex(t *testing.T) {
+	stsUID := types.UID("sts-uid-123")
+
+	// StatefulSet with volumeClaimTemplate named "data"
+	sts := &appsv1.StatefulSet{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: kube.StatefulSetKind},
+		ObjectMeta: metav1.ObjectMeta{UID: stsUID, Name: "web", Namespace: "default"},
+		Spec: appsv1.StatefulSetSpec{
+			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{{
+				ObjectMeta: metav1.ObjectMeta{Name: "data"},
+			}},
+		},
+	}
+
+	// PVCs that match the StatefulSet's volumeClaimTemplate pattern: <template>-<sts>-<ordinal>
+	// These have NO explicit owner references - the relationship is INFERRED
+	pvc0 := &corev1.PersistentVolumeClaim{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: kube.PersistentVolumeClaimKind},
+		ObjectMeta: metav1.ObjectMeta{UID: "pvc-0-uid", Name: "data-web-0", Namespace: "default"},
+	}
+	pvc1 := &corev1.PersistentVolumeClaim{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: kube.PersistentVolumeClaimKind},
+		ObjectMeta: metav1.ObjectMeta{UID: "pvc-1-uid", Name: "data-web-1", Namespace: "default"},
+	}
+
+	// Create cluster with all resources
+	// Must add PersistentVolumeClaim to API resources since it's not in the default set
+	cluster := newCluster(t, sts, pvc0, pvc1).WithAPIResources([]kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "", Kind: kube.PersistentVolumeClaimKind},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "persistentvolumeclaims"},
+		Meta:                 metav1.APIResource{Namespaced: true},
+	}})
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	// Verify the parentUIDToChildren index contains the inferred relationships
+	cluster.lock.RLock()
+	defer cluster.lock.RUnlock()
+
+	pvc0Key := kube.ResourceKey{Group: "", Kind: kube.PersistentVolumeClaimKind, Namespace: "default", Name: "data-web-0"}
+	pvc1Key := kube.ResourceKey{Group: "", Kind: kube.PersistentVolumeClaimKind, Namespace: "default", Name: "data-web-1"}
+
+	children, ok := cluster.parentUIDToChildren[stsUID]
+	require.True(t, ok, "StatefulSet should have entry in parentUIDToChildren index")
+	require.Contains(t, children, pvc0Key, "PVC data-web-0 should be in StatefulSet's children (inferred relationship)")
+	require.Contains(t, children, pvc1Key, "PVC data-web-1 should be in StatefulSet's children (inferred relationship)")
+
+	// Also verify the OwnerRefs were set correctly on the PVCs
+	pvc0Resource := cluster.resources[pvc0Key]
+	require.NotNil(t, pvc0Resource)
+	require.Len(t, pvc0Resource.OwnerRefs, 1, "PVC should have inferred owner ref")
+	require.Equal(t, stsUID, pvc0Resource.OwnerRefs[0].UID, "PVC owner should be the StatefulSet")
+}
+
+// TestStatefulSetPVC_WatchEvent_IndexUpdated verifies that when a PVC is added
+// via watch event (after initial sync), both the inferred owner reference AND
+// the parentUIDToChildren index are updated correctly.
+//
+// This tests the inline index update logic in setNode() which updates the index
+// immediately when inferred owner refs are added.
+func TestStatefulSetPVC_WatchEvent_IndexUpdated(t *testing.T) {
+	stsUID := types.UID("sts-uid-456")
+
+	// StatefulSet with volumeClaimTemplate
+	sts := &appsv1.StatefulSet{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: kube.StatefulSetKind},
+		ObjectMeta: metav1.ObjectMeta{UID: stsUID, Name: "db", Namespace: "default"},
+		Spec: appsv1.StatefulSetSpec{
+			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{{
+				ObjectMeta: metav1.ObjectMeta{Name: "storage"},
+			}},
+		},
+	}
+
+	// Create cluster with ONLY the StatefulSet - PVC will be added via watch event
+	cluster := newCluster(t, sts).WithAPIResources([]kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "", Kind: kube.PersistentVolumeClaimKind},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "persistentvolumeclaims"},
+		Meta:                 metav1.APIResource{Namespaced: true},
+	}})
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	// PVC that matches the StatefulSet's volumeClaimTemplate pattern
+	// Added via watch event AFTER initial sync
+	pvc := &corev1.PersistentVolumeClaim{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: kube.PersistentVolumeClaimKind},
+		ObjectMeta: metav1.ObjectMeta{UID: "pvc-watch-uid", Name: "storage-db-0", Namespace: "default"},
+	}
+
+	// Simulate watch event adding the PVC
+	cluster.lock.Lock()
+	cluster.setNode(cluster.newResource(mustToUnstructured(pvc)))
+	cluster.lock.Unlock()
+
+	cluster.lock.RLock()
+	defer cluster.lock.RUnlock()
+
+	pvcKey := kube.ResourceKey{Group: "", Kind: kube.PersistentVolumeClaimKind, Namespace: "default", Name: "storage-db-0"}
+
+	// Verify the OwnerRef IS correctly set
+	pvcResource := cluster.resources[pvcKey]
+	require.NotNil(t, pvcResource, "PVC should exist in cache")
+	require.Len(t, pvcResource.OwnerRefs, 1, "PVC should have inferred owner ref from StatefulSet")
+	require.Equal(t, stsUID, pvcResource.OwnerRefs[0].UID, "Owner should be the StatefulSet")
+
+	// Verify the index IS updated for inferred refs via watch events
+	children, indexUpdated := cluster.parentUIDToChildren[stsUID]
+	require.True(t, indexUpdated, "Index should be updated when inferred refs are added via watch events")
+	require.Contains(t, children, pvcKey, "PVC should be in StatefulSet's children (inferred relationship)")
+}
+
 func TestEnsureSyncedSingleNamespace(t *testing.T) {
 	obj1 := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
