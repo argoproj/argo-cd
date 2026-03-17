@@ -80,7 +80,11 @@ jobs:
 
             # Save data for PR creation
             echo "branch_name=$CHERRY_PICK_BRANCH" >> "$GITHUB_OUTPUT"
-            echo "signoff=$SIGNOFF" >> "$GITHUB_OUTPUT"
+            {
+              echo "signoff<<EOF"
+              echo "$SIGNOFF"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
             echo "target_branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
           else
             echo "❌ Cherry-pick failed due to conflicts"
