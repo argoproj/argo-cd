@@ -90,5 +90,6 @@ argocd account [flags]
 * [argocd account get](argocd_account_get.md)	 - Get account details
 * [argocd account get-user-info](argocd_account_get-user-info.md)	 - Get user info
 * [argocd account list](argocd_account_list.md)	 - List accounts
+* [argocd account session-token](argocd_account_session-token.md)	 - Display current session token
 * [argocd account update-password](argocd_account_update-password.md)	 - Update an account's password
 

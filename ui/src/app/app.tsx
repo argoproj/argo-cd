@@ -168,7 +168,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                 <React.Fragment>
                     <p>Something went wrong!</p>
                     <p>
-                        Consider submitting an issue <a href={url}>here</a>.
+                        Consider <a href={url}>submitting an issue</a>.
                     </p>
                     <br />
                     <p>Stacktrace:</p>

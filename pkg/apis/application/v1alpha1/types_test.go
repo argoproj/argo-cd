@@ -5023,3 +5023,67 @@ func TestIgnoreDifferences_Equals(t *testing.T) {
 		})
 	}
 }
+
+// TestSyncPolicyAutomatedSerialisation verifies that prune, selfHeal, and
+// allowEmpty are serialised correctly as pointer types.  Nil pointers are
+// omitted from JSON (no opinion), while explicit false or true are always
+// present.  This is the key regression guard: before this fix the fields were
+// plain bool with omitempty, so an explicit false was dropped from JSON merge
+// patches, making it impossible to reset them from true back to false via GitOps.
+func TestSyncPolicyAutomatedSerialisation(t *testing.T) {
+	tests := []struct {
+		name        string
+		automated   SyncPolicyAutomated
+		wantPresent map[string]bool // which keys must be present in JSON
+		wantValues  map[string]bool // expected value for each present key
+	}{
+		{
+			name:        "nil pointers omit all fields",
+			automated:   SyncPolicyAutomated{Prune: nil, SelfHeal: nil, AllowEmpty: nil},
+			wantPresent: map[string]bool{"prune": false, "selfHeal": false, "allowEmpty": false},
+		},
+		{
+			name:        "explicit false is serialised",
+			automated:   SyncPolicyAutomated{Prune: new(false), SelfHeal: new(false), AllowEmpty: new(false)},
+			wantPresent: map[string]bool{"prune": true, "selfHeal": true, "allowEmpty": true},
+			wantValues:  map[string]bool{"prune": false, "selfHeal": false, "allowEmpty": false},
+		},
+		{
+			name:        "explicit true is serialised",
+			automated:   SyncPolicyAutomated{Prune: new(true), SelfHeal: new(true), AllowEmpty: new(true)},
+			wantPresent: map[string]bool{"prune": true, "selfHeal": true, "allowEmpty": true},
+			wantValues:  map[string]bool{"prune": true, "selfHeal": true, "allowEmpty": true},
+		},
+		{
+			name:        "mixed - each field independently controlled",
+			automated:   SyncPolicyAutomated{Prune: new(true), SelfHeal: nil, AllowEmpty: new(false)},
+			wantPresent: map[string]bool{"prune": true, "selfHeal": false, "allowEmpty": true},
+			wantValues:  map[string]bool{"prune": true, "allowEmpty": false},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.automated)
+			require.NoError(t, err)
+
+			var raw map[string]any
+			require.NoError(t, json.Unmarshal(data, &raw))
+
+			for field, shouldBePresent := range tt.wantPresent {
+				_, present := raw[field]
+				assert.Equal(t, shouldBePresent, present, "field %q presence mismatch in JSON: %s", field, string(data))
+				if shouldBePresent {
+					assert.Equal(t, tt.wantValues[field], raw[field], "field %q value mismatch in JSON: %s", field, string(data))
+				}
+			}
+
+			// Round-trip: unmarshal back and confirm pointer semantics are preserved.
+			var got SyncPolicyAutomated
+			require.NoError(t, json.Unmarshal(data, &got))
+			assert.Equal(t, tt.automated.Prune, got.Prune)
+			assert.Equal(t, tt.automated.SelfHeal, got.SelfHeal)
+			assert.Equal(t, tt.automated.AllowEmpty, got.AllowEmpty)
+		})
+	}
+}
