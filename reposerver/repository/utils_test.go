@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 )
 
@@ -40,6 +41,75 @@ func TestGetCommonRootPath(t *testing.T) {
 			req := &apiclient.ManifestRequest{AnnotationManifestGeneratePaths: tt.annotation}
 			rootPath := getApplicationRootPath(req, tt.appPath, repoRoot)
 			assert.Equal(t, tt.expectedRootPath, rootPath, "input and output should match")
+		})
+	}
+}
+
+func TestGetPaths(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731"
+	appPath := repoRoot + "/services/helloworld"
+
+	tests := []struct {
+		name          string
+		annotation    string
+		sourcePaths   []string
+		expectedPaths []string
+	}{
+		{
+			name:          "annotation relative path",
+			annotation:    ".",
+			expectedPaths: []string{appPath},
+		},
+		{
+			name:          "annotation absolute path",
+			annotation:    "/services",
+			expectedPaths: []string{repoRoot + "/services"},
+		},
+		{
+			name:          "source-level relative path",
+			sourcePaths:   []string{"."},
+			expectedPaths: []string{appPath},
+		},
+		{
+			name:          "source-level absolute path",
+			sourcePaths:   []string{"/services"},
+			expectedPaths: []string{repoRoot + "/services"},
+		},
+		{
+			name:          "source-level takes precedence over annotation",
+			annotation:    "annotation/path",
+			sourcePaths:   []string{"source-level/path"},
+			expectedPaths: []string{appPath + "/source-level/path"},
+		},
+		{
+			name:          "empty source-level falls back to annotation",
+			annotation:    ".",
+			sourcePaths:   []string{},
+			expectedPaths: []string{appPath},
+		},
+		{
+			name:          "source-level multiple paths",
+			sourcePaths:   []string{".", "../shared"},
+			expectedPaths: []string{appPath, repoRoot + "/services/shared"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var source *v1alpha1.ApplicationSource
+			if tt.sourcePaths != nil {
+				source = &v1alpha1.ApplicationSource{ManifestGeneratePaths: tt.sourcePaths}
+			}
+			req := &apiclient.ManifestRequest{
+				AnnotationManifestGeneratePaths: tt.annotation,
+				ApplicationSource:               source,
+			}
+			paths := getPaths(req, appPath, repoRoot)
+			assert.Equal(t, tt.expectedPaths, paths)
 		})
 	}
 }

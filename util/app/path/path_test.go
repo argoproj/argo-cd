@@ -228,6 +228,38 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 				"source/path",
 			},
 		},
+		{
+			name:   "source-level manifest generate paths",
+			app:    getApp(nil, new("source/path")),
+			source: v1alpha1.ApplicationSource{Path: "source/path", ManifestGeneratePaths: []string{".", "deploy"}},
+			expectedPaths: []string{
+				"source/path",
+				"source/path/deploy",
+			},
+		},
+		{
+			name:   "source-level manifest generate paths with absolute path",
+			app:    getApp(nil, new("source/path")),
+			source: v1alpha1.ApplicationSource{Path: "source/path", ManifestGeneratePaths: []string{"/fullpath/deploy", "other/path"}},
+			expectedPaths: []string{
+				"fullpath/deploy",
+				"source/path/other/path",
+			},
+		},
+		{
+			name:   "source-level manifest generate paths takes precedence over annotation",
+			app:    getApp(new("annotation/path"), new("source/path")),
+			source: v1alpha1.ApplicationSource{Path: "source/path", ManifestGeneratePaths: []string{"source-level/path"}},
+			expectedPaths: []string{
+				"source/path/source-level/path",
+			},
+		},
+		{
+			name:          "empty source-level falls back to annotation",
+			app:           getApp(new(".;dev/deploy"), new("source/path")),
+			source:        v1alpha1.ApplicationSource{Path: "source/path", ManifestGeneratePaths: []string{}},
+			expectedPaths: []string{"source/path", "source/path/dev/deploy"},
+		},
 	}
 
 	for _, tt := range tests {

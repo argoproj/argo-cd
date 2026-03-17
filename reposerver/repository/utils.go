@@ -53,24 +53,34 @@ func getApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath stri
 }
 
 // getPaths retrieves all absolute paths associated with the generation of application manifests.
+// It prefers source-level ManifestGeneratePaths over the annotation value.
 func getPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
-	var paths []string
-	for annotationPath := range strings.SplitSeq(q.AnnotationManifestGeneratePaths, ";") {
-		if annotationPath == "" {
-			continue
+	// Prefer source-level ManifestGeneratePaths over annotation
+	var rawPaths []string
+	if q.ApplicationSource != nil && len(q.ApplicationSource.ManifestGeneratePaths) > 0 {
+		rawPaths = q.ApplicationSource.ManifestGeneratePaths
+	} else {
+		for annotationPath := range strings.SplitSeq(q.AnnotationManifestGeneratePaths, ";") {
+			if annotationPath != "" {
+				rawPaths = append(rawPaths, annotationPath)
+			}
 		}
+	}
+
+	var paths []string
+	for _, item := range rawPaths {
 		var err error
 		var path, unsafePath string
 
-		if filepath.IsAbs(annotationPath) {
-			unsafePath = filepath.Clean(annotationPath)
+		if filepath.IsAbs(item) {
+			unsafePath = filepath.Clean(item)
 		} else {
 			appRelPath, err := files.RelativePath(appPath, repoPath)
 			if err != nil {
 				log.Errorf("error building app relative path: %v", err)
 				continue
 			}
-			unsafePath = filepath.Clean(filepath.Join(appRelPath, annotationPath))
+			unsafePath = filepath.Clean(filepath.Join(appRelPath, item))
 		}
 
 		path, err = securejoin.SecureJoin(repoPath, unsafePath)

@@ -1084,6 +1084,11 @@ func (in *ApplicationSource) DeepCopyInto(out *ApplicationSource) {
 		*out = new(ApplicationSourcePlugin)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.ManifestGeneratePaths != nil {
+		in, out := &in.ManifestGeneratePaths, &out.ManifestGeneratePaths
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
