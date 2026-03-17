@@ -21,6 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
@@ -163,15 +164,24 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 	}, nil
 }
 
-// Adds TLS server related command line options to a command and returns a TLS
+// AddTLSFlagsToCmd adds TLS server-related command line options to a command and returns a TLS
 // config customizer object, set up to the options specified
 func AddTLSFlagsToCmd(cmd *cobra.Command) func() (ConfigCustomizer, error) {
+	return AddTLSFlagsToCmdWithPrefix(cmd, "")
+}
+
+func AddTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() (ConfigCustomizer, error) {
 	minVersionStr := ""
 	maxVersionStr := ""
 	tlsCiphersStr := ""
-	cmd.Flags().StringVar(&minVersionStr, "tlsminversion", env.StringFromEnv("ARGOCD_TLS_MIN_VERSION", DefaultTLSMinVersion), "The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
-	cmd.Flags().StringVar(&maxVersionStr, "tlsmaxversion", env.StringFromEnv("ARGOCD_TLS_MAX_VERSION", DefaultTLSMaxVersion), "The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
-	cmd.Flags().StringVar(&tlsCiphersStr, "tlsciphers", env.StringFromEnv("ARGOCD_TLS_CIPHERS", DefaultTLSCipherSuite), "The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers.")
+	envPrefix := ""
+	if prefix != "" {
+		envPrefix = strings.ReplaceAll(strings.ToUpper(prefix), "-", "_") + "_"
+		prefix = prefix + "-"
+	}
+	cmd.Flags().StringVar(&minVersionStr, prefix+"tlsminversion", env.StringFromEnv(envPrefix+"ARGOCD_TLS_MIN_VERSION", DefaultTLSMinVersion), "The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
+	cmd.Flags().StringVar(&maxVersionStr, prefix+"tlsmaxversion", env.StringFromEnv(envPrefix+"ARGOCD_TLS_MAX_VERSION", DefaultTLSMaxVersion), "The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
+	cmd.Flags().StringVar(&tlsCiphersStr, prefix+"tlsciphers", env.StringFromEnv(envPrefix+"ARGOCD_TLS_CIPHERS", DefaultTLSCipherSuite), "The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers.")
 
 	return func() (ConfigCustomizer, error) {
 		return getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr)
@@ -271,7 +281,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 		NotAfter:  notAfter,
 
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,
 	}
 
@@ -319,6 +329,13 @@ func GenerateX509KeyPair(opts CertOptions) (*tls.Certificate, error) {
 	cert, err := tls.X509KeyPair(certpem, keypem)
 	if err != nil {
 		return nil, err
+	}
+	if len(cert.Certificate) > 0 {
+		leaf, err := x509.ParseCertificate(cert.Certificate[0])
+		if err != nil {
+			return nil, fmt.Errorf("error parsing generated certificate: %w", err)
+		}
+		cert.Leaf = leaf
 	}
 	return &cert, nil
 }
@@ -391,7 +408,7 @@ func LoadX509Cert(path string) (*x509.Certificate, error) {
 // if these are not given, will generate a self-signed certificate valid for
 // the specified list of hosts. If hosts is nil or empty, self-signed cert
 // creation will be disabled.
-func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls.Config, error) {
+func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string, clientCAPath string) (*tls.Config, error) {
 	var cert *tls.Certificate
 	var err error
 
@@ -424,7 +441,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 		c, err := GenerateX509KeyPair(CertOptions{
 			Hosts:        hosts,
 			Organization: "Argo CD",
-			IsCA:         false,
+			IsCA:         true,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error generating X509 key pair: %w", err)
@@ -436,8 +453,71 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 		if err != nil {
 			return nil, fmt.Errorf("unable to initialize TLS configuration with cert=%s and key=%s: %w", tlsCertPath, tlsKeyPath, err)
 		}
+		if len(c.Certificate) > 0 {
+			leaf, err := x509.ParseCertificate(c.Certificate[0])
+			if err != nil {
+				return nil, fmt.Errorf("error parsing loaded certificate: %w", err)
+			}
+			c.Leaf = leaf
+		}
 		cert = &c
 	}
 
-	return &tls.Config{Certificates: []tls.Certificate{*cert}}, nil
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
+
+	if clientCAPath != "" {
+		pool, err := LoadX509CertPool(clientCAPath)
+		if err != nil {
+			return nil, fmt.Errorf("error loading client CA: %w", err)
+		}
+		tlsConfig.ClientCAs = pool
+		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+	}
+
+	return tlsConfig, nil
+}
+
+func AddClientTLSFlagsToCmd(cmd *cobra.Command) func() (apiclient.TLSConfiguration, error) {
+	return AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+}
+
+func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() (apiclient.TLSConfiguration, error) {
+	var tlsConfig apiclient.TLSConfiguration
+	var repoServerCACert string
+	var selfGenerateClientCert bool
+	envPrefix := ""
+
+	if prefix != "" {
+		envPrefix = strings.ReplaceAll(strings.ToUpper(prefix), "-", "_") + "_"
+	}
+
+	cmd.Flags().StringVar(&repoServerCACert, "repo-server-ca-cert", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CA_CERT", ""), "Path to the repo-server CA certificate file")
+	cmd.Flags().StringVar(&tlsConfig.ClientCertFile, "repo-server-client-cert", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT", ""), "Path to the client certificate file for mTLS")
+	cmd.Flags().StringVar(&tlsConfig.ClientCertKeyFile, "repo-server-client-cert-key", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT_KEY", ""), "Path to the client certificate key file for mTLS")
+	cmd.Flags().BoolVar(&selfGenerateClientCert, "self-generate-client-cert", env.ParseBoolFromEnv("ARGOCD_SELF_GENERATE_CLIENT_CERT", false), "Self-generate a client certificate for mTLS")
+
+	return func() (apiclient.TLSConfiguration, error) {
+		if repoServerCACert != "" {
+			pool, err := LoadX509CertPool(repoServerCACert)
+			if err != nil {
+				return tlsConfig, fmt.Errorf("error loading repo-server CA: %w", err)
+			}
+			tlsConfig.Certificates = pool
+			tlsConfig.StrictValidation = true
+		}
+
+		if selfGenerateClientCert && (tlsConfig.ClientCertFile == "" || tlsConfig.ClientCertKeyFile == "") {
+			cert, err := GenerateX509KeyPair(CertOptions{
+				Hosts:        []string{"localhost"},
+				Organization: "Argo CD Client",
+			})
+			if err != nil {
+				return tlsConfig, fmt.Errorf("error generating client certificate: %w", err)
+			}
+			tlsConfig.ClientCertificates = []tls.Certificate{*cert}
+			log.Info("Self-generated in-memory client certificate for mTLS")
+		}
+
+		return tlsConfig, nil
+	}
 }

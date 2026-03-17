@@ -16,7 +16,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -33,6 +32,12 @@ type TLSConfiguration struct {
 	StrictValidation bool
 	// List of certificates to validate the peer against (if StrictCerts is true)
 	Certificates *x509.CertPool
+	// ClientCertFile is the path to the client certificate file
+	ClientCertFile string
+	// ClientCertKeyFile is the path to the client certificate key file
+	ClientCertKeyFile string
+	// ClientCertificates are the client certificates to be used for TLS
+	ClientCertificates []tls.Certificate
 }
 
 // Clientset represents repository server api clients
@@ -71,16 +76,23 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 	}
 
 	tlsC := &tls.Config{}
-	if !tlsConfig.DisableTLS {
-		if !tlsConfig.StrictValidation {
-			tlsC.InsecureSkipVerify = true
-		} else {
-			tlsC.RootCAs = tlsConfig.Certificates
-		}
-		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsC)))
+	// mTLS is required and cannot be disabled for repo-server communication.
+	// The DisableTLS flag is ignored.
+	if !tlsConfig.StrictValidation {
+		tlsC.InsecureSkipVerify = true
 	} else {
-		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		tlsC.RootCAs = tlsConfig.Certificates
 	}
+	if tlsConfig.ClientCertFile != "" && tlsConfig.ClientCertKeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(tlsConfig.ClientCertFile, tlsConfig.ClientCertKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load client certificate: %w", err)
+		}
+		tlsC.Certificates = []tls.Certificate{cert}
+	} else if len(tlsConfig.ClientCertificates) > 0 {
+		tlsC.Certificates = tlsConfig.ClientCertificates
+	}
+	opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsC)))
 
 	conn, err := grpc.NewClient(address, opts...)
 	if err != nil {
