@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -938,11 +939,10 @@ func TestDoNotSyncOrPruneHooks(t *testing.T) {
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
 }
 
-// make sure that we do not prune resources with Prune=false
-func TestDoNotPrunePruneFalse(t *testing.T) {
+func TestDoNotPruneAppLevelPruneFalse(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
 	pod := testingutils.NewPod()
-	pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=false"})
+	syncCtx.defaultPruneOption = new("false")
 	pod.SetNamespace(testingutils.FakeArgoCDNamespace)
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{pod},
@@ -963,10 +963,70 @@ func TestDoNotPrunePruneFalse(t *testing.T) {
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
 }
 
-func TestPruneConfirm(t *testing.T) {
+func TestDoNotPruneResourceLevelPruneFalse(t *testing.T) {
+	// Check that the defaultPruneOption does not override the resource level Prune=false annotation
+	for _, defaultPruneOption := range []*string{nil, new("true"), new("false")} {
+		syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
+		pod := testingutils.NewPod()
+
+		pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=false"})
+
+		pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{pod},
+			Target: []*unstructured.Unstructured{nil},
+		})
+		t.Run(fmt.Sprintf("Check resource level override defaultPruneOption=%v", defaultPruneOption), func(t *testing.T) {
+			syncCtx.defaultPruneOption = defaultPruneOption
+			syncCtx.Sync()
+			phase, _, resources := syncCtx.GetState()
+
+			assert.Equal(t, synccommon.OperationSucceeded, phase)
+			assert.Len(t, resources, 1)
+			assert.Equal(t, synccommon.ResultCodePruneSkipped, resources[0].Status)
+			assert.Equal(t, "ignored (no prune)", resources[0].Message)
+		})
+	}
+}
+
+func TestPruneConfirmResourceLevel(t *testing.T) {
+	// Check that the resource level Prune=confirm annotation overrides the defaultPruneOption
+	for _, defaultPruneOption := range []*string{nil, new("true"), new("false"), new("confirm")} {
+		syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
+		pod := testingutils.NewPod()
+		pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=confirm"})
+		pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{pod},
+			Target: []*unstructured.Unstructured{nil},
+		})
+
+		t.Run(fmt.Sprintf("Check resource level override defaultPruneOption=%v", defaultPruneOption), func(t *testing.T) {
+			syncCtx.defaultPruneOption = defaultPruneOption
+
+			syncCtx.Sync()
+			phase, msg, resources := syncCtx.GetState()
+
+			assert.Equal(t, synccommon.OperationRunning, phase)
+			assert.Empty(t, resources)
+			assert.Equal(t, "waiting for pruning confirmation of /Pod/my-pod", msg)
+
+			syncCtx.pruneConfirmed = true
+			syncCtx.Sync()
+
+			phase, _, resources = syncCtx.GetState()
+			assert.Equal(t, synccommon.OperationSucceeded, phase)
+			assert.Len(t, resources, 1)
+			assert.Equal(t, synccommon.ResultCodePruned, resources[0].Status)
+			assert.Equal(t, "pruned", resources[0].Message)
+		})
+	}
+}
+
+func TestPruneConfirmAppLevel(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
 	pod := testingutils.NewPod()
-	pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=confirm"})
+	syncCtx.defaultPruneOption = new("confirm")
 	pod.SetNamespace(testingutils.FakeArgoCDNamespace)
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{pod},
