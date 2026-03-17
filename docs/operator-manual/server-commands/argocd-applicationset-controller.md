@@ -22,6 +22,7 @@ argocd-applicationset-controller [flags]
       --client-certificate string               Path to a client certificate file for TLS
       --client-key string                       Path to a client key file for TLS
       --cluster string                          The name of the kubeconfig cluster to use
+      --concurrent-application-updates int      Number of concurrent Application create/update/delete operations per ApplicationSet reconcile. (default 1)
       --concurrent-reconciliations int          Max concurrent reconciliations limit for the controller (default 10)
       --context string                          The name of the kubeconfig context to use
       --debug                                   Print debug logs. Takes precedence over loglevel
