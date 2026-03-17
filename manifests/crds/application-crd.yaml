@@ -476,6 +476,14 @@ spec:
                               to use for rendering manifests
                             type: string
                         type: object
+                      manifestGeneratePaths:
+                        description: |-
+                          ManifestGeneratePaths is a list of paths that should trigger manifest regeneration for this source.
+                          Paths are relative to the source path, or absolute (starting with '/') relative to the repository root.
+                          When set, this field takes precedence over the argocd.argoproj.io/manifest-generate-paths annotation.
+                        items:
+                          type: string
+                        type: array
                       name:
                         description: Name is used to refer to a source and is displayed
                           in the UI. It is used in multi-source Applications.
@@ -865,6 +873,14 @@ spec:
                                 to use for rendering manifests
                               type: string
                           type: object
+                        manifestGeneratePaths:
+                          description: |-
+                            ManifestGeneratePaths is a list of paths that should trigger manifest regeneration for this source.
+                            Paths are relative to the source path, or absolute (starting with '/') relative to the repository root.
+                            When set, this field takes precedence over the argocd.argoproj.io/manifest-generate-paths annotation.
+                          items:
+                            type: string
+                          type: array
                         name:
                           description: Name is used to refer to a source and is displayed
                             in the UI. It is used in multi-source Applications.
@@ -1364,6 +1380,14 @@ spec:
                           use for rendering manifests
                         type: string
                     type: object
+                  manifestGeneratePaths:
+                    description: |-
+                      ManifestGeneratePaths is a list of paths that should trigger manifest regeneration for this source.
+                      Paths are relative to the source path, or absolute (starting with '/') relative to the repository root.
+                      When set, this field takes precedence over the argocd.argoproj.io/manifest-generate-paths annotation.
+                    items:
+                      type: string
+                    type: array
                   name:
                     description: Name is used to refer to a source and is displayed
                       in the UI. It is used in multi-source Applications.
@@ -2152,6 +2176,14 @@ spec:
                             to use for rendering manifests
                           type: string
                       type: object
+                    manifestGeneratePaths:
+                      description: |-
+                        ManifestGeneratePaths is a list of paths that should trigger manifest regeneration for this source.
+                        Paths are relative to the source path, or absolute (starting with '/') relative to the repository root.
+                        When set, this field takes precedence over the argocd.argoproj.io/manifest-generate-paths annotation.
+                      items:
+                        type: string
+                      type: array
                     name:
                       description: Name is used to refer to a source and is displayed
                         in the UI. It is used in multi-source Applications.
@@ -2711,6 +2743,14 @@ spec:
                                 to use for rendering manifests
                               type: string
                           type: object
+                        manifestGeneratePaths:
+                          description: |-
+                            ManifestGeneratePaths is a list of paths that should trigger manifest regeneration for this source.
+                            Paths are relative to the source path, or absolute (starting with '/') relative to the repository root.
+                            When set, this field takes precedence over the argocd.argoproj.io/manifest-generate-paths annotation.
+                          items:
+                            type: string
+                          type: array
                         name:
                           description: Name is used to refer to a source and is displayed
                             in the UI. It is used in multi-source Applications.
@@ -3104,6 +3144,14 @@ spec:
                                   to use for rendering manifests
                                 type: string
                             type: object
+                          manifestGeneratePaths:
+                            description: |-
+                              ManifestGeneratePaths is a list of paths that should trigger manifest regeneration for this source.
+                              Paths are relative to the source path, or absolute (starting with '/') relative to the repository root.
+                              When set, this field takes precedence over the argocd.argoproj.io/manifest-generate-paths annotation.
+                            items:
+                              type: string
+                            type: array
                           name:
                             description: Name is used to refer to a source and is
                               displayed in the UI. It is used in multi-source Applications.
@@ -3653,6 +3701,14 @@ spec:
                                       Kustomize to use for rendering manifests
                                     type: string
                                 type: object
+                              manifestGeneratePaths:
+                                description: |-
+                                  ManifestGeneratePaths is a list of paths that should trigger manifest regeneration for this source.
+                                  Paths are relative to the source path, or absolute (starting with '/') relative to the repository root.
+                                  When set, this field takes precedence over the argocd.argoproj.io/manifest-generate-paths annotation.
+                                items:
+                                  type: string
+                                type: array
                               name:
                                 description: Name is used to refer to a source and
                                   is displayed in the UI. It is used in multi-source
@@ -4067,6 +4123,14 @@ spec:
                                         of Kustomize to use for rendering manifests
                                       type: string
                                   type: object
+                                manifestGeneratePaths:
+                                  description: |-
+                                    ManifestGeneratePaths is a list of paths that should trigger manifest regeneration for this source.
+                                    Paths are relative to the source path, or absolute (starting with '/') relative to the repository root.
+                                    When set, this field takes precedence over the argocd.argoproj.io/manifest-generate-paths annotation.
+                                  items:
+                                    type: string
+                                  type: array
                                 name:
                                   description: Name is used to refer to a source and
                                     is displayed in the UI. It is used in multi-source
@@ -4596,6 +4660,14 @@ spec:
                                   to use for rendering manifests
                                 type: string
                             type: object
+                          manifestGeneratePaths:
+                            description: |-
+                              ManifestGeneratePaths is a list of paths that should trigger manifest regeneration for this source.
+                              Paths are relative to the source path, or absolute (starting with '/') relative to the repository root.
+                              When set, this field takes precedence over the argocd.argoproj.io/manifest-generate-paths annotation.
+                            items:
+                              type: string
+                            type: array
                           name:
                             description: Name is used to refer to a source and is
                               displayed in the UI. It is used in multi-source Applications.
@@ -5000,6 +5072,14 @@ spec:
                                     to use for rendering manifests
                                   type: string
                               type: object
+                            manifestGeneratePaths:
+                              description: |-
+                                ManifestGeneratePaths is a list of paths that should trigger manifest regeneration for this source.
+                                Paths are relative to the source path, or absolute (starting with '/') relative to the repository root.
+                                When set, this field takes precedence over the argocd.argoproj.io/manifest-generate-paths annotation.
+                              items:
+                                type: string
+                              type: array
                             name:
                               description: Name is used to refer to a source and is
                                 displayed in the UI. It is used in multi-source Applications.
@@ -6491,6 +6571,14 @@ spec:
                                   to use for rendering manifests
                                 type: string
                             type: object
+                          manifestGeneratePaths:
+                            description: |-
+                              ManifestGeneratePaths is a list of paths that should trigger manifest regeneration for this source.
+                              Paths are relative to the source path, or absolute (starting with '/') relative to the repository root.
+                              When set, this field takes precedence over the argocd.argoproj.io/manifest-generate-paths annotation.
+                            items:
+                              type: string
+                            type: array
                           name:
                             description: Name is used to refer to a source and is
                               displayed in the UI. It is used in multi-source Applications.
@@ -6895,6 +6983,14 @@ spec:
                                     to use for rendering manifests
                                   type: string
                               type: object
+                            manifestGeneratePaths:
+                              description: |-
+                                ManifestGeneratePaths is a list of paths that should trigger manifest regeneration for this source.
+                                Paths are relative to the source path, or absolute (starting with '/') relative to the repository root.
+                                When set, this field takes precedence over the argocd.argoproj.io/manifest-generate-paths annotation.
+                              items:
+                                type: string
+                              type: array
                             name:
                               description: Name is used to refer to a source and is
                                 displayed in the UI. It is used in multi-source Applications.

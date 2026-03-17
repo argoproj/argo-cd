@@ -337,6 +337,10 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    manifestGeneratePaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     name:
                                       type: string
                                     path:
@@ -837,6 +841,10 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      manifestGeneratePaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       path:
@@ -1245,6 +1253,10 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    manifestGeneratePaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     name:
                                       type: string
                                     path:
@@ -1745,6 +1757,10 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      manifestGeneratePaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       path:
@@ -2154,6 +2170,10 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    manifestGeneratePaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     name:
                                       type: string
                                     path:
@@ -2654,6 +2674,10 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      manifestGeneratePaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       path:
@@ -3041,6 +3065,10 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    manifestGeneratePaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     name:
                                       type: string
                                     path:
@@ -3541,6 +3569,10 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      manifestGeneratePaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       path:
@@ -3953,6 +3985,10 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              manifestGeneratePaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               name:
                                                 type: string
                                               path:
@@ -4453,6 +4489,10 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                manifestGeneratePaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 path:
@@ -4861,6 +4901,10 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              manifestGeneratePaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               name:
                                                 type: string
                                               path:
@@ -5361,6 +5405,10 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                manifestGeneratePaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 path:
@@ -5770,6 +5818,10 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              manifestGeneratePaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               name:
                                                 type: string
                                               path:
@@ -6270,6 +6322,10 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                manifestGeneratePaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 path:
@@ -6657,6 +6713,10 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              manifestGeneratePaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               name:
                                                 type: string
                                               path:
@@ -7157,6 +7217,10 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                manifestGeneratePaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 path:
@@ -7552,6 +7616,10 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              manifestGeneratePaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               name:
                                                 type: string
                                               path:
@@ -8052,6 +8120,10 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                manifestGeneratePaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 path:
@@ -8674,6 +8746,10 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              manifestGeneratePaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               name:
                                                 type: string
                                               path:
@@ -9174,6 +9250,10 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                manifestGeneratePaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 path:
@@ -9787,6 +9867,10 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              manifestGeneratePaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               name:
                                                 type: string
                                               path:
@@ -10287,6 +10371,10 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                manifestGeneratePaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 path:
@@ -10691,6 +10779,10 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    manifestGeneratePaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     name:
                                       type: string
                                     path:
@@ -11191,6 +11283,10 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      manifestGeneratePaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       path:
@@ -11605,6 +11701,10 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              manifestGeneratePaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               name:
                                                 type: string
                                               path:
@@ -12105,6 +12205,10 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                manifestGeneratePaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 path:
@@ -12513,6 +12617,10 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              manifestGeneratePaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               name:
                                                 type: string
                                               path:
@@ -13013,6 +13121,10 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                manifestGeneratePaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 path:
@@ -13422,6 +13534,10 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              manifestGeneratePaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               name:
                                                 type: string
                                               path:
@@ -13922,6 +14038,10 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                manifestGeneratePaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 path:
@@ -14309,6 +14429,10 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              manifestGeneratePaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               name:
                                                 type: string
                                               path:
@@ -14809,6 +14933,10 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                manifestGeneratePaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 path:
@@ -15204,6 +15332,10 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              manifestGeneratePaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               name:
                                                 type: string
                                               path:
@@ -15704,6 +15836,10 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                manifestGeneratePaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 path:
@@ -16326,6 +16462,10 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              manifestGeneratePaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               name:
                                                 type: string
                                               path:
@@ -16826,6 +16966,10 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                manifestGeneratePaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 path:
@@ -17439,6 +17583,10 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              manifestGeneratePaths:
+                                                items:
+                                                  type: string
+                                                type: array
                                               name:
                                                 type: string
                                               path:
@@ -17939,6 +18087,10 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                manifestGeneratePaths:
+                                                  items:
+                                                    type: string
+                                                  type: array
                                                 name:
                                                   type: string
                                                 path:
@@ -18347,6 +18499,10 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    manifestGeneratePaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     name:
                                       type: string
                                     path:
@@ -18847,6 +19003,10 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      manifestGeneratePaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       path:
@@ -19241,6 +19401,10 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    manifestGeneratePaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     name:
                                       type: string
                                     path:
@@ -19741,6 +19905,10 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      manifestGeneratePaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       path:
@@ -20363,6 +20531,10 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    manifestGeneratePaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     name:
                                       type: string
                                     path:
@@ -20863,6 +21035,10 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      manifestGeneratePaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       path:
@@ -21476,6 +21652,10 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    manifestGeneratePaths:
+                                      items:
+                                        type: string
+                                      type: array
                                     name:
                                       type: string
                                     path:
@@ -21976,6 +22156,10 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      manifestGeneratePaths:
+                                        items:
+                                          type: string
+                                        type: array
                                       name:
                                         type: string
                                       path:
@@ -22457,6 +22641,10 @@ spec:
                               version:
                                 type: string
                             type: object
+                          manifestGeneratePaths:
+                            items:
+                              type: string
+                            type: array
                           name:
                             type: string
                           path:
@@ -22957,6 +23145,10 @@ spec:
                                 version:
                                   type: string
                               type: object
+                            manifestGeneratePaths:
+                              items:
+                                type: string
+                              type: array
                             name:
                               type: string
                             path:
