@@ -57,6 +57,27 @@ spec:
         - .spec.template.spec.initContainers[] | select(.name == "injected-init-container")
 ```
 
+### Ignoring fields in nested arrays
+
+To ignore a specific field across all elements in nested arrays, you can use the array iterator `[]` syntax in `jqPathExpressions`:
+
+```yaml
+spec:
+  ignoreDifferences:
+    - group: gateway.networking.k8s.io
+      kind: HTTPRoute
+      jqPathExpressions:
+        - .spec.rules[].backendRefs[].weight
+    - group: gateway.networking.k8s.io
+      kind: GRPCRoute
+      jqPathExpressions:
+        - .spec.rules[].backendRefs[].weight
+```
+
+This is particularly useful when external controllers (such as [Argo Rollouts](https://argoproj.github.io/argo-rollouts/)) dynamically modify specific fields within array elements during progressive delivery (canary/blue-green deployments). The pattern works with any number of array elements and nesting levels, removing only the specified field while preserving all other fields.
+
+Internally, expressions like `.spec.rules[].backendRefs[].weight` are transformed using JQ's `walk()` function to properly handle nested array field deletion. Existing expressions using `select()`, pipes, or parentheses are left unchanged.
+
 To ignore fields owned by specific managers defined in your live resources:
 
 ```yaml
