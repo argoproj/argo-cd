@@ -287,13 +287,15 @@ valueFiles:
 This means you can use a glob to pick up all files in a directory and then pin a specific file to
 the end (highest precedence) by listing it explicitly after the glob.
 
-If the same file appears in two glob patterns (no explicit entry involved), it is included at the
-position of the first match. Subsequent glob matches are silently dropped.
+If the same file (same absolute path) is matched by two glob patterns, it is included at the
+position of the first match. Subsequent glob matches for that exact path are silently dropped.
+Files with the same name but at different paths are treated as distinct files and are always included.
 
 ```yaml
 valueFiles:
-- envs/*.yaml        # matches base.yaml, prod.yaml
-- envs/**/*.yaml     # prod.yaml already matched above, hence only new files (e.g. nested/override.yaml) are added
+- envs/*.yaml        # matches envs/base.yaml, envs/prod.yaml
+- envs/**/*.yaml     # envs/prod.yaml already matched above and is skipped;
+                     # envs/nested/prod.yaml is a different path and is still included
 ```
 
 ### No-match behavior
