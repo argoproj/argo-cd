@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	jose "github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -604,6 +606,20 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 			if err != nil {
 				t.Fail()
 			}
+		case "/api/dex/keys":
+			pubKey, err := jwt.ParseRSAPublicKeyFromPEM(testutil.Cert)
+			require.NoError(t, err)
+			jwks := jose.JSONWebKeySet{
+				Keys: []jose.JSONWebKey{
+					{
+						Key: pubKey,
+					},
+				},
+			}
+			out, err := json.Marshal(jwks)
+			require.NoError(t, err)
+			_, err = w.Write(out)
+			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -820,15 +836,15 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			test:                  "anonymous disabled, unexpired token, admin claim",
 			anonymousEnabled:      false,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
-			expectedErrorContains: common.TokenVerificationError,
-			expectedClaims:        nil,
+			expectedErrorContains: "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "anonymous enabled, unexpired token, admin claim",
 			anonymousEnabled:      true,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
 			expectedErrorContains: "",
-			expectedClaims:        "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "anonymous disabled, expired token, admin claim",
@@ -851,7 +867,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			expectedErrorContains: common.TokenVerificationError,
 			expectedClaims:        nil,
 		},
-		// External OIDC (not bundled Dex)
+		// External OIDC
 		{
 			test:                  "external OIDC: anonymous disabled, no audience",
 			anonymousEnabled:      false,
@@ -873,8 +889,8 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			anonymousEnabled:      false,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
 			useDex:                true,
-			expectedErrorContains: common.TokenVerificationError,
-			expectedClaims:        nil,
+			expectedErrorContains: "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "external OIDC: anonymous enabled, unexpired token, admin claim",
@@ -882,7 +898,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
 			useDex:                true,
 			expectedErrorContains: "",
-			expectedClaims:        "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "external OIDC: anonymous disabled, expired token, admin claim",
@@ -926,8 +942,19 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			} else {
 				testDataCopy.claims.Issuer = oidcURL
 			}
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, testDataCopy.claims)
-			tokenString, err := token.SignedString([]byte("key"))
+
+			// go-oidc explicitly requires the use of an asymmetric signature algorithm.
+			// We use the respective signature algorithm based on the mock provider implementation.
+			var signingMethod jwt.SigningMethod
+			if testDataCopy.useDex {
+				signingMethod = jwt.SigningMethodRS256
+			} else {
+				signingMethod = jwt.SigningMethodRS512
+			}
+			key, err := jwt.ParseRSAPrivateKeyFromPEM(testutil.PrivateKey)
+			require.NoError(t, err)
+			token := jwt.NewWithClaims(signingMethod, testDataCopy.claims)
+			tokenString, err := token.SignedString(key)
 			require.NoError(t, err)
 			ctx = metadata.NewIncomingContext(t.Context(), metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
 
@@ -935,6 +962,12 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			claims := ctx.Value("claims")
 			if testDataCopy.expectedClaims == nil {
 				assert.Nil(t, claims)
+			} else if expectedMap, ok := testDataCopy.expectedClaims.(jwt.MapClaims); ok {
+				actualMap, ok := claims.(jwt.MapClaims)
+				assert.True(t, ok, "expected claims to be jwt.MapClaims, got %T", claims)
+				for k, v := range expectedMap {
+					assert.Equal(t, v, actualMap[k], "claim %q mismatch", k)
+				}
 			} else {
 				assert.Equal(t, testDataCopy.expectedClaims, claims)
 			}
