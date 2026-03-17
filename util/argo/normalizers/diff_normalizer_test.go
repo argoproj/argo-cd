@@ -294,6 +294,62 @@ func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
 	assert.Contains(t, out, "fromjson cannot be applied")
 }
 
+func TestTransformJQPathExpression(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "nested array field pattern is transformed",
+			input:    ".spec.rules[].backendRefs[].weight",
+			expected: `walk(if type == "object" and has("weight") then del(.weight) else . end)`,
+		},
+		{
+			name:     "single array field pattern is transformed",
+			input:    ".spec.containers[].image",
+			expected: `walk(if type == "object" and has("image") then del(.image) else . end)`,
+		},
+		{
+			name:     "expression with pipe is not transformed",
+			input:    ".spec.containers[] | select(.name == \"init\")",
+			expected: ".spec.containers[] | select(.name == \"init\")",
+		},
+		{
+			name:     "expression with select is not transformed",
+			input:    ".spec.containers[] select(.name)",
+			expected: ".spec.containers[] select(.name)",
+		},
+		{
+			name:     "expression with parentheses is not transformed",
+			input:    ".spec.containers[] (foo)",
+			expected: ".spec.containers[] (foo)",
+		},
+		{
+			name:     "simple path without array is not transformed",
+			input:    ".spec.replicas",
+			expected: ".spec.replicas",
+		},
+		{
+			name:     "path with less than 2 segments is not transformed",
+			input:    "[]",
+			expected: "[]",
+		},
+		{
+			name:     "path ending with array iterator is not transformed",
+			input:    ".spec.rules[]",
+			expected: ".spec.rules[]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := transformJQPathExpression(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestNormalizeNestedArrayFieldPattern(t *testing.T) {
 	// Test case for Gateway API HTTPRoute/GRPCRoute weight fields
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
