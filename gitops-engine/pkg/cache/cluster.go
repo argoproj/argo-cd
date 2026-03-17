@@ -525,26 +525,6 @@ func (c *clusterCache) setNode(n *Resource) {
 	}
 }
 
-// rebuildParentToChildrenIndex rebuilds the parent-to-children index from scratch.
-// NOTE: This function is no longer called during normal operation.
-// The index is now maintained incrementally via inline updates in setNode() and onNodeRemoved().
-// Kept for debugging and potential manual repairs.
-func (c *clusterCache) rebuildParentToChildrenIndex() {
-	// Clear existing index
-	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
-
-	// Rebuild parent-to-children index from all resources with owner refs
-	for _, resource := range c.resources {
-		key := resource.ResourceKey()
-		for _, ownerRef := range resource.OwnerRefs {
-			if ownerRef.UID != "" {
-				c.addToParentUIDToChildren(ownerRef.UID, key)
-			}
-		}
-	}
-}
-
-
 // addToParentUIDToChildren adds a child to the parent-to-children index
 func (c *clusterCache) addToParentUIDToChildren(parentUID types.UID, childKey kube.ResourceKey) {
 	// Get or create the set for this parent

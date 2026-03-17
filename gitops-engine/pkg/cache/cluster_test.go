@@ -417,14 +417,10 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 }
 
 // TestStatefulSetPVC_ParentToChildrenIndex verifies that inferred StatefulSet → PVC
-// relationships are correctly captured in the parentUIDToChildren index.
+// relationships are correctly captured in the parentUIDToChildren index during initial sync.
 //
-// This test would FAIL if rebuildParentToChildrenIndex() were removed, because:
-// 1. During setNode(), updateParentUIDToChildren() runs BEFORE the inferred parent logic
-// 2. The inferred parent logic (lines 494-505 in cluster.go) adds owner refs AFTER
-// 3. Without the rebuild, those inferred relationships would be missing from the index
-//
-// See cluster.go:490-522 for the sequence that makes this rebuild necessary.
+// The index is updated inline when inferred owner refs are added in setNode().
+// See cluster.go:494-516 for the inferred parent logic with inline index updates.
 func TestStatefulSetPVC_ParentToChildrenIndex(t *testing.T) {
 	stsUID := types.UID("sts-uid-123")
 
@@ -2311,13 +2307,121 @@ func TestIterateHierarchyV2_NoDuplicatesCrossNamespace(t *testing.T) {
 	assert.Equal(t, 1, visitCount["cluster-child"], "cluster child should be visited once")
 }
 
+func TestIterateHierarchyV2_CircularOwnerReference_NoStackOverflow(t *testing.T) {
+	// Test that self-referencing resources (circular ownerReferences) don't cause stack overflow.
+	// This reproduces the bug reported in https://github.com/argoproj/argo-cd/issues/26783
+	// where a resource with an ownerReference pointing to itself caused infinite recursion.
+
+	// Create a cluster-scoped resource that owns itself (self-referencing)
+	selfReferencingResource := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "self-referencing",
+			UID:             "self-ref-uid",
+			ResourceVersion: "1",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+				Name:       "self-referencing",
+				UID:        "self-ref-uid", // Points to itself
+			}},
+		},
+	}
+
+	cluster := newCluster(t, selfReferencingResource).WithAPIResources([]kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
+		Meta:                 metav1.APIResource{Namespaced: false},
+	}})
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	visitCount := 0
+	// This should complete without stack overflow
+	cluster.IterateHierarchyV2(
+		[]kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(selfReferencingResource))},
+		func(resource *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			visitCount++
+			return true
+		},
+	)
+
+	// The self-referencing resource should be visited exactly once
+	assert.Equal(t, 1, visitCount, "self-referencing resource should be visited exactly once")
+}
+
+func TestIterateHierarchyV2_CircularOwnerChain_NoStackOverflow(t *testing.T) {
+	// Test that circular ownership chains (A -> B -> A) don't cause stack overflow.
+	// This is a more complex case where two resources own each other.
+
+	resourceA := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "resource-a",
+			UID:             "uid-a",
+			ResourceVersion: "1",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+				Name:       "resource-b",
+				UID:        "uid-b", // A is owned by B
+			}},
+		},
+	}
+
+	resourceB := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "resource-b",
+			UID:             "uid-b",
+			ResourceVersion: "1",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+				Name:       "resource-a",
+				UID:        "uid-a", // B is owned by A
+			}},
+		},
+	}
+
+	cluster := newCluster(t, resourceA, resourceB).WithAPIResources([]kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
+		Meta:                 metav1.APIResource{Namespaced: false},
+	}})
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	visitCount := make(map[string]int)
+	// This should complete without stack overflow
+	cluster.IterateHierarchyV2(
+		[]kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(resourceA))},
+		func(resource *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			visitCount[resource.Ref.Name]++
+			return true
+		},
+	)
+
+	// Each resource in the circular chain should be visited exactly once
+	assert.Equal(t, 1, visitCount["resource-a"], "resource-a should be visited exactly once")
+	assert.Equal(t, 1, visitCount["resource-b"], "resource-b should be visited exactly once")
+}
+
 // BenchmarkSync_ParentToChildrenIndex measures the overhead of parent-to-children index
 // operations during sync. This benchmark was created to investigate performance regression
 // reported in https://github.com/argoproj/argo-cd/issues/26863
 //
-// The concern is that during sync():
-// 1. setNode() calls updateParentUIDToChildren() for each resource - O(n)
-// 2. After all resources are loaded, rebuildParentToChildrenIndex() is called - O(n) again
+// The index is now maintained with O(1) operations (set-based) and updated inline
+// in setNode() for both explicit and inferred owner refs. No rebuild is needed.
 //
 // This benchmark measures sync performance with resources that have owner references
 // to quantify the index-building overhead at different scales.
@@ -2479,12 +2583,11 @@ func BenchmarkUpdateParentUIDToChildren(b *testing.B) {
 	}
 }
 
-// BenchmarkIncrementalVsBulkIndexBuild compares the cost of:
-// 1. Incremental updates via updateParentUIDToChildren (current approach during sync)
-// 2. Bulk rebuild via rebuildParentToChildrenIndex (called after sync)
+// BenchmarkIncrementalIndexBuild measures the cost of incremental index updates
+// via addToParentUIDToChildren during sync. The index uses O(1) set-based operations.
 //
-// This helps quantify the redundant work identified in issue #26863.
-func BenchmarkIncrementalVsBulkIndexBuild(b *testing.B) {
+// This benchmark was created to investigate issue #26863 and verify the fix.
+func BenchmarkIncrementalIndexBuild(b *testing.B) {
 	testCases := []struct {
 		name              string
 		numParents        int
@@ -2537,141 +2640,6 @@ func BenchmarkIncrementalVsBulkIndexBuild(b *testing.B) {
 				for _, child := range children {
 					cluster.addToParentUIDToChildren(child.parentUID, child.childKey)
 				}
-			}
-		})
-
-		// Benchmark bulk rebuild approach (rebuildParentToChildrenIndex)
-		b.Run(tc.name+"_bulk", func(b *testing.B) {
-			// Create resources with owner refs
-			resources := make([]runtime.Object, 0, tc.numParents+tc.numParents*tc.childrenPerParent)
-
-			parentUIDs := make([]types.UID, tc.numParents)
-			for p := 0; p < tc.numParents; p++ {
-				uid := types.UID(fmt.Sprintf("parent-%d", p))
-				parentUIDs[p] = uid
-				resources = append(resources, &appsv1.Deployment{
-					TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      fmt.Sprintf("deploy-%d", p),
-						Namespace: "default",
-						UID:       uid,
-					},
-				})
-			}
-
-			for p := 0; p < tc.numParents; p++ {
-				for c := 0; c < tc.childrenPerParent; c++ {
-					resources = append(resources, &corev1.Pod{
-						TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Pod"},
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      fmt.Sprintf("pod-%d-%d", p, c),
-							Namespace: "default",
-							UID:       types.UID(fmt.Sprintf("pod-uid-%d-%d", p, c)),
-							OwnerReferences: []metav1.OwnerReference{{
-								APIVersion: "apps/v1",
-								Kind:       "Deployment",
-								Name:       fmt.Sprintf("deploy-%d", p),
-								UID:        parentUIDs[p],
-							}},
-						},
-					})
-				}
-			}
-
-			cluster := newCluster(b, resources...)
-			err := cluster.EnsureSynced()
-			if err != nil {
-				b.Fatal(err)
-			}
-
-			b.ResetTimer()
-			b.ReportAllocs()
-
-			for n := 0; n < b.N; n++ {
-				// This clears and rebuilds without duplicate checks
-				cluster.rebuildParentToChildrenIndex()
-			}
-		})
-	}
-}
-
-// BenchmarkRebuildParentToChildrenIndex isolates the cost of rebuildParentToChildrenIndex
-// to determine if the redundant call (after setNode already populated the index) is significant.
-func BenchmarkRebuildParentToChildrenIndex(b *testing.B) {
-	testCases := []struct {
-		name           string
-		totalResources int
-		pctWithOwners  int
-	}{
-		{"1000res_80pctOwners", 1000, 80},
-		{"5000res_80pctOwners", 5000, 80},
-		{"10000res_80pctOwners", 10000, 80},
-		{"20000res_80pctOwners", 20000, 80},
-	}
-
-	for _, tc := range testCases {
-		b.Run(tc.name, func(b *testing.B) {
-			resources := make([]runtime.Object, 0, tc.totalResources)
-
-			// Create parent resources
-			numParents := tc.totalResources / 10
-			if numParents < 1 {
-				numParents = 1
-			}
-			parentUIDs := make([]types.UID, numParents)
-			for i := 0; i < numParents; i++ {
-				uid := types.UID(fmt.Sprintf("deploy-uid-%d", i))
-				parentUIDs[i] = uid
-				resources = append(resources, &appsv1.Deployment{
-					TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      fmt.Sprintf("deploy-%d", i),
-						Namespace: "default",
-						UID:       uid,
-					},
-				})
-			}
-
-			// Create child resources with owner refs
-			numChildren := tc.totalResources - numParents
-			numWithOwnerRefs := (numChildren * tc.pctWithOwners) / 100
-
-			for i := 0; i < numChildren; i++ {
-				pod := &corev1.Pod{
-					TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Pod"},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      fmt.Sprintf("pod-%d", i),
-						Namespace: "default",
-						UID:       types.UID(fmt.Sprintf("pod-uid-%d", i)),
-					},
-				}
-
-				if i < numWithOwnerRefs {
-					parentIdx := i % numParents
-					pod.OwnerReferences = []metav1.OwnerReference{{
-						APIVersion: "apps/v1",
-						Kind:       "Deployment",
-						Name:       fmt.Sprintf("deploy-%d", parentIdx),
-						UID:        parentUIDs[parentIdx],
-					}}
-				}
-
-				resources = append(resources, pod)
-			}
-
-			cluster := newCluster(b, resources...)
-			err := cluster.EnsureSynced()
-			if err != nil {
-				b.Fatal(err)
-			}
-
-			b.ResetTimer()
-			b.ReportAllocs()
-
-			for n := 0; n < b.N; n++ {
-				// This measures just the rebuildParentToChildrenIndex call
-				// which clears and rebuilds the entire index
-				cluster.rebuildParentToChildrenIndex()
 			}
 		})
 	}
