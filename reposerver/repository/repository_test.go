@@ -163,6 +163,7 @@ func newServiceWithMocks(t *testing.T, root string) (*Service, *gitmocks.Client,
 		gitClient.EXPECT().Root().Return(root)
 		gitClient.EXPECT().RepoURL().Return("https://fake.com/fake_group/fake_repo.git")
 		gitClient.EXPECT().IsAnnotatedTag(mock.Anything).Return(false)
+		gitClient.EXPECT().VerifyCommitSignature(mock.Anything).Return("", nil)
 
 		chart := "my-chart"
 		oobChart := "out-of-bounds-chart"
@@ -237,6 +238,7 @@ func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().LsRemote(revision).Return(revision, revisionErr)
 		gitClient.EXPECT().IsAnnotatedTag(revision).Return(revisionErr != nil)
+		gitClient.EXPECT().VerifyCommitSignature(mock.Anything).Return("", nil)
 		gitClient.EXPECT().CommitSHA().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.EXPECT().Root().Return(root)
 		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)

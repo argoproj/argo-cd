@@ -64,7 +64,7 @@ func TestGPGUnknownMode(t *testing.T) {
 	gitClient.EXPECT().CommitSHA().Return("DEADBEEF", nil)
 
 	s := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: "foobar", Keys: []string{}}
-	result, err := verify(s, gitClient, "https://github.com/argoproj/argo-cd.git")
+	result, _, err := verify(s, gitClient, "https://github.com/argoproj/argo-cd.git")
 	require.ErrorContains(t, err, `unknown GPG mode "foobar" configured for GIT source integrity`)
 	assert.Nil(t, result)
 }
@@ -229,11 +229,12 @@ func TestComparingWithGPGFingerprint(t *testing.T) {
 
 	gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{fingerprint}}
 	// And verifying a given revision
-	result, err := verify(gpgWithTag, gitClient, "1.0")
+	result, legacy, err := verify(gpgWithTag, gitClient, "1.0")
 	require.NoError(t, err)
 
 	assert.True(t, result.IsValid())
-	assert.NoError(t, result.AsError())
+	require.NoError(t, result.AsError())
+	assert.Equal(t, "Good signature from ignored key D56C4FCA57A46444", legacy)
 }
 
 func TestGPGHeadValid(t *testing.T) {
@@ -280,13 +281,14 @@ func TestGPGHeadValid(t *testing.T) {
 				Keys: []string{keyId, "0000000000000000"},
 			}
 			// And verifying a given revision
-			result, err := verify(gpgWithTag, gitClient, test.revision)
+			result, legacy, err := verify(gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
 			// Then it is checked and valid
 			assert.True(t, result.IsValid())
 			assert.Equal(t, []string{"GIT/GPG"}, result.PassedChecks())
 			test.check(gitClient, logger)
 			require.NoError(t, result.AsError())
+			assert.Equal(t, "Good signature from ignored key 4cfe068f80b1681b", legacy)
 		})
 	}
 }
@@ -312,6 +314,7 @@ func TestDescribeProblems(t *testing.T) {
 		gpg      *v1alpha1.SourceIntegrityGitPolicyGPG
 		sigs     []git.RevisionSignatureInfo
 		expected []string
+		legacy   string
 	}{
 		{
 			name: "report only problems",
@@ -325,6 +328,7 @@ func TestDescribeProblems(t *testing.T) {
 				"Failed verifying revision " + r + " by '" + a + "': signed with revoked key (key_id=bad)",
 				"Failed verifying revision " + r + " by '" + a + "': signed with untrusted key (key_id=also_bad)",
 			},
+			legacy: "Invalid signature from Commit Author <nereply@acme.com> key bad",
 		},
 		{
 			name: "collapse problems of the same key",
@@ -339,6 +343,7 @@ func TestDescribeProblems(t *testing.T) {
 				"Failed verifying revision " + r + " by '" + a + "': signed with revoked key (key_id=bad)",
 				"Failed verifying revision " + r + " by '" + a + "': signed with untrusted key (key_id=also_bad)",
 			},
+			legacy: "Invalid signature from Commit Author <nereply@acme.com> key bad",
 		},
 		{
 			name: "do not collapse unsigned commits, as they can differ by author",
@@ -353,6 +358,7 @@ func TestDescribeProblems(t *testing.T) {
 				"Failed verifying revision " + r + " by '" + a + "': unsigned (key_id=)",
 				"Failed verifying revision " + r + " by '" + a + "': unsigned (key_id=)",
 			},
+			legacy: "Revision is not signed.",
 		},
 		{
 			name: "Report first ten problems only",
@@ -385,13 +391,15 @@ func TestDescribeProblems(t *testing.T) {
 				"Failed verifying revision " + r + " by '" + a + "': bad signature (key_id=more_bad)",
 				"Failed verifying revision " + r + " by '" + a + "': bad signature (key_id=outright_terrible)",
 			},
+			legacy: "Invalid signature from Commit Author <nereply@acme.com> key revoked",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			problems := describeProblems(tt.gpg, tt.sigs)
+			problems, legacy := describeProblems(tt.gpg, tt.sigs)
 			assert.Equal(t, tt.expected, problems)
+			assert.Equal(t, tt.legacy, legacy)
 		})
 	}
 }
@@ -504,7 +512,7 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 				Keys: []string{keyOfFirst, keyOfSecond},
 			}
 			// And verifying a given revision
-			result, err := verify(gpgWithTag, gitClient, test.revision)
+			result, legacy, err := verify(gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
 
 			// Then it is checked and valid
@@ -512,10 +520,13 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 			if test.expectedErr == "" {
 				require.NoError(t, err)
 				assert.True(t, result.IsValid())
+				assert.Contains(t, legacy, "Good signature from ")
 			} else {
 				require.Error(t, err)
 				assert.Equal(t, test.expectedErr, err.Error())
 				assert.False(t, result.IsValid())
+				// Confusing but correct. Signature is good, but not allowed in project so this should be rejected.
+				assert.Contains(t, legacy, "Good signature from ")
 			}
 			assert.Equal(t, test.expectedPassed, result.PassedChecks())
 			assert.Empty(t, logger.GetEntries())

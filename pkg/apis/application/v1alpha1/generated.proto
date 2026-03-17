@@ -2336,10 +2336,15 @@ message RevisionMetadata {
   // Message contains the message associated with the revision, most likely the commit message.
   optional string message = 4;
 
-  optional SourceIntegrityCheckResult sourceIntegrityResult = 5;
+  // SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
+  //
+  // Deprecated: Use SourceIntegrityResult for more detailed information. SignatureInfo will be removed with the next major version.
+  optional string signatureInfo = 5;
 
   // References contains references to information that's related to this commit in some way.
   repeated RevisionReference references = 6;
+
+  optional SourceIntegrityCheckResult sourceIntegrityResult = 7;
 }
 
 // RevisionReference contains a reference to a some information that is related in some way to another commit. For now,

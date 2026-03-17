@@ -4072,17 +4072,17 @@ func (in *RevisionMetadata) DeepCopyInto(out *RevisionMetadata) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.SourceIntegrityResult != nil {
-		in, out := &in.SourceIntegrityResult, &out.SourceIntegrityResult
-		*out = new(SourceIntegrityCheckResult)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.References != nil {
 		in, out := &in.References, &out.References
 		*out = make([]RevisionReference, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
+	}
+	if in.SourceIntegrityResult != nil {
+		in, out := &in.SourceIntegrityResult, &out.SourceIntegrityResult
+		*out = new(SourceIntegrityCheckResult)
+		(*in).DeepCopyInto(*out)
 	}
 	return
 }

@@ -6109,6 +6109,10 @@
         },
         "sourceType": {
           "type": "string"
+        },
+        "verifyResult": {
+          "description": "Raw response of git verify-commit operation (always the empty string for Helm)\nDeprecated: Use SourceIntegrityResult for more detailed information. VerifyResult will be removed with the next major version.",
+          "type": "string"
         }
       }
     },
@@ -10194,6 +10198,10 @@
           "items": {
             "$ref": "#/definitions/v1alpha1RevisionReference"
           }
+        },
+        "signatureInfo": {
+          "description": "SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.\n\nDeprecated: Use SourceIntegrityResult for more detailed information. SignatureInfo will be removed with the next major version.",
+          "type": "string"
         },
         "sourceIntegrityResult": {
           "$ref": "#/definitions/v1alpha1SourceIntegrityCheckResult"

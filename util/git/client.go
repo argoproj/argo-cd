@@ -137,13 +137,15 @@ type Client interface {
 	LsLargeFiles() ([]string, error)
 	CommitSHA() (string, error)
 	RevisionMetadata(revision string) (*RevisionMetadata, error)
+	// Deprecated: To be removed in the next major version when Signature verification is replaced with Source Integrity.
+	VerifyCommitSignature(string) (string, error)
+	// IsAnnotatedTag determines if the revision is, or resolves to an annotated tag.
+	IsAnnotatedTag(revision string) bool
 	// LsSignatures gets a list of revisions including their GPG signature info.
 	// If revision is an annotated tag or a semantic constraint matching an annotated tag, its signature is reported as wll
 	// If deep==true, list the commits backwards in history until a signed "seal commit" or repo init commit. The listing includes those seal commits.
 	// If deep==false, examines the revision only. Checking the annotated tag signature if the revision is an annotated tag, commit signature otherwise.
 	LsSignatures(revision string, deep bool) ([]RevisionSignatureInfo, error)
-	// IsAnnotatedTag determines if the revision is, or resolves to an annotated tag.
-	IsAnnotatedTag(revision string) bool
 	ChangedFiles(revision string, targetRevision string) ([]string, error)
 	IsRevisionPresent(revision string) bool
 	// SetAuthor sets the author name and email in the git configuration.
@@ -971,6 +973,19 @@ func updateCommitMetadata(logCtx *log.Entry, relatedCommit *CommitMetadata, line
 	return true
 }
 
+// VerifyCommitSignature Runs verify-commit on a given revision and returns the output
+//
+// Deprecated: To be removed in the next major version when Signature verification is replaced with Source Integrity.
+func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error) {
+	cmd := m.cmdWithGPG(context.Background(), "git-verify-wrapper.sh", revision)
+	out, err := m.runCmdOutput(cmd, runOpts{})
+	if err != nil {
+		log.Errorf("error verifying commit signature: %v", err)
+		return "", errors.New("permission denied")
+	}
+	return out, nil
+}
+
 type (
 	GPGVerificationResult string
 	RevisionSignatureInfo struct {
@@ -1054,7 +1069,7 @@ func (m *nativeGitClient) tagSignature(tagRevision string) (*RevisionSignatureIn
 	ctx := context.Background()
 	// Unlike for commits, there is no elegant way to slurp all signature info for tag. So this extracts details needed
 	// for RevisionSignatureInfo from 2 different git invocations.
-	cmd := m.cmdWithGPG(ctx, "for-each-ref", "refs/tags/"+tagRevision, `--format=%(taggerdate),%(taggername) "%(taggeremail)"`)
+	cmd := m.cmdWithGPG(ctx, "git", "for-each-ref", "refs/tags/"+tagRevision, `--format=%(taggerdate),%(taggername) "%(taggeremail)"`)
 	tagOut, err := m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
 		return nil, err
@@ -1067,7 +1082,7 @@ func (m *nativeGitClient) tagSignature(tagRevision string) (*RevisionSignatureIn
 		return nil, fmt.Errorf("failed to parse tag %q for revisions %q", tagOut, tagRevision)
 	}
 
-	cmd = m.cmdWithGPG(ctx, "verify-tag", tagRevision, "--raw")
+	cmd = m.cmdWithGPG(ctx, "git", "verify-tag", tagRevision, "--raw")
 	tagGpgOut, err := m.runCmdOutput(cmd, runOpts{
 		CaptureStderr:    true, // The structured --raw output is printed to stderr only
 		SkipErrorLogging: true, // Unsigned returns rc=1
@@ -1211,7 +1226,7 @@ func (m *nativeGitClient) listRawSignatures(deep bool) (string, error) {
 	var commitFilterArgs []string
 	if deep {
 		// Find all seal commits with their signing indicator
-		cmd := m.cmdWithGPG(ctx, "rev-list", `--pretty=format:%G?,%H`, "--no-commit-header", "--grep=Argocd-gpg-seal:", "--regexp-ignore-case", revisionSha)
+		cmd := m.cmdWithGPG(ctx, "git", "rev-list", `--pretty=format:%G?,%H`, "--no-commit-header", "--grep=Argocd-gpg-seal:", "--regexp-ignore-case", revisionSha)
 		sealCommitsRawOut, err := m.runCmdOutput(cmd, runOpts{})
 		if err != nil {
 			return "", err
@@ -1228,7 +1243,7 @@ func (m *nativeGitClient) listRawSignatures(deep bool) (string, error) {
 
 	// Find all commits until the criteria, including
 	lsArgs := append([]string{"rev-list", `--pretty=format:%H,%G?,%GK,"%aD","%an <%ae>"`, "--no-commit-header"}, commitFilterArgs...)
-	commitSignaturesRawOut, err := m.runCmdOutput(m.cmdWithGPG(ctx, lsArgs...), runOpts{})
+	commitSignaturesRawOut, err := m.runCmdOutput(m.cmdWithGPG(ctx, "git", lsArgs...), runOpts{})
 	if err != nil {
 		return "", err
 	}
@@ -1539,8 +1554,8 @@ func (m *nativeGitClient) HasFileChanged(filePath string) (bool, error) {
 }
 
 // cmdWithGPG creates git Cmd with a GPG-enabled environment
-func (m *nativeGitClient) cmdWithGPG(ctx context.Context, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, "git", args...)
+func (m *nativeGitClient) cmdWithGPG(ctx context.Context, name string, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Env = append(cmd.Env, "GNUPGHOME="+common.GetGnuPGHomePath(), "LANG=C")
 	return cmd
 }

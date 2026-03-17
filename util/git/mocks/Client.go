@@ -1450,3 +1450,63 @@ func (_c *Client_Submodule_Call) RunAndReturn(run func() error) *Client_Submodul
 	_c.Call.Return(run)
 	return _c
 }
+
+// VerifyCommitSignature provides a mock function for the type Client
+func (_mock *Client) VerifyCommitSignature(s string) (string, error) {
+	ret := _mock.Called(s)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VerifyCommitSignature")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string) (string, error)); ok {
+		return returnFunc(s)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string) string); ok {
+		r0 = returnFunc(s)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
+		r1 = returnFunc(s)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Client_VerifyCommitSignature_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyCommitSignature'
+type Client_VerifyCommitSignature_Call struct {
+	*mock.Call
+}
+
+// VerifyCommitSignature is a helper method to define mock.On call
+//   - s string
+func (_e *Client_Expecter) VerifyCommitSignature(s interface{}) *Client_VerifyCommitSignature_Call {
+	return &Client_VerifyCommitSignature_Call{Call: _e.mock.On("VerifyCommitSignature", s)}
+}
+
+func (_c *Client_VerifyCommitSignature_Call) Run(run func(s string)) *Client_VerifyCommitSignature_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_VerifyCommitSignature_Call) Return(s1 string, err error) *Client_VerifyCommitSignature_Call {
+	_c.Call.Return(s1, err)
+	return _c
+}
+
+func (_c *Client_VerifyCommitSignature_Call) RunAndReturn(run func(s string) (string, error)) *Client_VerifyCommitSignature_Call {
+	_c.Call.Return(run)
+	return _c
+}

@@ -307,6 +307,10 @@ type operationContext struct {
 	// application path or helm chart path
 	appPath string
 
+	// output of 'git verify-(tag/commit)', if signature verification is enabled (otherwise "")
+	//
+	// Deprecated: rely on sourceIntegrityResult. will be removed with the next major version.
+	verificationResult    string
 	sourceIntegrityResult *v1alpha1.SourceIntegrityCheckResult
 }
 
@@ -416,7 +420,7 @@ func (s *Service) runRepoOperation(
 		}
 
 		return operation(ociPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{appPath, nil}, nil
+			return &operationContext{appPath, "", nil}, nil
 		})
 	} else if source.IsHelm() {
 		if settings.noCache {
@@ -451,7 +455,7 @@ func (s *Service) runRepoOperation(
 			}
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{chartPath, nil}, nil
+			return &operationContext{chartPath, "", nil}, nil
 		})
 	}
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func(clean bool) (goio.Closer, error) {
@@ -508,7 +512,13 @@ func (s *Service) runRepoOperation(
 		} else {
 			rev = revision
 		}
-		sourceIntegrityResult, err := sourceintegrity.VerifyGit(sourceIntegrity, gitClient, rev)
+		sourceIntegrityResult, _, err := sourceintegrity.VerifyGit(sourceIntegrity, gitClient, rev)
+		if err != nil {
+			return nil, err
+		}
+
+		// Computed and passed to preserve API backwards compatibility only. Decisions are made based on SourceIntegrityResult.
+		verificationResult, err := gitClient.VerifyCommitSignature(rev) // nolint:staticcheck
 		if err != nil {
 			return nil, err
 		}
@@ -518,7 +528,7 @@ func (s *Service) runRepoOperation(
 			return nil, err
 		}
 
-		return &operationContext{appPath, sourceIntegrityResult}, nil
+		return &operationContext{appPath, verificationResult, sourceIntegrityResult}, nil
 	})
 }
 
@@ -693,7 +703,7 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 		if err != nil {
 			return nil, fmt.Errorf("failed to get app path: %w", err)
 		}
-		return &operationContext{appPath, &v1alpha1.SourceIntegrityCheckResult{}}, nil
+		return &operationContext{appPath, "", nil}, nil
 	}, req)
 
 	var res *apiclient.ManifestResponse
@@ -940,6 +950,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	}
 	manifestGenResult.Revision = commitSHA
 	manifestGenResult.SourceIntegrityResult = opContext.sourceIntegrityResult
+	manifestGenResult.VerifyResult = opContext.verificationResult
 	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs, q.InstallationID)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)
@@ -2515,7 +2526,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 
 	defer utilio.Close(closer)
 
-	sourceIntegrityResult, err := sourceintegrity.VerifyGit(q.SourceIntegrity, gitClient, q.Revision)
+	sourceIntegrityResult, legacySignatureInfo, err := sourceintegrity.VerifyGit(q.SourceIntegrity, gitClient, q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -2542,7 +2553,16 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 			},
 		}
 	}
-	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: &metav1.Time{Time: m.Date}, Tags: m.Tags, Message: m.Message, SourceIntegrityResult: sourceIntegrityResult, References: relatedRevisions}
+	metadata = &v1alpha1.RevisionMetadata{
+		Author:  m.Author,
+		Date:    &metav1.Time{Time: m.Date},
+		Tags:    m.Tags,
+		Message: m.Message,
+		// TODO remove with next major version
+		SignatureInfo:         legacySignatureInfo,
+		References:            relatedRevisions,
+		SourceIntegrityResult: sourceIntegrityResult,
+	}
 	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
 	return metadata, nil
 }
@@ -2953,7 +2973,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	}
 	defer utilio.Close(closer)
 
-	sourceIntegrityResult, err := sourceintegrity.VerifyGit(request.SourceIntegrity, gitClient, revision)
+	sourceIntegrityResult, _, err := sourceintegrity.VerifyGit(request.SourceIntegrity, gitClient, revision)
 	if err != nil {
 		return nil, err
 	}
@@ -3019,7 +3039,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	}
 	defer utilio.Close(closer)
 
-	sourceIntegrityResult, err := sourceintegrity.VerifyGit(request.SourceIntegrity, gitClient, revision)
+	sourceIntegrityResult, _, err := sourceintegrity.VerifyGit(request.SourceIntegrity, gitClient, revision)
 	if err != nil {
 		return nil, err
 	}

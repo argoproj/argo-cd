@@ -1687,10 +1687,14 @@ type RevisionMetadata struct {
 	// Floating tags can move from one revision to another
 	Tags []string `json:"tags,omitempty" protobuf:"bytes,3,opt,name=tags"`
 	// Message contains the message associated with the revision, most likely the commit message.
-	Message               string                      `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
-	SourceIntegrityResult *SourceIntegrityCheckResult `json:"sourceIntegrityResult,omitempty" protobuf:"bytes,5,opt,name=sourceIntegrityResult"`
+	Message string `json:"message,omitempty" protobuf:"bytes,4,opt,name=message"`
+	// SignatureInfo contains a hint on the signer if the revision was signed with GPG, and signature verification is enabled.
+	//
+	// Deprecated: Use SourceIntegrityResult for more detailed information. SignatureInfo will be removed with the next major version.
+	SignatureInfo string `json:"signatureInfo,omitempty" protobuf:"bytes,5,opt,name=signatureInfo"`
 	// References contains references to information that's related to this commit in some way.
-	References []RevisionReference `json:"references,omitempty" protobuf:"bytes,6,opt,name=references"`
+	References            []RevisionReference         `json:"references,omitempty" protobuf:"bytes,6,opt,name=references"`
+	SourceIntegrityResult *SourceIntegrityCheckResult `json:"sourceIntegrityResult,omitempty" protobuf:"bytes,7,opt,name=sourceIntegrityResult"`
 }
 
 // OCIMetadata contains metadata for a specific revision in an OCI repository

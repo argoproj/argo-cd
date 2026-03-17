@@ -96,9 +96,12 @@ message ManifestResponse {
     // resolved revision
     string revision = 4;
     string sourceType = 6;
-    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityCheckResult sourceIntegrityResult = 7;
+    // Raw response of git verify-commit operation (always the empty string for Helm)
+    // Deprecated: Use SourceIntegrityResult for more detailed information. VerifyResult will be removed with the next major version.
+    string verifyResult = 7;
     // Commands is the list of commands used to hydrate the manifests
     repeated string commands = 8;
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityCheckResult sourceIntegrityResult = 9;
 }
 
 message ListRefsRequest {
