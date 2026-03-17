@@ -2189,3 +2189,112 @@ func TestIterateHierarchyV2_NoDuplicatesCrossNamespace(t *testing.T) {
 	assert.Equal(t, 1, visitCount["namespaced-child"], "namespaced child should be visited once")
 	assert.Equal(t, 1, visitCount["cluster-child"], "cluster child should be visited once")
 }
+
+func TestIterateHierarchyV2_CircularOwnerReference_NoStackOverflow(t *testing.T) {
+	// Test that self-referencing resources (circular ownerReferences) don't cause stack overflow.
+	// This reproduces the bug reported in https://github.com/argoproj/argo-cd/issues/26783
+	// where a resource with an ownerReference pointing to itself caused infinite recursion.
+
+	// Create a cluster-scoped resource that owns itself (self-referencing)
+	selfReferencingResource := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "self-referencing",
+			UID:             "self-ref-uid",
+			ResourceVersion: "1",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+				Name:       "self-referencing",
+				UID:        "self-ref-uid", // Points to itself
+			}},
+		},
+	}
+
+	cluster := newCluster(t, selfReferencingResource).WithAPIResources([]kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
+		Meta:                 metav1.APIResource{Namespaced: false},
+	}})
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	visitCount := 0
+	// This should complete without stack overflow
+	cluster.IterateHierarchyV2(
+		[]kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(selfReferencingResource))},
+		func(resource *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			visitCount++
+			return true
+		},
+	)
+
+	// The self-referencing resource should be visited exactly once
+	assert.Equal(t, 1, visitCount, "self-referencing resource should be visited exactly once")
+}
+
+func TestIterateHierarchyV2_CircularOwnerChain_NoStackOverflow(t *testing.T) {
+	// Test that circular ownership chains (A -> B -> A) don't cause stack overflow.
+	// This is a more complex case where two resources own each other.
+
+	resourceA := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "resource-a",
+			UID:             "uid-a",
+			ResourceVersion: "1",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+				Name:       "resource-b",
+				UID:        "uid-b", // A is owned by B
+			}},
+		},
+	}
+
+	resourceB := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "resource-b",
+			UID:             "uid-b",
+			ResourceVersion: "1",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+				Name:       "resource-a",
+				UID:        "uid-a", // B is owned by A
+			}},
+		},
+	}
+
+	cluster := newCluster(t, resourceA, resourceB).WithAPIResources([]kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
+		Meta:                 metav1.APIResource{Namespaced: false},
+	}})
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	visitCount := make(map[string]int)
+	// This should complete without stack overflow
+	cluster.IterateHierarchyV2(
+		[]kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(resourceA))},
+		func(resource *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			visitCount[resource.Ref.Name]++
+			return true
+		},
+	)
+
+	// Each resource in the circular chain should be visited exactly once
+	assert.Equal(t, 1, visitCount["resource-a"], "resource-a should be visited exactly once")
+	assert.Equal(t, 1, visitCount["resource-b"], "resource-b should be visited exactly once")
+}
