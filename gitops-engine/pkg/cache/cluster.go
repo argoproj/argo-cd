@@ -280,10 +280,10 @@ type clusterCache struct {
 
 	respectRBAC int
 
-	// Parent-to-children index for O(1) hierarchy traversal
+	// Parent-to-children index for O(1) child lookup during hierarchy traversal
 	// Maps any resource's UID to a set of its direct children's ResourceKeys
 	// Using a set eliminates O(k) duplicate checking on insertions
-	// Eliminates need for O(n) graph building during hierarchy traversal
+	// Used for cross-namespace hierarchy traversal; namespaced traversal still builds a graph
 	parentUIDToChildren map[types.UID]map[kube.ResourceKey]struct{}
 }
 
@@ -507,18 +507,32 @@ func (c *clusterCache) setNode(n *Resource) {
 			if n.isInferredParentOf != nil && mightHaveInferredOwner(v) {
 				shouldBeParent := n.isInferredParentOf(k)
 				v.setOwnerRef(n.toOwnerRef(), shouldBeParent)
-				// Update index inline for inferred ref
-				if shouldBeParent && n.Ref.UID != "" {
-					c.addToParentUIDToChildren(n.Ref.UID, k)
+				// Update index inline for inferred ref changes.
+				// Note: The removal case (shouldBeParent=false) is currently unreachable for
+				// StatefulSet→PVC relationships because Kubernetes makes volumeClaimTemplates
+				// immutable. We include it for defensive correctness and future-proofing.
+				if n.Ref.UID != "" {
+					if shouldBeParent {
+						c.addToParentUIDToChildren(n.Ref.UID, k)
+					} else {
+						c.removeFromParentUIDToChildren(n.Ref.UID, k)
+					}
 				}
 			}
 			if mightHaveInferredOwner(n) && v.isInferredParentOf != nil {
 				childKey := n.ResourceKey()
 				shouldBeParent := v.isInferredParentOf(childKey)
 				n.setOwnerRef(v.toOwnerRef(), shouldBeParent)
-				// Update index inline for inferred ref
-				if shouldBeParent && v.Ref.UID != "" {
-					c.addToParentUIDToChildren(v.Ref.UID, childKey)
+				// Update index inline for inferred ref changes.
+				// Note: The removal case (shouldBeParent=false) is currently unreachable for
+				// StatefulSet→PVC relationships because Kubernetes makes volumeClaimTemplates
+				// immutable. We include it for defensive correctness and future-proofing.
+				if v.Ref.UID != "" {
+					if shouldBeParent {
+						c.addToParentUIDToChildren(v.Ref.UID, childKey)
+					} else {
+						c.removeFromParentUIDToChildren(v.Ref.UID, childKey)
+					}
 				}
 			}
 		}

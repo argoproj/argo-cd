@@ -419,8 +419,8 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 // TestStatefulSetPVC_ParentToChildrenIndex verifies that inferred StatefulSet → PVC
 // relationships are correctly captured in the parentUIDToChildren index during initial sync.
 //
-// The index is updated inline when inferred owner refs are added in setNode().
-// See cluster.go:494-516 for the inferred parent logic with inline index updates.
+// The index is updated inline when inferred owner refs are added in setNode()
+// (see the inferred parent handling section in clusterCache.setNode).
 func TestStatefulSetPVC_ParentToChildrenIndex(t *testing.T) {
 	stsUID := types.UID("sts-uid-123")
 
@@ -471,8 +471,13 @@ func TestStatefulSetPVC_ParentToChildrenIndex(t *testing.T) {
 	// Also verify the OwnerRefs were set correctly on the PVCs
 	pvc0Resource := cluster.resources[pvc0Key]
 	require.NotNil(t, pvc0Resource)
-	require.Len(t, pvc0Resource.OwnerRefs, 1, "PVC should have inferred owner ref")
-	require.Equal(t, stsUID, pvc0Resource.OwnerRefs[0].UID, "PVC owner should be the StatefulSet")
+	require.Len(t, pvc0Resource.OwnerRefs, 1, "PVC0 should have inferred owner ref")
+	require.Equal(t, stsUID, pvc0Resource.OwnerRefs[0].UID, "PVC0 owner should be the StatefulSet")
+
+	pvc1Resource := cluster.resources[pvc1Key]
+	require.NotNil(t, pvc1Resource)
+	require.Len(t, pvc1Resource.OwnerRefs, 1, "PVC1 should have inferred owner ref")
+	require.Equal(t, stsUID, pvc1Resource.OwnerRefs[0].UID, "PVC1 owner should be the StatefulSet")
 }
 
 // TestStatefulSetPVC_WatchEvent_IndexUpdated verifies that when a PVC is added
@@ -2427,28 +2432,27 @@ func TestIterateHierarchyV2_CircularOwnerChain_NoStackOverflow(t *testing.T) {
 // to quantify the index-building overhead at different scales.
 func BenchmarkSync_ParentToChildrenIndex(b *testing.B) {
 	testCases := []struct {
-		name              string
-		totalResources    int
-		pctWithOwnerRefs  int // Percentage of resources with owner references
-		ownerRefsPerChild int // Number of owner refs per child (typically 1, but can be more)
+		name             string
+		totalResources   int
+		pctWithOwnerRefs int // Percentage of resources with owner references
 	}{
 		// Baseline: no owner refs (index operations are no-ops)
-		{"1000res_0pctOwnerRefs", 1000, 0, 0},
-		{"5000res_0pctOwnerRefs", 5000, 0, 0},
-		{"10000res_0pctOwnerRefs", 10000, 0, 0},
+		{"1000res_0pctOwnerRefs", 1000, 0},
+		{"5000res_0pctOwnerRefs", 5000, 0},
+		{"10000res_0pctOwnerRefs", 10000, 0},
 
 		// Typical case: ~80% of resources have owner refs (pods owned by RS, RS owned by Deployment)
-		{"1000res_80pctOwnerRefs", 1000, 80, 1},
-		{"5000res_80pctOwnerRefs", 5000, 80, 1},
-		{"10000res_80pctOwnerRefs", 10000, 80, 1},
+		{"1000res_80pctOwnerRefs", 1000, 80},
+		{"5000res_80pctOwnerRefs", 5000, 80},
+		{"10000res_80pctOwnerRefs", 10000, 80},
 
 		// Heavy case: all resources have owner refs
-		{"1000res_100pctOwnerRefs", 1000, 100, 1},
-		{"5000res_100pctOwnerRefs", 5000, 100, 1},
-		{"10000res_100pctOwnerRefs", 10000, 100, 1},
+		{"1000res_100pctOwnerRefs", 1000, 100},
+		{"5000res_100pctOwnerRefs", 5000, 100},
+		{"10000res_100pctOwnerRefs", 10000, 100},
 
 		// Stress test: larger scale
-		{"20000res_80pctOwnerRefs", 20000, 80, 1},
+		{"20000res_80pctOwnerRefs", 20000, 80},
 	}
 
 	for _, tc := range testCases {
@@ -2508,13 +2512,8 @@ func BenchmarkSync_ParentToChildrenIndex(b *testing.B) {
 			b.ReportAllocs()
 
 			for n := 0; n < b.N; n++ {
-				// Reset the cluster state to force a full sync
-				cluster.lock.Lock()
-				cluster.resources = make(map[kube.ResourceKey]*Resource)
-				cluster.nsIndex = make(map[string]map[kube.ResourceKey]*Resource)
-				cluster.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
-				cluster.lock.Unlock()
-
+				// sync() reinitializes resources, parentUIDToChildren, etc. at the start,
+				// so no manual reset is needed here.
 				err := cluster.sync()
 				if err != nil {
 					b.Fatal(err)
@@ -2525,8 +2524,8 @@ func BenchmarkSync_ParentToChildrenIndex(b *testing.B) {
 }
 
 // BenchmarkUpdateParentUIDToChildren measures the cost of incremental index updates
-// during setNode. This is called for EVERY resource during sync, and includes O(k)
-// duplicate checking where k is the number of existing children per parent.
+// during setNode. This is called for EVERY resource during sync. The index uses
+// set-based storage so add/remove operations are O(1) regardless of children count.
 func BenchmarkUpdateParentUIDToChildren(b *testing.B) {
 	testCases := []struct {
 		name            string
@@ -2574,7 +2573,7 @@ func BenchmarkUpdateParentUIDToChildren(b *testing.B) {
 			b.ReportAllocs()
 
 			for n := 0; n < b.N; n++ {
-				// Simulate adding a new child - this will scan all existing children
+				// Simulate adding a new child - O(1) set insertion
 				cluster.addToParentUIDToChildren(parentUID, newChildKey)
 				// Remove it so we can add it again in the next iteration
 				cluster.removeFromParentUIDToChildren(parentUID, newChildKey)
@@ -2636,7 +2635,7 @@ func BenchmarkIncrementalIndexBuild(b *testing.B) {
 				// Clear the index
 				cluster.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
 
-				// Simulate incremental adds (with duplicate checking)
+				// Simulate incremental adds (O(1) set insertions)
 				for _, child := range children {
 					cluster.addToParentUIDToChildren(child.parentUID, child.childKey)
 				}
