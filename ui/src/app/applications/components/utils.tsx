@@ -1705,6 +1705,14 @@ export function getAppUrl(app: appModels.Application): string {
     return `applications/${app.metadata.namespace}/${app.metadata.name}`;
 }
 
+/** RollingSync step for display; backend uses -1 when no step matches the app's labels. */
+export function formatApplicationSetProgressiveSyncStep(step: string | undefined): string {
+    if (step === '-1') {
+        return 'Step: unmatched label';
+    }
+    return `Step: ${step ?? ''}`;
+}
+
 export const getProgressiveSyncStatusIcon = ({status, isButton}: {status: string; isButton?: boolean}) => {
     const getIconProps = () => {
         switch (status) {
