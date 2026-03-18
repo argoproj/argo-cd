@@ -552,3 +552,33 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 	}
 	return !canSync, nil
 }
+
+// validateSyncPermissions checks whether the given resource is permitted by the project's
+// allow/deny lists and destination rules. It returns an error if the API resource info is nil
+// (preventing a nil-pointer panic), if the resource's group/kind is not permitted, or if
+// the resource's namespace is not an allowed destination.
+func validateSyncPermissions(
+	project *v1alpha1.AppProject,
+	destCluster *v1alpha1.Cluster,
+	getProjectClusters func(string) ([]*v1alpha1.Cluster, error),
+	un *unstructured.Unstructured,
+	res *metav1.APIResource,
+) error {
+	if res == nil {
+		return fmt.Errorf("failed to get API resource info for %s/%s: unable to verify permissions", un.GroupVersionKind().Group, un.GroupVersionKind().Kind)
+	}
+	if !project.IsGroupKindNamePermitted(un.GroupVersionKind().GroupKind(), un.GetName(), res.Namespaced) {
+		return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, project.Name)
+	}
+	if res.Namespaced {
+		permitted, err := project.IsDestinationPermitted(destCluster, un.GetNamespace(), getProjectClusters)
+		if err != nil {
+			return err
+		}
+
+		if !permitted {
+			return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), project.Name)
+		}
+	}
+	return nil
+}
