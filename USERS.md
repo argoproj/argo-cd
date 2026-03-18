@@ -380,6 +380,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Tailor Brands](https://www.tailorbrands.com)
 1. [Tamkeen Technologies](https://tamkeentech.sa/)
 1. [TBC Bank](https://tbcbank.ge/)
+1. [Techcom Securities](https://www.tcbs.com.vn/)
 1. [Techcombank](https://www.techcombank.com.vn/trang-chu)
 1. [Technacy](https://www.technacy.it/)
 1. [Telavita](https://www.telavita.com.br/)
