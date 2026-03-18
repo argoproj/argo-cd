@@ -5,10 +5,12 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
@@ -80,7 +82,7 @@ func TestPodExists(t *testing.T) {
 	}
 }
 
-func TestContainerExist(t *testing.T) {
+func TestContainerRunning(t *testing.T) {
 	for _, tcase := range []struct {
 		name           string
 		pod            *corev1.Pod
@@ -100,24 +102,90 @@ func TestContainerExist(t *testing.T) {
 			expectedResult: false,
 		},
 		{
-			name: "container exists",
+			name: "container running",
 			pod: &corev1.Pod{
-				Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "test", Image: "test"}}},
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name: "test",
+							State: corev1.ContainerState{
+								Running: &corev1.ContainerStateRunning{
+									StartedAt: metav1.NewTime(time.Now()),
+								},
+							},
+						},
+					},
+				},
 			},
 			containerName:  "test",
 			expectedResult: true,
 		},
 		{
-			name: "container exists",
+			name: "init container running",
 			pod: &corev1.Pod{
-				Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "test", Image: "test"}}, InitContainers: []corev1.Container{{Name: "test-init", Image: "test"}}},
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name: "test",
+							State: corev1.ContainerState{
+								Running: &corev1.ContainerStateRunning{
+									StartedAt: metav1.NewTime(time.Now()),
+								},
+							},
+						},
+					},
+					InitContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name: "test-init",
+							State: corev1.ContainerState{
+								Running: &corev1.ContainerStateRunning{
+									StartedAt: metav1.NewTime(time.Now()),
+								},
+							},
+						},
+					},
+				},
 			},
 			containerName:  "test-init",
 			expectedResult: true,
 		},
+		{
+			name: "container not running",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					ContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name: "test",
+							State: corev1.ContainerState{
+								Running: nil,
+							},
+						},
+					},
+				},
+			},
+			containerName:  "test",
+			expectedResult: false,
+		},
+		{
+			name: "init container not running",
+			pod: &corev1.Pod{
+				Status: corev1.PodStatus{
+					InitContainerStatuses: []corev1.ContainerStatus{
+						{
+							Name: "test-init",
+							State: corev1.ContainerState{
+								Running: nil,
+							},
+						},
+					},
+				},
+			},
+			containerName:  "test-init",
+			expectedResult: false,
+		},
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
-			result := ContainerExists(tcase.pod, tcase.containerName)
+			result := containerRunning(tcase.pod, tcase.containerName)
 			assert.Equalf(t, tcase.expectedResult, result, "Expected result %v, but got %v", tcase.expectedResult, result)
 		})
 	}

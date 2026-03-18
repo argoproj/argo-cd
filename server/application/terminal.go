@@ -210,14 +210,9 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if pod.Status.Phase != corev1.PodRunning {
-		http.Error(w, "Pod not running", http.StatusBadRequest)
-		return
-	}
-
-	if !ContainerExists(pod, container) {
-		fieldLog.Warn("terminal container not found")
-		http.Error(w, "Cannot find container", http.StatusBadRequest)
+	if !containerRunning(pod, container) {
+		fieldLog.Warn("terminal container not running")
+		http.Error(w, "container find running", http.StatusBadRequest)
 		return
 	}
 
@@ -266,13 +261,21 @@ func podExists(treeNodes []appv1.ResourceNode, podName, namespace string) bool {
 	return false
 }
 
-func ContainerExists(pod *corev1.Pod, containerName string) bool {
-	allContainers := slices.Concat(pod.Spec.Containers, pod.Spec.InitContainers)
+func containerRunning(pod *corev1.Pod, containerName string) bool {
+	targetIdx := slices.IndexFunc(pod.Status.ContainerStatuses, func(c corev1.ContainerStatus) bool {
+		return c.Name == containerName
+	})
 
-	for _, c := range allContainers {
-		if containerName == c.Name {
-			return true
-		}
+	if targetIdx != -1 {
+		return pod.Status.ContainerStatuses[targetIdx].State.Running != nil
+	}
+
+	targetIdx = slices.IndexFunc(pod.Status.InitContainerStatuses, func(c corev1.ContainerStatus) bool {
+		return c.Name == containerName
+	})
+
+	if targetIdx != -1 {
+		return pod.Status.InitContainerStatuses[targetIdx].State.Running != nil
 	}
 
 	return false
