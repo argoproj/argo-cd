@@ -3,7 +3,7 @@
 Argo CD permits declaring criteria for application sources integrity that, when not met, will prevent an application from syncing with a `ResourceComparison` error.
 This is useful to verify the sources have not been tempered with by an unauthorized contributor.
 
-Each Application Project can have its criteria configured in `.spec.sourceIntegrity`.
+Each Application Project can have its criteria configured in `AppProject`'s `.spec.sourceIntegrity`.
 The criteria distinguish a type of verification they perform, and to which sources they apply.
 
 Each application can be a subject or multiple checks, and the sync will be enabled only when all criteria are met.
@@ -19,7 +19,7 @@ Each application can be a subject or multiple checks, and the sync will be enabl
 
 ## Supported methods
 
-- [Git GnuPG verification](./source-integrity-git-gpg.md) is the modern method of the commit signature verification originally configured in `AppProjects`'s `signatureKeys`.
+- [Git GnuPG verification](./source-integrity-git-gpg.md) verifies that Git commits are GnuPG Signed. This is a modern method of the commit signature verification originally configured in `AppProjects`'s `signatureKeys`.
 
 ## Multi-source applications
 
