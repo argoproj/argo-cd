@@ -13,12 +13,13 @@ import (
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	"github.com/argoproj/argo-cd/v3/util/session"
 )
 
 // NewReloginCommand returns a new instance of `argocd relogin` command
-func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		password         string
 		callback         string
@@ -36,7 +37,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
+			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 			if localCfg == nil {
 				log.Fatalf("No context found. Login using `argocd login`")
@@ -46,23 +47,23 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 
 			var tokenString string
 			var refreshToken string
-			clientOpts := argocdclient.ClientOptions{
+			reloginOpts := argocdclient.ClientOptions{
 				ConfigPath:        "",
 				ServerAddr:        configCtx.Server.Server,
 				Insecure:          configCtx.Server.Insecure,
-				ClientCertFile:    globalClientOpts.ClientCertFile,
-				ClientCertKeyFile: globalClientOpts.ClientCertKeyFile,
-				GRPCWeb:           globalClientOpts.GRPCWeb,
-				GRPCWebRootPath:   globalClientOpts.GRPCWebRootPath,
+				ClientCertFile:    clientOpts.ClientCertFile,
+				ClientCertKeyFile: clientOpts.ClientCertKeyFile,
+				GRPCWeb:           clientOpts.GRPCWeb,
+				GRPCWebRootPath:   clientOpts.GRPCWebRootPath,
 				PlainText:         configCtx.Server.PlainText,
-				Headers:           globalClientOpts.Headers,
+				Headers:           clientOpts.Headers,
 			}
-			acdClient := headless.NewClientOrDie(&clientOpts, c)
+			acdClient := headless.NewClientOrDie(&reloginOpts, c)
 			claims, err := configCtx.User.Claims()
 			errors.CheckError(err)
-			if claims.Issuer == session.SessionManagerClaimsIssuer {
-				fmt.Printf("Relogging in as '%s'\n", localconfig.GetUsername(claims.Subject))
-				tokenString = passwordLogin(ctx, acdClient, localconfig.GetUsername(claims.Subject), password)
+			if jwtutil.StringField(claims, "iss") == session.SessionManagerClaimsIssuer {
+				fmt.Printf("Relogging in as '%s'\n", userDisplayName(claims))
+				tokenString = passwordLogin(ctx, acdClient, localconfig.GetUsername(jwtutil.StringField(claims, "sub")), password)
 			} else {
 				fmt.Println("Reinitiating SSO login")
 				setConn, setIf := acdClient.NewSettingsClientOrDie()
@@ -82,11 +83,11 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				AuthToken:    tokenString,
 				RefreshToken: refreshToken,
 			})
-			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
+			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 			errors.CheckError(err)
 			fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
 		},
-		Example: `  
+		Example: `
 # Reinitiates the login with previous contexts
 argocd relogin
 

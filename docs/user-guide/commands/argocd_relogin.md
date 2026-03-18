@@ -15,7 +15,7 @@ argocd relogin [flags]
 ### Examples
 
 ```
-  
+
 # Reinitiates the login with previous contexts
 argocd relogin
 

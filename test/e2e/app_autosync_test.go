@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -23,7 +23,8 @@ func TestAutoSyncSelfHealDisabled(t *testing.T) {
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: false}}
+			selfHeal := false
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: &selfHeal}}
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -50,8 +51,9 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
+			selfHeal := true
 			app.Spec.SyncPolicy = &SyncPolicy{
-				Automated: &SyncPolicyAutomated{SelfHeal: true},
+				Automated: &SyncPolicyAutomated{SelfHeal: &selfHeal},
 				Retry:     &RetryStrategy{Limit: 0},
 			}
 		}).
@@ -109,7 +111,7 @@ func TestAutoSyncRetryAndRefreshEnabled(t *testing.T) {
 					Refresh: true,
 					Backoff: &Backoff{
 						Duration:    time.Second.String(),
-						Factor:      ptr.To(int64(1)),
+						Factor:      new(int64(1)),
 						MaxDuration: time.Second.String(),
 					},
 				},
@@ -149,7 +151,7 @@ func TestAutoSyncRetryAndRefreshEnabledChangedSource(t *testing.T) {
 					Refresh: true,
 					Backoff: &Backoff{
 						Duration:    time.Second.String(),
-						Factor:      ptr.To(int64(1)),
+						Factor:      new(int64(1)),
 						MaxDuration: time.Second.String(),
 					},
 				},
@@ -183,4 +185,31 @@ func TestAutoSyncRetryAndRefreshEnabledChangedSource(t *testing.T) {
 			}
 			return true, ""
 		}))
+}
+
+// TestAutoSyncAllowEmptyCanBeDisabled verifies that setting allowEmpty=false via CLI is persisted.
+// Regression test: with bool+omitempty, false was silently dropped from JSON so the field could never be unset.
+func TestAutoSyncAllowEmptyCanBeDisabled(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateFromFile(func(app *Application) {
+			allowEmpty := true
+			app.Spec.SyncPolicy = &SyncPolicy{
+				Automated: &SyncPolicyAutomated{AllowEmpty: &allowEmpty},
+			}
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Spec.SyncPolicy.Automated.AllowEmpty)
+			assert.True(t, *app.Spec.SyncPolicy.Automated.AllowEmpty)
+		}).
+		When().
+		AppSet("--allow-empty=false").
+		Then().
+		And(func(app *Application) {
+			require.NotNil(t, app.Spec.SyncPolicy.Automated.AllowEmpty, "allowEmpty should not be nil after being explicitly set to false")
+			assert.False(t, *app.Spec.SyncPolicy.Automated.AllowEmpty, "allowEmpty=false should be persisted, not silently dropped")
+		})
 }
