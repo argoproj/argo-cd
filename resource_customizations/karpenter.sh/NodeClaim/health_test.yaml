@@ -23,3 +23,7 @@ tests:
       status: Suspended
       message: "TTL expired"
     inputPath: testdata/suspended_disrupting.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Node initialized, waiting for Ready"
+    inputPath: testdata/progressing_initialized.yaml

@@ -1,4 +1,11 @@
 local hs = {}
+if obj.metadata.generation ~= nil and obj.status ~= nil and obj.status.observedGeneration ~= nil then
+  if obj.metadata.generation ~= obj.status.observedGeneration then
+    hs.status = "Progressing"
+    hs.message = "Waiting for NodeClaim spec to be reconciled"
+    return hs
+  end
+end
 if obj.status ~= nil and obj.status.conditions ~= nil then
 
   -- Disrupting takes priority: node is being terminated/consolidated/expired
