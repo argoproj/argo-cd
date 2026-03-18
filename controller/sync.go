@@ -42,10 +42,6 @@ const (
 	// EnvVarSyncWaveDelay is an environment variable which controls the delay in seconds between
 	// each sync-wave
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
-
-	// serviceAccountDisallowedCharSet contains the characters that are not allowed to be present
-	// in a DefaultServiceAccount configured for a DestinationServiceAccount
-	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
 
 func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Resources, error) {
