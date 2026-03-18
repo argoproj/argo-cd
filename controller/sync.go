@@ -32,10 +32,10 @@ import (
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
-	"github.com/argoproj/argo-cd/v3/util/clusterauth"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/lua"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -283,7 +283,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		return
 	}
 	if impersonationEnabled {
-		serviceAccountToImpersonate, err := clusterauth.DeriveServiceAccountToImpersonate(project, app, destCluster)
+		serviceAccountToImpersonate, err := settings.DeriveServiceAccountToImpersonate(project, app, destCluster)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)

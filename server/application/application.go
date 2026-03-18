@@ -15,7 +15,6 @@ import (
 	"time"
 
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
-	"github.com/argoproj/argo-cd/v3/util/clusterauth"
 
 	kubecache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
@@ -1397,7 +1396,7 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 		return config, nil
 	}
 
-	user, err := clusterauth.DeriveServiceAccountToImpersonate(p, a, cluster)
+	user, err := settings.DeriveServiceAccountToImpersonate(p, a, cluster)
 	if err != nil {
 		return nil, fmt.Errorf("error deriving service account to impersonate: %w", err)
 	}
