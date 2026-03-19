@@ -1160,11 +1160,6 @@ func (m *nativeGitClient) LsSignatures(unresolvedRevision string, deep bool) ([]
 		}
 	}
 
-	_, err := m.Checkout(unresolvedRevision, true, true)
-	if err != nil {
-		return nil, err
-	}
-
 	commitSignaturesRawOut, err := m.listRawSignatures(deep)
 	if err != nil {
 		return nil, err
