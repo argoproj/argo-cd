@@ -424,6 +424,14 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 //   - copies ignored fields from the matching live resources: apply normalizer to the live resource,
 //     calculates the patch performed by normalizer and applies the patch to the target resource
 func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
+	// If there are no ignore differences rules configured, normalization is a no-op.
+	// Running normalization without ignore rules can corrupt target resources for CRDs
+	// that lack a registered Kubernetes scheme (e.g., Argo Rollouts), because the merge
+	// patch computation falls back to JSON merge patch which incorrectly handles arrays.
+	if len(cr.diffConfig.Ignores()) == 0 {
+		return cr.reconciliationResult.Target, nil
+	}
+
 	// normalize live and target resources
 	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
