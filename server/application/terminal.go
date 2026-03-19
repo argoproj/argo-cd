@@ -262,22 +262,16 @@ func podExists(treeNodes []appv1.ResourceNode, podName, namespace string) bool {
 }
 
 func containerRunning(pod *corev1.Pod, containerName string) bool {
-	targetIdx := slices.IndexFunc(pod.Status.ContainerStatuses, func(c corev1.ContainerStatus) bool {
-		return c.Name == containerName
-	})
+	return containerStatusRunning(pod.Status.ContainerStatuses, containerName) ||
+		containerStatusRunning(pod.Status.InitContainerStatuses, containerName)
+}
 
-	if targetIdx != -1 {
-		return pod.Status.ContainerStatuses[targetIdx].State.Running != nil
+func containerStatusRunning(statuses []corev1.ContainerStatus, containerName string) bool {
+	for i := range statuses {
+		if statuses[i].Name == containerName {
+			return statuses[i].State.Running != nil
+		}
 	}
-
-	targetIdx = slices.IndexFunc(pod.Status.InitContainerStatuses, func(c corev1.ContainerStatus) bool {
-		return c.Name == containerName
-	})
-
-	if targetIdx != -1 {
-		return pod.Status.InitContainerStatuses[targetIdx].State.Running != nil
-	}
-
 	return false
 }
 
