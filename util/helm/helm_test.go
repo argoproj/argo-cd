@@ -276,3 +276,61 @@ func TestSkipTests(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, objs)
 }
+
+func TestAllReposInsecure(t *testing.T) {
+	tests := []struct {
+		name     string
+		repos    []HelmRepository
+		expected bool
+	}{
+		{
+			name:     "empty repos",
+			repos:    []HelmRepository{},
+			expected: false,
+		},
+		{
+			name: "no insecure repos",
+			repos: []HelmRepository{
+				{Name: "repo1", Repo: "https://repo1.com", Creds: HelmCreds{InsecureSkipVerify: false}},
+				{Name: "repo2", Repo: "https://repo2.com", Creds: HelmCreds{InsecureSkipVerify: false}},
+			},
+			expected: false,
+		},
+		{
+			name: "one insecure repo among secure repos",
+			repos: []HelmRepository{
+				{Name: "repo1", Repo: "https://repo1.com", Creds: HelmCreds{InsecureSkipVerify: false}},
+				{Name: "repo2", Repo: "https://repo2.com", Creds: HelmCreds{InsecureSkipVerify: true}},
+			},
+			expected: false,
+		},
+		{
+			name: "all insecure repos",
+			repos: []HelmRepository{
+				{Name: "repo1", Repo: "https://repo1.com", Creds: HelmCreds{InsecureSkipVerify: true}},
+				{Name: "repo2", Repo: "https://repo2.com", Creds: HelmCreds{InsecureSkipVerify: true}},
+			},
+			expected: true,
+		},
+		{
+			name: "single insecure repo",
+			repos: []HelmRepository{
+				{Name: "repo1", Repo: "https://repo1.com", Creds: HelmCreds{InsecureSkipVerify: true}},
+			},
+			expected: true,
+		},
+		{
+			name: "single secure repo",
+			repos: []HelmRepository{
+				{Name: "repo1", Repo: "https://repo1.com", Creds: HelmCreds{InsecureSkipVerify: false}},
+			},
+			expected: false,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := allReposInsecure(tc.repos)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}

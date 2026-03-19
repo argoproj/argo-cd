@@ -174,3 +174,42 @@ func TestRegistryLogout(t *testing.T) {
 		})
 	}
 }
+
+func TestDependencyBuild(t *testing.T) {
+	tests := []struct {
+		name                  string
+		insecureSkipTLSVerify bool
+		execErr               error
+		expectedErr           error
+		expectedOut           string
+	}{
+		{
+			name:                  "without insecure flag",
+			insecureSkipTLSVerify: false,
+			expectedOut:           "helm dependency build",
+		},
+		{
+			name:                  "with insecure flag",
+			insecureSkipTLSVerify: true,
+			expectedOut:           "helm dependency build --insecure-skip-tls-verify",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+				if tc.execErr != nil {
+					return "", tc.execErr
+				}
+				return strings.Join(cmd.Args, " "), nil
+			})
+			require.NoError(t, err)
+			out, err := c.dependencyBuild(tc.insecureSkipTLSVerify)
+			assert.Equal(t, tc.expectedOut, out)
+			if tc.expectedErr != nil {
+				require.EqualError(t, err, tc.expectedErr.Error())
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

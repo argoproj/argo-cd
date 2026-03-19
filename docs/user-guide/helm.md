@@ -782,3 +782,14 @@ spec:
     helm:
       skipTests: true # or false
 ```
+
+## Helm Chart dependencies with self-signed certificates
+
+When using Helm chart dependencies from repositories with self-signed certificates, `helm dependency build` may fail with `x509: certificate signed by unknown authority`.
+
+To resolve this, configure **all** helm repositories used by the chart with `insecure: true`. The `--insecure-skip-tls-verify` flag will only be passed to `helm dependency build` if **all** repositories are configured as insecure.
+
+This is a security measure to prevent accidentally bypassing TLS verification for secure repositories, however useful when only a single repository is present and is marked as insecure.
+
+> [!WARNING]
+> Using `insecure: "true"` bypasses TLS certificate verification, use only in trusted environments.
