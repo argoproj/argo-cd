@@ -27,3 +27,7 @@ tests:
       status: Progressing
       message: "Node initialized, waiting for Ready"
     inputPath: testdata/progressing_initialized.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for NodeClaim to be launched"
+    inputPath: testdata/progressing_readyUnknown.yaml
