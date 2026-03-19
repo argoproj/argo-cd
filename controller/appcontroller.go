@@ -62,6 +62,7 @@ import (
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/stats"
 
 	"github.com/argoproj/argo-cd/v3/pkg/ratelimiter"
@@ -1482,7 +1483,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 
 			// Remove the desired revisions if the sync failed and we are retrying. The latest revision from the source will be used.
 			extraMsg := ""
-			if state.Operation.Retry.Refresh {
+			if state.Operation.Retry.Refresh || hasSymbolicTargetRevision(state.Operation.Sync, app) {
 				extraMsg += " with latest revisions"
 				state.Operation.Sync.Revision = ""
 				state.Operation.Sync.Revisions = nil
@@ -2323,6 +2324,44 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	ctrl.logAppEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: corev1.EventTypeNormal}, message)
 	logCtx.Info(message)
 	return nil, setOpTime
+}
+
+// hasSymbolicTargetRevision returns true if any source in the sync operation has
+// a target revision that is not a literal commit SHA (e.g., HEAD, a branch name,
+// or a tag). When a sync retry occurs, symbolic target revisions should be
+// re-resolved to the latest commit to avoid applying stale manifests.
+func hasSymbolicTargetRevision(syncOp *appv1.SyncOperation, app *appv1.Application) bool {
+	if syncOp == nil {
+		return false
+	}
+
+	// For multi-source apps, check each source's target revision.
+	if len(syncOp.Sources) > 0 {
+		for _, source := range syncOp.Sources {
+			targetRev := source.TargetRevision
+			if targetRev == "" {
+				// Empty target revision defaults to HEAD, which is symbolic.
+				return true
+			}
+			if !git.IsCommitSHA(targetRev) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// For single-source apps, check the operation's source or fall back to the app spec.
+	var targetRev string
+	if syncOp.Source != nil {
+		targetRev = syncOp.Source.TargetRevision
+	} else {
+		targetRev = app.Spec.GetSource().TargetRevision
+	}
+	if targetRev == "" {
+		// Empty target revision defaults to HEAD, which is symbolic.
+		return true
+	}
+	return !git.IsCommitSHA(targetRev)
 }
 
 // alreadyAttemptedSync returns whether the most recently synced revision(s) exactly match the given desiredRevisions

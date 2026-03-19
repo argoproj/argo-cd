@@ -2640,6 +2640,253 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailedBackoff(t *testing.
 	ctrl.processRequestedAppOperation(app)
 }
 
+func TestHasSymbolicTargetRevision(t *testing.T) {
+	tests := []struct {
+		name     string
+		syncOp   *v1alpha1.SyncOperation
+		app      *v1alpha1.Application
+		expected bool
+	}{
+		{
+			name:     "nil sync operation",
+			syncOp:   nil,
+			app:      newFakeApp(),
+			expected: false,
+		},
+		{
+			name: "single source with HEAD target revision",
+			syncOp: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/example/repo.git",
+					TargetRevision: "HEAD",
+				},
+			},
+			app:      newFakeApp(),
+			expected: true,
+		},
+		{
+			name: "single source with branch name target revision",
+			syncOp: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/example/repo.git",
+					TargetRevision: "main",
+				},
+			},
+			app:      newFakeApp(),
+			expected: true,
+		},
+		{
+			name: "single source with tag target revision",
+			syncOp: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/example/repo.git",
+					TargetRevision: "v1.0.0",
+				},
+			},
+			app:      newFakeApp(),
+			expected: true,
+		},
+		{
+			name: "single source with empty target revision (defaults to HEAD)",
+			syncOp: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/example/repo.git",
+					TargetRevision: "",
+				},
+			},
+			app:      newFakeApp(),
+			expected: true,
+		},
+		{
+			name: "single source with literal SHA target revision",
+			syncOp: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/example/repo.git",
+					TargetRevision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				},
+			},
+			app:      newFakeApp(),
+			expected: false,
+		},
+		{
+			name:   "no source in sync op falls back to app spec with empty target revision",
+			syncOp: &v1alpha1.SyncOperation{},
+			app:    newFakeApp(),
+			// The fake app's spec source has no targetRevision, which defaults to HEAD (symbolic).
+			expected: true,
+		},
+		{
+			name: "multi-source with all SHAs",
+			syncOp: &v1alpha1.SyncOperation{
+				Sources: v1alpha1.ApplicationSources{
+					{RepoURL: "https://github.com/example/repo1.git", TargetRevision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+					{RepoURL: "https://github.com/example/repo2.git", TargetRevision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+				},
+			},
+			app:      newFakeApp(),
+			expected: false,
+		},
+		{
+			name: "multi-source with one symbolic ref",
+			syncOp: &v1alpha1.SyncOperation{
+				Sources: v1alpha1.ApplicationSources{
+					{RepoURL: "https://github.com/example/repo1.git", TargetRevision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+					{RepoURL: "https://github.com/example/repo2.git", TargetRevision: "main"},
+				},
+			},
+			app:      newFakeApp(),
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hasSymbolicTargetRevision(tt.syncOp, tt.app)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestProcessRequestedAppOperation_RetryClearsRevisionForSymbolicRef(t *testing.T) {
+	// Simulate a retry scenario where the sync operation has a resolved (stale) SHA
+	// but the source's targetRevision is symbolic (HEAD). The retry should clear
+	// the resolved revision so it gets re-resolved to the latest commit.
+	failedAttemptFinishedAt := time.Now().Add(-time.Minute * 5)
+	app := newFakeApp()
+	staleSHA := "cccccccccccccccccccccccccccccccccccccccc"
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{
+			Revision: staleSHA,
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "some/path",
+				TargetRevision: "HEAD",
+			},
+		},
+		Retry: v1alpha1.RetryStrategy{Limit: 3},
+	}
+	app.Status.OperationState.Operation = *app.Operation
+	app.Status.OperationState.Phase = synccommon.OperationRunning
+	app.Status.OperationState.RetryCount = 1
+	app.Status.OperationState.FinishedAt = &metav1.Time{Time: failedAttemptFinishedAt}
+	app.Status.OperationState.SyncResult = &v1alpha1.SyncOperationResult{
+		Revision: staleSHA,
+		Source: v1alpha1.ApplicationSource{
+			RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+			Path:    "some/path",
+		},
+		Resources: []*v1alpha1.ResourceResult{{
+			Name:   "guestbook",
+			Kind:   "Deployment",
+			Group:  "apps",
+			Status: synccommon.ResultCodeSyncFailed,
+		}},
+	}
+
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(t.Context(), data, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	var allPatches []map[string]any
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			patch := map[string]any{}
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patch))
+			allPatches = append(allPatches, patch)
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	// The first patch is the retry state update, subsequent patches are from the sync.
+	// Check the first patch to verify the retry cleared the revision.
+	require.NotEmpty(t, allPatches, "expected at least one patch")
+	retryPatch := allPatches[0]
+
+	// Verify the retry message indicates latest revisions are being used
+	message, _, _ := unstructured.NestedString(retryPatch, "status", "operationState", "message")
+	assert.Contains(t, message, "with latest revisions", "retry with symbolic targetRevision should re-resolve revisions")
+
+	// Verify the operation's sync revision was cleared (not the stale SHA)
+	syncRevision, _, _ := unstructured.NestedString(retryPatch, "status", "operationState", "operation", "sync", "revision")
+	assert.Empty(t, syncRevision, "resolved revision should be cleared on retry for symbolic target revision")
+}
+
+func TestProcessRequestedAppOperation_RetryPreservesRevisionForLiteralSHA(t *testing.T) {
+	// When the source's targetRevision is a literal commit SHA, the retry should
+	// preserve the resolved revision since a SHA always points to the same commit.
+	failedAttemptFinishedAt := time.Now().Add(-time.Minute * 5)
+	app := newFakeApp()
+	literalSHA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{
+			Revision: literalSHA,
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "some/path",
+				TargetRevision: literalSHA,
+			},
+		},
+		Retry: v1alpha1.RetryStrategy{Limit: 3},
+	}
+	app.Status.OperationState.Operation = *app.Operation
+	app.Status.OperationState.Phase = synccommon.OperationRunning
+	app.Status.OperationState.RetryCount = 1
+	app.Status.OperationState.FinishedAt = &metav1.Time{Time: failedAttemptFinishedAt}
+	app.Status.OperationState.SyncResult = &v1alpha1.SyncOperationResult{
+		Revision: literalSHA,
+		Source: v1alpha1.ApplicationSource{
+			RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+			Path:    "some/path",
+		},
+		Resources: []*v1alpha1.ResourceResult{{
+			Name:   "guestbook",
+			Kind:   "Deployment",
+			Group:  "apps",
+			Status: synccommon.ResultCodeSyncFailed,
+		}},
+	}
+
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(t.Context(), data, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	var allPatches []map[string]any
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			patch := map[string]any{}
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patch))
+			allPatches = append(allPatches, patch)
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	// The first patch is the retry state update.
+	require.NotEmpty(t, allPatches, "expected at least one patch")
+	retryPatch := allPatches[0]
+
+	// Verify the retry message does NOT mention latest revisions
+	message, _, _ := unstructured.NestedString(retryPatch, "status", "operationState", "message")
+	assert.NotContains(t, message, "with latest revisions", "retry with literal SHA targetRevision should not re-resolve revisions")
+}
+
 func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	app := newFakeApp()
 	app.Operation = &v1alpha1.Operation{
