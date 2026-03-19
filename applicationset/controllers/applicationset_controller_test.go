@@ -8279,17 +8279,16 @@ func TestReconcileProgressiveSyncDisabled(t *testing.T) {
 	}
 }
 
-func TestGetEarliestWaitingTransitionTimeNeedingReconciliation(t *testing.T) {
+func TestGetLatestWaitingTransitionTimeOfAppset(t *testing.T) {
 	now := metav1.Now()
 	earlierTime := metav1.NewTime(now.Add(-5 * time.Minute))
 	laterTime := metav1.NewTime(now.Add(-2 * time.Minute))
-	afterTransition := metav1.NewTime(laterTime.Add(1 * time.Minute))
+	muchLater := metav1.NewTime(now.Add(1 * time.Minute))
 
 	tests := []struct {
-		name         string
-		appset       *v1alpha1.ApplicationSet
-		applications []v1alpha1.Application
-		expected     *metav1.Time
+		name     string
+		appset   *v1alpha1.ApplicationSet
+		expected *metav1.Time
 	}{
 		{
 			name: "no applications in waiting state",
@@ -8305,8 +8304,7 @@ func TestGetEarliestWaitingTransitionTimeNeedingReconciliation(t *testing.T) {
 					},
 				},
 			},
-			applications: []v1alpha1.Application{},
-			expected:     nil,
+			expected: nil,
 		},
 		{
 			name: "brand new application in waiting state (no pending changes message) returns nil",
@@ -8322,11 +8320,10 @@ func TestGetEarliestWaitingTransitionTimeNeedingReconciliation(t *testing.T) {
 					},
 				},
 			},
-			applications: []v1alpha1.Application{},
-			expected:     nil,
+			expected: nil,
 		},
 		{
-			name: "application with pending changes needs reconciliation",
+			name: "single application with pending changes returns its LastTransitionTime",
 			appset: &v1alpha1.ApplicationSet{
 				Status: v1alpha1.ApplicationSetStatus{
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
@@ -8340,21 +8337,10 @@ func TestGetEarliestWaitingTransitionTimeNeedingReconciliation(t *testing.T) {
 					},
 				},
 			},
-			applications: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
-					Status: v1alpha1.ApplicationStatus{
-						ReconciledAt: &earlierTime, // Reconciled before transition
-						Sync: v1alpha1.SyncStatus{
-							Revision: "old-revision",
-						},
-					},
-				},
-			},
 			expected: &now,
 		},
 		{
-			name: "multiple applications with pending changes returns earliest needing reconciliation",
+			name: "multiple waiting apps with pending changes returns latest LastTransitionTime",
 			appset: &v1alpha1.ApplicationSet{
 				Status: v1alpha1.ApplicationSetStatus{
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
@@ -8381,26 +8367,34 @@ func TestGetEarliestWaitingTransitionTimeNeedingReconciliation(t *testing.T) {
 					},
 				},
 			},
-			applications: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
-					Status: v1alpha1.ApplicationStatus{
-						ReconciledAt: &earlierTime,
-						Sync:         v1alpha1.SyncStatus{Revision: "old-rev"},
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app2"},
-					Status: v1alpha1.ApplicationStatus{
-						ReconciledAt: &earlierTime,
-						Sync:         v1alpha1.SyncStatus{Revision: "old-rev"},
+			expected: &laterTime,
+		},
+		{
+			name: "second app entered waiting later anchors reconcile window to that time",
+			appset: &v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &earlierTime,
+							Message:            "Application has pending changes, setting status to Waiting",
+							TargetRevisions:    []string{"new-rev"},
+						},
+						{
+							Application:        "app2",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							LastTransitionTime: &muchLater,
+							Message:            "Application has pending changes, setting status to Waiting",
+							TargetRevisions:    []string{"new-rev"},
+						},
 					},
 				},
 			},
-			expected: &earlierTime,
+			expected: &muchLater,
 		},
 		{
-			name: "application already reconciled with correct revision is skipped",
+			name: "still returns latest while both apps remain Waiting (status-only; not nil until Healthy)",
 			appset: &v1alpha1.ApplicationSet{
 				Status: v1alpha1.ApplicationSetStatus{
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
@@ -8421,69 +8415,13 @@ func TestGetEarliestWaitingTransitionTimeNeedingReconciliation(t *testing.T) {
 					},
 				},
 			},
-			applications: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
-					Status: v1alpha1.ApplicationStatus{
-						ReconciledAt: &afterTransition,                         // Reconciled after transition
-						Sync:         v1alpha1.SyncStatus{Revision: "new-rev"}, // Correct revision
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app2"},
-					Status: v1alpha1.ApplicationStatus{
-						ReconciledAt: &earlierTime, // Not reconciled yet
-						Sync:         v1alpha1.SyncStatus{Revision: "old-rev"},
-					},
-				},
-			},
-			expected: &laterTime, // Only app2 needs reconciliation
-		},
-		{
-			name: "all applications reconciled after transition time, returns nil",
-			appset: &v1alpha1.ApplicationSet{
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application:        "app1",
-							Status:             v1alpha1.ProgressiveSyncWaiting,
-							LastTransitionTime: &earlierTime,
-							Message:            "Application has pending changes, setting status to Waiting",
-							TargetRevisions:    []string{"new-rev"},
-						},
-						{
-							Application:        "app2",
-							Status:             v1alpha1.ProgressiveSyncWaiting,
-							LastTransitionTime: &laterTime,
-							Message:            "Application has pending changes, setting status to Waiting",
-							TargetRevisions:    []string{"new-rev"},
-						},
-					},
-				},
-			},
-			applications: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
-					Status: v1alpha1.ApplicationStatus{
-						ReconciledAt: &afterTransition,                         // Reconciled after transition
-						Sync:         v1alpha1.SyncStatus{Revision: "new-rev"}, // Correct revision
-					},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app2"},
-					Status: v1alpha1.ApplicationStatus{
-						ReconciledAt: &afterTransition,                         // Reconciled after transition
-						Sync:         v1alpha1.SyncStatus{Revision: "new-rev"}, // Correct revision
-					},
-				},
-			},
-			expected: nil, // No applications needs reconcile
+			expected: &laterTime,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getEarliestWaitingTransitionTimeOfAppset(tt.appset, tt.applications)
+			result := getLatestWaitingTransitionTimeOfAppset(tt.appset)
 			if tt.expected == nil {
 				assert.Nil(t, result)
 			} else {
@@ -9002,6 +8940,7 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 							Application:        "app1",
 							Status:             v1alpha1.ProgressiveSyncWaiting,
 							LastTransitionTime: &now,
+							Message:            "Application has pending changes, setting status to Waiting",
 							TargetRevisions:    []string{"revision1"},
 						},
 					},
@@ -9114,7 +9053,8 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 				initObjs = append(initObjs, &tt.applications[i])
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).
+				WithStatusSubresource(&v1alpha1.ApplicationSet{}).Build()
 			r := ApplicationSetReconciler{
 				Client:                 client,
 				Scheme:                 scheme,
@@ -9133,6 +9073,8 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 			assert.Equal(t, tt.expectedSyncMap, syncMap)
 		})
 	}
+}
+
 func startAndSyncInformer(t *testing.T, informer cache.SharedIndexInformer) context.CancelFunc {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
