@@ -5232,6 +5232,12 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 		}
 	}
 
+	newAppWithSpec := func(name string, health health.HealthStatusCode, sync v1alpha1.SyncStatusCode, revision string, opState *v1alpha1.OperationState, spec v1alpha1.ApplicationSpec) v1alpha1.Application {
+		app := newApp(name, health, sync, revision, opState)
+		app.Spec = spec
+		return app
+	}
+
 	newOperationState := func(phase common.OperationPhase) *v1alpha1.OperationState {
 		finishedAt := &metav1.Time{Time: time.Now().Add(-1 * time.Second)}
 		if !phase.Completed() {
@@ -5248,6 +5254,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 		name              string
 		appSet            v1alpha1.ApplicationSet
 		apps              []v1alpha1.Application
+		desiredApps       []v1alpha1.Application
 		appStepMap        map[string]int
 		expectedAppStatus []v1alpha1.ApplicationSetApplicationStatus
 	}{
@@ -5401,14 +5408,14 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
-					Message:         "Application has pending changes, setting status to Waiting",
+					Message:         revisionChangedMsg,
 					Status:          v1alpha1.ProgressiveSyncWaiting,
 					Step:            "1",
 					TargetRevisions: []string{"next"},
 				},
 				{
 					Application:     "app2-multisource",
-					Message:         "Application has pending changes, setting status to Waiting",
+					Message:         revisionChangedMsg,
 					Status:          v1alpha1.ProgressiveSyncWaiting,
 					Step:            "1",
 					TargetRevisions: []string{"next"},
@@ -5848,6 +5855,191 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "detects spec changes when image tag changes in generator (same Git revision)",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
+					Step:            "1",
+					TargetRevisions: []string{"abc123"},
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newAppWithSpec("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "abc123", nil, // Changed to OutOfSync
+					v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "master",
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{Name: "image.tag", Value: "v1.0.0"},
+								},
+							},
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					}),
+			},
+			desiredApps: []v1alpha1.Application{
+				newAppWithSpec("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "abc123", nil, // Changed to OutOfSync
+					v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "master",
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{Name: "image.tag", Value: "v2.0.0"}, // Different value
+								},
+							},
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					}),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         specChangedMsg,
+					Status:          v1alpha1.ProgressiveSyncWaiting,
+					Step:            "1",
+					TargetRevisions: []string{"abc123"},
+				},
+			},
+		},
+		{
+			name: "does not detect changes when spec is identical (same Git revision)",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
+					Step:            "1",
+					TargetRevisions: []string{"abc123"},
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newAppWithSpec("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "abc123", nil,
+					v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "master",
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{Name: "image.tag", Value: "v1.0.0"},
+								},
+							},
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					}),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			// Desired apps have identical spec
+			desiredApps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "master",
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{Name: "image.tag", Value: "v1.0.0"}, // Same value
+								},
+							},
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					},
+				},
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
+					Step:            "1",
+					TargetRevisions: []string{"abc123"},
+				},
+			},
+		},
+		{
+			name: "detects both spec and revision changes",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
+					Step:            "1",
+					TargetRevisions: []string{"abc123"}, // OLD revision in status
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newAppWithSpec("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "def456", nil, // NEW revision, but OutOfSync
+					v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "master",
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{Name: "image.tag", Value: "v1.0.0"},
+								},
+							},
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					}),
+			},
+			desiredApps: []v1alpha1.Application{
+				newAppWithSpec("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "def456", nil,
+					v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "master",
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{Name: "image.tag", Value: "v2.0.0"}, // Changed value
+								},
+							},
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					}),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         revisionAndSpecChangedMsg,
+					Status:          v1alpha1.ProgressiveSyncWaiting,
+					Step:            "1",
+					TargetRevisions: []string{"def456"},
+				},
+			},
+		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
@@ -5867,7 +6059,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			appStatuses, err := r.updateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, cc.appStepMap)
+			desiredApps := cc.desiredApps
+			if desiredApps == nil {
+				desiredApps = cc.apps
+			}
+			appStatuses, err := r.updateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, desiredApps, cc.appStepMap)
 
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
