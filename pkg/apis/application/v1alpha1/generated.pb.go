@@ -6574,6 +6574,11 @@ func (m *ApplicationSetApplicationStatus) MarshalToSizedBuffer(dAtA []byte) (int
 	_ = i
 	var l int
 	_ = l
+	i -= len(m.TargetSourcesHash)
+	copy(dAtA[i:], m.TargetSourcesHash)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.TargetSourcesHash)))
+	i--
+	dAtA[i] = 0x3a
 	if len(m.TargetRevisions) > 0 {
 		for iNdEx := len(m.TargetRevisions) - 1; iNdEx >= 0; iNdEx-- {
 			i -= len(m.TargetRevisions[iNdEx])
@@ -16631,6 +16636,8 @@ func (m *ApplicationSetApplicationStatus) Size() (n int) {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
+	l = len(m.TargetSourcesHash)
+	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
 
@@ -20472,6 +20479,7 @@ func (this *ApplicationSetApplicationStatus) String() string {
 		`Status:` + fmt.Sprintf("%v", this.Status) + `,`,
 		`Step:` + fmt.Sprintf("%v", this.Step) + `,`,
 		`TargetRevisions:` + fmt.Sprintf("%v", this.TargetRevisions) + `,`,
+		`TargetSourcesHash:` + fmt.Sprintf("%v", this.TargetSourcesHash) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -25730,6 +25738,38 @@ func (m *ApplicationSetApplicationStatus) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.TargetRevisions = append(m.TargetRevisions, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TargetSourcesHash", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TargetSourcesHash = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

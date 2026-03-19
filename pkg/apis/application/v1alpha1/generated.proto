@@ -236,6 +236,10 @@ message ApplicationSetApplicationStatus {
 
   // TargetRevision tracks the desired revisions the Application should be synced to.
   repeated string targetrevisions = 6;
+
+  // TargetSourcesHash tracks a hash of app.Spec.GetSources() to detect inline spec
+  // changes (e.g. valuesObject) that do not affect the git revision.
+  optional string targetsourceshash = 7;
 }
 
 // ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
