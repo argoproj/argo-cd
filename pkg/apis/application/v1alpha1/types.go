@@ -229,6 +229,15 @@ type ParamEntry struct {
 	*OptionalArray `json:",omitempty" protobuf:"bytes,4,rep,name=array"`
 }
 
+const (
+	// ParamTypeString indicates a string parameter type.
+	ParamTypeString = "string"
+	// ParamTypeMap indicates a map parameter type.
+	ParamTypeMap = "map"
+	// ParamTypeArray indicates an array parameter type.
+	ParamTypeArray = "array"
+)
+
 // NewParamEntry parses a parameter in format name=string, name=map, name=array and returns an ParamEntry object
 func NewParamEntry(text string, paramType string) (*ParamEntry, error) {
 	name, value, ok := splitOnce(text)
@@ -237,12 +246,12 @@ func NewParamEntry(text string, paramType string) (*ParamEntry, error) {
 	}
 
 	switch paramType {
-	case "string":
+	case ParamTypeString:
 		return &ParamEntry{
 			Name:        name,
 			StringValue: &value,
 		}, nil
-	case "map":
+	case ParamTypeMap:
 		mapValues, err := parseMapString(value)
 		if err != nil {
 			return nil, err
@@ -252,7 +261,7 @@ func NewParamEntry(text string, paramType string) (*ParamEntry, error) {
 			Name:        name,
 			OptionalMap: &OptionalMap{Map: mapValues},
 		}, nil
-	case "array":
+	case ParamTypeArray:
 		arrayValues := strings.Split(value, ",")
 		return &ParamEntry{
 			Name:          name,
@@ -1237,11 +1246,11 @@ func (c *ApplicationSourcePlugin) AddParamEntry(p *ParamEntry, paramType string)
 		if cp.Name == p.Name {
 			found = true
 			switch paramType {
-			case "string":
+			case ParamTypeString:
 				c.Parameters[i] = ApplicationSourcePluginParameter{Name: p.Name, String_: p.StringValue}
-			case "map":
+			case ParamTypeMap:
 				c.Parameters[i] = ApplicationSourcePluginParameter{Name: p.Name, OptionalMap: p.OptionalMap}
-			case "array":
+			case ParamTypeArray:
 				c.Parameters[i] = ApplicationSourcePluginParameter{Name: p.Name, OptionalArray: p.OptionalArray}
 			}
 			break
@@ -1250,11 +1259,11 @@ func (c *ApplicationSourcePlugin) AddParamEntry(p *ParamEntry, paramType string)
 
 	if !found {
 		switch paramType {
-		case "string":
+		case ParamTypeString:
 			c.Parameters = append(c.Parameters, ApplicationSourcePluginParameter{Name: p.Name, String_: p.StringValue})
-		case "map":
+		case ParamTypeMap:
 			c.Parameters = append(c.Parameters, ApplicationSourcePluginParameter{Name: p.Name, OptionalMap: p.OptionalMap})
-		case "array":
+		case ParamTypeArray:
 			c.Parameters = append(c.Parameters, ApplicationSourcePluginParameter{Name: p.Name, OptionalArray: p.OptionalArray})
 		}
 	}
