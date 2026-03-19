@@ -270,23 +270,23 @@ is any normal Kubernetes resource annotated with the `helm.sh/hook` annotation.
 
 Argo CD supports many (most?) Helm hooks by mapping the Helm annotations onto Argo CD's own hook annotations. This is annotation compatibility, not a guarantee that hook lifecycle semantics are identical to Helm's:
 
-| Helm Annotation                 | Notes                                                                                         |
-| ------------------------------- |-----------------------------------------------------------------------------------------------|
-| `helm.sh/hook: crd-install`     | Supported as equivalent to normal Argo CD CRD handling.                                |
-| `helm.sh/hook: pre-delete`      | Supported as equivalent to `argocd.argoproj.io/hook: PreDelete`                               |
-| `helm.sh/hook: pre-rollback`    | Not supported. Never used in Helm stable.                                                     |
-| `helm.sh/hook: pre-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
-| `helm.sh/hook: pre-upgrade`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                |
-| `helm.sh/hook: post-upgrade`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                               |
-| `helm.sh/hook: post-install`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                               |
-| `helm.sh/hook: post-delete`     | Supported as equivalent to `argocd.argoproj.io/hook: PostDelete`.                             |
-| `helm.sh/hook: post-rollback`   | Not supported. Never used in Helm stable.                                                     |
-| `helm.sh/hook: test-success`    | Not supported. No equivalent in Argo CD.                                                      |
-| `helm.sh/hook: test-failure`    | Not supported. No equivalent in Argo CD.                                                      |
+| Helm Annotation                 | Notes                                                                                                                                              |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `helm.sh/hook: crd-install`     | Supported as equivalent to normal Argo CD CRD handling.                                                                                            |
+| `helm.sh/hook: pre-delete`      | Supported as equivalent to `argocd.argoproj.io/hook: PreDelete`                                                                                    |
+| `helm.sh/hook: pre-rollback`    | Not supported. Never used in Helm stable.                                                                                                          |
+| `helm.sh/hook: pre-install`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                                                                     |
+| `helm.sh/hook: pre-upgrade`     | Supported as equivalent to `argocd.argoproj.io/hook: PreSync`.                                                                                     |
+| `helm.sh/hook: post-upgrade`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                                                                                    |
+| `helm.sh/hook: post-install`    | Supported as equivalent to `argocd.argoproj.io/hook: PostSync`.                                                                                    |
+| `helm.sh/hook: post-delete`     | Supported as equivalent to `argocd.argoproj.io/hook: PostDelete`.                                                                                  |
+| `helm.sh/hook: post-rollback`   | Not supported. Never used in Helm stable.                                                                                                          |
+| `helm.sh/hook: test-success`    | Not supported. No equivalent in Argo CD.                                                                                                           |
+| `helm.sh/hook: test-failure`    | Not supported. No equivalent in Argo CD.                                                                                                           |
 | `helm.sh/hook-delete-policy`    | Supported. Cleanup still follows Argo CD sync semantics, which can differ from Helm's hook event lifecycle. See also `argocd.argoproj.io/hook-delete-policy`. |
-| `helm.sh/hook-delete-timeout`   | Not supported. Never used in Helm stable                                                      |
-| `helm.sh/hook-weight`           | Supported as equivalent to `argocd.argoproj.io/sync-wave`.                                    |
-| `helm.sh/resource-policy: keep` | Supported as equivalent to `argocd.argoproj.io/sync-options: Delete=false`.                   |
+| `helm.sh/hook-delete-timeout`   | Not supported. Never used in Helm stable                                                                                                           |
+| `helm.sh/hook-weight`           | Supported as equivalent to `argocd.argoproj.io/sync-wave`.                                                                                         |
+| `helm.sh/resource-policy: keep` | Supported as equivalent to `argocd.argoproj.io/sync-options: Delete=false`.                                                                        |
 
 Unsupported hooks are ignored. In Argo CD, hooks are created by using `kubectl apply`, rather than `kubectl create`. This means that if the hook is named and already exists, it will not change unless you have annotated it with `before-hook-creation`.
 

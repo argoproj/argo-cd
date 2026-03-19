@@ -42,11 +42,11 @@ Argo CD offers several methods to clean up hooks and decide how much history wil
 In the most basic case you can use the argocd.argoproj.io/hook-delete-policy to decide when a hook will be deleted.
 This can take the following values:
 
-| Policy               | Description                                                                                                                     |
-|----------------------|---------------------------------------------------------------------------------------------------------------------------------|
+| Policy               | Description                                                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `HookSucceeded`      | The hook resource is deleted when the sync succeeds. For completion-based hooks such as `Job` or `Workflow`, this typically happens after the hook completes successfully. |
-| `HookFailed`         | The hook resource is deleted after the hook failed.                                                                             |
-| `BeforeHookCreation` | Any existing hook resource is deleted before the new one is created (since v1.3). It is meant to be used with `/metadata/name`. |
+| `HookFailed`         | The hook resource is deleted after the hook failed.                                                                                                |
+| `BeforeHookCreation` | Any existing hook resource is deleted before the new one is created (since v1.3). It is meant to be used with `/metadata/name`.                  |
 
 Note that if no deletion policy is specified, Argo CD will automatically assume `BeforeHookCreation` rules.
 
