@@ -13,6 +13,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
@@ -1655,4 +1656,117 @@ func dig(obj any, path ...any) any {
 	}
 
 	return i
+}
+
+func TestValidateSyncPermissions(t *testing.T) {
+	t.Parallel()
+
+	newResource := func(group, kind, name, namespace string) *unstructured.Unstructured {
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(schema.GroupVersionKind{Group: group, Version: "v1", Kind: kind})
+		obj.SetName(name)
+		obj.SetNamespace(namespace)
+		return obj
+	}
+
+	project := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-project",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			Destinations: []v1alpha1.ApplicationDestination{
+				{Namespace: "default", Server: "*"},
+			},
+		},
+	}
+
+	destCluster := &v1alpha1.Cluster{
+		Server: "https://kubernetes.default.svc",
+	}
+
+	noopGetClusters := func(_ string) ([]*v1alpha1.Cluster, error) {
+		return nil, nil
+	}
+
+	t.Run("nil APIResource returns error", func(t *testing.T) {
+		t.Parallel()
+		un := newResource("apps", "Deployment", "my-deploy", "default")
+
+		err := validateSyncPermissions(project, destCluster, noopGetClusters, un, nil)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get API resource info for apps/Deployment")
+		assert.Contains(t, err.Error(), "unable to verify permissions")
+	})
+
+	t.Run("permitted namespaced resource returns no error", func(t *testing.T) {
+		t.Parallel()
+		un := newResource("", "ConfigMap", "my-cm", "default")
+		res := &metav1.APIResource{Name: "configmaps", Namespaced: true}
+
+		err := validateSyncPermissions(project, destCluster, noopGetClusters, un, res)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("group kind not permitted returns error", func(t *testing.T) {
+		t.Parallel()
+		projectWithDenyList := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "restricted-project",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Destinations: []v1alpha1.ApplicationDestination{
+					{Namespace: "*", Server: "*"},
+				},
+				ClusterResourceBlacklist: []v1alpha1.ClusterResourceRestrictionItem{
+					{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
+				},
+			},
+		}
+		un := newResource("rbac.authorization.k8s.io", "ClusterRole", "my-role", "")
+		res := &metav1.APIResource{Name: "clusterroles", Namespaced: false}
+
+		err := validateSyncPermissions(projectWithDenyList, destCluster, noopGetClusters, un, res)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "is not permitted in project")
+	})
+
+	t.Run("namespace not permitted returns error", func(t *testing.T) {
+		t.Parallel()
+		un := newResource("", "ConfigMap", "my-cm", "kube-system")
+		res := &metav1.APIResource{Name: "configmaps", Namespaced: true}
+
+		err := validateSyncPermissions(project, destCluster, noopGetClusters, un, res)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "namespace kube-system is not permitted in project")
+	})
+
+	t.Run("cluster-scoped resource skips namespace check", func(t *testing.T) {
+		t.Parallel()
+		projectWithClusterResources := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-project",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Destinations: []v1alpha1.ApplicationDestination{
+					{Namespace: "default", Server: "*"},
+				},
+				ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{
+					{Group: "*", Kind: "*"},
+				},
+			},
+		}
+		un := newResource("", "Namespace", "my-ns", "")
+		res := &metav1.APIResource{Name: "namespaces", Namespaced: false}
+
+		err := validateSyncPermissions(projectWithClusterResources, destCluster, noopGetClusters, un, res)
+
+		assert.NoError(t, err)
+	})
 }

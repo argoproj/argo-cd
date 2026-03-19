@@ -903,6 +903,12 @@ func verifyGenerateManifests(
 		// and not whether it actually contains any manifests.
 		_, err = repoClient.GenerateManifest(ctx, &req)
 		if err != nil {
+			// A glob pattern matching no files is a runtime condition, not a spec error —
+			// the files may be added later. Skip adding an InvalidSpecError here and let
+			// the app controller surface it as a ComparisonError during reconciliation.
+			if status.Code(err) == codes.NotFound && strings.Contains(err.Error(), "matched no files") {
+				continue
+			}
 			errMessage := fmt.Sprintf("Unable to generate manifests in %s: %s", source.Path, err)
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,

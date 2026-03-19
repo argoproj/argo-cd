@@ -57,14 +57,14 @@ func TestAuthReconcileWithMissingNamespace(t *testing.T) {
 
 	_, err := k.authReconcile(context.Background(), role, "/dev/null", cmdutil.DryRunNone)
 	assert.Error(t, err)
-	assert.True(t, errors.IsNotFound(err), "returned error wasn't not found")
+	assert.True(t, errors.IsNotFound(err), "returned error should be resource not found")
 
 	roleBinding := testingutils.NewRoleBinding()
 	roleBinding.SetNamespace(namespace)
 
 	_, err = k.authReconcile(context.Background(), roleBinding, "/dev/null", cmdutil.DryRunNone)
 	assert.Error(t, err)
-	assert.True(t, errors.IsNotFound(err), "returned error wasn't not found")
+	assert.True(t, errors.IsNotFound(err), "returned error should be resource not found")
 
 	clusterRole := testingutils.NewClusterRole()
 	clusterRole.SetNamespace(namespace)
