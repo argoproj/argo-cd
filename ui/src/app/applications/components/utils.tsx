@@ -1479,6 +1479,17 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
     return {repoURL, targetRevision, path};
 }
 
+/** True when spec requests source hydration, the API server reports hydrator enabled, but the controller has not written currentOperation yet. */
+export function isWaitingForSourceHydratorController(app: appModels.Application, apiServerHydratorEnabled: boolean | null | undefined): boolean {
+    if (!app.spec.sourceHydrator) {
+        return false;
+    }
+    if (apiServerHydratorEnabled !== true) {
+        return false;
+    }
+    return !app.status?.sourceHydrator?.currentOperation;
+}
+
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
 // field.
 export function getAppDefaultSyncRevision(app?: appModels.Application) {

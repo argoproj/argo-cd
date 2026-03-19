@@ -179,7 +179,10 @@
         }
 
         &__status-button {
-            display: inline;
+            display: inline-block;
+            position: relative;
+            z-index: 1;
+            vertical-align: middle;
             border-radius: 5px;
             padding: 2px;
             border: 1px solid $argo-color-gray-5;
@@ -188,10 +191,11 @@
             }
         }
 
-    }
-
-    &__hydrator-link {
-        width: 134px;
+        &__hydrator-link {
+            @include themify($themes) {
+                color: themed('text-1');
+            }
+        }
     }
 
     &__item-name {

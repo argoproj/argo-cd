@@ -8,7 +8,7 @@ import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
-import {AppContext, Context, ContextApis} from '../../../shared/context';
+import {AppContext, AuthSettingsCtx, Context, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
 
@@ -82,6 +82,7 @@ export const SelectNode = (fullName: string, containerIndex = 0, tab: string = n
 
 export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; name: string}> & {objectListKind: string}> = props => {
     const appContext = useContext(Context);
+    const authSettings = useContext(AuthSettingsCtx);
     const appChanged = useRef(new BehaviorSubject<appModels.AbstractApplication>(null));
     const objectListKind = props.objectListKind;
 
@@ -678,6 +679,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             const selectedNode = !isAppSelected && (selectedItem as appModels.ResourceNode);
                             const operationState = isApplication ? (application as appModels.Application).status.operationState : undefined;
                             const hydrateOperationState = isApplication ? (application as appModels.Application).status.sourceHydrator?.currentOperation : undefined;
+                            const hydratePanelWaitingForController =
+                                isApplication && AppUtils.isWaitingForSourceHydratorController(application as appModels.Application, authSettings?.hydratorEnabled);
+                            const serverHydratorDisabledAtAPI =
+                                isApplication && !!(application as appModels.Application).spec.sourceHydrator && !!authSettings && !authSettings.hydratorEnabled;
+                            const hydratePanelServerDisabledOnly = serverHydratorDisabledAtAPI && !hydrateOperationState && !hydratePanelWaitingForController;
                             const conditions = application.status?.conditions || [];
                             const syncResourceKey = new URLSearchParams(props.history.location.search).get('deploy');
                             const source = isApplication ? getAppDefaultSource(application as appModels.Application) : undefined;
@@ -1193,8 +1199,21 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             </SlidingPanel>
                                         )}
                                         {isApplication && (
-                                            <SlidingPanel isShown={showHydrateOperationState && !!hydrateOperationState} onClose={() => setHydrateOperationStatusVisible(false)}>
-                                                {hydrateOperationState && <ApplicationHydrateOperationState hydrateOperationState={hydrateOperationState} />}
+                                            <SlidingPanel
+                                                isShown={
+                                                    showHydrateOperationState && (!!hydrateOperationState || hydratePanelWaitingForController || hydratePanelServerDisabledOnly)
+                                                }
+                                                onClose={() => setHydrateOperationStatusVisible(false)}>
+                                                {hydrateOperationState ? (
+                                                    <ApplicationHydrateOperationState
+                                                        hydrateOperationState={hydrateOperationState}
+                                                        serverHydratorDisabledAtAPI={serverHydratorDisabledAtAPI}
+                                                    />
+                                                ) : hydratePanelWaitingForController ? (
+                                                    <ApplicationHydrateOperationState waitingForController={true} />
+                                                ) : (
+                                                    hydratePanelServerDisabledOnly && <ApplicationHydrateOperationState serverHydratorDisabledAtAPI={true} />
+                                                )}
                                             </SlidingPanel>
                                         )}
                                         <SlidingPanel isShown={showConditions && !!conditions} onClose={() => setConditionsStatusVisible(false)}>
