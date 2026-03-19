@@ -191,9 +191,11 @@ foo:
 				},
 				useGoTemplate:   true,
 				pathParamPrefix: "myRepo",
+				commitSHA:       "commit-sha",
 			},
 			want: []map[string]any{
 				{
+					"commitSHA": "commit-sha",
 					"foo": map[string]any{
 						"bar": "baz",
 					},

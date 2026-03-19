@@ -1127,6 +1127,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator_go_templates_va
 	}
 
 	repoServiceMock := &servicesMocks.Repos{}
+	repoServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
 	repoServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
 		"some/path.json": []byte("test: content"),
 	}, nil).Maybe()
@@ -1170,6 +1171,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator_go_templates_va
 	}, client)
 	require.NoError(t, err)
 	assert.Equal(t, []map[string]any{{
+		"commitSHA": "commit-sha",
 		"path": map[string]any{
 			"basename":           "some",
 			"basenameNormalized": "some",
