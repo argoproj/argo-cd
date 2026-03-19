@@ -25,7 +25,7 @@ func TestSwaggerUI(t *testing.T) {
 		c <- listener.Addr().String()
 
 		mux := http.NewServeMux()
-		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", "")
+		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", "", "", "")
 		panic(http.Serve(listener, mux))
 	}
 
@@ -52,4 +52,68 @@ func TestSwaggerUI(t *testing.T) {
 	require.NoError(t, err)
 	require.Equalf(t, http.StatusOK, resp.StatusCode, "Was expecting status code 200 from swagger-ui, but got %d instead", resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
+}
+
+func TestSwaggerUISecurityHeaders(t *testing.T) {
+	lc := &net.ListenConfig{}
+	serve := func(c chan<- string) {
+		listener, err := lc.Listen(t.Context(), "tcp", ":0")
+		if err != nil {
+			panic(err)
+		}
+		c <- listener.Addr().String()
+
+		mux := http.NewServeMux()
+		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", "", "DENY", "frame-ancestors 'none'")
+		panic(http.Serve(listener, mux))
+	}
+
+	c := make(chan string, 1)
+	go serve(c)
+	address := <-c
+
+	serverURL := "http://" + address
+
+	for _, path := range []string{"/swagger.json", "/swagger-ui"} {
+		t.Run(path, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURL+path, http.NoBody)
+			require.NoError(t, err)
+
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			require.NoError(t, resp.Body.Close())
+
+			require.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"), "X-Frame-Options header missing on %s", path)
+			require.Equal(t, "frame-ancestors 'none'", resp.Header.Get("Content-Security-Policy"), "Content-Security-Policy header missing on %s", path)
+		})
+	}
+}
+
+func TestSwaggerUISecurityHeadersNotSetWhenEmpty(t *testing.T) {
+	lc := &net.ListenConfig{}
+	serve := func(c chan<- string) {
+		listener, err := lc.Listen(t.Context(), "tcp", ":0")
+		if err != nil {
+			panic(err)
+		}
+		c <- listener.Addr().String()
+
+		mux := http.NewServeMux()
+		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", "", "", "")
+		panic(http.Serve(listener, mux))
+	}
+
+	c := make(chan string, 1)
+	go serve(c)
+	address := <-c
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+address+"/swagger.json", http.NoBody)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+
+	require.Empty(t, resp.Header.Get("X-Frame-Options"), "X-Frame-Options should not be set when not configured")
+	require.Empty(t, resp.Header.Get("Content-Security-Policy"), "Content-Security-Policy should not be set when not configured")
 }
