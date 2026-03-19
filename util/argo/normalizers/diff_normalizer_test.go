@@ -303,12 +303,22 @@ func TestTransformJQPathExpression(t *testing.T) {
 		{
 			name:     "nested array field pattern is transformed",
 			input:    ".spec.rules[].backendRefs[].weight",
-			expected: `walk(if type == "object" and has("weight") then del(.weight) else . end)`,
+			expected: ".spec.rules |= map(.backendRefs |= map(del(.weight)))",
 		},
 		{
 			name:     "single array field pattern is transformed",
 			input:    ".spec.containers[].image",
-			expected: `walk(if type == "object" and has("image") then del(.image) else . end)`,
+			expected: ".spec.containers |= map(del(.image))",
+		},
+		{
+			name:     "non-array segments between arrays are preserved",
+			input:    ".spec.rules[].match.backendRefs[].name",
+			expected: ".spec.rules |= map(.match.backendRefs |= map(del(.name)))",
+		},
+		{
+			name:     "triple nested arrays",
+			input:    ".a[].b[].c[].field",
+			expected: ".a |= map(.b |= map(.c |= map(del(.field))))",
 		},
 		{
 			name:     "expression with pipe is not transformed",
@@ -331,7 +341,7 @@ func TestTransformJQPathExpression(t *testing.T) {
 			expected: ".spec.replicas",
 		},
 		{
-			name:     "path with less than 2 segments is not transformed",
+			name:     "bare array iterator is not transformed",
 			input:    "[]",
 			expected: "[]",
 		},
@@ -339,6 +349,26 @@ func TestTransformJQPathExpression(t *testing.T) {
 			name:     "path ending with array iterator is not transformed",
 			input:    ".spec.rules[]",
 			expected: ".spec.rules[]",
+		},
+		{
+			name:     "consecutive array iterators without path is not transformed",
+			input:    ".spec.rules[][].weight",
+			expected: ".spec.rules[][].weight",
+		},
+		{
+			name:     "array iterator without prefix path is not transformed",
+			input:    "[].backendRefs[].weight",
+			expected: "[].backendRefs[].weight",
+		},
+		{
+			name:     "field with nested dots after array is not transformed",
+			input:    ".spec.rules[].deep.nested.field",
+			expected: ".spec.rules[].deep.nested.field",
+		},
+		{
+			name:     "missing dot before field after array is not transformed",
+			input:    ".spec.rules[]weight",
+			expected: ".spec.rules[]weight",
 		},
 	}
 
