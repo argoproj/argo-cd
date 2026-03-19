@@ -21,6 +21,7 @@ export const resourceIconGroups = {
     'kyverno.io': true,
     'opentelemetry.io': true,
     'projectcontour.io': true,
+    'promoter.argoproj.io': true,
     'work.karmada.io': true,
     'zookeeper.pravega.io': true,
 };
