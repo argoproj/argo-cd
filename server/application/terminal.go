@@ -223,6 +223,15 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !findContainer {
+		// Also check init containers (sidecar containers with restartPolicy: Always)
+		for _, c := range pod.Spec.InitContainers {
+			if container == c.Name {
+				findContainer = true
+				break
+			}
+		}
+	}
+	if !findContainer {
 		fieldLog.Warn("terminal container not found")
 		http.Error(w, "Cannot find container", http.StatusBadRequest)
 		return
