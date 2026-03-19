@@ -9,7 +9,7 @@ export TARGET_FILE=git-lfs-${INSTALL_OS}-${ARCHITECTURE}-v${git_lfs_version}.tar
 "$(dirname "$0")"/compare-chksum.sh
 mkdir -p /tmp/git-lfs && tar -C /tmp/git-lfs --strip-components=1 -xzf "$DOWNLOADS/${TARGET_FILE}"
 sudo install -m 0755 "/tmp/git-lfs/git-lfs" "$BIN/git-lfs"
-# Version check may fail under QEMU user-mode emulation due to Go runtime
+# Version check may fail under QEMU user-mode emulation due to runtime
 # crashes (lfstack.push/taggedPointerPack). Checksum verification above
 # ensures binary integrity, so a failed smoke test is non-fatal.
 if ! git-lfs version 2>/dev/null; then
