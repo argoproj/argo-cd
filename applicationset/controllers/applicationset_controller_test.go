@@ -4975,14 +4975,14 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
-					Message:         "Application has pending changes, setting status to Waiting",
+					Message:         revisionChangedMsg,
 					Status:          v1alpha1.ProgressiveSyncWaiting,
 					Step:            "1",
 					TargetRevisions: []string{"next"},
 				},
 				{
 					Application:     "app2-multisource",
-					Message:         "Application has pending changes, setting status to Waiting",
+					Message:         revisionChangedMsg,
 					Status:          v1alpha1.ProgressiveSyncWaiting,
 					Step:            "1",
 					TargetRevisions: []string{"next"},
@@ -5475,7 +5475,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
-					Message:         "Application has pending changes (spec differs), setting status to Waiting",
+					Message:         specChangedMsg,
 					Status:          v1alpha1.ProgressiveSyncWaiting,
 					Step:            "1",
 					TargetRevisions: []string{"abc123"},
@@ -5600,7 +5600,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
-					Message:         "Application has pending changes (revision and spec differ), setting status to Waiting",
+					Message:         revisionAndSpecChangedMsg,
 					Status:          v1alpha1.ProgressiveSyncWaiting,
 					Step:            "1",
 					TargetRevisions: []string{"def456"},

@@ -74,6 +74,9 @@ const (
 	ReconcileRequeueOnValidationError = time.Minute * 3
 	ReverseDeletionOrder              = "Reverse"
 	AllAtOnceDeletionOrder            = "AllAtOnce"
+	revisionAndSpecChangedMsg         = "Application has pending changes (revision and spec differ), setting status to Waiting"
+	revisionChangedMsg                = "Application has pending changes, setting status to Waiting"
+	specChangedMsg                    = "Application has pending changes (spec differs), setting status to Waiting"
 )
 
 var defaultPreservedFinalizers = []string{
@@ -1203,11 +1206,11 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 
 			switch {
 			case revisionsChanged && specChanged:
-				newAppStatus.Message = "Application has pending changes (revision and spec differ), setting status to Waiting"
+				newAppStatus.Message = revisionAndSpecChangedMsg
 			case revisionsChanged:
-				newAppStatus.Message = "Application has pending changes, setting status to Waiting"
+				newAppStatus.Message = revisionChangedMsg
 			default:
-				newAppStatus.Message = "Application has pending changes (spec differs), setting status to Waiting"
+				newAppStatus.Message = specChangedMsg
 			}
 			newAppStatus.Status = argov1alpha1.ProgressiveSyncWaiting
 			newAppStatus.LastTransitionTime = &now
