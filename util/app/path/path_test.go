@@ -144,9 +144,15 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		expectedPaths []string
 	}{
 		{
-			name:          "single source without annotation",
+			name:          "single source without annotation defaults to source path",
 			app:           getApp(nil, new("source/path")),
 			source:        v1alpha1.ApplicationSource{Path: "source/path"},
+			expectedPaths: []string{"source/path"},
+		},
+		{
+			name:          "single source without annotation and without source path",
+			app:           getApp(nil, nil),
+			source:        v1alpha1.ApplicationSource{},
 			expectedPaths: []string{},
 		},
 		{
