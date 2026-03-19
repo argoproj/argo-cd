@@ -9,7 +9,7 @@ require('./settings-overview.scss');
 const settings = [
     {
         title: 'ApplicationSets',
-        description: 'Manage ApplicationSets',
+        description: 'Configure ApplicationSets',
         path: './applicationsets'
     },
     {
