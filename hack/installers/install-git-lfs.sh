@@ -9,4 +9,4 @@ export TARGET_FILE=git-lfs-${INSTALL_OS}-${ARCHITECTURE}-v${git_lfs_version}.tar
 "$(dirname "$0")"/compare-chksum.sh
 mkdir -p /tmp/git-lfs && tar -C /tmp/git-lfs --strip-components=1 -xzf "$DOWNLOADS/${TARGET_FILE}"
 sudo install -m 0755 "/tmp/git-lfs/git-lfs" "$BIN/git-lfs"
-git-lfs version
+[ "${VERIFY_TOOL:-1}" = "0" ] || git-lfs version

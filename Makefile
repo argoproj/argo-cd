@@ -20,6 +20,7 @@ HOST_OS:=$(shell go env GOOS)
 HOST_ARCH:=$(shell go env GOARCH)
 
 TARGET_ARCH?=linux/amd64
+DOCKER_BUILD_ARGS?=
 
 VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
 BUILD_DATE:=$(if $(BUILD_DATE),$(BUILD_DATE),$(shell date -u +'%Y-%m-%dT%H:%M:%SZ'))
@@ -351,7 +352,7 @@ controller:
 
 .PHONY: build-ui
 build-ui:
-	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-ui --platform=$(TARGET_ARCH) --target argocd-ui .
+	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-ui --platform=$(TARGET_ARCH) $(DOCKER_BUILD_ARGS) --target argocd-ui .
 	find ./ui/dist -type f -not -name gitkeep -delete
 	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
@@ -362,7 +363,7 @@ ifeq ($(DEV_IMAGE), true)
 # the dist directory is under .dockerignore.
 IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image: build-ui
-	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t argocd-base --target argocd-base .
+	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) $(DOCKER_BUILD_ARGS) -t argocd-base --target argocd-base .
 	GOOS=linux GOARCH=$(TARGET_ARCH:linux/%=%) GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
@@ -370,10 +371,10 @@ image: build-ui
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-cmp-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-dex
 	cp Dockerfile.dev dist
-	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) -f dist/Dockerfile.dev dist
+	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) $(DOCKER_BUILD_ARGS) -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
 image:
-	DOCKER_BUILDKIT=1 $(DOCKER) build -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) --platform=$(TARGET_ARCH) .
+	DOCKER_BUILDKIT=1 $(DOCKER) build -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) --platform=$(TARGET_ARCH) $(DOCKER_BUILD_ARGS) .
 endif
 	@if [ "$(DOCKER_PUSH)" = "true" ] ; then $(DOCKER) push $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) ; fi
 

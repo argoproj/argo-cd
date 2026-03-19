@@ -27,6 +27,8 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 COPY hack/install.sh hack/tool-versions.sh ./
 COPY hack/installers installers
 
+ARG VERIFY_TOOL=1
+ENV VERIFY_TOOL=$VERIFY_TOOL
 RUN ./install.sh helm && \
     INSTALL_PATH=/usr/local/bin ./install.sh kustomize && \
     ./install.sh git-lfs

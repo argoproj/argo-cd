@@ -57,4 +57,4 @@ case $ARCHITECTURE in
     ;;
 esac
 
-"$BINNAME" version
+[ "${VERIFY_TOOL:-1}" = "0" ] || "$BINNAME" version
