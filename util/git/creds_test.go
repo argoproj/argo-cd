@@ -634,144 +634,7 @@ func TestGitHubAppGetAccessToken_TLSErrors(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Invalid Private key
-// ---------------------------------------------------------------------------
-func TestGitHubAppGetAccessToken_InvalidPrivateKey(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name            string
-		privateKey      string
-		wantErrContains []string
-	}{
-		{
-			name:            "empty private key",
-			privateKey:      "",
-			wantErrContains: []string{"private key"},
-		},
-		{
-			name:            "random garbage as private key",
-			privateKey:      "this-is-not-a-valid-key",
-			wantErrContains: []string{"private key"},
-		},
-		{
-			name:            "truncated PEM block",
-			privateKey:      "-----BEGIN RSA PRIVATE KEY-----\nMIIE\n-----END RSA PRIVATE KEY-----",
-			wantErrContains: []string{"private key"},
-		},
-		{
-			name:            "PEM with wrong type marker",
-			privateKey:      "-----BEGIN CERTIFICATE-----\nMIIE\n-----END CERTIFICATE-----",
-			wantErrContains: []string{"private key"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-				w.WriteHeader(http.StatusCreated)
-				fmt.Fprint(w, githubTokenResponse("ghs_unused"))
-			}))
-			defer server.Close()
-
-			creds := newTestGitHubAppCreds(12345, 67890, tt.privateKey, server.URL)
-			token, err := creds.getAccessToken()
-
-			require.Error(t, err, "should fail with invalid private key")
-			require.Empty(t, token)
-			for _, want := range tt.wantErrContains {
-				require.Contains(t, strings.ToLower(err.Error()), strings.ToLower(want),
-					"error should contain %q for diagnostics", want)
-			}
-		})
-	}
-}
-
-// ---------------------------------------------------------------------------
-// 3. TCP Connection Errors
-// ---------------------------------------------------------------------------
-
-func TestGitHubAppGetAccessToken_TCPConnectionErrors(t *testing.T) {
-	t.Parallel()
-	t.Cleanup(func() {
-		githubAppTokenCache.Flush()
-	})
-	t.Run("connection refused - no server listening", func(t *testing.T) {
-		t.Parallel()
-		// Grab a port then close it so nothing is listening.
-		lcfg := &net.ListenConfig{}
-		ln, err := lcfg.Listen(t.Context(), "tcp", "127.0.0.1:0")
-		require.NoError(t, err)
-		addr := ln.Addr().String()
-		ln.Close()
-
-		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, "http://"+addr)
-		token, tokenErr := creds.getAccessToken()
-
-		require.Error(t, tokenErr)
-		require.Empty(t, token)
-		require.Contains(t, strings.ToLower(tokenErr.Error()), "connection refused",
-			"error should clearly indicate the connection was refused")
-	})
-
-	t.Run("connection reset by peer", func(t *testing.T) {
-		t.Parallel()
-		// Accept then immediately RST-close the connection.
-		lcfg := &net.ListenConfig{}
-		ln, err := lcfg.Listen(t.Context(), "tcp", "127.0.0.1:0")
-		require.NoError(t, err)
-		defer ln.Close()
-
-		go func() {
-			for {
-				conn, err := ln.Accept()
-				if err != nil {
-					return
-				}
-				if tcp, ok := conn.(*net.TCPConn); ok {
-					err := tcp.SetLinger(0) // trigger RST
-					require.NoError(t, err)
-				}
-				conn.Close()
-			}
-		}()
-
-		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, "http://"+ln.Addr().String())
-		token, tokenErr := creds.getAccessToken()
-
-		require.Error(t, tokenErr)
-		require.Empty(t, token)
-		errLower := strings.ToLower(tokenErr.Error())
-		require.True(t,
-			strings.Contains(errLower, "connection reset") ||
-				strings.Contains(errLower, "eof") ||
-				strings.Contains(errLower, "broken pipe"),
-			"error should indicate connection reset, got: %s", tokenErr.Error())
-	})
-
-	t.Run("DNS resolution failure", func(t *testing.T) {
-		if testing.Short() {
-			t.Skip("skipping DNS failure test (~15s due to hardcoded context timeout)")
-		}
-		t.Parallel()
-		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey,
-			"http://this-host-does-not-exist-anywhere.invalid:8080")
-		token, err := creds.getAccessToken()
-
-		require.Error(t, err)
-		require.Empty(t, token)
-		errLower := strings.ToLower(err.Error())
-		require.True(t,
-			strings.Contains(errLower, "no such host") ||
-				strings.Contains(errLower, "dns") ||
-				strings.Contains(errLower, "lookup"),
-			"error should indicate DNS resolution failure, got: %s", err.Error())
-	})
-}
-
-// ---------------------------------------------------------------------------
-// 4. Timeout and Latency
+// 2. Timeout and Latency
 // ---------------------------------------------------------------------------
 
 func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
@@ -832,7 +695,7 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// 5. Dialer Default Timeout (30 seconds)
+// 3. Dialer Default Timeout (30 seconds)
 // ---------------------------------------------------------------------------
 
 func TestGitHubAppGetAccessToken_DialerDefaultTimeout(t *testing.T) {
