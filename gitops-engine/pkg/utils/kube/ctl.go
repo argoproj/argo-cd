@@ -18,10 +18,11 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
 	"k8s.io/kube-openapi/pkg/util/proto"
-	"k8s.io/kubectl/pkg/util/openapi"
+	"sigs.k8s.io/structured-merge-diff/v6/typed"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
 	utils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
 )
 
@@ -30,8 +31,8 @@ type CleanupFunc func()
 type OnKubectlRunFunc func(command string) (CleanupFunc, error)
 
 type Kubectl interface {
-	ManageResources(config *rest.Config, openAPISchema openapi.Resources) (ResourceOperations, func(), error)
-	LoadOpenAPISchema(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error)
+	ManageResources(config *rest.Config) (ResourceOperations, func(), error)
+	LoadOpenAPISchema(config *rest.Config) (scheme.GVKParser, error)
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error
 	GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
@@ -44,9 +45,10 @@ type Kubectl interface {
 }
 
 type KubectlCmd struct {
-	Log          logr.Logger
-	Tracer       tracing.Tracer
-	OnKubectlRun OnKubectlRunFunc
+	Log            logr.Logger
+	Tracer         tracing.Tracer
+	OnKubectlRun   OnKubectlRunFunc
+	UseOpenAPIV3   bool
 }
 
 type APIResourceInfo struct {
@@ -120,32 +122,45 @@ func isSupportedVerb(apiResource *metav1.APIResource, verb string) bool {
 }
 
 // LoadOpenAPISchema will load all existing resource schemas from the cluster
-// and return:
-// - openapi.Resources: used for getting the proto.Schema from a GVK
-// - managedfields.GvkParser: used for building a ParseableType to be used in
-// structured-merge-diffs
-func (k *KubectlCmd) LoadOpenAPISchema(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
+// and return a GvkParser used for building a ParseableType to be used in
+// structured-merge-diffs. If UseOpenAPIV3 is enabled, schemas are fetched
+// per-GroupVersion using the OpenAPI v3 discovery endpoint; otherwise, the
+// monolithic OpenAPI v2 document is used.
+func (k *KubectlCmd) LoadOpenAPISchema(config *rest.Config) (scheme.GVKParser, error) {
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create discovery client: %w", err)
+		return nil, fmt.Errorf("failed to create discovery client: %w", err)
 	}
 
-	oapiGetter := openapi.NewOpenAPIGetter(disco)
-	oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-	if err != nil {
-		return nil, nil, fmt.Errorf("error getting openapi resources: %w", err)
+	if k.UseOpenAPIV3 {
+		return k.loadLazyGVKParser(disco)
 	}
-	gvkParser, err := k.newGVKParser(oapiGetter)
-	if err != nil {
-		return oapiResources, nil, fmt.Errorf("error getting gvk parser: %w", err)
-	}
-	return oapiResources, gvkParser, nil
+	return k.loadGVKParserV2(disco)
 }
 
-func (k *KubectlCmd) newGVKParser(oapiGetter discovery.OpenAPISchemaInterface) (*managedfields.GvkParser, error) {
-	doc, err := oapiGetter.OpenAPISchema()
+func (k *KubectlCmd) loadLazyGVKParser(disco *discovery.DiscoveryClient) (scheme.GVKParser, error) {
+	client := disco.OpenAPIV3()
+	paths, err := client.Paths()
 	if err != nil {
-		return nil, fmt.Errorf("error getting openapi schema: %w", err)
+		return nil, fmt.Errorf("error getting openapi v3 paths: %w", err)
+	}
+	return newLazyGVKParser(paths, k.Log), nil
+}
+
+// eagerGVKParser wraps a managedfields.GvkParser to satisfy scheme.GVKParser.
+// Since the eager (v2) parser loads all schemas upfront, Type() never errors.
+type eagerGVKParser struct {
+	parser *managedfields.GvkParser
+}
+
+func (e *eagerGVKParser) Type(gvk schema.GroupVersionKind) (*typed.ParseableType, error) {
+	return e.parser.Type(gvk), nil
+}
+
+func (k *KubectlCmd) loadGVKParserV2(disco discovery.OpenAPISchemaInterface) (*eagerGVKParser, error) {
+	doc, err := disco.OpenAPISchema()
+	if err != nil {
+		return nil, fmt.Errorf("error getting openapi v2 schema: %w", err)
 	}
 	models, err := proto.NewOpenAPIData(doc)
 	if err != nil {
@@ -160,7 +175,48 @@ func (k *KubectlCmd) newGVKParser(oapiGetter discovery.OpenAPISchemaInterface) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GVK parser: %w", err)
 	}
-	return gvkParser, nil
+	return &eagerGVKParser{parser: gvkParser}, nil
+}
+
+
+// normalizeV3Extensions fixes a compatibility issue between OpenAPI v3 proto
+// models and managedfields.NewGVKParser. The v3 path (proto.NewOpenAPIV3Data)
+// produces map[string]interface{} for nested values in schema extensions like
+// x-kubernetes-group-version-kind and x-kubernetes-unions, but the upstream
+// GVK parser and schema converter expect map[interface{}]interface{} (which is
+// what the v2 proto path produces). This function normalizes all extension
+// values in-place.
+func normalizeV3Extensions(models proto.Models) {
+	for _, name := range models.ListModels() {
+		m := models.LookupModel(name)
+		if m == nil {
+			continue
+		}
+		exts := m.GetExtensions()
+		for key, val := range exts {
+			exts[key] = deepConvertStringKeysToInterface(val)
+		}
+	}
+}
+
+// deepConvertStringKeysToInterface recursively converts map[string]interface{}
+// to map[interface{}]interface{} within a value tree.
+func deepConvertStringKeysToInterface(v interface{}) interface{} {
+	switch val := v.(type) {
+	case map[string]interface{}:
+		result := make(map[interface{}]interface{}, len(val))
+		for k, v := range val {
+			result[k] = deepConvertStringKeysToInterface(v)
+		}
+		return result
+	case []interface{}:
+		for i, item := range val {
+			val[i] = deepConvertStringKeysToInterface(item)
+		}
+		return val
+	default:
+		return v
+	}
 }
 
 func (k *KubectlCmd) GetAPIResources(config *rest.Config, preferred bool, resourceFilter ResourceFilter) ([]APIResourceInfo, error) {
@@ -276,7 +332,7 @@ func (k *KubectlCmd) DeleteResource(ctx context.Context, config *rest.Config, gv
 	return resourceIf.Delete(ctx, name, deleteOptions)
 }
 
-func (k *KubectlCmd) ManageResources(config *rest.Config, openAPISchema openapi.Resources) (ResourceOperations, func(), error) {
+func (k *KubectlCmd) ManageResources(config *rest.Config) (ResourceOperations, func(), error) {
 	f, err := os.CreateTemp(utils.TempDir, "")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate temp file for kubeconfig: %w", err)
@@ -292,16 +348,15 @@ func (k *KubectlCmd) ManageResources(config *rest.Config, openAPISchema openapi.
 		utils.DeleteFile(f.Name())
 	}
 	return &kubectlResourceOperations{
-		config:        config,
-		fact:          fact,
-		openAPISchema: openAPISchema,
-		tracer:        k.Tracer,
-		log:           k.Log,
-		onKubectlRun:  k.OnKubectlRun,
+		config:       config,
+		fact:         fact,
+		tracer:       k.Tracer,
+		log:          k.Log,
+		onKubectlRun: k.OnKubectlRun,
 	}, cleanup, nil
 }
 
-func ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Resources, tracer tracing.Tracer, log logr.Logger, onKubectlRun OnKubectlRunFunc) (diff.KubeApplier, func(), error) {
+func ManageServerSideDiffDryRuns(config *rest.Config, tracer tracing.Tracer, log logr.Logger, onKubectlRun OnKubectlRunFunc) (diff.KubeApplier, func(), error) {
 	f, err := os.CreateTemp(utils.TempDir, "")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate temp file for kubeconfig: %w", err)
@@ -317,12 +372,11 @@ func ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Reso
 		utils.DeleteFile(f.Name())
 	}
 	return &kubectlServerSideDiffDryRunApplier{
-		config:        config,
-		fact:          fact,
-		openAPISchema: openAPISchema,
-		tracer:        tracer,
-		log:           log,
-		onKubectlRun:  onKubectlRun,
+		config:       config,
+		fact:         fact,
+		tracer:       tracer,
+		log:          log,
+		onKubectlRun: onKubectlRun,
 	}, cleanup, nil
 }
 

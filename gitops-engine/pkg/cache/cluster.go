@@ -42,7 +42,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
@@ -54,9 +53,9 @@ import (
 	watchutil "k8s.io/client-go/tools/watch"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2/textlogger"
-	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
 )
 
@@ -153,11 +152,9 @@ type ClusterCache interface {
 	GetServerVersion() string
 	// GetAPIResources returns information about observed API resources
 	GetAPIResources() []kube.APIResourceInfo
-	// GetOpenAPISchema returns open API schema of supported API resources
-	GetOpenAPISchema() openapi.Resources
 	// GetGVKParser returns a parser able to build a TypedValue used in
 	// structured merge diffs.
-	GetGVKParser() *managedfields.GvkParser
+	GetGVKParser() scheme.GVKParser
 	// Invalidate cache and executes callback that optionally might update cache settings
 	Invalidate(opts ...UpdateSettingsFunc)
 	// FindResources returns resources that matches given list of predicates from specified namespace or everywhere if specified namespace is empty
@@ -275,8 +272,7 @@ type clusterCache struct {
 	resourceUpdatedHandlers     map[uint64]OnResourceUpdatedHandler
 	eventHandlers               map[uint64]OnEventHandler
 	processEventsHandlers       map[uint64]OnProcessEventsHandler
-	openAPISchema               openapi.Resources
-	gvkParser                   *managedfields.GvkParser
+	gvkParser                   scheme.GVKParser
 
 	respectRBAC int
 
@@ -394,14 +390,9 @@ func (c *clusterCache) GetAPIResources() []kube.APIResourceInfo {
 	return c.apiResources
 }
 
-// GetOpenAPISchema returns open API schema of supported API resources
-func (c *clusterCache) GetOpenAPISchema() openapi.Resources {
-	return c.openAPISchema
-}
-
 // GetGVKParser returns a parser able to build a TypedValue used in
 // structured merge diffs.
-func (c *clusterCache) GetGVKParser() *managedfields.GvkParser {
+func (c *clusterCache) GetGVKParser() scheme.GVKParser {
 	return c.gvkParser
 }
 
@@ -677,17 +668,23 @@ func (c *clusterCache) startMissingWatches() error {
 
 			err := c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 				resourceVersion, err := c.loadInitialState(ctx, api, resClient, ns, false) // don't lock here, we are already in a lock before startMissingWatches is called inside watchEvents
-				if err != nil && c.isRestrictedResource(err) {
-					keep := false
-					if c.respectRBAC == RespectRbacStrict {
-						k, permErr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api)
-						if permErr != nil {
-							return fmt.Errorf("failed to check permissions for resource %s: %w, original error=%v", api.GroupKind.String(), permErr, err.Error())
+				if err != nil {
+					skip := false
+					if c.isRestrictedResource(err) {
+						keep := false
+						if c.respectRBAC == RespectRbacStrict {
+							k, permErr := c.checkPermission(ctx, clientset.AuthorizationV1().SelfSubjectAccessReviews(), api)
+							if permErr != nil {
+								return fmt.Errorf("failed to check permissions for resource %s: %w, original error=%v", api.GroupKind.String(), permErr, err.Error())
+							}
+							keep = k
 						}
-						keep = k
+						skip = !keep
+					} else if apierrors.IsInternalError(err) || apierrors.IsServiceUnavailable(err) || apierrors.IsServerTimeout(err) {
+						c.reportGVKError(api, err)
+						skip = true
 					}
-					// if we are not allowed to list the resource, remove it from the watch list
-					if !keep {
+					if skip {
 						delete(c.apisMeta, api.GroupKind)
 						delete(namespacedResources, api.GroupKind)
 						return nil
@@ -903,14 +900,13 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 						}
 					}
 					err = runSynced(&c.lock, func() error {
-						openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(c.config)
+						gvkParser, err := c.kubectl.LoadOpenAPISchema(c.config)
 						if err != nil {
 							return fmt.Errorf("failed to load open api schema while handling CRD change: %w", err)
 						}
 						if gvkParser != nil {
 							c.gvkParser = gvkParser
 						}
-						c.openAPISchema = openAPISchema
 						return nil
 					})
 					if err != nil {
@@ -947,6 +943,23 @@ func (c *clusterCache) processApi(client dynamic.Interface, api kube.APIResource
 // isRestrictedResource checks if the kube api call is unauthorized or forbidden
 func (c *clusterCache) isRestrictedResource(err error) bool {
 	return c.respectRBAC != RespectRbacDisabled && (apierrors.IsForbidden(err) || apierrors.IsUnauthorized(err))
+}
+
+// reportGVKError reports a per-GVK error to the GVKParser so it surfaces
+// through Type() to consumers. This is a best-effort operation — if the
+// parser doesn't implement GVKErrorReporter (e.g. v2 eager parser), the
+// error is logged but the GVK is still skipped.
+func (c *clusterCache) reportGVKError(api kube.APIResourceInfo, err error) {
+	gvr := api.GroupVersionResource
+	gvk := schema.GroupVersionKind{
+		Group:   gvr.Group,
+		Version: gvr.Version,
+		Kind:    api.GroupKind.Kind,
+	}
+	c.log.Error(err, "Skipping resource due to list error", "gvk", gvk)
+	if reporter, ok := c.gvkParser.(scheme.GVKErrorReporter); ok {
+		reporter.ReportError(gvk, fmt.Errorf("failed to list %s: %w", gvk, err))
+	}
 }
 
 // checkPermission runs a self subject access review to check if the controller has permissions to list the resource
@@ -1033,16 +1046,12 @@ func (c *clusterCache) sync() error {
 	}
 	c.apiResources = apiResources
 
-	openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(config)
+	gvkParser, err := c.kubectl.LoadOpenAPISchema(config)
 	if err != nil {
-		return fmt.Errorf("failed to load open api schema while syncing cluster cache: %w", err)
-	}
-
-	if gvkParser != nil {
+		c.log.Error(err, "Failed to load open api schema while syncing cluster cache")
+	} else if gvkParser != nil {
 		c.gvkParser = gvkParser
 	}
-
-	c.openAPISchema = openAPISchema
 
 	apis, err := c.kubectl.GetAPIResources(c.config, true, c.settings.ResourcesFilter)
 	if err != nil {
@@ -1088,6 +1097,7 @@ func (c *clusterCache) sync() error {
 				})
 			})
 			if err != nil {
+				skip := false
 				if c.isRestrictedResource(err) {
 					keep := false
 					if c.respectRBAC == RespectRbacStrict {
@@ -1097,14 +1107,21 @@ func (c *clusterCache) sync() error {
 						}
 						keep = k
 					}
-					// if we are not allowed to list the resource, remove it from the watch list
-					if !keep {
-						lock.Lock()
-						delete(c.apisMeta, api.GroupKind)
-						delete(c.namespacedResources, api.GroupKind)
-						lock.Unlock()
-						return nil
-					}
+					skip = !keep
+				} else if apierrors.IsInternalError(err) || apierrors.IsServiceUnavailable(err) || apierrors.IsServerTimeout(err) {
+					// Conversion webhook errors (webhook down, timeout, misconfigured)
+					// manifest as 500/503/504 during list. Skip the failing GVK and
+					// report the error through the GVKParser so it surfaces to apps
+					// that use this resource, rather than failing the entire sync.
+					c.reportGVKError(api, err)
+					skip = true
+				}
+				if skip {
+					lock.Lock()
+					delete(c.apisMeta, api.GroupKind)
+					delete(c.namespacedResources, api.GroupKind)
+					lock.Unlock()
+					return nil
 				}
 				return fmt.Errorf("failed to load initial state of resource %s: %w", api.GroupKind.String(), err)
 			}

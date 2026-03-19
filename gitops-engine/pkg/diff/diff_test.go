@@ -21,14 +21,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/klog/v2/textlogger"
 	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
+	"sigs.k8s.io/structured-merge-diff/v6/typed"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/mocks"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/testdata"
+	gescheme "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
 )
 
 func printDiff(ctx context.Context, result *DiffResult) (string, error) {
@@ -755,7 +758,16 @@ func TestUnsortedEndpoints(t *testing.T) {
 	}
 }
 
-func buildGVKParser(t *testing.T) *managedfields.GvkParser {
+// testGVKParser wraps *managedfields.GvkParser to satisfy scheme.GVKParser in tests.
+type testGVKParser struct {
+	parser *managedfields.GvkParser
+}
+
+func (t *testGVKParser) Type(gvk schema.GroupVersionKind) (*typed.ParseableType, error) {
+	return t.parser.Type(gvk), nil
+}
+
+func buildGVKParser(t *testing.T) gescheme.GVKParser {
 	t.Helper()
 	document := &openapi_v2.Document{}
 	require.NoErrorf(t, proto.Unmarshal(testdata.OpenAPIV2Doc, document), "error unmarshaling openapi doc")
@@ -764,7 +776,7 @@ func buildGVKParser(t *testing.T) *managedfields.GvkParser {
 
 	gvkParser, err := managedfields.NewGVKParser(models, false)
 	require.NoErrorf(t, err, "error building gvkParser: %s", err)
-	return gvkParser
+	return &testGVKParser{parser: gvkParser}
 }
 
 func TestStructuredMergeDiff(t *testing.T) {

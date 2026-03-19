@@ -5,9 +5,10 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/klog/v2/textlogger"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+
+	gescheme "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
 )
 
 type Option func(*options)
@@ -20,7 +21,7 @@ type options struct {
 	skipFullNormalize     bool
 	log                   logr.Logger
 	structuredMergeDiff   bool
-	gvkParser             *managedfields.GvkParser
+	gvkParser             gescheme.GVKParser
 	manager               string
 	serverSideDiff        bool
 	serverSideDryRunner   ServerSideDryRunner
@@ -102,7 +103,7 @@ func WithStructuredMergeDiff(smd bool) Option {
 	}
 }
 
-func WithGVKParser(parser *managedfields.GvkParser) Option {
+func WithGVKParser(parser gescheme.GVKParser) Option {
 	return func(o *options) {
 		o.gvkParser = parser
 	}
