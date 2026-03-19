@@ -224,7 +224,9 @@ spec:
 			generatedApp := v1alpha1.Application{TypeMeta: appMeta}
 			err = yaml.Unmarshal([]byte(tc.generatedApp), &generatedApp)
 			require.NoError(t, err, tc.generatedApp)
-			err = applyIgnoreDifferences(tc.ignoreDifferences, &foundApp, &generatedApp, normalizers.IgnoreNormalizerOpts{})
+			diffConfig, err := BuildIgnoreDiffConfig(tc.ignoreDifferences, normalizers.IgnoreNormalizerOpts{})
+			require.NoError(t, err)
+			err = applyIgnoreDifferences(diffConfig, &foundApp, &generatedApp)
 			require.NoError(t, err)
 			yamlFound, err := yaml.Marshal(tc.foundApp)
 			require.NoError(t, err)

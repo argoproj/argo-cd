@@ -3895,6 +3895,567 @@ func Test_getResolvedValueFiles(t *testing.T) {
 	}
 }
 
+func Test_getResolvedValueFiles_glob(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	paths := utilio.NewRandomizedTempPaths(tempDir)
+	paths.Add(git.NormalizeGitURL("https://github.com/org/repo1"), path.Join(tempDir, "repo1"))
+
+	// main-repo files
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "main-repo", "prod", "nested"), 0o755))
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "main-repo", "staging"), 0o755))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "prod", "a.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "prod", "b.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "prod", "nested", "c.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "prod", "nested", "d.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "staging", "e.yaml"), []byte{}, 0o644))
+
+	// main-repo envs: used to verify depth-order with ** (z.yaml sorts after nested/ alphabetically
+	// but is still returned before nested/c.yaml because doublestar matches depth-0 files first).
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "main-repo", "envs", "nested"), 0o755))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "envs", "a.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "envs", "z.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "envs", "nested", "c.yaml"), []byte{}, 0o644))
+
+	// repo1 files
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "repo1", "prod", "nested"), 0o755))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "repo1", "prod", "x.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "repo1", "prod", "y.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "repo1", "prod", "nested", "z.yaml"), []byte{}, 0o644))
+
+	tests := []struct {
+		name                    string
+		rawPath                 string
+		env                     *v1alpha1.Env
+		refSources              map[string]*v1alpha1.RefTarget
+		expectedPaths           []string
+		ignoreMissingValueFiles bool
+		expectedErr             bool
+	}{
+		{
+			name:       "local glob matches multiple files",
+			rawPath:    "prod/*.yaml",
+			env:        &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{},
+			expectedPaths: []string{
+				// the order is a.yaml before b.yaml
+				// since doublestar.FilepathGlob returns lexical order
+				path.Join(tempDir, "main-repo", "prod", "a.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "b.yaml"),
+			},
+		},
+		{
+			name:          "local glob matches no files returns error",
+			rawPath:       "dev/*.yaml",
+			env:           &v1alpha1.Env{},
+			refSources:    map[string]*v1alpha1.RefTarget{},
+			expectedPaths: nil,
+			expectedErr:   true,
+		},
+		{
+			name:                    "local glob matches no files with ignoreMissingValueFiles set to true",
+			rawPath:                 "dev/*.yaml",
+			env:                     &v1alpha1.Env{},
+			refSources:              map[string]*v1alpha1.RefTarget{},
+			ignoreMissingValueFiles: true,
+			expectedPaths:           nil,
+		},
+		{
+			name:    "referenced glob matches multiple files in external repo",
+			rawPath: "$ref/prod/*.yaml",
+			env:     &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/repo1",
+					},
+				},
+			},
+			expectedPaths: []string{
+				path.Join(tempDir, "repo1", "prod", "x.yaml"),
+				path.Join(tempDir, "repo1", "prod", "y.yaml"),
+			},
+		},
+		{
+			name:    "ref glob with env var in path",
+			rawPath: "$ref/$ENV/*.yaml",
+			env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ENV",
+					Value: "prod",
+				},
+			},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/repo1",
+					},
+				},
+			},
+			expectedPaths: []string{
+				path.Join(tempDir, "repo1", "prod", "x.yaml"),
+				path.Join(tempDir, "repo1", "prod", "y.yaml"),
+			},
+		},
+		{
+			name:          "local glob single match",
+			rawPath:       "prod/a*.yaml",
+			env:           &v1alpha1.Env{},
+			refSources:    map[string]*v1alpha1.RefTarget{},
+			expectedPaths: []string{path.Join(tempDir, "main-repo", "prod", "a.yaml")},
+		},
+		{
+			name: "recursive glob matches files at all depths under a subdirectory",
+			// ** matches zero or more path segments, so prod/**/*.yaml covers both
+			// prod/*.yaml (zero intermediate segments) and prod/nested/*.yaml (one segment), etc.
+			rawPath:    "prod/**/*.yaml",
+			env:        &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{},
+			// lexical order: prod/a.yaml, prod/b.yaml, prod/nested/c.yaml, prod/nested/d.yaml
+			expectedPaths: []string{
+				path.Join(tempDir, "main-repo", "prod", "a.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "b.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "nested", "c.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "nested", "d.yaml"),
+			},
+		},
+		{
+			name:       "recursive glob from repo root matches yaml files across all directories",
+			rawPath:    "**/*.yaml",
+			env:        &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{},
+			// doublestar traverses directories in lexical order, processing each directory's
+			// own files before its subdirectories. So the order is:
+			// envs/ flat files → envs/nested/ files → prod/ flat files → prod/nested/ files → staging/ files
+			expectedPaths: []string{
+				path.Join(tempDir, "main-repo", "envs", "a.yaml"),
+				path.Join(tempDir, "main-repo", "envs", "z.yaml"),
+				path.Join(tempDir, "main-repo", "envs", "nested", "c.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "a.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "b.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "nested", "c.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "nested", "d.yaml"),
+				path.Join(tempDir, "main-repo", "staging", "e.yaml"),
+			},
+		},
+		{
+			name:       "recursive glob anchored to a named subdirectory matches at any depth",
+			rawPath:    "**/nested/*.yaml",
+			env:        &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{},
+			expectedPaths: []string{
+				path.Join(tempDir, "main-repo", "envs", "nested", "c.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "nested", "c.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "nested", "d.yaml"),
+			},
+		},
+		{
+			name:                    "recursive glob with no matches and ignoreMissingValueFiles skips silently",
+			rawPath:                 "**/nonexistent/*.yaml",
+			env:                     &v1alpha1.Env{},
+			refSources:              map[string]*v1alpha1.RefTarget{},
+			ignoreMissingValueFiles: true,
+			expectedPaths:           nil,
+		},
+		{
+			name:          "recursive glob with no matches returns error",
+			rawPath:       "**/nonexistent/*.yaml",
+			env:           &v1alpha1.Env{},
+			refSources:    map[string]*v1alpha1.RefTarget{},
+			expectedPaths: nil,
+			expectedErr:   true,
+		},
+		{
+			// z.yaml sorts after "nested/" alphabetically by full path, but doublestar processes
+			// each directory's own files before descending into subdirectories. So for envs/**/*.yaml:
+			// envs/ flat files (a, z) come before envs/nested/ files (c), giving:
+			// a.yaml, z.yaml, nested/c.yaml — not a.yaml, nested/c.yaml, z.yaml.
+			name:       "** depth-order: flat files before nested even when flat file sorts after nested/ alphabetically",
+			rawPath:    "envs/**/*.yaml",
+			env:        &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{},
+			expectedPaths: []string{
+				path.Join(tempDir, "main-repo", "envs", "a.yaml"),
+				path.Join(tempDir, "main-repo", "envs", "z.yaml"),
+				path.Join(tempDir, "main-repo", "envs", "nested", "c.yaml"),
+			},
+		},
+		{
+			name:    "recursive glob in external ref repo",
+			rawPath: "$ref/prod/**/*.yaml",
+			env:     &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/repo1",
+					},
+				},
+			},
+			expectedPaths: []string{
+				// doublestar matches zero path segments before recursing into subdirectories,
+				// so flat files (x, y) come before nested ones (nested/z).
+				path.Join(tempDir, "repo1", "prod", "x.yaml"),
+				path.Join(tempDir, "repo1", "prod", "y.yaml"),
+				path.Join(tempDir, "repo1", "prod", "nested", "z.yaml"),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			repoPath := path.Join(tempDir, "main-repo")
+			resolvedPaths, err := getResolvedValueFiles(repoPath, repoPath, tt.env, []string{}, []string{tt.rawPath}, tt.refSources, paths, tt.ignoreMissingValueFiles)
+			if tt.expectedErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, resolvedPaths, len(tt.expectedPaths))
+
+			for i, p := range tt.expectedPaths {
+				assert.Equal(t, p, string(resolvedPaths[i]))
+			}
+		})
+	}
+
+	// Deduplication: first occurrence of a resolved path wins. Subsequent references to the
+	// same file, whether explicit or via glob are silently dropped. This preserves the
+	// merge-precedence position set by the first mention of each file.
+	t.Run("glob then explicit: explicit entry placed at end, giving it highest Helm precedence", func(t *testing.T) {
+		t.Parallel()
+		repoPath := path.Join(tempDir, "main-repo")
+		resolvedPaths, err := getResolvedValueFiles(
+			repoPath, repoPath,
+			&v1alpha1.Env{}, []string{},
+			[]string{
+				"envs/*.yaml", // glob - z.yaml is explicit so skipped; only a.yaml added
+				"envs/z.yaml", // explicit - placed last, highest precedence
+			},
+			map[string]*v1alpha1.RefTarget{}, paths, false,
+		)
+		require.NoError(t, err)
+		require.Len(t, resolvedPaths, 2)
+		assert.Equal(t, path.Join(tempDir, "main-repo", "envs", "a.yaml"), string(resolvedPaths[0]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "envs", "z.yaml"), string(resolvedPaths[1]))
+	})
+
+	t.Run("explicit path before glob: explicit position is kept, glob re-match is dropped", func(t *testing.T) {
+		t.Parallel()
+		repoPath := path.Join(tempDir, "main-repo")
+		resolvedPaths, err := getResolvedValueFiles(
+			repoPath, repoPath,
+			&v1alpha1.Env{}, []string{},
+			[]string{
+				"prod/a.yaml", // explicit locks in position 0
+				"prod/*.yaml", // glob - a.yaml already seen, only b.yaml is new
+			},
+			map[string]*v1alpha1.RefTarget{}, paths, false,
+		)
+		require.NoError(t, err)
+		require.Len(t, resolvedPaths, 2)
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "a.yaml"), string(resolvedPaths[0]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "b.yaml"), string(resolvedPaths[1]))
+	})
+
+	t.Run("glob before explicit path: explicit position wins, glob skips the explicitly listed file", func(t *testing.T) {
+		t.Parallel()
+		repoPath := path.Join(tempDir, "main-repo")
+		resolvedPaths, err := getResolvedValueFiles(
+			repoPath, repoPath,
+			&v1alpha1.Env{}, []string{},
+			[]string{
+				"prod/*.yaml", // glob - a.yaml is explicit so skipped; only b.yaml added (pos 0)
+				"prod/a.yaml", // explicit - placed here at pos 1 (highest precedence)
+			},
+			map[string]*v1alpha1.RefTarget{}, paths, false,
+		)
+		require.NoError(t, err)
+		require.Len(t, resolvedPaths, 2)
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "b.yaml"), string(resolvedPaths[0]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "a.yaml"), string(resolvedPaths[1]))
+	})
+
+	t.Run("two overlapping globs: second glob only adds files not matched by first", func(t *testing.T) {
+		t.Parallel()
+		repoPath := path.Join(tempDir, "main-repo")
+		resolvedPaths, err := getResolvedValueFiles(
+			repoPath, repoPath,
+			&v1alpha1.Env{}, []string{},
+			[]string{
+				"prod/*.yaml",    // adds a.yaml, b.yaml
+				"prod/**/*.yaml", // a.yaml, b.yaml already seen; adds nested/c.yaml, nested/d.yaml
+			},
+			map[string]*v1alpha1.RefTarget{}, paths, false,
+		)
+		require.NoError(t, err)
+		require.Len(t, resolvedPaths, 4)
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "a.yaml"), string(resolvedPaths[0]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "b.yaml"), string(resolvedPaths[1]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "nested", "c.yaml"), string(resolvedPaths[2]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "nested", "d.yaml"), string(resolvedPaths[3]))
+	})
+
+	t.Run("explicit paths take priority: globs skip explicitly listed files, which are placed at their explicit positions", func(t *testing.T) {
+		t.Parallel()
+		repoPath := path.Join(tempDir, "main-repo")
+		resolvedPaths, err := getResolvedValueFiles(
+			repoPath, repoPath,
+			&v1alpha1.Env{}, []string{},
+			[]string{
+				"prod/a.yaml",        // explicit - pos 0
+				"prod/*.yaml",        // a.yaml and b.yaml are both explicit, skipped entirely
+				"prod/b.yaml",        // explicit - pos 1
+				"prod/**/*.yaml",     // a.yaml, b.yaml, nested/c.yaml all explicit and skipped; nested/d.yaml added - pos 2
+				"prod/nested/c.yaml", // explicit - pos 3
+			},
+			map[string]*v1alpha1.RefTarget{}, paths, false,
+		)
+		require.NoError(t, err)
+		require.Len(t, resolvedPaths, 4)
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "a.yaml"), string(resolvedPaths[0]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "b.yaml"), string(resolvedPaths[1]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "nested", "d.yaml"), string(resolvedPaths[2]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "nested", "c.yaml"), string(resolvedPaths[3]))
+	})
+}
+
+func Test_verifyGlobMatchesWithinRoot(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	repoDir := filepath.Join(tempDir, "repo")
+	outsideDir := filepath.Join(tempDir, "outside")
+
+	require.NoError(t, os.MkdirAll(filepath.Join(repoDir, "values", "sub"), 0o755))
+	require.NoError(t, os.MkdirAll(outsideDir, 0o755))
+
+	// Files used as symlink targets
+	inRepoFile := filepath.Join(repoDir, "values", "real.yaml")
+	outsideFile := filepath.Join(outsideDir, "secret.yaml")
+	require.NoError(t, os.WriteFile(inRepoFile, []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(outsideFile, []byte("password: hunter2"), 0o644))
+
+	// Symlink inside repo → file inside repo (safe)
+	inRepoLink := filepath.Join(repoDir, "values", "inrepo-link.yaml")
+	require.NoError(t, os.Symlink(inRepoFile, inRepoLink))
+
+	// Symlink inside repo → file outside repo (escape)
+	escapeLink := filepath.Join(repoDir, "values", "escape-link.yaml")
+	require.NoError(t, os.Symlink(outsideFile, escapeLink))
+
+	// Two-hop symlink: inside repo → another symlink (still inside) → file inside repo
+	hop1 := filepath.Join(repoDir, "values", "hop1.yaml")
+	require.NoError(t, os.Symlink(inRepoLink, hop1)) // hop1 → inRepoLink → real.yaml
+
+	// Two-hop symlink: inside repo → another symlink (inside repo) → file outside repo
+	hop2 := filepath.Join(repoDir, "values", "hop2.yaml")
+	require.NoError(t, os.Symlink(escapeLink, hop2)) // hop2 → escape-link → secret.yaml
+
+	tests := []struct {
+		name        string
+		matches     []string
+		expectErr   bool
+		errContains string
+	}{
+		{
+			name:    "regular file inside root passes",
+			matches: []string{inRepoFile},
+		},
+		{
+			name:    "symlink inside root pointing to file inside root passes",
+			matches: []string{inRepoLink},
+		},
+		{
+			name:    "two-hop chain that stays within root passes",
+			matches: []string{hop1},
+		},
+		{
+			name:        "symlink pointing directly outside root is rejected",
+			matches:     []string{escapeLink},
+			expectErr:   true,
+			errContains: "resolved to outside repository root",
+		},
+		{
+			name:        "two-hop chain that escapes root is rejected",
+			matches:     []string{hop2},
+			expectErr:   true,
+			errContains: "resolved to outside repository root",
+		},
+		{
+			name:    "multiple matches all inside root pass",
+			matches: []string{inRepoFile, inRepoLink, hop1},
+		},
+		{
+			name:        "one bad match in a list fails the whole call",
+			matches:     []string{inRepoFile, escapeLink},
+			expectErr:   true,
+			errContains: "resolved to outside repository root",
+		},
+		{
+			name:    "empty matches list is a no-op",
+			matches: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := verifyGlobMatchesWithinRoot(tt.matches, repoDir)
+			if tt.expectErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// Test_getResolvedValueFiles_glob_symlink_escape is an integration-level check
+// that verifyGlobMatchesWithinRoot is wired into glob expansion correctly: a
+// symlink inside the repo pointing outside must cause getResolvedValueFiles to
+// return an error rather than silently including the external file.
+func Test_getResolvedValueFiles_glob_symlink_escape(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	paths := utilio.NewRandomizedTempPaths(tempDir)
+
+	repoDir := filepath.Join(tempDir, "repo")
+	outsideDir := filepath.Join(tempDir, "outside")
+
+	require.NoError(t, os.MkdirAll(filepath.Join(repoDir, "values"), 0o755))
+	require.NoError(t, os.MkdirAll(outsideDir, 0o755))
+
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "values", "base.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(outsideDir, "secret.yaml"), []byte("password: hunter2"), 0o644))
+	require.NoError(t, os.Symlink(filepath.Join(outsideDir, "secret.yaml"), filepath.Join(repoDir, "values", "escape.yaml")))
+
+	_, err := getResolvedValueFiles(repoDir, repoDir, &v1alpha1.Env{}, []string{}, []string{"values/*.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "resolved to outside repository root")
+}
+
+func Test_isGlobPath(t *testing.T) {
+	tests := []struct {
+		path     string
+		expected bool
+	}{
+		{
+			path:     "prod/*.yaml",
+			expected: true,
+		},
+		{
+			path:     "prod/?.yaml",
+			expected: true,
+		},
+		{
+			path:     "prod[ab].yaml",
+			expected: true,
+		},
+		{
+			path:     "prod/**/*.yaml",
+			expected: true,
+		},
+		{
+			path: "prod/values.yaml",
+		},
+		{
+			path: "values.yaml",
+		},
+		{
+			path: "",
+		},
+		{
+			path:     "/absolute/path/to/*.yaml",
+			expected: true,
+		},
+		{
+			path: "/absolute/path/to/values.yaml",
+		},
+		{
+			path:     "*",
+			expected: true,
+		},
+		{
+			path:     "?",
+			expected: true,
+		},
+		{
+			path:     "[",
+			expected: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isGlobPath(tt.path))
+		})
+	}
+}
+
+func Test_getReferencedSource(t *testing.T) {
+	t.Parallel()
+
+	refTarget := &v1alpha1.RefTarget{
+		Repo: v1alpha1.Repository{
+			Repo: "https://github.com/org/repo1",
+		},
+	}
+	tests := []struct {
+		name         string
+		rawValueFile string
+		refSources   map[string]*v1alpha1.RefTarget
+		expected     *v1alpha1.RefTarget
+	}{
+		{
+			name:         "ref with file path found in map",
+			rawValueFile: "$ref/values.yaml",
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": refTarget,
+			},
+			expected: refTarget,
+		},
+		{
+			name:         "ref with file path not in map",
+			rawValueFile: "$ref/values.yaml",
+			refSources:   map[string]*v1alpha1.RefTarget{},
+			expected:     nil,
+		},
+		{
+			name:         "bare ref without file path found in map",
+			rawValueFile: "$ref",
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": refTarget,
+			},
+			expected: refTarget,
+		},
+		{
+			name:         "empty string returns nil",
+			rawValueFile: "",
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": refTarget,
+			},
+			expected: nil,
+		},
+		{
+			name:         "no $ prefix returns nil",
+			rawValueFile: "values.yaml",
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": refTarget,
+			},
+			expected: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := getReferencedSource(tt.rawValueFile, tt.refSources)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestErrorGetGitDirectories(t *testing.T) {
 	// test not using the cache
 	root := "./testdata/git-files-dirs"
