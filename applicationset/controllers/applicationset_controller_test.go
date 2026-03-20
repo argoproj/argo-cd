@@ -8475,6 +8475,180 @@ func TestReconcileProgressiveSyncDisabled(t *testing.T) {
 	}
 }
 
+// TestReconcileProgressiveSyncTriggersInSameReconcile verifies that after performProgressiveSyncs
+// promotes an app from Waiting → Pending, syncDesiredApplications sees the updated status in the
+// *same* reconcile cycle and triggers the sync.
+func TestReconcileProgressiveSyncTriggersInSameReconcile(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	err = corev1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	const (
+		appSetName  = "my-appset"
+		appName     = "my-app"
+		namespace   = "argocd"
+		revision    = "abc123"
+		clusterName = "good-cluster"
+		clusterURL  = "https://good-cluster"
+	)
+
+	appSetUID := types.UID("test-appset-uid")
+
+	defaultProject := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: namespace},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: clusterURL}},
+		},
+	}
+
+	clusterSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-secret",
+			Namespace: namespace,
+			Labels: map[string]string{
+				argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte(clusterName),
+			"server": []byte(clusterURL),
+			"config": []byte(`{"username":"foo","password":"foo"}`),
+		},
+	}
+
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appSetName,
+			Namespace: namespace,
+			UID:       appSetUID,
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"name": "` + appName + `"}`)}},
+				}},
+			},
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{name}}",
+					Namespace: namespace,
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project:     "default",
+					Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+					Destination: v1alpha1.ApplicationDestination{Server: clusterURL},
+					SyncPolicy:  &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{SelfHeal: new(true)}},
+				},
+			},
+			Strategy: &v1alpha1.ApplicationSetStrategy{
+				Type: "RollingSync",
+				RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+					Steps: []v1alpha1.ApplicationSetRolloutStep{
+						{MatchExpressions: []v1alpha1.ApplicationMatchExpression{}},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.ApplicationSetStatus{
+			// App is in Waiting with the same revision as the live app — meaning a new revision
+			// was detected in a prior reconcile and now waits for its turn to be promoted.
+			ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     appName,
+					Status:          v1alpha1.ProgressiveSyncWaiting,
+					TargetRevisions: []string{revision},
+					Step:            "1",
+				},
+			},
+		},
+	}
+
+	isController := true
+	// The pre-existing Application must be owned by the AppSet so getCurrentApplications finds it.
+	app := v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appName,
+			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: v1alpha1.SchemeGroupVersion.String(),
+					Kind:       "ApplicationSet",
+					Name:       appSetName,
+					UID:        appSetUID,
+					Controller: &isController,
+				},
+			},
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Project:     "default",
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+			Destination: v1alpha1.ApplicationDestination{Server: clusterURL},
+			SyncPolicy:  &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{SelfHeal: new(true)}},
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Sync: v1alpha1.SyncStatus{
+				Status:   v1alpha1.SyncStatusCodeOutOfSync,
+				Revision: revision,
+			},
+		},
+	}
+
+	kubeclientset := getDefaultTestClientSet(clusterSecret)
+	client := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(&appSet, &app, &defaultProject).
+		WithStatusSubresource(&appSet).
+		WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+		Build()
+	metrics := appsetmetrics.NewFakeAppsetMetrics()
+	argodb := db.NewDB(namespace, settings.NewSettingsManager(t.Context(), kubeclientset, namespace), kubeclientset)
+
+	r := ApplicationSetReconciler{
+		Client:                 client,
+		Scheme:                 scheme,
+		Renderer:               &utils.Render{},
+		Recorder:               record.NewFakeRecorder(1),
+		Generators:             map[string]generators.Generator{"List": generators.NewListGenerator()},
+		ArgoDB:                 argodb,
+		ArgoCDNamespace:        namespace,
+		KubeClientset:          kubeclientset,
+		Metrics:                metrics,
+		EnableProgressiveSyncs: true,
+		// CreateUpdate avoids deleteInCluster (which requires ClusterInformer) while still
+		// exercising the create/update path that writes the Operation field to the app.
+		Policy: v1alpha1.ApplicationsSyncPolicyCreateUpdate,
+	}
+
+	req := ctrl.Request{
+		NamespacedName: types.NamespacedName{Namespace: namespace, Name: appSetName},
+	}
+
+	_, err = r.Reconcile(t.Context(), req)
+	require.NoError(t, err)
+
+	// After the fix, performProgressiveSyncs promotes the app Waiting → Pending and writes that
+	// to K8s; the reconcile then re-reads applicationSetInfo so syncDesiredApplications sees
+	// Pending and triggers the sync in the same cycle by setting app.Operation.
+	var updatedApp v1alpha1.Application
+	err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: namespace, Name: appName}, &updatedApp)
+	require.NoError(t, err)
+	assert.NotNil(t, updatedApp.Operation, "sync operation should be triggered in the same reconcile cycle as Waiting→Pending promotion")
+	if updatedApp.Operation != nil {
+		assert.True(t, updatedApp.Operation.InitiatedBy.Automated, "operation should be initiated by the applicationset-controller")
+	}
+
+	// The AppSet applicationStatus should show the app as Pending (promoted by performProgressiveSyncs).
+	var updatedAppSet v1alpha1.ApplicationSet
+	err = r.Get(t.Context(), crtclient.ObjectKey{Namespace: namespace, Name: appSetName}, &updatedAppSet)
+	require.NoError(t, err)
+	require.Len(t, updatedAppSet.Status.ApplicationStatus, 1)
+	assert.Equal(t, v1alpha1.ProgressiveSyncPending, updatedAppSet.Status.ApplicationStatus[0].Status,
+		"applicationStatus should be Pending after performProgressiveSyncs promotes it from Waiting")
+}
+
 func startAndSyncInformer(t *testing.T, informer cache.SharedIndexInformer) context.CancelFunc {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())

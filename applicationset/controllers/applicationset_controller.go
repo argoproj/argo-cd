@@ -266,6 +266,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
 			}
+			// Re-read applicationSetInfo so that syncDesiredApplications sees the updated
+			// applicationStatus written by performProgressiveSyncs (e.g. Waiting → Pending).
+			if err = r.Get(ctx, req.NamespacedName, &applicationSetInfo); err != nil {
+				return ctrl.Result{}, fmt.Errorf("failed to refresh application set after progressive sync: %w", err)
+			}
 		}
 	} else {
 		// Progressive Sync is disabled, clear any existing applicationStatus to prevent stale data
