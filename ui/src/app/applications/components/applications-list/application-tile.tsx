@@ -133,8 +133,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                             &nbsp;
                             {app.status.sourceHydrator?.currentOperation && (
                                 <>
-                                    <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
-                                    {app.status.sourceHydrator.currentOperation.phase}
+                                    <AppUtils.HydrateOperationPhaseIcon operation={app.status.sourceHydrator.currentOperation} /> {app.status.sourceHydrator.currentOperation.phase}
                                     &nbsp;
                                 </>
                             )}

@@ -48,25 +48,38 @@ const SOURCE_HYDRATOR_HELP = 'The source hydrator reads manifests from git, hydr
 const SOURCE_HYDRATOR_SERVER_DISABLED_TOOLTIP =
     'Source Hydrator is disabled on the API server. If it is also disabled on the application controller, then this data may be stale. Open the hydration details for more information.';
 
-const hydratorPanelLinkClass = (phase: string): 'neutral' | 'warning' | 'error' | 'progressing' => {
-    if (phase === models.HydrateOperationPhases.Hydrated) {
-        return 'neutral';
+function getHydratorStatusLinkLabel(
+    currentOperation: models.HydrateOperation | undefined,
+    waitingForController: boolean,
+    hydratorDisabledOnApiServer: boolean
+): string | null {
+    if (currentOperation) {
+        return currentOperation.phase;
     }
-    if (phase === models.HydrateOperationPhases.Failed) {
-        return 'error';
+    if (waitingForController) {
+        return 'Waiting';
     }
-    if (phase === models.HydrateOperationPhases.Hydrating) {
-        return 'progressing';
+    if (hydratorDisabledOnApiServer) {
+        return 'Disabled';
     }
-    return 'progressing';
-};
+    return null;
+}
 
-const sourceHydratorSectionHeader = (warningTooltip?: string) =>
-    sectionHeader({
-        title: 'SOURCE HYDRATOR',
-        helpContent: SOURCE_HYDRATOR_HELP,
-        ...(warningTooltip ? {warningTooltip} : {})
-    });
+const hydratorPanelLinkClass = (operation: models.HydrateOperation | undefined | null, hydratorDisabledOnApiServer: boolean): 'neutral' | 'warning' | 'error' | 'progressing' => {
+    if (!operation) {
+        return hydratorDisabledOnApiServer ? 'neutral' : 'warning';
+    }
+    switch (operation.phase) {
+        case models.HydrateOperationPhases.Hydrated:
+            return 'neutral';
+        case models.HydrateOperationPhases.Failed:
+            return 'error';
+        case models.HydrateOperationPhases.Hydrating:
+            return 'progressing';
+        default:
+            return 'progressing';
+    }
+};
 
 const sectionLabel = (info: SectionInfo) => (
     <label style={{display: 'flex', alignItems: 'flex-start', fontSize: '12px', fontWeight: 600, color: ARGO_GRAY6_COLOR, minHeight: '18px'}}>
@@ -191,8 +204,15 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
 
 export const ApplicationStatusPanel = ({application, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
     const authSettings = React.useContext(AuthSettingsCtx);
-    const sourceHydratorDisabledAtServer = !!(authSettings && !authSettings.hydratorEnabled && application.spec.sourceHydrator);
     const waitingForSourceHydratorController = isWaitingForSourceHydratorController(application, authSettings?.hydratorEnabled);
+    const currentHydrateOperation = application.status?.sourceHydrator?.currentOperation;
+
+    // Auth setting only; spec.sourceHydrator is guaranteed by the panel block below.
+    const hydratorDisabledOnApiServer = !!(authSettings && !authSettings.hydratorEnabled);
+
+    // Show the warning tooltip on the header, but only if there's an ongoing hydrate operation. If there's no ongoing operation, the whole
+    // toolbar gets used as a warning that Source Hydrator is disabled, so the extra tooltip is not needed and would be redundant.
+    const showHydratorServerDisabledHeaderTooltip = hydratorDisabledOnApiServer && !!currentHydrateOperation;
     const [showProgressiveSync, setShowProgressiveSync] = React.useState(false);
 
     React.useEffect(() => {
@@ -239,61 +259,42 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                 </div>
                 {application.status.health.message && <div className='application-status-panel__item-name'>{application.status.health.message}</div>}
             </div>
-            {waitingForSourceHydratorController && (
+            {application.spec.sourceHydrator && (
                 <div className='application-status-panel__item'>
-                    {sourceHydratorSectionHeader()}
+                    {sectionHeader({
+                        title: 'SOURCE HYDRATOR',
+                        helpContent: SOURCE_HYDRATOR_HELP,
+                        ...(showHydratorServerDisabledHeaderTooltip ? {warningTooltip: SOURCE_HYDRATOR_SERVER_DISABLED_TOOLTIP} : {})
+                    })}
                     <div className='application-status-panel__item-value'>
-                        <a className='warning' onClick={() => showHydrateOperation && showHydrateOperation()}>
-                            <i className='fa fa-clock-o application-status-panel__item-value__status-button' />
-                            &nbsp; Waiting for controller
-                        </a>
-                    </div>
-                    <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                        No hydrate operation in <code>status.sourceHydrator</code> yet. Click for details.
-                    </div>
-                </div>
-            )}
-            {sourceHydratorDisabledAtServer && !application.status?.sourceHydrator?.currentOperation && !waitingForSourceHydratorController && (
-                <div className='application-status-panel__item'>
-                    {sourceHydratorSectionHeader()}
-                    <div className='application-status-panel__item-value'>
-                        <a className='warning' onClick={() => showHydrateOperation && showHydrateOperation()}>
-                            <i className='fa fa-exclamation-triangle application-status-panel__item-value__status-button' />
-                            &nbsp; Disabled
-                        </a>
-                    </div>
-                    <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                        Source Hydrator is configured on the application, but Source Hydrator is disabled. Click for details.
-                    </div>
-                </div>
-            )}
-            {application.spec.sourceHydrator && application.status?.sourceHydrator?.currentOperation && (
-                <div className='application-status-panel__item'>
-                    {sourceHydratorSectionHeader(sourceHydratorDisabledAtServer ? SOURCE_HYDRATOR_SERVER_DISABLED_TOOLTIP : undefined)}
-                    <div className='application-status-panel__item-value application-status-panel__item-value--with-revision'>
-                        <a
-                            className={hydratorPanelLinkClass(application.status.sourceHydrator.currentOperation.phase)}
-                            onClick={() => showHydrateOperation && showHydrateOperation()}>
-                            <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} isButton={true} />
+                        <a className={hydratorPanelLinkClass(currentHydrateOperation, hydratorDisabledOnApiServer)} onClick={() => showHydrateOperation && showHydrateOperation()}>
+                            <HydrateOperationPhaseIcon operation={currentHydrateOperation} isButton={true} apiHydratorDisabled={hydratorDisabledOnApiServer} />
                             &nbsp;
-                            {application.status.sourceHydrator.currentOperation.phase}
+                            {getHydratorStatusLinkLabel(currentHydrateOperation, waitingForSourceHydratorController, hydratorDisabledOnApiServer)}
                         </a>
-                        <div className='application-status-panel__item-value__revision show-for-large'>{hydrationStatusMessage(application)}</div>
+                        {currentHydrateOperation && <div className='application-status-panel__item-value__revision show-for-large'>{hydrationStatusMessage(application)}</div>}
                     </div>
                     <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                        {application.status.sourceHydrator.currentOperation.phase}{' '}
-                        <Timestamp date={application.status.sourceHydrator.currentOperation.finishedAt || application.status.sourceHydrator.currentOperation.startedAt} />
+                        {waitingForSourceHydratorController && (
+                            <>
+                                No hydrate operation has started yet.
+                            </>
+                        )}
+                        {hydratorDisabledOnApiServer && !currentHydrateOperation && <>Source Hydrator is configured on the application, but Source Hydrator is disabled.</>}
+                        {currentHydrateOperation && (
+                            <>
+                                {currentHydrateOperation.phase} <Timestamp date={currentHydrateOperation.finishedAt || currentHydrateOperation.startedAt} />
+                            </>
+                        )}
                     </div>
-                    {application.status.sourceHydrator.currentOperation.message && (
-                        <div className='application-status-panel__item-name'>{application.status.sourceHydrator.currentOperation.message}</div>
-                    )}
+                    <div className='application-status-panel__item-name'>{currentHydrateOperation?.message}</div>
                     <div className='application-status-panel__item-name'>
-                        {application.status.sourceHydrator.currentOperation.drySHA && (
+                        {currentHydrateOperation?.drySHA && (
                             <RevisionMetadataPanel
                                 appName={application.metadata.name}
                                 appNamespace={application.metadata.namespace}
                                 type={''}
-                                revision={application.status.sourceHydrator.currentOperation.drySHA}
+                                revision={currentHydrateOperation.drySHA}
                                 versionId={utils.getAppCurrentVersion(application)}
                             />
                         )}
@@ -308,10 +309,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     },
                     () => showMetadataInfo(application.status.sync ? 'SYNC_STATUS_REVISION' : null)
                 )}
-                <div
-                    className={`application-status-panel__item-value application-status-panel__item-value--with-revision${
-                        appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''
-                    }`}>
+                <div className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
                     <div>
                         {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
                             <a onClick={() => showDiff && showDiff()}>
@@ -359,12 +357,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                     : null
                             )
                     )}
-                    <div
-                        className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}${
-                            appOperationState.syncResult && (appOperationState.syncResult.revision || appOperationState.syncResult.revisions)
-                                ? ' application-status-panel__item-value--with-revision'
-                                : ''
-                        }`}>
+                    <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                         <a onClick={() => showOperation && showOperation()}>
                             <OperationState app={application} isButton={true} />{' '}
                         </a>

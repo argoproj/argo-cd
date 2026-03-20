@@ -142,10 +142,10 @@
 
     &__item-value {
         display: flex;
-        align-items: baseline;
+        align-items: flex-start;
         margin-bottom: 0.5em;
         font-weight: 500;
-        padding: 2px 0px;
+        padding: 5px 0 2px;
         .fa {
             font-size: 1em;
         }
@@ -194,12 +194,6 @@
             &:hover {
                 background-color: $argo-color-gray-4;
             }
-        }
-
-        // Rows with __revision: baseline + overflow:hidden clips the top of __status-button borders.
-        &--with-revision {
-            align-items: flex-start;
-            padding-top: 5px;
         }
     }
 

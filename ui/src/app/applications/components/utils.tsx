@@ -280,13 +280,37 @@ export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application;
     );
 };
 
-export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operationState?: appModels.HydrateOperation; isButton?: boolean}) => {
-    if (operationState === undefined) {
-        return null;
+export const HydrateOperationPhaseIcon = ({
+    operation,
+    isButton,
+    /** When there is no operation and `isButton`, whether the API has hydrator disabled (triangle vs clock). Ignored when `operation` is set. */
+    apiHydratorDisabled
+}: {
+    operation?: appModels.HydrateOperation | null;
+    isButton?: boolean;
+    apiHydratorDisabled?: boolean;
+}) => {
+    const panelButtonClass = isButton ? ' application-status-panel__item-value__status-button' : '';
+
+    if (!operation) {
+        if (!isButton) {
+            return null;
+        }
+        return apiHydratorDisabled ? (
+            <i
+                title='Source hydrator disabled'
+                qe-id='utils-hydrate-status-panel'
+                className={'fa fa-exclamation-triangle' + panelButtonClass}
+                style={{color: COLORS.sync.out_of_sync}}
+            />
+        ) : (
+            <i title='Waiting for controller' qe-id='utils-hydrate-status-panel' className={'fa fa-clock-o' + panelButtonClass} />
+        );
     }
+
     let className = '';
     let color = '';
-    switch (operationState.phase) {
+    switch (operation.phase) {
         case appModels.HydrateOperationPhases.Hydrated:
             className = 'fa fa-check-circle';
             color = COLORS.operation.success;
@@ -300,12 +324,11 @@ export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operation
             color = COLORS.operation.running;
             break;
     }
-    const panelButtonClass = isButton ? ' application-status-panel__item-value__status-button' : '';
-    const iconColorStyle = !className.includes('fa-spin') && (!isButton || operationState.phase === appModels.HydrateOperationPhases.Hydrated) ? {style: {color}} : {};
+    const iconColorStyle = !className.includes('fa-spin') && (!isButton || operation.phase === appModels.HydrateOperationPhases.Hydrated) ? {style: {color}} : {};
     return className.includes('fa-spin') ? (
         <SpinningIcon color={color} qeId='utils-operations-status-title' />
     ) : (
-        <i title={operationState.phase} qe-id='utils-operations-status-title' className={className + panelButtonClass} {...iconColorStyle} />
+        <i title={operation.phase} qe-id='utils-operations-status-title' className={className + panelButtonClass} {...iconColorStyle} />
     );
 };
 
