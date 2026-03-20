@@ -562,6 +562,10 @@ const (
 
 	// application sync with impersonation feature is disabled by default.
 	defaultImpersonationEnabledFlag = false
+
+	// defaultInClusterEnabledFlag is the default value when the in-cluster setting
+	// cannot be read from the configmap or is not explicitly set by the user.
+	defaultInClusterEnabledFlag = true
 )
 
 var sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
@@ -2428,11 +2432,10 @@ func (mgr *SettingsManager) GetAllowedNodeLabels() []string {
 func (mgr *SettingsManager) IsInClusterEnabled() (bool, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return true, fmt.Errorf("error checking %s property in configmap: %w", inClusterEnabledKey, err)
+		return defaultInClusterEnabledFlag, fmt.Errorf("error checking %s property in configmap: %w", inClusterEnabledKey, err)
 	}
 	if inClusterEnabled, ok := argoCDCM.Data[inClusterEnabledKey]; ok {
 		return inClusterEnabled != "false", nil
 	}
-	// default value when flag is not explicitly set by user
-	return true, nil
+	return defaultInClusterEnabledFlag, nil
 }
