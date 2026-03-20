@@ -4644,3 +4644,103 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, updateCallCount, 2, "Update should be called at least twice (once with conflict, once with success)")
 }
+
+func TestTerminateOperation_NilOperationWithRunningState(t *testing.T) {
+	// Reproduces issue #17155: when .operation is nil but .status.operationState
+	// still shows Running, TerminateOperation should clean up the stale state
+	// instead of returning "No operation is in progress".
+	testApp := newTestApp()
+	testApp.Operation = nil // operation field already cleared
+	testApp.Status.OperationState = &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{},
+		},
+		Phase:     synccommon.OperationRunning,
+		StartedAt: metav1.NewTime(time.Now()),
+	}
+
+	appServer := newTestAppServer(t, testApp)
+	ctx := context.Background()
+
+	resp, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{
+		Name: &testApp.Name,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+
+	// Verify the stale operationState was cleaned up
+	app, err := appServer.appclientset.ArgoprojV1alpha1().Applications(testApp.Namespace).Get(ctx, testApp.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, synccommon.OperationFailed, app.Status.OperationState.Phase)
+	assert.Equal(t, "operation was interrupted", app.Status.OperationState.Message)
+	assert.NotNil(t, app.Status.OperationState.FinishedAt)
+}
+
+func TestTerminateOperation_NilOperationWithTerminatingState(t *testing.T) {
+	// Same issue as #17155 but operationState is in Terminating phase.
+	testApp := newTestApp()
+	testApp.Operation = nil
+	testApp.Status.OperationState = &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{},
+		},
+		Phase:     synccommon.OperationTerminating,
+		StartedAt: metav1.NewTime(time.Now()),
+	}
+
+	appServer := newTestAppServer(t, testApp)
+	ctx := context.Background()
+
+	resp, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{
+		Name: &testApp.Name,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+
+	app, err := appServer.appclientset.ArgoprojV1alpha1().Applications(testApp.Namespace).Get(ctx, testApp.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, synccommon.OperationFailed, app.Status.OperationState.Phase)
+	assert.Equal(t, "operation was interrupted", app.Status.OperationState.Message)
+	assert.NotNil(t, app.Status.OperationState.FinishedAt)
+}
+
+func TestTerminateOperation_NilOperationWithCompletedState(t *testing.T) {
+	// When operation is nil and operationState is already completed,
+	// should still return "no operation in progress" error.
+	testApp := newTestApp()
+	testApp.Operation = nil
+	now := metav1.Now()
+	testApp.Status.OperationState = &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{},
+		},
+		Phase:      synccommon.OperationSucceeded,
+		StartedAt:  metav1.NewTime(time.Now()),
+		FinishedAt: &now,
+	}
+
+	appServer := newTestAppServer(t, testApp)
+	ctx := context.Background()
+
+	_, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{
+		Name: &testApp.Name,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "No operation is in progress")
+}
+
+func TestTerminateOperation_NilOperationStateReturnsError(t *testing.T) {
+	// When both operation and operationState are nil, should return error.
+	testApp := newTestApp()
+	testApp.Operation = nil
+	testApp.Status.OperationState = nil
+
+	appServer := newTestAppServer(t, testApp)
+	ctx := context.Background()
+
+	_, err := appServer.TerminateOperation(ctx, &application.OperationTerminateRequest{
+		Name: &testApp.Name,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "No operation is in progress")
+}

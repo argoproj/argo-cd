@@ -2447,10 +2447,26 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 	}
 
 	for range 10 {
-		if a.Operation == nil || a.Status.OperationState == nil {
+		if a.Status.OperationState == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
 		}
-		a.Status.OperationState.Phase = common.OperationTerminating
+
+		if a.Operation == nil {
+			if !a.Status.OperationState.Phase.Completed() {
+				// The operation field was cleared (e.g. by another controller reconciliation) while
+				// operationState still shows Running/Terminating. This is an inconsistent state.
+				// Clean it up by marking the operation as Failed.
+				log.Warnf("application '%s' has nil operation but operationState phase is %s; cleaning up stale state", a.QualifiedName(), a.Status.OperationState.Phase)
+				a.Status.OperationState.Phase = common.OperationFailed
+				a.Status.OperationState.Message = "operation was interrupted"
+				now := metav1.Now()
+				a.Status.OperationState.FinishedAt = &now
+			} else {
+				return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
+			}
+		} else {
+			a.Status.OperationState.Phase = common.OperationTerminating
+		}
 		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
 		if err == nil {
 			s.waitSync(updated)
