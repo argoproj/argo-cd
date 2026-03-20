@@ -288,11 +288,11 @@ export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operation
     let color = '';
     switch (operationState.phase) {
         case appModels.HydrateOperationPhases.Hydrated:
-            className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
+            className = 'fa fa-check-circle';
             color = COLORS.operation.success;
             break;
         case appModels.HydrateOperationPhases.Failed:
-            className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;
+            className = 'fa fa-times-circle';
             color = COLORS.operation.failed;
             break;
         default:
@@ -300,10 +300,12 @@ export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operation
             color = COLORS.operation.running;
             break;
     }
+    const panelButtonClass = isButton ? ' application-status-panel__item-value__status-button' : '';
+    const iconColorStyle = !className.includes('fa-spin') && (!isButton || operationState.phase === appModels.HydrateOperationPhases.Hydrated) ? {style: {color}} : {};
     return className.includes('fa-spin') ? (
         <SpinningIcon color={color} qeId='utils-operations-status-title' />
     ) : (
-        <i title={operationState.phase} qe-id='utils-operations-status-title' className={className} style={{color}} />
+        <i title={operationState.phase} qe-id='utils-operations-status-title' className={className + panelButtonClass} {...iconColorStyle} />
     );
 };
 

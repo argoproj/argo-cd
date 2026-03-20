@@ -46,7 +46,27 @@ interface SectionInfo {
 const SOURCE_HYDRATOR_HELP = 'The source hydrator reads manifests from git, hydrates (renders) them, and pushes them to a different location in git.';
 
 const SOURCE_HYDRATOR_SERVER_DISABLED_TOOLTIP =
-    'Hydrator is disabled on the API server, but it may be enabled on the application controller. This data may be stale. Open the hydration details for more information.';
+    'Source Hydrator is disabled on the API server. If it is also disabled on the application controller, then this data may be stale. Open the hydration details for more information.';
+
+const hydratorPanelLinkClass = (phase: string): 'neutral' | 'warning' | 'error' | 'progressing' => {
+    if (phase === models.HydrateOperationPhases.Hydrated) {
+        return 'neutral';
+    }
+    if (phase === models.HydrateOperationPhases.Failed) {
+        return 'error';
+    }
+    if (phase === models.HydrateOperationPhases.Hydrating) {
+        return 'progressing';
+    }
+    return 'progressing';
+};
+
+const sourceHydratorSectionHeader = (warningTooltip?: string) =>
+    sectionHeader({
+        title: 'SOURCE HYDRATOR',
+        helpContent: SOURCE_HYDRATOR_HELP,
+        ...(warningTooltip ? {warningTooltip} : {})
+    });
 
 const sectionLabel = (info: SectionInfo) => (
     <label style={{display: 'flex', alignItems: 'flex-start', fontSize: '12px', fontWeight: 600, color: ARGO_GRAY6_COLOR, minHeight: '18px'}}>
@@ -208,12 +228,6 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     const source = getAppDefaultSource(application);
     const hasMultipleSources = application.spec.sources?.length > 0;
     const revisionType = source?.repoURL?.startsWith('oci://') ? 'oci' : source?.chart ? 'helm' : 'git';
-    const hydratorLabelWithOptionalWarning = (warningTooltip?: string) =>
-        sectionLabel({
-            title: 'SOURCE HYDRATOR',
-            helpContent: SOURCE_HYDRATOR_HELP,
-            ...(warningTooltip ? {warningTooltip} : {})
-        });
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
@@ -227,10 +241,10 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
             </div>
             {waitingForSourceHydratorController && (
                 <div className='application-status-panel__item'>
-                    <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>{hydratorLabelWithOptionalWarning()}</div>
+                    {sourceHydratorSectionHeader()}
                     <div className='application-status-panel__item-value'>
-                        <a className='application-status-panel__item-value__hydrator-link' onClick={() => showHydrateOperation && showHydrateOperation()}>
-                            <i className='fa fa-clock-o application-status-panel__item-value__status-button' style={{color: COLORS.sync.out_of_sync}} />
+                        <a className='warning' onClick={() => showHydrateOperation && showHydrateOperation()}>
+                            <i className='fa fa-clock-o application-status-panel__item-value__status-button' />
                             &nbsp; Waiting for controller
                         </a>
                     </div>
@@ -241,11 +255,11 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
             )}
             {sourceHydratorDisabledAtServer && !application.status?.sourceHydrator?.currentOperation && !waitingForSourceHydratorController && (
                 <div className='application-status-panel__item'>
-                    <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>{hydratorLabelWithOptionalWarning()}</div>
+                    {sourceHydratorSectionHeader()}
                     <div className='application-status-panel__item-value'>
-                        <a className='application-status-panel__item-value__hydrator-link' onClick={() => showHydrateOperation && showHydrateOperation()}>
-                            <i className='fa fa-exclamation-triangle application-status-panel__item-value__status-button' style={{color: ARGO_WARNING_COLOR}} />
-                            &nbsp; Hydrator disabled
+                        <a className='warning' onClick={() => showHydrateOperation && showHydrateOperation()}>
+                            <i className='fa fa-exclamation-triangle application-status-panel__item-value__status-button' />
+                            &nbsp; Disabled
                         </a>
                     </div>
                     <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
@@ -255,14 +269,12 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
             )}
             {application.spec.sourceHydrator && application.status?.sourceHydrator?.currentOperation && (
                 <div className='application-status-panel__item'>
-                    <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>
-                        {hydratorLabelWithOptionalWarning(sourceHydratorDisabledAtServer ? SOURCE_HYDRATOR_SERVER_DISABLED_TOOLTIP : undefined)}
-                    </div>
-                    <div className='application-status-panel__item-value'>
-                        <a className='application-status-panel__item-value__hydrator-link' onClick={() => showHydrateOperation && showHydrateOperation()}>
-                            <span className='application-status-panel__item-value__status-button'>
-                                <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} isButton={false} />
-                            </span>
+                    {sourceHydratorSectionHeader(sourceHydratorDisabledAtServer ? SOURCE_HYDRATOR_SERVER_DISABLED_TOOLTIP : undefined)}
+                    <div className='application-status-panel__item-value application-status-panel__item-value--with-revision'>
+                        <a
+                            className={hydratorPanelLinkClass(application.status.sourceHydrator.currentOperation.phase)}
+                            onClick={() => showHydrateOperation && showHydrateOperation()}>
+                            <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} isButton={true} />
                             &nbsp;
                             {application.status.sourceHydrator.currentOperation.phase}
                         </a>
@@ -296,7 +308,10 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     },
                     () => showMetadataInfo(application.status.sync ? 'SYNC_STATUS_REVISION' : null)
                 )}
-                <div className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
+                <div
+                    className={`application-status-panel__item-value application-status-panel__item-value--with-revision${
+                        appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''
+                    }`}>
                     <div>
                         {application.status.sync.status === models.SyncStatuses.OutOfSync ? (
                             <a onClick={() => showDiff && showDiff()}>
@@ -344,7 +359,12 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                     : null
                             )
                     )}
-                    <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
+                    <div
+                        className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}${
+                            appOperationState.syncResult && (appOperationState.syncResult.revision || appOperationState.syncResult.revisions)
+                                ? ' application-status-panel__item-value--with-revision'
+                                : ''
+                        }`}>
                         <a onClick={() => showOperation && showOperation()}>
                             <OperationState app={application} isButton={true} />{' '}
                         </a>

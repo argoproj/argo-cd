@@ -118,6 +118,14 @@
                 color: $argo-success-color;
             }
         }
+        & {
+            a.progressing,
+            a.neutral {
+                @include themify($themes) {
+                    color: themed('text-1');
+                }
+            }
+        }
 
         label {
             display: block;
@@ -179,10 +187,7 @@
         }
 
         &__status-button {
-            display: inline-block;
-            position: relative;
-            z-index: 1;
-            vertical-align: middle;
+            display: inline;
             border-radius: 5px;
             padding: 2px;
             border: 1px solid $argo-color-gray-5;
@@ -191,10 +196,10 @@
             }
         }
 
-        &__hydrator-link {
-            @include themify($themes) {
-                color: themed('text-1');
-            }
+        // Rows with __revision: baseline + overflow:hidden clips the top of __status-button borders.
+        &--with-revision {
+            align-items: flex-start;
+            padding-top: 5px;
         }
     }
 
