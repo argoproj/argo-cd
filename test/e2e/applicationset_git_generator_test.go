@@ -245,7 +245,7 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 
 func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
-	expectedErrorMessage := `error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = permission denied`
+	expectedErrorMessage := `error generating params from git repo 'https://github.com/argoproj/argocd-example-apps.git': error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = permission denied`
 	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
 		{
 			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
@@ -340,7 +340,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 
 func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
-	expectedErrorMessage := `error generating params from git: error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = permission denied`
+	expectedErrorMessage := `error generating params from git repo 'https://github.com/argoproj/argocd-example-apps.git': error getting directories from repo: error retrieving Git Directories: rpc error: code = Unknown desc = permission denied`
 	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
 		{
 			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
@@ -549,7 +549,7 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 
 func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
-	expectedErrorMessage := `error generating params from git: error retrieving Git files: rpc error: code = Unknown desc = permission denied`
+	expectedErrorMessage := `error generating params from git repo 'https://github.com/argoproj/applicationset.git': error retrieving Git files: rpc error: code = Unknown desc = permission denied`
 	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
 		{
 			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
@@ -644,7 +644,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 
 func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
-	expectedErrorMessage := `error generating params from git: error retrieving Git files: rpc error: code = Unknown desc = permission denied`
+	expectedErrorMessage := `error generating params from git repo 'https://github.com/argoproj/applicationset.git': error retrieving Git files: rpc error: code = Unknown desc = permission denied`
 	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
 		{
 			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
