@@ -24,6 +24,9 @@ type repositoryLock struct {
 // The init callback receives `clean` parameter which indicates if repo state must be cleaned after running non-concurrent operation.
 // The first init always runs with `clean` set to true because we cannot be sure about initial repo state.
 func (r *repositoryLock) Lock(ctx context.Context, path string, revision string, allowConcurrent bool, init func(clean bool) (io.Closer, error)) (io.Closer, error) {
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	r.lock.Lock()
 	state, ok := r.stateByKey[path]
 	if !ok {
