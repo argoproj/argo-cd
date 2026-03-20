@@ -424,19 +424,22 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 //   - copies ignored fields from the matching live resources: apply normalizer to the live resource,
 //     calculates the patch performed by normalizer and applies the patch to the target resource
 func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
-	// If there are no ignore differences rules configured, normalization is a no-op.
-	// Running normalization without ignore rules can corrupt target resources for CRDs
-	// that lack a registered Kubernetes scheme (e.g., Argo Rollouts), because the merge
-	// patch computation falls back to JSON merge patch which incorrectly handles arrays.
-	if len(cr.diffConfig.Ignores()) == 0 {
-		return cr.reconciliationResult.Target, nil
-	}
-
-	// normalize live and target resources
+	// Always run diff.Normalize() for standard Kubernetes normalization (resource
+	// tracking, managed fields, known types, etc.).
 	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
 		return nil, err
 	}
+
+	// If there are no ignore differences rules configured, return the normalized targets
+	// directly without applying the live-to-normalized merge patch. The merge patch
+	// computation falls back to JSON merge patch for CRDs that lack a registered
+	// Kubernetes scheme (e.g., Argo Rollouts), which incorrectly handles arrays and
+	// can corrupt target resources.
+	if len(cr.diffConfig.Ignores()) == 0 {
+		return normalized.Targets, nil
+	}
+
 	patchedTargets := []*unstructured.Unstructured{}
 	for idx, live := range cr.reconciliationResult.Live {
 		normalizedTarget := normalized.Targets[idx]

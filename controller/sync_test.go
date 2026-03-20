@@ -458,22 +458,22 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, int64(4), replicas)
 	})
-	t.Run("will return original targets when no ignore rules configured", func(t *testing.T) {
+	t.Run("will return normalized targets without merge patch when no ignore rules configured", func(t *testing.T) {
 		// given - no ignore differences rules
 		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{})
 
-		// Capture the original target pointer
 		originalTarget := f.comparisonResult.reconciliationResult.Target[0]
 
 		// when
 		targets, err := normalizeTargetResources(f.comparisonResult)
 
-		// then - targets should be returned as-is (same slice)
+		// then - diff.Normalize() still runs (for standard Kubernetes normalization),
+		// so the returned target is a deep copy, not the same pointer. But the content
+		// should match the original target since no merge patch is applied.
 		require.NoError(t, err)
 		require.Len(t, targets, 1)
-		// The returned target should be the exact same object (pointer equality),
-		// confirming that no normalization was performed.
-		assert.Same(t, originalTarget, targets[0])
+		assert.NotSame(t, originalTarget, targets[0])
+		assert.Equal(t, originalTarget.GetAnnotations()["iksm-version"], targets[0].GetAnnotations()["iksm-version"])
 	})
 	t.Run("will not corrupt CRD target when no ignore rules configured", func(t *testing.T) {
 		// given - a CRD resource (like Argo Rollout) with no ignore rules
