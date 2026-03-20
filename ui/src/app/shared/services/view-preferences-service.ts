@@ -72,16 +72,12 @@ export class AbstractAppsListPreferences {
         pref.healthFilter = [];
         pref.labelsFilter = [];
         pref.annotationsFilter = [];
-        pref.targetRevisionFilter = [];
         pref.showFavorites = false;
     }
 
     public labelsFilter: string[];
     public annotationsFilter: string[];
     public healthFilter: string[];
-    public namespacesFilter: string[];
-    public targetRevisionFilter: string[];
-    public clustersFilter: string[];
     public view: AppsListViewType;
     public hideFilters: boolean;
     public statusBarView: HealthStatusBarPreferences;
@@ -90,28 +86,12 @@ export class AbstractAppsListPreferences {
 }
 
 export class AppsListPreferences extends AbstractAppsListPreferences {
-    public static countEnabledFilters(pref: AppsListPreferences) {
-        const enabledFilterGroups = [
-            pref.clustersFilter,
-            pref.healthFilter,
-            pref.labelsFilter,
-            pref.annotationsFilter,
-            pref.namespacesFilter,
-            pref.projectsFilter,
-            pref.syncFilter,
-            pref.targetRevisionFilter,
-            pref.autoSyncFilter,
-            pref.operationFilter
-        ];
-
-        return enabledFilterGroups.reduce((count, filter) => count + (filter && filter.length > 0 ? 1 : 0), pref.showFavorites ? 1 : 0);
-    }
-
     public static clearFilters(pref: AppsListPreferences) {
         super.clearFilters(pref);
 
         pref.clustersFilter = [];
         pref.namespacesFilter = [];
+        pref.targetRevisionFilter = [];
         pref.projectsFilter = [];
         pref.syncFilter = [];
         pref.autoSyncFilter = [];

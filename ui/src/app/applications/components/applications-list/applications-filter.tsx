@@ -38,7 +38,6 @@ export interface ApplicationSetFilterResult {
     health: boolean;
     favourite: boolean;
     labels: boolean;
-    targetRevision: boolean;
 }
 
 export interface FilteredApp extends Application {
@@ -83,12 +82,13 @@ export function getAppFilterResults(applications: Application[], pref: AppsListP
                             return url === app.spec.destination.server || name === app.spec.destination.name;
                         } else {
                             const inputMatch = filterString.match('^http.*$');
-                            return (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString));
+                            return (
+                                (inputMatch && inputMatch[0] === app.spec.destination.server) || (app.spec.destination.name && minimatch(app.spec.destination.name, filterString))
+                            );
                         }
                     }),
                 targetRevision:
-                    pref.targetRevisionFilter.length === 0 ||
-                    pref.targetRevisionFilter.some(filter => targetRevisions.some(targetRevision => minimatch(targetRevision, filter))),
+                    pref.targetRevisionFilter.length === 0 || pref.targetRevisionFilter.some(filter => targetRevisions.some(targetRevision => minimatch(targetRevision, filter))),
                 labels: pref.labelsFilter.length === 0 || labelSelector(app.metadata.labels),
                 annotations: pref.annotationsFilter.length === 0 || annotationSelector(app.metadata.annotations),
                 operation: pref.operationFilter.length === 0 || pref.operationFilter.includes(getOperationStateTitle(app))
@@ -376,13 +376,7 @@ const TargetRevisionFilter = (props: AppFilterProps) => {
     const targetRevisionOptions = React.useMemo(
         () =>
             optionsFrom(
-                Array.from(
-                    new Set(
-                        props.apps
-                            .flatMap(app => getAppAllSources(app).map(source => source.targetRevision))
-                            .filter((item): item is string => !!item)
-                    )
-                ),
+                Array.from(new Set(props.apps.flatMap(app => getAppAllSources(app).map(source => source.targetRevision)).filter((item): item is string => !!item))),
                 props.pref.targetRevisionFilter
             ),
         [props.apps, props.pref.targetRevisionFilter]
