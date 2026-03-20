@@ -2452,18 +2452,17 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		}
 
 		if a.Operation == nil {
-			if !a.Status.OperationState.Phase.Completed() {
-				// The operation field was cleared (e.g. by another controller reconciliation) while
-				// operationState still shows Running/Terminating. This is an inconsistent state.
-				// Clean it up by marking the operation as Failed.
-				log.Warnf("application '%s' has nil operation but operationState phase is %s; cleaning up stale state", a.QualifiedName(), a.Status.OperationState.Phase)
-				a.Status.OperationState.Phase = common.OperationFailed
-				a.Status.OperationState.Message = "operation was interrupted"
-				now := metav1.Now()
-				a.Status.OperationState.FinishedAt = &now
-			} else {
+			if a.Status.OperationState.Phase.Completed() {
 				return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
 			}
+			// The operation field was cleared (e.g. by another controller reconciliation) while
+			// operationState still shows Running/Terminating. This is an inconsistent state.
+			// Clean it up by marking the operation as Failed.
+			log.Warnf("application '%s' has nil operation but operationState phase is %s; cleaning up stale state", a.QualifiedName(), a.Status.OperationState.Phase)
+			a.Status.OperationState.Phase = common.OperationFailed
+			a.Status.OperationState.Message = "operation was interrupted"
+			now := metav1.Now()
+			a.Status.OperationState.FinishedAt = &now
 		} else {
 			a.Status.OperationState.Phase = common.OperationTerminating
 		}
