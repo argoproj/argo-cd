@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/go-openapi/loads"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/util/assets"
@@ -25,7 +26,7 @@ func TestSwaggerUI(t *testing.T) {
 		c <- listener.Addr().String()
 
 		mux := http.NewServeMux()
-		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", "")
+		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", "", "sameorigin", "frame-ancestors 'self';")
 		panic(http.Serve(listener, mux))
 	}
 
@@ -52,4 +53,72 @@ func TestSwaggerUI(t *testing.T) {
 	require.NoError(t, err)
 	require.Equalf(t, http.StatusOK, resp.StatusCode, "Was expecting status code 200 from swagger-ui, but got %d instead", resp.StatusCode)
 	require.NoError(t, resp.Body.Close())
+}
+
+func TestSwaggerUISecurityHeaders(t *testing.T) {
+	lc := &net.ListenConfig{}
+
+	startServer := func(t *testing.T, xFrameOptions string, contentSecurityPolicy string) string {
+		t.Helper()
+		listener, err := lc.Listen(t.Context(), "tcp", ":0")
+		require.NoError(t, err)
+
+		mux := http.NewServeMux()
+		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", "", xFrameOptions, contentSecurityPolicy)
+		go func() { _ = http.Serve(listener, mux) }()
+
+		return "http://" + listener.Addr().String()
+	}
+
+	t.Run("default headers on swagger.json", func(t *testing.T) {
+		server := startServer(t, "sameorigin", "frame-ancestors 'self';")
+
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server+"/swagger.json", http.NoBody)
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, "sameorigin", resp.Header.Get("X-Frame-Options"))
+		assert.Equal(t, "frame-ancestors 'self';", resp.Header.Get("Content-Security-Policy"))
+	})
+
+	t.Run("default headers on swagger-ui", func(t *testing.T) {
+		server := startServer(t, "sameorigin", "frame-ancestors 'self';")
+
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server+"/swagger-ui", http.NoBody)
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, "sameorigin", resp.Header.Get("X-Frame-Options"))
+		assert.Equal(t, "frame-ancestors 'self';", resp.Header.Get("Content-Security-Policy"))
+	})
+
+	t.Run("custom headers", func(t *testing.T) {
+		server := startServer(t, "deny", "frame-ancestors 'none';")
+
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server+"/swagger.json", http.NoBody)
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, "deny", resp.Header.Get("X-Frame-Options"))
+		assert.Equal(t, "frame-ancestors 'none';", resp.Header.Get("Content-Security-Policy"))
+	})
+
+	t.Run("empty headers omitted", func(t *testing.T) {
+		server := startServer(t, "", "")
+
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server+"/swagger.json", http.NoBody)
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Empty(t, resp.Header.Get("X-Frame-Options"))
+		assert.Empty(t, resp.Header.Get("Content-Security-Policy"))
+	})
 }
