@@ -1,7 +1,6 @@
 package v1alpha1
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -152,7 +151,7 @@ func TestValues_NullPreservation(t *testing.T) {
 		require.NoError(t, err)
 
 		yamlOutput := string(source.ValuesYAML())
-		assert.True(t, strings.Contains(yamlOutput, "cpu: null"),
+		assert.Contains(t, yamlOutput, "cpu: null",
 			"null values should survive JSON round-trip, got: %s", yamlOutput)
 	})
 }
