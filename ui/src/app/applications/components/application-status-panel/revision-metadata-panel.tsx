@@ -6,7 +6,7 @@ import {services} from '../../../shared/services';
 export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string; versionId: number}) => {
     if (props.type === 'helm' || props.type === 'oci') {
         return null;
-    }   
+    }
     if (props.type === 'oci') {
         return (
             <DataLoader load={() => services.applications.ociMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)} errorRenderer={() => <div />}>
