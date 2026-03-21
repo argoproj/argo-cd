@@ -278,7 +278,7 @@ func TestJqPathExpressionFailWithTimeout(t *testing.T) {
 func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Kind: "ConfigMap",
-		// This is a really wild expression, but it does trigger the desired error.
+		// This expression triggers an error when applied via delpaths([path(...)]).
 		JQPathExpressions: []string{`.nothing) | .data["config.yaml"] |= (fromjson | del(.auth) | tojson`},
 	}}, nil, IgnoreNormalizerOpts{})
 
@@ -291,97 +291,10 @@ func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
 		err = normalizer.Normalize(configMap)
 		require.NoError(t, err)
 	})
-	assert.Contains(t, out, "fromjson cannot be applied")
-}
-
-func TestTransformJQPathExpression(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "nested array field pattern is transformed",
-			input:    ".spec.rules[].backendRefs[].weight",
-			expected: ".spec.rules |= map(.backendRefs |= map(del(.weight)))",
-		},
-		{
-			name:     "single array field pattern is transformed",
-			input:    ".spec.containers[].image",
-			expected: ".spec.containers |= map(del(.image))",
-		},
-		{
-			name:     "non-array segments between arrays are preserved",
-			input:    ".spec.rules[].match.backendRefs[].name",
-			expected: ".spec.rules |= map(.match.backendRefs |= map(del(.name)))",
-		},
-		{
-			name:     "triple nested arrays",
-			input:    ".a[].b[].c[].field",
-			expected: ".a |= map(.b |= map(.c |= map(del(.field))))",
-		},
-		{
-			name:     "expression with pipe is not transformed",
-			input:    ".spec.containers[] | select(.name == \"init\")",
-			expected: ".spec.containers[] | select(.name == \"init\")",
-		},
-		{
-			name:     "expression with select is not transformed",
-			input:    ".spec.containers[] select(.name)",
-			expected: ".spec.containers[] select(.name)",
-		},
-		{
-			name:     "expression with parentheses is not transformed",
-			input:    ".spec.containers[] (foo)",
-			expected: ".spec.containers[] (foo)",
-		},
-		{
-			name:     "simple path without array is not transformed",
-			input:    ".spec.replicas",
-			expected: ".spec.replicas",
-		},
-		{
-			name:     "bare array iterator is not transformed",
-			input:    "[]",
-			expected: "[]",
-		},
-		{
-			name:     "path ending with array iterator is not transformed",
-			input:    ".spec.rules[]",
-			expected: ".spec.rules[]",
-		},
-		{
-			name:     "consecutive array iterators without path is not transformed",
-			input:    ".spec.rules[][].weight",
-			expected: ".spec.rules[][].weight",
-		},
-		{
-			name:     "array iterator without prefix path is not transformed",
-			input:    "[].backendRefs[].weight",
-			expected: "[].backendRefs[].weight",
-		},
-		{
-			name:     "field with nested dots after array is not transformed",
-			input:    ".spec.rules[].deep.nested.field",
-			expected: ".spec.rules[].deep.nested.field",
-		},
-		{
-			name:     "missing dot before field after array is not transformed",
-			input:    ".spec.rules[]weight",
-			expected: ".spec.rules[]weight",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := transformJQPathExpression(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
+	assert.Contains(t, out, "Failed to apply normalization")
 }
 
 func TestNormalizeNestedArrayFieldPattern(t *testing.T) {
-	// Test case for Gateway API HTTPRoute/GRPCRoute weight fields
 	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{{
 		Group:             "gateway.networking.k8s.io",
 		Kind:              "HTTPRoute",
@@ -390,7 +303,6 @@ func TestNormalizeNestedArrayFieldPattern(t *testing.T) {
 
 	require.NoError(t, err)
 
-	// Create a mock HTTPRoute with nested arrays using int64 for proper type handling
 	httpRoute := &unstructured.Unstructured{
 		Object: map[string]any{
 			"apiVersion": "gateway.networking.k8s.io/v1",
@@ -425,32 +337,22 @@ func TestNormalizeNestedArrayFieldPattern(t *testing.T) {
 						},
 					},
 				},
+				// "weight" field outside the targeted path should NOT be deleted
+				"metadata": map[string]any{
+					"weight": int64(999),
+				},
 			},
 		},
 	}
 
-	// Verify weight fields exist before normalization
+	err = normalizer.Normalize(httpRoute)
+	require.NoError(t, err)
+
+	// Verify weight fields are removed from backendRefs
 	rules, _, err := unstructured.NestedSlice(httpRoute.Object, "spec", "rules")
 	require.NoError(t, err)
 	require.Len(t, rules, 2)
 
-	// First rule should have weights
-	rule0 := rules[0].(map[string]any)
-	backendRefs0 := rule0["backendRefs"].([]any)
-	backend0 := backendRefs0[0].(map[string]any)
-	_, hasWeight := backend0["weight"]
-	assert.True(t, hasWeight)
-
-	// Apply normalization
-	err = normalizer.Normalize(httpRoute)
-	require.NoError(t, err)
-
-	// Verify weight fields are removed
-	rules, _, err = unstructured.NestedSlice(httpRoute.Object, "spec", "rules")
-	require.NoError(t, err)
-	require.Len(t, rules, 2)
-
-	// Check that weight fields are deleted from all backendRefs
 	for i, rule := range rules {
 		ruleMap := rule.(map[string]any)
 		backendRefs := ruleMap["backendRefs"].([]any)
@@ -458,11 +360,16 @@ func TestNormalizeNestedArrayFieldPattern(t *testing.T) {
 			backendMap := backend.(map[string]any)
 			_, hasWeight := backendMap["weight"]
 			assert.False(t, hasWeight, "weight should be deleted from rule %d, backendRef %d", i, j)
-			// Verify other fields are preserved
 			_, hasName := backendMap["name"]
 			assert.True(t, hasName, "name should be preserved in rule %d, backendRef %d", i, j)
 			_, hasPort := backendMap["port"]
 			assert.True(t, hasPort, "port should be preserved in rule %d, backendRef %d", i, j)
 		}
 	}
+
+	// Verify weight field OUTSIDE the targeted path is preserved (path-scoped)
+	outsideWeight, found, err := unstructured.NestedFieldNoCopy(httpRoute.Object, "spec", "metadata", "weight")
+	require.NoError(t, err)
+	assert.True(t, found, "weight outside targeted path should be preserved")
+	assert.Equal(t, int64(999), outsideWeight)
 }

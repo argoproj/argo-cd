@@ -106,68 +106,6 @@ type ignoreNormalizer struct {
 	patches []normalizerPatch
 }
 
-// transformJQPathExpression converts simple nested array field patterns to proper JQ deletion syntax.
-// It uses path-scoped |= map() expressions to only delete the field at the exact path specified.
-//
-// Examples:
-//
-//	.spec.rules[].backendRefs[].weight     -> .spec.rules |= map(.backendRefs |= map(del(.weight)))
-//	.spec.containers[].image               -> .spec.containers |= map(del(.image))
-//	.spec.rules[].match.backendRefs[].name -> .spec.rules |= map(.match.backendRefs |= map(del(.name)))
-func transformJQPathExpression(pathExpression string) string {
-	// If expression already contains pipes, select, or parentheses, don't transform it
-	if strings.Contains(pathExpression, "|") ||
-		strings.Contains(pathExpression, "select") ||
-		strings.Contains(pathExpression, "(") {
-		return pathExpression
-	}
-
-	// Check if expression contains [] indicating array iteration
-	if !strings.Contains(pathExpression, "[]") {
-		return pathExpression
-	}
-
-	// Split by [] to identify path groups between array iterators.
-	// For ".spec.rules[].backendRefs[].weight", this produces:
-	//   [".spec.rules", ".backendRefs", ".weight"]
-	groups := strings.Split(pathExpression, "[]")
-	if len(groups) < 2 {
-		return pathExpression
-	}
-
-	// Last group is the field to delete (e.g., ".weight")
-	fieldPart := groups[len(groups)-1]
-	if fieldPart == "" || !strings.HasPrefix(fieldPart, ".") {
-		return pathExpression
-	}
-	fieldName := fieldPart[1:] // remove leading "."
-
-	// Verify the field name is simple (no dots, no brackets)
-	if strings.Contains(fieldName, ".") || strings.Contains(fieldName, "[") || fieldName == "" {
-		return pathExpression
-	}
-
-	// Verify prefix path is not empty
-	if groups[0] == "" {
-		return pathExpression
-	}
-
-	// Build expression from inside out using path-scoped |= map() wrappers.
-	// Start with the innermost deletion.
-	expr := fmt.Sprintf("del(.%s)", fieldName)
-
-	// Wrap with |= map() for each intermediate array level (reverse order)
-	for i := len(groups) - 2; i >= 1; i-- {
-		if groups[i] == "" {
-			return pathExpression // consecutive [] without path between them
-		}
-		expr = fmt.Sprintf("%s |= map(%s)", groups[i], expr)
-	}
-
-	// Prepend the prefix path with |= map()
-	return fmt.Sprintf("%s |= map(%s)", groups[0], expr)
-}
-
 type IgnoreNormalizerOpts struct {
 	JQExecutionTimeout time.Duration
 }
@@ -221,19 +159,11 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 			})
 		}
 		for _, pathExpression := range ignore[i].JQPathExpressions {
-			// Transform nested array field patterns to proper JQ syntax
-			transformedExpr := transformJQPathExpression(pathExpression)
-
-			// If the expression was transformed, use it as-is (it already handles deletion).
-			// Otherwise, wrap with del() as the original behavior.
-			var jqQuery string
-			if transformedExpr != pathExpression {
-				jqQuery = transformedExpr
-			} else {
-				jqQuery = fmt.Sprintf("del(%s)", transformedExpr)
-			}
-
-			jqDeletionQuery, err := gojq.Parse(jqQuery)
+			// Use delpaths([path(...)]) instead of del() to properly handle array
+			// iterators like .spec.rules[].backendRefs[].weight. The path() function
+			// resolves iterators into concrete paths, and delpaths() removes them.
+			// This is path-scoped and works for both simple paths and nested arrays.
+			jqDeletionQuery, err := gojq.Parse(fmt.Sprintf("delpaths([path(%s)])", pathExpression))
 			if err != nil {
 				return nil, err
 			}
