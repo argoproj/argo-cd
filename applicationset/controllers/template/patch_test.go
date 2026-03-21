@@ -96,7 +96,7 @@ func Test_ApplyTemplatePatch(t *testing.T) {
 					},
 					SyncPolicy: &appv1.SyncPolicy{
 						Automated: &appv1.SyncPolicyAutomated{
-							Prune: true,
+							Prune: new(true),
 						},
 					},
 				},
@@ -172,7 +172,7 @@ spec:
 					},
 					SyncPolicy: &appv1.SyncPolicy{
 						Automated: &appv1.SyncPolicyAutomated{
-							Prune: true,
+							Prune: new(true),
 						},
 					},
 				},
