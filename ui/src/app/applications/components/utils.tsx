@@ -1494,9 +1494,11 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
     if (!app) {
         return null;
     }
-    const {path, targetRevision, repoURL} = app.spec.sourceHydrator?.drySource || app.spec.source;
-
-    return {repoURL, targetRevision, path};
+    if (app.spec.sourceHydrator?.drySource) {
+        const {path, targetRevision, repoURL} = app.spec.sourceHydrator.drySource;
+        return {repoURL, targetRevision, path};
+    }
+    return getAppDefaultSource(app);
 }
 
 // getAppAllSources gets all app sources as an array. For single source apps, returns [source].
