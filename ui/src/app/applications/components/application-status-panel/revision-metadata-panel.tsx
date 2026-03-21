@@ -6,7 +6,7 @@ import {services} from '../../../shared/services';
 export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string; versionId: number}) => {
     if (props.type === 'helm' || props.type === 'oci') {
         return null;
-    }
+    }   
     if (props.type === 'oci') {
         return (
             <DataLoader load={() => services.applications.ociMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)} errorRenderer={() => <div />}>
@@ -37,14 +37,7 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
                         }
                         placement='bottom'
                         allowHTML={true}>
-                        <div className='application-status-panel__item-name'>
-                            {m.authors && (
-                                <div className='application-status-panel__item__row'>
-                                    <div>Author:</div>
-                                    <div>{m.authors}</div>
-                                </div>
-                            )}
-                        </div>
+                        <div className='application-status-panel__item-name' />
                     </Tooltip>
                 )}
             </DataLoader>
@@ -89,20 +82,7 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
                     }
                     placement='bottom'
                     allowHTML={true}>
-                    <div className='application-status-panel__item-name'>
-                        {m.author && (
-                            <div className='application-status-panel__item__row'>
-                                <div>Author:</div>
-                                <div>
-                                    {m.author} - {m.signatureInfo}
-                                </div>
-                            </div>
-                        )}
-                        <div className='application-status-panel__item__row'>
-                            <div>Comment:</div>
-                            <div>{m.message?.split('\n')[0].slice(0, 64)}</div>
-                        </div>
-                    </div>
+                    <div className='application-status-panel__item-name' />
                 </Tooltip>
             )}
         </DataLoader>
