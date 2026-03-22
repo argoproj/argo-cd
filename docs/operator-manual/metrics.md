@@ -199,7 +199,7 @@ The example below will expose the Argo CD Application labels `team-name` and `en
 In this case, the metric would look like:
 
 ```
-# TYPE argocd_app_labels gauge
+# TYPE argocd_cluster_labels gauge
 argocd_cluster_labels{label_environment="dev",label_team_name="team1",name="cluster1",server="server1"} 1
 argocd_cluster_labels{label_environment="staging",label_team_name="team2",name="cluster2",server="server2"} 1
 argocd_cluster_labels{label_environment="production",label_team_name="team3",name="cluster3",server="server3"} 1
