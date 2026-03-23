@@ -162,7 +162,7 @@ func TestLock_WaiterForDifferentRevision_CannotBeUnblocked(t *testing.T) {
 	defer cancel()
 
 	_, err = lock.Lock(ctx, "myRepo", "2", true, init)
-	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 
 	utilio.Close(closer1)
 }
@@ -177,8 +177,8 @@ func TestLock_ConvoyFormsUnderSequentialRevisions(t *testing.T) {
 	closerA, err := lock.Lock(context.Background(), "myRepo", "A", true, init)
 	require.NoError(t, err)
 
-	// Spawn 10 goroutines all waiting for revision "B" with short deadlines
-	const n = 10
+	// Spawn 100 goroutines all waiting for revision "B" with short deadlines
+	const n = 100
 	var wg sync.WaitGroup
 	errs := make([]error, n)
 
@@ -196,7 +196,7 @@ func TestLock_ConvoyFormsUnderSequentialRevisions(t *testing.T) {
 
 	// All goroutines should have exited via context cancellation
 	for i, err := range errs {
-		assert.ErrorIs(t, err, context.DeadlineExceeded, "goroutine %d should have been cancelled", i)
+		require.ErrorIs(t, err, context.DeadlineExceeded, "goroutine %d should have been cancelled", i)
 	}
 
 	utilio.Close(closerA)
