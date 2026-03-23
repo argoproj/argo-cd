@@ -685,11 +685,11 @@ func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKe
 		opts.Page = resp.NextPage
 	}
 
-	// Cache all installation IDs, keyed by each installation's own org
+	// Cache each installation under its account's key so multiple orgs do not overwrite each other.
 	for _, installation := range allInstallations {
 		if installation.Account != nil && installation.Account.Login != nil && installation.ID != nil {
-			installCacheKey := fmt.Sprintf("%s:%s:%d", strings.ToLower(*installation.Account.Login), domain, appId)
-			githubInstallationIdCache.Set(installCacheKey, *installation.ID, gocache.DefaultExpiration)
+			instKey := fmt.Sprintf("%s:%s:%d", strings.ToLower(*installation.Account.Login), domain, appId)
+			githubInstallationIdCache.Set(instKey, *installation.ID, gocache.DefaultExpiration)
 		}
 	}
 
