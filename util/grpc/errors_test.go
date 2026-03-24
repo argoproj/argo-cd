@@ -1,10 +1,12 @@
 package grpc
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -152,4 +154,30 @@ func Test_kubeErrToGRPC(t *testing.T) {
 			assert.Equal(t, c.expectedGRPCStatus, grpcStatus, "grpc status mismatch")
 		})
 	}
+}
+
+func TestInvalidMethodNameErrorUnaryServerInterceptor(t *testing.T) {
+	interceptor := InvalidMethodNameErrorUnaryServerInterceptor()
+	t.Run("Test valid method name", func(t *testing.T) {
+		info := &grpc.UnaryServerInfo{FullMethod: "foo"}
+		_, err := interceptor(t.Context(), nil, info, func(ctx context.Context, _ any) (any, error) {
+			return nil, nil
+		})
+		assert.EqualError(t, err, "malformed method name: \"foo\"")
+	})
+	t.Run("Test valid method name", func(t *testing.T) {
+		info := &grpc.UnaryServerInfo{FullMethod: ""}
+		_, err := interceptor(t.Context(), nil, info, func(ctx context.Context, _ any) (any, error) {
+			return nil, nil
+		})
+		assert.EqualError(t, err, "malformed method name: \"\"")
+	})
+	t.Run("Test valid method name", func(t *testing.T) {
+		info := &grpc.UnaryServerInfo{FullMethod: "/foo"}
+		_, err := interceptor(t.Context(), nil, info, func(ctx context.Context, _ any) (any, error) {
+			return nil, nil
+		})
+		assert.NoError(t, err)
+	})
+
 }
