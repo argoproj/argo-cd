@@ -1759,7 +1759,7 @@ func TestGrpcInvalidMethodNameCVEFix(t *testing.T) {
 
 	var dialOpts []grpc.DialOption
 	creds := insecure.NewCredentials()
-	conn, err := grpc_util.BlockingDial(ctx, "tcp", serverAddr, creds, dialOpts...)
+	conn, err := grpc_util.BlockingNewClient(ctx, "tcp", serverAddr, creds, dialOpts...)
 	require.NoError(t, err)
 	defer conn.Close()
 
