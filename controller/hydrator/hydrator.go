@@ -116,6 +116,15 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	logCtx.Debug("Processing app hydrate queue item")
 
 	needsHydration, reason := appNeedsHydration(app)
+	if !needsHydration && h.shouldCheckDrySourceRevision(app) {
+		latestDrySHA, err := h.getLatestDrySourceRevision(app)
+		if err != nil {
+			logCtx.WithError(err).Warn("Failed to resolve latest dry source revision")
+		} else if latestDrySHA != app.Status.SourceHydrator.CurrentOperation.DrySHA {
+			needsHydration = true
+			reason = "dry source revision changed"
+		}
+	}
 	if needsHydration {
 		app.Status.SourceHydrator.CurrentOperation = &appv1.HydrateOperation{
 			StartedAt:      metav1.Now(),
@@ -135,6 +144,31 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	}
 
 	logCtx.Debug("Successfully processed app hydrate queue item")
+}
+
+func (h *Hydrator) shouldCheckDrySourceRevision(app *appv1.Application) bool {
+	if app.Status.SourceHydrator.CurrentOperation == nil || app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating {
+		return false
+	}
+	if h.statusRefreshTimeout <= 0 {
+		return false
+	}
+	if app.Status.ReconciledAt == nil {
+		return true
+	}
+	return app.Status.ReconciledAt.Add(h.statusRefreshTimeout).Before(time.Now().UTC())
+}
+
+func (h *Hydrator) getLatestDrySourceRevision(app *appv1.Application) (string, error) {
+	project, err := h.dependencies.GetProcessableAppProj(app)
+	if err != nil {
+		return "", fmt.Errorf("failed to get app project %q: %w", app.Spec.Project, err)
+	}
+	revision, _, err := h.getManifests(context.Background(), app, "", project)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve latest dry source revision: %w", err)
+	}
+	return revision, nil
 }
 
 func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {

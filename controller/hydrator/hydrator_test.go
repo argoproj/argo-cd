@@ -445,6 +445,56 @@ func TestProcessAppHydrateQueueItem_HydrationPassedTimeout(t *testing.T) {
 	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
 }
 
+func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionChanged(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
+	reconciledAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
+	app.Status.ReconciledAt = &reconciledAt
+	app.Status.SourceHydrator.CurrentOperation.DrySHA = "old-sha"
+
+	d.EXPECT().GetProcessableAppProj(app).Return(newTestProject(), nil).Once()
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", mock.Anything).Return(nil, &repoclient.ManifestResponse{
+		Revision: "new-sha",
+	}, nil).Once()
+	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Return().Once()
+	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+
+	h.ProcessAppHydrateQueueItem(app)
+
+	d.AssertCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
+func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionUnchanged(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
+	reconciledAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
+	app.Status.ReconciledAt = &reconciledAt
+	app.Status.SourceHydrator.CurrentOperation.DrySHA = "same-sha"
+
+	d.EXPECT().GetProcessableAppProj(app).Return(newTestProject(), nil).Once()
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", mock.Anything).Return(nil, &repoclient.ManifestResponse{
+		Revision: "same-sha",
+	}, nil).Once()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+
+	h.ProcessAppHydrateQueueItem(app)
+
+	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
 func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
