@@ -2346,6 +2346,128 @@ func TestProjectErrorToCondition(t *testing.T) {
 	assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
 }
 
+func TestHydrationSyncGateDecision(t *testing.T) {
+	now := time.Now().UTC()
+	newState := func() *v1alpha1.OperationState {
+		return &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{},
+			},
+			StartedAt: metav1.NewTime(now),
+		}
+	}
+	newApp := func() *v1alpha1.Application {
+		app := newFakeApp()
+		app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        app.Spec.Source.RepoURL,
+				Path:           app.Spec.Source.Path,
+				TargetRevision: app.Spec.Source.TargetRevision,
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "main",
+				Path:         "hydrated",
+			},
+		}
+		return app
+	}
+
+	testCases := []struct {
+		name     string
+		app      *v1alpha1.Application
+		state    *v1alpha1.OperationState
+		expected hydrationSyncGateAction
+	}{
+		{
+			name: "no source hydrator",
+			app:  newFakeApp(),
+			state: &v1alpha1.OperationState{
+				Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+				StartedAt: metav1.NewTime(now),
+			},
+			expected: hydrationSyncGateActionNone,
+		},
+		{
+			name: "hydration in progress waits sync",
+			app: func() *v1alpha1.Application {
+				app := newApp()
+				app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+					Phase: v1alpha1.HydrateOperationPhaseHydrating,
+				}
+				return app
+			}(),
+			state:    newState(),
+			expected: hydrationSyncGateActionWait,
+		},
+		{
+			name: "stale hydration requests hydrate",
+			app: func() *v1alpha1.Application {
+				app := newApp()
+				finishedAt := metav1.NewTime(now.Add(-2 * time.Minute))
+				app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+					Phase:      v1alpha1.HydrateOperationPhaseHydrated,
+					FinishedAt: &finishedAt,
+				}
+				return app
+			}(),
+			state:    newState(),
+			expected: hydrationSyncGateActionHydrate,
+		},
+		{
+			name: "new hydration but sync revision stale requests refresh",
+			app: func() *v1alpha1.Application {
+				app := newApp()
+				finishedAt := metav1.NewTime(now.Add(1 * time.Minute))
+				app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+					Phase:       v1alpha1.HydrateOperationPhaseHydrated,
+					FinishedAt:  &finishedAt,
+					HydratedSHA: "new-hydrated-sha",
+				}
+				app.Status.Sync.Revision = "old-hydrated-sha"
+				return app
+			}(),
+			state:    newState(),
+			expected: hydrationSyncGateActionRefresh,
+		},
+		{
+			name: "explicit sync revision bypasses gating",
+			app: func() *v1alpha1.Application {
+				app := newApp()
+				app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+					Phase: v1alpha1.HydrateOperationPhaseHydrating,
+				}
+				return app
+			}(),
+			state: func() *v1alpha1.OperationState {
+				st := newState()
+				st.Operation.Sync.Revision = "12345"
+				return st
+			}(),
+			expected: hydrationSyncGateActionNone,
+		},
+		{
+			name: "hydrateTo bypasses gating",
+			app: func() *v1alpha1.Application {
+				app := newApp()
+				app.Spec.SourceHydrator.HydrateTo = &v1alpha1.HydrateTo{TargetBranch: "staging"}
+				app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+					Phase: v1alpha1.HydrateOperationPhaseHydrating,
+				}
+				return app
+			}(),
+			state:    newState(),
+			expected: hydrationSyncGateActionNone,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			action := hydrationSyncGateDecision(tc.app, tc.state)
+			assert.Equal(t, tc.expected, action)
+		})
+	}
+}
+
 func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 	app := newFakeApp()
 	proj := &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}

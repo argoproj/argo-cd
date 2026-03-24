@@ -94,6 +94,15 @@ const (
 	ComparisonWithNothing CompareWith = 0
 )
 
+type hydrationSyncGateAction string
+
+const (
+	hydrationSyncGateActionNone    hydrationSyncGateAction = "none"
+	hydrationSyncGateActionWait    hydrationSyncGateAction = "wait"
+	hydrationSyncGateActionHydrate hydrationSyncGateAction = "hydrate"
+	hydrationSyncGateActionRefresh hydrationSyncGateAction = "refresh"
+)
+
 func (a CompareWith) Max(b CompareWith) CompareWith {
 	return CompareWith(math.Max(float64(a), float64(b)))
 }
@@ -1509,6 +1518,10 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
 
+	if ctrl.gateSyncOnHydration(app, state, logCtx) {
+		return
+	}
+
 	terminating := state.Phase == synccommon.OperationTerminating
 	project, err := ctrl.getAppProj(app)
 	if err == nil {
@@ -1581,6 +1594,65 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	}
 	ts.AddCheckpoint("request_app_refresh_ms")
+}
+
+func hydrationSyncGateDecision(app *appv1.Application, state *appv1.OperationState) hydrationSyncGateAction {
+	if app.Spec.SourceHydrator == nil || state.Operation.Sync == nil {
+		return hydrationSyncGateActionNone
+	}
+
+	// If the user requested a specific revision (e.g. rollback), do not block sync on hydration.
+	if state.Operation.Sync.Revision != "" || len(state.Operation.Sync.Revisions) > 0 {
+		return hydrationSyncGateActionNone
+	}
+
+	// If hydrateTo is configured, hydration and sync are intentionally decoupled.
+	if app.Spec.SourceHydrator.HydrateTo != nil {
+		return hydrationSyncGateActionNone
+	}
+
+	op := app.Status.SourceHydrator.CurrentOperation
+	if op != nil && op.Phase == appv1.HydrateOperationPhaseHydrating {
+		return hydrationSyncGateActionWait
+	}
+
+	var lastHydrationTime time.Time
+	if op != nil && op.Phase == appv1.HydrateOperationPhaseHydrated && op.FinishedAt != nil {
+		lastHydrationTime = op.FinishedAt.Time
+	}
+	if lastHydrationTime.Before(state.StartedAt.Time) {
+		return hydrationSyncGateActionHydrate
+	}
+
+	if op != nil && op.HydratedSHA != "" && app.Status.Sync.Revision != op.HydratedSHA {
+		return hydrationSyncGateActionRefresh
+	}
+
+	return hydrationSyncGateActionNone
+}
+
+func (ctrl *ApplicationController) gateSyncOnHydration(app *appv1.Application, state *appv1.OperationState, logCtx *log.Entry) bool {
+	switch hydrationSyncGateDecision(app, state) {
+	case hydrationSyncGateActionWait:
+		logCtx.Debug("Sync operation is waiting for source hydration to complete")
+		return true
+	case hydrationSyncGateActionHydrate:
+		logCtx.Info("Requesting source hydration before sync operation")
+		_, err := argo.RefreshApp(ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace), app.Name, appv1.RefreshTypeNormal, true)
+		if err != nil {
+			logCtx.WithError(err).Error("Failed to request hydration before sync")
+		}
+		return true
+	case hydrationSyncGateActionRefresh:
+		logCtx.Info("Requesting app refresh to pick up hydrated commit before sync operation")
+		_, err := argo.RefreshApp(ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace), app.Name, appv1.RefreshTypeNormal, false)
+		if err != nil {
+			logCtx.WithError(err).Error("Failed to request refresh before sync")
+		}
+		return true
+	default:
+		return false
+	}
 }
 
 func (ctrl *ApplicationController) setOperationState(app *appv1.Application, state *appv1.OperationState) {
