@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="55 known vulnerabilities found in 199 vulnerable dependency paths.">
+  <meta name="description" content="62 known vulnerabilities found in 206 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">March 8th 2026, 12:37:01 am (UTC+00:00)</p>
+                <p class="timestamp">March 22nd 2026, 12:41:34 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -506,8 +506,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>55</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>199 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>62</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>206 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2320</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -516,6 +516,80 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
+            <h2 class="card__title">Incorrect Authorization</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--critical">
+                        <span class="label__text">critical severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.1.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            google.golang.org/grpc
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and google.golang.org/grpc@v1.73.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc@v1.73.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Incorrect Authorization in the processing of HTTP/2 <code>:path</code> pseudo-headers in <code>handleStream()</code>. An attacker can gain unauthorized access to restricted resources by sending requests with malformed <code>:path</code> headers that omit the leading slash. This is only exploitable if the server uses path-based authorization interceptors, has deny rules that use canonical paths with leading slashes, and has a fallback allow rule in its policy.</p>
+        <h2 id="workaround">Workaround</h2>
+        <p>This vulnerability can be mitigated by adding a validating interceptor that rejects requests with malformed paths, configuring infrastructure (such as reverse proxies) to enforce strict HTTP/2 compliance, or switching to a default-deny authorization policy.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>google.golang.org/grpc</code> to version 1.79.3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/grpc/grpc-go/commit/72186f163e75a065c39e6f7df9b6dea07fbdeff5">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGGRPC-15691172">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Untrusted Search Path</h2>
             <div class="card__section">
@@ -1170,6 +1244,89 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2026-3497</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.1.12/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssh/openssh-client
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.1.12 and openssh/openssh-client@1:9.6p1-3ubuntu13.14
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.1.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:9.6p1-3ubuntu13.14
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssh</code> package and not the <code>openssh</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>Vulnerability in the OpenSSH GSSAPI delta included in various Linux distributions. This vulnerability affects the GSSAPI patches added by various Linux distributions and does not affect the OpenSSH upstream project itself. The usage of sshpkt_disconnect() on an error, which does not terminate the process, allows an attacker to send an unexpected GSSAPI message type during the GSSAPI key exchange to the server, which will call the underlying function and continue the execution of the program without setting the related connection variables. As the variables are not initialized to NULL the code later accesses those uninitialized variables, accessing random memory, which could lead to undefined behavior. The recommended workaround is to use ssh_packet_disconnect() instead, which does terminate the process. The impact of the vulnerability depends heavily on the compiler flag hardening configuration.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>openssh</code> to version 1:9.6p1-3ubuntu13.15 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-3497">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-3497</a></li>
+        <li><a href="https://ubuntu.com/security/CVE-2026-3497">https://ubuntu.com/security/CVE-2026-3497</a></li>
+        <li><a href="https://www.openwall.com/lists/oss-security/2026/03/12/3">https://www.openwall.com/lists/oss-security/2026/03/12/3</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/03/12/3">http://www.openwall.com/lists/oss-security/2026/03/12/3</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/03/14/3">http://www.openwall.com/lists/oss-security/2026/03/14/3</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/03/14/4">http://www.openwall.com/lists/oss-security/2026/03/14/4</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/03/18/2">http://www.openwall.com/lists/oss-security/2026/03/18/2</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/03/18/4">http://www.openwall.com/lists/oss-security/2026/03/18/4</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/03/18/5">http://www.openwall.com/lists/oss-security/2026/03/18/5</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/03/18/7">http://www.openwall.com/lists/oss-security/2026/03/18/7</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-OPENSSH-15560204">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">CVE-2026-0964</h2>
             <div class="card__section">
         
@@ -1394,6 +1551,90 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-LIBSSH-15357013">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Out-of-Bounds</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.1.12/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            libssh/libssh-4
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v3.1.12, git@1:2.43.0-1ubuntu7.3 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.1.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        libssh/libssh-4@0.10.6-2ubuntu0.2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>libssh</code> package and not the <code>libssh</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>A weakness has been identified in libssh up to 0.11.3. The impacted element is the function sftp_extensions_get_name/sftp_extensions_get_data of the file src/sftp.c of the component SFTP Extension Name Handler. Executing a manipulation of the argument idx can lead to out-of-bounds read. The attack may be performed from remote. Upgrading to version 0.11.4 and 0.12.0 is sufficient to resolve this issue. This patch is called 855a0853ad3abd4a6cd85ce06fce6d8d4c7a0b60. You should upgrade the affected component.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>libssh</code> to version 0.10.6-2ubuntu0.4 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-3731">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-3731</a></li>
+        <li><a href="https://gitlab.com/libssh/libssh-mirror/-/commit/855a0853ad3abd4a6cd85ce06fce6d8d4c7a0b60">https://gitlab.com/libssh/libssh-mirror/-/commit/855a0853ad3abd4a6cd85ce06fce6d8d4c7a0b60</a></li>
+        <li><a href="https://vuldb.com/?ctiid.349709">https://vuldb.com/?ctiid.349709</a></li>
+        <li><a href="https://vuldb.com/?id.349709">https://vuldb.com/?id.349709</a></li>
+        <li><a href="https://vuldb.com/?submit.767120">https://vuldb.com/?submit.767120</a></li>
+        <li><a href="https://www.libssh.org/files/0.12/libssh-0.12.0.tar.xz">https://www.libssh.org/files/0.12/libssh-0.12.0.tar.xz</a></li>
+        <li><a href="https://www.libssh.org/security/advisories/libssh-2026-sftp-extensions.txt">https://www.libssh.org/security/advisories/libssh-2026-sftp-extensions.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-LIBSSH-15440974">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1682,6 +1923,10 @@
         <li><a href="https://access.redhat.com/security/cve/CVE-2025-14831">https://access.redhat.com/security/cve/CVE-2025-14831</a></li>
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2423177">https://bugzilla.redhat.com/show_bug.cgi?id=2423177</a></li>
         <li><a href="https://access.redhat.com/errata/RHSA-2026:3477">https://access.redhat.com/errata/RHSA-2026:3477</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:4188">https://access.redhat.com/errata/RHSA-2026:4188</a></li>
+        <li><a href="https://gitlab.com/gnutls/gnutls/-/issues/1773">https://gitlab.com/gnutls/gnutls/-/issues/1773</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:4655">https://access.redhat.com/errata/RHSA-2026:4655</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:4943">https://access.redhat.com/errata/RHSA-2026:4943</a></li>
         </ul>
         
               <hr/>
@@ -2094,6 +2339,79 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-GLIBC-15051735">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Validation of Specified Type of Input</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.1.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/vmihailenco/msgpack/v5
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/vmihailenco/msgpack/v5@v5.4.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/vmihailenco/msgpack/v5@v5.4.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Improper Validation of Specified Type of Input in the calls plugin when handling websocket messages containing malformed msgpack frames. An attacker can cause the server to consume excessive memory and crash by sending specially crafted websocket requests.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>github.com/vmihailenco/msgpack/v5</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/mattermost/msgpack/commit/2f9c67d7e57f">GitHub Commit</a></li>
+        <li><a href="https://mattermost.com/security-updates">Mattermost Security Updates</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMVMIHAILENCOMSGPACKV5-15702238">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -3112,6 +3430,192 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-CURL-14905896">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2026-1965</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.1.12/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            curl/libcurl3t64-gnutls
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v3.1.12, git@1:2.43.0-1ubuntu7.3 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.1.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>curl</code> package and not the <code>curl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>libcurl can in some circumstances reuse the wrong connection when asked to do
+        an Negotiate-authenticated HTTP or HTTPS request.</p>
+        <p>libcurl features a pool of recent connections so that subsequent requests can
+        reuse an existing connection to avoid overhead.</p>
+        <p>When reusing a connection a range of criterion must first be met. Due to a
+        logical error in the code, a request that was issued by an application could
+        wrongfully reuse an existing connection to the same server that was
+        authenticated using different credentials. One underlying reason being that
+        Negotiate sometimes authenticates <em>connections</em> and not <em>requests</em>, contrary
+        to how HTTP is designed to work.</p>
+        <p>An application that allows Negotiate authentication to a server (that responds
+        wanting Negotiate) with <code>user1:password1</code> and then does another operation to
+        the same server also using Negotiate but with <code>user2:password2</code> (while the
+        previous connection is still alive) - the second request wrongly reused the
+        same connection and since it then sees that the Negotiate negotiation is
+        already made, it just sends the request over that connection thinking it uses
+        the user2 credentials when it is in fact still using the connection
+        authenticated for user1...</p>
+        <p>The set of authentication methods to use is set with  <code>CURLOPT_HTTPAUTH</code>.</p>
+        <p>Applications can disable libcurl&#39;s reuse of connections and thus mitigate this
+        problem, by using one of the following libcurl options to alter how
+        connections are or are not reused: <code>CURLOPT_FRESH_CONNECT</code>,
+        <code>CURLOPT_MAXCONNECTS</code> and <code>CURLMOPT_MAX_HOST_CONNECTIONS</code> (if using the
+        curl_multi API).</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>curl</code> to version 8.5.0-2ubuntu10.8 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-1965">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-1965</a></li>
+        <li><a href="https://curl.se/docs/CVE-2026-1965.html">https://curl.se/docs/CVE-2026-1965.html</a></li>
+        <li><a href="https://curl.se/docs/CVE-2026-1965.json">https://curl.se/docs/CVE-2026-1965.json</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-CURL-15460489">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2026-3783</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.1.12/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            curl/libcurl3t64-gnutls
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v3.1.12, git@1:2.43.0-1ubuntu7.3 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.1.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>curl</code> package and not the <code>curl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>When an OAuth2 bearer token is used for an HTTP(S) transfer, and that transfer
+        performs a redirect to a second URL, curl could leak that token to the second
+        hostname under some circumstances.</p>
+        <p>If the hostname that the first request is redirected to has information in the
+        used .netrc file, with either of the <code>machine</code> or <code>default</code> keywords, curl
+        would pass on the bearer token set for the first host also to the second one.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>curl</code> to version 8.5.0-2ubuntu10.8 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-3783">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-3783</a></li>
+        <li><a href="https://curl.se/docs/CVE-2026-3783.html">https://curl.se/docs/CVE-2026-3783.html</a></li>
+        <li><a href="https://curl.se/docs/CVE-2026-3783.json">https://curl.se/docs/CVE-2026-3783.json</a></li>
+        <li><a href="https://hackerone.com/reports/3583983">https://hackerone.com/reports/3583983</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/03/11/2">http://www.openwall.com/lists/oss-security/2026/03/11/2</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-CURL-15460664">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -5202,7 +5706,7 @@
         <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
         <p>ssh in OpenSSH before 10.1 allows control characters in usernames that originate from certain possibly untrusted sources, potentially leading to code execution when a ProxyCommand is used. The untrusted sources are the command line and %-sequence expansion of a configuration file. (A configuration file that provides a complete literal username is not categorized as an untrusted source.)</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>openssh</code>.</p>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>openssh</code> to version 1:9.6p1-3ubuntu13.15 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-61984">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-61984</a></li>
@@ -5284,7 +5788,7 @@
         <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
         <p>ssh in OpenSSH before 10.1 allows the &#39;\0&#39; character in an ssh:// URI, potentially leading to code execution when a ProxyCommand is used.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>openssh</code>.</p>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>openssh</code> to version 1:9.6p1-3ubuntu13.15 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-61985">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-61985</a></li>
@@ -5840,6 +6344,9 @@
         <li><a href="https://www.gnutls.org/security-new.html#GNUTLS-SA-2025-11-18">https://www.gnutls.org/security-new.html#GNUTLS-SA-2025-11-18</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2025/11/20/2">http://www.openwall.com/lists/oss-security/2025/11/20/2</a></li>
         <li><a href="https://access.redhat.com/errata/RHSA-2026:3477">https://access.redhat.com/errata/RHSA-2026:3477</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:4188">https://access.redhat.com/errata/RHSA-2026:4188</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:4655">https://access.redhat.com/errata/RHSA-2026:4655</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:4943">https://access.redhat.com/errata/RHSA-2026:4943</a></li>
         </ul>
         
               <hr/>
@@ -6507,6 +7014,88 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-3784</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.1.12/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            curl/libcurl3t64-gnutls
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v3.1.12, git@1:2.43.0-1ubuntu7.3 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.1.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>curl</code> package and not the <code>curl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>curl would wrongly reuse an existing HTTP proxy connection doing CONNECT to a
+        server, even if the new request uses different credentials for the HTTP proxy.
+        The proper behavior is to create or use a separate connection.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>curl</code> to version 8.5.0-2ubuntu10.8 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-3784">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-3784</a></li>
+        <li><a href="https://curl.se/docs/CVE-2026-3784.html">https://curl.se/docs/CVE-2026-3784.html</a></li>
+        <li><a href="https://curl.se/docs/CVE-2026-3784.json">https://curl.se/docs/CVE-2026-3784.json</a></li>
+        <li><a href="https://hackerone.com/reports/3584903">https://hackerone.com/reports/3584903</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/03/11/3">http://www.openwall.com/lists/oss-security/2026/03/11/3</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-CURL-15460592">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">CVE-2025-0167</h2>
             <div class="card__section">
         
@@ -6573,7 +7162,7 @@
         <p>This flaw only manifests itself if the netrc file has a <code>default</code> entry that
         omits both login and password. A rare circumstance.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>curl</code>.</p>
+        <p>Upgrade <code>Ubuntu:24.04</code> <code>curl</code> to version 8.5.0-2ubuntu10.8 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-0167">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2025-0167</a></li>
