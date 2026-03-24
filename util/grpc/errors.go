@@ -3,6 +3,8 @@ package grpc
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	giterr "github.com/go-git/go-git/v5/plumbing/transport"
 	"google.golang.org/grpc"
@@ -130,5 +132,27 @@ func ErrorCodeK8sStreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		err := handler(srv, ss)
 		return kubeErrToGRPC(err)
+	}
+}
+
+// InvalidMethodNameErrorUnaryServerInterceptor is for mitigation of grpc-go CVE-2026-33186
+// see discussion in https://github.com/argoproj/argo-cd/issues/26932
+func InvalidMethodNameErrorUnaryServerInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+		if !strings.HasPrefix(info.FullMethod, "/") {
+			return nil, fmt.Errorf("malformed method name: %q", info.FullMethod)
+		}
+		return handler(ctx, req)
+	}
+}
+
+// InvalidMethodNameErrorStreamServerInterceptor is for mitigation of grpc-go CVE-2026-33186
+// see discussion in https://github.com/argoproj/argo-cd/issues/26932
+func InvalidMethodNameErrorStreamServerInterceptor() grpc.StreamServerInterceptor {
+	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		if !strings.HasPrefix(info.FullMethod, "/") {
+			return fmt.Errorf("malformed method name: %q", info.FullMethod)
+		}
+		return handler(srv, ss)
 	}
 }
