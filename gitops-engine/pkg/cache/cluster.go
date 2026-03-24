@@ -217,10 +217,10 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		eventHandlers:           map[uint64]OnEventHandler{},
 		processEventsHandlers:   map[uint64]OnProcessEventsHandler{},
 		log:                     log,
-		listRetryLimit:      1,
-		listRetryUseBackoff: false,
-		listRetryFunc:       ListRetryFuncNever,
-		parentUIDToChildren: make(map[types.UID][]kube.ResourceKey),
+		listRetryLimit:          1,
+		listRetryUseBackoff:     false,
+		listRetryFunc:           ListRetryFuncNever,
+		parentUIDToChildren:     make(map[types.UID][]kube.ResourceKey),
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -390,6 +390,7 @@ func (c *clusterCache) GetServerVersion() string {
 // updated in place (anytime new CRDs are introduced or removed). If necessary, a separate method
 // would need to be introduced to return a copy of the list so it can be iterated consistently.
 func (c *clusterCache) GetAPIResources() []kube.APIResourceInfo {
+	c.log.V(1).Info("Retrieved server version", "version", c.serverVersion)
 	return c.apiResources
 }
 
@@ -529,7 +530,6 @@ func (c *clusterCache) rebuildParentToChildrenIndex() {
 		}
 	}
 }
-
 
 // addToParentUIDToChildren adds a child to the parent-to-children index
 func (c *clusterCache) addToParentUIDToChildren(parentUID types.UID, childKey kube.ResourceKey) {
