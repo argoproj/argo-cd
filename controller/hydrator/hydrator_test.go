@@ -166,6 +166,7 @@ func Test_getAppsForHydrationKey_RepoURLNormalization(t *testing.T) {
 	hydrationKey := types.HydrationQueueKey{
 		SourceRepoURL:        "https://example.com/repo",
 		SourceTargetRevision: "main",
+		DestinationRepoURL:   "https://example.com/repo",
 		DestinationBranch:    "main",
 	}
 
@@ -666,6 +667,36 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	assert.Equal(t, app.Status.SourceHydrator.CurrentOperation.SourceHydrator, persistedStatus.LastSuccessfulOperation.SourceHydrator)
 }
 
+func TestProcessHydrationQueueItem_SuccessfulHydration_DestinationRepoCredentials(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating)
+	app.Spec.SourceHydrator.SyncSource.RepoURL = "https://example.com/hydrated-repo"
+	hydrationKey := getHydrationQueueKey(app)
+	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil)
+	proj := newTestProject()
+	proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, "https://example.com/hydrated-repo")
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(proj, nil).Once()
+	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
+
+	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Return().Once()
+	d.EXPECT().RequestAppRefresh(app.Name, app.Namespace).Return(nil).Once()
+	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, &repoclient.ManifestResponse{
+		Revision: "abc123",
+	}, nil).Once()
+	r.EXPECT().GetRepository(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
+	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, nil).Once()
+	d.EXPECT().GetWriteCredentials(mock.Anything, "https://example.com/hydrated-repo", "test-project").Return(nil, nil).Once()
+	d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil).Once()
+	d.EXPECT().GetCommitAuthorName().Return("", nil).Once()
+	d.EXPECT().GetCommitAuthorEmail().Return("", nil).Once()
+	cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "def456"}, nil).Once()
+
+	h.ProcessHydrationQueueItem(hydrationKey)
+}
 func TestValidateApplications_ProjectError(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
@@ -723,8 +754,40 @@ func TestValidateApplications_DuplicateDestination(t *testing.T) {
 	projects, errs := h.validateApplications([]*v1alpha1.Application{app1, app2})
 	require.Nil(t, projects)
 	require.Len(t, errs, 2)
-	require.ErrorContains(t, errs[app1.QualifiedName()], "app default/app2 hydrator use the same destination")
-	require.ErrorContains(t, errs[app2.QualifiedName()], "app default/app1 hydrator use the same destination")
+	require.ErrorContains(t, errs[app1.QualifiedName()], "app default/app2 hydrator uses the same destination")
+	require.ErrorContains(t, errs[app2.QualifiedName()], "app default/app1 hydrator uses the same destination")
+}
+
+func TestValidateApplications_DifferentDestinationRepo_Success(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app1 := newTestApp("app1")
+	app2 := newTestApp("app2")
+	app2.Spec.SourceHydrator.SyncSource.RepoURL = "https://example.com/repo-2"
+	proj := newTestProject()
+	proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, "https://example.com/repo-2")
+	d.EXPECT().GetProcessableAppProj(app1).Return(proj, nil).Once()
+	d.EXPECT().GetProcessableAppProj(app2).Return(proj, nil).Once()
+	h := &Hydrator{dependencies: d}
+
+	projects, errs := h.validateApplications([]*v1alpha1.Application{app1, app2})
+	require.NotNil(t, projects)
+	require.Empty(t, errs)
+}
+
+func TestValidateApplications_DestinationRepoNotPermitted(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := newTestApp("test-app")
+	app.Spec.SourceHydrator.SyncSource.RepoURL = "https://example.com/repo-not-allowed"
+	proj := newTestProject()
+	d.EXPECT().GetProcessableAppProj(app).Return(proj, nil).Once()
+	h := &Hydrator{dependencies: d}
+
+	projects, errs := h.validateApplications([]*v1alpha1.Application{app})
+	require.Nil(t, projects)
+	require.Len(t, errs, 1)
+	require.ErrorContains(t, errs[app.QualifiedName()], "destination repo https://example.com/repo-not-allowed is not permitted in project 'test-project'")
 }
 
 func TestValidateApplications_Success(t *testing.T) {

@@ -950,6 +950,71 @@ func TestValidatePermissions(t *testing.T) {
 	})
 }
 
+func TestValidatePermissions_SourceHydratorSyncSourceRepo(t *testing.T) {
+	t.Run("Sync source repo not permitted in project", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "https://example.com/dry-repo",
+					TargetRevision: "main",
+					Path:           "dry",
+				},
+				SyncSource: argoappv1.SyncSource{
+					RepoURL:      "https://example.com/sync-repo",
+					TargetBranch: "main",
+					Path:         "hydrated",
+				},
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    "https://127.0.0.1:6443",
+				Namespace: "default",
+			},
+		}
+		proj := argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "default"},
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{{
+					Server:    "*",
+					Namespace: "*",
+				}},
+				SourceRepos: []string{"https://example.com/dry-repo"},
+			},
+		}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
+
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		require.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "sync source repo https://example.com/sync-repo is not permitted in project")
+	})
+
+	t.Run("HydrateTo requires targetBranch", func(t *testing.T) {
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "https://example.com/dry-repo",
+					TargetRevision: "main",
+					Path:           "dry",
+				},
+				SyncSource: argoappv1.SyncSource{
+					TargetBranch: "main",
+					Path:         "hydrated",
+				},
+				HydrateTo: &argoappv1.HydrateTo{},
+			},
+		}
+		proj := argoappv1.AppProject{}
+		db := &dbmocks.ArgoDB{}
+
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		require.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "spec.sourceHydrator.hydrateTo.targetBranch is required")
+	})
+}
+
 func TestSetAppOperations(t *testing.T) {
 	t.Run("Application not existing", func(t *testing.T) {
 		appIf := appclientset.NewSimpleClientset().ArgoprojV1alpha1().Applications("default")

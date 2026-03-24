@@ -4955,6 +4955,74 @@ func TestSourceHydrator_Equals(t *testing.T) {
 	}
 }
 
+func TestSourceHydrator_GetSyncSource(t *testing.T) {
+	t.Parallel()
+
+	hydrator := SourceHydrator{
+		DrySource: DrySource{
+			RepoURL:        "https://example.com/dry-repo",
+			TargetRevision: "main",
+			Path:           "dry",
+		},
+		SyncSource: SyncSource{
+			RepoURL:      "https://example.com/sync-repo",
+			TargetBranch: "hydrated",
+			Path:         "sync-path",
+		},
+	}
+
+	source := hydrator.GetSyncSource()
+	assert.Equal(t, "https://example.com/sync-repo", source.RepoURL)
+	assert.Equal(t, "sync-path", source.Path)
+	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+func TestSourceHydrator_GetSyncSource_DefaultRepoURL(t *testing.T) {
+	t.Parallel()
+
+	hydrator := SourceHydrator{
+		DrySource: DrySource{
+			RepoURL:        "https://example.com/dry-repo",
+			TargetRevision: "main",
+			Path:           "dry",
+		},
+		SyncSource: SyncSource{
+			TargetBranch: "hydrated",
+			Path:         "sync-path",
+		},
+	}
+
+	source := hydrator.GetSyncSource()
+	assert.Equal(t, "https://example.com/dry-repo", source.RepoURL)
+	assert.Equal(t, "sync-path", source.Path)
+	assert.Equal(t, "hydrated", source.TargetRevision)
+}
+
+func TestApplicationSpec_GetHydrateToSource_UsesSyncSourceRepo(t *testing.T) {
+	t.Parallel()
+
+	spec := ApplicationSpec{
+		SourceHydrator: &SourceHydrator{
+			DrySource: DrySource{
+				RepoURL:        "https://example.com/dry-repo",
+				TargetRevision: "main",
+				Path:           "dry",
+			},
+			SyncSource: SyncSource{
+				RepoURL:      "https://example.com/sync-repo",
+				TargetBranch: "hydrated",
+				Path:         "sync-path",
+			},
+			HydrateTo: &HydrateTo{TargetBranch: "staging"},
+		},
+	}
+
+	source := spec.GetHydrateToSource()
+	assert.Equal(t, "https://example.com/sync-repo", source.RepoURL)
+	assert.Equal(t, "sync-path", source.Path)
+	assert.Equal(t, "staging", source.TargetRevision)
+}
+
 func TestIgnoreDifferences_Equals(t *testing.T) {
 	t.Parallel()
 

@@ -627,7 +627,7 @@ func validateSourceHydrator(hydrator *argoappv1.SourceHydrator) []argoappv1.Appl
 	if hydrator.HydrateTo != nil && hydrator.HydrateTo.TargetBranch == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "when spec.sourceHydrator.hydrateTo is set, spec.sourceHydrator.hydrateTo.path is required",
+			Message: "when spec.sourceHydrator.hydrateTo is set, spec.sourceHydrator.hydrateTo.targetBranch is required",
 		})
 	}
 	return conditions
@@ -648,6 +648,13 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.SourceHydrator.GetDrySource().RepoURL, proj.Name),
+			})
+		}
+		syncSource := spec.SourceHydrator.GetSyncSource()
+		if syncSource.RepoURL != spec.SourceHydrator.DrySource.RepoURL && !proj.IsSourcePermitted(syncSource) {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("sync source repo %s is not permitted in project '%s'", syncSource.RepoURL, proj.Name),
 			})
 		}
 	case spec.HasMultipleSources():
