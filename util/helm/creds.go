@@ -318,7 +318,7 @@ func (creds AwsIamCreds) GetUsername() string {
 	return "AWS"
 }
 
-func extractRegionFromEcrUrl(repoURL string) (string, error) {
+func extractRegionFromEcrURL(repoURL string) (string, error) {
 	// <account-id>.dkr.ecr.<region>.amazonaws.com (https://docs.aws.amazon.com/AmazonECR/latest/userguide/Repositories.html)
 	parts := strings.Split(repoURL, ".")
 	if len(parts) != 6 {
@@ -329,7 +329,7 @@ func extractRegionFromEcrUrl(repoURL string) (string, error) {
 }
 
 func (creds AwsIamCreds) GetPassword() (string, error) {
-	region, err := extractRegionFromEcrUrl(creds.repoURL)
+	region, err := extractRegionFromEcrURL(creds.repoURL)
 	if err != nil {
 		return "", err
 	}
