@@ -1601,6 +1601,10 @@ func hydrationSyncGateDecision(app *appv1.Application, state *appv1.OperationSta
 		return hydrationSyncGateActionNone
 	}
 
+	// Decision order matters:
+	// 1) Wait while hydration is still running.
+	// 2) Request hydration if current sync started after the last successful hydration.
+	// 3) Request a non-hydrate refresh if hydrated SHA differs from sync revision.
 	// If the user requested a specific revision (e.g. rollback), do not block sync on hydration.
 	if state.Operation.Sync.Revision != "" || len(state.Operation.Sync.Revisions) > 0 {
 		return hydrationSyncGateActionNone
@@ -1632,7 +1636,10 @@ func hydrationSyncGateDecision(app *appv1.Application, state *appv1.OperationSta
 }
 
 func (ctrl *ApplicationController) gateSyncOnHydration(app *appv1.Application, state *appv1.OperationState, logCtx *log.Entry) bool {
-	switch hydrationSyncGateDecision(app, state) {
+	action := hydrationSyncGateDecision(app, state)
+	logCtx = logCtx.WithField("hydrationSyncGateAction", action)
+
+	switch action {
 	case hydrationSyncGateActionWait:
 		logCtx.Debug("Sync operation is waiting for source hydration to complete")
 		return true

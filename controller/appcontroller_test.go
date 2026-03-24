@@ -2430,6 +2430,35 @@ func TestHydrationSyncGateDecision(t *testing.T) {
 			expected: hydrationSyncGateActionRefresh,
 		},
 		{
+			name: "hydrated at same time as sync start does not request hydrate",
+			app: func() *v1alpha1.Application {
+				app := newApp()
+				finishedAt := metav1.NewTime(now)
+				app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+					Phase:      v1alpha1.HydrateOperationPhaseHydrated,
+					FinishedAt: &finishedAt,
+				}
+				return app
+			}(),
+			state:    newState(),
+			expected: hydrationSyncGateActionNone,
+		},
+		{
+			name: "hydrated operation with empty hydrated sha does not request refresh",
+			app: func() *v1alpha1.Application {
+				app := newApp()
+				finishedAt := metav1.NewTime(now.Add(1 * time.Minute))
+				app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+					Phase:      v1alpha1.HydrateOperationPhaseHydrated,
+					FinishedAt: &finishedAt,
+				}
+				app.Status.Sync.Revision = "old-hydrated-sha"
+				return app
+			}(),
+			state:    newState(),
+			expected: hydrationSyncGateActionNone,
+		},
+		{
 			name: "explicit sync revision bypasses gating",
 			app: func() *v1alpha1.Application {
 				app := newApp()
