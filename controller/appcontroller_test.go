@@ -2892,8 +2892,8 @@ func TestProcessRequestedAppOperation_HydrationGate_RequestsHydrate(t *testing.T
 	}
 	finishedAt := metav1.Now()
 	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
-		Phase:      v1alpha1.HydrateOperationPhaseHydrated,
-		FinishedAt: &finishedAt,
+		Phase:       v1alpha1.HydrateOperationPhaseHydrated,
+		FinishedAt:  &finishedAt,
 		HydratedSHA: "abc123",
 	}
 	app.Operation = &v1alpha1.Operation{
