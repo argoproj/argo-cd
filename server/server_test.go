@@ -30,7 +30,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	project "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
@@ -43,11 +43,12 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/oidc"
 
+	"google.golang.org/grpc/credentials/insecure"
+
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 	testutil "github.com/argoproj/argo-cd/v3/util/test"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type FakeArgoCDServer struct {
@@ -1790,7 +1791,7 @@ func TestGrpcInvalidMethodNameCVEFix(t *testing.T) {
 		require.NoError(t, err)
 		err = stream.CloseSend()
 		require.NoError(t, err)
-		var resp interface{}
+		var resp any
 		err = stream.RecvMsg(&resp)
 		// ensure we get error method from interceptor
 		require.ErrorContains(t, err, "code = Unknown desc = malformed method name: \""+invalidStreamingMethodName+"\"")
@@ -1800,7 +1801,7 @@ func TestGrpcInvalidMethodNameCVEFix(t *testing.T) {
 		require.NoError(t, err)
 		err = stream.CloseSend()
 		require.NoError(t, err)
-		var resp interface{}
+		var resp any
 		err = stream.RecvMsg(&resp)
 		// ensure we get the expected error from the actual logic of the method
 		require.ErrorContains(t, err, "code = Unknown desc = error getting query: failed to receive header: EOF")

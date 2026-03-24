@@ -167,17 +167,16 @@ func TestInvalidMethodNameErrorUnaryServerInterceptor(t *testing.T) {
 	})
 	t.Run("Test valid method name", func(t *testing.T) {
 		info := &grpc.UnaryServerInfo{FullMethod: ""}
-		_, err := interceptor(t.Context(), nil, info, func(ctx context.Context, _ any) (any, error) {
+		_, err := interceptor(t.Context(), nil, info, func(_ context.Context, _ any) (any, error) {
 			return nil, nil
 		})
 		assert.EqualError(t, err, "malformed method name: \"\"")
 	})
 	t.Run("Test valid method name", func(t *testing.T) {
 		info := &grpc.UnaryServerInfo{FullMethod: "/foo"}
-		_, err := interceptor(t.Context(), nil, info, func(ctx context.Context, _ any) (any, error) {
+		_, err := interceptor(t.Context(), nil, info, func(_ context.Context, _ any) (any, error) {
 			return nil, nil
 		})
 		assert.NoError(t, err)
 	})
-
 }
