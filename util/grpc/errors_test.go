@@ -158,25 +158,44 @@ func Test_kubeErrToGRPC(t *testing.T) {
 
 func TestInvalidMethodNameErrorUnaryServerInterceptor(t *testing.T) {
 	interceptor := InvalidMethodNameErrorUnaryServerInterceptor()
+	handler := func(ctx context.Context, _ any) (any, error) {
+		return nil, nil
+	}
 	t.Run("Test valid method name", func(t *testing.T) {
 		info := &grpc.UnaryServerInfo{FullMethod: "foo"}
-		_, err := interceptor(t.Context(), nil, info, func(ctx context.Context, _ any) (any, error) {
-			return nil, nil
-		})
+		_, err := interceptor(t.Context(), nil, info, handler)
 		assert.EqualError(t, err, "malformed method name: \"foo\"")
 	})
 	t.Run("Test valid method name", func(t *testing.T) {
 		info := &grpc.UnaryServerInfo{FullMethod: ""}
-		_, err := interceptor(t.Context(), nil, info, func(_ context.Context, _ any) (any, error) {
-			return nil, nil
-		})
+		_, err := interceptor(t.Context(), nil, info, handler)
 		assert.EqualError(t, err, "malformed method name: \"\"")
 	})
 	t.Run("Test valid method name", func(t *testing.T) {
 		info := &grpc.UnaryServerInfo{FullMethod: "/foo"}
-		_, err := interceptor(t.Context(), nil, info, func(_ context.Context, _ any) (any, error) {
-			return nil, nil
-		})
+		_, err := interceptor(t.Context(), nil, info, handler)
+		assert.NoError(t, err)
+	})
+}
+
+func TestInvalidMethodNameErrorStreamServerInterceptor(t *testing.T) {
+	interceptor := InvalidMethodNameErrorStreamServerInterceptor()
+	handler := func(srv any, stream grpc.ServerStream) error {
+		return nil
+	}
+	t.Run("Test valid method name", func(t *testing.T) {
+		info := &grpc.StreamServerInfo{FullMethod: "foo"}
+		err := interceptor(t.Context(), nil, info, handler)
+		assert.EqualError(t, err, "malformed method name: \"foo\"")
+	})
+	t.Run("Test valid method name", func(t *testing.T) {
+		info := &grpc.StreamServerInfo{FullMethod: ""}
+		err := interceptor(t.Context(), nil, info, handler)
+		assert.EqualError(t, err, "malformed method name: \"\"")
+	})
+	t.Run("Test valid method name", func(t *testing.T) {
+		info := &grpc.StreamServerInfo{FullMethod: "/foo"}
+		err := interceptor(nil, nil, info, handler)
 		assert.NoError(t, err)
 	})
 }
