@@ -221,3 +221,15 @@ func TestGetGitCreds_GitHubApp_OrgExtractionFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to extract organization")
 	assert.Contains(t, err.Error(), "invalid-url-format")
 }
+
+func TestAwsIamCreds_isEcrUrl(t *testing.T) {
+	repo := &Repository{
+		Repo: "123456789012.dkr.ecr.us-east-1.amazonaws.com",
+	}
+
+	creds := repo.GetHelmCreds()
+
+	_, isAwsIamCreds := creds.(helm.AwsIamCreds)
+
+	assert.True(t, isAwsIamCreds)
+}

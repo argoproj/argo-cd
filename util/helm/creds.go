@@ -3,6 +3,7 @@ package helm
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecr"
 	"github.com/golang-jwt/jwt/v5"
 	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
@@ -291,4 +294,88 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(ctx cont
 	}
 
 	return tokenParams, nil
+}
+
+type AwsIamCreds struct {
+	repoURL            string
+	CAPath             string
+	CertData           []byte
+	KeyData            []byte
+	InsecureSkipVerify bool
+}
+
+func NewAwsIamCreds(repoURL string, caPath string, certData []byte, keyData []byte, insecureSkipVerify bool) AwsIamCreds {
+	return AwsIamCreds{
+		repoURL:            repoURL,
+		CAPath:             caPath,
+		CertData:           certData,
+		KeyData:            keyData,
+		InsecureSkipVerify: insecureSkipVerify,
+	}
+}
+
+func (creds AwsIamCreds) GetUsername() string {
+	return "AWS"
+}
+
+func extractRegionFromEcrUrl(repoURL string) (string, error) {
+	// <account-id>.dkr.ecr.<region>.amazonaws.com (https://docs.aws.amazon.com/AmazonECR/latest/userguide/Repositories.html)
+	parts := strings.Split(repoURL, ".")
+	if len(parts) != 6 {
+		return "", fmt.Errorf("invalid ECR URL format: %s", repoURL)
+	}
+
+	return parts[3], nil
+}
+
+func (creds AwsIamCreds) GetPassword() (string, error) {
+	region, err := extractRegionFromEcrUrl(creds.repoURL)
+	if err != nil {
+		return "", err
+	}
+
+	ctx := context.Background()
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
+	if err != nil {
+		return "", fmt.Errorf("failed to load AWS config: %w", err)
+	}
+
+	client := ecr.NewFromConfig(cfg)
+	result, err := client.GetAuthorizationToken(ctx, &ecr.GetAuthorizationTokenInput{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get ECR authorization token: %w", err)
+	}
+
+	if len(result.AuthorizationData) == 0 {
+		return "", errors.New("no authorization data returned from ECR")
+	}
+
+	// ECR returns base64 encoded token in format user:password
+	token := *result.AuthorizationData[0].AuthorizationToken
+	decodedToken, err := base64.StdEncoding.DecodeString(token)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode ECR token: %w", err)
+	}
+
+	parts := strings.Split(string(decodedToken), ":")
+	if len(parts) != 2 {
+		return "", errors.New("invalid ECR token format")
+	}
+	return parts[1], nil
+}
+
+func (creds AwsIamCreds) GetCAPath() string {
+	return creds.CAPath
+}
+
+func (creds AwsIamCreds) GetCertData() []byte {
+	return creds.CertData
+}
+
+func (creds AwsIamCreds) GetKeyData() []byte {
+	return creds.KeyData
+}
+
+func (creds AwsIamCreds) GetInsecureSkipVerify() bool {
+	return creds.InsecureSkipVerify
 }
