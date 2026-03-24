@@ -161,12 +161,12 @@ func TestInvalidMethodNameErrorUnaryServerInterceptor(t *testing.T) {
 	handler := func(_ context.Context, _ any) (any, error) {
 		return nil, nil
 	}
-	t.Run("Test valid method name", func(t *testing.T) {
+	t.Run("Test invalid method name", func(t *testing.T) {
 		info := &grpc.UnaryServerInfo{FullMethod: "foo"}
 		_, err := interceptor(t.Context(), nil, info, handler)
 		assert.EqualError(t, err, "malformed method name: \"foo\"")
 	})
-	t.Run("Test valid method name", func(t *testing.T) {
+	t.Run("Test empty method name", func(t *testing.T) {
 		info := &grpc.UnaryServerInfo{FullMethod: ""}
 		_, err := interceptor(t.Context(), nil, info, handler)
 		assert.EqualError(t, err, "malformed method name: \"\"")
@@ -183,12 +183,12 @@ func TestInvalidMethodNameErrorStreamServerInterceptor(t *testing.T) {
 	handler := func(_ any, _ grpc.ServerStream) error {
 		return nil
 	}
-	t.Run("Test valid method name", func(t *testing.T) {
+	t.Run("Test invalid method name", func(t *testing.T) {
 		info := &grpc.StreamServerInfo{FullMethod: "foo"}
 		err := interceptor(t.Context(), nil, info, handler)
 		assert.EqualError(t, err, "malformed method name: \"foo\"")
 	})
-	t.Run("Test valid method name", func(t *testing.T) {
+	t.Run("Test empty method name", func(t *testing.T) {
 		info := &grpc.StreamServerInfo{FullMethod: ""}
 		err := interceptor(t.Context(), nil, info, handler)
 		assert.EqualError(t, err, "malformed method name: \"\"")
