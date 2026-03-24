@@ -104,5 +104,6 @@ argocd proj [flags]
 * [argocd proj remove-source-namespace](argocd_proj_remove-source-namespace.md)	 - Removes the source namespace from the AppProject
 * [argocd proj role](argocd_proj_role.md)	 - Manage a project's roles
 * [argocd proj set](argocd_proj_set.md)	 - Set project parameters
+* [argocd proj source-integrity](argocd_proj_source-integrity.md)	 - Manage criteria for source integrity
 * [argocd proj windows](argocd_proj_windows.md)	 - Manage a project's sync windows
 
