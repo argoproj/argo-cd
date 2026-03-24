@@ -2363,6 +2363,7 @@ func (c *ClusterInfo) GetKubeVersion() string {
 }
 
 func (c *ClusterInfo) GetApiVersions() []string { //nolint:revive //FIXME(var-naming)
+	log.Infof("cluster info GetApiVersions: returning %d API versions: %v", len(c.APIVersions), c.APIVersions)
 	return c.APIVersions
 }
 
