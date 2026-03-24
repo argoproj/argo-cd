@@ -112,18 +112,38 @@ func processApplicationListField(v any, fields map[string]any, exclude bool) (an
 	return nil, errors.New("not an application list")
 }
 
+// buildLogFilename constructs a descriptive log filename from URL path and query parameters.
+// It extracts the application name from the URL path and combines it with podName and container
+// query parameters when available, falling back to "log" if no valid parts are found.
+func buildLogFilename(urlPath string, queryGet func(string) string) string {
+	// Extract application name from URL path: /api/v1/applications/{name}/...
+	var appName string
+	parts := strings.Split(urlPath, "/")
+	for i, part := range parts {
+		if part == "applications" && i+1 < len(parts) {
+			appName = parts[i+1]
+			break
+		}
+	}
+
+	var nameParts []string
+	for _, name := range []string{appName, queryGet("podName"), queryGet("container")} {
+		if kube.IsValidResourceName(name) {
+			nameParts = append(nameParts, name)
+		}
+	}
+	if len(nameParts) == 0 {
+		return "log.log"
+	}
+	return strings.Join(nameParts, "-") + ".log"
+}
+
 func init() {
 	logsForwarder := func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w gohttp.ResponseWriter, req *gohttp.Request, recv func() (proto.Message, error), opts ...func(context.Context, gohttp.ResponseWriter, proto.Message) error) {
 		if req.URL.Query().Get("download") == "true" {
 			w.Header().Set("Content-Type", "application/octet-stream")
-			fileName := "log"
-			namespace := req.URL.Query().Get("namespace")
-			podName := req.URL.Query().Get("podName")
-			container := req.URL.Query().Get("container")
-			if kube.IsValidResourceName(namespace) && kube.IsValidResourceName(podName) && kube.IsValidResourceName(container) {
-				fileName = fmt.Sprintf("%s-%s-%s", namespace, podName, container)
-			}
-			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s.log"`, fileName))
+			fileName := buildLogFilename(req.URL.Path, req.URL.Query().Get)
+			w.Header().Set("Content-Disposition", fmt.Sprintf("attachment;filename=%q", fileName))
 			for {
 				msg, err := recv()
 				if err != nil {
