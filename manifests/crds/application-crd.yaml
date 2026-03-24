@@ -1830,6 +1830,11 @@ spec:
                         minLength: 1
                         pattern: ^.{2,}|[^./]$
                         type: string
+                      repoURL:
+                        description: |-
+                          RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+                          the DrySource.RepoURL.
+                        type: string
                       targetBranch:
                         description: |-
                           TargetBranch is the branch from which hydrated manifests will be synced.
@@ -2350,6 +2355,7 @@ spec:
                   message:
                     description: |-
                       Message is a human-readable informational message describing the health status
+
 
                       Deprecated: this field is not used and will be removed in a future release.
                     type: string
@@ -3190,6 +3196,7 @@ spec:
               observedAt:
                 description: |-
                   ObservedAt indicates when the application state was updated without querying latest git state
+
 
                   Deprecated: controller no longer updates ObservedAt field
                 format: date-time
@@ -5115,6 +5122,7 @@ spec:
                           description: |-
                             LastTransitionTime is the time the HealthStatus was set or updated
 
+
                             Deprecated: this field is not used and will be removed in a future release.
                           format: date-time
                           type: string
@@ -5617,6 +5625,11 @@ spec:
                                 minLength: 1
                                 pattern: ^.{2,}|[^./]$
                                 type: string
+                              repoURL:
+                                description: |-
+                                  RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+                                  the DrySource.RepoURL.
+                                type: string
                               targetBranch:
                                 description: |-
                                   TargetBranch is the branch from which hydrated manifests will be synced.
@@ -6069,6 +6082,11 @@ spec:
                                   hydrated manifests will be synced.
                                 minLength: 1
                                 pattern: ^.{2,}|[^./]$
+                                type: string
+                              repoURL:
+                                description: |-
+                                  RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+                                  the DrySource.RepoURL.
                                 type: string
                               targetBranch:
                                 description: |-
