@@ -1518,6 +1518,9 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
 
+	// Sync is gated by hydration for sourceHydrator apps.
+	// gateSyncOnHydration may enqueue hydrate/refresh requests and returns true when
+	// the current operation should pause until hydration state catches up.
 	if ctrl.gateSyncOnHydration(app, state, logCtx) {
 		return
 	}
