@@ -2838,6 +2838,127 @@ func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 	assert.Equal(t, CompareWithLatestForceResolve, level)
 }
 
+func TestProcessRequestedAppOperation_HydrationGate_WaitsWhenHydrating(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "default"
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        app.Spec.Source.RepoURL,
+			Path:           app.Spec.Source.Path,
+			TargetRevision: app.Spec.Source.TargetRevision,
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "main",
+			Path:         "hydrated",
+		},
+	}
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase: v1alpha1.HydrateOperationPhaseHydrating,
+	}
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponses: []*apiclient.ManifestResponse{{
+			Manifests: []string{},
+		}},
+	}, nil)
+
+	ctrl.processRequestedAppOperation(app)
+
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, updatedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationRunning, updatedApp.Status.OperationState.Phase)
+	assert.Empty(t, updatedApp.Annotations[v1alpha1.AnnotationKeyRefresh])
+	assert.Empty(t, updatedApp.Annotations[v1alpha1.AnnotationKeyHydrate])
+}
+
+func TestProcessRequestedAppOperation_HydrationGate_RequestsHydrate(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "default"
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        app.Spec.Source.RepoURL,
+			Path:           app.Spec.Source.Path,
+			TargetRevision: app.Spec.Source.TargetRevision,
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "main",
+			Path:         "hydrated",
+		},
+	}
+	finishedAt := metav1.Now()
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:      v1alpha1.HydrateOperationPhaseHydrated,
+		FinishedAt: &finishedAt,
+		HydratedSHA: "abc123",
+	}
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponses: []*apiclient.ManifestResponse{{
+			Manifests: []string{},
+		}},
+	}, nil)
+
+	ctrl.processRequestedAppOperation(app)
+
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, updatedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationRunning, updatedApp.Status.OperationState.Phase)
+	assert.Equal(t, string(v1alpha1.RefreshTypeNormal), updatedApp.Annotations[v1alpha1.AnnotationKeyRefresh])
+	assert.Equal(t, string(v1alpha1.HydrateTypeNormal), updatedApp.Annotations[v1alpha1.AnnotationKeyHydrate])
+}
+
+func TestProcessRequestedAppOperation_HydrationGate_RequestsRefreshForHydratedSHA(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "default"
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        app.Spec.Source.RepoURL,
+			Path:           app.Spec.Source.Path,
+			TargetRevision: app.Spec.Source.TargetRevision,
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "main",
+			Path:         "hydrated",
+		},
+	}
+	finishedAt := metav1.NewTime(time.Now().Add(2 * time.Minute))
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:       v1alpha1.HydrateOperationPhaseHydrated,
+		FinishedAt:  &finishedAt,
+		HydratedSHA: "new-hydrated-sha",
+	}
+	app.Status.Sync.Revision = "old-hydrated-sha"
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{},
+	}
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponses: []*apiclient.ManifestResponse{{
+			Manifests: []string{},
+		}},
+	}, nil)
+
+	ctrl.processRequestedAppOperation(app)
+
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, updatedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationRunning, updatedApp.Status.OperationState.Phase)
+	assert.Equal(t, string(v1alpha1.RefreshTypeNormal), updatedApp.Annotations[v1alpha1.AnnotationKeyRefresh])
+	assert.Empty(t, updatedApp.Annotations[v1alpha1.AnnotationKeyHydrate])
+}
+
 func TestProcessRequestedAppAutomatedOperation_Successful(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Project = "default"
