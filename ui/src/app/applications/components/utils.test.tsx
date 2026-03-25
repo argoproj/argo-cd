@@ -12,6 +12,7 @@ import {
 } from '../../shared/models';
 import * as jsYaml from 'js-yaml';
 import {
+    appRBACName,
     ComparisonStatusIcon,
     getAppOperationState,
     getOperationType,
@@ -891,5 +892,55 @@ status:
         const {reason} = getPodStateReason(pod as State);
 
         expect(reason).toBe('SchedulingGated');
+    });
+});
+
+describe('appRBACName', () => {
+    it('returns project/namespace/name when namespace is defined', () => {
+        const app = {
+            metadata: {
+                name: 'my-app',
+                namespace: 'my-namespace'
+            },
+            spec: {
+                project: 'my-project'
+            }
+        } as Application;
+
+        const result = appRBACName(app);
+
+        expect(result).toBe('my-project/my-namespace/my-app');
+    });
+
+    it('returns project/name when namespace is undefined', () => {
+        const app = {
+            metadata: {
+                name: 'my-app'
+            },
+            spec: {
+                project: 'my-project'
+            }
+        } as Application;
+
+        const result = appRBACName(app);
+
+        expect(result).toBe('my-project/my-app');
+    });
+
+    it('handles empty namespace string as undefined', () => {
+        const app = {
+            metadata: {
+                name: 'test-app',
+                namespace: ''
+            },
+            spec: {
+                project: 'test-project'
+            }
+        } as Application;
+
+        // Note: The function uses a falsy check on namespace, so empty string is treated the same as undefined
+        const result = appRBACName(app);
+
+        expect(result).toBe('test-project/test-app');
     });
 });
