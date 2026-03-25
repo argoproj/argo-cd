@@ -429,6 +429,7 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 	if err != nil {
 		return nil, err
 	}
+	idc := diff.NewIgnoreDiffConfig(cr.diffConfig.Ignores(), cr.diffConfig.Overrides())
 	patchedTargets := []*unstructured.Unstructured{}
 	for idx, live := range cr.reconciliationResult.Live {
 		normalizedTarget := normalized.Targets[idx]
@@ -438,6 +439,20 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 		}
 		originalTarget := cr.reconciliationResult.Target[idx]
 		if live == nil {
+			patchedTargets = append(patchedTargets, originalTarget)
+			continue
+		}
+
+		// Only compute and apply the merge patch if this resource has matching
+		// ignoreDifferences rules. The merge patch copies ignored field values
+		// from the live object into the target so they are not changed during
+		// sync. Without matching rules there is nothing to copy, and applying
+		// the patch anyway corrupts fields that use patchStrategy:"replace"
+		// (e.g. PodDisruptionBudget.spec.selector) or arrays in CRDs that
+		// fall back to JSON merge patch.
+		gvk := normalizedTarget.GroupVersionKind()
+		hasIgnore, _ := idc.HasIgnoreDifference(gvk.Group, gvk.Kind, normalizedTarget.GetName(), normalizedTarget.GetNamespace())
+		if !hasIgnore {
 			patchedTargets = append(patchedTargets, originalTarget)
 			continue
 		}
