@@ -127,7 +127,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
                     {app.status.sourceHydrator?.currentOperation && (
                         <>
-                            <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
+                            <AppUtils.HydrateOperationPhaseIcon operation={app.status.sourceHydrator.currentOperation} />{' '}
                             <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
                         </>
                     )}

@@ -119,7 +119,7 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
                                                             {chart.title === 'Sync' && <ComparisonStatusIcon status={key as SyncStatusCode} noSpin={true} />}
                                                             {chart.title === 'Hydrator' && key !== 'None' && (
                                                                 <HydrateOperationPhaseIcon
-                                                                    operationState={{
+                                                                    operation={{
                                                                         phase: key as any,
                                                                         startedAt: '',
                                                                         message: '',

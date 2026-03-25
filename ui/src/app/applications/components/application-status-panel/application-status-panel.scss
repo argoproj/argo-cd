@@ -118,6 +118,14 @@
                 color: $argo-success-color;
             }
         }
+        & {
+            a.progressing,
+            a.neutral {
+                @include themify($themes) {
+                    color: themed('text-1');
+                }
+            }
+        }
 
         label {
             display: block;
@@ -134,10 +142,10 @@
 
     &__item-value {
         display: flex;
-        align-items: baseline;
+        align-items: flex-start;
         margin-bottom: 0.5em;
         font-weight: 500;
-        padding: 2px 0px;
+        padding: 5px 0 2px;
         .fa {
             font-size: 1em;
         }
@@ -187,11 +195,6 @@
                 background-color: $argo-color-gray-4;
             }
         }
-
-    }
-
-    &__hydrator-link {
-        width: 134px;
     }
 
     &__item-name {

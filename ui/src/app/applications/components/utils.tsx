@@ -280,19 +280,43 @@ export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application;
     );
 };
 
-export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operationState?: appModels.HydrateOperation; isButton?: boolean}) => {
-    if (operationState === undefined) {
-        return null;
+export const HydrateOperationPhaseIcon = ({
+    operation,
+    isButton,
+    /** When there is no operation and `isButton`, whether the API has hydrator disabled (triangle vs clock). Ignored when `operation` is set. */
+    apiHydratorDisabled
+}: {
+    operation?: appModels.HydrateOperation | null;
+    isButton?: boolean;
+    apiHydratorDisabled?: boolean;
+}) => {
+    const panelButtonClass = isButton ? ' application-status-panel__item-value__status-button' : '';
+
+    if (!operation) {
+        if (!isButton) {
+            return null;
+        }
+        return apiHydratorDisabled ? (
+            <i
+                title='Source hydrator disabled'
+                qe-id='utils-hydrate-status-panel'
+                className={'fa fa-exclamation-triangle' + panelButtonClass}
+                style={{color: COLORS.sync.out_of_sync}}
+            />
+        ) : (
+            <i title='Waiting for controller' qe-id='utils-hydrate-status-panel' className={'fa fa-clock-o' + panelButtonClass} />
+        );
     }
+
     let className = '';
     let color = '';
-    switch (operationState.phase) {
+    switch (operation.phase) {
         case appModels.HydrateOperationPhases.Hydrated:
-            className = `fa fa-check-circle${isButton ? ' status-button' : ''}`;
+            className = 'fa fa-check-circle';
             color = COLORS.operation.success;
             break;
         case appModels.HydrateOperationPhases.Failed:
-            className = `fa fa-times-circle${isButton ? ' status-button' : ''}`;
+            className = 'fa fa-times-circle';
             color = COLORS.operation.failed;
             break;
         default:
@@ -300,10 +324,11 @@ export const HydrateOperationPhaseIcon = ({operationState, isButton}: {operation
             color = COLORS.operation.running;
             break;
     }
+    const iconColorStyle = !className.includes('fa-spin') && (!isButton || operation.phase === appModels.HydrateOperationPhases.Hydrated) ? {style: {color}} : {};
     return className.includes('fa-spin') ? (
         <SpinningIcon color={color} qeId='utils-operations-status-title' />
     ) : (
-        <i title={operationState.phase} qe-id='utils-operations-status-title' className={className} style={{color}} />
+        <i title={operation.phase} qe-id='utils-operations-status-title' className={className + panelButtonClass} {...iconColorStyle} />
     );
 };
 
@@ -1477,6 +1502,17 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
     const {path, targetRevision, repoURL} = app.spec.sourceHydrator?.drySource || app.spec.source;
 
     return {repoURL, targetRevision, path};
+}
+
+/** True when spec requests source hydration, the API server reports hydrator enabled, but the controller has not written currentOperation yet. */
+export function isWaitingForSourceHydratorController(app: appModels.Application, apiServerHydratorEnabled: boolean | null | undefined): boolean {
+    if (!app.spec.sourceHydrator) {
+        return false;
+    }
+    if (apiServerHydratorEnabled !== true) {
+        return false;
+    }
+    return !app.status?.sourceHydrator?.currentOperation;
 }
 
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`

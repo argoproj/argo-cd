@@ -1,3 +1,45 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+.application-hydrate-operation-state__server-disabled-notice {
+    padding: 0.75rem 1rem 0.25rem;
+    white-space: normal;
+
+    p {
+        margin-bottom: 0.85rem;
+        line-height: 1.45;
+    }
+
+    code {
+        font-size: 0.92em;
+    }
+}
+
+.application-hydrate-operation-state__server-disabled-notice-title {
+    font-weight: 600;
+    margin-bottom: 0.65rem;
+
+    .fa {
+        margin-right: 6px;
+        color: $argo-status-warning-color;
+    }
+}
+
+.application-hydrate-operation-state__waiting-body {
+    margin-top: 1rem;
+    padding: 0 0.75rem 0.5rem;
+
+    p {
+        margin-bottom: 0.85rem;
+        line-height: 1.45;
+        white-space: normal;
+    }
+
+    code {
+        font-size: 0.92em;
+    }
+}
+
 .application-operation-state {
   &__icons_container {
     position: absolute;
