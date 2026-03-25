@@ -16,7 +16,8 @@ jest.mock('./resource-customizations', () => ({
     resourceIconGroups: {
         '*.crossplane.io': true,
         '*.fluxcd.io': true,
-        'cert-manager.io': true
+        'cert-manager.io': true,
+        'promoter.argoproj.io': true
     }
 }));
 
@@ -70,6 +71,14 @@ describe('ResourceIcon', () => {
             const imgs = testInstance.findAllByType('img');
             expect(imgs.length).toBeGreaterThan(0);
             expect(imgs[0].props.src).toBe('assets/images/resources/_.fluxcd.io/icon.svg');
+        });
+
+        it('should show group-based icon for promoter.argoproj.io', () => {
+            const testRenderer = renderer.create(<ResourceIcon group='promoter.argoproj.io' kind='PromotionStrategy' />);
+            const testInstance = testRenderer.root;
+            const imgs = testInstance.findAllByType('img');
+            expect(imgs.length).toBeGreaterThan(0);
+            expect(imgs[0].props.src).toBe('assets/images/resources/promoter.argoproj.io/icon.svg');
         });
     });
 

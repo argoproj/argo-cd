@@ -546,23 +546,25 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, 
 
 	var foundSecret *corev1.Secret
 	for _, secret := range secrets {
-		if git.SameURL(string(secret.Data["url"]), repoURL) {
-			projectSecret := string(secret.Data["project"])
-			if project == projectSecret {
-				if foundSecret != nil {
-					log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
-				}
+		if !git.SameURL(string(secret.Data["url"]), repoURL) {
+			continue
+		}
 
-				return secret, nil
+		projectSecret := string(secret.Data["project"])
+		if project == projectSecret {
+			if foundSecret != nil {
+				log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
 			}
 
-			if projectSecret == "" && allowFallback {
-				if foundSecret != nil {
-					log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
-				}
+			return secret, nil
+		}
 
-				foundSecret = secret
+		if projectSecret == "" && allowFallback {
+			if foundSecret != nil {
+				log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
 			}
+
+			foundSecret = secret
 		}
 	}
 

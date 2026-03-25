@@ -66,6 +66,7 @@ jobs:
 
           # Create new branch for cherry-pick
           CHERRY_PICK_BRANCH="cherry-pick-${{ inputs.pr_number }}-to-${TARGET_BRANCH}"
+
           git checkout -b "$CHERRY_PICK_BRANCH" "origin/$TARGET_BRANCH"
 
           # Perform cherry-pick
@@ -75,12 +76,17 @@ jobs:
             # Extract Signed-off-by from the cherry-pick commit
             SIGNOFF=$(git log -1 --pretty=format:"%B" | grep -E '^Signed-off-by:' || echo "")
 
-            # Push the new branch
-            git push origin "$CHERRY_PICK_BRANCH"
+            # Push the new branch. Force push to ensure that in case the original cherry-pick branch is stale, 
+            # that the current state of the $TARGET_BRANCH + cherry-pick gets in $CHERRY_PICK_BRANCH.
+            git push origin -f "$CHERRY_PICK_BRANCH"
 
             # Save data for PR creation
             echo "branch_name=$CHERRY_PICK_BRANCH" >> "$GITHUB_OUTPUT"
-            echo "signoff=$SIGNOFF" >> "$GITHUB_OUTPUT"
+            {
+              echo "signoff<<EOF"
+              echo "$SIGNOFF"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
             echo "target_branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
           else
             echo "❌ Cherry-pick failed due to conflicts"
