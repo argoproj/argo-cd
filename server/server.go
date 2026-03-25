@@ -942,6 +942,8 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
 	sOpts = append(sOpts, grpc.ChainStreamInterceptor(
+		// for mitigation of grpc-go CVE-2026-33186, see https://github.com/argoproj/argo-cd/issues/26932
+		grpc_util.InvalidMethodNameErrorStreamServerInterceptor(),
 		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(server.log)),
 		serverMetrics.StreamServerInterceptor(),
@@ -955,6 +957,8 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 		recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(server.log))),
 	))
 	sOpts = append(sOpts, grpc.ChainUnaryInterceptor(
+		// for mitigation of grpc-go CVE-2026-33186, see https://github.com/argoproj/argo-cd/issues/26932
+		grpc_util.InvalidMethodNameErrorUnaryServerInterceptor(),
 		bug21955WorkaroundInterceptor,
 		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(server.log)),
