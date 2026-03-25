@@ -518,7 +518,7 @@ func isContentLayer(mediaType string) bool {
 
 func isCompressedLayer(mediaType string) bool {
 	// TODO: Is zstd something which is used in the wild? For now let's stick to these suffixes
-	return strings.HasSuffix(mediaType, "tar+gzip") || strings.HasSuffix(mediaType, "tar")
+	return strings.HasSuffix(mediaType, "tar+gzip") || strings.HasSuffix(mediaType, "tar.gzip") || strings.HasSuffix(mediaType, "tar")
 }
 
 func createTarFile(from, to string) error {
@@ -625,7 +625,7 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.D
 		}
 		defer os.RemoveAll(srcDir)
 
-		if strings.HasSuffix(desc.MediaType, "tar+gzip") {
+		if strings.HasSuffix(desc.MediaType, "tar+gzip") || strings.HasSuffix(desc.MediaType, "tar.gzip") {
 			err = files.Untgz(srcDir, content, s.maxSize, false)
 		} else {
 			err = files.Untar(srcDir, content, s.maxSize, false)

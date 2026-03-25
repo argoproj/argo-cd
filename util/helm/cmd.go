@@ -70,11 +70,11 @@ func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
 	}
 
 	cmd.Env = proxy.UpsertEnv(cmd, c.proxy, c.noProxy)
+	fullCommand := executil.GetCommandArgsToLog(cmd)
 
 	out, err := c.runWithRedactor(cmd, redactor)
-	fullCommand := executil.GetCommandArgsToLog(cmd)
 	if err != nil {
-		return out, fullCommand, fmt.Errorf("failed to get command args to log: %w", err)
+		return out, fullCommand, fmt.Errorf("failed running helm: %w", err)
 	}
 	return out, fullCommand, nil
 }

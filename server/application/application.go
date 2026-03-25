@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"reflect"
 	"slices"
@@ -15,12 +16,12 @@ import (
 
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 
-	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	kubecache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
@@ -38,7 +39,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/utils/ptr"
 
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
@@ -47,6 +47,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/server/broadcast"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/deeplinks"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
@@ -63,7 +64,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
 
 	applicationType "github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
@@ -90,7 +91,7 @@ type Server struct {
 	appclientset           appclientset.Interface
 	appLister              applisters.ApplicationLister
 	appInformer            cache.SharedIndexInformer
-	appBroadcaster         Broadcaster
+	appBroadcaster         broadcast.Broadcaster[v1alpha1.ApplicationWatchEvent]
 	repoClientset          apiclient.Clientset
 	kubectl                kube.Kubectl
 	db                     db.ArgoDB
@@ -111,7 +112,7 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appLister applisters.ApplicationLister,
 	appInformer cache.SharedIndexInformer,
-	appBroadcaster Broadcaster,
+	appBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationWatchEvent],
 	repoClientset apiclient.Clientset,
 	cache *servercache.Cache,
 	kubectl kube.Kubectl,
@@ -125,8 +126,15 @@ func NewServer(
 	syncWithReplaceAllowed bool,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
-		appBroadcaster = &broadcasterHandler{}
+		appBroadcaster = broadcast.NewHandler[v1alpha1.Application, v1alpha1.ApplicationWatchEvent](
+			func(app *v1alpha1.Application, eventType watch.EventType) *v1alpha1.ApplicationWatchEvent {
+				return &v1alpha1.ApplicationWatchEvent{Application: *app, Type: eventType}
+			},
+			applog.GetAppLogFields,
+		)
 	}
+	// Register Application-level broadcaster to receive create/update/delete events
+	// and handle general application event processing.
 	_, err := appInformer.AddEventHandler(appBroadcaster)
 	if err != nil {
 		log.Error(err)
@@ -144,7 +152,7 @@ func NewServer(
 		kubectl:                kubectl,
 		enf:                    enf,
 		projectLock:            projectLock,
-		auditLogger:            argo.NewAuditLogger(kubeclientset, "argocd-server", enableK8sEvent),
+		auditLogger:            argo.NewAuditLogger(kubeclientset, namespace, "argocd-server", enableK8sEvent),
 		settingsMgr:            settingsMgr,
 		projInformer:           projInformer,
 		enabledNamespaces:      enabledNamespaces,
@@ -990,7 +998,7 @@ func (s *Server) waitSync(app *v1alpha1.Application) {
 }
 
 func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newApp *v1alpha1.Application, merge bool) (*v1alpha1.Application, error) {
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		app.Spec = newApp.Spec
 		if merge {
 			app.Labels = collections.Merge(app.Labels, newApp.Labels)
@@ -1394,9 +1402,9 @@ func (s *Server) getCachedAppState(ctx context.Context, a *v1alpha1.Application,
 			return errors.New(argo.FormatAppConditions(conditions))
 		}
 		_, err = s.Get(ctx, &application.ApplicationQuery{
-			Name:         ptr.To(a.GetName()),
-			AppNamespace: ptr.To(a.GetNamespace()),
-			Refresh:      ptr.To(string(v1alpha1.RefreshTypeNormal)),
+			Name:         new(a.GetName()),
+			AppNamespace: new(a.GetNamespace()),
+			Refresh:      new(string(v1alpha1.RefreshTypeNormal)),
 		})
 		if err != nil {
 			return fmt.Errorf("error getting application by query: %w", err)
@@ -1771,8 +1779,7 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &items)
 	})
 	if err != nil {
-		log.Warnf("error getting cached app managed resources for %s/%s, cache unavailable, returning empty managed resources: %v", a.Namespace, a.Name, err)
-		return &application.ManagedResourcesResponse{Items: []*v1alpha1.ResourceDiff{}}, nil
+		return nil, fmt.Errorf("error getting cached app managed resources: %w", err)
 	}
 	res := &application.ManagedResourcesResponse{}
 	for i := range items {
@@ -1794,10 +1801,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 
 	var sinceSeconds, tailLines *int64
 	if q.GetSinceSeconds() > 0 {
-		sinceSeconds = ptr.To(q.GetSinceSeconds())
+		sinceSeconds = new(q.GetSinceSeconds())
 	}
 	if q.GetTailLines() > 0 {
-		tailLines = ptr.To(q.GetTailLines())
+		tailLines = new(q.GetTailLines())
 	}
 	var untilTime *metav1.Time
 	if q.GetUntilTime() != "" {
@@ -1913,10 +1920,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			ts := metav1.NewTime(entry.timeStamp)
 			if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
 				done <- ws.Send(&application.LogEntry{
-					Last:         ptr.To(true),
+					Last:         new(true),
 					PodName:      &entry.podName,
 					Content:      &entry.line,
-					TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
+					TimeStampStr: new(entry.timeStamp.Format(time.RFC3339Nano)),
 					TimeStamp:    &ts,
 				})
 				return
@@ -1925,9 +1932,9 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			if err := ws.Send(&application.LogEntry{
 				PodName:      &entry.podName,
 				Content:      &entry.line,
-				TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
+				TimeStampStr: new(entry.timeStamp.Format(time.RFC3339Nano)),
 				TimeStamp:    &ts,
-				Last:         ptr.To(false),
+				Last:         new(false),
 			}); err != nil {
 				done <- err
 				break
@@ -1936,10 +1943,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		now := time.Now()
 		nowTS := metav1.NewTime(now)
 		done <- ws.Send(&application.LogEntry{
-			Last:         ptr.To(true),
-			PodName:      ptr.To(""),
-			Content:      ptr.To(""),
-			TimeStampStr: ptr.To(now.Format(time.RFC3339Nano)),
+			Last:         new(true),
+			PodName:      new(""),
+			Content:      new(""),
+			TimeStampStr: new(now.Format(time.RFC3339Nano)),
 			TimeStamp:    &nowTS,
 		})
 	}()
@@ -2078,7 +2085,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	var source *v1alpha1.ApplicationSource
 	if !a.Spec.HasMultipleSources() {
-		source = ptr.To(a.Spec.GetSource())
+		source = new(a.Spec.GetSource())
 	}
 
 	op := v1alpha1.Operation{
@@ -2439,7 +2446,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		return nil, err
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		if a.Operation == nil || a.Status.OperationState == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
 		}
@@ -2917,9 +2924,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 
 	// Convert to map format expected by DiffConfigBuilder
 	overrides := make(map[string]v1alpha1.ResourceOverride)
-	for k, v := range resourceOverrides {
-		overrides[k] = v
-	}
+	maps.Copy(overrides, resourceOverrides)
 
 	// Get cluster connection for server-side dry run
 	cluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)

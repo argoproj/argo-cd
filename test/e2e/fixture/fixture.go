@@ -20,11 +20,14 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/yaml"
@@ -91,6 +94,7 @@ var (
 	DynamicClientset        dynamic.Interface
 	AppClientset            appclientset.Interface
 	ArgoCDClientset         apiclient.Client
+	Mapper                  meta.RESTMapper
 	adminUsername           string
 	AdminPassword           string
 	apiServerAddress        string
@@ -195,6 +199,7 @@ func init() {
 	AppClientset = appclientset.NewForConfigOrDie(config)
 	KubeClientset = kubernetes.NewForConfigOrDie(config)
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
+	Mapper = restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(KubeClientset.Discovery()))
 	KubeConfig = config
 
 	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultAPIServer)
@@ -530,14 +535,14 @@ func SetAccounts(accounts map[string][]string) error {
 
 func SetPermissions(permissions []ACL, username string, roleName string) error {
 	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
-		var aclstr string
+		var aclstr strings.Builder
 
 		for _, permission := range permissions {
-			aclstr += fmt.Sprintf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
+			_, _ = fmt.Fprintf(&aclstr, "p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
 		}
 
-		aclstr += fmt.Sprintf("g, %s, role:%s", username, roleName)
-		cm.Data["policy.csv"] = aclstr
+		_, _ = fmt.Fprintf(&aclstr, "g, %s, role:%s", username, roleName)
+		cm.Data["policy.csv"] = aclstr.String()
 
 		return nil
 	})
@@ -982,7 +987,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 	var out string
 	var err error
-	for i := 0; i < maxRetries; i++ {
+	for range maxRetries {
 		out, err = RunCli(args...)
 		if err == nil {
 			break
@@ -1022,6 +1027,44 @@ func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (st
 	}
 
 	return RunWithStdinWithRedactor(stdin, "", "../../dist/argocd", redactor, args...)
+}
+
+// RunCliWithToken executes an Argo CD CLI command using a specific auth token
+// instead of the global test token. This is useful for session/logout tests
+// that need to verify behavior with multiple or revoked tokens.
+func RunCliWithToken(authToken string, args ...string) (string, error) {
+	if plainText {
+		args = append(args, "--plaintext")
+	}
+
+	args = append(args, "--server", apiServerAddress, "--auth-token", authToken, "--insecure")
+
+	redactor := func(text string) string {
+		if authToken == "" {
+			return text
+		}
+		authTokenPattern := "--auth-token " + authToken
+		return strings.ReplaceAll(text, authTokenPattern, "--auth-token ******")
+	}
+
+	return RunWithStdinWithRedactor("", "", "../../dist/argocd", redactor, args...)
+}
+
+// RunCliWithConfigFile executes an Argo CD CLI command using a custom config file
+// instead of the global test config. This is used by session/logout tests to
+// isolate per-token state across login/logout cycles.
+func RunCliWithConfigFile(configPath string, args ...string) (string, error) {
+	if plainText {
+		args = append(args, "--plaintext")
+	}
+
+	args = append(args, "--server", apiServerAddress, "--config", configPath, "--insecure")
+
+	redactor := func(text string) string {
+		return text
+	}
+
+	return RunWithStdinWithRedactor("", "", "../../dist/argocd", redactor, args...)
 }
 
 // RunPluginCli executes an Argo CD CLI plugin with optional stdin input.
@@ -1324,4 +1367,26 @@ func GetNotificationServerAddress() string {
 
 func GetToken() string {
 	return token
+}
+
+func IsPlainText() bool {
+	return plainText
+}
+
+// SetParamInRBACConfigMap sets the parameter in argocd-rbac-cm config map
+func SetParamInRBACConfigMap(key, value string) error {
+	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data[key] = value
+		return nil
+	})
+}
+
+// SetOIDCConfig sets the oidc.config in argocd-cm config map
+func SetOIDCConfig(value string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["oidc.config"] = value
+		cm.Data["url"] = "http://" + GetApiServerAddress()
+		delete(cm.Data, "dex.config")
+		return nil
+	})
 }

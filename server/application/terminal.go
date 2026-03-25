@@ -4,9 +4,10 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"slices"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -209,21 +210,9 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if pod.Status.Phase != corev1.PodRunning {
-		http.Error(w, "Pod not running", http.StatusBadRequest)
-		return
-	}
-
-	var findContainer bool
-	for _, c := range pod.Spec.Containers {
-		if container == c.Name {
-			findContainer = true
-			break
-		}
-	}
-	if !findContainer {
-		fieldLog.Warn("terminal container not found")
-		http.Error(w, "Cannot find container", http.StatusBadRequest)
+	if !containerRunning(pod, container) {
+		fieldLog.Warn("terminal container not running")
+		http.Error(w, "container find running", http.StatusBadRequest)
 		return
 	}
 
@@ -240,7 +229,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// load balancers which may close an idle connection after some period of time
 	go session.StartKeepalives(time.Second * 5)
 
-	if isValidShell(s.allowedShells, shell) {
+	if slices.Contains(s.allowedShells, shell) {
 		cmd := []string{shell}
 		err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session)
 	} else {
@@ -267,6 +256,20 @@ func podExists(treeNodes []appv1.ResourceNode, podName, namespace string) bool {
 		if treeNode.Kind == kube.PodKind && treeNode.Group == "" && treeNode.UID != "" &&
 			treeNode.Name == podName && treeNode.Namespace == namespace {
 			return true
+		}
+	}
+	return false
+}
+
+func containerRunning(pod *corev1.Pod, containerName string) bool {
+	return containerStatusRunning(pod.Status.ContainerStatuses, containerName) ||
+		containerStatusRunning(pod.Status.InitContainerStatuses, containerName)
+}
+
+func containerStatusRunning(statuses []corev1.ContainerStatus, containerName string) bool {
+	for i := range statuses {
+		if statuses[i].Name == containerName {
+			return statuses[i].State.Running != nil
 		}
 	}
 	return false
@@ -336,14 +339,4 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, p
 		TerminalSizeQueue: ptyHandler,
 		Tty:               true,
 	})
-}
-
-// isValidShell checks if the shell is an allowed one
-func isValidShell(validShells []string, shell string) bool {
-	for _, validShell := range validShells {
-		if validShell == shell {
-			return true
-		}
-	}
-	return false
 }

@@ -1100,7 +1100,7 @@ func TestGitlabListRepos(t *testing.T) {
 			url:   "git@gitlab.com:test-argocd-proton/argocd.git",
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
 				{
-					LabelMatch: strp("test-topic"),
+					LabelMatch: new("test-topic"),
 				},
 			},
 		},
@@ -1301,7 +1301,6 @@ func TestGetBranchesTLS(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				gitlabMockHandler(t)(w, r)

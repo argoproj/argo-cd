@@ -178,17 +178,15 @@ func TestExecuteRequest_ConcurrentErrorRequests_NoConnectionLeak(t *testing.T) {
 	iterations := 5
 
 	var wg sync.WaitGroup
-	for iter := 0; iter < iterations; iter++ {
-		for i := 0; i < concurrency; i++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+	for range iterations {
+		for range concurrency {
+			wg.Go(func() {
 				ctx := context.Background()
 				md := metadata.New(map[string]string{})
 				_, err := c.executeRequest(ctx, "/application.ApplicationService/ManagedResources", []byte("test"), md)
 				// We expect errors
 				assert.Error(t, err)
-			}()
+			})
 		}
 		wg.Wait()
 	}
