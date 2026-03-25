@@ -1794,7 +1794,7 @@ func TestGrpcInvalidMethodNameCVEFix(t *testing.T) {
 		var resp any
 		err = stream.RecvMsg(&resp)
 		// ensure we get error method from interceptor
-		require.ErrorContains(t, err, "code = Unknown desc = malformed method name: \""+invalidStreamingMethodName+"\"")
+		require.ErrorContains(t, err, "code = InvalidArgument desc = malformed method name: \""+invalidStreamingMethodName+"\"")
 	})
 	t.Run("streaming method with valid name", func(t *testing.T) {
 		stream, err := conn.NewStream(ctx, streamDesc, "/"+invalidStreamingMethodName)

@@ -156,6 +156,15 @@ func Test_kubeErrToGRPC(t *testing.T) {
 	}
 }
 
+func checkGrpcError(t *testing.T, err error, msg string) {
+	t.Helper()
+	require.Error(t, err)
+	s, ok := status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, codes.InvalidArgument, s.Code())
+	assert.ErrorContains(t, err, msg)
+}
+
 func TestInvalidMethodNameErrorUnaryServerInterceptor(t *testing.T) {
 	interceptor := InvalidMethodNameErrorUnaryServerInterceptor()
 	handler := func(_ context.Context, _ any) (any, error) {
@@ -164,12 +173,12 @@ func TestInvalidMethodNameErrorUnaryServerInterceptor(t *testing.T) {
 	t.Run("Test invalid method name", func(t *testing.T) {
 		info := &grpc.UnaryServerInfo{FullMethod: "foo"}
 		_, err := interceptor(t.Context(), nil, info, handler)
-		assert.EqualError(t, err, "malformed method name: \"foo\"")
+		checkGrpcError(t, err, "malformed method name: \"foo\"")
 	})
 	t.Run("Test empty method name", func(t *testing.T) {
 		info := &grpc.UnaryServerInfo{FullMethod: ""}
 		_, err := interceptor(t.Context(), nil, info, handler)
-		assert.EqualError(t, err, "malformed method name: \"\"")
+		checkGrpcError(t, err, "malformed method name: \"\"")
 	})
 	t.Run("Test valid method name", func(t *testing.T) {
 		info := &grpc.UnaryServerInfo{FullMethod: "/foo"}
@@ -186,12 +195,12 @@ func TestInvalidMethodNameErrorStreamServerInterceptor(t *testing.T) {
 	t.Run("Test invalid method name", func(t *testing.T) {
 		info := &grpc.StreamServerInfo{FullMethod: "foo"}
 		err := interceptor(t.Context(), nil, info, handler)
-		assert.EqualError(t, err, "malformed method name: \"foo\"")
+		checkGrpcError(t, err, "malformed method name: \"foo\"")
 	})
 	t.Run("Test empty method name", func(t *testing.T) {
 		info := &grpc.StreamServerInfo{FullMethod: ""}
 		err := interceptor(t.Context(), nil, info, handler)
-		assert.EqualError(t, err, "malformed method name: \"\"")
+		checkGrpcError(t, err, "malformed method name: \"\"")
 	})
 	t.Run("Test valid method name", func(t *testing.T) {
 		info := &grpc.StreamServerInfo{FullMethod: "/foo"}
