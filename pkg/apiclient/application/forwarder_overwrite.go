@@ -135,7 +135,7 @@ func buildLogFilename(urlPath string, queryGet func(string) string) string {
 	if len(nameParts) == 0 {
 		return "log.log"
 	}
-	return strings.Join(nameParts, "-") + ".log"
+	return strings.Join(nameParts, "_") + ".log"
 }
 
 func init() {

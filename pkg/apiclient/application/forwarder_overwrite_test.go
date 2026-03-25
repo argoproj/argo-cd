@@ -46,21 +46,21 @@ func TestBuildLogFilename(t *testing.T) {
 			urlPath:   "/api/v1/applications/my-app/logs",
 			podName:   "my-pod",
 			container: "nginx",
-			expected:  "my-app-my-pod-nginx.log",
+			expected:  "my-app_my-pod_nginx.log",
 		},
 		{
 			name:      "missing podName",
 			urlPath:   "/api/v1/applications/my-app/logs",
 			podName:   "",
 			container: "nginx",
-			expected:  "my-app-nginx.log",
+			expected:  "my-app_nginx.log",
 		},
 		{
 			name:      "missing container",
 			urlPath:   "/api/v1/applications/my-app/logs",
 			podName:   "my-pod",
 			container: "",
-			expected:  "my-app-my-pod.log",
+			expected:  "my-app_my-pod.log",
 		},
 		{
 			name:      "only app name",
@@ -81,7 +81,7 @@ func TestBuildLogFilename(t *testing.T) {
 			urlPath:   "/api/v1/applications/my-app/pods/my-pod/logs",
 			podName:   "my-pod",
 			container: "sidecar",
-			expected:  "my-app-my-pod-sidecar.log",
+			expected:  "my-app_my-pod_sidecar.log",
 		},
 	}
 
