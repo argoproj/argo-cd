@@ -187,7 +187,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	// short-circuit if already hydrated
 	if isHydrated {
 		logCtx.Debugf("this dry sha %s is already hydrated", r.DrySha)
-		return "", "", nil
+		return "", hydratedSha, nil
 	}
 
 	logCtx.Debug("Writing manifests")
@@ -197,13 +197,14 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
 	if !shouldCommit {
-		// add the note and return
+		// Manifests did not change, so we don't need to create a new commit.
+		// Add a git note to track that this dry SHA has been processed, and return the existing hydrated SHA.
 		logCtx.Debug("Adding commit note")
 		err = AddNote(gitClient, r.DrySha, hydratedSha)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to add commit note: %w", err)
 		}
-		return "", "", nil
+		return "", hydratedSha, nil
 	}
 	logCtx.Debug("Committing and pushing changes")
 	out, err = gitClient.CommitAndPush(r.TargetBranch, r.CommitMessage)
@@ -271,15 +272,18 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 	//	 cleanupOrLog()
 	//	 return nil, "", nil, fmt.Errorf("failed to get github app info: %w", err)
 	// }
-	var authorName, authorEmail string
-
+	// Use author name and email from request, defaulting to "Argo CD" if not provided
+	authorName := r.AuthorName
 	if authorName == "" {
 		authorName = "Argo CD"
 	}
+	authorEmail := r.AuthorEmail
 	if authorEmail == "" {
-		logCtx.Warnf("Author email not available, using 'argo-cd@example.com'.")
 		authorEmail = "argo-cd@example.com"
 	}
+
+	logCtx.Debugf("Author config: request name='%s', request email='%s', final name='%s', final email='%s'",
+		r.AuthorName, r.AuthorEmail, authorName, authorEmail)
 
 	logCtx.Debugf("Setting author %s <%s>", authorName, authorEmail)
 	_, err = gitClient.SetAuthor(authorName, authorEmail)

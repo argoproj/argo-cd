@@ -14,7 +14,6 @@ import (
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -147,6 +146,7 @@ func (cc *ClusterInformer) GetClusterServersByName(name string) ([]string, error
 }
 
 // ListClusters returns all clusters in the cache.
+// Returns an error if any item in the cache is not a *Cluster (indicates transform failure).
 func (cc *ClusterInformer) ListClusters() ([]*appv1.Cluster, error) {
 	items := cc.GetIndexer().List()
 	clusters := make([]*appv1.Cluster, 0, len(items))
@@ -154,8 +154,8 @@ func (cc *ClusterInformer) ListClusters() ([]*appv1.Cluster, error) {
 	for _, item := range items {
 		cluster, ok := item.(*appv1.Cluster)
 		if !ok {
-			log.Warnf("Expected *appv1.Cluster in cache, got %T (skipping)", item)
-			continue
+			// Return an error to prevent partial data from causing incorrect applicationset deletions
+			return nil, fmt.Errorf("cluster cache contains unexpected type %T instead of *Cluster, secret conversion failure", item)
 		}
 		// Return copies to prevent modification of cached objects
 		clusters = append(clusters, cluster.DeepCopy())
@@ -176,7 +176,7 @@ func secretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 	}
 
 	var namespaces []string
-	for _, ns := range strings.Split(string(s.Data["namespaces"]), ",") {
+	for ns := range strings.SplitSeq(string(s.Data["namespaces"]), ",") {
 		if ns = strings.TrimSpace(ns); ns != "" {
 			namespaces = append(namespaces, ns)
 		}
@@ -195,7 +195,7 @@ func secretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 		if val, err := strconv.Atoi(string(shardStr)); err != nil {
 			log.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
 		} else {
-			shard = ptr.To(int64(val))
+			shard = new(int64(val))
 		}
 	}
 

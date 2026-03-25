@@ -33,8 +33,8 @@ import (
 	testcore "k8s.io/client-go/testing"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
 )
 
 func mustToUnstructured(obj any) *unstructured.Unstructured {
@@ -1350,6 +1350,98 @@ func TestIterateHierarchyV2_ClusterScopedParent_FindsAllChildren(t *testing.T) {
 	assert.ElementsMatch(t, expected, keys)
 }
 
+func TestIterateHierarchyV2_MultiLevelClusterScoped_FindsNamespacedGrandchildren(t *testing.T) {
+	// Test 3-level hierarchy: ClusterScoped -> ClusterScoped -> Namespaced
+	// This test the scenario where:
+	//   Provider (managed) -> ProviderRevision (dynamic) -> Deployment (namespaced)
+	// The namespaced grandchildren should be found even when only the root is passed as a key.
+
+	// Level 1: Cluster-scoped parent (like Provider - this is the "managed" resource)
+	clusterParent := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "root-cluster-parent",
+			UID:             "root-parent-uid",
+			ResourceVersion: "1",
+		},
+	}
+
+	// Level 2: Cluster-scoped intermediate (like ProviderRevision - dynamically created, NOT managed)
+	clusterIntermediate := &rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "intermediate-cluster-child",
+			UID:             "intermediate-uid",
+			ResourceVersion: "1",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+				Name:       "root-cluster-parent",
+				UID:        "root-parent-uid",
+			}},
+		},
+	}
+
+	// Level 3: Namespaced grandchild (like Deployment owned by ProviderRevision)
+	namespacedGrandchild := &corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "namespaced-grandchild",
+			Namespace:       "some-namespace",
+			UID:             "grandchild-uid",
+			ResourceVersion: "1",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: "rbac.authorization.k8s.io/v1",
+				Kind:       "ClusterRole",
+				Name:       "intermediate-cluster-child",
+				UID:        "intermediate-uid",
+			}},
+		},
+	}
+
+	cluster := newCluster(t, clusterParent, clusterIntermediate, namespacedGrandchild).WithAPIResources([]kube.APIResourceInfo{
+		{
+			GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
+			GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
+			Meta:                 metav1.APIResource{Namespaced: false},
+		},
+		{
+			GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
+			GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
+			Meta:                 metav1.APIResource{Namespaced: false},
+		},
+	})
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	// Only pass the root cluster-scoped parent as a key (simulating managed resources)
+	// The intermediate and grandchild should be discovered through traversal
+	keys := []kube.ResourceKey{}
+	cluster.IterateHierarchyV2(
+		[]kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(clusterParent))},
+		func(resource *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			keys = append(keys, resource.ResourceKey())
+			return true
+		},
+	)
+
+	// Should find all 3 levels: parent, intermediate, AND the namespaced grandchild
+	expected := []kube.ResourceKey{
+		kube.GetResourceKey(mustToUnstructured(clusterParent)),
+		kube.GetResourceKey(mustToUnstructured(clusterIntermediate)),
+		kube.GetResourceKey(mustToUnstructured(namespacedGrandchild)), // This is the bug - currently NOT found
+	}
+	assert.ElementsMatch(t, expected, keys)
+}
 
 func TestIterateHierarchyV2_ClusterScopedParentOnly_InferredUID(t *testing.T) {
 	// Test that passing only a cluster-scoped parent finds children even with inferred UIDs.
@@ -1912,6 +2004,118 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 	}
 }
 
+// BenchmarkIterateHierarchyV2_MultiLevelClusterScoped tests the performance of
+// multi-level cluster-scoped hierarchies: ClusterScoped -> ClusterScoped -> Namespaced
+func BenchmarkIterateHierarchyV2_MultiLevelClusterScoped(b *testing.B) {
+	testCases := []struct {
+		name                  string
+		intermediateChildren  int // Number of intermediate cluster-scoped children per root
+		namespacedGrandchildren int // Number of namespaced grandchildren per intermediate
+		totalNamespaces       int
+	}{
+		// Baseline: no multi-level hierarchy
+		{"NoMultiLevel", 0, 0, 10},
+		// Typical Crossplane scenario: 1 ProviderRevision per Provider, few Deployments
+		{"1Intermediate_5Grandchildren", 1, 5, 10},
+		// Multiple ProviderRevisions per Provider
+		{"5Intermediate_5Grandchildren", 5, 5, 10},
+		// Larger hierarchy
+		{"10Intermediate_10Grandchildren", 10, 10, 20},
+		// Stress test
+		{"20Intermediate_20Grandchildren", 20, 20, 50},
+	}
+
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			cluster := newCluster(b).WithAPIResources([]kube.APIResourceInfo{{
+				GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
+				Meta:                 metav1.APIResource{Namespaced: false},
+			}, {
+				GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
+				Meta:                 metav1.APIResource{Namespaced: false},
+			}, {
+				GroupKind:            schema.GroupKind{Group: "", Kind: "Pod"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+				Meta:                 metav1.APIResource{Namespaced: true},
+			}})
+
+			cluster.namespacedResources = map[schema.GroupKind]bool{
+				{Group: "", Kind: "Pod"}:                                   true,
+				{Group: "", Kind: "Namespace"}:                             false,
+				{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}: false,
+			}
+
+			// Create root cluster-scoped parent (Namespace, simulating Provider)
+			rootUID := uuid.New().String()
+			rootYaml := fmt.Sprintf(`
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: root-parent
+  uid: %s`, rootUID)
+			rootKey := kube.ResourceKey{Kind: "Namespace", Name: "root-parent"}
+			cluster.setNode(cacheTest.newResource(strToUnstructured(rootYaml)))
+
+			// Create intermediate cluster-scoped children (ClusterRoles, simulating ProviderRevisions)
+			intermediateUIDs := make([]string, tc.intermediateChildren)
+			for i := 0; i < tc.intermediateChildren; i++ {
+				uid := uuid.New().String()
+				intermediateUIDs[i] = uid
+				name := fmt.Sprintf("intermediate-%d", i)
+				intermediateYaml := fmt.Sprintf(`
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: %s
+  uid: %s
+  ownerReferences:
+  - apiVersion: v1
+    kind: Namespace
+    name: root-parent
+    uid: %s
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get"]`, name, uid, rootUID)
+				cluster.setNode(cacheTest.newResource(strToUnstructured(intermediateYaml)))
+			}
+
+			// Create namespaced grandchildren (Pods, simulating Deployments)
+			for i := 0; i < tc.intermediateChildren; i++ {
+				for j := 0; j < tc.namespacedGrandchildren; j++ {
+					nsIdx := (i*tc.namespacedGrandchildren + j) % tc.totalNamespaces
+					namespace := fmt.Sprintf("ns-%d", nsIdx)
+					podName := fmt.Sprintf("grandchild-%d-%d", i, j)
+					podUID := uuid.New().String()
+					podYaml := fmt.Sprintf(`
+apiVersion: v1
+kind: Pod
+metadata:
+  name: %s
+  namespace: %s
+  uid: %s
+  ownerReferences:
+  - apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    name: intermediate-%d
+    uid: %s`, podName, namespace, podUID, i, intermediateUIDs[i])
+					cluster.setNode(cacheTest.newResource(strToUnstructured(podYaml)))
+				}
+			}
+
+			b.ResetTimer()
+			b.ReportAllocs()
+
+			for n := 0; n < b.N; n++ {
+				cluster.IterateHierarchyV2([]kube.ResourceKey{rootKey}, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
+					return true
+				})
+			}
+		})
+	}
+}
 
 func TestIterateHierarchyV2_NoDuplicatesInSameNamespace(t *testing.T) {
 	// Create a parent-child relationship in the same namespace
@@ -1984,4 +2188,113 @@ func TestIterateHierarchyV2_NoDuplicatesCrossNamespace(t *testing.T) {
 	assert.Equal(t, 1, visitCount["test-cluster-parent"], "cluster parent should be visited once")
 	assert.Equal(t, 1, visitCount["namespaced-child"], "namespaced child should be visited once")
 	assert.Equal(t, 1, visitCount["cluster-child"], "cluster child should be visited once")
+}
+
+func TestIterateHierarchyV2_CircularOwnerReference_NoStackOverflow(t *testing.T) {
+	// Test that self-referencing resources (circular ownerReferences) don't cause stack overflow.
+	// This reproduces the bug reported in https://github.com/argoproj/argo-cd/issues/26783
+	// where a resource with an ownerReference pointing to itself caused infinite recursion.
+
+	// Create a cluster-scoped resource that owns itself (self-referencing)
+	selfReferencingResource := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "self-referencing",
+			UID:             "self-ref-uid",
+			ResourceVersion: "1",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+				Name:       "self-referencing",
+				UID:        "self-ref-uid", // Points to itself
+			}},
+		},
+	}
+
+	cluster := newCluster(t, selfReferencingResource).WithAPIResources([]kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
+		Meta:                 metav1.APIResource{Namespaced: false},
+	}})
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	visitCount := 0
+	// This should complete without stack overflow
+	cluster.IterateHierarchyV2(
+		[]kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(selfReferencingResource))},
+		func(resource *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			visitCount++
+			return true
+		},
+	)
+
+	// The self-referencing resource should be visited exactly once
+	assert.Equal(t, 1, visitCount, "self-referencing resource should be visited exactly once")
+}
+
+func TestIterateHierarchyV2_CircularOwnerChain_NoStackOverflow(t *testing.T) {
+	// Test that circular ownership chains (A -> B -> A) don't cause stack overflow.
+	// This is a more complex case where two resources own each other.
+
+	resourceA := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "resource-a",
+			UID:             "uid-a",
+			ResourceVersion: "1",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+				Name:       "resource-b",
+				UID:        "uid-b", // A is owned by B
+			}},
+		},
+	}
+
+	resourceB := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "resource-b",
+			UID:             "uid-b",
+			ResourceVersion: "1",
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: "v1",
+				Kind:       "Namespace",
+				Name:       "resource-a",
+				UID:        "uid-a", // B is owned by A
+			}},
+		},
+	}
+
+	cluster := newCluster(t, resourceA, resourceB).WithAPIResources([]kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
+		Meta:                 metav1.APIResource{Namespaced: false},
+	}})
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	visitCount := make(map[string]int)
+	// This should complete without stack overflow
+	cluster.IterateHierarchyV2(
+		[]kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(resourceA))},
+		func(resource *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			visitCount[resource.Ref.Name]++
+			return true
+		},
+	)
+
+	// Each resource in the circular chain should be visited exactly once
+	assert.Equal(t, 1, visitCount["resource-a"], "resource-a should be visited exactly once")
+	assert.Equal(t, 1, visitCount["resource-b"], "resource-b should be visited exactly once")
 }

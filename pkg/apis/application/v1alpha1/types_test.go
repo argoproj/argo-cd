@@ -10,11 +10,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 
 	argocdcommon "github.com/argoproj/argo-cd/v3/common"
 
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -226,7 +225,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 	}
 
 	for _, data := range testData {
-		data := data
 		t.Run(data.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -563,6 +561,80 @@ func TestAppProject_IsGroupKindPermitted(t *testing.T) {
 	}
 	assert.False(t, proj7.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "other-namespace", false))
 	assert.True(t, proj7.IsGroupKindNamePermitted(schema.GroupKind{Group: "", Kind: "Namespace"}, "team1-namespace", false))
+}
+
+func TestGlobMatch(t *testing.T) {
+	tests := []struct {
+		name          string
+		pattern       string
+		val           string
+		allowNegation bool
+		expected      bool
+	}{
+		{
+			name:          "exact match",
+			pattern:       "foo",
+			val:           "foo",
+			allowNegation: false,
+			expected:      true,
+		},
+		{
+			name:          "glob wildcard match",
+			pattern:       "foo*",
+			val:           "foobar",
+			allowNegation: false,
+			expected:      true,
+		},
+		{
+			name:          "glob wildcard no match",
+			pattern:       "foo*",
+			val:           "bar",
+			allowNegation: false,
+			expected:      false,
+		},
+		{
+			name:          "star matches everything",
+			pattern:       "*",
+			val:           "anything",
+			allowNegation: false,
+			expected:      true,
+		},
+		{
+			name:          "deny pattern with negation allowed - match",
+			pattern:       "!foo",
+			val:           "foo",
+			allowNegation: true,
+			expected:      false,
+		},
+		{
+			name:          "deny pattern with negation allowed - no match",
+			pattern:       "!foo",
+			val:           "bar",
+			allowNegation: true,
+			expected:      true,
+		},
+		{
+			name:          "deny pattern ignored when negation not allowed",
+			pattern:       "!foo",
+			val:           "foo",
+			allowNegation: false,
+			expected:      false, // treated as literal pattern "!foo"
+		},
+		{
+			name:          "deny pattern ignored when negation not allowed - no match",
+			pattern:       "!foo",
+			val:           "!foo",
+			allowNegation: false,
+			expected:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := globMatch(tt.pattern, tt.val, tt.allowNegation)
+			require.Equal(t, tt.expected, result)
+		})
+	}
 }
 
 func TestAppProject_GetRoleByName(t *testing.T) {
@@ -3575,7 +3647,7 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	retry := RetryStrategy{
 		Backoff: &Backoff{
 			Duration:    "2s",
-			Factor:      ptr.To(int64(3)),
+			Factor:      new(int64(3)),
 			MaxDuration: "1m",
 		},
 	}
@@ -3684,10 +3756,10 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	settings := OrphanedResourcesMonitorSettings{}
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = ptr.To(false)
+	settings.Warn = new(false)
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = ptr.To(true)
+	settings.Warn = new(true)
 	assert.True(t, settings.IsWarn())
 }
 
@@ -4089,7 +4161,7 @@ func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "version",
-			String_: ptr.To("1.2.3"),
+			String_: new("1.2.3"),
 		},
 	}
 	environ, err := params.Environ()
@@ -4146,7 +4218,7 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "some-name",
-			String_: ptr.To("1.2.3"),
+			String_: new("1.2.3"),
 			OptionalArray: &OptionalArray{
 				Array: []string{"redis", "minio"},
 			},
@@ -4791,53 +4863,70 @@ func TestSyncWindow_Hash(t *testing.T) {
 func TestSanitized(t *testing.T) {
 	now := metav1.Now()
 	cluster := &Cluster{
-		ID:            "123",
-		Server:        "https://example.com",
-		Name:          "example",
-		ServerVersion: "v1.0.0",
-		Namespaces:    []string{"default", "kube-system"},
-		Project:       "default",
+		ID:     "123",
+		Server: "https://example.com",
+		Name:   "example",
+		Info: ClusterInfo{
+			ConnectionState: ConnectionState{
+				Status:     ConnectionStatusSuccessful,
+				Message:    "Connection successful",
+				ModifiedAt: &now,
+			},
+			ServerVersion:     "v1.0.0",
+			CacheInfo:         ClusterCacheInfo{},
+			ApplicationsCount: 0,
+			APIVersions:       nil,
+		},
+		Namespaces: []string{"default", "kube-system"},
+		Project:    "default",
 		Labels: map[string]string{
 			"env": "production",
 		},
 		Annotations: map[string]string{
 			"annotation-key": "annotation-value",
 		},
-		ConnectionState: ConnectionState{
-			Status:     ConnectionStatusSuccessful,
-			Message:    "Connection successful",
-			ModifiedAt: &now,
-		},
 		Config: ClusterConfig{
 			Username:    "admin",
 			Password:    "password123",
 			BearerToken: "abc",
 			TLSClientConfig: TLSClientConfig{
-				Insecure: true,
+				Insecure:   true,
+				ServerName: "server",
+				CertData:   []byte("random bytes we don't want to show in the API response"),
+				KeyData:    []byte("random bytes we don't want to show in the API response"),
+				CAData:     []byte("random bytes we don't want to show in the API response"),
 			},
 			ExecProviderConfig: &ExecProviderConfig{
-				Command: "test",
+				Command:    "this should be omitted in API",
+				Args:       []string{"this should be omitted in API"},
+				APIVersion: "this should be omitted in API",
 			},
 		},
 	}
 
 	assert.Equal(t, &Cluster{
-		ID:            "123",
-		Server:        "https://example.com",
-		Name:          "example",
-		ServerVersion: "v1.0.0",
-		Namespaces:    []string{"default", "kube-system"},
-		Project:       "default",
-		Labels:        map[string]string{"env": "production"},
-		Annotations:   map[string]string{"annotation-key": "annotation-value"},
-		ConnectionState: ConnectionState{
-			Status:     ConnectionStatusSuccessful,
-			Message:    "Connection successful",
-			ModifiedAt: &now,
+		ID:     "123",
+		Server: "https://example.com",
+		Name:   "example",
+		Info: ClusterInfo{
+			ConnectionState: ConnectionState{
+				Status:     ConnectionStatusSuccessful,
+				Message:    "Connection successful",
+				ModifiedAt: &now,
+			},
+			ServerVersion:     "v1.0.0",
+			CacheInfo:         ClusterCacheInfo{},
+			ApplicationsCount: 0,
+			APIVersions:       nil,
 		},
+		Namespaces:  []string{"default", "kube-system"},
+		Project:     "default",
+		Labels:      map[string]string{"env": "production"},
+		Annotations: map[string]string{"annotation-key": "annotation-value"},
 		Config: ClusterConfig{
 			TLSClientConfig: TLSClientConfig{
-				Insecure: true,
+				Insecure:   true,
+				ServerName: "server",
 			},
 		},
 	}, cluster.Sanitized())
@@ -4862,6 +4951,139 @@ func TestSourceHydrator_Equals(t *testing.T) {
 			t.Parallel()
 
 			assert.Equal(t, testCopy.expected, testCopy.a.DeepEquals(testCopy.b))
+		})
+	}
+}
+
+func TestIgnoreDifferences_Equals(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		a        IgnoreDifferences
+		b        IgnoreDifferences
+		expected bool
+	}{
+		{
+			name:     "nil and nil are equal",
+			a:        nil,
+			b:        nil,
+			expected: true,
+		},
+		{
+			name:     "nil and empty slice are equal",
+			a:        nil,
+			b:        IgnoreDifferences{},
+			expected: true,
+		},
+		{
+			name:     "empty slice and nil are equal",
+			a:        IgnoreDifferences{},
+			b:        nil,
+			expected: true,
+		},
+		{
+			name:     "empty slice and empty slice are equal",
+			a:        IgnoreDifferences{},
+			b:        IgnoreDifferences{},
+			expected: true,
+		},
+		{
+			name:     "non-empty slice and nil are not equal",
+			a:        IgnoreDifferences{{Kind: "Deployment"}},
+			b:        nil,
+			expected: false,
+		},
+		{
+			name:     "nil and non-empty slice are not equal",
+			a:        nil,
+			b:        IgnoreDifferences{{Kind: "Deployment"}},
+			expected: false,
+		},
+		{
+			name:     "equal non-empty slices are equal",
+			a:        IgnoreDifferences{{Kind: "Deployment", JSONPointers: []string{"/spec/replicas"}}},
+			b:        IgnoreDifferences{{Kind: "Deployment", JSONPointers: []string{"/spec/replicas"}}},
+			expected: true,
+		},
+		{
+			name:     "different non-empty slices are not equal",
+			a:        IgnoreDifferences{{Kind: "Deployment"}},
+			b:        IgnoreDifferences{{Kind: "Service"}},
+			expected: false,
+		},
+	}
+
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
+		})
+	}
+}
+
+// TestSyncPolicyAutomatedSerialisation verifies that prune, selfHeal, and
+// allowEmpty are serialised correctly as pointer types.  Nil pointers are
+// omitted from JSON (no opinion), while explicit false or true are always
+// present.  This is the key regression guard: before this fix the fields were
+// plain bool with omitempty, so an explicit false was dropped from JSON merge
+// patches, making it impossible to reset them from true back to false via GitOps.
+func TestSyncPolicyAutomatedSerialisation(t *testing.T) {
+	tests := []struct {
+		name        string
+		automated   SyncPolicyAutomated
+		wantPresent map[string]bool // which keys must be present in JSON
+		wantValues  map[string]bool // expected value for each present key
+	}{
+		{
+			name:        "nil pointers omit all fields",
+			automated:   SyncPolicyAutomated{Prune: nil, SelfHeal: nil, AllowEmpty: nil},
+			wantPresent: map[string]bool{"prune": false, "selfHeal": false, "allowEmpty": false},
+		},
+		{
+			name:        "explicit false is serialised",
+			automated:   SyncPolicyAutomated{Prune: new(false), SelfHeal: new(false), AllowEmpty: new(false)},
+			wantPresent: map[string]bool{"prune": true, "selfHeal": true, "allowEmpty": true},
+			wantValues:  map[string]bool{"prune": false, "selfHeal": false, "allowEmpty": false},
+		},
+		{
+			name:        "explicit true is serialised",
+			automated:   SyncPolicyAutomated{Prune: new(true), SelfHeal: new(true), AllowEmpty: new(true)},
+			wantPresent: map[string]bool{"prune": true, "selfHeal": true, "allowEmpty": true},
+			wantValues:  map[string]bool{"prune": true, "selfHeal": true, "allowEmpty": true},
+		},
+		{
+			name:        "mixed - each field independently controlled",
+			automated:   SyncPolicyAutomated{Prune: new(true), SelfHeal: nil, AllowEmpty: new(false)},
+			wantPresent: map[string]bool{"prune": true, "selfHeal": false, "allowEmpty": true},
+			wantValues:  map[string]bool{"prune": true, "allowEmpty": false},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.automated)
+			require.NoError(t, err)
+
+			var raw map[string]any
+			require.NoError(t, json.Unmarshal(data, &raw))
+
+			for field, shouldBePresent := range tt.wantPresent {
+				_, present := raw[field]
+				assert.Equal(t, shouldBePresent, present, "field %q presence mismatch in JSON: %s", field, string(data))
+				if shouldBePresent {
+					assert.Equal(t, tt.wantValues[field], raw[field], "field %q value mismatch in JSON: %s", field, string(data))
+				}
+			}
+
+			// Round-trip: unmarshal back and confirm pointer semantics are preserved.
+			var got SyncPolicyAutomated
+			require.NoError(t, json.Unmarshal(data, &got))
+			assert.Equal(t, tt.automated.Prune, got.Prune)
+			assert.Equal(t, tt.automated.SelfHeal, got.SelfHeal)
+			assert.Equal(t, tt.automated.AllowEmpty, got.AllowEmpty)
 		})
 	}
 }
