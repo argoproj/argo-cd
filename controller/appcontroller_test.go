@@ -2988,6 +2988,80 @@ func TestProcessRequestedAppOperation_HydrationGate_RequestsRefreshForHydratedSH
 	assert.Empty(t, updatedApp.Annotations[v1alpha1.AnnotationKeyHydrate])
 }
 
+func TestGateSyncOnHydration_RequestHydrateError(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        app.Spec.Source.RepoURL,
+			Path:           app.Spec.Source.Path,
+			TargetRevision: app.Spec.Source.TargetRevision,
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "main",
+			Path:         "hydrated",
+		},
+	}
+	finishedAt := metav1.Now()
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:      v1alpha1.HydrateOperationPhaseHydrated,
+		FinishedAt: &finishedAt,
+	}
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.PrependReactor("patch", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("hydrate refresh failed")
+	})
+
+	state := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{},
+		},
+		StartedAt: metav1.NewTime(time.Now().Add(1 * time.Minute)),
+	}
+
+	blocked := ctrl.gateSyncOnHydration(app, state, logrus.WithField("test", "hydrate-error"))
+	assert.True(t, blocked)
+}
+
+func TestGateSyncOnHydration_RequestRefreshError(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        app.Spec.Source.RepoURL,
+			Path:           app.Spec.Source.Path,
+			TargetRevision: app.Spec.Source.TargetRevision,
+		},
+		SyncSource: v1alpha1.SyncSource{
+			TargetBranch: "main",
+			Path:         "hydrated",
+		},
+	}
+	finishedAt := metav1.NewTime(time.Now().Add(2 * time.Minute))
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:       v1alpha1.HydrateOperationPhaseHydrated,
+		FinishedAt:  &finishedAt,
+		HydratedSHA: "new-hydrated-sha",
+	}
+	app.Status.Sync.Revision = "old-hydrated-sha"
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.PrependReactor("patch", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("refresh failed")
+	})
+
+	state := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{},
+		},
+		StartedAt: metav1.NewTime(time.Now()),
+	}
+
+	blocked := ctrl.gateSyncOnHydration(app, state, logrus.WithField("test", "refresh-error"))
+	assert.True(t, blocked)
+}
+
 func TestProcessRequestedAppAutomatedOperation_Successful(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Project = "default"

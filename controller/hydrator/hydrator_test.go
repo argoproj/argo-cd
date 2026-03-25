@@ -495,6 +495,26 @@ func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionUnchanged
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
 }
 
+func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionLookupFails(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
+	reconciledAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
+	app.Status.ReconciledAt = &reconciledAt
+
+	d.EXPECT().GetProcessableAppProj(app).Return(nil, errors.New("project lookup failed")).Once()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+
+	h.ProcessAppHydrateQueueItem(app)
+
+	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
 func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
@@ -535,6 +555,90 @@ func TestProcessAppHydrateQueueItem_HydrationNotNeeded(t *testing.T) {
 	// Should not call anything
 	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
+func TestHydrator_shouldCheckDrySourceRevision(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC()
+	newHydratedApp := func() *v1alpha1.Application {
+		app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
+		return app
+	}
+
+	testCases := []struct {
+		name  string
+		app   *v1alpha1.Application
+		h     *Hydrator
+		want  bool
+	}{
+		{
+			name: "returns false when there is no current operation",
+			app:  newTestApp("test-app"),
+			h:    &Hydrator{statusRefreshTimeout: time.Minute},
+			want: false,
+		},
+		{
+			name: "returns false while hydration is in progress",
+			app:  setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating),
+			h:    &Hydrator{statusRefreshTimeout: time.Minute},
+			want: false,
+		},
+		{
+			name: "returns false when refresh timeout is disabled",
+			app:  newHydratedApp(),
+			h:    &Hydrator{statusRefreshTimeout: 0},
+			want: false,
+		},
+		{
+			name: "returns true when app was never reconciled",
+			app:  newHydratedApp(),
+			h:    &Hydrator{statusRefreshTimeout: time.Minute},
+			want: true,
+		},
+		{
+			name: "returns false when reconciled recently",
+			app: func() *v1alpha1.Application {
+				app := newHydratedApp()
+				reconciledAt := metav1.NewTime(now.Add(-30 * time.Second))
+				app.Status.ReconciledAt = &reconciledAt
+				return app
+			}(),
+			h:    &Hydrator{statusRefreshTimeout: time.Minute},
+			want: false,
+		},
+		{
+			name: "returns true when refresh timeout elapsed",
+			app: func() *v1alpha1.Application {
+				app := newHydratedApp()
+				reconciledAt := metav1.NewTime(now.Add(-2 * time.Minute))
+				app.Status.ReconciledAt = &reconciledAt
+				return app
+			}(),
+			h:    &Hydrator{statusRefreshTimeout: time.Minute},
+			want: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tc.h.shouldCheckDrySourceRevision(tc.app))
+		})
+	}
+}
+
+func TestHydrator_getLatestDrySourceRevision_ProjectError(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := newTestApp("test-app")
+	h := &Hydrator{dependencies: d}
+
+	d.EXPECT().GetProcessableAppProj(app).Return(nil, errors.New("project error")).Once()
+
+	revision, err := h.getLatestDrySourceRevision(app)
+	require.Error(t, err)
+	assert.Empty(t, revision)
+	assert.ErrorContains(t, err, "failed to get app project")
 }
 
 func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
