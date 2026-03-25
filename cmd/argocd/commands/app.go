@@ -2334,7 +2334,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				if app.Spec.HasMultipleSources() {
 					if revision != "" {
-						log.Fatal("argocd cli does not work on multi-source app with --revision flag. Use --revisions and --source-position instead.")
+						log.Fatal("argocd cli does not work on multi-source app with --revision flag. Use --revisions and --source-positions instead.")
 						return
 					}
 

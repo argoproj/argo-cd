@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:8.6.1@sha256:a019c005570189bb038155c1dfb1a269b59b83f9ceee22fd5f42de205ac19c06 AS redis
+FROM docker.io/library/redis:8.6.1@sha256:315270d166080f537bbdf1b489b603aaaa213cb55a544acfa51feb7481abb1c0 AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -8,13 +8,13 @@ RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
 FROM docker.io/library/node:22.9.0@sha256:8398ea18b8b72817c84af283f72daed9629af2958c4f618fe6db4f453c5c9328 AS node
 
-FROM docker.io/library/golang:1.26.1@sha256:c7e98cc0fd4dfb71ee7465fee6c9a5f079163307e4bf141b336bb9dae00159a5 AS golang
+FROM docker.io/library/golang:1.26.1@sha256:595c7847cff97c9a9e76f015083c481d26078f961c9c8dca3923132f51fe12f1 AS golang
 
 FROM docker.io/library/registry:3.0@sha256:6c5666b861f3505b116bb9aa9b25175e71210414bd010d92035ff64018f9457e AS registry
 
 FROM docker.io/bitnamilegacy/kubectl:1.32@sha256:9524faf8e3cefb47fa28244a5d15f95ec21a73d963273798e593e61f80712333 AS kubectl
 
-FROM docker.io/library/ubuntu:26.04@sha256:fed6ddb82c61194e1814e93b59cfcb6759e5aa33c4e41bb3782313c2386ed6df
+FROM docker.io/library/ubuntu:26.04@sha256:91832dcd7bc5e44c098ecefc0a251a5c5d596dae494b33fb248e01b6840f8ce0
 
 ENV DEBIAN_FRONTEND=noninteractive
 
