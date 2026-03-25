@@ -2356,7 +2356,6 @@ spec:
                     description: |-
                       Message is a human-readable informational message describing the health status
 
-
                       Deprecated: this field is not used and will be removed in a future release.
                     type: string
                   status:
@@ -3196,7 +3195,6 @@ spec:
               observedAt:
                 description: |-
                   ObservedAt indicates when the application state was updated without querying latest git state
-
 
                   Deprecated: controller no longer updates ObservedAt field
                 format: date-time
@@ -5121,7 +5119,6 @@ spec:
                         lastTransitionTime:
                           description: |-
                             LastTransitionTime is the time the HealthStatus was set or updated
-
 
                             Deprecated: this field is not used and will be removed in a future release.
                           format: date-time
