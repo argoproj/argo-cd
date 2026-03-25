@@ -697,6 +697,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration_DestinationRepoCredential
 
 	h.ProcessHydrationQueueItem(hydrationKey)
 }
+
 func TestValidateApplications_ProjectError(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
