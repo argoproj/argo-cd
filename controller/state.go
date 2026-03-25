@@ -543,6 +543,28 @@ func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application
 	return ns != nil && ns.GetKind() == kubeutil.NamespaceKind && ns.GetName() == app.Spec.Destination.Namespace && app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil
 }
 
+// partitionTargetObjsForSync returns the manifest subset passed to gitops-engine sync, and whether
+// the full manifest set declared PreDelete and/or PostDelete hooks (for finalizer handling).
+// Uses isPreDeleteHook / isPostDeleteHook / hasGitOpsEngineSyncPhaseHook from hook.go.
+func partitionTargetObjsForSync(targetObjs []*unstructured.Unstructured) (syncObjs []*unstructured.Unstructured, hasPreDeleteHooks, hasPostDeleteHooks bool) {
+	for _, obj := range targetObjs {
+		if isPreDeleteHook(obj) {
+			hasPreDeleteHooks = true
+			if !hasGitOpsEngineSyncPhaseHook(obj) {
+				continue
+			}
+		}
+		if isPostDeleteHook(obj) {
+			hasPostDeleteHooks = true
+			if !hasGitOpsEngineSyncPhaseHook(obj) {
+				continue
+			}
+		}
+		syncObjs = append(syncObjs, obj)
+	}
+	return syncObjs, hasPreDeleteHooks, hasPostDeleteHooks
+}
+
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
@@ -770,24 +792,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 	}
-	hasPreDeleteHooks := false
-	hasPostDeleteHooks := false
-	// Filter out PreDelete and PostDelete hooks from targetObjs since they should not be synced
-	// as regular resources. They are only executed during deletion.
-	var targetObjsForSync []*unstructured.Unstructured
-	for _, obj := range targetObjs {
-		if isPreDeleteHook(obj) {
-			hasPreDeleteHooks = true
-			// Skip PreDelete hooks - they are not synced, only executed during deletion
-			continue
-		}
-		if isPostDeleteHook(obj) {
-			hasPostDeleteHooks = true
-			// Skip PostDelete hooks - they are not synced, only executed after deletion
-			continue
-		}
-		targetObjsForSync = append(targetObjsForSync, obj)
-	}
+	targetObjsForSync, hasPreDeleteHooks, hasPostDeleteHooks := partitionTargetObjsForSync(targetObjs)
 
 	reconciliation := sync.Reconcile(targetObjsForSync, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
