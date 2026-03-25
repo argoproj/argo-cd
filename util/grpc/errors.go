@@ -140,7 +140,7 @@ func ErrorCodeK8sStreamServerInterceptor() grpc.StreamServerInterceptor {
 func InvalidMethodNameErrorUnaryServerInterceptor() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 		if !strings.HasPrefix(info.FullMethod, "/") {
-			return nil, fmt.Errorf("malformed method name: %q", info.FullMethod)
+			return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("malformed method name: %q", info.FullMethod))
 		}
 		return handler(ctx, req)
 	}
@@ -151,7 +151,7 @@ func InvalidMethodNameErrorUnaryServerInterceptor() grpc.UnaryServerInterceptor 
 func InvalidMethodNameErrorStreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		if !strings.HasPrefix(info.FullMethod, "/") {
-			return fmt.Errorf("malformed method name: %q", info.FullMethod)
+			return status.Error(codes.InvalidArgument, fmt.Sprintf("malformed method name: %q", info.FullMethod))
 		}
 		return handler(srv, ss)
 	}
