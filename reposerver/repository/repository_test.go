@@ -486,6 +486,9 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 			}
 		}
 		fixPerms(dir)
+		// Remove the tree ourselves so t.TempDir()'s own cleanup (which runs
+		// later in LIFO order) finds nothing left and cannot fail.
+		_ = os.RemoveAll(dir)
 	})
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, repopath)
 	var gitClient git.Client
