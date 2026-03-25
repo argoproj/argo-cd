@@ -1,10 +1,12 @@
 package grpc
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
 
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -152,4 +154,57 @@ func Test_kubeErrToGRPC(t *testing.T) {
 			assert.Equal(t, c.expectedGRPCStatus, grpcStatus, "grpc status mismatch")
 		})
 	}
+}
+
+func checkGrpcError(t *testing.T, err error, msg string) {
+	t.Helper()
+	require.Error(t, err)
+	s, ok := status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, codes.InvalidArgument, s.Code())
+	assert.ErrorContains(t, err, msg)
+}
+
+func TestInvalidMethodNameErrorUnaryServerInterceptor(t *testing.T) {
+	interceptor := InvalidMethodNameErrorUnaryServerInterceptor()
+	handler := func(_ context.Context, _ any) (any, error) {
+		return nil, nil
+	}
+	t.Run("Test invalid method name", func(t *testing.T) {
+		info := &grpc.UnaryServerInfo{FullMethod: "foo"}
+		_, err := interceptor(t.Context(), nil, info, handler)
+		checkGrpcError(t, err, "malformed method name: \"foo\"")
+	})
+	t.Run("Test empty method name", func(t *testing.T) {
+		info := &grpc.UnaryServerInfo{FullMethod: ""}
+		_, err := interceptor(t.Context(), nil, info, handler)
+		checkGrpcError(t, err, "malformed method name: \"\"")
+	})
+	t.Run("Test valid method name", func(t *testing.T) {
+		info := &grpc.UnaryServerInfo{FullMethod: "/foo"}
+		_, err := interceptor(t.Context(), nil, info, handler)
+		assert.NoError(t, err)
+	})
+}
+
+func TestInvalidMethodNameErrorStreamServerInterceptor(t *testing.T) {
+	interceptor := InvalidMethodNameErrorStreamServerInterceptor()
+	handler := func(_ any, _ grpc.ServerStream) error {
+		return nil
+	}
+	t.Run("Test invalid method name", func(t *testing.T) {
+		info := &grpc.StreamServerInfo{FullMethod: "foo"}
+		err := interceptor(t.Context(), nil, info, handler)
+		checkGrpcError(t, err, "malformed method name: \"foo\"")
+	})
+	t.Run("Test empty method name", func(t *testing.T) {
+		info := &grpc.StreamServerInfo{FullMethod: ""}
+		err := interceptor(t.Context(), nil, info, handler)
+		checkGrpcError(t, err, "malformed method name: \"\"")
+	})
+	t.Run("Test valid method name", func(t *testing.T) {
+		info := &grpc.StreamServerInfo{FullMethod: "/foo"}
+		err := interceptor(nil, nil, info, handler)
+		assert.NoError(t, err)
+	})
 }
