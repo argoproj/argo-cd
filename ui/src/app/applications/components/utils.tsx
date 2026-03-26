@@ -1479,6 +1479,34 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
     return {repoURL, targetRevision, path};
 }
 
+// getAppAllSources gets all app sources as an array. For single source apps, returns [source].
+// For multi-source apps, returns the sources array. For sourceHydrator apps, returns a single synthesized source.
+export function getAppAllSources(app?: appModels.Application): appModels.ApplicationSource[] {
+    if (!app) {
+        return [];
+    }
+
+    if (app.spec.sourceHydrator) {
+        return [
+            {
+                repoURL: app.spec.sourceHydrator.drySource.repoURL,
+                targetRevision: app.spec.sourceHydrator.syncSource.targetBranch,
+                path: app.spec.sourceHydrator.syncSource.path
+            } as appModels.ApplicationSource
+        ];
+    }
+
+    if (app.spec.sources && app.spec.sources.length > 0) {
+        return app.spec.sources;
+    }
+
+    if (app.spec.source) {
+        return [app.spec.source];
+    }
+
+    return [];
+}
+
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
 // field.
 export function getAppDefaultSyncRevision(app?: appModels.Application) {
