@@ -196,10 +196,10 @@ metadata:
   name: argocd-rbac-cm
 data:
   policy.csv: |
-    g, Argo CDAdmins, role:admin
+    g, ArgoCDAdmins, role:admin
 ```
 
-In this example we give the role _role:admin_ to all users in the group _Argo CDAdmins_.
+In this example we give the role _role:admin_ to all users in the group _ArgoCDAdmins_.
 
 ## Login
 
