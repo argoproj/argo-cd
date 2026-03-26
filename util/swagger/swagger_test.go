@@ -25,7 +25,7 @@ func TestSwaggerUI(t *testing.T) {
 		c <- listener.Addr().String()
 
 		mux := http.NewServeMux()
-		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", "")
+		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", "", "DENY", "frame-ancestors 'none';")
 		panic(http.Serve(listener, mux))
 	}
 
@@ -51,5 +51,7 @@ func TestSwaggerUI(t *testing.T) {
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	require.Equalf(t, http.StatusOK, resp.StatusCode, "Was expecting status code 200 from swagger-ui, but got %d instead", resp.StatusCode)
+	require.Equal(t, "DENY", resp.Header.Get("X-Frame-Options"), "X-Frame-Options header not set correctly")
+	require.Equal(t, "frame-ancestors 'none';", resp.Header.Get("Content-Security-Policy"), "Content-Security-Policy header not set correctly")
 	require.NoError(t, resp.Body.Close())
 }
