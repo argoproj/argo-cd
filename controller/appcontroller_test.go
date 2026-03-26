@@ -2475,6 +2475,22 @@ func TestHydrationSyncGateDecision(t *testing.T) {
 			expected: hydrationSyncGateActionNone,
 		},
 		{
+			name: "explicit sync revisions bypass gating",
+			app: func() *v1alpha1.Application {
+				app := newApp()
+				app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+					Phase: v1alpha1.HydrateOperationPhaseHydrating,
+				}
+				return app
+			}(),
+			state: func() *v1alpha1.OperationState {
+				st := newState()
+				st.Operation.Sync.Revisions = []string{"12345"}
+				return st
+			}(),
+			expected: hydrationSyncGateActionNone,
+		},
+		{
 			name: "hydrateTo bypasses gating",
 			app: func() *v1alpha1.Application {
 				app := newApp()
@@ -3060,6 +3076,20 @@ func TestGateSyncOnHydration_RequestRefreshError(t *testing.T) {
 
 	blocked := ctrl.gateSyncOnHydration(app, state, logrus.WithField("test", "refresh-error"))
 	assert.True(t, blocked)
+}
+
+func TestGateSyncOnHydration_NoAction(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	state := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{},
+		},
+		StartedAt: metav1.NewTime(time.Now()),
+	}
+
+	blocked := ctrl.gateSyncOnHydration(app, state, logrus.WithField("test", "no-action"))
+	assert.False(t, blocked)
 }
 
 func TestProcessRequestedAppAutomatedOperation_Successful(t *testing.T) {

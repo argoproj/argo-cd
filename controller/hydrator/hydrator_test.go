@@ -515,6 +515,27 @@ func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionLookupFai
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
 }
 
+func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceManifestResolutionFails(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
+	reconciledAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
+	app.Status.ReconciledAt = &reconciledAt
+
+	d.EXPECT().GetProcessableAppProj(app).Return(newTestProject(), nil).Once()
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", mock.Anything).Return(nil, nil, errors.New("manifest resolution failed")).Once()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+
+	h.ProcessAppHydrateQueueItem(app)
+
+	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
 func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
@@ -640,6 +661,21 @@ func TestHydrator_getLatestDrySourceRevision_ProjectError(t *testing.T) {
 	require.Error(t, err)
 	assert.Empty(t, revision)
 	assert.ErrorContains(t, err, "failed to get app project")
+}
+
+func TestHydrator_getLatestDrySourceRevision_ManifestError(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	app := newTestApp("test-app")
+	h := &Hydrator{dependencies: d}
+
+	d.EXPECT().GetProcessableAppProj(app).Return(newTestProject(), nil).Once()
+	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", mock.Anything).Return(nil, nil, errors.New("manifest resolution failed")).Once()
+
+	revision, err := h.getLatestDrySourceRevision(app)
+	require.Error(t, err)
+	assert.Empty(t, revision)
+	assert.ErrorContains(t, err, "failed to resolve latest dry source revision")
 }
 
 func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
