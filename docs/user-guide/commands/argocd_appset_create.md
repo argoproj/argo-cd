@@ -21,11 +21,12 @@ argocd appset create [flags]
 ### Options
 
 ```
-      --dry-run         Allows to evaluate the ApplicationSet template on the server to get a preview of the applications that would be created
-  -h, --help            help for create
-  -o, --output string   Output format. One of: json|yaml|wide (default "wide")
-      --upsert          Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec
-      --wait            Wait until the ApplicationSet's resources are up to date. Will block indefinitely if the ApplicationSet has errors
+  -N, --appset-namespace string   Namespace where the ApplicationSet will be created in
+      --dry-run                   Allows to evaluate the ApplicationSet template on the server to get a preview of the applications that would be created
+  -h, --help                      help for create
+  -o, --output string             Output format. One of: json|yaml|wide (default "wide")
+      --upsert                    Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec
+      --wait                      Wait until the ApplicationSet's resources are up to date. Will block indefinitely if the ApplicationSet has errors
 ```
 
 ### Options inherited from parent commands

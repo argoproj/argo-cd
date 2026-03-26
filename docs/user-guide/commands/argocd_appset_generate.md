@@ -18,8 +18,9 @@ argocd appset generate [flags]
 ### Options
 
 ```
-  -h, --help            help for generate
-  -o, --output string   Output format. One of: json|yaml|wide (default "wide")
+  -N, --appset-namespace string   Namespace used for generating Applications
+  -h, --help                      help for generate
+  -o, --output string             Output format. One of: json|yaml|wide (default "wide")
 ```
 
 ### Options inherited from parent commands

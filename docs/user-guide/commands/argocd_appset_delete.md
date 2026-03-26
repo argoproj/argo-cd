@@ -18,9 +18,10 @@ argocd appset delete [flags]
 ### Options
 
 ```
-  -h, --help   help for delete
-      --wait   Wait until deletion of the applicationset(s) completes
-  -y, --yes    Turn off prompting to confirm cascaded deletion of Application resources
+  -N, --appset-namespace string   Namespace where the ApplicationSet will be deleted from
+  -h, --help                      help for delete
+      --wait                      Wait until deletion of the applicationset(s) completes
+  -y, --yes                       Turn off prompting to confirm cascaded deletion of Application resources
 ```
 
 ### Options inherited from parent commands
