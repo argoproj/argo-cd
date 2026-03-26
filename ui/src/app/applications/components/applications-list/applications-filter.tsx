@@ -468,6 +468,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
         ...(props.pref.healthFilter || []),
         ...(props.pref.operationFilter || []),
         ...(props.pref.labelsFilter || []),
+        ...(props.pref.annotationsFilter || []),
         ...(props.pref.projectsFilter || []),
         ...(props.pref.clustersFilter || []),
         ...(props.pref.namespacesFilter || []),
