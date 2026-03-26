@@ -24,7 +24,7 @@ of static credentials.
 This proposal introduces workload identity support for Argo CD repository authentication. Instead of storing long-lived
 credentials (passwords, tokens, service account keys) in Kubernetes secrets, Argo CD can authenticate to registries using
 short-lived tokens obtained through cloud provider workload identity mechanisms (AWS IRSA, GCP Workload Identity,
-Azure Workload Identity) or OIDC federation (SPIFFE/SPIRE, direct K8s OIDC).
+Azure Workload Identity) or OIDC federation.
 
 The implementation adds a `workloadIdentityProvider` field to repository configuration to specify which identity
 mechanism to use. Credentials are resolved at runtime by exchanging Kubernetes service account tokens for
@@ -60,13 +60,12 @@ Implement native support for:
    - AWS IRSA (IAM Roles for Service Accounts) for ECR
    - GCP Workload Identity Federation for Artifact Registry
    - Azure Workload Identity for ACR
-3. **Support SPIFFE/SPIRE**: Enable workload identity using SPIFFE JWT-SVIDs with delegated identity for per-project isolation.
-4. **Support generic token exchange**: Enable authentication to registries that supports exchanging an
+3. **Support generic token exchange**: Enable authentication to registries that supports exchanging an
   ID token for repo creds (e.g. Quay, JFrog Artifactory, etc.) via a flexible HTTP template authenticator.
-5. **Per-project isolation**: Each ArgoCD project can use a different identity, allowing fine-grained access control
+4. **Per-project isolation**: Each ArgoCD project can use a different identity, allowing fine-grained access control
   at the cloud IAM level.
-6. **Backward compatibility**: Existing repositories with static credentials continue to work unchanged.
-7. **Credential caching (potentially?)**: Token caching with TTL management.
+5. **Backward compatibility**: Existing repositories with static credentials continue to work unchanged.
+6. **Credential caching (potentially?)**: Token caching with TTL management.
 
 ### Non-Goals
 
@@ -74,6 +73,7 @@ Implement native support for:
 2. **Automatic configuration of service accounts**: An Argo CD admin needs to (manually) provision k8s service accounts, 
 at least for now. A future enhancement could be to automatically provision a service account whenever an AppProject is 
 created.
+3. **Support SPIFFE/SPIRE**: At least for now, we'll punt this pending the outcome of spiffe/spiffe#340. 
 
 ## Proposal
 
@@ -91,11 +91,7 @@ Workload Identity Federation without service account keys.
 As an operator running ArgoCD on AKS, I want to authenticate to ACR using Azure Workload Identity without storing 
 service principal secrets.
 
-#### Use case 4: SPIFFE/SPIRE with Quay
-As an operator using SPIRE for workload identity, I want ArgoCD to authenticate to Quay using SPIFFE JWT-SVIDs with 
-per-project SPIFFE identities.
-
-#### Use case 5: Multi-tenant isolation
+#### Use case 4: Multi-tenant isolation
 As a platform team, I want different Argo CD projects to use different cloud IAM roles, so project A can only access 
 production ECR repositories while project B can only access staging repositories.
 
@@ -111,7 +107,7 @@ The implementation follows a two-phase provider-based architecture:
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         Repository Configuration                             │
-│  workloadIdentityProvider: "aws" | "gcp" | "azure" | "spiffe" | "k8s"       │
+│  workloadIdentityProvider: "aws" | "gcp" | "azure" | "k8s"       │
 │  project: "production"                                                       │
 └─────────────────────────────────────────────────────────────────────────────┘
 │
@@ -134,12 +130,12 @@ The implementation follows a two-phase provider-based architecture:
 └─────────────────────────────┘           └─────────────────────────────────┘
 │                                              │
 │                                              ▼
-┌────┴────┬────────┬────────┬────────┐    ┌─────────────────────┐
-▼         ▼        ▼        ▼        ▼    │ Credentials         │
-┌───────┐ ┌───────┐ ┌───────┐ ┌───────┐ ┌───┐│ {Username, Password}│
-│  AWS  │ │  GCP  │ │ Azure │ │SPIFFE │ │K8s││ returned to caller  │
-│(IRSA) │ │ (WIF) │ │ (WI)  │ │       │ │   │└─────────────────────┘
-└───────┘ └───────┘ └───────┘ └───────┘ └───┘
+┌────┴────┬────────┬────────┬───┐   ┌─────────────────────┐
+▼         ▼        ▼        ▼   ▼   │ Credentials         │
+┌───────┐ ┌───────┐ ┌───────┐ ┌───┐ │ {Username, Password}│
+│  AWS  │ │  GCP  │ │ Azure │ │K8s│ │ returned to caller  │
+│(IRSA) │ │ (WIF) │ │ (WI)  │ │   │ └─────────────────────┘
+└───────┘ └───────┘ └───────┘ └───┘
 ```
 
 #### Service Account Naming Convention
@@ -150,7 +146,7 @@ Each Argo CD project maps to a Kubernetes service account:
 Project Name                   → Service Account Name
 "production"                   → argocd-project-production
 "staging"                      → argocd-project-staging
-""  (non-scoped credential)    → argocd-global
+""  (non-scoped credential)    → argocd-controller (or whatever the pod service account name is)
 ```
 
 #### Identity Providers
@@ -160,7 +156,6 @@ Project Name                   → Service Account Name
 | `aws` | AWS STS AssumeRoleWithWebIdentity for IRSA                 |
 | `gcp` | GCP Workload Identity Federation                           |
 | `azure` | Azure Workload Identity                                    |
-| `spiffe` | SPIFFE/SPIRE workload identity                             |
 | `k8s` | Direct K8s JWT passthrough for registries that accept JWTs |
 
 #### Repository Authenticators
@@ -177,7 +172,7 @@ Each identity provider has a default authenticator, but this can be overridden i
 #### Registry OIDC Federation Support
 
 The following registries support OIDC workload identity federation, enabling authentication with Kubernetes 
-ServiceAccount tokens or SPIFFE JWT-SVIDs:
+ServiceAccount tokens:
 
 | Registry | OIDC Federation Support | Notes |
 |----------|------------------------|-------|
@@ -211,11 +206,6 @@ template authenticator handles the exchange.
 3. Exchange Azure token for ACR refresh token
 4. Return ACR credentials
 
-**SPIFFE/SPIRE:**
-1. Fetch JWT-SVID for project's SPIFFE ID
-2. Use HTTP template authenticator to exchange JWT for registry token
-3. Return credentials
-
 **K8s (Direct OIDC):**
 1. Request K8s token with configured audience
 2. Use HTTP template authenticator to exchange JWT for registry token
@@ -238,7 +228,7 @@ stringData:
   project: production
 
   # Workload identity provider (enables workload identity when set)
-  workloadIdentityProvider: "aws"  # aws, gcp, azure, spiffe, k8s
+  workloadIdentityProvider: "aws"  # aws, gcp, azure, k8s
 
   # Optional: Override token endpoint URL
   workloadIdentityTokenURL: ""
@@ -247,7 +237,7 @@ stringData:
   workloadIdentityAudience: ""
 ```
 
-For the HTTP template authenticator (used with `k8s` and `spiffe` providers), additional fields are available:
+For the HTTP template authenticator (used with the `k8s` provider), additional fields are available:
 
 ```yaml
 # HTTP Template Authenticator fields
@@ -373,11 +363,7 @@ stringData:
 2. **No stored secrets**: Long-lived credentials are never stored in Kubernetes secrets, eliminating a common attack vector.
 3. **Cloud IAM integration**: Access control is enforced at the cloud IAM level, providing fine-grained permissions.
 4. **Per-project isolation**: Each project can have its own identity with its own IAM permissions, preventing cross-project access.
-5. **SPIFFE per-project authorization (special case) **: Authorization with SPIFFE is enforced through project-specific SPIFFE IDs.
-  Each Argo CD project maps to a unique SPIFFE ID (e.g., `spiffe://trust-domain/argocd/project/production`), and registries
-  are configured to trust and authorize specific SPIFFE IDs. This provides cryptographically-enforced per-project isolation
-  without requiring elevated SPIRE privileges.
-6. **TokenRequest API (everyone else) **: The implementation uses the Kubernetes TokenRequest API which provides bound
+5. **TokenRequest API**: The implementation uses the Kubernetes TokenRequest API which provides bound
   service account tokens with configurable audiences and expiration.
 
 ### Risks and Mitigations
@@ -385,7 +371,6 @@ stringData:
 | Risk | Mitigation |
 |------|------------|
 | Cloud IAM misconfiguration grants excessive access | Documentation includes least-privilege IAM policy examples |
-| SPIFFE ID misconfiguration grants wrong project access | Use consistent naming conventions; registry mappings should be reviewed |
 | Token exchange failures cause sync failures | Clear error messages; fallback to existing credential mechanisms if configured |
 | Complex setup for users unfamiliar with workload identity | Comprehensive documentation with step-by-step guides for each provider |
 
@@ -405,7 +390,6 @@ stringData:
 
 1. **Complexity**: Workload identity setup requires understanding cloud IAM concepts that may be unfamiliar to some users.
 2. **Cloud provider dependency**: Each cloud provider has different setup requirements, increasing documentation and testing burden.
-3. **SPIFFE/SPIRE adoption**: The SPIFFE provider requires SPIRE infrastructure which adds operational complexity.
 
 ## Alternatives
 
@@ -429,9 +413,7 @@ Use External Secrets Operator to sync credentials from cloud secret managers (AW
 - [Azure Workload Identity](https://azure.github.io/azure-workload-identity/docs/)
 
 ### Standards and Specifications
-- [SPIFFE/SPIRE](https://spiffe.io/)
 - [Kubernetes TokenRequest API](https://kubernetes.io/docs/reference/kubernetes-api/authentication-resources/token-request-v1/)
 
 ### Related Projects and Implementations
-- [Flux: SPIFFE/SPIRE Workload Identity Proposal](https://github.com/fluxcd/flux2/issues/5681) - Similar proposal for Flux with discussion of registry OIDC federation support
 - [Zot: OIDC Workload Identity Federation](https://github.com/project-zot/zot/pull/3711) - Native OIDC bearer token authentication with CEL expression support
