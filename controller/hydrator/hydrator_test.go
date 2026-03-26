@@ -567,10 +567,10 @@ func TestHydrator_shouldCheckDrySourceRevision(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name  string
-		app   *v1alpha1.Application
-		h     *Hydrator
-		want  bool
+		name string
+		app  *v1alpha1.Application
+		h    *Hydrator
+		want bool
 	}{
 		{
 			name: "returns false when there is no current operation",
@@ -622,6 +622,7 @@ func TestHydrator_shouldCheckDrySourceRevision(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.want, tc.h.shouldCheckDrySourceRevision(tc.app))
 		})
 	}
