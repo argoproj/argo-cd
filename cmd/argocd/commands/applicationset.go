@@ -64,8 +64,9 @@ func NewAppSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 // NewApplicationSetGetCommand returns a new instance of an `argocd appset get` command
 func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output     string
-		showParams bool
+		output          string
+		showParams      bool
+		appSetNamespace string
 	)
 	command := &cobra.Command{
 		Use:   "get APPSETNAME",
@@ -85,7 +86,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			conn, appIf := acdClient.NewApplicationSetClientOrDie()
 			defer utilio.Close(conn)
 
-			appSetName, appSetNs := argo.ParseFromQualifiedName(args[0], "")
+			appSetName, appSetNs := argo.ParseFromQualifiedName(args[0], appSetNamespace)
 
 			appSet, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appSetName, AppsetNamespace: appSetNs})
 			errors.CheckError(err)
@@ -113,6 +114,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show ApplicationSet parameters and overrides")
+	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Only get ApplicationSet from a namespace")
 	return command
 }
 
@@ -121,6 +123,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 	var (
 		output               string
 		upsert, dryRun, wait bool
+		appSetNamespace      string
 	)
 	command := &cobra.Command{
 		Use:   "create",
@@ -156,6 +159,10 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 				conn, appIf := argocdClient.NewApplicationSetClientOrDie()
 				defer utilio.Close(conn)
+
+				if appset.Namespace == "" && appSetNamespace != "" {
+					appset.Namespace = appSetNamespace
+				}
 
 				// Get app before creating to see if it is being updated or no change
 				existing, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appset.Name, AppsetNamespace: appset.Namespace})
@@ -218,12 +225,14 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Allows to evaluate the ApplicationSet template on the server to get a preview of the applications that would be created")
 	command.Flags().BoolVar(&wait, "wait", false, "Wait until the ApplicationSet's resources are up to date. Will block indefinitely if the ApplicationSet has errors")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
+	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Namespace where the ApplicationSet will be created in")
 	return command
 }
 
 // NewApplicationSetGenerateCommand returns a new instance of an `argocd appset generate` command
 func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var output string
+	var appSetNamespace string
 	command := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate apps of ApplicationSet rendered templates",
@@ -250,6 +259,10 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 			appset := appsets[0]
 			if appset.Name == "" {
 				errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("Error generating apps for ApplicationSet %s. ApplicationSet does not have Name field set", appset))
+			}
+
+			if appset.Namespace == "" && appSetNamespace != "" {
+				appset.Namespace = appSetNamespace
 			}
 
 			conn, appIf := argocdClient.NewApplicationSetClientOrDie()
@@ -286,6 +299,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
+	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Namespace used for generating Applications")
 	return command
 }
 
@@ -330,7 +344,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name|json|yaml")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "List applicationsets by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
-	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Only list applicationsets in namespace")
+	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "List ApplicationSets in this namespace")
 
 	return command
 }
@@ -338,8 +352,9 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 // NewApplicationSetDeleteCommand returns a new instance of an `argocd appset delete` command
 func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		noPrompt bool
-		wait     bool
+		noPrompt        bool
+		wait            bool
+		appSetNamespace string
 	)
 	command := &cobra.Command{
 		Use:   "delete",
@@ -375,7 +390,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			promptUtil := utils.NewPrompt(isTerminal && !noPrompt)
 
 			for _, appSetQualifiedName := range args {
-				appSetName, appSetNs := argo.ParseFromQualifiedName(appSetQualifiedName, "")
+				appSetName, appSetNs := argo.ParseFromQualifiedName(appSetQualifiedName, appSetNamespace)
 
 				appsetDeleteReq := applicationset.ApplicationSetDeleteRequest{
 					Name:            appSetName,
@@ -412,6 +427,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 	}
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of Application resources")
 	command.Flags().BoolVar(&wait, "wait", false, "Wait until deletion of the applicationset(s) completes")
+	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Namespace where the ApplicationSet will be deleted from")
 	return command
 }
 
