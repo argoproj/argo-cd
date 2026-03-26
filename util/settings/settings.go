@@ -220,6 +220,7 @@ type OIDCConfig struct {
 	DomainHint               string                 `json:"domainHint,omitempty"`
 	Azure                    *AzureOIDCConfig       `json:"azure,omitempty"`
 	RefreshTokenThreshold    string                 `json:"refreshTokenThreshold,omitempty"`
+	GroupsClaim              string                 `json:"groupsClaim,omitempty"`
 }
 
 type AzureOIDCConfig struct {
@@ -2426,4 +2427,12 @@ func (mgr *SettingsManager) GetAllowedNodeLabels() []string {
 		labelKeys = append(labelKeys, k)
 	}
 	return labelKeys
+}
+
+func (a *ArgoCDSettings) UserInfoGroupsClaim() string {
+	cfg := a.OIDCConfig()
+	if cfg != nil && cfg.GroupsClaim != "" {
+		return cfg.GroupsClaim
+	}
+	return "groups"
 }

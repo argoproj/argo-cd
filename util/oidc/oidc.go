@@ -908,7 +908,8 @@ func (a *ClientApp) SetGroupsFromUserInfo(ctx context.Context, claims jwt.Claims
 		if groupClaims["sub"] != userInfo["sub"] {
 			return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
 		}
-		groupClaims["groups"] = userInfo["groups"]
+		groupsClaim := a.settings.UserInfoGroupsClaim()
+		groupClaims["groups"] = userInfo[groupsClaim]
 	}
 
 	return groupClaims, nil
