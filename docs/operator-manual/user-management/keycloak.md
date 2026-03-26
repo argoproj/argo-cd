@@ -180,7 +180,7 @@ using the Default category.
 
 ![Keycloak client scope](../../assets/keycloak-client-scope.png "Keycloak client scope")
 
-Create a group called _Argo CDAdmins_ and have your current user join the group.
+Create a group called _ArgoCDAdmins_ and have your current user join the group.
 
 ![Keycloak user group](../../assets/keycloak-user-group.png "Keycloak user group")
 
