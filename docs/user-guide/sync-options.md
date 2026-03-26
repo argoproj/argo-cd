@@ -534,3 +534,37 @@ The resulting namespace will have its annotations set to
     foo: bar
     something: completely-different
 ```
+
+## Manage Owned Resources
+
+By default, when a Kubernetes controller (e.g. Crossplane, OLM, or a custom operator) adds `ownerReferences`
+to a resource that Argo CD originally deployed, Argo CD stops managing that resource. The controller's
+`ownerReferences` make the resource appear non-root in the cluster cache, which causes Argo CD to drop it
+from its tracking scope.
+
+Enable `ManageOwnedResources=true` to opt into keeping Argo CD as the authoritative manager of such
+resources, regardless of any `ownerReferences` that were added after the initial deployment:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+    - ManageOwnedResources=true
+```
+
+When this option is active:
+
+- Resources that carry the Argo CD tracking annotation are tracked and synced even if a cluster
+  controller later adds `ownerReferences` to them.
+- Diffs on `/metadata/ownerReferences` are automatically suppressed so controller-added owner
+  references do not cause an OutOfSync status.
+- Changes to those resources (e.g. a controller mutating them) still trigger a reconciliation at the
+  full `CompareWithRecent` level, the same as for any root-managed resource.
+- The resources continue to appear in the application resource tree.
+
+> [!NOTE]
+> Use this option only when you intentionally want Argo CD to retain management of resources that a
+> cluster controller has adopted. If a controller is the authoritative owner of a resource you should
+> let the controller manage it and remove it from the Argo CD application instead.
