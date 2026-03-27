@@ -3736,6 +3736,142 @@ func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
 	assert.Equal(t, "https://example.com", helmRepos[0].Repo)
 }
 
+func Test_getOCIHelmChartReposFromKustomization(t *testing.T) {
+	kMap := map[string]any{
+		"helmCharts": []any{
+			map[string]any{
+				"name": "private-chart",
+				"repo": "oci://example.azurecr.io/charts",
+			},
+			map[string]any{
+				"name": "public-chart",
+				"repo": "https://charts.example.com",
+			},
+			map[string]any{
+				"name": "duplicate",
+				"repo": "oci://example.azurecr.io/charts",
+			},
+		},
+	}
+
+	repos := getOCIHelmChartReposFromKustomization(kMap)
+	require.Len(t, repos, 1)
+	assert.Equal(t, "example.azurecr.io/charts", repos[0].Repo)
+	assert.True(t, repos[0].EnableOCI)
+}
+
+func Test_prepareKustomizeHelmOCIRegistryCredentials_injectsConfigHomeAndLogsIn(t *testing.T) {
+	appPath := t.TempDir()
+	kustomizationPath := filepath.Join(appPath, "kustomization.yaml")
+	err := os.WriteFile(kustomizationPath, []byte(`
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+helmCharts:
+  - name: my-chart
+    repo: oci://example.azurecr.io/charts
+    version: 1.2.3
+`), 0o644)
+	require.NoError(t, err)
+
+	binDir := filepath.Join(t.TempDir(), "bin")
+	require.NoError(t, os.MkdirAll(binDir, 0o755))
+	helmArgsFile := filepath.Join(t.TempDir(), "helm-args.log")
+	helmConfigHomeFile := filepath.Join(t.TempDir(), "helm-config-home.log")
+	fakeHelm := filepath.Join(binDir, "helm")
+	fakeHelmScript := `#!/bin/sh
+echo "$HELM_CONFIG_HOME" > "$HELM_TEST_CONFIG_HOME_FILE"
+echo "$@" >> "$HELM_TEST_ARGS_FILE"
+exit 0
+`
+	require.NoError(t, os.WriteFile(fakeHelm, []byte(fakeHelmScript), 0o755))
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("HELM_TEST_ARGS_FILE", helmArgsFile)
+	t.Setenv("HELM_TEST_CONFIG_HOME_FILE", helmConfigHomeFile)
+
+	repositories := []*v1alpha1.Repository{{
+		Repo:      "oci://example.azurecr.io/charts",
+		Username:  "test-user",
+		Password:  "test-password",
+		EnableOCI: true,
+	}}
+
+	closer, err := prepareKustomizeHelmOCIRegistryCredentials(t.Context(), appPath, repositories, nil, "", "")
+	require.NoError(t, err)
+
+	updatedKustomization, err := os.ReadFile(kustomizationPath)
+	require.NoError(t, err)
+	kMap := map[string]any{}
+	require.NoError(t, yaml.Unmarshal(updatedKustomization, &kMap))
+
+	configHome := getKustomizeHelmGlobalsConfigHome(kMap)
+	require.NotEmpty(t, configHome)
+
+	loggedConfigHome, err := os.ReadFile(helmConfigHomeFile)
+	require.NoError(t, err)
+	assert.Equal(t, configHome, strings.TrimSpace(string(loggedConfigHome)))
+
+	argsLog, err := os.ReadFile(helmArgsFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(argsLog), "registry login example.azurecr.io")
+
+	utilio.Close(closer)
+
+	restoredKustomization, err := os.ReadFile(kustomizationPath)
+	require.NoError(t, err)
+	restoredMap := map[string]any{}
+	require.NoError(t, yaml.Unmarshal(restoredKustomization, &restoredMap))
+	assert.Empty(t, getKustomizeHelmGlobalsConfigHome(restoredMap))
+}
+
+func Test_prepareKustomizeHelmOCIRegistryCredentials_respectsExistingConfigHome(t *testing.T) {
+	appPath := t.TempDir()
+	kustomizationPath := filepath.Join(appPath, "kustomization.yaml")
+	const existingConfigHome = "/tmp/existing-config-home"
+	err := os.WriteFile(kustomizationPath, []byte(`
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+helmGlobals:
+  configHome: /tmp/existing-config-home
+helmCharts:
+  - name: my-chart
+    repo: oci://example.azurecr.io/charts
+    version: 1.2.3
+`), 0o644)
+	require.NoError(t, err)
+
+	binDir := filepath.Join(t.TempDir(), "bin")
+	require.NoError(t, os.MkdirAll(binDir, 0o755))
+	helmArgsFile := filepath.Join(t.TempDir(), "helm-args.log")
+	fakeHelm := filepath.Join(binDir, "helm")
+	fakeHelmScript := `#!/bin/sh
+echo "$@" >> "$HELM_TEST_ARGS_FILE"
+exit 0
+`
+	require.NoError(t, os.WriteFile(fakeHelm, []byte(fakeHelmScript), 0o755))
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("HELM_TEST_ARGS_FILE", helmArgsFile)
+
+	repositories := []*v1alpha1.Repository{{
+		Repo:      "oci://example.azurecr.io/charts",
+		Username:  "test-user",
+		Password:  "test-password",
+		EnableOCI: true,
+	}}
+
+	closer, err := prepareKustomizeHelmOCIRegistryCredentials(t.Context(), appPath, repositories, nil, "", "")
+	require.NoError(t, err)
+	utilio.Close(closer)
+
+	updatedKustomization, err := os.ReadFile(kustomizationPath)
+	require.NoError(t, err)
+	kMap := map[string]any{}
+	require.NoError(t, yaml.Unmarshal(updatedKustomization, &kMap))
+	assert.Equal(t, existingConfigHome, getKustomizeHelmGlobalsConfigHome(kMap))
+
+	_, err = os.Stat(helmArgsFile)
+	assert.True(t, os.IsNotExist(err))
+}
+
 func Test_getResolvedValueFiles(t *testing.T) {
 	t.Parallel()
 

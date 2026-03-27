@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -57,6 +58,7 @@ import (
 	apppathutil "github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/cmp"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
@@ -67,6 +69,7 @@ import (
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 	"github.com/argoproj/argo-cd/v3/util/kustomize"
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
+	proxyutil "github.com/argoproj/argo-cd/v3/util/proxy"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/versions"
 )
@@ -1177,6 +1180,318 @@ func sanitizeRepoName(repoName string) string {
 	return strings.ReplaceAll(repoName, "/", "-")
 }
 
+func isKustomizeHelmEnabled(kustomizeOptions *v1alpha1.KustomizeOptions) bool {
+	return kustomizeOptions != nil && strings.Contains(kustomizeOptions.BuildOptions, "--enable-helm")
+}
+
+func prepareKustomizeHelmOCIRegistryCredentials(ctx context.Context, appPath string, repositories []*v1alpha1.Repository, helmRepoCreds []*v1alpha1.RepoCreds, proxy string, noProxy string) (utilio.Closer, error) {
+	kustomizationPath, kMap, originalKustomization, fileMode, err := getKustomizeHelmConfig(appPath)
+	if err != nil {
+		return utilio.NopCloser, err
+	}
+	if kustomizationPath == "" {
+		return utilio.NopCloser, nil
+	}
+	if getKustomizeHelmGlobalsConfigHome(kMap) != "" {
+		// Respect explicit user configuration.
+		return utilio.NopCloser, nil
+	}
+
+	ociDependencies := getOCIHelmChartReposFromKustomization(kMap)
+	if len(ociDependencies) == 0 {
+		return utilio.NopCloser, nil
+	}
+	resolvedRepos := getResolvedKustomizeHelmOCIRepos(ociDependencies, repositories, helmRepoCreds)
+	if len(resolvedRepos) == 0 {
+		return utilio.NopCloser, nil
+	}
+
+	tmpDir, err := os.MkdirTemp("", "kustomize-helm-auth-")
+	if err != nil {
+		return utilio.NopCloser, fmt.Errorf("failed to create temp directory for kustomize helm auth: %w", err)
+	}
+	cleanup := utilio.NewCloser(func() error {
+		if err := os.WriteFile(kustomizationPath, originalKustomization, fileMode); err != nil {
+			_ = os.RemoveAll(tmpDir)
+			return err
+		}
+		return os.RemoveAll(tmpDir)
+	})
+
+	configHome := filepath.Join(tmpDir, "helm")
+	if err := os.MkdirAll(configHome, 0o700); err != nil {
+		utilio.Close(cleanup)
+		return utilio.NopCloser, fmt.Errorf("failed to create configHome for kustomize helm auth: %w", err)
+	}
+
+	loginCount := 0
+	alreadyLoggedIn := make(map[string]bool)
+	for _, repo := range resolvedRepos {
+		if !repo.EnableOci {
+			continue
+		}
+		registryHost, err := getHelmRegistryHost(repo.Repo)
+		if err != nil {
+			utilio.Close(cleanup)
+			return utilio.NopCloser, fmt.Errorf("failed to parse OCI registry URL %q: %w", repo.Repo, err)
+		}
+		if alreadyLoggedIn[registryHost] {
+			continue
+		}
+		alreadyLoggedIn[registryHost] = true
+		helmPassword, err := repo.GetPassword()
+		if err != nil {
+			utilio.Close(cleanup)
+			return utilio.NopCloser, fmt.Errorf("failed to get password for OCI registry %q: %w", repo.Repo, err)
+		}
+		// Match existing Helm behavior: login only when username and password are both present.
+		if repo.GetUsername() == "" || helmPassword == "" {
+			continue
+		}
+		if err := helmRegistryLogin(ctx, appPath, configHome, proxy, noProxy, repo.Repo, repo.Creds, helmPassword); err != nil {
+			utilio.Close(cleanup)
+			return utilio.NopCloser, err
+		}
+		loginCount++
+	}
+
+	if loginCount == 0 {
+		utilio.Close(cleanup)
+		return utilio.NopCloser, nil
+	}
+
+	setKustomizeHelmGlobalsConfigHome(kMap, configHome)
+	updatedKustomization, err := yaml.Marshal(kMap)
+	if err != nil {
+		utilio.Close(cleanup)
+		return utilio.NopCloser, fmt.Errorf("failed to marshal kustomization.yaml after setting helmGlobals.configHome: %w", err)
+	}
+	if err := os.WriteFile(kustomizationPath, updatedKustomization, fileMode); err != nil {
+		utilio.Close(cleanup)
+		return utilio.NopCloser, fmt.Errorf("failed to write kustomization.yaml after setting helmGlobals.configHome: %w", err)
+	}
+
+	return cleanup, nil
+}
+
+func getKustomizeHelmConfig(appPath string) (string, map[string]any, []byte, os.FileMode, error) {
+	kustomizationPath, err := findKustomizationFilePath(appPath)
+	if err != nil {
+		return "", nil, nil, 0, err
+	}
+	if kustomizationPath == "" {
+		return "", nil, nil, 0, nil
+	}
+	kustomizationFileInfo, err := os.Stat(kustomizationPath)
+	if err != nil {
+		return "", nil, nil, 0, fmt.Errorf("failed to stat kustomization.yaml: %w", err)
+	}
+	kustomizationContents, err := os.ReadFile(kustomizationPath)
+	if err != nil {
+		return "", nil, nil, 0, fmt.Errorf("failed to load kustomization.yaml: %w", err)
+	}
+	kMap := make(map[string]any)
+	if err := yaml.Unmarshal(kustomizationContents, &kMap); err != nil {
+		return "", nil, nil, 0, fmt.Errorf("failed to unmarshal kustomization.yaml: %w", err)
+	}
+	return kustomizationPath, kMap, kustomizationContents, kustomizationFileInfo.Mode(), nil
+}
+
+func findKustomizationFilePath(appPath string) (string, error) {
+	for _, file := range kustomize.KustomizationNames {
+		kustomizationPath := filepath.Join(appPath, file)
+		if info, err := os.Stat(kustomizationPath); err == nil && !info.IsDir() {
+			return kustomizationPath, nil
+		} else if err != nil && !os.IsNotExist(err) {
+			return "", fmt.Errorf("failed to stat %s: %w", kustomizationPath, err)
+		}
+	}
+	return "", nil
+}
+
+func getKustomizeHelmGlobalsConfigHome(kMap map[string]any) string {
+	helmGlobals, ok := kMap["helmGlobals"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	configHome, _ := helmGlobals["configHome"].(string)
+	return strings.TrimSpace(configHome)
+}
+
+func setKustomizeHelmGlobalsConfigHome(kMap map[string]any, configHome string) {
+	helmGlobals, ok := kMap["helmGlobals"].(map[string]any)
+	if !ok {
+		helmGlobals = make(map[string]any)
+		kMap["helmGlobals"] = helmGlobals
+	}
+	helmGlobals["configHome"] = configHome
+}
+
+func getOCIHelmChartReposFromKustomization(kMap map[string]any) []*v1alpha1.Repository {
+	helmCharts, ok := kMap["helmCharts"].([]any)
+	if !ok {
+		return nil
+	}
+	dependencies := make([]*v1alpha1.Repository, 0)
+	seen := make(map[string]bool)
+	for _, chart := range helmCharts {
+		chartMap, ok := chart.(map[string]any)
+		if !ok {
+			continue
+		}
+		repoURL, _ := chartMap["repo"].(string)
+		if !strings.HasPrefix(repoURL, ociPrefix) {
+			continue
+		}
+		if _, err := url.Parse(repoURL); err != nil {
+			continue
+		}
+		repo := strings.TrimPrefix(repoURL, ociPrefix)
+		if seen[repo] {
+			continue
+		}
+		seen[repo] = true
+		dependencies = append(dependencies, &v1alpha1.Repository{
+			Repo:      repo,
+			Name:      sanitizeRepoName(repoURL),
+			EnableOCI: true,
+		})
+	}
+	return dependencies
+}
+
+func getResolvedKustomizeHelmOCIRepos(dependencies []*v1alpha1.Repository, repositories []*v1alpha1.Repository, helmRepoCreds []*v1alpha1.RepoCreds) []helm.HelmRepository {
+	reposByName := make(map[string]*v1alpha1.Repository)
+	reposByURL := make(map[string]*v1alpha1.Repository)
+	for _, repo := range repositories {
+		reposByURL[strings.TrimPrefix(repo.Repo, ociPrefix)] = repo
+		if repo.Name != "" {
+			reposByName[repo.Name] = repo
+		}
+	}
+	repos := make([]helm.HelmRepository, 0, len(dependencies))
+	for _, dep := range dependencies {
+		// find matching repo credentials by URL or name
+		repo, ok := reposByURL[dep.Repo]
+		if !ok && dep.Name != "" {
+			repo, ok = reposByName[dep.Name]
+		}
+		if !ok {
+			// if no matching repo credentials found, use the repo creds from the credential list
+			repo = &v1alpha1.Repository{Repo: dep.Repo, Name: dep.Name, EnableOCI: dep.EnableOCI}
+			if repositoryCredential := getRepoCredential(helmRepoCreds, dep.Repo); repositoryCredential != nil {
+				repo.EnableOCI = repositoryCredential.EnableOCI
+				repo.Password = repositoryCredential.Password
+				repo.Username = repositoryCredential.Username
+				repo.SSHPrivateKey = repositoryCredential.SSHPrivateKey
+				repo.TLSClientCertData = repositoryCredential.TLSClientCertData
+				repo.TLSClientCertKey = repositoryCredential.TLSClientCertKey
+				repo.UseAzureWorkloadIdentity = repositoryCredential.UseAzureWorkloadIdentity
+			} else if repo.EnableOCI {
+				// finally if repo is OCI and no credentials found, use the first OCI credential matching by hostname
+				// see https://github.com/argoproj/argo-cd/issues/14636
+				depRepoWithScheme := ociPrefix + dep.Repo
+				for _, cred := range repositories {
+					credRepo := strings.TrimPrefix(cred.Repo, ociPrefix)
+					// if the repo is OCI, don't match the repository URL exactly, but only as a dependent repository prefix just like in the getRepoCredential function
+					// see https://github.com/argoproj/argo-cd/issues/12436
+					if (cred.EnableOCI && (strings.HasPrefix(dep.Repo, credRepo) || strings.HasPrefix(credRepo, dep.Repo))) || (cred.Type == "oci" && (strings.HasPrefix(depRepoWithScheme, cred.Repo) || strings.HasPrefix(cred.Repo, depRepoWithScheme))) {
+						repo.Username = cred.Username
+						repo.Password = cred.Password
+						repo.UseAzureWorkloadIdentity = cred.UseAzureWorkloadIdentity
+						repo.EnableOCI = true
+						break
+					}
+				}
+			}
+		}
+		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds(), EnableOci: repo.EnableOCI})
+	}
+	return repos
+}
+
+func helmRegistryLogin(ctx context.Context, workDir string, configHome string, proxy string, noProxy string, repo string, creds helm.Creds, helmPassword string) error {
+	args := []string{"registry", "login"}
+	registry, err := getHelmRegistryHost(repo)
+	if err != nil {
+		return fmt.Errorf("failed to parse registry URL %q: %w", repo, err)
+	}
+	args = append(args, registry)
+
+	if creds.GetUsername() != "" {
+		args = append(args, "--username", creds.GetUsername())
+	}
+	if helmPassword != "" {
+		args = append(args, "--password", helmPassword)
+	}
+	if creds.GetCAPath() != "" {
+		args = append(args, "--ca-file", creds.GetCAPath())
+	}
+
+	if len(creds.GetCertData()) > 0 {
+		certFile, err := writeTempCredentialFile("helm-cert", creds.GetCertData())
+		if err != nil {
+			return fmt.Errorf("failed to write certificate data to temporary file: %w", err)
+		}
+		defer func() { _ = os.Remove(certFile) }()
+		args = append(args, "--cert-file", certFile)
+	}
+	if len(creds.GetKeyData()) > 0 {
+		keyFile, err := writeTempCredentialFile("helm-key", creds.GetKeyData())
+		if err != nil {
+			return fmt.Errorf("failed to write key data to temporary file: %w", err)
+		}
+		defer func() { _ = os.Remove(keyFile) }()
+		args = append(args, "--key-file", keyFile)
+	}
+	if creds.GetInsecureSkipVerify() {
+		args = append(args, "--insecure")
+	}
+
+	cmd := exec.CommandContext(ctx, "helm", args...)
+	cmd.Dir = workDir
+	cmd.Env = append(
+		os.Environ(),
+		fmt.Sprintf("HELM_CONFIG_HOME=%s", configHome),
+		fmt.Sprintf("HELM_CACHE_HOME=%s/.cache", configHome),
+		fmt.Sprintf("HELM_DATA_HOME=%s/.data", configHome),
+	)
+	cmd.Env = proxyutil.UpsertEnv(cmd, proxy, noProxy)
+	_, err = executil.RunWithRedactor(cmd, executil.Redact([]string{helmPassword}))
+	if err != nil {
+		return fmt.Errorf("failed to login to OCI registry %q: %w", repo, err)
+	}
+	return nil
+}
+
+func writeTempCredentialFile(prefix string, data []byte) (string, error) {
+	file, err := os.CreateTemp("", prefix)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	if _, err := file.Write(data); err != nil {
+		_ = os.Remove(file.Name())
+		return "", err
+	}
+	return file.Name(), nil
+}
+
+func getHelmRegistryHost(repo string) (string, error) {
+	repoURL := repo
+	if !strings.Contains(repoURL, "://") {
+		repoURL = "https://" + repoURL
+	}
+	parsedURL, err := url.Parse(repoURL)
+	if err != nil {
+		return "", err
+	}
+	if parsedURL.Host == "" {
+		return "", fmt.Errorf("empty host in URL %q", repoURL)
+	}
+	return parsedURL.Host, nil
+}
+
 // runHelmBuild executes `helm dependency build` in a given path and ensures that it is executed only once
 // if multiple threads are trying to run it.
 // Multiple goroutines might process same helm app in one repo concurrently when repo server process multiple
@@ -1712,6 +2027,20 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if err != nil {
 			return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion), err)
 		}
+		kustomizeHelmAuthCloser := utilio.NopCloser
+		if isKustomizeHelmEnabled(q.KustomizeOptions) {
+			repoProxy := ""
+			repoNoProxy := ""
+			if q.Repo != nil {
+				repoProxy = q.Repo.Proxy
+				repoNoProxy = q.Repo.NoProxy
+			}
+			kustomizeHelmAuthCloser, err = prepareKustomizeHelmOCIRegistryCredentials(ctx, appPath, q.Repos, q.HelmRepoCreds, repoProxy, repoNoProxy)
+			if err != nil {
+				return nil, fmt.Errorf("error preparing kustomize helm OCI registry credentials: %w", err)
+			}
+		}
+		defer utilio.Close(kustomizeHelmAuthCloser)
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
 		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
 			KubeVersion: kubeVersion,
