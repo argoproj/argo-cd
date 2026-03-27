@@ -391,7 +391,7 @@ func (a *Actions) StatusUpdatePlacementDecision(placementDecisionName string, cl
 }
 
 // Delete deletes the ApplicationSet within the context
-func (a *Actions) Delete(skipForegroundDeletion bool) *Actions {
+func (a *Actions) Delete(propagationPolicy metav1.DeletionPropagation) *Actions {
 	a.context.T().Helper()
 
 	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
@@ -408,14 +408,7 @@ func (a *Actions) Delete(skipForegroundDeletion bool) *Actions {
 	} else {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}
-	var deleteOptions metav1.DeleteOptions
-	if skipForegroundDeletion {
-		deleteOptions = metav1.DeleteOptions{}
-	} else {
-		deleteProp := metav1.DeletePropagationForeground
-		deleteOptions = metav1.DeleteOptions{PropagationPolicy: &deleteProp}
-	}
-	err := appSetClientSet.Delete(context.Background(), a.context.GetName(), deleteOptions)
+	err := appSetClientSet.Delete(context.Background(), a.context.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 	a.describeAction = fmt.Sprintf("Deleting ApplicationSet '%s/%s' %v", a.context.namespace, a.context.GetName(), err)
 	a.lastOutput, a.lastError = "", err
 	a.verifyAction()

@@ -175,7 +175,7 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 		ExpectWithDuration(CheckApplicationInRightSteps("3", []string{"app3-prod"}), time.Second*5).
 		// cleanup
 		When().
-		Delete(false).
+		Delete(metav1.DeletePropagationForeground).
 		Then().
 		ExpectWithDuration(ApplicationsDoNotExist([]v1alpha1.Application{expectedDevApp, expectedStageApp, expectedProdApp}), time.Minute)
 }
@@ -343,7 +343,7 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 		}).
 		// Cleanup
 		When().
-		Delete(false).
+		Delete(metav1.DeletePropagationForeground).
 		Then().
 		ExpectWithDuration(ApplicationsDoNotExist([]v1alpha1.Application{expectedDevApp, expectedStageApp, expectedProdApp}), TransitionTimeout)
 }
@@ -393,7 +393,7 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 		Expect(ApplicationSetDoesNotHaveApplicationStatus()).
 		// Cleanup
 		When().
-		Delete(false).
+		Delete(metav1.DeletePropagationForeground).
 		Then().
 		ExpectWithDuration(ApplicationsDoNotExist(expectedApps), TransitionTimeout)
 }
@@ -415,7 +415,7 @@ func TestNoApplicationStatusWhenNoApplications(t *testing.T) {
 		Expect(ApplicationSetDoesNotHaveApplicationStatus()).
 		// Cleanup
 		When().
-		Delete(false).
+		Delete(metav1.DeletePropagationForeground).
 		Then().
 		Expect(ApplicationsDoNotExist(expectedApps))
 }
@@ -464,7 +464,7 @@ func TestProgressiveSyncMultipleAppsPerStepWithReverseDeletionOrder(t *testing.T
 		}).
 		// Delete the ApplicationSet
 		When().
-		Delete(true).
+		Delete(metav1.DeletePropagationBackground).
 		Then().
 		And(func() {
 			t.Log("Starting deletion - should happen in reverse order: prod -> staging -> dev")
