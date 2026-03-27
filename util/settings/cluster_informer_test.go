@@ -52,7 +52,8 @@ func TestClusterInformer_ConcurrentAccess(t *testing.T) {
 	for range 100 {
 		wg.Go(func() {
 			cluster, err := informer.GetClusterByURL("https://cluster1.example.com")
-			assert.NoError(t, err)
+			// require calls t.FailNow(), which only stops the current goroutine, not the test
+			assert.NoError(t, err) //nolint:testifylint
 			assert.NotNil(t, cluster)
 			// Modifying returned cluster should not affect others due to DeepCopy
 			cluster.Name = "modified"
