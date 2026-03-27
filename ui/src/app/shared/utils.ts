@@ -50,19 +50,11 @@ export function isValidManagedByURL(url: string): boolean {
     }
 }
 
-/** Short label when `argocd.argoproj.io/managed-by-url` is present but not http(s). */
 export const MANAGED_BY_URL_INVALID_TEXT = 'managed-by-url: invalid url provided';
-
-/**
- * Longer explanation for click notifications (e.g. invalid managed-by-url on app list).
- * Native `title` hovers use {@link MANAGED_BY_URL_INVALID_TEXT} only.
- */
 export const MANAGED_BY_URL_INVALID_TOOLTIP = 'managed-by-url must be a valid http(s) URL for the managing Argo CD instance. The external link is disabled until this is fixed.';
 
-/** Warning yellow aligned with Argo CD status-warning tone (see e.g. delete-dialog-icon.warning). */
 export const MANAGED_BY_URL_INVALID_COLOR = '#f4c030';
 
-/** Inline warning label — app list rows, tiles, resource details. */
 export const managedByURLInvalidLabelStyle: CSSProperties = {
     color: MANAGED_BY_URL_INVALID_COLOR,
     marginLeft: '0.5em',
@@ -72,10 +64,6 @@ export const managedByURLInvalidLabelStyle: CSSProperties = {
     whiteSpace: 'nowrap'
 };
 
-/**
- * Resource tree graph nodes are narrow; use a slightly smaller but still readable size
- * (avoid 0.6em–0.8em which is hard to read on dark cards).
- */
 export const managedByURLInvalidLabelStyleCompact: CSSProperties = {
     ...managedByURLInvalidLabelStyle,
     marginLeft: '4px',
