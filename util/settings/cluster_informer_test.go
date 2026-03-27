@@ -52,7 +52,7 @@ func TestClusterInformer_ConcurrentAccess(t *testing.T) {
 	for range 100 {
 		wg.Go(func() {
 			cluster, err := informer.GetClusterByURL("https://cluster1.example.com")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotNil(t, cluster)
 			// Modifying returned cluster should not affect others due to DeepCopy
 			cluster.Name = "modified"
