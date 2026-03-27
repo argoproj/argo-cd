@@ -351,7 +351,7 @@ func ApplicationsBeingDeletedOrGone(appNames []string) Expectation {
 		if !anyapp {
 			return pending, "no app in this step is being deleted yet"
 		}
-		return succeeded, fmt.Sprintf("atleasr one app in %v is being deleted or gone", appNames)
+		return succeeded, fmt.Sprintf("at least one app in %v is being deleted or gone", appNames)
 	}
 }
 
