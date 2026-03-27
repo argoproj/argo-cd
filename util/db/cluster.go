@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -282,13 +283,20 @@ func (db *db) GetProjectClusters(_ context.Context, project string) ([]*appv1.Cl
 }
 
 func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string, error) {
-	argoSettings, err := db.settingsMgr.GetSettings()
+	informer := db.settingsMgr.GetClusterInformer()
+	servers, err := informer.GetClusterServersByName(name)
 	if err != nil {
 		return nil, err
 	}
 
-	informer := db.settingsMgr.GetClusterInformer()
-	servers, err := informer.GetClusterServersByName(name)
+	// GetSettings() is only needed when the in-cluster address is involved: either the
+	// caller used the canonical "in-cluster" name, or a cluster secret maps to the
+	// in-cluster API server address
+	if name != "in-cluster" && !slices.Contains(servers, appv1.KubernetesInternalAPIServerAddr) {
+		return servers, nil
+	}
+
+	argoSettings, err := db.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}

@@ -661,6 +661,70 @@ func TestGetClusterServersByName(t *testing.T) {
 	})
 }
 
+func TestGetClusterServersByName_GetSettingsLazyLoad(t *testing.T) {
+	argoCDSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: fakeNamespace,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+		Data: map[string][]byte{
+			"admin.password":   nil,
+			"server.secretkey": nil,
+		},
+	}
+	prodSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cluster-secret",
+			Namespace: fakeNamespace,
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("prod"),
+			"server": []byte("https://prod.example.com"),
+			"config": []byte("{}"),
+		},
+	}
+
+	tests := []struct {
+		name        string
+		clusterName string
+		wantErr     bool
+		wantServers []string
+	}{
+		{
+			name:        "non in-cluster name does not call GetSettings()",
+			clusterName: "prod",
+			wantErr:     false,
+			wantServers: []string{"https://prod.example.com"},
+		},
+		{
+			name:        "in-cluster name calls GetSettings()",
+			clusterName: "in-cluster",
+			wantErr:     true,
+		},
+	}
+
+	// argocd-cm is intentionally absent: GetSettings() fails if called.
+	kubeclientset := fake.NewClientset(argoCDSecret, prodSecret)
+	db := NewDB(fakeNamespace, settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace), kubeclientset)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			servers, err := db.GetClusterServersByName(t.Context(), tt.clusterName)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.ElementsMatch(t, tt.wantServers, servers)
+			}
+		})
+	}
+}
+
 // TestClusterRaceConditionClusterSecrets reproduces a race condition
 // on the cluster secrets. The test isn't asserting anything because
 // before the fix it would cause a panic from concurrent map iteration and map write

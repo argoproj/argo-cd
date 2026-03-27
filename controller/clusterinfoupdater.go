@@ -132,11 +132,15 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 				continue
 			}
 		}
-		destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, c.db)
-		if err != nil {
-			continue
+		destServer := a.Spec.Destination.Server
+		if destServer == "" && a.Spec.Destination.Name != "" {
+			servers, err := c.db.GetClusterServersByName(ctx, a.Spec.Destination.Name)
+			if err != nil || len(servers) != 1 {
+				continue
+			}
+			destServer = servers[0]
 		}
-		if destCluster.Server == cluster.Server {
+		if destServer == cluster.Server {
 			appCount++
 		}
 	}

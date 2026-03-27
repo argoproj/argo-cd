@@ -1,5 +1,3 @@
-//go:build race
-
 package settings
 
 import (
@@ -42,7 +40,7 @@ func TestClusterInformer_ConcurrentAccess(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(secret1)
+	clientset := fake.NewClientset(secret1)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -87,7 +85,7 @@ func TestClusterInformer_TransformErrors(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(badSecret)
+	clientset := fake.NewClientset(badSecret)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -140,7 +138,7 @@ func TestClusterInformer_TransformErrors_MixedSecrets(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(goodSecret, badSecret)
+	clientset := fake.NewClientset(goodSecret, badSecret)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -177,7 +175,7 @@ func TestClusterInformer_DynamicUpdates(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(secret1)
+	clientset := fake.NewClientset(secret1)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -235,7 +233,7 @@ func TestClusterInformer_URLNormalization(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(secret)
+	clientset := fake.NewClientset(secret)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -290,7 +288,7 @@ func TestClusterInformer_GetClusterServersByName(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(secrets...)
+	clientset := fake.NewClientset(secrets...)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -327,7 +325,7 @@ func TestClusterInformer_RaceCondition(t *testing.T) {
 		secrets = append(secrets, secret)
 	}
 
-	clientset := fake.NewSimpleClientset()
+	clientset := fake.NewClientset()
 	for _, secret := range secrets {
 		_, err := clientset.CoreV1().Secrets("argocd").Create(t.Context(), secret, metav1.CreateOptions{})
 		require.NoError(t, err)
@@ -444,7 +442,7 @@ func TestClusterInformer_DeepCopyIsolation(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(secret)
+	clientset := fake.NewClientset(secret)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -676,7 +674,7 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 
-			clientset := fake.NewSimpleClientset(tt.secrets...)
+			clientset := fake.NewClientset(tt.secrets...)
 			informer, err := NewClusterInformer(clientset, "argocd")
 			require.NoError(t, err)
 
@@ -720,7 +718,7 @@ func TestClusterInformer_SecretDeletion(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(secret1, secret2)
+	clientset := fake.NewClientset(secret1, secret2)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -801,7 +799,7 @@ func TestClusterInformer_ComplexConfig(t *testing.T) {
 		},
 	}
 
-	clientset := fake.NewSimpleClientset(secret)
+	clientset := fake.NewClientset(secret)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(t, err)
 
@@ -852,7 +850,7 @@ func BenchmarkClusterInformer_GetClusterByURL(b *testing.B) {
 		secrets = append(secrets, secret)
 	}
 
-	clientset := fake.NewSimpleClientset(secrets...)
+	clientset := fake.NewClientset(secrets...)
 	informer, err := NewClusterInformer(clientset, "argocd")
 	require.NoError(b, err)
 
