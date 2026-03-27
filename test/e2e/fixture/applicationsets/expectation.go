@@ -344,7 +344,7 @@ func ApplicationsBeingDeletedOrGone(appNames []string) Expectation {
 		anyapp := false
 		for _, appName := range appNames {
 			app := c.app(appName)
-			if (app != nil && app.DeletionTimestamp != nil) || app == nil {
+			if app == nil || app.DeletionTimestamp != nil {
 				anyapp = true
 			}
 		}
