@@ -1452,9 +1452,9 @@ func helmRegistryLogin(ctx context.Context, workDir string, configHome string, p
 	cmd.Dir = workDir
 	cmd.Env = append(
 		os.Environ(),
-		fmt.Sprintf("HELM_CONFIG_HOME=%s", configHome),
-		fmt.Sprintf("HELM_CACHE_HOME=%s/.cache", configHome),
-		fmt.Sprintf("HELM_DATA_HOME=%s/.data", configHome),
+		"HELM_CONFIG_HOME="+configHome,
+		"HELM_CACHE_HOME="+configHome+"/.cache",
+		"HELM_DATA_HOME="+configHome+"/.data",
 	)
 	cmd.Env = proxyutil.UpsertEnv(cmd, proxy, noProxy)
 	_, err = executil.RunWithRedactor(cmd, executil.Redact([]string{helmPassword}))
