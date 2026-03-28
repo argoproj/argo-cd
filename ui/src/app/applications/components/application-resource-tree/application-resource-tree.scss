@@ -459,6 +459,10 @@
             color: inherit;
             text-decoration: none;
 
+            &:hover {
+                color: $argo-color-teal-5;
+            }
+
             i {
                 margin-right: 0;
                 width: 14px;
