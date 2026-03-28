@@ -70,9 +70,26 @@
         &:hover {
             color: $argo-color-teal-5;
         }
+
+        &.managed-by-url-invalid {
+            color: #f4c030;
+
+            &:hover {
+                color: #f4c030;
+            }
+        }
         
         i {
             font-size: 14px;
         }
+    }
+}
+
+/* Table / name column external-link (not under .applications-list__external-link) */
+.applications-list__table-row button.managed-by-url-invalid {
+    color: #f4c030;
+
+    &:hover {
+        color: #f4c030;
     }
 }
