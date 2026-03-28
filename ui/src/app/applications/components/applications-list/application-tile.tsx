@@ -92,7 +92,11 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                         <i className='fa fa-window-maximize' />
                                     </button>
                                 ) : (
-                                    <button type='button' className='applications-list__icon-action' onClick={handleExternalLinkClick} title={managedByURL ? `Managed by: ${managedByURL}` : 'Open application'}>
+                                    <button
+                                        type='button'
+                                        className='applications-list__icon-action'
+                                        onClick={handleExternalLinkClick}
+                                        title={managedByURL ? `Managed by: ${managedByURL}` : 'Open application'}>
                                         <i className='fa fa-window-maximize' />
                                     </button>
                                 )}
