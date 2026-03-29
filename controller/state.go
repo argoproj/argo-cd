@@ -848,7 +848,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			log.Errorf("CompareAppState error getting server side diff dry run applier: %s", err)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
 		}
-		defer cleanup()
+		if cleanup != nil {
+			defer cleanup()
+		}
 		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(applier))
 	}
 

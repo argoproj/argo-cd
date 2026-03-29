@@ -12,13 +12,16 @@ import {
     createdOrNodeKey,
     resourceStatusToResourceNode,
     getApplicationLinkURLFromNode,
-    getManagedByURLFromNode
+    getManagedByURLFromNode,
+    MANAGED_BY_URL_INVALID_TEXT,
+    MANAGED_BY_URL_INVALID_COLOR
 } from '../utils';
 import {AppDetailsPreferences} from '../../../shared/services';
 import {Consumer} from '../../../shared/context';
 import Moment from 'react-moment';
 import {format} from 'date-fns';
 import {HealthPriority, ResourceNode, SyncPriority, SyncStatusCode} from '../../../shared/models';
+import {isValidManagedByURL} from '../../../shared/utils';
 import './application-resource-list.scss';
 
 export interface ApplicationResourceListProps {
@@ -201,6 +204,20 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                             ? getApplicationLinkURLFromNode(node, ctx.baseHref)
                                                             : {url: ctx.baseHref + 'applications/' + res.namespace + '/' + res.name, isExternal: false};
                                                         const managedByURL = node ? getManagedByURLFromNode(node) : null;
+                                                        const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
+                                                        if (managedByURLInvalid) {
+                                                            return (
+                                                                <span
+                                                                    className='application-details__external_link'
+                                                                    style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
+                                                                    onClick={e => {
+                                                                        e.stopPropagation();
+                                                                    }}
+                                                                    title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
+                                                                    <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                                                </span>
+                                                            );
+                                                        }
                                                         return (
                                                             <span className='application-details__external_link'>
                                                                 <a
