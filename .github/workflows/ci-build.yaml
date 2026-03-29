@@ -510,7 +510,7 @@ jobs:
           go mod download
       - name: Install goreman
         run: |
-          go install github.com/mattn/goreman@latest
+          go install github.com/mattn/goreman@v0.3.17
       - name: Install all tools required for building & testing
         run: |
           make install-test-tools-local
