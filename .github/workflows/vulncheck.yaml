@@ -1,0 +1,40 @@
+name: vulncheck
+on:
+  push:
+    branches:
+      - 'master'
+      - 'release-*'
+      - '!release-1.4'
+      - '!release-1.5'
+  pull_request:
+    branches:
+      - 'master'
+      - 'release-*'
+  schedule:
+    # Run weekly on Monday at 08:00 UTC to catch newly disclosed CVEs
+    - cron: '0 8 * * 1'
+
+env:
+  # Golang version to use across CI steps
+  # renovate: datasource=golang-version packageName=golang
+  GOLANG_VERSION: '1.26.0'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  vulncheck:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
+        with:
+          go-version-input: ${{ env.GOLANG_VERSION }}
+          go-package: ./...
+          repo-checkout: false
