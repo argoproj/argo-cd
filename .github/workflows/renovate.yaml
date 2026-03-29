@@ -22,11 +22,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
 
+      # Renovate do not pin their docker image versions to SHA, so
+      # when bumping renovate action version please check if renovate image
+      # has been updated (see it's numeric version in action.yaml)
+      # and update `renovate-version` parameter accordingly
       - name: Self-hosted Renovate
         uses: renovatebot/github-action@68a3ea99af6ad249940b5a9fdf44fc6d7f14378b #46.1.6
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'
+          renovate-image: "ghcr.io/renovatebot/renovate@sha256"
+          renovate-version: "5dfeab680f40edd2713b8fcae574824e60d2c831b8d89cc965e51621894c7084" #43
         env:
           LOG_LEVEL: 'debug'
           RENOVATE_REPOSITORIES: '${{ github.repository }}'
