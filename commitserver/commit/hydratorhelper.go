@@ -10,7 +10,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
