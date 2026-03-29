@@ -264,6 +264,16 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 		)
 	}
 
+	if strings.Contains(repo.Repo, ".dkr.ecr.") {
+		return helm.NewAwsIamCreds(
+			repo.Repo,
+			getCAPath(repo.Repo),
+			[]byte(repo.TLSClientCertData),
+			[]byte(repo.TLSClientCertKey),
+			repo.Insecure,
+		)
+	}
+
 	return helm.HelmCreds{
 		Username:           repo.Username,
 		Password:           repo.Password,
