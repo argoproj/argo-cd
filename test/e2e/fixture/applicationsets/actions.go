@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
 	"strings"
 	"time"
+
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 
