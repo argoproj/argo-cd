@@ -393,7 +393,59 @@ stringData:
 
 ## Alternatives
 
-### Alternative 1: External Secrets Operator Integration
+### Alternative 1: TokenRequest API Placement
+
+A key architectural decision is where the TokenRequest API logic and credential resolution should live. There are two
+options: in the repo-server itself, or in its callers (app-controller, api-server, appset-controller).
+
+#### Option A: TokenRequest API in the repo-server
+
+The repo-server resolves workload identity credentials internally before connecting to repositories.
+
+**Pros:**
+- Single implementation — credential resolution logic exists in one place only
+- Callers remain unaware of workload identity; they invoke the repo-server the same way as today
+- Resolved credentials never transit gRPC between components (shorter credential exposure window)
+- Repo-server already has full context of which repository it's connecting to
+
+**Cons:**
+- Breaks the repo-server's design as a "dumb" manifest generator — it currently receives credentials and doesn't
+  resolve them (this is already called out as a problem with the existing Azure implementation)
+- Repo-server gains a dependency on the K8s API (TokenRequest), which it otherwise doesn't need
+- IAM setup (RBAC for TokenRequest, cloud provider bindings) must target the repo-server's service account
+- Single service account identity for all callers — no way to differentiate app-controller vs api-server operations
+  at the IAM level
+
+#### Option B: TokenRequest API in the callers (app-controller, api-server, appset-controller)
+
+The callers resolve workload identity credentials and pass them to the repo-server as they do today with static
+credentials.
+
+**Pros:**
+- Keeps the repo-server "dumb" — it just receives credentials and generates manifests, no IAM concerns
+- These components already have K8s API access
+- Per-caller identity isolation — each controller can assume different IAM roles, enabling finer-grained
+  audit trails and access control
+- Better separation of concerns: credential management belongs in the components that initiate operations
+- Aligns with existing architecture where callers are responsible for providing credentials to repo-server
+- Each component's service account can be independently scoped at the cloud IAM level
+
+**Cons:**
+- Logic must be implemented across multiple components (app-controller, api-server, appset-controller)
+- Resolved credentials are passed to repo-server over gRPC, increasing the credential exposure surface
+  between components
+- More components require IAM setup (RBAC for TokenRequest, cloud provider bindings)
+- Risk of code duplication unless the workload identity resolution is shared as a library
+
+#### Recommendation
+
+Option B (callers resolve credentials) is the recommended approach. It preserves the repo-server's role as a
+stateless manifest generator and avoids coupling it to K8s API and cloud IAM concerns. The shared logic can be
+extracted into a common library (`pkg/workloadidentity/v2`) used by all callers, mitigating the code duplication risk.
+The additional up-front work of implementing it in api-server and appset-controller is offset by the cleaner
+architectural boundaries and per-caller identity isolation.
+
+### Alternative 2: External Secrets Operator Integration
 
 Use External Secrets Operator to sync credentials from cloud secret managers (AWS Secrets Manager, GCP Secret Manager, Azure Key Vault).
 
