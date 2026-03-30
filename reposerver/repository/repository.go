@@ -291,7 +291,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, q.Repo.EnablePartialClone, q.Repo.SparsePaths, clean)
+		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, q.Repo.SparsePaths, clean)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repository lock: %w", err)
@@ -493,7 +493,7 @@ func (s *Service) runRepoOperation(
 		})
 	}
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth, repo.EnablePartialClone, repo.SparsePaths, clean)
+		return s.checkoutRevision(gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth, repo.SparsePaths, clean)
 	})
 	if err != nil {
 		return err
@@ -878,7 +878,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func(clean bool) (goio.Closer, error) {
-							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, q.Repo.EnablePartialClone, q.Repo.SparsePaths, clean)
+							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, q.Repo.SparsePaths, clean)
 						})
 						if err != nil {
 							log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
@@ -1455,7 +1455,7 @@ func getResolvedRefValueFile(rawValueFile string, env *v1alpha1.Env, allowedValu
 
 	// We want a unique checkout per unique path permutation if partial clones are enabled and paths have been set.
 	// Otherwise we'll do a plain old checkout.
-	if repo.EnablePartialClone && len(repo.SparsePaths) > 0 {
+	if len(repo.SparsePaths) > 0 {
 		pathsSHA = git.ComputePathHash(repo.SparsePaths)
 	}
 
@@ -2377,7 +2377,7 @@ func (s *Service) populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, 
 				}
 			}
 			closer, err := s.repoLock.Lock(gitClient.Root(), refSHA, true, func(clean bool) (goio.Closer, error) {
-				return s.checkoutRevision(gitClient, refSHA, s.initConstants.SubmoduleEnabled, refSource.Repo.Depth, refSource.Repo.EnablePartialClone, refSource.Repo.SparsePaths, clean)
+				return s.checkoutRevision(gitClient, refSHA, s.initConstants.SubmoduleEnabled, refSource.Repo.Depth, refSource.Repo.SparsePaths, clean)
 			})
 			if err != nil {
 				return fmt.Errorf("failed to acquire lock for referenced repo %q: %w", refSource.Repo.Repo, err)
@@ -2563,7 +2563,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth, q.Repo.EnablePartialClone, q.Repo.SparsePaths, clean)
+		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth, q.Repo.SparsePaths, clean)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
@@ -2695,7 +2695,7 @@ func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (
 
 	// We want a unique checkout per unique path permutation if partial clones are enabled and paths have been set.
 	// Otherwise we'll do a plain old checkout.
-	if repo.EnablePartialClone && len(repo.SparsePaths) > 0 {
+	if len(repo.SparsePaths) > 0 {
 		pathsSHA = git.ComputePathHash(repo.SparsePaths)
 	}
 
@@ -2803,9 +2803,9 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64, enablePartialClone bool, paths []string, clean bool) (goio.Closer, error) {
+func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64, paths []string, clean bool) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
-	err := checkoutRevision(gitClient, revision, submoduleEnabled, depth, enablePartialClone, paths, clean)
+	err := checkoutRevision(gitClient, revision, submoduleEnabled, depth, paths, clean)
 	if err != nil {
 		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
 	}
@@ -2856,7 +2856,7 @@ func fetch(gitClient git.Client, targetRevisions []string, usePartialClone bool)
 	return nil
 }
 
-func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64, enablePartialClone bool, sparsePaths []string, cleanState bool) error {
+func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64, sparsePaths []string, cleanState bool) error {
 	err := gitClient.Init()
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -2866,7 +2866,6 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 
 	log.WithFields(map[string]any{
 		"skipFetch":        revisionPresent,
-		"partialClone":     enablePartialClone,
 		"sparseCheckout":   len(sparsePaths) > 0,
 		"sparsePathsCount": len(sparsePaths),
 	}).Debugf("Checking out revision %v", revision)
@@ -2874,7 +2873,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 	// Fetching can be skipped if the revision is already present locally.
 	if !revisionPresent {
 		switch {
-		case enablePartialClone && len(sparsePaths) > 0:
+		case len(sparsePaths) > 0:
 			// Use partial clone (--filter=blob:none) for minimal network transfer.
 			// When depth > 0, both flags are combined for maximum bandwidth savings
 			// (no blobs + limited history).
@@ -2912,7 +2911,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 	// For partial clone repos, pre-fetch blobs for sparse paths in a single batch request
 	// before checkout. Without this, git checkout lazy-fetches blobs individually which is
 	// extremely slow (100+ seconds for directories with many files).
-	if enablePartialClone && len(sparsePaths) > 0 {
+	if len(sparsePaths) > 0 {
 		if prefetchErr := gitClient.FetchSparseBlobs(revision, sparsePaths); prefetchErr != nil {
 			log.Warnf("Sparse blob pre-fetch failed (checkout will still work via lazy fetch): %v", prefetchErr)
 		}
@@ -2925,7 +2924,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		log.Infof("Failed to checkout revision %s: %v", revision, err)
 		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
-		if enablePartialClone && len(sparsePaths) > 0 {
+		if len(sparsePaths) > 0 {
 			err = gitClient.Fetch(revision, 0, true)
 		} else {
 			err = gitClient.Fetch(revision, depth, false)
@@ -3065,7 +3064,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	}
 
 	var pathsSHA string
-	if repo.EnablePartialClone && len(repo.SparsePaths) > 0 {
+	if len(repo.SparsePaths) > 0 {
 		pathsSHA = git.ComputePathHash(repo.SparsePaths)
 	}
 
@@ -3082,7 +3081,7 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, repo.EnablePartialClone, repo.SparsePaths, clean)
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, repo.SparsePaths, clean)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
@@ -3164,7 +3163,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, repo.EnablePartialClone, repo.SparsePaths, clean)
+		return s.checkoutRevision(gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, repo.SparsePaths, clean)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
@@ -3245,14 +3244,14 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 		defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 		closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
-			return s.checkoutRevision(gitClient, revision, false, repo.Depth, repo.EnablePartialClone, repo.SparsePaths, clean)
+			return s.checkoutRevision(gitClient, revision, false, repo.Depth, repo.SparsePaths, clean)
 		})
 		if err != nil {
 			return files, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 		}
 		defer utilio.Close(closer)
 
-		if err := s.fetch(gitClient, []string{syncedRevision}, repo.EnablePartialClone); err != nil {
+		if err := s.fetch(gitClient, []string{syncedRevision}, len(repo.SparsePaths) > 0); err != nil {
 			return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
 		}
 

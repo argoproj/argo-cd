@@ -24,7 +24,6 @@ interface NewSSHRepoParams {
     // write should be true if saving as a write credential.
     write: boolean;
     sparsePaths: string;
-    enablePartialClone: boolean;
 }
 
 export interface NewHTTPSRepoParams {
@@ -48,7 +47,6 @@ export interface NewHTTPSRepoParams {
     write: boolean;
     useAzureWorkloadIdentity: boolean;
     sparsePaths: string;
-    enablePartialClone: boolean;
 }
 
 interface NewGitHubAppRepoParams {
@@ -69,7 +67,6 @@ interface NewGitHubAppRepoParams {
     // write should be true if saving as a write credential.
     write: boolean;
     sparsePaths: string;
-    enablePartialClone: boolean;
 }
 
 interface NewGoogleCloudSourceRepoParams {
@@ -90,7 +87,6 @@ interface NewSSHRepoCredsParams {
     // write should be true if saving as a write credential.
     write: boolean;
     sparsePaths?: string;
-    enablePartialClone?: boolean;
 }
 
 interface NewHTTPSRepoCredsParams {
@@ -109,7 +105,6 @@ interface NewHTTPSRepoCredsParams {
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
-    enablePartialClone?: boolean;
     sparsePaths?: string;
 }
 
@@ -389,7 +384,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 write: params.write,
                 useAzureWorkloadIdentity: params.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: params.insecureOCIForceHttp,
-                enablePartialClone: params.enablePartialClone,
                 sparsePaths: params.sparsePaths
             });
         } else {
@@ -1123,10 +1117,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 {formApi.getFormState().values.write === false && (
                                                     <>
                                                         <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='Enable partial clone' field='enablePartialClone' component={CheckboxField} />
-                                                            <HelpIcon title='Enable Git partial clone to download only necessary objects. This can significantly reduce clone time and size for large repositories.' />
-                                                        </div>
-                                                        <div className='argo-form-row'>
                                                             <FormField formApi={formApi} label='Sparse paths (optional, comma-separated)' field='sparsePaths' component={Text} />
                                                             <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />
                                                         </div>
@@ -1233,10 +1223,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 {formApi.getFormState().values.type === 'git' && formApi.getFormState().values.write === false && (
                                                     <>
                                                         <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='Enable partial clone' field='enablePartialClone' component={CheckboxField} />
-                                                            <HelpIcon title='Enable Git partial clone to download only necessary objects. This can significantly reduce clone time and size for large repositories.' />
-                                                        </div>
-                                                        <div className='argo-form-row'>
                                                             <FormField formApi={formApi} label='Sparse paths (optional, comma-separated)' field='sparsePaths' component={Text} />
                                                             <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />
                                                         </div>
@@ -1312,10 +1298,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 </div>
                                                 {formApi.getFormState().values.write === false && (
                                                     <>
-                                                        <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='Enable partial clone' field='enablePartialClone' component={CheckboxField} />
-                                                            <HelpIcon title='Enable Git partial clone to download only necessary objects. This can significantly reduce clone time and size for large repositories.' />
-                                                        </div>
                                                         <div className='argo-form-row'>
                                                             <FormField formApi={formApi} label='Sparse paths (comma-separated)' field='sparsePaths' component={Text} />
                                                             <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />

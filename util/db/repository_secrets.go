@@ -407,12 +407,6 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.Depth = depth
 
-	enablePartialClone, err := boolOrFalse(secret, "enablePartialClone")
-	if err != nil {
-		return repository, err
-	}
-	repository.EnablePartialClone = enablePartialClone
-
 	repository.SparsePaths = stringArrayOrEmpty(secret, "sparsePaths")
 
 	return repository, nil
@@ -452,7 +446,6 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretBool(secretCopy, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	updateSecretBool(secretCopy, "useAzureWorkloadIdentity", repository.UseAzureWorkloadIdentity)
 	updateSecretInt(secretCopy, "depth", repository.Depth)
-	updateSecretBool(secretCopy, "enablePartialClone", repository.EnablePartialClone)
 	updateSecretStringArray(secretCopy, "sparsePaths", repository.SparsePaths)
 	addSecretMetadata(secretCopy, s.getSecretType())
 

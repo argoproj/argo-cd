@@ -3186,10 +3186,10 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
 	require.NoError(t, err)
 
-	err = checkoutRevision(gitClient, "does-not-exist", false, 0, false, nil, true)
+	err = checkoutRevision(gitClient, "does-not-exist", false, 0, nil, true)
 	require.Error(t, err)
 
-	err = checkoutRevision(gitClient, pullSha, false, 0, false, nil, true)
+	err = checkoutRevision(gitClient, pullSha, false, 0, nil, true)
 	require.NoError(t, err)
 }
 
@@ -3201,7 +3201,7 @@ func TestCheckoutRevisionPresentSkipFetch(t *testing.T) {
 	gitClient.EXPECT().IsRevisionPresent(revision).Return(true)
 	gitClient.EXPECT().Checkout(revision, mock.Anything, mock.Anything).Return("", nil)
 
-	err := checkoutRevision(gitClient, revision, false, 0, false, nil, true)
+	err := checkoutRevision(gitClient, revision, false, 0, nil, true)
 	require.NoError(t, err)
 }
 
@@ -3214,7 +3214,7 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 	gitClient.EXPECT().Fetch("", mock.Anything, mock.Anything).Return(nil)
 	gitClient.EXPECT().Checkout(revision, mock.Anything, mock.Anything).Return("", nil)
 
-	err := checkoutRevision(gitClient, revision, false, 0, false, nil, true)
+	err := checkoutRevision(gitClient, revision, false, 0, nil, true)
 	require.NoError(t, err)
 }
 
@@ -5153,7 +5153,6 @@ func TestGenerateManifest_OCISourceSkipsGitClient(t *testing.T) {
 }
 
 func Test_checkoutRevision_PartialClone_UsesFilteredFetch(t *testing.T) {
-	// Bug: checkoutRevision with enablePartialClone=true should call Fetch with usePartialClone=true
 	gitClient := &gitmocks.Client{}
 	gitClient.EXPECT().Init().Return(nil)
 	gitClient.EXPECT().IsRevisionPresent("abc123").Return(false)
@@ -5165,7 +5164,7 @@ func Test_checkoutRevision_PartialClone_UsesFilteredFetch(t *testing.T) {
 	gitClient.EXPECT().FetchSparseBlobs("abc123", []string{"./mypath"}).Return(nil)
 	gitClient.EXPECT().Checkout("abc123", false, true).Return("", nil)
 
-	err := checkoutRevision(gitClient, "abc123", false, 0, true, []string{"./mypath"}, true)
+	err := checkoutRevision(gitClient, "abc123", false, 0, []string{"./mypath"}, true)
 	require.NoError(t, err)
 	gitClient.AssertExpectations(t)
 }
@@ -5180,7 +5179,7 @@ func Test_checkoutRevision_NonPartialClone_UsesFullFetch(t *testing.T) {
 	gitClient.EXPECT().Fetch("", int64(0), false).Return(nil)
 	gitClient.EXPECT().Checkout("abc123", false, true).Return("", nil)
 
-	err := checkoutRevision(gitClient, "abc123", false, 0, false, nil, true)
+	err := checkoutRevision(gitClient, "abc123", false, 0, nil, true)
 	require.NoError(t, err)
 	gitClient.AssertExpectations(t)
 }
@@ -5195,7 +5194,7 @@ func Test_checkoutRevision_PartialClone_PrefetchesSparseBlobs(t *testing.T) {
 	gitClient.EXPECT().FetchSparseBlobs("abc123", []string{"./app1", "./app2"}).Return(nil)
 	gitClient.EXPECT().Checkout("abc123", false, true).Return("", nil)
 
-	err := checkoutRevision(gitClient, "abc123", false, 0, true, []string{"./app1", "./app2"}, true)
+	err := checkoutRevision(gitClient, "abc123", false, 0, []string{"./app1", "./app2"}, true)
 	require.NoError(t, err)
 	gitClient.AssertExpectations(t)
 }
@@ -5209,7 +5208,7 @@ func Test_checkoutRevision_NonPartialClone_SkipsPrefetch(t *testing.T) {
 	gitClient.EXPECT().Checkout("abc123", false, true).Return("", nil)
 	// FetchSparseBlobs should NOT be called — no expectation set
 
-	err := checkoutRevision(gitClient, "abc123", false, 0, false, nil, true)
+	err := checkoutRevision(gitClient, "abc123", false, 0, nil, true)
 	require.NoError(t, err)
 	gitClient.AssertExpectations(t)
 }

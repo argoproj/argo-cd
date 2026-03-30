@@ -19,7 +19,6 @@ export interface HTTPSQuery {
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
     insecureOCIForceHttp: boolean;
-    enablePartialClone?: boolean;
     sparsePaths?: string;
 }
 
@@ -33,7 +32,6 @@ export interface SSHQuery {
     proxy: string;
     noProxy: string;
     project?: string;
-    enablePartialClone?: boolean;
     sparsePaths?: string;
 }
 
@@ -52,7 +50,6 @@ export interface GitHubAppQuery {
     proxy: string;
     noProxy: string;
     project?: string;
-    enablePartialClone?: boolean;
     sparsePaths?: string;
 }
 
@@ -116,7 +113,6 @@ export class RepositoriesService {
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp,
-                enablePartialClone: q.enablePartialClone,
                 sparsePaths: q.sparsePaths.split(',')
             })
             .then(res => res.body as models.Repository);
@@ -143,7 +139,6 @@ export class RepositoriesService {
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp,
-                enablePartialClone: q.enablePartialClone,
                 sparsePaths: q.sparsePaths.split(',')
             })
             .then(res => res.body as models.Repository);
@@ -170,7 +165,6 @@ export class RepositoriesService {
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp,
-                enablePartialClone: q.enablePartialClone,
                 sparsePaths: q.sparsePaths.split(',')
             })
             .then(res => res.body as models.Repository);
@@ -197,7 +191,6 @@ export class RepositoriesService {
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp,
-                enablePartialClone: q.enablePartialClone,
                 sparsePaths: q.sparsePaths.split(',')
             })
             .then(res => res.body as models.Repository);
@@ -216,7 +209,6 @@ export class RepositoriesService {
                 proxy: q.proxy,
                 noProxy: q.noProxy,
                 project: q.project,
-                enablePartialClone: q.enablePartialClone,
                 sparsePaths: q.sparsePaths.split(',')
             })
             .then(res => res.body as models.Repository);
@@ -235,7 +227,6 @@ export class RepositoriesService {
                 proxy: q.proxy,
                 noProxy: q.noProxy,
                 project: q.project,
-                enablePartialClone: q.enablePartialClone,
                 sparsePaths: q.sparsePaths.split(',')
             })
             .then(res => res.body as models.Repository);
@@ -259,7 +250,6 @@ export class RepositoriesService {
                 proxy: q.proxy,
                 noProxy: q.noProxy,
                 project: q.project,
-                enablePartialClone: q.enablePartialClone,
                 sparsePaths: q.sparsePaths.split(',')
             })
             .then(res => res.body as models.Repository);
@@ -283,7 +273,6 @@ export class RepositoriesService {
                 proxy: q.proxy,
                 noProxy: q.noProxy,
                 project: q.project,
-                enablePartialClone: q.enablePartialClone,
                 sparsePaths: q.sparsePaths.split(',')
             })
             .then(res => res.body as models.Repository);

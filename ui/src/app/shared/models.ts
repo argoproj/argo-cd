@@ -676,7 +676,6 @@ export interface Repository {
     insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
-    enablePartialClone?: boolean;
     sparsePaths?: string[];
 }
 
