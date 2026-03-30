@@ -419,11 +419,62 @@ jobs:
           fail_ci_if_error: true
           token: ${{ secrets.CODECOV_TOKEN }}
           report_type: test_results
+      - name: Download and verify SonarCloud CLI
+        # SonarSource/sonarqube-scan-action downloads the Sonar Scanner CLI
+        # binary at runtime from its proprietary CDN operated by SonarSource
+        # without controlling file integrity of downloaded files. While the
+        # action source contains both URL and expected SHA256 checksum, the
+        # checksum is not actually used to verify program integrity.  This
+        # step downloads the CLI binary, verifies its integrity and then makes
+        # the action download and use the verified binary.
+        env:
+          sonar_secret: ${{ secrets.SONAR_TOKEN }}
+          codecov_secret: ${{ secrets.CODECOV_TOKEN }}
+          # when upgrading action version please update both this line and the
+          # `uses:` key in the next step
+          sonarqube_scan_action_commit: "a31c9398be7ace6bbfaf30c0bd5d415f843d45e9"
+        run: |
+          set -e
+          set -o pipefail
+          # sonar platform specification: linux-(x64|aarch64)
+          SONARFLAVOUR="linux-$(uname -m | sed -e 's/x86_64/x64/g')"
+          TMPSPEC=$(mktemp "${RUNNER_TEMP}/sonar-scanner-version-XXXXXX")
+          # Get file with urls and checksums from the pinned action source
+          wget -O "$TMPSPEC" "https://raw.githubusercontent.com/SonarSource/sonarqube-scan-action/${sonarqube_scan_action_commit}/sonar-scanner-version"
+          sonarqube_scan_cli_version=$(cat "${TMPSPEC}" | grep ^sonar-scanner-version= | sed -e 's/^.*=//g')
+          echo "Sonar scanner CLI version: ${sonarqube_scan_cli_version}"
+          sonarqube_scan_cli_url=$(cat "${TMPSPEC}" | grep "^sonar-scanner-url-${SONARFLAVOUR}=" | sed -e 's/^.*=//g')
+          echo "Sonar scanner CLI URL: ${sonarqube_scan_cli_url}"
+          sonarqube_scan_cli_sha256=$(cat "${TMPSPEC}" | grep "^sonar-scanner-sha-${SONARFLAVOUR}=" | sed -e 's/^.*=//g')
+          echo "Sonar scanner CLI URL: ${sonarqube_scan_cli_sha256}"
+
+          SONARTOOLBINARY="sonar-scanner-cli-${sonarqube_scan_cli_version}-${SONARFLAVOUR}.zip"
+          TMPFILE=$(mktemp "${RUNNER_TEMP}/${SONARTOOLBINARY}-XXXXXX")
+          # Get sonar scanner cli binary
+          wget --progress=dot:mega -O "${TMPFILE}"  "${sonarqube_scan_cli_url}"
+          echo "Verifying sonar scanner cli ${SONARTOOLBINARY} to have checksum ${sonarqube_scan_cli_sha256}"
+          echo "${sonarqube_scan_cli_sha256} ${TMPFILE}" | sha256sum -c
+          # Single use web server on 127.0.0.1:1500
+          ( echo -e -n "HTTP/1.1 200 OK\r\nContent-Type: application/zip\r\nContent-length: $(stat --printf=%s ${TMPFILE})\r\n\r\n" && cat  "${TMPFILE}" ) | nc -l -s 127.0.0.1 -p 1500 &
+          # wait for server to start listening
+          for delay in 1 2 3 5 8
+          do
+            if lsof -i :1500 | grep "^nc "  >/dev/null ; then
+              break
+            fi
+            echo "waiting $delay seconds  for local server to come up"
+            sleep "$delay"
+          done
       - name: Perform static code analysis using SonarCloud
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        # When upgrading action version please update both the `uses:` key here
+        # and the `sonarqube_scan_action_commit:` in the previous step
         uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
+        with:
+          # donload verified binary from the local temporary server
+          scannerBinariesUrl:  "http://localhost:1500/"
         if: env.sonar_secret != ''
   test-e2e:
     name: Run end-to-end tests
