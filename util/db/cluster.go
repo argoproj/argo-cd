@@ -27,7 +27,7 @@ import (
 
 var (
 	localCluster = appv1.Cluster{
-		Name:   "in-cluster",
+		Name:   appv1.KubernetesInClusterName,
 		Server: appv1.KubernetesInternalAPIServerAddr,
 		Info: appv1.ClusterInfo{
 			ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
@@ -298,7 +298,7 @@ func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string,
 	// GetSettings() is only needed when the in-cluster address is involved: either the
 	// caller used the canonical "in-cluster" name, or a cluster secret maps to the
 	// in-cluster API server address
-	if name != "in-cluster" && !slices.Contains(servers, appv1.KubernetesInternalAPIServerAddr) {
+	if name != appv1.KubernetesInClusterName && !slices.Contains(servers, appv1.KubernetesInternalAPIServerAddr) {
 		return servers, nil
 	}
 
@@ -308,7 +308,7 @@ func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string,
 	}
 
 	// Handle local cluster special case
-	if len(servers) == 0 && name == "in-cluster" && argoSettings.InClusterEnabled {
+	if len(servers) == 0 && name == appv1.KubernetesInClusterName && argoSettings.InClusterEnabled {
 		return []string{appv1.KubernetesInternalAPIServerAddr}, nil
 	}
 
