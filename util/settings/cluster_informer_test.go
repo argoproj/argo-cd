@@ -393,7 +393,7 @@ func TestClusterInformer_RaceCondition(t *testing.T) {
 
 	for range 20 {
 		wg.Go(func() {
-			for j := range 50 {
+			for range 50 {
 				clusters, err := informer.ListClusters()
 				if err != nil {
 					readErrors.Add(1)
@@ -407,7 +407,6 @@ func TestClusterInformer_RaceCondition(t *testing.T) {
 					cluster.Name = "modified-from-list"
 				}
 				time.Sleep(5 * time.Millisecond)
-				_ = j // suppress unused warning
 			}
 		})
 	}
