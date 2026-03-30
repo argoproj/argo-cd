@@ -1333,7 +1333,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			referencedSource := getReferencedSource(p.Path, q.RefSources)
 			if referencedSource != nil {
 				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
-				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, referencedSource.Repo, gitRepoPaths)
+				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo, gitRepoPaths)
 				if err != nil {
 					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
 				}
@@ -1455,7 +1455,7 @@ func getResolvedValueFiles(
 		var resolved pathutil.ResolvedFilePath
 		var err error
 		if referencedSource != nil {
-			resolved, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
+			resolved, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo, gitRepoPaths)
 		} else {
 			resolved, _, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
 		}
@@ -1487,7 +1487,7 @@ func getResolvedValueFiles(
 		effectiveRoot := repoRoot
 		if referencedSource != nil {
 			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, referencedSource.Repo, gitRepoPaths)
+			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo, gitRepoPaths)
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
 			}
@@ -1550,7 +1550,7 @@ func getResolvedValueFiles(
 	return resolvedValueFiles, nil
 }
 
-func getResolvedRefValueFile(rawValueFile string, env *v1alpha1.Env, allowedValueFilesSchemas []string, refSourceRepo string, repo v1alpha1.Repository, gitRepoPaths utilio.TempPaths) (pathutil.ResolvedFilePath, error) {
+func getResolvedRefValueFile(rawValueFile string, env *v1alpha1.Env, allowedValueFilesSchemas []string, repo v1alpha1.Repository, gitRepoPaths utilio.TempPaths) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
 	var pathsSHA string
 
@@ -1569,7 +1569,7 @@ func getResolvedRefValueFile(rawValueFile string, env *v1alpha1.Env, allowedValu
 	repoPath := gitRepoPaths.GetPathIfExists(string(keyData))
 
 	if repoPath == "" {
-		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
+		return "", fmt.Errorf("failed to find repo %q", repo.Repo)
 	}
 	pathStrings[0] = "" // Remove first segment. It will be inserted by pathutil.ResolveValueFilePathOrUrl.
 	substitutedPath := strings.Join(pathStrings, "/")

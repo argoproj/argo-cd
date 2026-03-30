@@ -1115,12 +1115,10 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                 </div>
                                                 {formApi.getFormState().values.write === false && (
-                                                    <>
-                                                        <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='Sparse paths (optional, comma-separated)' field='sparsePaths' component={Text} />
-                                                            <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />
-                                                        </div>
-                                                    </>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Sparse paths (optional, comma-separated)' field='sparsePaths' component={Text} />
+                                                        <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />
+                                                    </div>
                                                 )}
                                             </div>
                                         )}
@@ -1221,12 +1219,10 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     <FormField formApi={formApi} label='Use Azure Workload Identity' field='useAzureWorkloadIdentity' component={CheckboxField} />
                                                 </div>
                                                 {formApi.getFormState().values.type === 'git' && formApi.getFormState().values.write === false && (
-                                                    <>
-                                                        <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='Sparse paths (optional, comma-separated)' field='sparsePaths' component={Text} />
-                                                            <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />
-                                                        </div>
-                                                    </>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Sparse paths (optional, comma-separated)' field='sparsePaths' component={Text} />
+                                                        <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />
+                                                    </div>
                                                 )}
                                             </div>
                                         )}
@@ -1297,12 +1293,10 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                 </div>
                                                 {formApi.getFormState().values.write === false && (
-                                                    <>
-                                                        <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='Sparse paths (comma-separated)' field='sparsePaths' component={Text} />
-                                                            <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />
-                                                        </div>
-                                                    </>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Sparse paths (comma-separated)' field='sparsePaths' component={Text} />
+                                                        <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />
+                                                    </div>
                                                 )}
                                             </div>
                                         )}
