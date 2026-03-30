@@ -232,7 +232,10 @@ func (db *db) getClusterSecret(server string) (*corev1.Secret, error) {
 
 // GetCluster returns a cluster from a query
 func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, error) {
-	informer := db.settingsMgr.GetClusterInformer()
+	informer, err := db.settingsMgr.GetClusterInformer()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
+	}
 	if server == appv1.KubernetesInternalAPIServerAddr {
 		argoSettings, err := db.settingsMgr.GetSettings()
 		if err != nil {
@@ -283,7 +286,10 @@ func (db *db) GetProjectClusters(_ context.Context, project string) ([]*appv1.Cl
 }
 
 func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string, error) {
-	informer := db.settingsMgr.GetClusterInformer()
+	informer, err := db.settingsMgr.GetClusterInformer()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
+	}
 	servers, err := informer.GetClusterServersByName(name)
 	if err != nil {
 		return nil, err
