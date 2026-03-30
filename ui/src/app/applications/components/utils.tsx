@@ -8,7 +8,7 @@ import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
-import {isValidURL} from '../../shared/utils';
+import {isValidManagedByURL} from '../../shared/utils';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
@@ -17,6 +17,14 @@ import {services} from '../../shared/services';
 import {ApplicationSource} from '../../shared/models';
 
 require('./utils.scss');
+
+export {
+    MANAGED_BY_URL_INVALID_COLOR,
+    MANAGED_BY_URL_INVALID_TEXT,
+    MANAGED_BY_URL_INVALID_TOOLTIP,
+    managedByURLInvalidLabelStyle,
+    managedByURLInvalidLabelStyleCompact
+} from '../../shared/utils';
 
 export interface NodeId {
     kind: string;
@@ -1990,7 +1998,7 @@ export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {
     let url, isExternal;
     if (managedByURL) {
         // Validate the managed-by URL using the same validation as external links
-        if (!isValidURL(managedByURL)) {
+        if (!isValidManagedByURL(managedByURL)) {
             // If URL is invalid, fall back to local URL for security
             console.warn(`Invalid managed-by URL for application ${app.metadata.name}: ${managedByURL}`);
             url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
@@ -2018,7 +2026,7 @@ export function getApplicationLinkURLFromNode(node: any, baseHref: string): {url
     let url, isExternal;
     if (managedByURL) {
         // Validate the managed-by URL using the same validation as external links
-        if (!isValidURL(managedByURL)) {
+        if (!isValidManagedByURL(managedByURL)) {
             // If URL is invalid, fall back to local URL for security
             console.warn(`Invalid managed-by URL for application ${node.name}: ${managedByURL}`);
             url = baseHref + 'applications/' + node.namespace + '/' + node.name;
