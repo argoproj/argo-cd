@@ -1,6 +1,6 @@
 import {DropDownMenu, FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import React, {useRef, useContext} from 'react';
-import {Form, FormApi, TextArea} from 'react-form';
+import {Form, FormApi, TextArea} from 'argo-ui';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
 
 import {DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';

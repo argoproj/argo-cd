@@ -2,7 +2,7 @@
 import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import React, {useEffect, useState, useContext, useRef} from 'react';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
-import {Form, FormValues, FormApi, Text, TextArea, FormErrors} from 'react-form';
+import {Form, FormValues, FormApi, Text, TextArea, FormErrors} from 'argo-ui';
 import {Context} from '../../../shared/context';
 import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, NumberField, Page, Repo, Spinner} from '../../../shared/components';
 import * as models from '../../../shared/models';

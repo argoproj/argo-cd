@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {FormField} from 'argo-ui';
-import {FormApi, Text} from 'react-form';
+import {FormApi, Text} from 'argo-ui';
 import {EditablePanel, EditablePanelItem} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {NewHTTPSRepoParams} from '../repos-list/repos-list';

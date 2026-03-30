@@ -1,6 +1,6 @@
 import {AutocompleteField, DataLoader, ErrorNotification, FormField, FormSelect, getNestedField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
-import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
+import {FieldApi, FormApi, FormFieldHOC as ReactFormField, Text, TextArea} from 'argo-ui';
 import {cloneDeep} from 'lodash-es';
 import {
     ArrayInputField,
@@ -85,7 +85,7 @@ function getParamsEditableItems(
         original: string;
         metadata: {name: string; value: string};
     }[],
-    component: React.ComponentType = TextWithMetadataField
+    component: React.ComponentType<any> = TextWithMetadataField
 ) {
     return params
         .sort(overridesFirst)

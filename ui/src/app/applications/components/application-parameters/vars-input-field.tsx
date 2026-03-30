@@ -1,6 +1,6 @@
 import {Checkbox} from 'argo-ui';
 import * as React from 'react';
-import * as ReactForm from 'react-form';
+import {ReactForm} from 'argo-ui';
 
 import {ArrayInput, NameValueEditor} from '../../../shared/components';
 

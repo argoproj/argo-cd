@@ -1,7 +1,7 @@
 import * as classNames from 'classnames';
 import * as moment from 'moment';
 import * as React from 'react';
-import {FieldApi, FormField as ReactFormField, Text} from 'react-form';
+import {FieldApi, FormFieldHOC as ReactFormField, Text} from 'argo-ui';
 import {RouteComponentProps, Link} from 'react-router-dom';
 import {from, timer} from 'rxjs';
 import {mergeMap} from 'rxjs/operators';

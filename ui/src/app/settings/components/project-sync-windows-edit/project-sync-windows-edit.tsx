@@ -1,6 +1,6 @@
 import {Tooltip} from 'argo-ui';
 import React, {ChangeEvent} from 'react';
-import * as ReactForm from 'react-form';
+import {ReactForm} from 'argo-ui';
 import {SyncWindow} from '../../../shared/models';
 
 require('./project-sync-windows-edit.scss');

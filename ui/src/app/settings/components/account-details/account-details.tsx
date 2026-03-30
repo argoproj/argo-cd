@@ -1,6 +1,6 @@
 import {ErrorNotification, FormField, NotificationType} from 'argo-ui';
 import * as React from 'react';
-import {Form, Text} from 'react-form';
+import {Form, Text} from 'argo-ui';
 import {RouteComponentProps} from 'react-router';
 
 import {DataLoader, Page, Timestamp} from '../../../shared/components';
