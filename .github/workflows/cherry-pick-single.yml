@@ -32,7 +32,7 @@ jobs:
     steps:
       - name: Generate a token
         id: generate-token
-        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2.2.1
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
         with:
           app-id: ${{ secrets.CHERRYPICK_APP_ID }}
           private-key: ${{ secrets.CHERRYPICK_APP_PRIVATE_KEY }}
