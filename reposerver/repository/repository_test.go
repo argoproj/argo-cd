@@ -3368,6 +3368,14 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 	var appPath string
 	var res apiclient.RepoAppDetailsResponse
 
+	// repoPathKey generates the JSON cache key used by newClient/getResolvedRefValueFile
+	// to look up repository paths. Matches the format in repository.go's newClient().
+	repoPathKey := func(repoURL string) string {
+		normalizedURL := git.NormalizeGitURL(repoURL)
+		keyData, _ := json.Marshal(map[string]string{"url": normalizedURL, "pathSHA": ""})
+		return string(keyData)
+	}
+
 	testCases := []struct {
 		name        string
 		makeQuery   func() apiclient.RepoServerAppDetailsQuery
@@ -3382,7 +3390,9 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				return queryTemplate
 			},
 			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
-				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPath(repoPathKey(refRepoURL)).Return(refRoot, nil)
+				paths.EXPECT().GetPathIfExists(repoPathKey(refRepoURL)).Return(refRoot)
+				paths.EXPECT().GetPathIfExists(repoPathKey(refRepoURL)).Return(refRoot)
 				paths.EXPECT().GetPathIfExists(refRepoURL).Return(refRoot)
 			},
 			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
@@ -3412,7 +3422,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				return queryTemplate
 			},
 			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
-				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPath(repoPathKey(refRepoURL)).Return(refRoot, nil)
 			},
 			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
 				client := gitmocks.Client{}
@@ -3450,7 +3460,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			},
 
 			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
-				paths.EXPECT().GetPath(repoURL).Return(repoRoot, nil)
+				paths.EXPECT().GetPath(repoPathKey(repoURL)).Return(repoRoot, nil)
 			},
 			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
 				client := gitmocks.Client{}
@@ -3489,9 +3499,9 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			},
 
 			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
-				paths.EXPECT().GetPath(repoURL).Return(repoRoot, nil)
-				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
-				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPath(repoPathKey(repoURL)).Return(repoRoot, nil)
+				paths.EXPECT().GetPath(repoPathKey(refRepoURL)).Return(refRoot, nil)
+				paths.EXPECT().GetPath(repoPathKey(refRepoURL)).Return(refRoot, nil)
 			},
 			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
 				client := gitmocks.Client{}
@@ -3519,8 +3529,8 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				return queryTemplate
 			},
 			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
-				// paths.EXPECT().GetPath(repoURL).Return(repoRoot, nil)
-				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+				// paths.EXPECT().GetPath(repoPathKey(repoURL)).Return(repoRoot, nil)
+				paths.EXPECT().GetPath(repoPathKey(refRepoURL)).Return(refRoot, nil)
 			},
 			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
 				client := gitmocks.Client{}
@@ -3551,8 +3561,9 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				return query
 			},
 			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
-				paths.EXPECT().GetPath(repoURL).Return(repoRoot, nil)
-				paths.EXPECT().GetPathIfExists(ociRepoURL).Return("")
+				paths.EXPECT().GetPath(repoPathKey(repoURL)).Return(repoRoot, nil)
+				paths.EXPECT().GetPathIfExists(repoPathKey(ociRepoURL)).Return("")
+				paths.EXPECT().GetPathIfExists(repoPathKey(ociRepoURL)).Return("")
 			},
 			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
 				client := gitmocks.Client{}
@@ -3589,7 +3600,9 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				return q
 			},
 			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
-				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPath(repoPathKey(refRepoURL)).Return(refRoot, nil)
+				paths.EXPECT().GetPathIfExists(repoPathKey(refRepoURL)).Return(refRoot)
+				paths.EXPECT().GetPathIfExists(repoPathKey(refRepoURL)).Return(refRoot)
 				paths.EXPECT().GetPathIfExists(refRepoURL).Return(refRoot)
 				// No expectations for "https://github.com/foo/unused" on purpose: it should not be used.
 			},
