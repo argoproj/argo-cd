@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"strings"
 	"time"
 
@@ -576,24 +578,31 @@ func (a *Actions) RemoveFinalizerFromApps(appNames []string, finalizer string) *
 		namespace = fixture.TestNamespace()
 	}
 	for _, appName := range appNames {
-		app, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).Get(
-			a.context.T().Context(), appName, metav1.GetOptions{})
-		if err != nil {
-			a.lastError = err
-			continue
-		}
-
-		// Remove the finalizer
-		finalizers := []string{}
-		for _, f := range app.Finalizers {
-			if f != finalizer {
-				finalizers = append(finalizers, f)
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			app, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).Get(
+				a.context.T().Context(), appName, metav1.GetOptions{})
+			if err != nil {
+				return err
 			}
-		}
-		app.Finalizers = finalizers
-
-		_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).Update(
-			a.context.T().Context(), app, metav1.UpdateOptions{})
+			// Remove provided finalizer
+			finalizers := []string{}
+			for _, f := range app.Finalizers {
+				if f != finalizer {
+					finalizers = append(finalizers, f)
+				}
+			}
+			patch, _ := json.Marshal(map[string]any{
+				"metadata": map[string]any{
+					"finalizers": finalizers,
+				},
+			})
+			_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).Patch(
+				a.context.T().Context(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+			if err != nil {
+				return err
+			}
+			return nil
+		})
 		if err != nil {
 			a.lastError = err
 		}
