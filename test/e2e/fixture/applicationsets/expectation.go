@@ -337,14 +337,18 @@ func ApplicationSetHasApplicationStatus(expectedApplicationStatusLength int) Exp
 	}
 }
 
-// ApplicationsBeingDeletedOrGone checks that at least one app from specified apps either have DeletionTimestamp set or no longer exist
-// Controlling the order of app deletion within step is hard, and reverse Deletion Order deletes one app at a time.
-func ApplicationsBeingDeletedOrGone(appNames []string) Expectation {
+// ApplicationDeletionStarted verifies at least one application from provided list of appNames has DeletionTimestamp set,
+// indicating deletion has begun for this step. Returns failed if any application doesn't exist, does not expect completion of deletion.
+func ApplicationDeletionStarted(appNames []string) Expectation {
 	return func(c *Consequences) (state, string) {
 		anyapp := false
 		for _, appName := range appNames {
 			app := c.app(appName)
-			if app == nil || app.DeletionTimestamp != nil {
+			if app == nil {
+				// with test finalizer explicitly added, application should not be deleted
+				return failed, fmt.Sprintf("no application found with name '%s'", c.context.GetName())
+			}
+			if app.DeletionTimestamp != nil {
 				anyapp = true
 			}
 		}

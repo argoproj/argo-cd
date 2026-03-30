@@ -471,7 +471,7 @@ func TestProgressiveSyncMultipleAppsPerStepWithReverseDeletionOrder(t *testing.T
 			t.Log("Wave 1: Verifying prod apps (prog-ship, prog-run) are deleted first")
 		}).
 		// Wave 1: Prod apps should be deleted first, others untouched
-		Expect(ApplicationsBeingDeletedOrGone(prodApps)).
+		Expect(ApplicationDeletionStarted(prodApps)).
 		Expect(ApplicationsExistAndNotBeingDeleted(append(stagingApps, devApps...))).
 		And(func() {
 			t.Log("Wave 1 confirmed: prod apps deleting/gone, staging and dev apps still exist and not being deleted")
@@ -485,7 +485,7 @@ func TestProgressiveSyncMultipleAppsPerStepWithReverseDeletionOrder(t *testing.T
 		}).
 		// Wave 2: Staging apps being deleted, dev untouched
 		ExpectWithDuration(ApplicationsDoNotExist(expectedProdApps), TransitionTimeout).
-		Expect(ApplicationsBeingDeletedOrGone(stagingApps)).
+		Expect(ApplicationDeletionStarted(stagingApps)).
 		Expect(ApplicationsExistAndNotBeingDeleted(devApps)).
 		And(func() {
 			t.Log("Wave 2 confirmed: prod apps gone, staging apps deleting/gone, dev apps still exist and not being deleted")
@@ -499,7 +499,7 @@ func TestProgressiveSyncMultipleAppsPerStepWithReverseDeletionOrder(t *testing.T
 		}).
 		// Wave 3: Dev apps deleted last
 		ExpectWithDuration(ApplicationsDoNotExist(expectedStagingApps), TransitionTimeout).
-		Expect(ApplicationsBeingDeletedOrGone(devApps)).
+		Expect(ApplicationDeletionStarted(devApps)).
 		And(func() {
 			t.Log("Wave 3 confirmed: all prod and staging apps gone, dev apps deleting/gone")
 		}).
