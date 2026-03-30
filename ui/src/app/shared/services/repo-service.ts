@@ -113,7 +113,7 @@ export class RepositoriesService {
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp,
-                sparsePaths: q.sparsePaths.split(',')
+                sparsePaths: q.sparsePaths ? q.sparsePaths.split(',').map(p => p.trim()).filter(p => p.length > 0): []
             })
             .then(res => res.body as models.Repository);
     }
@@ -139,7 +139,7 @@ export class RepositoriesService {
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp,
-                sparsePaths: q.sparsePaths.split(',')
+                sparsePaths: q.sparsePaths ? q.sparsePaths.split(',').map(p => p.trim()).filter(p => p.length > 0): []
             })
             .then(res => res.body as models.Repository);
     }
@@ -165,7 +165,7 @@ export class RepositoriesService {
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp,
-                sparsePaths: q.sparsePaths.split(',')
+                sparsePaths: q.sparsePaths ? q.sparsePaths.split(',').map(p => p.trim()).filter(p => p.length > 0): []
             })
             .then(res => res.body as models.Repository);
     }
@@ -191,7 +191,7 @@ export class RepositoriesService {
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp,
-                sparsePaths: q.sparsePaths.split(',')
+                sparsePaths: q.sparsePaths ? q.sparsePaths.split(',').map(p => p.trim()).filter(p => p.length > 0): []
             })
             .then(res => res.body as models.Repository);
     }
@@ -209,7 +209,7 @@ export class RepositoriesService {
                 proxy: q.proxy,
                 noProxy: q.noProxy,
                 project: q.project,
-                sparsePaths: q.sparsePaths.split(',')
+                sparsePaths: q.sparsePaths ? q.sparsePaths.split(',').map(p => p.trim()).filter(p => p.length > 0): []
             })
             .then(res => res.body as models.Repository);
     }
@@ -227,7 +227,7 @@ export class RepositoriesService {
                 proxy: q.proxy,
                 noProxy: q.noProxy,
                 project: q.project,
-                sparsePaths: q.sparsePaths.split(',')
+                sparsePaths: q.sparsePaths ? q.sparsePaths.split(',').map(p => p.trim()).filter(p => p.length > 0): []
             })
             .then(res => res.body as models.Repository);
     }
@@ -250,7 +250,7 @@ export class RepositoriesService {
                 proxy: q.proxy,
                 noProxy: q.noProxy,
                 project: q.project,
-                sparsePaths: q.sparsePaths.split(',')
+                sparsePaths: q.sparsePaths ? q.sparsePaths.split(',').map(p => p.trim()).filter(p => p.length > 0): []
             })
             .then(res => res.body as models.Repository);
     }
@@ -273,7 +273,7 @@ export class RepositoriesService {
                 proxy: q.proxy,
                 noProxy: q.noProxy,
                 project: q.project,
-                sparsePaths: q.sparsePaths.split(',')
+                sparsePaths: q.sparsePaths ? q.sparsePaths.split(',').map(p => p.trim()).filter(p => p.length > 0): []
             })
             .then(res => res.body as models.Repository);
     }

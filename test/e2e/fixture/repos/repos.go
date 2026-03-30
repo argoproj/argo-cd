@@ -46,15 +46,6 @@ func WithDepth(depth int64) AddRepoOpts {
 	}
 }
 
-func WithPartialClone(enable bool) AddRepoOpts {
-	return func(args []string) []string {
-		if enable {
-			args = append(args, "--enable-partial-clone")
-		}
-		return args
-	}
-}
-
 func WithSparsePaths(paths ...string) AddRepoOpts {
 	return func(args []string) []string {
 		for _, path := range paths {

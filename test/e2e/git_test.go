@@ -264,7 +264,7 @@ func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
 		})
 }
 
-func TestGitPartialCloneWithNoSparsePaths(t *testing.T) {
+func TestGitPartialCloneWithEmptySparsePaths(t *testing.T) {
 	// The multi-dir-app test data has 3 directories (app-a, app-b, app-c), each with a deployment.
 	// Since we don't configure any sparse-paths, this counts as a full checkout where all three apps
 	// will be synced
@@ -272,7 +272,7 @@ func TestGitPartialCloneWithNoSparsePaths(t *testing.T) {
 		Path("multi-dir-app").
 		Recurse().
 		DirectoryInclude("**/*.yaml").
-		HTTPSInsecureRepoURLAdded(true, repos.WithPartialClone(true)).
+		HTTPSInsecureRepoURLAdded(true, repos.WithSparsePaths()).
 		RepoURLType(fixture.RepoURLTypeHTTPS).
 		When().
 		CreateApp().
@@ -304,7 +304,7 @@ func TestGitPartialCloneWithSparsePaths(t *testing.T) {
 		Path("multi-dir-app").
 		Recurse().
 		DirectoryInclude("**/*.yaml").
-		HTTPSInsecureRepoURLAdded(true, repos.WithPartialClone(true), repos.WithSparsePaths("multi-dir-app/app-a")).
+		HTTPSInsecureRepoURLAdded(true, repos.WithSparsePaths("multi-dir-app/app-a")).
 		RepoURLType(fixture.RepoURLTypeHTTPS).
 		When().
 		CreateApp().

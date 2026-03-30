@@ -376,9 +376,9 @@ func TestVerifyCommitSignature(t *testing.T) {
 	// Fetch the specific commits needed for signature verification
 	signedCommit := "28027897aad1262662096745f2ce2d4c74d02b7f"
 	unsignedCommit := "85d660f0b967960becce3d49bd51c678ba2a5d24"
-	err = client.Fetch(signedCommit, 1)
+	err = client.Fetch(signedCommit, 1, false)
 	require.NoError(t, err)
-	err = client.Fetch(unsignedCommit, 1)
+	err = client.Fetch(unsignedCommit, 1, false)
 	require.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
