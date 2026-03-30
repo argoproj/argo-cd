@@ -46,7 +46,7 @@ jobs:
           output-file: govulncheck.sarif
 
       - name: Upload SARIF report to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@ce28f5bb42b7a9f2c824e633a3f6ee835bab6858 # v3.29.0
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         if: always() # upload even if govulncheck finds vulnerabilities
         with:
           sarif_file: govulncheck.sarif
