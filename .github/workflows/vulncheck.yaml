@@ -1,5 +1,6 @@
 name: govulncheck
 on:
+  workflow_dispatch: # For testing purpose
   push:
     branches:
       - 'master'
