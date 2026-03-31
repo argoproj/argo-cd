@@ -115,15 +115,9 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	logCtx.Debug("Processing app hydrate queue item")
 
-	needsHydration, reason := appNeedsHydration(app)
-	if !needsHydration && h.shouldCheckDrySourceRevision(app) {
-		latestDrySHA, err := h.getLatestDrySourceRevision(app)
-		if err != nil {
-			logCtx.WithError(err).Warn("Failed to resolve latest dry source revision")
-		} else if latestDrySHA != app.Status.SourceHydrator.CurrentOperation.DrySHA {
-			needsHydration = true
-			reason = "dry source revision changed"
-		}
+	needsHydration, reason, err := h.appNeedsHydration(app)
+	if err != nil {
+		logCtx.WithError(err).Warn("Failed to determine if app needs hydration")
 	}
 	if needsHydration {
 		app.Status.SourceHydrator.CurrentOperation = &appv1.HydrateOperation{
@@ -144,6 +138,23 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	}
 
 	logCtx.Debug("Successfully processed app hydrate queue item")
+}
+
+func (h *Hydrator) appNeedsHydration(app *appv1.Application) (bool, string, error) {
+	needsHydration, reason := appNeedsHydration(app)
+	if needsHydration || !h.shouldCheckDrySourceRevision(app) {
+		return needsHydration, reason, nil
+	}
+
+	latestDrySHA, err := h.getLatestDrySourceRevision(app)
+	if err != nil {
+		return false, reason, err
+	}
+	if latestDrySHA != app.Status.SourceHydrator.CurrentOperation.DrySHA {
+		return true, "dry source revision changed", nil
+	}
+
+	return false, reason, nil
 }
 
 func (h *Hydrator) shouldCheckDrySourceRevision(app *appv1.Application) bool {
