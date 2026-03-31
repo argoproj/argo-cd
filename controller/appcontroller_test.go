@@ -68,6 +68,7 @@ type fakeData struct {
 	apps                            []runtime.Object
 	manifestResponse                *apiclient.ManifestResponse
 	manifestResponses               []*apiclient.ManifestResponse
+	resolveRevisionResponse         *apiclient.ResolveRevisionResponse
 	managedLiveObjs                 map[kube.ResourceKey]*unstructured.Unstructured
 	namespacedResources             map[kube.ResourceKey]namespacedResource
 	configMapData                   map[string]string
@@ -130,6 +131,14 @@ func newFakeControllerWithResyncAndHydrator(ctx context.Context, data *fakeData,
 			mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(data.manifestResponse, repoErr).Once()
 		} else {
 			mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(data.manifestResponse, nil).Once()
+		}
+	}
+
+	if data.resolveRevisionResponse != nil {
+		if repoErr != nil {
+			mockRepoClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(nil, repoErr).Once()
+		} else {
+			mockRepoClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(data.resolveRevisionResponse, nil).Once()
 		}
 	}
 

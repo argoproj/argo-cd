@@ -172,15 +172,34 @@ func (h *Hydrator) shouldCheckDrySourceRevision(app *appv1.Application, now time
 }
 
 func (h *Hydrator) getLatestDrySourceRevision(app *appv1.Application) (string, error) {
-	project, err := h.dependencies.GetProcessableAppProj(app)
-	if err != nil {
-		return "", fmt.Errorf("failed to get app project %q: %w", app.Spec.Project, err)
+	if h.repoGetter == nil {
+		return "", fmt.Errorf("repo getter is not configured")
 	}
-	revision, _, err := h.getManifests(context.Background(), app, "", project)
+	if h.repoClientset == nil {
+		return "", fmt.Errorf("repo clientset is not configured")
+	}
+
+	repo, err := h.repoGetter.GetRepository(context.Background(), app.Spec.SourceHydrator.DrySource.RepoURL, app.Spec.Project)
+	if err != nil {
+		return "", fmt.Errorf("failed to get repo %q: %w", app.Spec.SourceHydrator.DrySource.RepoURL, err)
+	}
+
+	conn, repoClient, err := h.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return "", fmt.Errorf("failed to connect to repo server: %w", err)
+	}
+	defer utilio.Close(conn)
+
+	drySource := app.Spec.SourceHydrator.GetDrySource()
+	resp, err := repoClient.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
+		Repo:              repo,
+		App:               &appv1.Application{Spec: appv1.ApplicationSpec{Source: &drySource}},
+		AmbiguousRevision: drySource.TargetRevision,
+	})
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve latest dry source revision: %w", err)
 	}
-	return revision, nil
+	return resp.Revision, nil
 }
 
 func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {

@@ -448,13 +448,15 @@ func TestProcessAppHydrateQueueItem_HydrationPassedTimeout(t *testing.T) {
 func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionChanged(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
 	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
 	finishedAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
 	app.Status.SourceHydrator.CurrentOperation.FinishedAt = &finishedAt
 	app.Status.SourceHydrator.CurrentOperation.DrySHA = "old-sha"
 
-	d.EXPECT().GetProcessableAppProj(app).Return(newTestProject(), nil).Once()
-	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", mock.Anything).Return(nil, &repoclient.ManifestResponse{
+	r.EXPECT().GetRepository(mock.Anything, app.Spec.SourceHydrator.DrySource.RepoURL, app.Spec.Project).Return(nil, nil).Once()
+	rc.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(&repoclient.ResolveRevisionResponse{
 		Revision: "new-sha",
 	}, nil).Once()
 	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Return().Once()
@@ -463,6 +465,8 @@ func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionChanged(t
 	h := &Hydrator{
 		dependencies:         d,
 		statusRefreshTimeout: time.Minute,
+		repoGetter:           r,
+		repoClientset:        &reposervermocks.Clientset{RepoServerServiceClient: rc},
 	}
 
 	h.ProcessAppHydrateQueueItem(app)
@@ -474,19 +478,23 @@ func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionChanged(t
 func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionUnchanged(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
+	r := mocks.NewRepoGetter(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
 	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
 	finishedAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
 	app.Status.SourceHydrator.CurrentOperation.FinishedAt = &finishedAt
 	app.Status.SourceHydrator.CurrentOperation.DrySHA = "same-sha"
 
-	d.EXPECT().GetProcessableAppProj(app).Return(newTestProject(), nil).Once()
-	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", mock.Anything).Return(nil, &repoclient.ManifestResponse{
+	r.EXPECT().GetRepository(mock.Anything, app.Spec.SourceHydrator.DrySource.RepoURL, app.Spec.Project).Return(nil, nil).Once()
+	rc.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(&repoclient.ResolveRevisionResponse{
 		Revision: "same-sha",
 	}, nil).Once()
 
 	h := &Hydrator{
 		dependencies:         d,
 		statusRefreshTimeout: time.Minute,
+		repoGetter:           r,
+		repoClientset:        &reposervermocks.Clientset{RepoServerServiceClient: rc},
 	}
 
 	h.ProcessAppHydrateQueueItem(app)
@@ -555,6 +563,27 @@ func TestHydrator_shouldCheckDrySourceRevision(t *testing.T) {
 			assert.Equal(t, tc.expected, h.shouldCheckDrySourceRevision(tc.app, now))
 		})
 	}
+}
+
+func TestHydrator_getLatestDrySourceRevision(t *testing.T) {
+	t.Parallel()
+
+	r := mocks.NewRepoGetter(t)
+	rc := reposervermocks.NewRepoServerServiceClient(t)
+	app := newTestApp("test-app")
+	h := &Hydrator{
+		repoGetter:    r,
+		repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc},
+	}
+
+	r.EXPECT().GetRepository(mock.Anything, app.Spec.SourceHydrator.DrySource.RepoURL, app.Spec.Project).Return(nil, nil).Once()
+	rc.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(&repoclient.ResolveRevisionResponse{
+		Revision: "sha123",
+	}, nil).Once()
+
+	revision, err := h.getLatestDrySourceRevision(app)
+	require.NoError(t, err)
+	assert.Equal(t, "sha123", revision)
 }
 
 func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
