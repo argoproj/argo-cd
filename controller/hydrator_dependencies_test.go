@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -139,10 +140,10 @@ func TestProcessAppHydrateQueueItem_ReconcileTimeout_EnqueuesHydrationOnDryRevis
 	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
 		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
 		DrySHA:         "old-sha",
+		FinishedAt:     &metav1.Time{Time: time.Now().Add(-2 * time.Minute)},
 		SourceHydrator: *app.Spec.SourceHydrator,
 	}
-	reconciledAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
-	app.Status.ReconciledAt = &reconciledAt
+	app.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-2 * time.Minute)}
 
 	data := fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -150,13 +151,25 @@ func TestProcessAppHydrateQueueItem_ReconcileTimeout_EnqueuesHydrationOnDryRevis
 			Manifests: []string{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
-			Revision:  "new-sha",
+			Revision:  "old-sha",
+		},
+		resolveRevisionResponse: &apiclient.ResolveRevisionResponse{
+			Revision: "new-sha",
 		},
 	}
 
 	ctrl := newFakeHydratorControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
-	ctrl.appHydrateQueue.Add(app.QualifiedName())
-	processed := ctrl.processAppHydrateQueueItem()
+	key, err := cache.MetaNamespaceKeyFunc(app)
+	require.NoError(t, err)
+	ctrl.appRefreshQueue.AddRateLimited(key)
+	processed := ctrl.processAppRefreshQueueItem()
+	require.True(t, processed)
+
+	refreshedApp, err := ctrl.appLister.Applications(app.Namespace).Get(app.Name)
+	require.NoError(t, err)
+	ctrl.appHydrateQueue.Add(refreshedApp.QualifiedName())
+
+	processed = ctrl.processAppHydrateQueueItem()
 	require.True(t, processed)
 
 	require.Eventually(t, func() bool {
