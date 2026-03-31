@@ -1,6 +1,7 @@
 import {NotificationType, SlidingPanel, Tooltip, SplitButtonAction} from 'argo-ui';
 import * as classNames from 'classnames';
-import React, {useState, useEffect, useCallback, useRef, useContext, FC} from 'react';
+import * as React from 'react';
+import {useState, useEffect, useCallback, useRef, useContext, FC} from 'react';
 import * as ReactDOM from 'react-dom';
 import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';

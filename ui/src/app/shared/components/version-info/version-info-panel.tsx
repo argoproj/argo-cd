@@ -1,5 +1,6 @@
 import {DataLoader, SlidingPanel, Tooltip} from 'argo-ui';
-import React, {useState} from 'react';
+import * as React from 'react';
+import {useState} from 'react';
 import {VersionMessage} from '../../models';
 import {services} from '../../services';
 import {ThemeWrapper} from '../layout/layout';

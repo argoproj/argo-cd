@@ -1,5 +1,6 @@
 import * as classNames from 'classnames';
-import React, {useRef, useState} from 'react';
+import * as React from 'react';
+import {useRef, useState} from 'react';
 
 import {Autocomplete, AutocompleteApi, AutocompleteOption} from 'argo-ui';
 

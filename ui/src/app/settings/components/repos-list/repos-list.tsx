@@ -1,6 +1,7 @@
 /* eslint-disable no-case-declarations */
 import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
-import React, {useEffect, useState, useContext, useRef} from 'react';
+import * as React from 'react';
+import {useEffect, useState, useContext, useRef} from 'react';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
 import {Form, FormValues, FormApi, Text, TextArea, FormErrors} from 'argo-ui';
 import {Context} from '../../../shared/context';

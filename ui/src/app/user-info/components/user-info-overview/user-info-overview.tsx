@@ -1,4 +1,5 @@
-import React, {useCallback, useContext, useRef, useState} from 'react';
+import * as React from 'react';
+import {useCallback, useContext, useRef, useState} from 'react';
 
 import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
 import {Form, FormApi, FormValue, Nested, Text} from 'argo-ui';

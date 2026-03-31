@@ -1,5 +1,6 @@
 import {ErrorNotification, NotificationType} from 'argo-ui';
-import React, {useState, useRef, useEffect, Fragment, useCallback} from 'react';
+import * as React from 'react';
+import {useState, useRef, useEffect, Fragment, useCallback} from 'react';
 import type {FormApi, FormState} from 'argo-ui';
 import {Form} from 'argo-ui';
 import {ContextApis} from '../../context';

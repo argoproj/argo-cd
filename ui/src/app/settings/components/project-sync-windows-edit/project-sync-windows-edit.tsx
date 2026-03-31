@@ -1,5 +1,6 @@
 import {Tooltip} from 'argo-ui';
-import React, {ChangeEvent} from 'react';
+import * as React from 'react';
+import {ChangeEvent} from 'react';
 import {ReactForm} from 'argo-ui';
 import {SyncWindow} from '../../../shared/models';
 
