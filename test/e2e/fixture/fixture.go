@@ -20,6 +20,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -1296,6 +1297,35 @@ func RestartAPIServer(t *testing.T) {
 		}
 		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
 		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
+	}
+}
+
+// RestartApplicationController performs a restart of the application controller
+// workload and waits until the rollout has completed.
+func RestartApplicationController(t *testing.T) {
+	t.Helper()
+	if IsRemote() {
+		log.Infof("Waiting for application controller to restart")
+		prefix := os.Getenv("ARGOCD_E2E_NAME_PREFIX")
+		workload := "argocd-application-controller"
+		if prefix != "" {
+			workload = prefix + "-application-controller"
+		}
+
+		restartRollout := func(kind string) {
+			errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", kind, workload))
+			errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", kind, workload))
+		}
+
+		if _, err := KubeClientset.AppsV1().StatefulSets(TestNamespace()).Get(t.Context(), workload, metav1.GetOptions{}); err == nil {
+			restartRollout("statefulset")
+		} else if apierrors.IsNotFound(err) {
+			restartRollout("deployment")
+		} else {
+			require.NoError(t, err)
+		}
+
+		time.Sleep(5 * time.Second)
 	}
 }
 

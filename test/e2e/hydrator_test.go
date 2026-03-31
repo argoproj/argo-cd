@@ -2,8 +2,10 @@ package e2e
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -11,6 +13,47 @@ import (
 
 	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 )
+
+func setHydratorReconciliationTimeout(t *testing.T, timeout, jitter string) {
+	t.Helper()
+
+	cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.TestNamespace()).Get(t.Context(), "argocd-cm", metav1.GetOptions{})
+	require.NoError(t, err)
+
+	original := map[string]*string{}
+	for _, key := range []string{"timeout.reconciliation", "timeout.reconciliation.jitter"} {
+		if value, ok := cm.Data[key]; ok {
+			v := value
+			original[key] = &v
+		} else {
+			original[key] = nil
+		}
+	}
+
+	require.NoError(t, fixture.SetParamInSettingConfigMap("timeout.reconciliation", timeout))
+	require.NoError(t, fixture.SetParamInSettingConfigMap("timeout.reconciliation.jitter", jitter))
+	fixture.RestartApplicationController(t)
+
+	t.Cleanup(func() {
+		cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(fixture.TestNamespace()).Get(t.Context(), "argocd-cm", metav1.GetOptions{})
+		require.NoError(t, err)
+		if cm.Data == nil {
+			cm.Data = make(map[string]string)
+		}
+
+		for key, value := range original {
+			if value == nil {
+				delete(cm.Data, key)
+			} else {
+				cm.Data[key] = *value
+			}
+		}
+
+		_, err = fixture.KubeClientset.CoreV1().ConfigMaps(fixture.TestNamespace()).Update(t.Context(), cm, metav1.UpdateOptions{})
+		require.NoError(t, err)
+		fixture.RestartApplicationController(t)
+	})
+}
 
 func TestSimpleHydrator(t *testing.T) {
 	Given(t).
@@ -347,6 +390,63 @@ func TestHydratorNoOp(t *testing.T) {
 
 			require.Equal(t, firstHydratedSHA, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
 				"Hydrated SHA should remain the same for no-op hydration")
+		})
+}
+
+func TestHydratorPeriodicReconcilePicksUpDrySourceChanges(t *testing.T) {
+	if !fixture.IsRemote() {
+		t.Skip("requires remote e2e environment to restart the application controller after changing timeout.reconciliation")
+	}
+
+	setHydratorReconciliationTimeout(t, "5s", "0s")
+
+	var firstDrySHA string
+	var firstHydratedSHA string
+
+	ctx := Given(t).
+		Timeout(120).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook").
+		SyncSourceBranch("env/test")
+
+	ctx.
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.SourceHydrator.CurrentOperation)
+			firstDrySHA = app.Status.SourceHydrator.CurrentOperation.DrySHA
+			firstHydratedSHA = app.Status.SourceHydrator.CurrentOperation.HydratedSHA
+			require.NotEmpty(t, firstDrySHA)
+			require.NotEmpty(t, firstHydratedSHA)
+		})
+
+	ctx.
+		When().
+		AddFile("guestbook/README.md", "# Guestbook\n\nPeriodic reconcile hydration test.").
+		Then().
+		AndAction(func() {
+			require.Eventually(t, func() bool {
+				app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(ctx.AppNamespace()).Get(t.Context(), ctx.AppName(), metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				op := app.Status.SourceHydrator.CurrentOperation
+				if op == nil || op.Phase != HydrateOperationPhaseHydrated {
+					return false
+				}
+				return op.DrySHA != firstDrySHA
+			}, 90*time.Second, 2*time.Second)
+		}).
+		And(func(app *Application) {
+			op := app.Status.SourceHydrator.CurrentOperation
+			require.NotNil(t, op)
+			require.NotEqual(t, firstDrySHA, op.DrySHA, "dry SHA should change after the dry source commit")
+			require.Equal(t, firstHydratedSHA, op.HydratedSHA, "hydrated SHA should remain the same for a no-op hydration")
 		})
 }
 
