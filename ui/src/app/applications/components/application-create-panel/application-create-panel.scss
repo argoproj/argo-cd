@@ -34,11 +34,6 @@
     &__multi-source-block {
         margin-bottom: 0.5em;
 
-        /*
-         * Same pattern as revision-form-field.scss: nested flex + white-box breaks the shared
-         * grid-based floating label for Autocomplete/FormField, so "Repository URL" / "Path" overlap
-         * values in SOURCES mode while single SOURCE (wider layout) still looks fine.
-         */
         .argo-field-container {
             display: flex;
             flex-direction: column-reverse;
@@ -81,7 +76,6 @@
         font-weight: 600;
     }
 
-    /* Each source: explicit border so nested cards read like the single SOURCE panel. */
     &__multi-source-section.white-box {
         margin-bottom: 1rem;
         @include themify($themes) {

@@ -25,9 +25,7 @@ export interface SourcePanelProps {
     formApi: FormApi;
     repos: string[];
     repoInfo?: models.Repository;
-    /** When omitted, bind to `spec.source` (single-source create flow). When set, bind to `spec.sources[index]`. */
     sourceIndex?: number;
-    /** Hide the "SOURCE n" line when a parent (e.g. collapsible section) already shows the heading. */
     suppressMultiSourceHeading?: boolean;
     currentRepoType?: React.MutableRefObject<string | undefined>;
     lastGitOrHelmUrl?: React.MutableRefObject<string>;
@@ -48,7 +46,6 @@ export const SourcePanel = (props: SourcePanelProps) => {
     const repoType = currentSource?.repoURL?.startsWith('oci://') ? 'oci' : (currentSource && Object.prototype.hasOwnProperty.call(currentSource, 'chart') && 'helm') || 'git';
 
     const idx = props.sourceIndex;
-    /** 1-based label for qe-id to match ui-test selectors (source-1, source-2, …). */
     const qeSourceN = isMulti && idx !== undefined ? idx + 1 : 0;
     const specSourceForRevision = isMulti ? currentApp.spec.sources?.[props.sourceIndex] : currentApp.spec.source;
 

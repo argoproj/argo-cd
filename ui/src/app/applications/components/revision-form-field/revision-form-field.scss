@@ -11,11 +11,6 @@
     min-width: 0;
 }
 
-/*
- * Floating label + Autocomplete share one grid cell in argo-ui; the label can overlap the value
- * (especially with nested spec.sources paths / dark theme). Use a stable stacked layout: label on
- * top, value below — consistent with the rest of the form and with Application Parameters.
- */
 .revision-form-field .argo-field-container {
     display: flex;
     flex-direction: column-reverse;

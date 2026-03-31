@@ -13,10 +13,6 @@ function pathKeyForSource(src: models.ApplicationSource | undefined): string {
     return (src.chart || src.path || '') as string;
 }
 
-/**
- * Repo-app type dropdown + Helm/Kustomize/… parameters for one entry in `spec.sources` while creating an application.
- * Uses server-detected `RepoAppDetails.type` and allows override; parameters update when detection or override changes.
- */
 export const CreatePanelSourceTypeParameters = (props: {formApi: FormApi; sourceIndex: number}) => {
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
     const formApp = props.formApi.getFormState().values as models.Application;

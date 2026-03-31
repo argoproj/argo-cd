@@ -4,10 +4,6 @@ import * as models from '../../../shared/models';
 import {CreatePanelSourceTypeParameters} from './create-panel-source-type-parameters';
 import {SourcePanel} from './source-panel';
 
-/**
- * Collapsible block for one multi-source entry.
- * Avoid `editable-panel` here: its absolutely positioned collapse control overlaps Revision / Branches (same pattern as app params uses only on full-width panels).
- */
 export function CollapsibleMultiSourceSection(props: {
     index: number;
     formApi: FormApi;
