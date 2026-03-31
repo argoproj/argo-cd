@@ -96,9 +96,21 @@ func getServerVersion(ctx context.Context, options *argocdclient.ClientOptions, 
 	conn, versionIf := headless.NewClientOrDie(options, c).NewVersionClientOrDie()
 	defer utilio.Close(conn)
 
+	serverAddr := ""
+	if options != nil {
+		serverAddr = options.ServerAddr
+	}
+	logger := log.WithField("server", serverAddr)
+
+	logger.Infof("Requesting server version from cluster: %q", serverAddr)
+
 	v, err := versionIf.Version(ctx, &empty.Empty{})
+	if err != nil {
+		logger.WithError(err).Error("Failed to retrieve server version")
+	}
 	errors.CheckError(err)
 
+	logger.WithField("version", v.Version).Info("Retrieved server version")
 	return v
 }
 
