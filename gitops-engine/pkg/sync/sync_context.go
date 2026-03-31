@@ -118,6 +118,13 @@ func WithPrune(prune bool) SyncOpt {
 	}
 }
 
+// WithDefaultPruneOption specifies the application level Prune option
+func WithDefaultPruneOption(defaultPruneOption *string) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.defaultPruneOption = defaultPruneOption
+	}
+}
+
 // WithPruneConfirmed specifies if prune is confirmed for resources that require confirmation
 func WithPruneConfirmed(confirmed bool) SyncOpt {
 	return func(ctx *syncContext) {
@@ -314,6 +321,28 @@ func groupDiffResults(diffResultList *diff.DiffResultList) map[kubeutil.Resource
 	return modifiedResources
 }
 
+func objRequiresPruneConfirmation(obj *unstructured.Unstructured, defaultPruneOption *string) bool {
+	var pruneOptionValue *string
+	if obj != nil {
+		pruneOptionValue = resourceutil.GetAnnotationOptionValue(obj, common.AnnotationSyncOptions, common.SyncOptionPrune)
+	}
+	if pruneOptionValue == nil {
+		pruneOptionValue = defaultPruneOption
+	}
+	return pruneOptionValue != nil && *pruneOptionValue == common.SyncValueConfirm
+}
+
+func isPruningDisabled(obj *unstructured.Unstructured, defaultPruneOption *string) bool {
+	var pruneOptionValue *string
+	if obj != nil {
+		pruneOptionValue = resourceutil.GetAnnotationOptionValue(obj, common.AnnotationSyncOptions, common.SyncOptionPrune)
+	}
+	if pruneOptionValue == nil {
+		pruneOptionValue = defaultPruneOption
+	}
+	return pruneOptionValue != nil && *pruneOptionValue == common.SyncValueFalse
+}
+
 const (
 	crdReadinessTimeout = time.Duration(3) * time.Second
 )
@@ -370,6 +399,7 @@ type syncContext struct {
 	pruneLast                       bool
 	prunePropagationPolicy          *metav1.DeletionPropagation
 	pruneConfirmed                  bool
+	defaultPruneOption              *string
 	clientSideApplyMigrationManager string
 	enableClientSideApplyMigration  bool
 
@@ -429,7 +459,7 @@ func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) 
 
 	if !sc.pruneConfirmed {
 		tasksToPrune := tasks.Filter(func(task *syncTask) bool {
-			return task.isPrune() && resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm)
+			return task.isPrune() && objRequiresPruneConfirmation(task.liveObj, sc.defaultPruneOption)
 		})
 
 		if len(tasksToPrune) > 0 {
@@ -531,6 +561,22 @@ func (sc *syncContext) Sync() {
 	multiStep := tasks.multiStep()
 	runningTasks := tasks.Filter(func(t *syncTask) bool { return (multiStep || t.isHook()) && t.running() })
 	if runningTasks.Len() > 0 {
+		// check if any of the running task's resources are missing to prevent infinite loop of waiting for healthy
+		for _, task := range runningTasks {
+			if task.liveObj == nil {
+				liveObj, err := sc.getResource(task)
+				if err != nil && !apierrors.IsNotFound(err) {
+					sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("Failed to get live resource %v", err))
+					continue
+				}
+				if liveObj != nil {
+					continue
+				}
+
+				sc.setResourceResult(task, common.ResultCodeSyncFailed, common.OperationError, fmt.Sprintf("Resource %s/%s/%s is missing, it might have been deleted", task.group(), task.kind(), task.name()))
+			}
+		}
+
 		sc.setRunningPhase(runningTasks, false)
 		return
 	}
@@ -1389,7 +1435,7 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) (common.ResultCode, string) {
 	if !prune {
 		return common.ResultCodePruneSkipped, "ignored (requires pruning)"
-	} else if resourceutil.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, common.SyncOptionDisablePrune) {
+	} else if isPruningDisabled(liveObj, sc.defaultPruneOption) {
 		return common.ResultCodePruneSkipped, "ignored (no prune)"
 	}
 	if dryRun {
@@ -1552,7 +1598,7 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 	{
 		if !sc.pruneConfirmed {
 			for _, task := range pruneTasks {
-				if resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm) {
+				if objRequiresPruneConfirmation(task.liveObj, sc.defaultPruneOption) {
 					sc.log.WithValues("task", task).Info("Prune requires confirmation")
 					return pending
 				}

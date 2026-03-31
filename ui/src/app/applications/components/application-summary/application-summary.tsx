@@ -721,7 +721,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                             selfHeal ? 'Enable Self Heal?' : 'Disable Self Heal?',
                                                             selfHeal
                                                                 ? 'If checked, application will automatically sync when changes are detected'
-                                                                : 'Are you sure you want to enable automated self healing?',
+                                                                : 'If unchecked, application will not automatically sync when changes are detected',
                                                             automated.prune,
                                                             selfHeal,
                                                             automated.enabled

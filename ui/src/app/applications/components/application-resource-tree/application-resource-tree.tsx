@@ -6,6 +6,7 @@ import Moment from 'react-moment';
 import * as moment from 'moment';
 
 import * as models from '../../../shared/models';
+import {isValidManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_COLOR} from '../../../shared/utils';
 
 import {EmptyState} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
@@ -496,6 +497,20 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                                 {ctx => {
                                     // For nested applications, use the node's data to construct the URL
                                     const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
+                                    const managedByURL = getManagedByURLFromNode(node);
+                                    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
+                                    if (managedByURLInvalid) {
+                                        return (
+                                            <span
+                                                role='link'
+                                                aria-disabled={true}
+                                                style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
+                                                onClick={e => e.stopPropagation()}
+                                                title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
+                                                <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                            </span>
+                                        );
+                                    }
                                     return (
                                         <a
                                             href={linkInfo.url}
@@ -504,7 +519,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                                             onClick={e => {
                                                 e.stopPropagation();
                                             }}
-                                            title={getManagedByURLFromNode(node) ? `Open application\nmanaged-by-url: ${getManagedByURLFromNode(node)}` : 'Open application'}>
+                                            title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
                                             <i className='fa fa-external-link-alt' />
                                         </a>
                                     );
@@ -806,6 +821,20 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                             {ctx => {
                                 // For nested applications, use the node's data to construct the URL
                                 const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
+                                const managedByURL = getManagedByURLFromNode(node);
+                                const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
+                                if (managedByURLInvalid) {
+                                    return (
+                                        <span
+                                            role='link'
+                                            aria-disabled={true}
+                                            style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
+                                            onClick={e => e.stopPropagation()}
+                                            title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
+                                            <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                        </span>
+                                    );
+                                }
                                 return (
                                     <a
                                         href={linkInfo.url}
@@ -814,7 +843,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                                         onClick={e => {
                                             e.stopPropagation();
                                         }}
-                                        title={getManagedByURLFromNode(node) ? `Open application\nmanaged-by-url: ${getManagedByURLFromNode(node)}` : 'Open application'}>
+                                        title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
                                         <i className='fa fa-external-link-alt' />
                                     </a>
                                 );
