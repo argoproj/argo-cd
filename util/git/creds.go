@@ -518,7 +518,7 @@ func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error)
 // the token is then cached for re-use.
 func (g GitHubAppCreds) getAccessToken() (string, error) {
 	// Timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
 	defer cancel()
 
 	itr, err := g.getInstallationTransport()
@@ -705,10 +705,11 @@ func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKe
 		opts.Page = resp.NextPage
 	}
 
-	// Cache all installation IDs
+	// Cache each installation under its account's key so multiple orgs do not overwrite each other.
 	for _, installation := range allInstallations {
 		if installation.Account != nil && installation.Account.Login != nil && installation.ID != nil {
-			githubInstallationIdCache.Set(cacheKey, *installation.ID, gocache.DefaultExpiration)
+			instKey := fmt.Sprintf("%s:%s:%d", strings.ToLower(*installation.Account.Login), domain, appId)
+			githubInstallationIdCache.Set(instKey, *installation.ID, gocache.DefaultExpiration)
 		}
 	}
 

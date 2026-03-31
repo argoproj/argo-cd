@@ -717,7 +717,7 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	var syncPolicy string
 	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 		syncPolicy = "Automated"
-		if app.Spec.SyncPolicy.Automated.Prune {
+		if app.Spec.SyncPolicy.Automated.GetPrune() {
 			syncPolicy += " (Prune)"
 		}
 	} else {
@@ -1918,7 +1918,7 @@ func formatSyncPolicy(app argoappv1.Application) string {
 		return "Manual"
 	}
 	policy := "Auto"
-	if app.Spec.SyncPolicy.Automated.Prune {
+	if app.Spec.SyncPolicy.Automated.GetPrune() {
 		policy = policy + "-Prune"
 	}
 	return policy
@@ -2334,7 +2334,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 				if app.Spec.HasMultipleSources() {
 					if revision != "" {
-						log.Fatal("argocd cli does not work on multi-source app with --revision flag. Use --revisions and --source-position instead.")
+						log.Fatal("argocd cli does not work on multi-source app with --revision flag. Use --revisions and --source-positions instead.")
 						return
 					}
 

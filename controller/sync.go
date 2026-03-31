@@ -308,22 +308,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
 		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *metav1.APIResource) error {
-			if !project.IsGroupKindNamePermitted(un.GroupVersionKind().GroupKind(), un.GetName(), res.Namespaced) {
-				return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, project.Name)
-			}
-			if res.Namespaced {
-				permitted, err := project.IsDestinationPermitted(destCluster, un.GetNamespace(), func(project string) ([]*v1alpha1.Cluster, error) {
-					return m.db.GetProjectClusters(context.TODO(), project)
-				})
-				if err != nil {
-					return err
-				}
-
-				if !permitted {
-					return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), project.Name)
-				}
-			}
-			return nil
+			return validateSyncPermissions(project, destCluster, func(proj string) ([]*v1alpha1.Cluster, error) {
+				return m.db.GetProjectClusters(context.TODO(), proj)
+			}, un, res)
 		}),
 		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
 		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
@@ -347,6 +334,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 			clientSideApplyManager,
 		),
 		sync.WithPruneConfirmed(app.IsDeletionConfirmed(state.StartedAt.Time)),
+		sync.WithDefaultPruneOption(syncOp.SyncOptions.GetOptionValue(common.SyncOptionPrune)),
 		sync.WithSkipDryRunOnMissingResource(syncOp.SyncOptions.HasOption(common.SyncOptionSkipDryRunOnMissingResource)),
 	}
 
@@ -603,4 +591,34 @@ func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 	}
 	// if there is no match found in the AppProject.Spec.DestinationServiceAccounts, use the default service account of the destination namespace.
 	return "", fmt.Errorf("no matching service account found for destination server %s and namespace %s", application.Spec.Destination.Server, serviceAccountNamespace)
+}
+
+// validateSyncPermissions checks whether the given resource is permitted by the project's
+// allow/deny lists and destination rules. It returns an error if the API resource info is nil
+// (preventing a nil-pointer panic), if the resource's group/kind is not permitted, or if
+// the resource's namespace is not an allowed destination.
+func validateSyncPermissions(
+	project *v1alpha1.AppProject,
+	destCluster *v1alpha1.Cluster,
+	getProjectClusters func(string) ([]*v1alpha1.Cluster, error),
+	un *unstructured.Unstructured,
+	res *metav1.APIResource,
+) error {
+	if res == nil {
+		return fmt.Errorf("failed to get API resource info for %s/%s: unable to verify permissions", un.GroupVersionKind().Group, un.GroupVersionKind().Kind)
+	}
+	if !project.IsGroupKindNamePermitted(un.GroupVersionKind().GroupKind(), un.GetName(), res.Namespaced) {
+		return fmt.Errorf("resource %s:%s is not permitted in project %s", un.GroupVersionKind().Group, un.GroupVersionKind().Kind, project.Name)
+	}
+	if res.Namespaced {
+		permitted, err := project.IsDestinationPermitted(destCluster, un.GetNamespace(), getProjectClusters)
+		if err != nil {
+			return err
+		}
+
+		if !permitted {
+			return fmt.Errorf("namespace %v is not permitted in project '%s'", un.GetNamespace(), project.Name)
+		}
+	}
+	return nil
 }
