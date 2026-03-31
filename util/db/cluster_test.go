@@ -661,7 +661,7 @@ func TestGetClusterServersByName(t *testing.T) {
 	})
 }
 
-func TestGetClusterServersByName_GetSettingsLazyLoad(t *testing.T) {
+func TestGetClusterServersByName_IsInClusterEnabledLazyLoad(t *testing.T) {
 	argoCDSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDSecretName,
@@ -696,19 +696,19 @@ func TestGetClusterServersByName_GetSettingsLazyLoad(t *testing.T) {
 		wantServers []string
 	}{
 		{
-			name:        "non in-cluster name does not call GetSettings()",
+			name:        "non in-cluster name does not call IsInClusterEnabled()",
 			clusterName: "prod",
 			wantErr:     false,
 			wantServers: []string{"https://prod.example.com"},
 		},
 		{
-			name:        "in-cluster name calls GetSettings()",
+			name:        "in-cluster name calls IsInClusterEnabled()",
 			clusterName: "in-cluster",
 			wantErr:     true,
 		},
 	}
 
-	// argocd-cm is intentionally absent: GetSettings() fails if called.
+	// argocd-cm is intentionally absent: IsInClusterEnabled() fails if called.
 	kubeclientset := fake.NewClientset(argoCDSecret, prodSecret)
 	db := NewDB(fakeNamespace, settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace), kubeclientset)
 

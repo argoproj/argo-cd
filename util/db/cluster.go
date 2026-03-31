@@ -304,7 +304,7 @@ func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string,
 
 	inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
 	if err != nil {
-		log.Warnf(errCheckingInClusterEnabled, "GetClusterServersByName", err)
+		return nil, fmt.Errorf(errCheckingInClusterEnabled, "GetClusterServersByName", err)
 	}
 
 	// Handle local cluster special case
