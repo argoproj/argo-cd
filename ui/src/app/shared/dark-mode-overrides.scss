@@ -1,0 +1,223 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+// Tippy tooltips are appended to document.body, outside .theme-dark.
+// body.dark-theme is toggled by Layout based on the user's theme preference.
+// Dropdowns and tooltips are appended to document.body, outside .theme-dark.
+// body.dark-theme is toggled by Layout based on the user's theme preference.
+body.dark-theme .argo-dropdown__content {
+    background-color: $dark-theme-background-2;
+    box-shadow: 0 0 4px rgba(#000, .5);
+
+    &.is-menu ul li {
+        border-bottom-color: $argo-color-gray-7;
+        color: $argo-color-gray-3;
+
+        &:hover {
+            background-color: $argo-color-gray-7;
+        }
+    }
+}
+
+body.dark-theme .tippy-tooltip {
+    background-color: $dark-theme-background-2;
+    color: $argo-color-gray-3;
+    box-shadow: 0 0 20px 4px rgba(0, 0, 0, .3);
+
+    &[data-placement^=top] > .tippy-arrow {
+        border-top-color: $dark-theme-background-2;
+    }
+    &[data-placement^=bottom] > .tippy-arrow {
+        border-bottom-color: $dark-theme-background-2;
+    }
+    &[data-placement^=left] > .tippy-arrow {
+        border-left-color: $dark-theme-background-2;
+    }
+    &[data-placement^=right] > .tippy-arrow {
+        border-right-color: $dark-theme-background-2;
+    }
+
+    > .tippy-backdrop {
+        background-color: $dark-theme-background-2;
+    }
+}
+
+.theme-dark {
+    color: $argo-color-gray-3;
+
+    // Buttons
+    .argo-button {
+        &:not(.disabled):not([disabled]) {
+            &:hover,
+            &:focus {
+                background-color: rgba(255, 255, 255, 0.08);
+            }
+        }
+
+        &--base {
+            background-color: $argo-color-teal-7;
+            color: #fff;
+
+            &:not(.disabled):not([disabled]) {
+                &:hover,
+                &:focus {
+                    background-color: $argo-color-teal-6;
+                    color: #fff;
+                }
+            }
+
+            &.disabled,
+            &[disabled] {
+                background-color: $argo-color-gray-7 !important;
+                color: $argo-color-gray-4 !important;
+            }
+        }
+
+        &--link {
+            &:not(.disabled):not([disabled]) {
+                &:hover,
+                &:focus {
+                    background-color: rgba(255, 255, 255, 0.08);
+                }
+            }
+        }
+    }
+
+    // Split button
+    .argo-split-button__primary,
+    .argo-split-button__toggle {
+        background-color: $argo-color-teal-7;
+
+        &:not([disabled]):hover {
+            background-color: $argo-color-teal-6;
+        }
+    }
+
+    // Action buttons (argo-ui v2) — use argo-ui's own dark palette
+    .action-button__background {
+        border-color: #30303d;
+        background-color: #22212d;
+    }
+
+    .action-button:hover > .action-button__background,
+    .action-button--selected > .action-button__background {
+        background-color: #8b4329;
+        border-color: #f07548;
+    }
+
+    .action-button--disabled:hover > .action-button__background {
+        background-color: #22212d;
+        border-color: #30303d;
+    }
+
+    // Empty state
+    .empty-state__icon {
+        background-color: $argo-color-gray-7;
+
+        i {
+            color: $argo-color-gray-3;
+        }
+    }
+
+    // Tables
+    .argo-table-list__row {
+        .title-text {
+            color: $argo-color-gray-3;
+        }
+
+        &.selected {
+            background-color: rgba($argo-color-teal-5, 0.15);
+        }
+    }
+
+    // Forms
+    .argo-field__with-action-btn {
+        background-color: $dark-theme-background-2;
+        color: $argo-color-gray-3;
+    }
+
+    .argo-select {
+        color: $argo-color-gray-3;
+    }
+
+    .argo-radio input:checked + span {
+        box-shadow: inset 0 0 0 3px $dark-theme-background-2;
+    }
+
+    .argo-checkbox-slide input {
+        & + span {
+            background-color: $argo-color-gray-6;
+            box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.3);
+
+            &::before {
+                background-color: $argo-color-gray-4;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+            }
+        }
+
+        &:checked + span::before {
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+        }
+    }
+
+    .argo-checkbox input:disabled + span {
+        background-color: $argo-color-gray-7;
+        border-color: $argo-color-gray-6;
+    }
+
+    // Dropdowns rendered inside .theme-dark
+    .argo-dropdown__content {
+        background-color: $dark-theme-background-2;
+        box-shadow: 0 0 4px rgba(#000, .5);
+
+        &.is-menu ul li {
+            border-bottom-color: $argo-color-gray-7;
+            color: $argo-color-gray-3;
+
+            &:hover {
+                background-color: $argo-color-gray-7;
+            }
+        }
+    }
+
+    // Surfaces that use light grays as backgrounds
+    .pod-view__node__pod-container__pods,
+    .pod-view__node__info div,
+    .pod-view__node__info--large {
+        background-color: $argo-color-gray-7;
+        color: $argo-color-gray-3;
+    }
+
+    .pod-view__settings__section {
+        border-right-color: $argo-color-gray-7;
+    }
+
+    .pod-view__node__pod__stat__bar {
+        background-color: $argo-color-gray-6;
+    }
+
+    // White box
+    .white-box h6 {
+        color: $argo-color-gray-3;
+    }
+
+    // Stream divider
+    .stream::before {
+        background-color: $argo-color-gray-7;
+    }
+
+    // Status text
+    .muted {
+        color: $argo-color-gray-5 !important;
+    }
+
+    // Links
+    a,
+    a:hover {
+        color: $argo-color-teal-5;
+    }
+
+    h1,
+    h2 {
+        color: $argo-color-teal-5;
+    }
+}
