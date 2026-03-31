@@ -8,7 +8,7 @@ import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
-import {isValidURL} from '../../shared/utils';
+import {isValidManagedByURL} from '../../shared/utils';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
@@ -17,6 +17,14 @@ import {services} from '../../shared/services';
 import {ApplicationSource} from '../../shared/models';
 
 require('./utils.scss');
+
+export {
+    MANAGED_BY_URL_INVALID_COLOR,
+    MANAGED_BY_URL_INVALID_TEXT,
+    MANAGED_BY_URL_INVALID_TOOLTIP,
+    managedByURLInvalidLabelStyle,
+    managedByURLInvalidLabelStyleCompact
+} from '../../shared/utils';
 
 export interface NodeId {
     kind: string;
@@ -1479,6 +1487,34 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
     return {repoURL, targetRevision, path};
 }
 
+// getAppAllSources gets all app sources as an array. For single source apps, returns [source].
+// For multi-source apps, returns the sources array. For sourceHydrator apps, returns a single synthesized source.
+export function getAppAllSources(app?: appModels.Application): appModels.ApplicationSource[] {
+    if (!app) {
+        return [];
+    }
+
+    if (app.spec.sourceHydrator) {
+        return [
+            {
+                repoURL: app.spec.sourceHydrator.drySource.repoURL,
+                targetRevision: app.spec.sourceHydrator.syncSource.targetBranch,
+                path: app.spec.sourceHydrator.syncSource.path
+            } as appModels.ApplicationSource
+        ];
+    }
+
+    if (app.spec.sources && app.spec.sources.length > 0) {
+        return app.spec.sources;
+    }
+
+    if (app.spec.source) {
+        return [app.spec.source];
+    }
+
+    return [];
+}
+
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
 // field.
 export function getAppDefaultSyncRevision(app?: appModels.Application) {
@@ -1962,7 +1998,7 @@ export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {
     let url, isExternal;
     if (managedByURL) {
         // Validate the managed-by URL using the same validation as external links
-        if (!isValidURL(managedByURL)) {
+        if (!isValidManagedByURL(managedByURL)) {
             // If URL is invalid, fall back to local URL for security
             console.warn(`Invalid managed-by URL for application ${app.metadata.name}: ${managedByURL}`);
             url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
@@ -1990,7 +2026,7 @@ export function getApplicationLinkURLFromNode(node: any, baseHref: string): {url
     let url, isExternal;
     if (managedByURL) {
         // Validate the managed-by URL using the same validation as external links
-        if (!isValidURL(managedByURL)) {
+        if (!isValidManagedByURL(managedByURL)) {
             // If URL is invalid, fall back to local URL for security
             console.warn(`Invalid managed-by URL for application ${node.name}: ${managedByURL}`);
             url = baseHref + 'applications/' + node.namespace + '/' + node.name;

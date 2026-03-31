@@ -217,10 +217,10 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		eventHandlers:           map[uint64]OnEventHandler{},
 		processEventsHandlers:   map[uint64]OnProcessEventsHandler{},
 		log:                     log,
-		listRetryLimit:      1,
-		listRetryUseBackoff: false,
-		listRetryFunc:       ListRetryFuncNever,
-		parentUIDToChildren: make(map[types.UID][]kube.ResourceKey),
+		listRetryLimit:          1,
+		listRetryUseBackoff:     false,
+		listRetryFunc:           ListRetryFuncNever,
+		parentUIDToChildren:     make(map[types.UID]map[kube.ResourceKey]struct{}),
 	}
 	for i := range opts {
 		opts[i](cache)
@@ -280,10 +280,11 @@ type clusterCache struct {
 
 	respectRBAC int
 
-	// Parent-to-children index for O(1) hierarchy traversal
-	// Maps any resource's UID to its direct children's ResourceKeys
-	// Eliminates need for O(n) graph building during hierarchy traversal
-	parentUIDToChildren map[types.UID][]kube.ResourceKey
+	// Parent-to-children index for O(1) child lookup during hierarchy traversal
+	// Maps any resource's UID to a set of its direct children's ResourceKeys
+	// Using a set eliminates O(k) duplicate checking on insertions
+	// Used for cross-namespace hierarchy traversal; namespaced traversal still builds a graph
+	parentUIDToChildren map[types.UID]map[kube.ResourceKey]struct{}
 }
 
 type clusterCacheSync struct {
@@ -504,60 +505,65 @@ func (c *clusterCache) setNode(n *Resource) {
 		for k, v := range ns {
 			// update child resource owner references
 			if n.isInferredParentOf != nil && mightHaveInferredOwner(v) {
-				v.setOwnerRef(n.toOwnerRef(), n.isInferredParentOf(k))
+				shouldBeParent := n.isInferredParentOf(k)
+				v.setOwnerRef(n.toOwnerRef(), shouldBeParent)
+				// Update index inline for inferred ref changes.
+				// Note: The removal case (shouldBeParent=false) is currently unreachable for
+				// StatefulSet→PVC relationships because Kubernetes makes volumeClaimTemplates
+				// immutable. We include it for defensive correctness and future-proofing.
+				if n.Ref.UID != "" {
+					if shouldBeParent {
+						c.addToParentUIDToChildren(n.Ref.UID, k)
+					} else {
+						c.removeFromParentUIDToChildren(n.Ref.UID, k)
+					}
+				}
 			}
 			if mightHaveInferredOwner(n) && v.isInferredParentOf != nil {
-				n.setOwnerRef(v.toOwnerRef(), v.isInferredParentOf(n.ResourceKey()))
+				childKey := n.ResourceKey()
+				shouldBeParent := v.isInferredParentOf(childKey)
+				n.setOwnerRef(v.toOwnerRef(), shouldBeParent)
+				// Update index inline for inferred ref changes.
+				// Note: The removal case (shouldBeParent=false) is currently unreachable for
+				// StatefulSet→PVC relationships because Kubernetes makes volumeClaimTemplates
+				// immutable. We include it for defensive correctness and future-proofing.
+				if v.Ref.UID != "" {
+					if shouldBeParent {
+						c.addToParentUIDToChildren(v.Ref.UID, childKey)
+					} else {
+						c.removeFromParentUIDToChildren(v.Ref.UID, childKey)
+					}
+				}
 			}
 		}
 	}
 }
-
-// rebuildParentToChildrenIndex rebuilds the parent-to-children index after a full sync
-// This is called after initial sync to ensure all parent-child relationships are tracked
-func (c *clusterCache) rebuildParentToChildrenIndex() {
-	// Clear existing index
-	c.parentUIDToChildren = make(map[types.UID][]kube.ResourceKey)
-
-	// Rebuild parent-to-children index from all resources with owner refs
-	for _, resource := range c.resources {
-		key := resource.ResourceKey()
-		for _, ownerRef := range resource.OwnerRefs {
-			if ownerRef.UID != "" {
-				c.addToParentUIDToChildren(ownerRef.UID, key)
-			}
-		}
-	}
-}
-
 
 // addToParentUIDToChildren adds a child to the parent-to-children index
 func (c *clusterCache) addToParentUIDToChildren(parentUID types.UID, childKey kube.ResourceKey) {
-	// Check if child is already in the list to avoid duplicates
-	children := c.parentUIDToChildren[parentUID]
-	for _, existing := range children {
-		if existing == childKey {
-			return // Already exists, no need to add
-		}
+	// Get or create the set for this parent
+	childrenSet := c.parentUIDToChildren[parentUID]
+	if childrenSet == nil {
+		childrenSet = make(map[kube.ResourceKey]struct{})
+		c.parentUIDToChildren[parentUID] = childrenSet
 	}
-	c.parentUIDToChildren[parentUID] = append(children, childKey)
+	// Add child to set (O(1) operation, automatically handles duplicates)
+	childrenSet[childKey] = struct{}{}
 }
 
 // removeFromParentUIDToChildren removes a child from the parent-to-children index
 func (c *clusterCache) removeFromParentUIDToChildren(parentUID types.UID, childKey kube.ResourceKey) {
-	children := c.parentUIDToChildren[parentUID]
-	for i, existing := range children {
-		if existing == childKey {
-			// Remove by swapping with last element and truncating
-			children[i] = children[len(children)-1]
-			c.parentUIDToChildren[parentUID] = children[:len(children)-1]
+	childrenSet := c.parentUIDToChildren[parentUID]
+	if childrenSet == nil {
+		return
+	}
 
-			// Clean up empty entries
-			if len(c.parentUIDToChildren[parentUID]) == 0 {
-				delete(c.parentUIDToChildren, parentUID)
-			}
-			return
-		}
+	// Remove child from set (O(1) operation)
+	delete(childrenSet, childKey)
+
+	// Clean up empty sets to avoid memory leaks
+	if len(childrenSet) == 0 {
+		delete(c.parentUIDToChildren, parentUID)
 	}
 }
 
@@ -1014,7 +1020,7 @@ func (c *clusterCache) sync() error {
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.resources = make(map[kube.ResourceKey]*Resource)
 	c.namespacedResources = make(map[schema.GroupKind]bool)
-	c.parentUIDToChildren = make(map[types.UID][]kube.ResourceKey)
+	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
 	config := c.config
 	version, err := c.kubectl.GetServerVersion(config)
 	if err != nil {
@@ -1112,9 +1118,6 @@ func (c *clusterCache) sync() error {
 		c.log.Error(err, "Failed to sync cluster")
 		return fmt.Errorf("failed to sync cluster %s: %w", c.config.Host, err)
 	}
-
-	// Rebuild orphaned children index after all resources are loaded
-	c.rebuildParentToChildrenIndex()
 
 	c.log.Info("Cluster successfully synced")
 	return nil
@@ -1256,8 +1259,8 @@ func (c *clusterCache) processCrossNamespaceChildren(
 		}
 
 		// Use parent-to-children index for O(1) lookup of direct children
-		childKeys := c.parentUIDToChildren[clusterResource.Ref.UID]
-		for _, childKey := range childKeys {
+		childrenSet := c.parentUIDToChildren[clusterResource.Ref.UID]
+		for childKey := range childrenSet {
 			child := c.resources[childKey]
 			if child == nil {
 				continue
@@ -1310,8 +1313,8 @@ func (c *clusterCache) iterateChildrenUsingIndex(
 	action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool,
 ) {
 	// Look up direct children of this parent using the index
-	childKeys := c.parentUIDToChildren[parent.Ref.UID]
-	for _, childKey := range childKeys {
+	childrenSet := c.parentUIDToChildren[parent.Ref.UID]
+	for childKey := range childrenSet {
 		if actionCallState[childKey] != notCalled {
 			continue // action() already called or in progress
 		}
@@ -1631,6 +1634,10 @@ func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 				for k, v := range ns {
 					if mightHaveInferredOwner(v) && existing.isInferredParentOf(k) {
 						v.setOwnerRef(existing.toOwnerRef(), false)
+						// Update index inline when removing inferred ref
+						if existing.Ref.UID != "" {
+							c.removeFromParentUIDToChildren(existing.Ref.UID, k)
+						}
 					}
 				}
 			}

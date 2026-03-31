@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="24 known vulnerabilities found in 60 vulnerable dependency paths.">
+  <meta name="description" content="25 known vulnerabilities found in 63 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">March 22nd 2026, 12:30:06 am (UTC+00:00)</p>
+                <p class="timestamp">March 29th 2026, 12:33:19 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -505,8 +505,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>24</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>60 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>25</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>63 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2860</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -1152,6 +1152,114 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-FASTXMLPARSER-15699647">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Infinite loop</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            brace-expansion
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, argo-ui@1.0.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        argo-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        minimatch@5.1.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        brace-expansion@2.0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        redoc@2.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        @redocly/openapi-core@1.30.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        minimatch@5.1.6
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        brace-expansion@2.0.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        minimatch@3.1.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        brace-expansion@1.1.11
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://github.com/juliangruber/brace-expansion">brace-expansion</a> is a Brace expansion as known from sh/bash</p>
+        <p>Affected versions of this package are vulnerable to Infinite loop through the <code>expand</code> function when processing a brace pattern with a zero step value. An attacker can cause the process to hang and exhaust system memory by supplying specially crafted input, such as <code>{1..2..0}</code>. This can lead to significant resource consumption and denial of service. </p>
+        <h2 id="workaround">Workaround</h2>
+        <p>This vulnerability can be mitigated by sanitizing strings passed to <code>expand</code> to ensure a step value of <code>0</code> is not used.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>brace-expansion</code> to version 5.0.5 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/juliangruber/brace-expansion/security/advisories/GHSA-f886-m6hf-6m8v">GitHub Advisory</a></li>
+        <li><a href="https://github.com/juliangruber/brace-expansion/commit/9a02af5c5c80731fae470cc3218c16876bb25051">GitHub Commit</a></li>
+        <li><a href="https://github.com/juliangruber/brace-expansion/blob/daa71bcb4a30a2df9bcb7f7b8daaf2ab30e5794a/src/index.ts#L107-L113">Vulnerable Code</a></li>
+        <li><a href="https://github.com/juliangruber/brace-expansion/blob/daa71bcb4a30a2df9bcb7f7b8daaf2ab30e5794a/src/index.ts#L184">Vulnerable Code</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-BRACEEXPANSION-15789759">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
