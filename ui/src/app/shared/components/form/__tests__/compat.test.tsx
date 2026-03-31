@@ -1,5 +1,5 @@
 import * as React from 'react';
-import * as renderer from 'react-test-renderer';
+import {render, screen, fireEvent} from '@testing-library/react';
 import {act} from 'react';
 import {Form, FormApi, Text, TextArea, FormFieldHOC as FormField, ReactForm} from 'argo-ui';
 const {Checkbox} = ReactForm;
@@ -12,19 +12,16 @@ const {Checkbox} = ReactForm;
 function renderForm(props: Partial<Parameters<typeof Form>[0]> & {children?: (api: FormApi) => React.ReactNode} = {}) {
     let capturedApi: FormApi | null = null;
     const {children, ...rest} = props;
-    let instance: renderer.ReactTestRenderer;
-    act(() => {
-        instance = renderer.create(
-            <Form
-                defaultValues={rest.defaultValues || {}}
-                getApi={api => { capturedApi = api; }}
-                {...rest}
-            >
-                {children || ((_api: FormApi) => <div />)}
-            </Form>
-        );
-    });
-    return {api: capturedApi as unknown as FormApi, getInstance: () => instance};
+    render(
+        <Form
+            defaultValues={rest.defaultValues || {}}
+            getApi={api => { capturedApi = api; }}
+            {...rest}
+        >
+            {children || ((_api: FormApi) => <div />)}
+        </Form>
+    );
+    return {api: capturedApi as unknown as FormApi};
 }
 
 // ===========================================================================
@@ -33,8 +30,8 @@ function renderForm(props: Partial<Parameters<typeof Form>[0]> & {children?: (ap
 
 describe('Form – basic rendering & value binding', () => {
     test('renders without crashing', () => {
-        const {getInstance} = renderForm({defaultValues: {name: 'hello'}});
-        expect(getInstance().toJSON()).not.toBeNull();
+        renderForm({defaultValues: {name: 'hello'}});
+        // If render didn't throw, the test passes
     });
 
     test('getApi is called with a FormApi after mount', () => {
@@ -262,13 +259,11 @@ describe('withFieldApi / FormField HOC', () => {
             return null;
         });
 
-        act(() => {
-            renderer.create(
-                <Form defaultValues={{color: 'blue'}}>
-                    {() => <Inspector field='color' />}
-                </Form>
-            );
-        });
+        render(
+            <Form defaultValues={{color: 'blue'}}>
+                {() => <Inspector field='color' />}
+            </Form>
+        );
         expect(capturedValue).toBe('blue');
     });
 
@@ -279,13 +274,11 @@ describe('withFieldApi / FormField HOC', () => {
             return null;
         });
 
-        act(() => {
-            renderer.create(
-                <Form defaultValues={{color: 'blue'}} getApi={api => { capturedApi = api; }}>
-                    {() => <Writer field='color' />}
-                </Form>
-            );
-        });
+        render(
+            <Form defaultValues={{color: 'blue'}} getApi={api => { capturedApi = api; }}>
+                {() => <Writer field='color' />}
+            </Form>
+        );
         expect(capturedApi!.values.color).toBe('green');
     });
 
@@ -310,18 +303,14 @@ describe('withFieldApi / FormField HOC', () => {
             return null;
         });
 
-        act(() => {
-            renderer.create(<Inspector field='token' formApi={fakeFormApi} />);
-        });
+        render(<Inspector field='token' formApi={fakeFormApi} />);
         expect(capturedValue).toBe('abc');
     });
 
     test('throws readable error when used outside Form without formApi', () => {
         const BadComponent = FormField(() => null);
         expect(() => {
-            act(() => {
-                renderer.create(<BadComponent field='x' />);
-            });
+            render(<BadComponent field='x' />);
         }).toThrow('FormField components must be used inside <Form> or be passed formApi');
     });
 });
@@ -332,136 +321,109 @@ describe('withFieldApi / FormField HOC', () => {
 
 describe('Text field component', () => {
     test('renders an input with the current field value', () => {
-        let tree: renderer.ReactTestRenderer;
-        act(() => {
-            tree = renderer.create(
-                <Form defaultValues={{name: 'alice'}}>
-                    {() => <Text field='name' />}
-                </Form>
-            );
-        });
-        const input = tree!.root.findByType('input');
-        expect(input.props.value).toBe('alice');
+        render(
+            <Form defaultValues={{name: 'alice'}}>
+                {() => <Text field='name' />}
+            </Form>
+        );
+        const input = screen.getByRole('textbox') as HTMLInputElement;
+        expect(input.value).toBe('alice');
     });
 
     test('onChange updates form value', () => {
         let capturedApi: FormApi | null = null;
-        let tree: renderer.ReactTestRenderer;
+        render(
+            <Form defaultValues={{name: 'alice'}} getApi={api => { capturedApi = api; }}>
+                {() => <Text field='name' />}
+            </Form>
+        );
+        const input = screen.getByRole('textbox');
         act(() => {
-            tree = renderer.create(
-                <Form defaultValues={{name: 'alice'}} getApi={api => { capturedApi = api; }}>
-                    {() => <Text field='name' />}
-                </Form>
-            );
-        });
-        const input = tree!.root.findByType('input');
-        act(() => {
-            input.props.onChange({currentTarget: {value: 'bob'}});
+            fireEvent.change(input, {target: {value: 'bob'}, currentTarget: {value: 'bob'}});
         });
         expect(capturedApi!.values.name).toBe('bob');
     });
 
     test('onBlur marks field as touched', () => {
         let capturedApi: FormApi | null = null;
-        let tree: renderer.ReactTestRenderer;
+        render(
+            <Form defaultValues={{name: ''}} getApi={api => { capturedApi = api; }}>
+                {() => <Text field='name' />}
+            </Form>
+        );
+        const input = screen.getByRole('textbox');
         act(() => {
-            tree = renderer.create(
-                <Form defaultValues={{name: ''}} getApi={api => { capturedApi = api; }}>
-                    {() => <Text field='name' />}
-                </Form>
-            );
-        });
-        const input = tree!.root.findByType('input');
-        act(() => {
-            input.props.onBlur({});
+            fireEvent.blur(input);
         });
         expect(capturedApi!.touched.name).toBe(true);
     });
 
     test('renders empty string for undefined field value', () => {
-        let tree: renderer.ReactTestRenderer;
-        act(() => {
-            tree = renderer.create(
-                <Form defaultValues={{}}>
-                    {() => <Text field='missing' />}
-                </Form>
-            );
-        });
-        const input = tree!.root.findByType('input');
-        expect(input.props.value).toBe('');
+        render(
+            <Form defaultValues={{}}>
+                {() => <Text field='missing' />}
+            </Form>
+        );
+        const input = screen.getByRole('textbox') as HTMLInputElement;
+        expect(input.value).toBe('');
     });
 });
 
 describe('TextArea field component', () => {
     test('renders a textarea with the current field value', () => {
-        let tree: renderer.ReactTestRenderer;
-        act(() => {
-            tree = renderer.create(
-                <Form defaultValues={{notes: 'hello'}}>
-                    {() => <TextArea field='notes' />}
-                </Form>
-            );
-        });
-        const ta = tree!.root.findByType('textarea');
-        expect(ta.props.value).toBe('hello');
+        render(
+            <Form defaultValues={{notes: 'hello'}}>
+                {() => <TextArea field='notes' />}
+            </Form>
+        );
+        const ta = screen.getByRole('textbox') as HTMLTextAreaElement;
+        expect(ta.value).toBe('hello');
     });
 
     test('onChange updates form value', () => {
         let capturedApi: FormApi | null = null;
-        let tree: renderer.ReactTestRenderer;
-        act(() => {
-            tree = renderer.create(
-                <Form defaultValues={{notes: 'hello'}} getApi={api => { capturedApi = api; }}>
-                    {() => <TextArea field='notes' />}
-                </Form>
-            );
-        });
-        const ta = tree!.root.findByType('textarea');
-        act(() => { ta.props.onChange({currentTarget: {value: 'world'}}); });
+        render(
+            <Form defaultValues={{notes: 'hello'}} getApi={api => { capturedApi = api; }}>
+                {() => <TextArea field='notes' />}
+            </Form>
+        );
+        const ta = screen.getByRole('textbox');
+        act(() => { fireEvent.change(ta, {target: {value: 'world'}, currentTarget: {value: 'world'}}); });
         expect(capturedApi!.values.notes).toBe('world');
     });
 });
 
 describe('Checkbox field component', () => {
     test('renders a checkbox with correct checked state', () => {
-        let tree: renderer.ReactTestRenderer;
-        act(() => {
-            tree = renderer.create(
-                <Form defaultValues={{enabled: true}}>
-                    {() => <Checkbox field='enabled' />}
-                </Form>
-            );
-        });
-        const cb = tree!.root.findByType('input');
-        expect(cb.props.type).toBe('checkbox');
-        expect(cb.props.checked).toBe(true);
+        render(
+            <Form defaultValues={{enabled: true}}>
+                {() => <Checkbox field='enabled' />}
+            </Form>
+        );
+        const cb = screen.getByRole('checkbox') as HTMLInputElement;
+        expect(cb.type).toBe('checkbox');
+        expect(cb.checked).toBe(true);
     });
 
     test('onChange toggles boolean value', () => {
         let capturedApi: FormApi | null = null;
-        let tree: renderer.ReactTestRenderer;
-        act(() => {
-            tree = renderer.create(
-                <Form defaultValues={{enabled: true}} getApi={api => { capturedApi = api; }}>
-                    {() => <Checkbox field='enabled' />}
-                </Form>
-            );
-        });
-        const cb = tree!.root.findByType('input');
-        act(() => { cb.props.onChange({currentTarget: {checked: false}}); });
+        render(
+            <Form defaultValues={{enabled: true}} getApi={api => { capturedApi = api; }}>
+                {() => <Checkbox field='enabled' />}
+            </Form>
+        );
+        const cb = screen.getByRole('checkbox');
+        act(() => { fireEvent.click(cb); });
         expect(capturedApi!.values.enabled).toBe(false);
     });
 
     test('treats falsy undefined field as unchecked', () => {
-        let tree: renderer.ReactTestRenderer;
-        act(() => {
-            tree = renderer.create(
-                <Form defaultValues={{}}>
-                    {() => <Checkbox field='missing' />}
-                </Form>
-            );
-        });
-        const cb = tree!.root.findByType('input');
-        expect(cb.props.checked).toBe(false);
+        render(
+            <Form defaultValues={{}}>
+                {() => <Checkbox field='missing' />}
+            </Form>
+        );
+        const cb = screen.getByRole('checkbox') as HTMLInputElement;
+        expect(cb.checked).toBe(false);
     });
 });

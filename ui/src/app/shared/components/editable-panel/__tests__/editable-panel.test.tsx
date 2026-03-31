@@ -1,5 +1,5 @@
 import * as React from 'react';
-import * as renderer from 'react-test-renderer';
+import {render as rtlRender, screen, fireEvent} from '@testing-library/react';
 import {act} from 'react';
 
 // helpTip is imported by editable-panel from applications/components/utils,
@@ -7,6 +7,7 @@ import {act} from 'react';
 // Mock the entire utils module to avoid transform failures.
 jest.mock('../../../../applications/components/utils', () => ({
     helpTip: (text: string) => React.createElement('span', {title: text}, '?'),
+    SpinningIcon: () => React.createElement('span', {}, '...'),
 }));
 
 import {EditablePanel, EditablePanelItem} from '../editable-panel';
@@ -32,18 +33,8 @@ function Wrapper({children}: {children: React.ReactNode}) {
     return <Context.Provider value={mockContext}>{children}</Context.Provider>;
 }
 
-function render(element: React.ReactElement) {
-    let instance: renderer.ReactTestRenderer;
-    act(() => {
-        instance = renderer.create(<Wrapper>{element}</Wrapper>);
-    });
-    return {
-        getInstance: () => instance,
-        findByText: (text: string) => {
-            const json = instance.toJSON();
-            return JSON.stringify(json).includes(text);
-        },
-    };
+function renderPanel(element: React.ReactElement) {
+    return rtlRender(<Wrapper>{element}</Wrapper>);
 }
 
 // ---------------------------------------------------------------------------
@@ -64,109 +55,71 @@ const basicItems: EditablePanelItem[] = [
 
 describe('EditablePanel – edit mode toggle', () => {
     test('renders in view mode by default', () => {
-        const {findByText} = render(
+        renderPanel(
             <EditablePanel
                 values={{name: 'alice'}}
                 items={basicItems}
                 save={jest.fn().mockResolvedValue(undefined)}
             />
         );
-        expect(findByText('alice')).toBe(true);
-        expect(findByText('Edit')).toBe(true);
-        expect(findByText('Save')).toBe(false);
+        expect(screen.queryByText('alice')).toBeTruthy();
+        expect(screen.queryByRole('button', {name: /Edit/i})).toBeTruthy();
+        expect(screen.queryByRole('button', {name: /Save/i})).toBeFalsy();
     });
 
     test('clicking Edit switches to edit mode', () => {
-        let instance: renderer.ReactTestRenderer;
-        act(() => {
-            instance = renderer.create(
-                <Wrapper>
-                    <EditablePanel
-                        values={{name: 'alice'}}
-                        items={basicItems}
-                        save={jest.fn().mockResolvedValue(undefined)}
-                    />
-                </Wrapper>
-            );
-        });
+        renderPanel(
+            <EditablePanel
+                values={{name: 'alice'}}
+                items={basicItems}
+                save={jest.fn().mockResolvedValue(undefined)}
+            />
+        );
 
-        const editButton = instance!.root.findAll(n => n.type === 'button' && String(n.children).includes('Edit'))[0];
-        act(() => { editButton.props.onClick(); });
+        act(() => { fireEvent.click(screen.getByRole('button', {name: /Edit/i})); });
 
-        const json = JSON.stringify(instance!.toJSON());
-        expect(json).toContain('Save');
-        expect(json).toContain('Cancel');
+        expect(screen.queryByRole('button', {name: /Save/i})).toBeTruthy();
+        expect(screen.queryByRole('button', {name: /Cancel/i})).toBeTruthy();
     });
 
     test('clicking Cancel exits edit mode without calling save', () => {
         const save = jest.fn().mockResolvedValue(undefined);
-        let instance: renderer.ReactTestRenderer;
-        act(() => {
-            instance = renderer.create(
-                <Wrapper>
-                    <EditablePanel values={{name: 'alice'}} items={basicItems} save={save} />
-                </Wrapper>
-            );
-        });
+        renderPanel(
+            <EditablePanel values={{name: 'alice'}} items={basicItems} save={save} />
+        );
 
-        // Enter edit mode
-        const editButton = instance!.root.findAll(n => n.type === 'button' && String(n.children).includes('Edit'))[0];
-        act(() => { editButton.props.onClick(); });
-
-        // Click Cancel
-        const cancelButton = instance!.root.findAll(n => n.type === 'button' && String(n.children).includes('Cancel'))[0];
-        act(() => { cancelButton.props.onClick(); });
+        act(() => { fireEvent.click(screen.getByRole('button', {name: /Edit/i})); });
+        act(() => { fireEvent.click(screen.getByRole('button', {name: /Cancel/i})); });
 
         expect(save).not.toHaveBeenCalled();
-        const json = JSON.stringify(instance!.toJSON());
-        expect(json).toContain('Edit');
-        expect(json).not.toContain('Cancel');
+        expect(screen.queryByRole('button', {name: /Edit/i})).toBeTruthy();
+        expect(screen.queryByRole('button', {name: /Cancel/i})).toBeFalsy();
     });
 
     test('clicking Save calls save() and returns to view mode', async () => {
         const save = jest.fn().mockResolvedValue(undefined);
-        let instance: renderer.ReactTestRenderer;
-        act(() => {
-            instance = renderer.create(
-                <Wrapper>
-                    <EditablePanel values={{name: 'alice'}} items={basicItems} save={save} />
-                </Wrapper>
-            );
-        });
+        renderPanel(
+            <EditablePanel values={{name: 'alice'}} items={basicItems} save={save} />
+        );
 
-        // Enter edit mode
-        const editButton = instance!.root.findAll(n => n.type === 'button' && String(n.children).includes('Edit'))[0];
-        act(() => { editButton.props.onClick(); });
-
-        // Click Save (triggers formApiRef.current.submitForm)
-        const saveButton = instance!.root.findAll(n => n.type === 'button' && String(n.children).includes('Save'))[0];
-        await act(async () => { saveButton.props.onClick(); });
+        act(() => { fireEvent.click(screen.getByRole('button', {name: /Edit/i})); });
+        await act(async () => { fireEvent.click(screen.getByRole('button', {name: /Save/i})); });
 
         expect(save).toHaveBeenCalled();
-        const json = JSON.stringify(instance!.toJSON());
-        expect(json).toContain('Edit'); // back to view mode
+        expect(screen.queryByRole('button', {name: /Edit/i})).toBeTruthy(); // back to view mode
     });
 
     test('onModeSwitch is called when entering and exiting edit mode', async () => {
         const onModeSwitch = jest.fn();
         const save = jest.fn().mockResolvedValue(undefined);
-        let instance: renderer.ReactTestRenderer;
-        act(() => {
-            instance = renderer.create(
-                <Wrapper>
-                    <EditablePanel values={{name: 'alice'}} items={basicItems} save={save} onModeSwitch={onModeSwitch} />
-                </Wrapper>
-            );
-        });
+        renderPanel(
+            <EditablePanel values={{name: 'alice'}} items={basicItems} save={save} onModeSwitch={onModeSwitch} />
+        );
 
-        // Enter edit mode
-        const editButton = instance!.root.findAll(n => n.type === 'button' && String(n.children).includes('Edit'))[0];
-        act(() => { editButton.props.onClick(); });
+        act(() => { fireEvent.click(screen.getByRole('button', {name: /Edit/i})); });
         expect(onModeSwitch).toHaveBeenCalledTimes(1);
 
-        // Cancel
-        const cancelButton = instance!.root.findAll(n => n.type === 'button' && String(n.children).includes('Cancel'))[0];
-        act(() => { cancelButton.props.onClick(); });
+        act(() => { fireEvent.click(screen.getByRole('button', {name: /Cancel/i})); });
         expect(onModeSwitch).toHaveBeenCalledTimes(2);
     });
 });
@@ -178,25 +131,16 @@ describe('EditablePanel – edit mode toggle', () => {
 describe('EditablePanel – save failure handling', () => {
     test('shows notification on save failure and stays in edit mode', async () => {
         const save = jest.fn().mockRejectedValue(new Error('Server error'));
-        let instance: renderer.ReactTestRenderer;
-        act(() => {
-            instance = renderer.create(
-                <Wrapper>
-                    <EditablePanel values={{name: 'alice'}} items={basicItems} save={save} />
-                </Wrapper>
-            );
-        });
+        renderPanel(
+            <EditablePanel values={{name: 'alice'}} items={basicItems} save={save} />
+        );
 
-        const editButton = instance!.root.findAll(n => n.type === 'button' && String(n.children).includes('Edit'))[0];
-        act(() => { editButton.props.onClick(); });
-
-        const saveButton = instance!.root.findAll(n => n.type === 'button' && String(n.children).includes('Save'))[0];
-        await act(async () => { saveButton.props.onClick(); });
+        act(() => { fireEvent.click(screen.getByRole('button', {name: /Edit/i})); });
+        await act(async () => { fireEvent.click(screen.getByRole('button', {name: /Save/i})); });
 
         expect(mockNotificationsShow).toHaveBeenCalled();
         // Panel stays in edit mode (Save button still present)
-        const json = JSON.stringify(instance!.toJSON());
-        expect(json).toContain('Save');
+        expect(screen.queryByRole('button', {name: /Save/i})).toBeTruthy();
     });
 });
 
@@ -206,22 +150,16 @@ describe('EditablePanel – save failure handling', () => {
 
 describe('EditablePanel – noReadonlyMode', () => {
     test('renders in edit mode immediately when noReadonlyMode=true', () => {
-        let instance: renderer.ReactTestRenderer;
-        act(() => {
-            instance = renderer.create(
-                <Wrapper>
-                    <EditablePanel
-                        values={{name: 'alice'}}
-                        items={basicItems}
-                        save={jest.fn().mockResolvedValue(undefined)}
-                        noReadonlyMode={true}
-                    />
-                </Wrapper>
-            );
-        });
-        // No Edit/Save buttons in noReadonlyMode (those are only shown in standard mode)
-        const json = JSON.stringify(instance!.toJSON());
-        expect(json).not.toContain('"Edit"');
+        renderPanel(
+            <EditablePanel
+                values={{name: 'alice'}}
+                items={basicItems}
+                save={jest.fn().mockResolvedValue(undefined)}
+                noReadonlyMode={true}
+            />
+        );
+        // No Edit button in noReadonlyMode
+        expect(screen.queryByRole('button', {name: /^Edit$/i})).toBeFalsy();
     });
 
     test('formDidUpdate triggers save() automatically in noReadonlyMode', async () => {
@@ -238,18 +176,14 @@ describe('EditablePanel – noReadonlyMode', () => {
             },
         ];
 
-        act(() => {
-            renderer.create(
-                <Wrapper>
-                    <EditablePanel
-                        values={{name: 'alice'}}
-                        items={editItems}
-                        save={save}
-                        noReadonlyMode={true}
-                    />
-                </Wrapper>
-            );
-        });
+        renderPanel(
+            <EditablePanel
+                values={{name: 'alice'}}
+                items={editItems}
+                save={save}
+                noReadonlyMode={true}
+            />
+        );
 
         // Trigger a value change via the captured FormApi
         await act(async () => {
@@ -284,18 +218,12 @@ describe('EditablePanel – values sync', () => {
         ];
 
         const valuesV1 = {a: 1, b: 2};
-        let instance: renderer.ReactTestRenderer;
-        act(() => {
-            instance = renderer.create(
-                <Wrapper>
-                    <EditablePanel values={valuesV1} items={editItems} save={jest.fn().mockResolvedValue(undefined)} />
-                </Wrapper>
-            );
-        });
+        const {rerender} = renderPanel(
+            <EditablePanel values={valuesV1} items={editItems} save={jest.fn().mockResolvedValue(undefined)} />
+        );
 
         // Enter edit mode to get formApi
-        const editButton = instance!.root.findAll(n => n.type === 'button' && String(n.children).includes('Edit'))[0];
-        act(() => { editButton.props.onClick(); });
+        act(() => { fireEvent.click(screen.getByRole('button', {name: /Edit/i})); });
 
         // Patch captured formApi to spy on setAllValues
         if (capturedFormApi) {
@@ -305,7 +233,7 @@ describe('EditablePanel – values sync', () => {
         // Update with same data, different key order — JSON.stringify will differ
         const valuesV2 = {b: 2, a: 1};
         act(() => {
-            instance.update(
+            rerender(
                 <Wrapper>
                     <EditablePanel values={valuesV2} items={editItems} save={jest.fn().mockResolvedValue(undefined)} />
                 </Wrapper>
@@ -329,19 +257,14 @@ describe('EditablePanel – values sync', () => {
             },
         ];
 
-        let instance: renderer.ReactTestRenderer;
-        act(() => {
-            instance = renderer.create(
-                <Wrapper>
-                    <EditablePanel values={{name: 'v1'}} items={editItems} save={jest.fn().mockResolvedValue(undefined)} noReadonlyMode />
-                </Wrapper>
-            );
-        });
+        const {rerender} = renderPanel(
+            <EditablePanel values={{name: 'v1'}} items={editItems} save={jest.fn().mockResolvedValue(undefined)} noReadonlyMode />
+        );
 
         const setAllValuesSpy = jest.spyOn(capturedFormApi!, 'setAllValues');
 
         act(() => {
-            instance.update(
+            rerender(
                 <Wrapper>
                     <EditablePanel values={{name: 'v2'}} items={editItems} save={jest.fn().mockResolvedValue(undefined)} noReadonlyMode />
                 </Wrapper>
@@ -358,90 +281,65 @@ describe('EditablePanel – values sync', () => {
 
 describe('EditablePanel – collapsible behavior', () => {
     test('renders collapsed panel when collapsible=true and collapsed=true', () => {
-        let instance: renderer.ReactTestRenderer;
-        act(() => {
-            instance = renderer.create(
-                <Wrapper>
-                    <EditablePanel
-                        values={{}}
-                        items={[]}
-                        collapsible={true}
-                        collapsed={true}
-                        collapsedDescription='Click to expand'
-                    />
-                </Wrapper>
-            );
-        });
-        const json = JSON.stringify(instance!.toJSON());
-        expect(json).toContain('Click to expand');
-        expect(json).not.toContain('"Edit"');
+        renderPanel(
+            <EditablePanel
+                values={{}}
+                items={[]}
+                collapsible={true}
+                collapsed={true}
+                collapsedDescription='Click to expand'
+            />
+        );
+        expect(screen.queryByText('Click to expand')).toBeTruthy();
+        expect(screen.queryByRole('button', {name: /^Edit$/i})).toBeFalsy();
     });
 
     test('clicking collapsed panel expands it', () => {
-        let instance: renderer.ReactTestRenderer;
-        act(() => {
-            instance = renderer.create(
-                <Wrapper>
-                    <EditablePanel
-                        values={{}}
-                        items={[]}
-                        collapsible={true}
-                        collapsed={true}
-                        collapsedDescription='Click to expand'
-                    />
-                </Wrapper>
-            );
-        });
+        renderPanel(
+            <EditablePanel
+                values={{}}
+                items={[]}
+                collapsible={true}
+                collapsed={true}
+                collapsedDescription='Click to expand'
+            />
+        );
 
-        // The collapsed panel is a div with an onClick
-        const collapsedDiv = instance!.root.findAll(n => n.type === 'div' && typeof n.props.onClick === 'function')[0];
-        act(() => { collapsedDiv.props.onClick(); });
+        const collapsedDiv = document.querySelector('[class*="redirect-panel"]') as HTMLElement;
+        act(() => { fireEvent.click(collapsedDiv); });
 
-        const json = JSON.stringify(instance!.toJSON());
-        expect(json).not.toContain('Click to expand');
+        expect(screen.queryByText('Click to expand')).toBeFalsy();
     });
 
     test('external collapsed prop change updates internal state', () => {
-        let instance: renderer.ReactTestRenderer;
-        act(() => {
-            instance = renderer.create(
-                <Wrapper>
-                    <EditablePanel values={{}} items={[]} collapsible={true} collapsed={false} />
-                </Wrapper>
-            );
-        });
-        // Not collapsed initially
-        expect(JSON.stringify(instance!.toJSON())).not.toContain('fa-angle-down filter__collapse');
+        const {rerender} = renderPanel(
+            <EditablePanel values={{}} items={[]} collapsible={true} collapsed={false} />
+        );
+        // Not collapsed initially — no redirect-panel
+        expect(document.querySelector('[class*="redirect-panel"]')).toBeFalsy();
 
         act(() => {
-            instance.update(
+            rerender(
                 <Wrapper>
                     <EditablePanel values={{}} items={[]} collapsible={true} collapsed={true} />
                 </Wrapper>
             );
         });
-        // Now collapsed
-        const json = JSON.stringify(instance!.toJSON());
-        // The collapsed view renders redirect-panel, not the editable white-box
-        expect(json).toContain('redirect-panel');
+        // Now collapsed — redirect-panel present
+        expect(document.querySelector('[class*="redirect-panel"]')).toBeTruthy();
     });
 
     test('disabled Edit button renders when hasMultipleSources=true', () => {
-        let instance: renderer.ReactTestRenderer;
-        act(() => {
-            instance = renderer.create(
-                <Wrapper>
-                    <EditablePanel
-                        values={{}}
-                        items={[]}
-                        save={jest.fn()}
-                        hasMultipleSources={true}
-                    />
-                </Wrapper>
-            );
-        });
-        const editButton = instance!.root.findAll(n => n.type === 'button' && String(n.children).includes('Edit'));
-        expect(editButton.length).toBeGreaterThan(0);
-        expect(editButton[0].props.disabled).toBe(true);
+        renderPanel(
+            <EditablePanel
+                values={{}}
+                items={[]}
+                save={jest.fn()}
+                hasMultipleSources={true}
+            />
+        );
+        const editButton = screen.getByRole('button', {name: /Edit/i}) as HTMLButtonElement;
+        expect(editButton).toBeTruthy();
+        expect(editButton.disabled).toBe(true);
     });
 });
