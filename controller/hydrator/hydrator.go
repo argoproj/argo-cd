@@ -3,6 +3,7 @@ package hydrator
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"path/filepath"
@@ -173,10 +174,10 @@ func (h *Hydrator) shouldCheckDrySourceRevision(app *appv1.Application, now time
 
 func (h *Hydrator) getLatestDrySourceRevision(app *appv1.Application) (string, error) {
 	if h.repoGetter == nil {
-		return "", fmt.Errorf("repo getter is not configured")
+		return "", errors.New("repo getter is not configured")
 	}
 	if h.repoClientset == nil {
-		return "", fmt.Errorf("repo clientset is not configured")
+		return "", errors.New("repo clientset is not configured")
 	}
 
 	repo, err := h.repoGetter.GetRepository(context.Background(), app.Spec.SourceHydrator.DrySource.RepoURL, app.Spec.Project)
