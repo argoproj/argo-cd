@@ -297,20 +297,14 @@ func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string,
 		return nil, err
 	}
 
-	inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
-	if err != nil {
-		log.Warnf(errCheckingInClusterEnabled, "GetClusterServersByName", err)
-	}
-
-	// GetSettings() is only needed when the in-cluster address is involved: either the
-	// caller used the canonical "in-cluster" name, or a cluster secret maps to the
-	// in-cluster API server address
+	// attempt to short circuit if the in-cluster name is not involved
 	if name != appv1.KubernetesInClusterName && !slices.Contains(servers, appv1.KubernetesInternalAPIServerAddr) {
 		return servers, nil
 	}
 
+	inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
 	if err != nil {
-		return nil, err
+		log.Warnf(errCheckingInClusterEnabled, "GetClusterServersByName", err)
 	}
 
 	// Handle local cluster special case
