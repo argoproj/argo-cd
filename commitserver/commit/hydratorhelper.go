@@ -102,9 +102,6 @@ func WriteForPaths(root *os.Root, repoUrl, drySha string, dryCommitMetadata *app
 		}
 	}
 	// if no manifest changes then skip commit
-	if !atleastOneManifestChanged {
-		return false, nil
-	}
 	return atleastOneManifestChanged, nil
 }
 
@@ -140,11 +137,13 @@ func writeReadme(root *os.Root, dirPath string, metadata hydrator.HydratorCommit
 	if err != nil && !os.IsExist(err) {
 		return fmt.Errorf("failed to create README file: %w", err)
 	}
+	defer func() {
+		err := readmeFile.Close()
+		if err != nil {
+			log.WithError(err).Error("failed to close README file")
+		}
+	}()
 	err = readmeTemplate.Execute(readmeFile, metadata)
-	closeErr := readmeFile.Close()
-	if closeErr != nil {
-		log.WithError(closeErr).Error("failed to close README file")
-	}
 	if err != nil {
 		return fmt.Errorf("failed to execute readme template: %w", err)
 	}
