@@ -4724,3 +4724,49 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 		assert.ErrorContains(t, err, "no matching service account found")
 	})
 }
+
+func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+
+	projWithSA := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "proj-impersonate", Namespace: "default"},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+				{
+					Server:                "https://cluster-api.example.com",
+					Namespace:             test.FakeDestNamespace,
+					DefaultServiceAccount: "test-sa",
+				},
+			},
+		},
+	}
+
+	app := newTestApp(func(a *v1alpha1.Application) {
+		a.Spec.Project = "proj-impersonate"
+	})
+
+	appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		map[string]string{"application.sync.impersonation.enabled": "true"},
+		app, projWithSA,
+	)
+
+	appName := app.Name
+	group := "argoproj.io"
+	kind := "Application"
+	project := "proj-impersonate"
+
+	_, _, _, config, err := appServer.getUnstructuredLiveResourceOrApp(t.Context(), rbac.ActionGet, &application.ApplicationResourceRequest{
+		Name:         &appName,
+		ResourceName: &appName,
+		Group:        &group,
+		Kind:         &kind,
+		Project:      &project,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
+}
