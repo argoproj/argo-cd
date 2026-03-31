@@ -334,11 +334,10 @@ jobs:
       - name: Install node dependencies
         run: |
           cd ui && yarn install --frozen-lockfile --ignore-optional --non-interactive
-      - name: Test UI code
-        run: yarn test
-        working-directory: ui/
       - name: Build UI code
-        run: yarn build
+        run: |
+          NODE_ENV=test yarn test
+          yarn build
         env:
           NODE_ENV: production
           NODE_ONLINE_ENV: online
