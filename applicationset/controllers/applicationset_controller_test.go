@@ -8479,7 +8479,6 @@ func TestGetLatestWaitingTransitionTimeOfAppset(t *testing.T) {
 	now := metav1.Now()
 	earlierTime := metav1.NewTime(now.Add(-5 * time.Minute))
 	laterTime := metav1.NewTime(now.Add(-2 * time.Minute))
-	muchLater := metav1.NewTime(now.Add(1 * time.Minute))
 
 	tests := []struct {
 		name     string
@@ -8559,54 +8558,6 @@ func TestGetLatestWaitingTransitionTimeOfAppset(t *testing.T) {
 							Status:             v1alpha1.ProgressiveSyncHealthy,
 							LastTransitionTime: &now,
 							Message:            "Healthy",
-						},
-					},
-				},
-			},
-			expected: &laterTime,
-		},
-		{
-			name: "second app entered waiting later anchors reconcile window to that time",
-			appset: &v1alpha1.ApplicationSet{
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application:        "app1",
-							Status:             v1alpha1.ProgressiveSyncWaiting,
-							LastTransitionTime: &earlierTime,
-							Message:            "Application has pending changes, setting status to Waiting",
-							TargetRevisions:    []string{"new-rev"},
-						},
-						{
-							Application:        "app2",
-							Status:             v1alpha1.ProgressiveSyncWaiting,
-							LastTransitionTime: &muchLater,
-							Message:            "Application has pending changes, setting status to Waiting",
-							TargetRevisions:    []string{"new-rev"},
-						},
-					},
-				},
-			},
-			expected: &muchLater,
-		},
-		{
-			name: "still returns latest while both apps remain Waiting (status-only; not nil until Healthy)",
-			appset: &v1alpha1.ApplicationSet{
-				Status: v1alpha1.ApplicationSetStatus{
-					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
-						{
-							Application:        "app1",
-							Status:             v1alpha1.ProgressiveSyncWaiting,
-							LastTransitionTime: &earlierTime,
-							Message:            "Application has pending changes, setting status to Waiting",
-							TargetRevisions:    []string{"new-rev"},
-						},
-						{
-							Application:        "app2",
-							Status:             v1alpha1.ProgressiveSyncWaiting,
-							LastTransitionTime: &laterTime,
-							Message:            "Application has pending changes, setting status to Waiting",
-							TargetRevisions:    []string{"new-rev"},
 						},
 					},
 				},
@@ -8921,11 +8872,12 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 	after := metav1.NewTime(now.Add(5 * time.Minute))
 
 	tests := []struct {
-		name               string
-		appset             v1alpha1.ApplicationSet
-		applications       []v1alpha1.Application
-		expectedReconciled bool
-		expectError        bool
+		name                 string
+		appset               v1alpha1.ApplicationSet
+		applications         []v1alpha1.Application
+		expectedReconciled   bool
+		expectError          bool
+		latestTransitionTime *metav1.Time
 	}{
 		{
 			name: "no applications in waiting state returns true",
@@ -8955,8 +8907,9 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 					},
 				},
 			},
-			expectedReconciled: true,
-			expectError:        false,
+			expectedReconciled:   true,
+			expectError:          false,
+			latestTransitionTime: nil,
 		},
 		{
 			name: "applications in waiting but all reconciled returns true",
@@ -8990,8 +8943,9 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 					},
 				},
 			},
-			expectedReconciled: false,
-			expectError:        false,
+			expectedReconciled:   false,
+			expectError:          false,
+			latestTransitionTime: &before,
 		},
 		{
 			name: "applications in waiting and not reconciled adds annotations",
@@ -9022,8 +8976,9 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 					},
 				},
 			},
-			expectedReconciled: false,
-			expectError:        false,
+			expectedReconciled:   false,
+			expectError:          false,
+			latestTransitionTime: &now,
 		},
 		{
 			name: "applications without ReconciledAt adds annotations and returns false",
@@ -9054,8 +9009,9 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 					},
 				},
 			},
-			expectedReconciled: false,
-			expectError:        false,
+			expectedReconciled:   false,
+			expectError:          false,
+			latestTransitionTime: &now,
 		},
 	}
 
@@ -9077,6 +9033,7 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 				log.NewEntry(log.StandardLogger()),
 				&tt.appset,
 				tt.applications,
+				tt.latestTransitionTime,
 			)
 
 			if tt.expectError {

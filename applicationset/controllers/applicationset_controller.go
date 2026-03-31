@@ -1101,9 +1101,13 @@ func (r *ApplicationSetReconciler) addRefreshAnnotationToApplications(ctx contex
 
 // checkAllApplicationsReconciled verifies that all Applications have been reconciled since the given time,
 // that no refresh annotations are present, and that the reconciled revision matches the target revision
-func checkAllApplicationsReconciled(applications []argov1alpha1.Application, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, sinceTime *metav1.Time) bool {
+func checkAllApplicationsReconciled(applications []argov1alpha1.Application, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, sinceTime *metav1.Time, appSetAppStatus []argov1alpha1.ApplicationSetApplicationStatus) bool {
 	if sinceTime == nil {
 		return true
+	}
+	statusMap := make(map[string]argov1alpha1.ApplicationSetApplicationStatus)
+	for _, st := range appSetAppStatus {
+		statusMap[st.Application] = st
 	}
 
 	for _, app := range applications {
@@ -1117,20 +1121,20 @@ func checkAllApplicationsReconciled(applications []argov1alpha1.Application, log
 			logCtx.Debug("Application ReconciledAt is nil, not yet reconciled")
 			return false
 		}
-		if !app.Status.ReconciledAt.After(sinceTime.Time) {
+		if app.Status.ReconciledAt.Before(sinceTime) {
 			logCtx.WithFields(log.Fields{
-				"app":               app.Name,
-				"reconciledAt":      app.Status.ReconciledAt.Time,
-				"sinceTime":         sinceTime.Time,
-				"reconciledIsAfter": app.Status.ReconciledAt.After(sinceTime.Time),
-			}).Debug("Application not reconciled after transition time")
+				"app":                app.Name,
+				"reconciledAt":       app.Status.ReconciledAt.Time,
+				"sinceTime":          sinceTime.Time,
+				"reconciledIsBefore": app.Status.ReconciledAt.Before(sinceTime),
+			}).Debug("Application reconciled before transition time")
 			return false
 		}
 
 		// This ensures the app actually picked up the new revision
 		idx := findApplicationStatusIndex(appset.Status.ApplicationStatus, app.Name)
 		if idx != -1 {
-			appStatus := appset.Status.ApplicationStatus[idx]
+			appStatus := statusMap[app.Name]
 			currentRevisions := app.Status.GetRevisions()
 
 			if !reflect.DeepEqual(currentRevisions, appStatus.TargetRevisions) {
@@ -1148,9 +1152,18 @@ func checkAllApplicationsReconciled(applications []argov1alpha1.Application, log
 
 // ensureApplicationsReconciled ensures all Applications are reconciled before proceeding with progressive sync
 // It adds refresh annotations if needed and checks if all apps have been reconciled
-func (r *ApplicationSetReconciler) ensureApplicationsReconciled(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application) (bool, error) {
-	// Latest transition time among Waiting apps with pending changes anchors the reconcile window.
-	latestWaitingTime := getLatestWaitingTransitionTimeOfAppset(appset)
+// previousWaitingTime is the transition time captured before updateApplicationSetApplicationStatus ran,
+// to avoid checking against the transition time that was just set in the current reconcile loop
+func (r *ApplicationSetReconciler) ensureApplicationsReconciled(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, previousWaitingTime *metav1.Time, appSetAppStatus []argov1alpha1.ApplicationSetApplicationStatus) (bool, error) {
+	// Use the provided previous transition time to check reconciliation status
+	// This prevents the endless loop where apps can never catch up to a transition time
+	// that was just set in the current reconcile loop
+	var latestWaitingTime *metav1.Time
+	if previousWaitingTime != nil {
+		latestWaitingTime = previousWaitingTime
+	} else {
+		latestWaitingTime = getLatestWaitingTransitionTimeOfAppset(appset)
+	}
 
 	if latestWaitingTime == nil {
 		logCtx.Debug("No applications with pending revision changes, skipping reconciliation check") // Or a new app
@@ -1178,7 +1191,7 @@ func (r *ApplicationSetReconciler) ensureApplicationsReconciled(ctx context.Cont
 	}
 
 	// Check if all applications have been reconciled since the latestWaitingTime
-	allReconciled := checkAllApplicationsReconciled(applications, logCtx, appset, latestWaitingTime)
+	allReconciled := checkAllApplicationsReconciled(applications, logCtx, appset, latestWaitingTime, appSetAppStatus)
 	if allReconciled {
 		logCtx.Info("All Applications have been reconciled, proceeding with progressive sync")
 		return true, nil
@@ -1213,13 +1226,18 @@ func (r *ApplicationSetReconciler) ensureApplicationsReconciled(ctx context.Cont
 func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application) (map[string]bool, error) {
 	appDependencyList, appStepMap := r.buildAppDependencyList(logCtx, appset, desiredApplications)
 
-	_, err := r.updateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, desiredApplications, appStepMap)
+	// Capture the previous transition time BEFORE updating status to avoid checking against
+	// the transition time that will be set in the current reconcile loop
+	previousWaitingTime := getLatestWaitingTransitionTimeOfAppset(&appset)
+
+	updatedAppsetApplicationStatus, err := r.updateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, desiredApplications, appStepMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset app status: %w", err)
 	}
 
 	// Ensure all applications are reconciled before proceeding with progressive sync
-	allReconciled, err := r.ensureApplicationsReconciled(ctx, logCtx, &appset, applications)
+	// Use the previous transition time to check, not the one we just set
+	allReconciled, err := r.ensureApplicationsReconciled(ctx, logCtx, &appset, applications, previousWaitingTime, updatedAppsetApplicationStatus)
 	if err != nil {
 		return nil, fmt.Errorf("failed to ensure applications reconciled: %w", err)
 	}
