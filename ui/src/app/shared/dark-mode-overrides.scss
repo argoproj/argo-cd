@@ -1,43 +1,44 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
-// Tippy tooltips are appended to document.body, outside .theme-dark.
-// body.dark-theme is toggled by Layout based on the user's theme preference.
-// Dropdowns and tooltips are appended to document.body, outside .theme-dark.
-// body.dark-theme is toggled by Layout based on the user's theme preference.
-body.dark-theme .argo-dropdown__content {
-    background-color: $dark-theme-background-2;
-    box-shadow: 0 0 4px rgba(#000, .5);
+// Dropdowns, tooltips, and selects may be portaled to document.body,
+// outside the .theme-dark wrapper. body.dark-theme (toggled by Layout)
+// ensures these elements are also styled for dark mode.
+body.dark-theme {
+    .argo-dropdown__content {
+        background-color: $dark-theme-background-2;
+        box-shadow: 0 0 4px rgba(#000, .5);
 
-    &.is-menu ul li {
-        border-bottom-color: $argo-color-gray-7;
-        color: $argo-color-gray-3;
+        &.is-menu ul li {
+            border-bottom-color: $argo-color-gray-7;
+            color: $argo-color-gray-3;
 
-        &:hover {
-            background-color: $argo-color-gray-7;
+            &:hover {
+                background-color: $argo-color-gray-7;
+            }
         }
     }
-}
 
-body.dark-theme .tippy-tooltip {
-    background-color: $dark-theme-background-2;
-    color: $argo-color-gray-3;
-    box-shadow: 0 0 20px 4px rgba(0, 0, 0, .3);
-
-    &[data-placement^=top] > .tippy-arrow {
-        border-top-color: $dark-theme-background-2;
-    }
-    &[data-placement^=bottom] > .tippy-arrow {
-        border-bottom-color: $dark-theme-background-2;
-    }
-    &[data-placement^=left] > .tippy-arrow {
-        border-left-color: $dark-theme-background-2;
-    }
-    &[data-placement^=right] > .tippy-arrow {
-        border-right-color: $dark-theme-background-2;
-    }
-
-    > .tippy-backdrop {
+    .tippy-tooltip {
         background-color: $dark-theme-background-2;
+        color: $argo-color-gray-3;
+        box-shadow: 0 0 20px 4px rgba(0, 0, 0, .3);
+
+        &[data-placement^=top] > .tippy-arrow {
+            border-top-color: $dark-theme-background-2;
+        }
+        &[data-placement^=bottom] > .tippy-arrow {
+            border-bottom-color: $dark-theme-background-2;
+        }
+        &[data-placement^=left] > .tippy-arrow {
+            border-left-color: $dark-theme-background-2;
+        }
+        &[data-placement^=right] > .tippy-arrow {
+            border-right-color: $dark-theme-background-2;
+        }
+
+        > .tippy-backdrop {
+            background-color: $dark-theme-background-2;
+        }
     }
 }
 
@@ -65,6 +66,7 @@ body.dark-theme .tippy-tooltip {
                 }
             }
 
+            // !important needed to override argo-ui's &--base[disabled] selector
             &.disabled,
             &[disabled] {
                 background-color: $argo-color-gray-7 !important;
@@ -82,7 +84,6 @@ body.dark-theme .tippy-tooltip {
         }
     }
 
-    // Split button
     .argo-split-button__primary,
     .argo-split-button__toggle {
         background-color: $argo-color-teal-7;
@@ -92,7 +93,6 @@ body.dark-theme .tippy-tooltip {
         }
     }
 
-    // Action buttons (argo-ui v2) — use argo-ui's own dark palette
     .action-button__background {
         border-color: #30303d;
         background-color: #22212d;
@@ -164,22 +164,26 @@ body.dark-theme .tippy-tooltip {
         border-color: $argo-color-gray-6;
     }
 
-    // Dropdowns rendered inside .theme-dark
-    .argo-dropdown__content {
+    // Select & dropdown menus
+    .select__options {
         background-color: $dark-theme-background-2;
         box-shadow: 0 0 4px rgba(#000, .5);
+    }
 
-        &.is-menu ul li {
-            border-bottom-color: $argo-color-gray-7;
-            color: $argo-color-gray-3;
+    .select__option {
+        color: $argo-color-gray-3;
 
-            &:hover {
-                background-color: $argo-color-gray-7;
-            }
+        &:hover,
+        &.selected {
+            background-color: $argo-color-gray-7;
         }
     }
 
-    // Surfaces that use light grays as backgrounds
+    .select__search {
+        color: $argo-color-gray-3;
+    }
+
+    // Pod view
     .pod-view__node__pod-container__pods,
     .pod-view__node__info div,
     .pod-view__node__info--large {
@@ -195,25 +199,77 @@ body.dark-theme .tippy-tooltip {
         background-color: $argo-color-gray-6;
     }
 
-    // White box
+    // Resource tree
+    .application-resource-tree__node-label {
+        background-color: $argo-color-gray-7;
+        color: $argo-color-gray-3;
+        border-color: $argo-color-gray-6;
+    }
+
+    .top-bar__breadcrumbs a:hover {
+        background-color: rgba(255, 255, 255, 0.08);
+    }
+
+    // Login
+    .login__box,
+    .login__saml-separator span {
+        background-color: $dark-theme-background-2;
+    }
+
+    // Application details
+    .group-nodes-button:hover {
+        background-color: $argo-color-gray-7;
+    }
+
+    .zoom-value {
+        background-color: $argo-color-gray-7;
+        color: $argo-color-gray-3;
+    }
+
+    // Application node info
+    .application-node-info__container {
+        border-bottom-color: rgba($argo-color-gray-6, 0.7);
+    }
+
+    .application-node-info__label {
+        background-color: $argo-color-gray-6;
+        color: $argo-color-gray-3;
+    }
+
+    // Panels & popups
+    .application-sync-options__warning {
+        background-color: $dark-theme-background-2;
+    }
+
+    .badge-panel {
+        border-color: $argo-color-gray-7;
+    }
+
+    .progress-popup__title {
+        color: $argo-color-gray-3;
+    }
+
     .white-box h6 {
         color: $argo-color-gray-3;
     }
 
-    // Stream divider
     .stream::before {
         background-color: $argo-color-gray-7;
     }
 
-    // Status text
     .muted {
-        color: $argo-color-gray-5 !important;
+        color: $argo-color-gray-5;
     }
 
     // Links
-    a,
-    a:hover {
+    a {
         color: $argo-color-teal-5;
+
+        &:hover,
+        &:focus,
+        &:active {
+            color: $argo-color-teal-4;
+        }
     }
 
     h1,
