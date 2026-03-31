@@ -3917,7 +3917,11 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 
 	tempDir := t.TempDir()
 	paths := utilio.NewRandomizedTempPaths(tempDir)
-	paths.Add(git.NormalizeGitURL("https://github.com/org/repo1"), path.Join(tempDir, "repo1"))
+	refURL := "https://github.com/org/repo1"
+	normalizedRefURL := git.NormalizeGitURL(refURL)
+	refKeyData, _ := json.Marshal(map[string]string{"url": normalizedRefURL, "pathSHA": ""})
+	paths.Add(string(refKeyData), path.Join(tempDir, "repo1"))
+	paths.Add(normalizedRefURL, path.Join(tempDir, "repo1"))
 
 	// main-repo files
 	require.NoError(t, os.MkdirAll(path.Join(tempDir, "main-repo", "prod", "nested"), 0o755))
