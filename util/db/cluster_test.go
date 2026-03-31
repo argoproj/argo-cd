@@ -661,6 +661,161 @@ func TestGetClusterServersByName(t *testing.T) {
 	})
 }
 
+func TestCreateCluster_MissingServerSecretKey(t *testing.T) {
+	emptyArgoCDConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{},
+	}
+	argoCDSecretWithoutSecretKey := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{
+			"admin.password": nil,
+		},
+	}
+
+	t.Run("in-cluster creation succeeds when server.secretkey is missing", func(t *testing.T) {
+		kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecretWithoutSecretKey)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+		_, err := db.CreateCluster(t.Context(), &v1alpha1.Cluster{
+			Server: v1alpha1.KubernetesInternalAPIServerAddr,
+			Name:   "in-cluster",
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("external cluster creation succeeds when server.secretkey is missing", func(t *testing.T) {
+		kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecretWithoutSecretKey)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+		_, err := db.CreateCluster(t.Context(), &v1alpha1.Cluster{
+			Server: "https://my-external-cluster",
+			Name:   "external",
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("in-cluster creation rejected when explicitly disabled even with missing server.secretkey", func(t *testing.T) {
+		argoCDConfigMapWithInClusterDisabled := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: fakeNamespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{"cluster.inClusterEnabled": "false"},
+		}
+		kubeclientset := fake.NewClientset(argoCDConfigMapWithInClusterDisabled, argoCDSecretWithoutSecretKey)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+		_, err := db.CreateCluster(t.Context(), &v1alpha1.Cluster{
+			Server: v1alpha1.KubernetesInternalAPIServerAddr,
+			Name:   "in-cluster",
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "in-cluster has been disabled")
+	})
+}
+
+func TestListClusters_MissingServerSecretKey(t *testing.T) {
+	emptyArgoCDConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{},
+	}
+	argoCDSecretWithoutSecretKey := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{
+			"admin.password": nil,
+		},
+	}
+
+	t.Run("lists clusters including implicit in-cluster when server.secretkey is missing", func(t *testing.T) {
+		externalClusterSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "mycluster",
+				Namespace: fakeNamespace,
+				Labels: map[string]string{
+					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+				},
+			},
+			Data: map[string][]byte{
+				"server": []byte("https://my-external-cluster"),
+				"name":   []byte("external"),
+			},
+		}
+		kubeclientset := fake.NewClientset(externalClusterSecret, emptyArgoCDConfigMap, argoCDSecretWithoutSecretKey)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+		clusters, err := db.ListClusters(t.Context())
+		require.NoError(t, err)
+		require.Len(t, clusters.Items, 2)
+	})
+}
+
+func TestGetClusterServersByName_MissingServerSecretKey(t *testing.T) {
+	emptyArgoCDConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{},
+	}
+	argoCDSecretWithoutSecretKey := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{
+			"admin.password": nil,
+		},
+	}
+
+	t.Run("returns in-cluster when server.secretkey is missing", func(t *testing.T) {
+		kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecretWithoutSecretKey)
+		settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+		db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+		servers, err := db.GetClusterServersByName(t.Context(), "in-cluster")
+		require.NoError(t, err)
+		require.ElementsMatch(t, []string{v1alpha1.KubernetesInternalAPIServerAddr}, servers)
+	})
+}
+
 // TestClusterRaceConditionClusterSecrets reproduces a race condition
 // on the cluster secrets. The test isn't asserting anything because
 // before the fix it would cause a panic from concurrent map iteration and map write
