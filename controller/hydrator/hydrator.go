@@ -471,10 +471,8 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	return targetRevision, resp.HydratedSha, errors, nil
 }
 
-// getRepoObjects gets the repository objects for the given application and target revision. It returns the resolved
-// revision (a git SHA) and the manifest response from the repo server. It takes care of comparing
-//
-// If the given target revision is empty, it uses the target revision from the app dry source spec.
+// getRepoObjects gets the repository objects for the given application dry source.
+// It returns the repository objects, the manifest response, and a flag indicating if the revisions may contain changes compared to the one in the last successful hydration.
 func (h *Hydrator) getRepoObjects(ctx context.Context, app *appv1.Application, targetRevision string, project *appv1.AppProject) (objs []*unstructured.Unstructured, resp *apiclient.ManifestResponse, revisionsMayHaveChanges bool, err error) {
 	drySource := appv1.ApplicationSource{
 		RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
@@ -547,11 +545,10 @@ func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, re
 }
 
 // newRevisionHasChanges checks if the dry source has a new revision that differs from the last hydrated revision.
-// It resolves the target revision to a concrete SHA and compares it with the DrySHA from the last successful operation.
+// Returns true if the new revision may contain changes that would affect the hydrated manifests.
 func (h *Hydrator) newRevisionHasChanges(app *appv1.Application) bool {
-	// Only check if we have a previous successful operation with a DrySHA to compare against
-	// If we dont, we cannot know if the manifests have changes
-	// It is not the responsibility of this function to decide what should be done in this case
+	// Only check if we have a previous successful operation to compare against
+	// If we don't, we cannot know if the manifests have changes
 	if app.Status.SourceHydrator.LastSuccessfulOperation == nil {
 		return false
 	}
@@ -575,8 +572,8 @@ func (h *Hydrator) newRevisionHasChanges(app *appv1.Application) bool {
 
 	if revisionsMayHaveChanges {
 		log.WithFields(applog.GetAppLogFields(app)).WithFields(log.Fields{
-			"latestDrySHA":    resp.Revision,
-			"lastHydratedSHA": app.Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA,
+			"newDrySHA":  resp.Revision,
+			"lastDrySHA": app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA,
 		}).Debug("New dry source revision detected")
 	}
 
