@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -170,11 +171,24 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 	return clusterInfo
 }
 
+// invalidLabelChars matches characters not allowed in Kubernetes label values.
+var invalidLabelChars = regexp.MustCompile(`[^a-zA-Z0-9._-]`)
+
+// sanitizeLabelValue strips characters that are not valid in Kubernetes label values.
+// This is needed because some managed Kubernetes providers (e.g. EKS) include
+// characters like '+' in version strings which are not valid label values.
+func sanitizeLabelValue(s string) string {
+	return invalidLabelChars.ReplaceAllString(s, "")
+}
+
 func updateClusterLabels(ctx context.Context, clusterInfo *cache.ClusterInfo, cluster appv1.Cluster, updateCluster func(context.Context, *appv1.Cluster) (*appv1.Cluster, error)) error {
-	if clusterInfo != nil && cluster.Labels[common.LabelKeyAutoLabelClusterInfo] == "true" && cluster.Labels[common.LabelKeyClusterKubernetesVersion] != clusterInfo.K8SVersion {
-		cluster.Labels[common.LabelKeyClusterKubernetesVersion] = clusterInfo.K8SVersion
-		_, err := updateCluster(ctx, &cluster)
-		return err
+	if clusterInfo != nil && cluster.Labels[common.LabelKeyAutoLabelClusterInfo] == "true" {
+		version := sanitizeLabelValue(clusterInfo.K8SVersion)
+		if cluster.Labels[common.LabelKeyClusterKubernetesVersion] != version {
+			cluster.Labels[common.LabelKeyClusterKubernetesVersion] = version
+			_, err := updateCluster(ctx, &cluster)
+			return err
+		}
 	}
 
 	return nil
