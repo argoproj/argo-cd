@@ -161,9 +161,20 @@ jobs:
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
         id: run-goreleaser
-        with:
-          version: v2.14.3
-          args: release --clean --timeout 55m
+        run: |
+          set -euo pipefail
+          goreleaser release --clean --timeout 55m
+          if ! test -f dist/artifacts.json; then
+            echo 'dist/artifacts.json missing after goreleaser release' >&2
+            exit 1
+          fi
+          # We need to explicitly write the artifacts.json to $GITHUB_OUTPUT when running goreleaser ourselves,
+          # and it is multiline, so we need to use a random delimiter. 
+          # https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#multiline-strings
+          delim="GORELEASER_ARTIFACTS_JSON_$(openssl rand -hex 16)"
+          echo "artifacts<<${delim}" >> "$GITHUB_OUTPUT"
+          cat dist/artifacts.json >> "$GITHUB_OUTPUT"
+          echo "${delim}" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KUBECTL_VERSION: ${{ env.KUBECTL_VERSION }}
