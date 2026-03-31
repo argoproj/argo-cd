@@ -27,6 +27,8 @@ export interface SourcePanelProps {
     repoInfo?: models.Repository;
     /** When omitted, bind to `spec.source` (single-source create flow). When set, bind to `spec.sources[index]`. */
     sourceIndex?: number;
+    /** Hide the "SOURCE n" line when a parent (e.g. collapsible section) already shows the heading. */
+    suppressMultiSourceHeading?: boolean;
     currentRepoType?: React.MutableRefObject<string | undefined>;
     lastGitOrHelmUrl?: React.MutableRefObject<string>;
     lastOciUrl?: React.MutableRefObject<string>;
@@ -52,7 +54,7 @@ export const SourcePanel = (props: SourcePanelProps) => {
 
     return (
         <React.Fragment>
-            {isMulti && (
+            {isMulti && !props.suppressMultiSourceHeading && (
                 <p className='application-create-panel__multi-source-title' style={{marginTop: idx > 0 ? '1em' : 0}}>
                     SOURCE {idx + 1}
                 </p>

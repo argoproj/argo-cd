@@ -13,18 +13,13 @@ import {ApplicationRetryOptions} from '../application-retry-options/application-
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {SetFinalizerOnApplication} from './set-finalizer-on-application';
 import {HydratorSourcePanel} from './hydrator-source-panel';
+import {CollapsibleMultiSourceSection} from './collapsible-multi-source-section';
 import {SourcePanel} from './source-panel';
 import './application-create-panel.scss';
 import {getAppDefaultSource} from '../utils';
+import {APP_SOURCE_TYPES, normalizeTypeFieldsForSource} from '../shared/app-source-edit';
 
 const jsonMergePatch = require('json-merge-patch');
-
-const appTypes = new Array<{field: string; type: models.AppSourceType}>(
-    {type: 'Helm', field: 'helm'},
-    {type: 'Kustomize', field: 'kustomize'},
-    {type: 'Directory', field: 'directory'},
-    {type: 'Plugin', field: 'plugin'}
-);
 
 const DEFAULT_APP: Partial<models.Application> = {
     apiVersion: 'argoproj.io/v1alpha1',
@@ -139,16 +134,6 @@ export const ApplicationCreatePanel = (props: {
         };
     }, [debouncedOnAppChanged]);
 
-    function normalizeTypeFields(formApi: FormApi, type: models.AppSourceType) {
-        const appToNormalize = formApi.getFormState().values;
-        for (const item of appTypes) {
-            if (item.type !== type) {
-                delete appToNormalize.spec.source[item.field];
-            }
-        }
-        formApi.setAllValues(appToNormalize);
-    }
-
     const currentName = app.spec.destination.name;
     const currentServer = app.spec.destination.server;
     if (destinationFieldChanges.destFormatChanged !== null) {
@@ -215,6 +200,25 @@ export const ApplicationCreatePanel = (props: {
                 updated.spec.sources = [];
             }
             updated.spec.sources.push({path: '', repoURL: '', targetRevision: 'HEAD'});
+        }
+        api.setAllValues(updated);
+    }
+
+    function handleRemoveSource(api: FormApi, index: number) {
+        const updated = cloneDeep(api.getFormState().values) as models.Application;
+        const sources = updated.spec.sources;
+        if (!sources || index < 0 || index >= sources.length) {
+            return;
+        }
+        sources.splice(index, 1);
+        if (sources.length === 0) {
+            updated.spec.source = {path: '', repoURL: '', targetRevision: 'HEAD'};
+            delete updated.spec.sources;
+            setMultiSourceMode(false);
+        } else if (sources.length === 1) {
+            updated.spec.source = sources[0];
+            delete updated.spec.sources;
+            setMultiSourceMode(false);
         }
         api.setAllValues(updated);
     }
@@ -369,14 +373,18 @@ export const ApplicationCreatePanel = (props: {
                                             return (
                                                 <div className='white-box'>
                                                     <p>SOURCES</p>
-                                                    {Array.from({length: count}, (_, i) => {
-                                                        const repoInfoFor = reposInfo.find(r => r.repo === formApp.spec.sources?.[i]?.repoURL);
-                                                        return (
-                                                            <div key={`msrc-${i}`} className='application-create-panel__multi-source-block'>
-                                                                <SourcePanel formApi={api} repos={repos} repoInfo={repoInfoFor} sourceIndex={i} />
-                                                            </div>
-                                                        );
-                                                    })}
+                                                    {Array.from({length: count}, (_, i) => (
+                                                        <CollapsibleMultiSourceSection
+                                                            key={`msrc-${i}`}
+                                                            index={i}
+                                                            formApi={api}
+                                                            repos={repos}
+                                                            reposInfo={reposInfo}
+                                                            formApp={formApp}
+                                                            canRemove={count >= 2}
+                                                            onRemove={() => handleRemoveSource(api, i)}
+                                                        />
+                                                    ))}
                                                     <div className='application-create-panel__add-source'>
                                                         <button type='button' className='argo-button argo-button--base' onClick={() => handleAddSource(api)}>
                                                             <i className='fa fa-plus' style={{marginLeft: '-5px', marginRight: '5px'}} />
@@ -516,81 +524,86 @@ export const ApplicationCreatePanel = (props: {
                                         </div>
                                     );
 
-                                    const typePanel = () => (
-                                        <DataLoader
-                                            input={{
-                                                repoURL: app.spec.source.repoURL,
-                                                path: app.spec.source.path,
-                                                chart: app.spec.source.chart,
-                                                targetRevision: app.spec.source.targetRevision,
-                                                appName: app.metadata.name
-                                            }}
-                                            load={async src => {
-                                                if (src.repoURL && src.targetRevision && (src.path || src.chart)) {
-                                                    return services.repos.appDetails(src, src.appName, app.spec.project, 0, 0).catch(() => ({
-                                                        type: 'Directory',
-                                                        details: {}
-                                                    }));
-                                                } else {
+                                    const typePanel = () => {
+                                        const liveApp = api.getFormState().values as models.Application;
+                                        const liveSrc = liveApp.spec.source;
+                                        return (
+                                            <DataLoader
+                                                input={{
+                                                    repoURL: liveSrc?.repoURL,
+                                                    path: liveSrc?.path,
+                                                    chart: liveSrc?.chart,
+                                                    targetRevision: liveSrc?.targetRevision,
+                                                    appName: liveApp.metadata.name,
+                                                    project: liveApp.spec.project
+                                                }}
+                                                load={async src => {
+                                                    if (src.repoURL && src.targetRevision && (src.path || src.chart)) {
+                                                        return services.repos.appDetails(src, src.appName, src.project, 0, 0).catch(() => ({
+                                                            type: 'Directory',
+                                                            details: {}
+                                                        }));
+                                                    }
                                                     return {
                                                         type: 'Directory',
                                                         details: {}
                                                     };
-                                                }
-                                            }}>
-                                            {(details: models.RepoAppDetails) => {
-                                                const type = (explicitPathType && explicitPathType.path === app.spec.source.path && explicitPathType.type) || details.type;
-                                                if (details.type !== type) {
-                                                    switch (type) {
-                                                        case 'Helm':
-                                                            details = {
-                                                                type,
-                                                                path: details.path,
-                                                                helm: {name: '', valueFiles: [], path: '', parameters: [], fileParameters: []}
-                                                            };
-                                                            break;
-                                                        case 'Kustomize':
-                                                            details = {type, path: details.path, kustomize: {path: ''}};
-                                                            break;
-                                                        case 'Plugin':
-                                                            details = {type, path: details.path, plugin: {name: '', env: []}};
-                                                            break;
-                                                        // Directory
-                                                        default:
-                                                            details = {type, path: details.path, directory: {}};
-                                                            break;
+                                                }}>
+                                                {(details: models.RepoAppDetails) => {
+                                                    const pathKey = (liveSrc?.chart || liveSrc?.path || '') as string;
+                                                    const type = (explicitPathType && explicitPathType.path === pathKey && explicitPathType.type) || details.type;
+                                                    let d = details;
+                                                    if (d.type !== type) {
+                                                        switch (type) {
+                                                            case 'Helm':
+                                                                d = {
+                                                                    type,
+                                                                    path: d.path,
+                                                                    helm: {name: '', valueFiles: [], path: '', parameters: [], fileParameters: []}
+                                                                };
+                                                                break;
+                                                            case 'Kustomize':
+                                                                d = {type, path: d.path, kustomize: {path: ''}};
+                                                                break;
+                                                            case 'Plugin':
+                                                                d = {type, path: d.path, plugin: {name: '', env: []}};
+                                                                break;
+                                                            default:
+                                                                d = {type, path: d.path, directory: {}};
+                                                                break;
+                                                        }
                                                     }
-                                                }
-                                                return (
-                                                    <React.Fragment>
-                                                        <DropDownMenu
-                                                            anchor={() => (
-                                                                <p>
-                                                                    {type} <i className='fa fa-caret-down' />
-                                                                </p>
-                                                            )}
-                                                            qeId='application-create-dropdown-source'
-                                                            items={appTypes.map(item => ({
-                                                                title: item.type,
-                                                                action: () => {
-                                                                    setExplicitPathType({type: item.type, path: app.spec.source.path});
-                                                                    normalizeTypeFields(api, item.type);
-                                                                }
-                                                            }))}
-                                                        />
-                                                        <ApplicationParameters
-                                                            noReadonlyMode={true}
-                                                            application={app}
-                                                            details={details}
-                                                            save={async updatedApp => {
-                                                                api.setAllValues(updatedApp);
-                                                            }}
-                                                        />
-                                                    </React.Fragment>
-                                                );
-                                            }}
-                                        </DataLoader>
-                                    );
+                                                    return (
+                                                        <React.Fragment>
+                                                            <DropDownMenu
+                                                                anchor={() => (
+                                                                    <p>
+                                                                        {type} <i className='fa fa-caret-down' />
+                                                                    </p>
+                                                                )}
+                                                                qeId='application-create-dropdown-source'
+                                                                items={APP_SOURCE_TYPES.map(item => ({
+                                                                    title: item.type,
+                                                                    action: () => {
+                                                                        setExplicitPathType({type: item.type, path: pathKey});
+                                                                        normalizeTypeFieldsForSource(api, item.type, undefined);
+                                                                    }
+                                                                }))}
+                                                            />
+                                                            <ApplicationParameters
+                                                                noReadonlyMode={true}
+                                                                application={liveApp}
+                                                                details={d}
+                                                                save={async updatedApp => {
+                                                                    api.setAllValues(updatedApp);
+                                                                }}
+                                                            />
+                                                        </React.Fragment>
+                                                    );
+                                                }}
+                                            </DataLoader>
+                                        );
+                                    };
 
                                     return (
                                         <form onSubmit={api.submitForm} role='form' className='width-control'>
