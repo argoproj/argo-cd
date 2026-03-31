@@ -473,7 +473,7 @@ jobs:
         # and the `sonarqube_scan_action_commit:` in the previous step
         uses: SonarSource/sonarqube-scan-action@a31c9398be7ace6bbfaf30c0bd5d415f843d45e9 # v7.0.0
         with:
-          # donload verified binary from the local temporary server
+          # download verified binary from the local temporary server
           scannerBinariesUrl:  "http://localhost:1500/"
         if: env.sonar_secret != ''
   test-e2e:
