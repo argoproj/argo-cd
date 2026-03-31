@@ -280,7 +280,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 			}
 
 			if appset.Namespace == "" && appSetNamespace != "" {
-				fmt.Printf("ApplicationSet %q from %q has no namespace; using --appset-namespace=%q.\n", appset.Name, fileURL, appSetNamespace)
+				fmt.Printf("ApplicationSet YAML file does not have namespace; using --appset-namespace=%q.\n", appSetNamespace)
 				appset.Namespace = appSetNamespace
 			}
 
