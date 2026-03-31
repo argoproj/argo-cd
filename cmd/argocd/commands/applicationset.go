@@ -363,7 +363,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name|json|yaml")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "List applicationsets by label")
 	command.Flags().StringArrayVarP(&projects, "project", "p", []string{}, "Filter by project name")
-	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "List ApplicationSets in this namespace")
+	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Only list applicationsets in namespace")
 
 	return command
 }
