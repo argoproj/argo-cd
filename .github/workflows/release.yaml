@@ -186,6 +186,7 @@ jobs:
           delim="GORELEASER_ARTIFACTS_JSON_$(openssl rand -hex 16)"
           echo "artifacts<<${delim}" >> "$GITHUB_OUTPUT"
           cat dist/artifacts.json >> "$GITHUB_OUTPUT"
+          echo "\n" >> "$GITHUB_OUTPUT"
           echo "${delim}" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
