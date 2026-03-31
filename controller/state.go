@@ -254,6 +254,15 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			} else {
 				syncedRevision = ""
 			}
+		} else if app.Spec.SourceHydrator != nil {
+			// if we have a source hydrator app, and the source is the dry source, use the last successful hydration dry SHA
+			if drySource := app.Spec.SourceHydrator.GetDrySource(); source.Equals(&drySource) {
+				if app.Status.SourceHydrator.LastSuccessfulOperation != nil {
+					syncedRevision = app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+				} else {
+					syncedRevision = ""
+				}
+			}
 		}
 
 		revision := revisions[i]

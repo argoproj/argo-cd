@@ -50,7 +50,7 @@ type Dependencies interface {
 
 	// GetRepoObjs returns the repository objects for the given application, source, and revision. It calls the repo-
 	// server and gets the manifests (objects).
-	GetRepoObjs(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
+	GetRepoObjs(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, bool, error)
 
 	// GetWriteCredentials returns the repository credentials for the given repository URL and project. These are to be
 	// sent to the commit server to write the hydrated manifests.
@@ -115,16 +115,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	logCtx.Debug("Processing app hydrate queue item")
 
-	needsHydration, reason := appNeedsHydration(app)
-	if !needsHydration && h.shouldCheckDrySourceRevision(app) {
-		latestDrySHA, err := h.getLatestDrySourceRevision(app)
-		if err != nil {
-			logCtx.WithError(err).Warn("Failed to resolve latest dry source revision")
-		} else if latestDrySHA != app.Status.SourceHydrator.CurrentOperation.DrySHA {
-			needsHydration = true
-			reason = "dry source revision changed"
-		}
-	}
+	needsHydration, reason := h.appNeedsHydration(app)
 	if needsHydration {
 		app.Status.SourceHydrator.CurrentOperation = &appv1.HydrateOperation{
 			StartedAt:      metav1.Now(),
@@ -144,31 +135,6 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	}
 
 	logCtx.Debug("Successfully processed app hydrate queue item")
-}
-
-func (h *Hydrator) shouldCheckDrySourceRevision(app *appv1.Application) bool {
-	if app.Status.SourceHydrator.CurrentOperation == nil || app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating {
-		return false
-	}
-	if h.statusRefreshTimeout <= 0 {
-		return false
-	}
-	if app.Status.ReconciledAt == nil {
-		return true
-	}
-	return app.Status.ReconciledAt.Add(h.statusRefreshTimeout).Before(time.Now().UTC())
-}
-
-func (h *Hydrator) getLatestDrySourceRevision(app *appv1.Application) (string, error) {
-	project, err := h.dependencies.GetProcessableAppProj(app)
-	if err != nil {
-		return "", fmt.Errorf("failed to get app project %q: %w", app.Spec.Project, err)
-	}
-	revision, _, err := h.getManifests(context.Background(), app, "", project)
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve latest dry source revision: %w", err)
-	}
-	return revision, nil
 }
 
 func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
@@ -505,11 +471,11 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	return targetRevision, resp.HydratedSha, errors, nil
 }
 
-// getManifests gets the manifests for the given application and target revision. It returns the resolved revision
-// (a git SHA), and path details for the commit server.
+// getRepoObjects gets the repository objects for the given application and target revision. It returns the resolved
+// revision (a git SHA) and the manifest response from the repo server. It takes care of comparing
 //
 // If the given target revision is empty, it uses the target revision from the app dry source spec.
-func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, targetRevision string, project *appv1.AppProject) (revision string, pathDetails *commitclient.PathDetails, err error) {
+func (h *Hydrator) getRepoObjects(ctx context.Context, app *appv1.Application, targetRevision string, project *appv1.AppProject) (objs []*unstructured.Unstructured, resp *apiclient.ManifestResponse, revisionsMayHaveChanges bool, err error) {
 	drySource := appv1.ApplicationSource{
 		RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
 		Path:           app.Spec.SourceHydrator.DrySource.Path,
@@ -520,13 +486,25 @@ func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, tar
 		Plugin:         app.Spec.SourceHydrator.DrySource.Plugin,
 	}
 	if targetRevision == "" {
-		targetRevision = app.Spec.SourceHydrator.DrySource.TargetRevision
+		targetRevision = drySource.TargetRevision
 	}
 
 	// TODO: enable signature verification
-	objs, resp, err := h.dependencies.GetRepoObjs(ctx, app, drySource, targetRevision, project)
+	objs, resp, revisionsMayHaveChanges, err = h.dependencies.GetRepoObjs(ctx, app, drySource, targetRevision, project)
 	if err != nil {
-		return "", nil, fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
+		return nil, nil, false, fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
+	}
+	return objs, resp, revisionsMayHaveChanges, nil
+}
+
+// getManifests gets the manifests for the given application and target revision. It returns the resolved revision
+// (a git SHA), and path details for the commit server.
+//
+// If the given target revision is empty, it uses the target revision from the app dry source spec.
+func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, targetRevision string, project *appv1.AppProject) (revision string, pathDetails *commitclient.PathDetails, err error) {
+	objs, resp, _, err := h.getRepoObjects(ctx, app, targetRevision, project)
+	if err != nil {
+		return "", nil, err
 	}
 
 	// Set up a ManifestsRequest
@@ -568,8 +546,45 @@ func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, re
 	return resp, nil
 }
 
+// newRevisionHasChanges checks if the dry source has a new revision that differs from the last hydrated revision.
+// It resolves the target revision to a concrete SHA and compares it with the DrySHA from the last successful operation.
+func (h *Hydrator) newRevisionHasChanges(app *appv1.Application) bool {
+	// Only check if we have a previous successful operation with a DrySHA to compare against
+	// If we dont, we cannot know if the manifests have changes
+	// It is not the responsibility of this function to decide what should be done in this case
+	if app.Status.SourceHydrator.LastSuccessfulOperation == nil {
+		return false
+	}
+
+	// Get the project for the app to pass to getRepoObjects
+	project, err := h.dependencies.GetProcessableAppProj(app)
+	if err != nil {
+		// If we can't get the project, we can't check for changes, so assume no changes
+		log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to get project for revision check")
+		return false
+	}
+
+	// Get the latest resolved revision (SHA) from the dry source
+	// Pass empty string for targetRevision to use the one from app spec
+	_, resp, revisionsMayHaveChanges, err := h.getRepoObjects(context.Background(), app, "", project)
+	if err != nil {
+		// If we can't resolve the revision, we can't check for changes, so assume no changes
+		log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to resolve dry source revision")
+		return false
+	}
+
+	if revisionsMayHaveChanges {
+		log.WithFields(applog.GetAppLogFields(app)).WithFields(log.Fields{
+			"latestDrySHA":    resp.Revision,
+			"lastHydratedSHA": app.Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA,
+		}).Debug("New dry source revision detected")
+	}
+
+	return revisionsMayHaveChanges
+}
+
 // appNeedsHydration answers if application needs manifests hydrated.
-func appNeedsHydration(app *appv1.Application) (needsHydration bool, reason string) {
+func (h *Hydrator) appNeedsHydration(app *appv1.Application) (needsHydration bool, reason string) {
 	switch {
 	case app.Spec.SourceHydrator == nil:
 		return false, "source hydrator not configured"
@@ -583,6 +598,8 @@ func appNeedsHydration(app *appv1.Application) (needsHydration bool, reason stri
 		return true, "spec.sourceHydrator differs"
 	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) > 2*time.Minute:
 		return true, "previous hydrate operation failed more than 2 minutes ago"
+	case h.newRevisionHasChanges(app):
+		return true, "new revision has changes"
 	}
 
 	return false, "hydration not needed"

@@ -31,44 +31,36 @@ func (ctrl *ApplicationController) GetProcessableApps() (*appv1.ApplicationList,
 	return ctrl.getAppList(metav1.ListOptions{})
 }
 
-func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, origApp *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
+func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, app *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, bool, error) {
 	drySources := []appv1.ApplicationSource{drySource}
 	dryRevisions := []string{revision}
 
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get app instance label key: %w", err)
+		return nil, nil, false, fmt.Errorf("failed to get app instance label key: %w", err)
 	}
-
-	app := origApp.DeepCopy()
-	// Remove the manifest generate path annotation, because the feature will misbehave for apps using source hydrator.
-	// Setting this annotation causes GetRepoObjs to compare the dry source commit to the most recent synced commit. The
-	// problem is that the most recent synced commit is likely on the hydrated branch, not the dry branch. The
-	// comparison will throw an error and break hydration.
-	//
-	// The long-term solution will probably be to persist the synced _dry_ revision and use that for the comparison.
-	delete(app.Annotations, appv1.AnnotationKeyManifestGeneratePaths)
 
 	// FIXME: use cache and revision cache
-	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, false, project, false)
+	objs, resp, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, false, project, false)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
+		return nil, nil, false, fmt.Errorf("failed to get repo objects: %w", err)
 	}
+
 	trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get tracking method: %w", err)
+		return nil, nil, false, fmt.Errorf("failed to get tracking method: %w", err)
 	}
 	for _, obj := range objs {
 		if err := argoutil.NewResourceTracking().RemoveAppInstance(obj, trackingMethod); err != nil {
-			return nil, nil, fmt.Errorf("failed to remove the app instance value: %w", err)
+			return nil, nil, false, fmt.Errorf("failed to remove the app instance value: %w", err)
 		}
 	}
 
 	if len(resp) != 1 {
-		return nil, nil, fmt.Errorf("expected one manifest response, got %d", len(resp))
+		return nil, nil, false, fmt.Errorf("expected one manifest response, got %d", len(resp))
 	}
 
-	return objs, resp[0], nil
+	return objs, resp[0], revisionsMayHaveChanges, nil
 }
 
 func (ctrl *ApplicationController) GetWriteCredentials(ctx context.Context, repoURL string, project string) (*appv1.Repository, error) {
