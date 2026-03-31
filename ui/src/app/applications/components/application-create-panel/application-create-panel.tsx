@@ -205,10 +205,7 @@ export const ApplicationCreatePanel = (props: {
     function handleAddSource(api: FormApi) {
         const updated = cloneDeep(api.getFormState().values) as models.Application;
         if (!multiSourceMode) {
-            updated.spec.sources = [
-                {...(updated.spec.source || {path: '', repoURL: '', targetRevision: 'HEAD'})},
-                {path: '', repoURL: '', targetRevision: 'HEAD'}
-            ];
+            updated.spec.sources = [{...(updated.spec.source || {path: '', repoURL: '', targetRevision: 'HEAD'})}, {path: '', repoURL: '', targetRevision: 'HEAD'}];
             delete updated.spec.source;
             delete updated.spec.sourceHydrator;
             setIsHydratorEnabled(false);
@@ -262,13 +259,11 @@ export const ApplicationCreatePanel = (props: {
 
                                     const destinationErrors = {
                                         'spec.destination.server':
-                                            !a.spec.destination.server &&
-                                            (!a.spec.destination.hasOwnProperty('name') || a.spec.destination.name === '')
+                                            !a.spec.destination.server && (!a.spec.destination.hasOwnProperty('name') || a.spec.destination.name === '')
                                                 ? 'Cluster URL is required'
                                                 : undefined,
                                         'spec.destination.name':
-                                            !a.spec.destination.name &&
-                                            (!a.spec.destination.hasOwnProperty('server') || a.spec.destination.server === '')
+                                            !a.spec.destination.name && (!a.spec.destination.hasOwnProperty('server') || a.spec.destination.server === '')
                                                 ? 'Cluster name is required'
                                                 : undefined
                                     };
@@ -283,8 +278,7 @@ export const ApplicationCreatePanel = (props: {
                                         for (let i = 0; i < sources.length; i++) {
                                             const s = sources[i];
                                             errs[`spec.sources[${i}].repoURL`] = !s?.repoURL ? 'Repository URL is required' : undefined;
-                                            errs[`spec.sources[${i}].targetRevision`] =
-                                                !s?.targetRevision && s?.hasOwnProperty('chart') ? 'Version is required' : undefined;
+                                            errs[`spec.sources[${i}].targetRevision`] = !s?.targetRevision && s?.hasOwnProperty('chart') ? 'Version is required' : undefined;
                                             errs[`spec.sources[${i}].path`] = !s?.path && !s?.chart ? 'Path is required' : undefined;
                                             errs[`spec.sources[${i}].chart`] = !s?.path && !s?.chart ? 'Chart is required' : undefined;
                                         }

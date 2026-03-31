@@ -43,8 +43,7 @@ export const SourcePanel = (props: SourcePanelProps) => {
 
     const currentApp = props.formApi.getFormState().values as models.Application;
     const currentSource = getSourceForPanel(currentApp, props.sourceIndex);
-    const repoType =
-        currentSource?.repoURL?.startsWith('oci://') ? 'oci' : (currentSource && Object.prototype.hasOwnProperty.call(currentSource, 'chart') && 'helm') || 'git';
+    const repoType = currentSource?.repoURL?.startsWith('oci://') ? 'oci' : (currentSource && Object.prototype.hasOwnProperty.call(currentSource, 'chart') && 'helm') || 'git';
 
     const idx = props.sourceIndex;
     /** 1-based label for qe-id to match ui-test selectors (source-1, source-2, …). */
@@ -109,8 +108,7 @@ export const SourcePanel = (props: SourcePanelProps) => {
                                                         delete source.chart;
                                                     }
                                                     source.targetRevision = 'HEAD';
-                                                    source.repoURL =
-                                                        type === 'git' ? lastGitOrHelmUrl.current : lastOciUrl.current === '' ? 'oci://' : lastOciUrl.current;
+                                                    source.repoURL = type === 'git' ? lastGitOrHelmUrl.current : lastOciUrl.current === '' ? 'oci://' : lastOciUrl.current;
                                                     break;
                                                 case 'helm':
                                                     if (Object.prototype.hasOwnProperty.call(source, 'path')) {
