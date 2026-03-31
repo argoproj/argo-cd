@@ -309,7 +309,6 @@ func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string,
 		return servers, nil
 	}
 
-	argoSettings, err := db.settingsMgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}
