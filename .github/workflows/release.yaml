@@ -180,14 +180,9 @@ jobs:
             echo 'dist/artifacts.json missing after goreleaser release' >&2
             exit 1
           fi
-          # We need to explicitly write the artifacts.json to $GITHUB_OUTPUT when running goreleaser ourselves,
-          # and it is multiline, so we need to use a random delimiter. 
-          # https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands#multiline-strings
-          delim="GORELEASER_ARTIFACTS_JSON_$(openssl rand -hex 16)"
-          echo "artifacts<<${delim}" >> "$GITHUB_OUTPUT"
-          cat dist/artifacts.json >> "$GITHUB_OUTPUT"
-          echo "\n" >> "$GITHUB_OUTPUT"
-          echo "${delim}" >> "$GITHUB_OUTPUT"
+          # Emit as compact single-line JSON to avoid multiline delimiter/newline edge-cases in GITHUB_OUTPUT.
+          artifacts_json=$(jq -c . dist/artifacts.json)
+          printf 'artifacts=%s\n' "$artifacts_json" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KUBECTL_VERSION: ${{ env.KUBECTL_VERSION }}
