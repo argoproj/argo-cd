@@ -1,4 +1,4 @@
-import {NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
+import {NotificationType, SlidingPanel, Tooltip, SplitButtonAction} from 'argo-ui';
 import * as classNames from 'classnames';
 import React, {useState, useEffect, useCallback, useRef, useContext, FC} from 'react';
 import * as ReactDOM from 'react-dom';
@@ -1349,7 +1349,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             action: () => !refreshing && services.applications.get(app.metadata.name, app.metadata.namespace, objectListKind, 'hard')
                         }
                     ]
-                }
+                } as SplitButtonAction
             ];
         },
         [selectNode, appContext, confirmDeletion, setOperationStatusVisible, setRollbackPanelVisible, deleteApplication, objectListKind]
