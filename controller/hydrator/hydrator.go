@@ -142,7 +142,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 
 func (h *Hydrator) appNeedsHydration(app *appv1.Application) (bool, string, error) {
 	needsHydration, reason := appNeedsHydration(app)
-	if needsHydration || !h.shouldCheckDrySourceRevision(app) {
+	if needsHydration || !h.shouldCheckDrySourceRevision(app, time.Now().UTC()) {
 		return needsHydration, reason, nil
 	}
 
@@ -157,17 +157,18 @@ func (h *Hydrator) appNeedsHydration(app *appv1.Application) (bool, string, erro
 	return false, reason, nil
 }
 
-func (h *Hydrator) shouldCheckDrySourceRevision(app *appv1.Application) bool {
-	if app.Status.SourceHydrator.CurrentOperation == nil || app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating {
+func (h *Hydrator) shouldCheckDrySourceRevision(app *appv1.Application, now time.Time) bool {
+	if app.Status.SourceHydrator.CurrentOperation == nil {
+		return false
+	}
+	op := app.Status.SourceHydrator.CurrentOperation
+	if op.Phase != appv1.HydrateOperationPhaseHydrated || op.FinishedAt == nil {
 		return false
 	}
 	if h.statusRefreshTimeout <= 0 {
 		return false
 	}
-	if app.Status.ReconciledAt == nil {
-		return true
-	}
-	return app.Status.ReconciledAt.Add(h.statusRefreshTimeout).Before(time.Now().UTC())
+	return op.FinishedAt.Add(h.statusRefreshTimeout).Before(now)
 }
 
 func (h *Hydrator) getLatestDrySourceRevision(app *appv1.Application) (string, error) {

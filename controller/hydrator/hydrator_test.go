@@ -449,8 +449,8 @@ func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionChanged(t
 	t.Parallel()
 	d := mocks.NewDependencies(t)
 	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
-	reconciledAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
-	app.Status.ReconciledAt = &reconciledAt
+	finishedAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
+	app.Status.SourceHydrator.CurrentOperation.FinishedAt = &finishedAt
 	app.Status.SourceHydrator.CurrentOperation.DrySHA = "old-sha"
 
 	d.EXPECT().GetProcessableAppProj(app).Return(newTestProject(), nil).Once()
@@ -475,8 +475,8 @@ func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionUnchanged
 	t.Parallel()
 	d := mocks.NewDependencies(t)
 	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
-	reconciledAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
-	app.Status.ReconciledAt = &reconciledAt
+	finishedAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
+	app.Status.SourceHydrator.CurrentOperation.FinishedAt = &finishedAt
 	app.Status.SourceHydrator.CurrentOperation.DrySHA = "same-sha"
 
 	d.EXPECT().GetProcessableAppProj(app).Return(newTestProject(), nil).Once()
@@ -493,6 +493,68 @@ func TestProcessAppHydrateQueueItem_ReconciledTimeout_DrySourceRevisionUnchanged
 
 	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
+func TestHydrator_shouldCheckDrySourceRevision(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC()
+	finishedAt := metav1.NewTime(now.Add(-2 * time.Minute))
+
+	testCases := []struct {
+		name     string
+		app      *v1alpha1.Application
+		timeout  time.Duration
+		expected bool
+	}{
+		{
+			name:     "missing operation",
+			app:      newTestApp("test-app"),
+			timeout:  time.Minute,
+			expected: false,
+		},
+		{
+			name:     "still hydrating",
+			app:      setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrating),
+			timeout:  time.Minute,
+			expected: false,
+		},
+		{
+			name:     "no finished time",
+			app:      setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated),
+			timeout:  time.Minute,
+			expected: false,
+		},
+		{
+			name: "timeout disabled",
+			app: func() *v1alpha1.Application {
+				app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
+				app.Status.SourceHydrator.CurrentOperation.FinishedAt = &finishedAt
+				return app
+			}(),
+			timeout:  0,
+			expected: false,
+		},
+		{
+			name: "timeout expired",
+			app: func() *v1alpha1.Application {
+				app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
+				app.Status.SourceHydrator.CurrentOperation.FinishedAt = &finishedAt
+				return app
+			}(),
+			timeout:  time.Minute,
+			expected: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			h := &Hydrator{statusRefreshTimeout: tc.timeout}
+			assert.Equal(t, tc.expected, h.shouldCheckDrySourceRevision(tc.app, now))
+		})
+	}
 }
 
 func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
