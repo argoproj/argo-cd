@@ -141,6 +141,10 @@ func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verif
 		return nil, "", err
 	}
 
+	if len(signatures) == 0 {
+		panic("no signatures found for " + verifiedRevision)
+	}
+
 	problems, legacyDescription := describeProblems(g, signatures)
 	result := &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
 		Name:     checkName,
@@ -161,7 +165,7 @@ func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfos []
 			} else {
 				legacyResult := map[git.GPGVerificationResult]string{
 					git.GPGVerificationResultGood:             "Good",
-					git.GPGVerificationResultBad:              "Bag",
+					git.GPGVerificationResultBad:              "Bad",
 					git.GPGVerificationResultUntrusted:        "Invalid",
 					git.GPGVerificationResultExpiredSignature: "Invalid",
 					git.GPGVerificationResultExpiredKey:       "Invalid",
@@ -173,7 +177,7 @@ func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfos []
 		}
 
 		// Do not report the same key twice unless:
-		// - the revision is unsigned (unsigned commits can have different authors, so they are worth reporting)
+		// - the revision is unsigned (unsigned commits can have different authors, so they are all worth reporting)
 		// - the revision is a tag (tags are signed separately from commits)
 		if signatureInfo.SignatureKeyID != "" && git.IsCommitSHA(signatureInfo.Revision) {
 			if _, exists := reportedKeys[signatureInfo.SignatureKeyID]; exists {
@@ -209,6 +213,7 @@ func gpgProblemMessage(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfo gi
 		allowedKey, err := KeyID(allowedKey)
 		if err != nil {
 			log.Error(err.Error())
+			continue
 		}
 		if allowedKey == signatureInfo.SignatureKeyID {
 			return ""

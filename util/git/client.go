@@ -1057,14 +1057,6 @@ func gpgVerificationFromGitRevParse(oneLetter string) GPGVerificationResult {
 
 var gpgKeyIdRegexp = regexp.MustCompile("[0-9a-zA-Z]{16}")
 
-func validateGpgKey(key string, revision string) error {
-	if key == "" || gpgKeyIdRegexp.MatchString(key) {
-		return nil
-	}
-
-	return fmt.Errorf("gpg failed interpreting reported signing key for %q: %q", revision, key)
-}
-
 func (m *nativeGitClient) tagSignature(tagRevision string) (*RevisionSignatureInfo, error) {
 	ctx := context.Background()
 	// Unlike for commits, there is no elegant way to slurp all signature info for tag. So this extracts details needed
@@ -1091,16 +1083,11 @@ func (m *nativeGitClient) tagSignature(tagRevision string) (*RevisionSignatureIn
 	if err != nil {
 		return nil, fmt.Errorf("gpg failed verifying git tag %q: %s", tagRevision, err.Error())
 	}
-	if err := validateGpgKey(keyId, tagRevision); err != nil {
-		return nil, err
+	info, err := newRevisionSignatureInfo(tagRevision, status, keyId, tagInfo[0], tagInfo[1])
+	if err != nil {
+		return nil, fmt.Errorf("failed building revision gpg signature info for tag %q: %s", tagRevision, err.Error())
 	}
-	return &RevisionSignatureInfo{
-		Revision:           tagRevision,
-		VerificationResult: status,
-		SignatureKeyID:     keyId,
-		Date:               tagInfo[0],
-		AuthorIdentity:     tagInfo[1],
-	}, err
+	return info, err
 }
 
 func evaluateGpgSignStatus(cmdErr error, tagGpgOut string) (result GPGVerificationResult, keyId string, err error) {
@@ -1178,24 +1165,49 @@ func (m *nativeGitClient) LsSignatures(unresolvedRevision string, deep bool) ([]
 		}
 
 		if len(r) < 5 {
-			return nil, fmt.Errorf("invalid rev-list output, refusing to continue (fields=%d)", len(r))
+			return nil, fmt.Errorf("invalid rev-list output for %q (fields=%d)", unresolvedRevision, len(r))
 		}
 
 		revision := r[0]
-		keyId := r[2]
-		if err := validateGpgKey(keyId, revision); err != nil {
-			return nil, err
+		signatureInfo, err := newRevisionSignatureInfo(revision, gpgVerificationFromGitRevParse(r[1]), r[2], r[3], r[4])
+		if err != nil {
+			return nil, fmt.Errorf("failed building revision gpg signature info for %q at %q: %s", unresolvedRevision, revision, err.Error())
 		}
-		signatures = append(signatures, RevisionSignatureInfo{
-			Revision:           revision,
-			VerificationResult: gpgVerificationFromGitRevParse(r[1]),
-			SignatureKeyID:     keyId,
-			Date:               r[3],
-			AuthorIdentity:     r[4],
-		})
+		signatures = append(signatures, *signatureInfo)
 	}
 
 	return signatures, nil
+}
+
+// newRevisionSignatureInfo builds valid RevisionSignatureInfo
+func newRevisionSignatureInfo(revision string, verificationResult GPGVerificationResult, signatureKeyID string, date string, authorIdentity string) (*RevisionSignatureInfo, error) {
+	if revision == "" {
+		return nil, errors.New("no revision specified")
+	}
+	if date == "" {
+		return nil, errors.New("no date specified")
+	}
+	if authorIdentity == "" {
+		return nil, errors.New("no author specified")
+	}
+	// Unsigned have no key ID, other states must have key ID
+	if verificationResult == GPGVerificationResultUnsigned {
+		if signatureKeyID != "" {
+			return nil, fmt.Errorf("a gpg signing key id %q specified for unsigned commit", signatureKeyID)
+		}
+	} else {
+		if !gpgKeyIdRegexp.MatchString(signatureKeyID) {
+			return nil, fmt.Errorf("invalid gpg signing key %q", signatureKeyID)
+		}
+	}
+
+	return &RevisionSignatureInfo{
+		Revision:           revision,
+		VerificationResult: verificationResult,
+		SignatureKeyID:     signatureKeyID,
+		Date:               date,
+		AuthorIdentity:     authorIdentity,
+	}, nil
 }
 
 func (m *nativeGitClient) listRawSignatures(deep bool) (string, error) {
