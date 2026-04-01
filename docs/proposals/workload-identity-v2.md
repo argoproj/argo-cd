@@ -88,7 +88,7 @@ As an operator running ArgoCD on GKE or any Kubernetes cluster, I want to authen
 Workload Identity Federation without service account keys.
 
 #### Use case 3: Azure ACR with Workload Identity
-As an operator running ArgoCD on AKS, I want to authenticate to ACR using Azure Workload Identity without storing 
+As an operator running Argo CD on AKS, I want to authenticate to ACR using Azure Workload Identity without storing 
 service principal secrets.
 
 #### Use case 4: Multi-tenant isolation
