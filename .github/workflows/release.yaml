@@ -242,7 +242,7 @@ jobs:
           # full qualified name of the docker image to be inspected
           DOCKER_IMAGE: ${{ needs.setup-variables.outputs.quay_image_name }}
         run: |
-          pnpm install --dir ./ui
+          pnpm install --dir ./ui --frozen-lockfile
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
           go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
 
