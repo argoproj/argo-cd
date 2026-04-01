@@ -227,3 +227,18 @@ kubectl rollout restart deployment argocd-server -n argocd
 If you migrate from Client authentication to PKCE, you can have the following error `invalid_request: Missing parameter: code_challenge_method`.
 
 It could be a redirect issue, try in private browsing or clean browser cookies.
+
+## Backchannel logout
+
+To enable server-side session termination when a user logs out of Keycloak, configure the backchannel logout URL in your client settings:
+
+1. Open the client in the Keycloak admin console.
+2. Under the **Settings** tab, scroll to the **Logout settings** section.
+3. Set **Backchannel logout URL** to `https://{hostname}/auth/backchannel-logout`.
+4. Enable **Backchannel logout session required** — this ensures the `sid` claim is included in both the ID token and the logout token, which Argo CD requires to identify and revoke the session.
+5. Click **Save**.
+
+Argo CD will now automatically revoke sessions server-side when Keycloak sends a backchannel logout notification (e.g. when the user logs out from Keycloak or another application sharing the same SSO session).
+
+See [Backchannel logout](./index.md#backchannel-logout-server-side-session-termination) in the user management docs for full details.
+

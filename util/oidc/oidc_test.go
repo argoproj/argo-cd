@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -204,6 +205,10 @@ func (p *fakeProvider) ParseConfig() (*OIDCConfiguration, error) {
 }
 
 func (p *fakeProvider) Verify(_ context.Context, _ string, _ *settings.ArgoCDSettings) (*gooidc.IDToken, error) {
+	return nil, nil
+}
+
+func (p *fakeProvider) VerifyLogoutToken(_ context.Context, _ string, _ *settings.ArgoCDSettings) (*LogoutTokenClaims, error) {
 	return nil, nil
 }
 
@@ -1655,4 +1660,285 @@ func TestClientApp_getRedirectURIForRequest(t *testing.T) {
 			assert.Equal(t, expectedRedirectURI, redirectURI, "expected URI")
 		})
 	}
+}
+
+// TestProviderImpl_VerifyLogoutToken exercises the full providerImpl.VerifyLogoutToken path using
+// the in-process OIDC test server so that real JWT signature verification is performed.
+func TestProviderImpl_VerifyLogoutToken(t *testing.T) {
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+requestedScopes: ["openid"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+	}
+
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+	// Use the test server's TLS client so certificate validation is bypassed.
+	app.client = oidcTestServer.Client()
+
+	makeLogoutToken := func(t *testing.T, extra jwt.MapClaims) string {
+		t.Helper()
+		baseClaims := jwt.MapClaims{
+			"iss": oidcTestServer.URL,
+			"sub": "user1",
+			"aud": "test-client-id",
+			"iat": time.Now().Unix(),
+			"exp": time.Now().Add(time.Hour).Unix(),
+			"jti": "ltr1",
+			"sid": "session-abc",
+			"events": map[string]any{
+				"http://schemas.openid.net/event/backchannel-logout": map[string]any{},
+			},
+		}
+		maps.Copy(baseClaims, extra)
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, baseClaims)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(test.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+		return tokenString
+	}
+
+	t.Run("valid logout token returns claims", func(t *testing.T) {
+		tokenString := makeLogoutToken(t, nil)
+		claims, err := app.VerifyLogoutToken(t.Context(), tokenString)
+		require.NoError(t, err)
+		assert.Equal(t, "user1", claims.Sub)
+		assert.Equal(t, "session-abc", claims.Sid)
+	})
+
+	t.Run("logout token without exp is accepted (exp is optional)", func(t *testing.T) {
+		// Some IdPs omit exp in logout tokens; see OIDC Backchannel Logout spec §2.4.
+		base := jwt.MapClaims{
+			"iss": oidcTestServer.URL,
+			"sub": "user1",
+			"aud": "test-client-id",
+			"iat": time.Now().Unix(),
+			// no "exp"
+			"jti": "ltr-no-exp",
+			"sid": "session-no-exp",
+			"events": map[string]any{
+				"http://schemas.openid.net/event/backchannel-logout": map[string]any{},
+			},
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, base)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(test.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		claims, err := app.VerifyLogoutToken(t.Context(), tokenString)
+		require.NoError(t, err)
+		assert.Equal(t, "session-no-exp", claims.Sid)
+	})
+
+	t.Run("logout token with expired exp is rejected", func(t *testing.T) {
+		tokenString := makeLogoutToken(t, jwt.MapClaims{"exp": time.Now().Add(-time.Hour).Unix()})
+		_, err := app.VerifyLogoutToken(t.Context(), tokenString)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "expired")
+	})
+
+	t.Run("logout token with nonce is rejected", func(t *testing.T) {
+		tokenString := makeLogoutToken(t, jwt.MapClaims{"nonce": "some-nonce"})
+		_, err := app.VerifyLogoutToken(t.Context(), tokenString)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "nonce")
+	})
+
+	t.Run("logout token without events claim is rejected", func(t *testing.T) {
+		tokenString := makeLogoutToken(t, jwt.MapClaims{"events": nil})
+		_, err := app.VerifyLogoutToken(t.Context(), tokenString)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "events")
+	})
+
+	t.Run("logout token with wrong events key is rejected", func(t *testing.T) {
+		tokenString := makeLogoutToken(t, jwt.MapClaims{
+			"events": map[string]any{"http://schemas.openid.net/event/other": map[string]any{}},
+		})
+		_, err := app.VerifyLogoutToken(t.Context(), tokenString)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "events")
+	})
+
+	t.Run("logout token without sid is rejected", func(t *testing.T) {
+		// Override sid with empty string (delete by replacing the whole claim set).
+		base := jwt.MapClaims{
+			"iss": oidcTestServer.URL,
+			"sub": "user1",
+			"aud": "test-client-id",
+			"iat": time.Now().Unix(),
+			"exp": time.Now().Add(time.Hour).Unix(),
+			"jti": "ltr2",
+			"events": map[string]any{
+				"http://schemas.openid.net/event/backchannel-logout": map[string]any{},
+			},
+			// no "sid"
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, base)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(test.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		_, err = app.VerifyLogoutToken(t.Context(), tokenString)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "sid")
+	})
+
+	t.Run("logout token without aud is accepted when skipAudienceCheck is effective", func(t *testing.T) {
+		// Construct a token with no aud claim to exercise the !unverifiedHasAudClaim branch.
+		base := jwt.MapClaims{
+			"iss": oidcTestServer.URL,
+			"sub": "user1",
+			// no "aud"
+			"iat": time.Now().Unix(),
+			"exp": time.Now().Add(time.Hour).Unix(),
+			"jti": "ltr-no-aud",
+			"sid": "session-no-aud",
+			"events": map[string]any{
+				"http://schemas.openid.net/event/backchannel-logout": map[string]any{},
+			},
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodRS512, base)
+		key, err := jwt.ParseRSAPrivateKeyFromPEM(test.PrivateKey)
+		require.NoError(t, err)
+		tokenString, err := token.SignedString(key)
+		require.NoError(t, err)
+
+		// Build settings that skip the audience check when no aud is present.
+		noAudSettings := &settings.ArgoCDSettings{
+			URL: "https://argocd.example.com",
+			OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+skipAudienceCheckWhenTokenHasNoAudience: true
+requestedScopes: ["openid"]`, oidcTestServer.URL),
+			OIDCTLSInsecureSkipVerify: true,
+		}
+		noAudApp, err := NewClientApp(noAudSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+		noAudApp.client = oidcTestServer.Client()
+
+		claims, err := noAudApp.VerifyLogoutToken(t.Context(), tokenString)
+		require.NoError(t, err)
+		assert.Equal(t, "session-no-aud", claims.Sid)
+	})
+
+	t.Run("logout token with aud but no allowed audiences configured returns error", func(t *testing.T) {
+		// To trigger the "no allowed audiences" path we must call providerImpl.VerifyLogoutToken
+		// directly with settings that make OAuth2AllowedAudiences() return nil.
+		// That happens when there is no OIDC config and no Dex config.
+		emptySettings := &settings.ArgoCDSettings{} // OIDCConfigRAW="" and DexConfig=""
+
+		prov := NewOIDCProvider(oidcTestServer.URL, oidcTestServer.Client())
+
+		tokenString := makeLogoutToken(t, nil) // has aud="test-client-id"
+		_, err = prov.VerifyLogoutToken(t.Context(), tokenString, emptySettings)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no allowed audiences")
+	})
+
+	t.Run("logout token with wrong audience is rejected with aggregated error", func(t *testing.T) {
+		// The token has aud="test-client-id" but settings only allow "other-client".
+		wrongAudSettings := &settings.ArgoCDSettings{
+			URL: "https://argocd.example.com",
+			OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: other-client
+clientSecret: test-client-secret
+requestedScopes: ["openid"]`, oidcTestServer.URL),
+			OIDCTLSInsecureSkipVerify: true,
+		}
+		wrongAudApp, err := NewClientApp(wrongAudSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+		wrongAudApp.client = oidcTestServer.Client()
+
+		tokenString := makeLogoutToken(t, nil) // signed for "test-client-id"
+		_, err = wrongAudApp.VerifyLogoutToken(t.Context(), tokenString)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to verify logout token")
+	})
+}
+
+func TestClientApp_InvalidateSessionCache(t *testing.T) {
+	c := cache.NewInMemoryCache(time.Hour)
+	encKey := make([]byte, 32)
+
+	// Pre-populate three cache keys the way HandleCallback does.
+	sub := "user123"
+	sid := "sess-xyz"
+	accessKey := FormatAccessTokenCacheKey(sub)
+	userInfoKey := FormatUserInfoResponseCacheKey(sub)
+	oidcKey := fmt.Sprintf("%s_%s_%s", OidcTokenCachePrefix, sub, sid)
+
+	setEncrypted := func(key string, val []byte) {
+		t.Helper()
+		require.NoError(t, c.Set(&cache.Item{Key: key, Object: val}))
+	}
+	setEncrypted(accessKey, []byte("access"))
+	setEncrypted(userInfoKey, []byte("userinfo"))
+	setEncrypted(oidcKey, []byte("oidc"))
+
+	app := &ClientApp{
+		clientCache:   c,
+		encryptionKey: encKey,
+	}
+	app.InvalidateSessionCache(sub, sid)
+
+	var dummy []byte
+	require.ErrorIs(t, c.Get(accessKey, &dummy), cache.ErrCacheMiss, "access token cache should be gone")
+	require.ErrorIs(t, c.Get(userInfoKey, &dummy), cache.ErrCacheMiss, "userinfo cache should be gone")
+	require.ErrorIs(t, c.Get(oidcKey, &dummy), cache.ErrCacheMiss, "oidc token cache should be gone")
+}
+
+func TestClientApp_InvalidateSessionCache_EmptySub(t *testing.T) {
+	// When sub is empty, only the oidc-token cache (keyed by sub+sid) is skipped;
+	// no sub-keyed entries should be touched.
+	c := cache.NewInMemoryCache(time.Hour)
+
+	sub := ""
+	sid := "sess-empty-sub"
+	oidcKey := fmt.Sprintf("%s_%s_%s", OidcTokenCachePrefix, sub, sid)
+	require.NoError(t, c.Set(&cache.Item{Key: oidcKey, Object: []byte("oidc")}))
+
+	app := &ClientApp{clientCache: c, encryptionKey: make([]byte, 32)}
+	// Must not panic and must not delete the oidc key (sub is empty → condition sub!="" is false).
+	app.InvalidateSessionCache(sub, sid)
+
+	var dummy []byte
+	// Entry should still be present because sub was empty.
+	assert.NoError(t, c.Get(oidcKey, &dummy))
+}
+
+func TestClientApp_InvalidateSessionCache_EmptySid(t *testing.T) {
+	// When sid is empty the oidc-token cache entry (keyed by sub+sid) should NOT be deleted,
+	// but the sub-keyed entries (access token, userinfo) should still be cleared.
+	c := cache.NewInMemoryCache(time.Hour)
+
+	sub := "user-empty-sid"
+	accessKey := FormatAccessTokenCacheKey(sub)
+	userInfoKey := FormatUserInfoResponseCacheKey(sub)
+
+	require.NoError(t, c.Set(&cache.Item{Key: accessKey, Object: []byte("access")}))
+	require.NoError(t, c.Set(&cache.Item{Key: userInfoKey, Object: []byte("userinfo")}))
+
+	app := &ClientApp{clientCache: c, encryptionKey: make([]byte, 32)}
+	app.InvalidateSessionCache(sub, "")
+
+	var dummy []byte
+	require.ErrorIs(t, c.Get(accessKey, &dummy), cache.ErrCacheMiss, "access token cache should be deleted")
+	require.ErrorIs(t, c.Get(userInfoKey, &dummy), cache.ErrCacheMiss, "userinfo cache should be deleted")
 }

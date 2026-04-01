@@ -1069,3 +1069,29 @@ func FormatAccessTokenCacheKey(sub string) string {
 func formatOidcTokenCacheKey(sub string, sid string) string {
 	return fmt.Sprintf("%s_%s_%s", OidcTokenCachePrefix, sub, sid)
 }
+
+// InvalidateSessionCache removes all cached SSO data for the given subject/session pair.
+// It is called during backchannel logout to ensure that invalidated sessions cannot be
+// refreshed from stale cached tokens.
+func (a *ClientApp) InvalidateSessionCache(sub, sid string) {
+	if sub != "" {
+		if err := a.clientCache.Delete(FormatAccessTokenCacheKey(sub)); err != nil {
+			log.Debugf("backchannel-logout: failed to delete access token cache for sub=%s: %v", sub, err)
+		}
+		if err := a.clientCache.Delete(FormatUserInfoResponseCacheKey(sub)); err != nil {
+			log.Debugf("backchannel-logout: failed to delete userinfo cache for sub=%s: %v", sub, err)
+		}
+	}
+	if sub != "" && sid != "" {
+		if err := a.clientCache.Delete(formatOidcTokenCacheKey(sub, sid)); err != nil {
+			log.Debugf("backchannel-logout: failed to delete oidc token cache for sub=%s sid=%s: %v", sub, sid, err)
+		}
+	}
+}
+
+// VerifyLogoutToken verifies an OIDC backchannel logout token using the configured OIDC provider.
+// It validates the token signature, standard claims, the required events claim, and the absence
+// of a nonce claim. Returns the extracted claims on success.
+func (a *ClientApp) VerifyLogoutToken(ctx context.Context, tokenString string) (*LogoutTokenClaims, error) {
+	return a.provider.VerifyLogoutToken(ctx, tokenString, a.settings)
+}

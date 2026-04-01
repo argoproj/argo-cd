@@ -95,6 +95,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/server/account"
 	"github.com/argoproj/argo-cd/v3/server/application"
 	"github.com/argoproj/argo-cd/v3/server/applicationset"
+	backchannellogout "github.com/argoproj/argo-cd/v3/server/backchannel_logout"
 	"github.com/argoproj/argo-cd/v3/server/badge"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/certificate"
@@ -1172,8 +1173,9 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 		Handler: &handlerSwitcher{
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
-				"/api/badge":          otelhttp.NewHandler(badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces), "server.ArgoCDServer/badge"),
-				common.LogoutEndpoint: otelhttp.NewHandler(logout.NewHandler(server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef), "server.ArgoCDServer/logout"),
+				"/api/badge":                     otelhttp.NewHandler(badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces), "server.ArgoCDServer/badge"),
+				common.LogoutEndpoint:            otelhttp.NewHandler(logout.NewHandler(server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef), "server.ArgoCDServer/logout"),
+				common.BackchannelLogoutEndpoint: otelhttp.NewHandler(backchannellogout.NewHandler(server.settingsMgr, server.sessionMgr, server.ssoClientApp), "server.ArgoCDServer/backchannelLogout"),
 			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,

@@ -15,6 +15,11 @@ import (
 const (
 	revokedTokenPrefix = "revoked-token|"
 	newRevokedTokenKey = "new-revoked-token"
+
+	// revokedOIDCSIDPrefix is the Redis key prefix for revoked OIDC session IDs (backchannel logout).
+	revokedOIDCSIDPrefix = "revoked-oidc-sid|"
+	// newRevokedOIDCSIDChannel is the Redis Pub/Sub channel used to broadcast newly revoked OIDC SIDs.
+	newRevokedOIDCSIDChannel = "new-revoked-oidc-sid"
 )
 
 type userStateStorage struct {
@@ -22,19 +27,24 @@ type userStateStorage struct {
 	redis               *redis.Client
 	revokedTokens       map[string]bool
 	recentRevokedTokens map[string]bool
-	lock                sync.RWMutex
-	resyncDuration      time.Duration
+	// revokedOIDCSIDs holds OIDC session IDs revoked via backchannel logout.
+	revokedOIDCSIDs       map[string]bool
+	recentRevokedOIDCSIDs map[string]bool
+	lock                  sync.RWMutex
+	resyncDuration        time.Duration
 }
 
 var _ UserStateStorage = &userStateStorage{}
 
 func NewUserStateStorage(redis *redis.Client) *userStateStorage {
 	return &userStateStorage{
-		attempts:            map[string]LoginAttempts{},
-		revokedTokens:       map[string]bool{},
-		recentRevokedTokens: map[string]bool{},
-		resyncDuration:      time.Second * 15,
-		redis:               redis,
+		attempts:              map[string]LoginAttempts{},
+		revokedTokens:         map[string]bool{},
+		recentRevokedTokens:   map[string]bool{},
+		revokedOIDCSIDs:       map[string]bool{},
+		recentRevokedOIDCSIDs: map[string]bool{},
+		resyncDuration:        time.Second * 15,
+		redis:                 redis,
 	}
 }
 
@@ -42,11 +52,14 @@ func NewUserStateStorage(redis *redis.Client) *userStateStorage {
 // Don't call this until after setting up all hooks on the Redis client, or you might encounter race conditions.
 func (storage *userStateStorage) Init(ctx context.Context) {
 	go storage.watchRevokedTokens(ctx)
+	go storage.watchRevokedOIDCSIDs(ctx)
 	ticker := time.NewTicker(storage.resyncDuration)
 	go func() {
 		storage.loadRevokedTokensSafe()
+		storage.loadRevokedOIDCSIDsSafe()
 		for range ticker.C {
 			storage.loadRevokedTokensSafe()
+			storage.loadRevokedOIDCSIDsSafe()
 		}
 	}()
 	go func() {
@@ -136,6 +149,82 @@ func (storage *userStateStorage) IsTokenRevoked(id string) bool {
 	return storage.revokedTokens[id]
 }
 
+func (storage *userStateStorage) watchRevokedOIDCSIDs(ctx context.Context) {
+	pubsub := storage.redis.Subscribe(ctx, newRevokedOIDCSIDChannel)
+	defer utilio.Close(pubsub)
+
+	ch := pubsub.Channel()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case val := <-ch:
+			storage.lock.Lock()
+			storage.revokedOIDCSIDs[val.Payload] = true
+			storage.recentRevokedOIDCSIDs[val.Payload] = true
+			storage.lock.Unlock()
+		}
+	}
+}
+
+func (storage *userStateStorage) loadRevokedOIDCSIDsSafe() {
+	err := storage.loadRevokedOIDCSIDs()
+	for err != nil {
+		log.Warnf("Failed to resync revoked OIDC SIDs. retrying again in 1 minute: %v", err)
+		time.Sleep(time.Minute)
+		err = storage.loadRevokedOIDCSIDs()
+	}
+}
+
+func (storage *userStateStorage) loadRevokedOIDCSIDs() error {
+	redisRevokedSIDs := map[string]bool{}
+	iterator := storage.redis.Scan(context.Background(), 0, revokedOIDCSIDPrefix+"*", 10000).Iterator()
+	for iterator.Next(context.Background()) {
+		parts := strings.Split(iterator.Val(), "|")
+		if len(parts) != 2 {
+			log.Warnf("Unexpected redis key prefixed with '%s'. Must have SID after the prefix but got: '%s'.",
+				revokedOIDCSIDPrefix,
+				iterator.Val())
+			continue
+		}
+		redisRevokedSIDs[parts[1]] = true
+	}
+	if iterator.Err() != nil {
+		return iterator.Err()
+	}
+
+	storage.lock.Lock()
+	defer storage.lock.Unlock()
+	storage.revokedOIDCSIDs = redisRevokedSIDs
+	for recentSID := range storage.recentRevokedOIDCSIDs {
+		storage.revokedOIDCSIDs[recentSID] = true
+	}
+	storage.recentRevokedOIDCSIDs = map[string]bool{}
+
+	return nil
+}
+
+// RevokeOIDCSession marks the given OIDC session ID (sid) as revoked. The revocation entry expires
+// after the given duration, which should be set to the remaining lifetime of the longest-lived
+// token that could carry this session ID.
+func (storage *userStateStorage) RevokeOIDCSession(ctx context.Context, sid string, expiration time.Duration) error {
+	storage.lock.Lock()
+	storage.revokedOIDCSIDs[sid] = true
+	storage.recentRevokedOIDCSIDs[sid] = true
+	storage.lock.Unlock()
+	if err := storage.redis.Set(ctx, revokedOIDCSIDPrefix+sid, "", expiration).Err(); err != nil {
+		return err
+	}
+	return storage.redis.Publish(ctx, newRevokedOIDCSIDChannel, sid).Err()
+}
+
+// IsOIDCSessionRevoked returns true if the given OIDC session ID has been revoked via backchannel logout.
+func (storage *userStateStorage) IsOIDCSessionRevoked(sid string) bool {
+	storage.lock.RLock()
+	defer storage.lock.RUnlock()
+	return storage.revokedOIDCSIDs[sid]
+}
+
 func (storage *userStateStorage) GetLockObject() *sync.RWMutex {
 	return &storage.lock
 }
@@ -150,6 +239,11 @@ type UserStateStorage interface {
 	RevokeToken(ctx context.Context, id string, expiringAt time.Duration) error
 	// IsTokenRevoked checks if given token is revoked
 	IsTokenRevoked(id string) bool
+	// RevokeOIDCSession revokes an OIDC session identified by the given sid claim value.
+	// expiration controls how long the revocation entry is kept (should cover the max token lifetime).
+	RevokeOIDCSession(ctx context.Context, sid string, expiration time.Duration) error
+	// IsOIDCSessionRevoked returns true if the given OIDC session ID has been revoked via backchannel logout.
+	IsOIDCSessionRevoked(sid string) bool
 	// GetLockObject returns a lock used by the storage
 	GetLockObject() *sync.RWMutex
 }

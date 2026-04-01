@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -18,6 +19,18 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
+
+// backchannelLogoutEventType is the required key in the "events" claim of an OIDC backchannel logout token,
+// as specified in https://openid.net/specs/openid-connect-backchannel-1_0.html#LogoutToken.
+const backchannelLogoutEventType = "http://schemas.openid.net/event/backchannel-logout"
+
+// LogoutTokenClaims holds the verified claims extracted from an OIDC backchannel logout token.
+type LogoutTokenClaims struct {
+	// Sub is the subject identifier (user ID) from the logout token.
+	Sub string
+	// Sid is the OIDC session ID that should be revoked.
+	Sid string
+}
 
 // Provider is a wrapper around go-oidc provider to also provide the following features:
 // 1. lazy initialization/querying of the provider
@@ -32,6 +45,11 @@ type Provider interface {
 	ParseConfig() (*OIDCConfiguration, error)
 
 	Verify(ctx context.Context, tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error)
+
+	// VerifyLogoutToken verifies an OIDC backchannel logout token. It validates the token signature,
+	// standard JWT claims (iss, aud, iat, exp), the required "events" claim, and the absence of a
+	// "nonce" claim. It returns the relevant claims on success.
+	VerifyLogoutToken(ctx context.Context, tokenString string, argoSettings *settings.ArgoCDSettings) (*LogoutTokenClaims, error)
 }
 
 type providerImpl struct {
@@ -202,6 +220,151 @@ func (p *providerImpl) verify(ctx context.Context, clientID, tokenString string,
 		p.goOIDCProvider = newProvider
 	}
 	return idToken, nil
+}
+
+// verifyLogoutTokenSignature verifies the signature, issuer, and audience of a logout token using
+// a verifier with SkipExpiryCheck: true. Per the OIDC Backchannel Logout spec (section 2.4), the
+// "exp" claim is OPTIONAL in logout tokens, so we must not reject tokens that omit it. When "exp"
+// is present we enforce it ourselves after this call.
+func (p *providerImpl) verifyLogoutTokenSignature(ctx context.Context, clientID, tokenString string, skipClientIDCheck bool) (*gooidc.IDToken, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "oidc.providerImpl.verifyLogoutTokenSignature")
+	defer span.End()
+	prov, err := p.provider()
+	if err != nil {
+		span.SetStatus(codes.Error, fmt.Sprintf("failed to query provider: %v", err))
+		return nil, err
+	}
+	config := &gooidc.Config{
+		ClientID:          clientID,
+		SkipClientIDCheck: skipClientIDCheck,
+		// exp is OPTIONAL in logout tokens (OIDC Back-Channel Logout spec §2.4).
+		// We enforce expiry ourselves below when the claim is present.
+		SkipExpiryCheck: true,
+	}
+	verifier := prov.Verifier(config)
+	idToken, err := verifier.Verify(ctx, tokenString)
+	if err != nil {
+		// Same JWKS-rotation hack as in verify().
+		if !strings.Contains(err.Error(), "failed to verify signature") {
+			span.SetStatus(codes.Error, fmt.Sprintf("error verifying logout token: %v", err))
+			return nil, err
+		}
+		newProvider, retryErr := p.newGoOIDCProvider()
+		if retryErr != nil {
+			span.SetStatus(codes.Error, fmt.Sprintf("hack: logout token retry failed: %v", err))
+			return nil, err
+		}
+		verifier = newProvider.Verifier(config)
+		idToken, err = verifier.Verify(ctx, tokenString)
+		if err != nil {
+			span.SetStatus(codes.Error, fmt.Sprintf("hack: logout token retry error: %v", err))
+			return nil, err
+		}
+		log.Info("New OIDC settings detected (logout token path)")
+		p.goOIDCProvider = newProvider
+	}
+	return idToken, nil
+}
+
+// VerifyLogoutToken implements Provider.
+func (p *providerImpl) VerifyLogoutToken(ctx context.Context, tokenString string, argoSettings *settings.ArgoCDSettings) (*LogoutTokenClaims, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "oidc.providerImpl.VerifyLogoutToken")
+	defer span.End()
+
+	// Validate signature, issuer, and audience. exp is checked separately below since it
+	// is optional in logout tokens per the OIDC Backchannel Logout spec (section 2.4).
+	var (
+		idToken *gooidc.IDToken
+		err     error
+	)
+	unverifiedHasAudClaim, err := security.UnverifiedHasAudClaim(tokenString)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return nil, fmt.Errorf("failed to determine whether the logout token has an aud claim: %w", err)
+	}
+	if !unverifiedHasAudClaim {
+		idToken, err = p.verifyLogoutTokenSignature(ctx, "", tokenString, argoSettings.SkipAudienceCheckWhenTokenHasNoAudience())
+	} else {
+		allowedAudiences := argoSettings.OAuth2AllowedAudiences()
+		if len(allowedAudiences) == 0 {
+			err = errors.New("logout token has an audience claim, but no allowed audiences are configured")
+			span.SetStatus(codes.Error, err.Error())
+			return nil, err
+		}
+		tokenVerificationErrors := make(map[string]error)
+		for _, aud := range allowedAudiences {
+			idToken, err = p.verifyLogoutTokenSignature(ctx, aud, tokenString, false)
+			if err == nil {
+				break
+			}
+			tokenVerificationErrors[aud] = err
+		}
+		if err != nil && len(tokenVerificationErrors) > 0 {
+			err = tokenVerificationError{errorsByAudience: tokenVerificationErrors}
+		}
+	}
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return nil, fmt.Errorf("failed to verify logout token: %w", err)
+	}
+
+	// Enforce expiry manually: if exp is set (non-zero) it must not be in the past.
+	if !idToken.Expiry.IsZero() && time.Now().After(idToken.Expiry) {
+		err = fmt.Errorf("logout token is expired (exp: %s)", idToken.Expiry)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	var rawClaims map[string]any
+	if err := idToken.Claims(&rawClaims); err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return nil, fmt.Errorf("failed to parse logout token claims: %w", err)
+	}
+
+	// Per spec: logout tokens MUST NOT contain a nonce claim.
+	if _, hasNonce := rawClaims["nonce"]; hasNonce {
+		err := errors.New("logout token must not contain a nonce claim")
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	// Per spec: logout tokens MUST contain an events claim whose value is a JSON object
+	// containing the member name backchannelLogoutEventType with an empty JSON object as its value.
+	eventsRaw, ok := rawClaims["events"]
+	if !ok {
+		err := errors.New("logout token missing required events claim")
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	eventsMap, ok := eventsRaw.(map[string]any)
+	if !ok {
+		err := errors.New("logout token events claim has unexpected type")
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	if _, ok := eventsMap[backchannelLogoutEventType]; !ok {
+		err := fmt.Errorf("logout token events claim does not contain required %q key", backchannelLogoutEventType)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	// Per spec: logout tokens MUST contain either a sub claim, a sid claim, or both.
+	// We require sid since we use it as the session identifier for revocation.
+	sid, _ := rawClaims["sid"].(string)
+	if sid == "" {
+		err := errors.New("logout token missing required sid claim")
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	sub, _ := rawClaims["sub"].(string)
+
+	span.SetAttributes(
+		attribute.String("sub", sub),
+		attribute.String("sid", sid),
+	)
+	return &LogoutTokenClaims{Sub: sub, Sid: sid}, nil
 }
 
 func (p *providerImpl) Endpoint() (*oauth2.Endpoint, error) {

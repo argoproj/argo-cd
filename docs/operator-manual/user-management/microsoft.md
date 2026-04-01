@@ -271,3 +271,23 @@ data:
     requestedScopes: ["openid", "profile", "email", "groups"]
     domainHint: contoso.com
 ```
+
+## Backchannel logout
+
+Argo CD supports [OIDC Back-Channel Logout](./index.md#backchannel-logout-server-side-session-termination), which allows Microsoft Entra ID to immediately revoke Argo CD sessions when a user signs out.
+
+> [!NOTE]
+> Microsoft Entra ID backchannel logout requires a confidential client (not a public client) and is available for tenanted and multi-tenant applications. See [Microsoft's documentation](https://learn.microsoft.com/en-us/entra/identity-platform/logout-openid-connect) for supported scenarios.
+
+To configure:
+
+1. In the [Azure Portal](https://portal.azure.com), navigate to **Microsoft Entra ID → App registrations** and open your Argo CD app registration.
+2. Select **Authentication**.
+3. Under **Front-channel logout URL** (Entra uses front-channel for SPA/web) or the **Logout URL** field for confidential clients, enter:
+   ```
+   https://{hostname}/auth/backchannel-logout
+   ```
+4. Ensure the **`sid`** optional claim is configured in the **Token configuration** section for the ID token (add the `sid` optional claim if it is not already present).
+5. Save.
+
+Once configured, Argo CD will revoke sessions server-side whenever Entra ID issues a logout notification.
