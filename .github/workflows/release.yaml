@@ -11,7 +11,7 @@ permissions: {}
 
 env:
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.26.0' # Note: go-version must also be set in job argocd-image.with.go-version
+  GOLANG_VERSION: '1.26.1' # Note: go-version must also be set in job argocd-image.with.go-version
 
 jobs:
   argocd-image:
