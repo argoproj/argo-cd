@@ -23,8 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/v3/util/gpg"
-
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -856,11 +854,6 @@ func verifyGenerateManifests(
 			continue
 		}
 
-		verifySignature := false
-		if len(proj.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
-			verifySignature = true
-		}
-
 		repos := helmRepos
 		helmRepoCreds := repositoryCredentials
 		// If the source is OCI, there is a potential for an OCI image to be a Helm chart and that said chart in
@@ -881,7 +874,6 @@ func verifyGenerateManifests(
 				Proxy:   repoRes.Proxy,
 				NoProxy: repoRes.NoProxy,
 			},
-			VerifySignature:                 verifySignature,
 			Repos:                           repos,
 			Revision:                        source.TargetRevision,
 			AppName:                         app.Name,
@@ -892,6 +884,7 @@ func verifyGenerateManifests(
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,
+			SourceIntegrity:                 proj.EffectiveSourceIntegrity(),
 			HelmRepoCreds:                   helmRepoCreds,
 			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enableGenerateManifests,
