@@ -734,10 +734,13 @@ func TestClusterInformer_SecretDeletion(t *testing.T) {
 	err = clientset.CoreV1().Secrets("argocd").Delete(t.Context(), "cluster1", metav1.DeleteOptions{})
 	require.NoError(t, err)
 
-	time.Sleep(100 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		_, err := informer.GetClusterByURL("https://cluster1.example.com")
+		return err != nil
+	}, 5*time.Second, 10*time.Millisecond, "expected cluster1 to be removed from cache after secret deletion")
 
 	_, err = informer.GetClusterByURL("https://cluster1.example.com")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 
 	cluster2, err := informer.GetClusterByURL("https://cluster2.example.com")
