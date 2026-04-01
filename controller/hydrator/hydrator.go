@@ -48,6 +48,9 @@ type Dependencies interface {
 	// GetProcessableApps returns a list of applications that are processable by the controller.
 	GetProcessableApps() (*appv1.ApplicationList, error)
 
+	// EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
+	EvaluateAppRevisionsChanges(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) (bool, error)
+
 	// GetRepoObjs returns the repository objects for the given application, source, and revision. It calls the repo-
 	// server and gets the manifests (objects).
 	GetRepoObjs(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, bool, error)
@@ -474,15 +477,7 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 // getRepoObjects gets the repository objects for the given application dry source.
 // It returns the repository objects, the manifest response, and a flag indicating if the revisions may contain changes compared to the one in the last successful hydration.
 func (h *Hydrator) getRepoObjects(ctx context.Context, app *appv1.Application, targetRevision string, project *appv1.AppProject) (objs []*unstructured.Unstructured, resp *apiclient.ManifestResponse, revisionsMayHaveChanges bool, err error) {
-	drySource := appv1.ApplicationSource{
-		RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
-		Path:           app.Spec.SourceHydrator.DrySource.Path,
-		TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-		Helm:           app.Spec.SourceHydrator.DrySource.Helm,
-		Kustomize:      app.Spec.SourceHydrator.DrySource.Kustomize,
-		Directory:      app.Spec.SourceHydrator.DrySource.Directory,
-		Plugin:         app.Spec.SourceHydrator.DrySource.Plugin,
-	}
+	drySource := app.Spec.SourceHydrator.GetDrySource()
 	if targetRevision == "" {
 		targetRevision = drySource.TargetRevision
 	}
@@ -548,36 +543,28 @@ func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, re
 // Returns true if the new revision may contain changes that would affect the hydrated manifests.
 func (h *Hydrator) newRevisionHasChanges(app *appv1.Application) bool {
 	// Only check if we have a previous successful operation to compare against
-	// If we don't, we cannot know if the manifests have changes
 	if app.Status.SourceHydrator.LastSuccessfulOperation == nil {
 		return false
 	}
 
-	// Get the project for the app to pass to getRepoObjects
 	project, err := h.dependencies.GetProcessableAppProj(app)
 	if err != nil {
-		// If we can't get the project, we can't check for changes, so assume no changes
 		log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to get project for revision check")
 		return false
 	}
 
-	// Get the latest resolved revision (SHA) from the dry source
-	// Pass empty string for targetRevision to use the one from app spec
-	_, resp, revisionsMayHaveChanges, err := h.getRepoObjects(context.Background(), app, "", project)
+	drySource := app.Spec.SourceHydrator.GetDrySource()
+	hasChanges, err := h.dependencies.EvaluateAppRevisionsChanges(context.Background(), app, drySource, drySource.TargetRevision, project)
 	if err != nil {
-		// If we can't resolve the revision, we can't check for changes, so assume no changes
-		log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to resolve dry source revision")
+		log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to evaluate app revisions changes")
 		return false
 	}
 
-	if revisionsMayHaveChanges {
-		log.WithFields(applog.GetAppLogFields(app)).WithFields(log.Fields{
-			"newDrySHA":  resp.Revision,
-			"lastDrySHA": app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA,
-		}).Debug("New dry source revision detected")
+	if hasChanges {
+		log.WithFields(applog.GetAppLogFields(app)).Debug("New dry source revision detected")
 	}
 
-	return revisionsMayHaveChanges
+	return hasChanges
 }
 
 // appNeedsHydration answers if application needs manifests hydrated.
