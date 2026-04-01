@@ -4,6 +4,6 @@ WORKDIR /app/ui
 
 COPY ui /app/ui
 
-RUN pnpm install
+RUN corepack enable && pnpm install
 
 ENTRYPOINT ["pnpm", "start"]
