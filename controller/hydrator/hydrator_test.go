@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	repoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	reposervermocks "github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -33,6 +34,14 @@ Argocd-reference-commit-repourl: https://github.com/test/argocd-example-apps
 Argocd-reference-commit-author: Argocd-reference-commit-author
 Argocd-reference-commit-subject: testhydratormd
 Signed-off-by: testUser <test@gmail.com>`
+
+type failingRepoClientset struct {
+	err error
+}
+
+func (f failingRepoClientset) NewRepoServerClient() (utilio.Closer, repoclient.RepoServerServiceClient, error) {
+	return nil, nil, f.err
+}
 
 func Test_appNeedsHydration(t *testing.T) {
 	t.Parallel()
@@ -584,6 +593,109 @@ func TestHydrator_getLatestDrySourceRevision(t *testing.T) {
 	revision, err := h.getLatestDrySourceRevision(app)
 	require.NoError(t, err)
 	assert.Equal(t, "sha123", revision)
+}
+
+func TestHydrator_getLatestDrySourceRevision_Errors(t *testing.T) {
+	t.Parallel()
+
+	app := newTestApp("test-app")
+
+	t.Run("missing repo getter", func(t *testing.T) {
+		t.Parallel()
+
+		h := &Hydrator{}
+		_, err := h.getLatestDrySourceRevision(app)
+		require.EqualError(t, err, "repo getter is not configured")
+	})
+
+	t.Run("missing repo clientset", func(t *testing.T) {
+		t.Parallel()
+
+		h := &Hydrator{repoGetter: mocks.NewRepoGetter(t)}
+		_, err := h.getLatestDrySourceRevision(app)
+		require.EqualError(t, err, "repo clientset is not configured")
+	})
+
+	t.Run("get repository fails", func(t *testing.T) {
+		t.Parallel()
+
+		r := mocks.NewRepoGetter(t)
+		r.EXPECT().GetRepository(mock.Anything, app.Spec.SourceHydrator.DrySource.RepoURL, app.Spec.Project).Return(nil, errors.New("repo lookup failed")).Once()
+
+		h := &Hydrator{repoGetter: r, repoClientset: &reposervermocks.Clientset{}}
+		_, err := h.getLatestDrySourceRevision(app)
+		require.ErrorContains(t, err, "failed to get repo")
+		require.ErrorContains(t, err, "repo lookup failed")
+	})
+
+	t.Run("repo server client fails", func(t *testing.T) {
+		t.Parallel()
+
+		r := mocks.NewRepoGetter(t)
+		r.EXPECT().GetRepository(mock.Anything, app.Spec.SourceHydrator.DrySource.RepoURL, app.Spec.Project).Return(nil, nil).Once()
+
+		h := &Hydrator{repoGetter: r, repoClientset: failingRepoClientset{err: errors.New("connect failed")}}
+		_, err := h.getLatestDrySourceRevision(app)
+		require.ErrorContains(t, err, "failed to connect to repo server")
+		require.ErrorContains(t, err, "connect failed")
+	})
+
+	t.Run("resolve revision fails", func(t *testing.T) {
+		t.Parallel()
+
+		r := mocks.NewRepoGetter(t)
+		rc := reposervermocks.NewRepoServerServiceClient(t)
+
+		r.EXPECT().GetRepository(mock.Anything, app.Spec.SourceHydrator.DrySource.RepoURL, app.Spec.Project).Return(nil, nil).Once()
+		rc.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(nil, errors.New("resolve failed")).Once()
+
+		h := &Hydrator{
+			repoGetter:    r,
+			repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc},
+		}
+		_, err := h.getLatestDrySourceRevision(app)
+		require.ErrorContains(t, err, "failed to resolve latest dry source revision")
+		require.ErrorContains(t, err, "resolve failed")
+	})
+}
+
+func TestHydrator_appNeedsHydration_DrySourceRevisionErrors(t *testing.T) {
+	t.Parallel()
+
+	app := setTestAppPhase(newTestApp("test-app"), v1alpha1.HydrateOperationPhaseHydrated)
+	finishedAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
+	app.Status.SourceHydrator.CurrentOperation.FinishedAt = &finishedAt
+	app.Status.SourceHydrator.CurrentOperation.DrySHA = "old-sha"
+
+	t.Run("returns resolver error", func(t *testing.T) {
+		t.Parallel()
+
+		h := &Hydrator{statusRefreshTimeout: time.Minute}
+		needsHydration, reason, err := h.appNeedsHydration(app)
+		require.False(t, needsHydration)
+		require.Equal(t, "hydration not needed", reason)
+		require.EqualError(t, err, "repo getter is not configured")
+	})
+
+	t.Run("returns none when resolved sha is unchanged", func(t *testing.T) {
+		t.Parallel()
+
+		r := mocks.NewRepoGetter(t)
+		rc := reposervermocks.NewRepoServerServiceClient(t)
+
+		r.EXPECT().GetRepository(mock.Anything, app.Spec.SourceHydrator.DrySource.RepoURL, app.Spec.Project).Return(nil, nil).Once()
+		rc.EXPECT().ResolveRevision(mock.Anything, mock.Anything).Return(&repoclient.ResolveRevisionResponse{Revision: "old-sha"}, nil).Once()
+
+		h := &Hydrator{
+			statusRefreshTimeout: time.Minute,
+			repoGetter:           r,
+			repoClientset:        &reposervermocks.Clientset{RepoServerServiceClient: rc},
+		}
+		needsHydration, reason, err := h.appNeedsHydration(app)
+		require.NoError(t, err)
+		require.False(t, needsHydration)
+		require.Equal(t, "hydration not needed", reason)
+	})
 }
 
 func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
