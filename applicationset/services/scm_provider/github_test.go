@@ -243,7 +243,7 @@ func TestGithubListRepos(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			provider, _ := NewGithubProvider("argoproj", "", ts.URL, c.allBranches)
-			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
+			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto, false)
 			if c.hasError {
 				require.Error(t, err)
 			} else {
