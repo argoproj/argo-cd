@@ -662,8 +662,17 @@ install-go-tools-local:
 dep-ui: test-tools-image
 	$(call run-in-test-client,make dep-ui-local)
 
+.PHONY: dep-ui-local
 dep-ui-local:
-	cd ui && pnpm install
+	cd ui && pnpm install --frozen-lockfile
+
+.PHONY: run-pnpm
+run-pnpm: test-tools-image
+	$(call run-in-test-client,make 'PNPM_COMMAND=$(PNPM_COMMAND)' run-pnpm-local)
+
+.PHONY: run-pnpm-local
+run-pnpm-local:
+	cd ui && pnpm $(PNPM_COMMAND)
 
 start-test-k8s:
 	go run ./hack/k8s
