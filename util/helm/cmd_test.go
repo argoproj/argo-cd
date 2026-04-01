@@ -3,6 +3,7 @@ package helm
 import (
 	"errors"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
@@ -139,17 +140,32 @@ func TestDependencyBuild(t *testing.T) {
 	tests := []struct {
 		name        string
 		insecure    bool
+		caFilePath  string
 		expectedOut string
 	}{
 		{
-			name:        "without insecure",
+			name:        "without insecure or ca-file",
 			insecure:    false,
+			caFilePath:  "",
 			expectedOut: "helm dependency build",
 		},
 		{
 			name:        "with insecure",
 			insecure:    true,
+			caFilePath:  "",
 			expectedOut: "helm dependency build --insecure-skip-tls-verify",
+		},
+		{
+			name:        "with ca-file",
+			insecure:    false,
+			caFilePath:  "/path/to/ca.crt",
+			expectedOut: "helm dependency build --ca-file /path/to/ca.crt",
+		},
+		{
+			name:        "with insecure and ca-file",
+			insecure:    true,
+			caFilePath:  "/path/to/ca.crt",
+			expectedOut: "helm dependency build --insecure-skip-tls-verify --ca-file /path/to/ca.crt",
 		},
 	}
 	for _, tc := range tests {
@@ -158,11 +174,87 @@ func TestDependencyBuild(t *testing.T) {
 				return strings.Join(cmd.Args, " "), nil
 			})
 			require.NoError(t, err)
-			out, err := c.dependencyBuild(tc.insecure)
+			out, err := c.dependencyBuild(tc.insecure, tc.caFilePath)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedOut, out)
 		})
 	}
+}
+
+func TestWriteCombinedCAFile(t *testing.T) {
+	t.Run("empty paths", func(t *testing.T) {
+		path, closer, err := writeCombinedCAFile(nil)
+		require.NoError(t, err)
+		assert.Equal(t, "", path)
+		require.NoError(t, closer.Close())
+	})
+
+	t.Run("single CA file", func(t *testing.T) {
+		caFile, err := os.CreateTemp("", "test-ca-*")
+		require.NoError(t, err)
+		_, err = caFile.WriteString("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n")
+		require.NoError(t, err)
+		caFile.Close()
+		defer os.Remove(caFile.Name())
+
+		path, closer, err := writeCombinedCAFile([]string{caFile.Name()})
+		require.NoError(t, err)
+		defer closer.Close()
+		assert.NotEmpty(t, path)
+
+		data, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Contains(t, string(data), "-----BEGIN CERTIFICATE-----")
+	})
+
+	t.Run("multiple CA files are concatenated", func(t *testing.T) {
+		caFile1, err := os.CreateTemp("", "test-ca1-*")
+		require.NoError(t, err)
+		_, err = caFile1.WriteString("-----BEGIN CERTIFICATE-----\nca1\n-----END CERTIFICATE-----\n")
+		require.NoError(t, err)
+		caFile1.Close()
+		defer os.Remove(caFile1.Name())
+
+		caFile2, err := os.CreateTemp("", "test-ca2-*")
+		require.NoError(t, err)
+		_, err = caFile2.WriteString("-----BEGIN CERTIFICATE-----\nca2\n-----END CERTIFICATE-----\n")
+		require.NoError(t, err)
+		caFile2.Close()
+		defer os.Remove(caFile2.Name())
+
+		path, closer, err := writeCombinedCAFile([]string{caFile1.Name(), caFile2.Name()})
+		require.NoError(t, err)
+		defer closer.Close()
+
+		data, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Contains(t, string(data), "ca1")
+		assert.Contains(t, string(data), "ca2")
+	})
+
+	t.Run("duplicate paths are deduplicated", func(t *testing.T) {
+		caFile, err := os.CreateTemp("", "test-ca-*")
+		require.NoError(t, err)
+		_, err = caFile.WriteString("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n")
+		require.NoError(t, err)
+		caFile.Close()
+		defer os.Remove(caFile.Name())
+
+		path, closer, err := writeCombinedCAFile([]string{caFile.Name(), caFile.Name()})
+		require.NoError(t, err)
+		defer closer.Close()
+
+		data, err := os.ReadFile(path)
+		require.NoError(t, err)
+		assert.Equal(t, 1, strings.Count(string(data), "-----BEGIN CERTIFICATE-----"))
+	})
+
+	t.Run("non-existent file is skipped", func(t *testing.T) {
+		path, closer, err := writeCombinedCAFile([]string{"/nonexistent/ca.crt"})
+		require.NoError(t, err)
+		defer closer.Close()
+		assert.Equal(t, "", path)
+	})
 }
 
 func TestRegistryLogout(t *testing.T) {

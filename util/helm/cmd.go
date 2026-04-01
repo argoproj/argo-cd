@@ -327,16 +327,60 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	return out, nil
 }
 
-func (c *Cmd) dependencyBuild(insecure bool) (string, error) {
+func (c *Cmd) dependencyBuild(insecure bool, caFilePath string) (string, error) {
 	args := []string{"dependency", "build"}
 	if insecure {
 		args = append(args, "--insecure-skip-tls-verify")
+	}
+	if caFilePath != "" {
+		args = append(args, "--ca-file", caFilePath)
 	}
 	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to build dependencies: %w", err)
 	}
 	return out, nil
+}
+
+// writeCombinedCAFile reads all unique CA files from the given paths,
+// concatenates their contents into a single temporary file, and returns
+// the path and a closer for cleanup. Returns ("", NopCloser, nil) if no
+// CA paths are available.
+func writeCombinedCAFile(caPaths []string) (string, utilio.Closer, error) {
+	seen := make(map[string]struct{})
+	var uniquePaths []string
+	for _, p := range caPaths {
+		if p == "" {
+			continue
+		}
+		if _, ok := seen[p]; ok {
+			continue
+		}
+		seen[p] = struct{}{}
+		uniquePaths = append(uniquePaths, p)
+	}
+	if len(uniquePaths) == 0 {
+		return "", utilio.NopCloser, nil
+	}
+
+	var combinedCA []byte
+	for _, p := range uniquePaths {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			log.Warnf("Could not read CA file %q: %v", p, err)
+			continue
+		}
+		combinedCA = append(combinedCA, data...)
+		if len(data) > 0 && data[len(data)-1] != '\n' {
+			combinedCA = append(combinedCA, '\n')
+		}
+	}
+
+	if len(combinedCA) == 0 {
+		return "", utilio.NopCloser, nil
+	}
+
+	return writeToTmp(combinedCA)
 }
 
 func (c *Cmd) inspectValues(values string) (string, error) {
