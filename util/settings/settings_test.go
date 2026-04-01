@@ -2298,3 +2298,28 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 		})
 	}
 }
+
+func TestUserInfoGroupsClaim(t *testing.T) {
+
+	t.Run("should return default 'groups' when config is empty", func(t *testing.T) {
+		settings := &ArgoCDSettings{
+			OIDCConfigRAW: "",
+		}
+
+		result := settings.UserInfoGroupsClaim()
+		assert.Equal(t, "groups", result)
+	})
+
+	t.Run("should return default 'groups' when groupsClaim not present", func(t *testing.T) {
+		settings := &ArgoCDSettings{
+			OIDCConfigRAW: `{
+				"name": "test",
+				"issuer": "https://example.com",
+				"clientID": "test-client"
+			}`,
+		}
+
+		result := settings.UserInfoGroupsClaim()
+		assert.Equal(t, "groups", result)
+	})
+}
