@@ -257,11 +257,11 @@ k8s_resource(
 # ui dependencies
 local_resource(
     'node-modules',
-    'yarn',
+    'pnpm install',
     dir='ui',
     deps = [
         'ui/package.json',
-        'ui/yarn.lock',
+        'ui/pnpm-lock.yaml',
     ],
     allow_parallel=True,
 )
