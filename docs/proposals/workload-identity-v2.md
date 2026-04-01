@@ -84,7 +84,7 @@ As an operator running Argo CD on EKS, I want to authenticate to ECR without sto
 mapped to Kubernetes service accounts.
 
 #### Use case 2: GCP Artifact Registry with Workload Identity
-As an operator running ArgoCD on GKE or any Kubernetes cluster, I want to authenticate to Artifact Registry using GCP 
+As an operator running Argo CD on GKE or any Kubernetes cluster, I want to authenticate to Artifact Registry using GCP 
 Workload Identity Federation without service account keys.
 
 #### Use case 3: Azure ACR with Workload Identity
