@@ -134,7 +134,7 @@ RUN userdel -r ubuntu && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
-    npm install -g corepack@latest && corepack enable && \
+    corepack enable && \
     mkdir -p /var/lib/registry
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
