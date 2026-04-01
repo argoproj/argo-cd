@@ -1,21 +1,21 @@
 # Keycloak
-Keycloak and ArgoCD integration can be configured in two ways with Client authentication and with PKCE.
+Keycloak and Argo CD integration can be configured in two ways with Client authentication and with PKCE.
 
 If you need to authenticate with __argo-cd command line__, you must choose PKCE way.
 
-* [Keycloak and ArgoCD with Client authentication](#keycloak-and-argocd-with-client-authentication)
-* [Keycloak and ArgoCD with PKCE](#keycloak-and-argocd-with-pkce)
+* [Keycloak and Argo CD with Client authentication](#keycloak-and-argocd-with-client-authentication)
+* [Keycloak and Argo CD with PKCE](#keycloak-and-argocd-with-pkce)
 
-## Keycloak and ArgoCD with Client authentication
+## Keycloak and Argo CD with Client authentication
 
-These instructions will take you through the entire process of getting your ArgoCD application authenticating with Keycloak.
+These instructions will take you through the entire process of getting your Argo CD application to authenticate with Keycloak.
 
-You will create a client within Keycloak and configure ArgoCD to use Keycloak for authentication, using groups set in Keycloak
+Start by creating a client within Keycloak and configure Argo CD to use Keycloak for authentication, using groups set in Keycloak
 to determine privileges in Argo.
 
 ### Creating a new client in Keycloak
 
-First we need to setup a new client.
+First, setup a new client.
 
 Start by logging into your keycloak server, select the realm you want to use (`master` by default)
 and then go to __Clients__ and click the __Create client__ button at the top.
@@ -37,11 +37,11 @@ but it's not recommended in production).
 
 Make sure to click __Save__.
 
-There should be a tab called __Credentials__. You can copy the Client Secret that we'll use in our ArgoCD configuration.
+There should be a tab called __Credentials__. You can copy the Client Secret that we'll use in our Argo CD configuration.
 
 ![Keycloak client secret](../../assets/keycloak-client-secret.png "Keycloak client secret")
 
-### Configuring ArgoCD OIDC
+### Configuring Argo CD OIDC
 
 Let's start by storing the client secret you generated earlier in the argocd secret _argocd-secret_.
 
@@ -68,7 +68,7 @@ data:
     clientID: argocd
     clientSecret: $oidc.keycloak.clientSecret
     refreshTokenThreshold: 2m
-    requestedScopes: ["openid", "profile", "email", "groups"]
+    requestedScopes: ["openid", "profile", "email", "groups", "offline_access"]
 ```
 
 Make sure that:
@@ -80,18 +80,18 @@ Make sure that:
 - __requestedScopes__ contains the _groups_ claim if you didn't add it to the Default scopes
 - __refreshTokenThreshold__ is less than the client token lifetime.  If this setting is not less than the token lifetime, a new token will be obtained for every request.  Keycloak sets the client token lifetime to 5 minutes by default.
 
-## Keycloak and ArgoCD with PKCE
+## Keycloak and Argo CD with PKCE
 
-These instructions will take you through the entire process of getting your ArgoCD application authenticating with Keycloak.
+These instructions will take you through the entire process of getting your Argo CD application authenticating with Keycloak.
 
-You will create a client within Keycloak and configure ArgoCD to use Keycloak for authentication, using groups set in Keycloak
+You will create a client within Keycloak and configure Argo CD to use Keycloak for authentication, using groups set in Keycloak
 to determine privileges in Argo.
 
 You will also be able to authenticate using argo-cd command line.
 
 ### Creating a new client in Keycloak
 
-First we need to setup a new client.
+First, setup a new client.
 
 Start by logging into your keycloak server, select the realm you want to use (`master` by default)
 and then go to __Clients__ and click the __Create client__ button at the top.
@@ -119,7 +119,7 @@ Now go to a tab called __Advanced__, look for parameter named __Proof Key for Co
 ![Keycloak configure client Step 2](../../assets/keycloak-configure-client-pkce_2.png "Keycloak configure client Step 2")
 Make sure to click __Save__.
 
-### Configuring ArgoCD OIDC
+### Configuring Argo CD OIDC
 Now we can configure the config map and add the oidc configuration to enable our keycloak authentication.
 You can use `$ kubectl edit configmap argocd-cm`.
 
@@ -138,7 +138,7 @@ data:
     clientID: argocd
     enablePKCEAuthentication: true
     refreshTokenThreshold: 2m
-    requestedScopes: ["openid", "profile", "email", "groups"]
+    requestedScopes: ["openid", "profile", "email", "groups", "offline_access"]
 ```
 
 Make sure that:
@@ -146,13 +146,13 @@ Make sure that:
 - __issuer__ ends with the correct realm (in this example _master_)
 - __issuer__ on Keycloak releases older than version 17 the URL must include /auth (in this example /auth/realms/master)
 - __clientID__ is set to the Client ID you configured in Keycloak
-- __enablePKCEAuthentication__ must be set to true to enable correct ArgoCD behaviour with PKCE
+- __enablePKCEAuthentication__ must be set to true to enable correct Argo CD behaviour with PKCE
 - __requestedScopes__ contains the _groups_ claim if you didn't add it to the Default scopes
 - __refreshTokenThreshold__ is less than the client token lifetime.  If this setting is not less than the token lifetime, a new token will be obtained for every request.  Keycloak sets the client token lifetime to 5 minutes by default.
 
 ## Configuring the groups claim
 
-In order for ArgoCD to provide the groups the user is in we need to configure a groups claim that can be included in the authentication token.
+In order for Argo CD to provide the groups the user is in we need to configure a groups claim that can be included in the authentication token.
 
 To do this we'll start by creating a new __Client Scope__ called _groups_.
 
@@ -174,7 +174,7 @@ Go back to the client we've created earlier and go to the Tab "Client Scopes".
 Click on "Add client scope", choose the _groups_ scope and add it either to the __Default__ or to the __Optional__ Client Scope.
 
 If you put it in the Optional
-category you will need to make sure that ArgoCD requests the scope in its OIDC configuration.
+category you will need to make sure that Argo CD requests the scope in its OIDC configuration.
 Since we will always want group information, I recommend
 using the Default category.
 
@@ -184,7 +184,7 @@ Create a group called _ArgoCDAdmins_ and have your current user join the group.
 
 ![Keycloak user group](../../assets/keycloak-user-group.png "Keycloak user group")
 
-## Configuring ArgoCD Policy
+## Configuring Argo CD Policy
 
 Now that we have an authentication that provides groups we want to apply a policy to these groups.
 We can modify the _argocd-rbac-cm_ ConfigMap using `$ kubectl edit configmap argocd-rbac-cm`.
@@ -205,7 +205,7 @@ In this example we give the role _role:admin_ to all users in the group _ArgoCDA
 
 You can now login using our new Keycloak OIDC authentication:
 
-![Keycloak ArgoCD login](../../assets/keycloak-login.png "Keycloak ArgoCD login")
+![Keycloak Argo CD login](../../assets/keycloak-login.png "Keycloak Argo CD login")
 
 If you have used PKCE method, you can also authenticate using command line:
 ```bash
@@ -219,7 +219,7 @@ Once done, you should see
 ![Authentication successful!](../../assets/keycloak-authentication-successful.png "Authentication successful!")
 
 ## Troubleshoot
-If ArgoCD auth returns 401 or when the login attempt leads to the loop, then restart the argocd-server pod.
+If Argo CD auth returns 401 or when the login attempt leads to the loop, then restart the argocd-server pod.
 ```
 kubectl rollout restart deployment argocd-server -n argocd
 ```
