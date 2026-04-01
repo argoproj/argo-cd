@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,7 +31,7 @@ const (
 
 var (
 	localCluster = appv1.Cluster{
-		Name:   "in-cluster",
+		Name:   appv1.KubernetesInClusterName,
 		Server: appv1.KubernetesInternalAPIServerAddr,
 		Info: appv1.ClusterInfo{
 			ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
@@ -233,7 +234,10 @@ func (db *db) getClusterSecret(server string) (*corev1.Secret, error) {
 
 // GetCluster returns a cluster from a query
 func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, error) {
-	informer := db.settingsMgr.GetClusterInformer()
+	informer, err := db.settingsMgr.GetClusterInformer()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
+	}
 	if server == appv1.KubernetesInternalAPIServerAddr {
 		inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
 		if err != nil {
@@ -284,19 +288,27 @@ func (db *db) GetProjectClusters(_ context.Context, project string) ([]*appv1.Cl
 }
 
 func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string, error) {
-	informer := db.settingsMgr.GetClusterInformer()
+	informer, err := db.settingsMgr.GetClusterInformer()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
+	}
 	servers, err := informer.GetClusterServersByName(name)
 	if err != nil {
 		return nil, err
 	}
 
+	// attempt to short circuit if the in-cluster name is not involved
+	if name != appv1.KubernetesInClusterName && !slices.Contains(servers, appv1.KubernetesInternalAPIServerAddr) {
+		return servers, nil
+	}
+
 	inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
 	if err != nil {
-		log.Warnf(errCheckingInClusterEnabled, "GetClusterServersByName", err)
+		return nil, fmt.Errorf(errCheckingInClusterEnabled, "GetClusterServersByName", err)
 	}
 
 	// Handle local cluster special case
-	if len(servers) == 0 && name == "in-cluster" && inClusterEnabled {
+	if len(servers) == 0 && name == appv1.KubernetesInClusterName && inClusterEnabled {
 		return []string{appv1.KubernetesInternalAPIServerAddr}, nil
 	}
 

@@ -1074,39 +1074,51 @@ type ClusterGetter interface {
 	GetClusterServersByName(ctx context.Context, server string) ([]string, error)
 }
 
+// GetDestinationServer resolves the cluster server URL for the given destination without
+// fetching the full Cluster object. For server based destinations the URL is returned
+// directly (normalized). For name based destinations GetClusterServersByName is called.
+// An error is returned if the name is ambiguous or missing.
+func GetDestinationServer(ctx context.Context, destination argoappv1.ApplicationDestination, db ClusterGetter) (string, error) {
+	if destination.Name != "" && destination.Server != "" {
+		return "", fmt.Errorf("application destination can't have both name and server defined: %s %s", destination.Name, destination.Server)
+	}
+	if destination.Server != "" {
+		return strings.TrimRight(destination.Server, "/"), nil
+	}
+	if destination.Name != "" {
+		clusterURLs, err := db.GetClusterServersByName(ctx, destination.Name)
+		if err != nil {
+			return "", fmt.Errorf("error getting cluster by name %q: %w", destination.Name, err)
+		}
+		if len(clusterURLs) == 0 {
+			return "", fmt.Errorf("there are no clusters with this name: %s", destination.Name)
+		}
+		if len(clusterURLs) > 1 {
+			return "", fmt.Errorf("there are %d clusters with the same name: [%s]", len(clusterURLs), strings.Join(clusterURLs, " "))
+		}
+		return clusterURLs[0], nil
+	}
+	// nolint:staticcheck // Error constant is very old, shouldn't lowercase the first letter.
+	return "", errors.New(ErrDestinationMissing)
+}
+
 // GetDestinationCluster returns the cluster object based on the destination server or name. If both are provided or
 // both are empty, an error is returned. If the destination server is provided, the cluster is fetched by the server
 // URL. If the destination name is provided, the cluster is fetched by the name. If multiple clusters have the specified
 // name, an error is returned.
 func GetDestinationCluster(ctx context.Context, destination argoappv1.ApplicationDestination, db ClusterGetter) (*argoappv1.Cluster, error) {
-	if destination.Name != "" && destination.Server != "" {
-		return nil, fmt.Errorf("application destination can't have both name and server defined: %s %s", destination.Name, destination.Server)
+	server, err := GetDestinationServer(ctx, destination, db)
+	if err != nil {
+		return nil, err
 	}
-	if destination.Server != "" {
-		cluster, err := db.GetCluster(ctx, destination.Server)
-		if err != nil {
+	cluster, err := db.GetCluster(ctx, server)
+	if err != nil {
+		if destination.Server != "" {
 			return nil, fmt.Errorf("error getting cluster by server %q: %w", destination.Server, err)
 		}
-		return cluster, nil
-	} else if destination.Name != "" {
-		clusterURLs, err := db.GetClusterServersByName(ctx, destination.Name)
-		if err != nil {
-			return nil, fmt.Errorf("error getting cluster by name %q: %w", destination.Name, err)
-		}
-		if len(clusterURLs) == 0 {
-			return nil, fmt.Errorf("there are no clusters with this name: %s", destination.Name)
-		}
-		if len(clusterURLs) > 1 {
-			return nil, fmt.Errorf("there are %d clusters with the same name: [%s]", len(clusterURLs), strings.Join(clusterURLs, " "))
-		}
-		cluster, err := db.GetCluster(ctx, clusterURLs[0])
-		if err != nil {
-			return nil, fmt.Errorf("error getting cluster by URL: %w", err)
-		}
-		return cluster, nil
+		return nil, fmt.Errorf("error getting cluster by URL: %w", err)
 	}
-	// nolint:staticcheck // Error constant is very old, shouldn't lowercase the first letter.
-	return nil, errors.New(ErrDestinationMissing)
+	return cluster, nil
 }
 
 func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) []*argoappv1.AppProject {
