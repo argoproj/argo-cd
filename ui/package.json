@@ -58,12 +58,14 @@
     "xterm": "^4.19.0",
     "xterm-addon-fit": "^0.5.0"
   },
-  "resolutions": {
-    "@types/react": "^16.9.3",
-    "@types/react-dom": "^16.8.2",
-    "normalize-url": "4.5.1",
-    "rxjs": "6.6.7",
-    "formidable": "2.1.2"
+  "pnpm": {
+    "overrides": {
+      "@types/react": "^16.9.3",
+      "@types/react-dom": "^16.8.2",
+      "normalize-url": "4.5.1",
+      "rxjs": "6.6.7",
+      "formidable": "2.1.2"
+    }
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",

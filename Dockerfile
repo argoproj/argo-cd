@@ -97,7 +97,7 @@ FROM --platform=$BUILDPLATFORM docker.io/library/node:23.0.0@sha256:9d09fa506f5b
 WORKDIR /src
 COPY ["ui/package.json", "ui/pnpm-lock.yaml", "./"]
 
-RUN corepack enable && pnpm install --frozen-lockfile
+RUN npm install -g corepack@0.34.6 && corepack enable && pnpm install --frozen-lockfile
 
 COPY ["ui/", "."]
 

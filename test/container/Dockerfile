@@ -134,6 +134,7 @@ RUN userdel -r ubuntu && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
+    npm install -g corepack@0.34.6 && \
     corepack enable && \
     mkdir -p /var/lib/registry
 

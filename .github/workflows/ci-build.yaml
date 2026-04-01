@@ -323,7 +323,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
-          version: 10
+          package_json_file: ui/package.json
       - name: Setup NodeJS
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
@@ -378,7 +378,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
-          version: 10
+          package_json_file: ui/package.json
       - name: Setup NodeJS
         uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6.2.0
         with:
@@ -482,7 +482,7 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
-          version: 10
+          package_json_file: ui/package.json
       - name: GH actions workaround - Kill XSP4 process
         run: |
           sudo pkill mono || true
