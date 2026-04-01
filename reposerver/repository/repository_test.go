@@ -3217,61 +3217,6 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestFetch(t *testing.T) {
-	revision1 := "0123456789012345678901234567890123456789"
-	revision2 := "abcdefabcdefabcdefabcdefabcdefabcdefabcd"
-
-	gitClient := &gitmocks.Client{}
-	gitClient.EXPECT().Init().Return(nil)
-	gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
-	gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(false)
-	gitClient.EXPECT().Fetch("", mock.Anything).Return(nil)
-	gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
-	gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(true)
-
-	err := fetch(gitClient, []string{revision1, revision2})
-	require.NoError(t, err)
-}
-
-// TestFetchRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
-func TestFetchRevisionCanGetNonstandardRefs(t *testing.T) {
-	rootPath := t.TempDir()
-
-	sourceRepoPath, err := os.MkdirTemp(rootPath, "")
-	require.NoError(t, err)
-
-	// Create a repo such that one commit is on a non-standard ref _and nowhere else_. This is meant to simulate, for
-	// example, a GitHub ref for a pull into one repo from a fork of that repo.
-	runGit(t, sourceRepoPath, "init")
-	runGit(t, sourceRepoPath, "checkout", "-b", "main") // make sure there's a main branch to switch back to
-	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
-	runGit(t, sourceRepoPath, "checkout", "-b", "branch")
-	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
-	sha := runGit(t, sourceRepoPath, "rev-parse", "HEAD")
-	runGit(t, sourceRepoPath, "update-ref", "refs/pull/123/head", strings.TrimSuffix(sha, "\n"))
-	runGit(t, sourceRepoPath, "checkout", "main")
-	runGit(t, sourceRepoPath, "branch", "-D", "branch")
-
-	destRepoPath, err := os.MkdirTemp(rootPath, "")
-	require.NoError(t, err)
-
-	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "", "")
-	require.NoError(t, err)
-
-	// We should initialize repository
-	err = gitClient.Init()
-	require.NoError(t, err)
-
-	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
-	require.NoError(t, err)
-
-	err = fetch(gitClient, []string{"does-not-exist"})
-	require.Error(t, err)
-
-	err = fetch(gitClient, []string{pullSha})
-	require.NoError(t, err)
-}
-
 // runGit runs a git command in the given working directory. If the command succeeds, it returns the combined standard
 // and error output. If it fails, it stops the test with a failure message.
 func runGit(t *testing.T, workDir string, args ...string) string {
@@ -4847,13 +4792,12 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "ChangedFilesDoNothing", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
-				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().Fetch("", int64(0)).Once().Return(nil)
 				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Checkout("632039659e542ed7de0c170a4fcc1c571b288fc0", mock.Anything, mock.Anything).Once().Return("", nil)
-				// fetch
+				// shallow fetch syncedRevision
 				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(false)
-				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
-				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
+				gitClient.EXPECT().Fetch("1e67a504d03def3a6a1125d934cb511680f72555", int64(1)).Once().Return(nil)
 				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
 				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
@@ -4884,13 +4828,12 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "NoChangesUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
-				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().Fetch("", int64(0)).Once().Return(nil)
 				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				// shallow fetch syncedRevision
 				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(false)
-				// fetch
-				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
-				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
+				gitClient.EXPECT().Fetch("1e67a504d03def3a6a1125d934cb511680f72555", int64(1)).Once().Return(nil)
 				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
 				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
@@ -4917,13 +4860,10 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				KubeVersion:       "v1.16.0",
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
-
-		}, wantErr: assert.NoError, cacheHit: &cacheHit{
-			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
-			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
-		}, cacheCallCount: &repositorymocks.CacheCallCounts{
-			ExternalRenames: 1,
+			// No relevant files changed — revision resolves to syncedRevision
+			Revision: "1e67a504d03def3a6a1125d934cb511680f72555", Changes: false,
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
 			ExternalGets:    1,
 			ExternalSets:    1,
 		}},
@@ -4933,9 +4873,8 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
-				// fetch
+				// shallow fetch syncedRevision - already present
 				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
-				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
 				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
@@ -4964,12 +4903,9 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
-		}, wantErr: assert.NoError, cacheHit: &cacheHit{
-			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
-			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
-		}, cacheCallCount: &repositorymocks.CacheCallCounts{
-			ExternalRenames: 1,
+			Revision: "1e67a504d03def3a6a1125d934cb511680f72555", Changes: false,
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
 			ExternalGets:    1,
 			ExternalSets:    1,
 		}},
@@ -4979,11 +4915,10 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
-				// fetch
+				// shallow fetch syncedRevision - already present
 				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
 				gitClient.EXPECT().IsRevisionPresent("732039659e542ed7de0c170a4fcc1c571b288fc1").Once().Return(true)
 				gitClient.EXPECT().IsRevisionPresent("2e67a504d03def3a6a1125d934cb511680f72554").Once().Return(true)
-				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
 				gitClient.EXPECT().LsRemote("HEAD-1").Once().Return("732039659e542ed7de0c170a4fcc1c571b288fc1", nil)
@@ -5021,12 +4956,9 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "0.0.1", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
-		}, wantErr: assert.NoError, cacheHit: &cacheHit{
-			previousRevision: "0.0.1",
-			revision:         "0.0.1",
-		}, cacheCallCount: &repositorymocks.CacheCallCounts{
-			ExternalRenames: 1,
+			Revision: "0.0.1", Changes: false,
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
 			ExternalGets:    2,
 			ExternalSets:    2,
 		}},
@@ -5036,11 +4968,10 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
-				// fetch
+				// shallow fetch syncedRevision - already present
 				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
 				gitClient.EXPECT().IsRevisionPresent("732039659e542ed7de0c170a4fcc1c571b288fc1").Once().Return(true)
 				gitClient.EXPECT().IsRevisionPresent("2e67a504d03def3a6a1125d934cb511680f72554").Once().Return(true)
-				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
 				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
@@ -5076,12 +5007,9 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "0.0.1", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
-		}, wantErr: assert.NoError, cacheHit: &cacheHit{
-			previousRevision: "0.0.1",
-			revision:         "0.0.1",
-		}, cacheCallCount: &repositorymocks.CacheCallCounts{
-			ExternalRenames: 1,
+			Revision: "0.0.1", Changes: false,
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
 			ExternalGets:    1,
 			ExternalSets:    1,
 		}},
@@ -5139,11 +5067,8 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
-				// fetch
+				// shallow fetch syncedRevision - already present
 				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
-				gitClient.EXPECT().IsRevisionPresent("732039659e542ed7de0c170a4fcc1c571b288fc1").Once().Return(true)
-				gitClient.EXPECT().IsRevisionPresent("2e67a504d03def3a6a1125d934cb511680f72554").Once().Return(true)
-				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
 				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
@@ -5182,12 +5107,52 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
-		}, wantErr: assert.NoError, cacheHit: &cacheHit{
-			previousRevision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
-			revision:         "1e67a504d03def3a6a1125d934cb511680f72555",
-		}, cacheCallCount: &repositorymocks.CacheCallCounts{
-			ExternalRenames: 1,
+			Revision: "1e67a504d03def3a6a1125d934cb511680f72555", Changes: false,
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
+			ExternalGets:    1,
+			ExternalSets:    1,
+		}},
+		{name: "NoChangesInAppPathsReturnsSyncedRevision", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().Fetch("", int64(0)).Once().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("aaaa39659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				// shallow fetch syncedRevision
+				gitClient.EXPECT().IsRevisionPresent("cccc504d03def3a6a1125d934cb511680f72555").Once().Return(false)
+				gitClient.EXPECT().Fetch("cccc504d03def3a6a1125d934cb511680f72555", int64(1)).Once().Return(nil)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("aaaa39659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("cccc504d03def3a6a1125d934cb511680f72555", nil)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				gitClient.EXPECT().Root().Return("")
+				// Files changed in other-dir but not in app-dir
+				gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{"other-dir/file.yaml"}, nil)
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+				Revision:          "HEAD",
+				SyncedRevision:    "SYNCEDHEAD",
+				Paths:             []string{"app-dir"},
+				AppLabelKey:       "app.kubernetes.io/name",
+				AppName:           "path-relevant-revision",
+				Namespace:         "default",
+				TrackingMethod:    "annotation+label",
+				ApplicationSource: &v1alpha1.ApplicationSource{Path: "app-dir"},
+				KubeVersion:       "v1.16.0",
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			// No files in app-dir changed — revision resolves to syncedRevision
+			Revision: "cccc504d03def3a6a1125d934cb511680f72555", Changes: false,
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
 			ExternalGets:    1,
 			ExternalSets:    1,
 		}},

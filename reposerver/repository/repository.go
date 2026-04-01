@@ -2908,50 +2908,6 @@ func (s *Service) checkoutRevision(gitClient git.Client, revision string, submod
 	return closer, err
 }
 
-// fetch is a convenience function to fetch revisions
-// We assumed that the caller has already initialized the git repo, i.e. gitClient.Init() has been called
-func (s *Service) fetch(gitClient git.Client, targetRevisions []string) error {
-	err := fetch(gitClient, targetRevisions)
-	if err != nil {
-		for _, revision := range targetRevisions {
-			s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
-		}
-	}
-	return err
-}
-
-func fetch(gitClient git.Client, targetRevisions []string) error {
-	revisionPresent := true
-	for _, revision := range targetRevisions {
-		revisionPresent = gitClient.IsRevisionPresent(revision)
-		if !revisionPresent {
-			break
-		}
-	}
-	// Fetching can be skipped if the revision is already present locally.
-	if revisionPresent {
-		return nil
-	}
-	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-	err := gitClient.Fetch("", 0)
-	if err != nil {
-		return err
-	}
-	for _, revision := range targetRevisions {
-		if !gitClient.IsRevisionPresent(revision) {
-			// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If fetch fails
-			// for the given revision, try explicitly fetching it.
-			log.Infof("Failed to fetch revision %s: %v", revision, err)
-			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
-
-			if err := gitClient.Fetch(revision, 0); err != nil {
-				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
-			}
-		}
-	}
-	return nil
-}
-
 func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64, cleanState bool) error {
 	err := gitClient.Init()
 	if err != nil {
@@ -3295,15 +3251,18 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 		defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 		closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
-			return s.checkoutRevision(gitClient, revision, false, 0, clean)
+			return s.checkoutRevision(gitClient, revision, false, repo.Depth, clean)
 		})
 		if err != nil {
 			return files, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 		}
 		defer utilio.Close(closer)
 
-		if err := s.fetch(gitClient, []string{syncedRevision}); err != nil {
-			return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
+		// Shallow-fetch syncedRevision: we only need the commit tree for diffing
+		if !gitClient.IsRevisionPresent(syncedRevision) {
+			if err := gitClient.Fetch(syncedRevision, 1); err != nil {
+				return files, status.Errorf(codes.Internal, "unable to fetch synced revision %s for repo %s: %v", syncedRevision, repo.Repo, err)
+			}
 		}
 
 		files, err = gitClient.ChangedFiles(syncedRevision, revision)
@@ -3328,6 +3287,15 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 	changed := false
 	if len(files) != 0 {
 		changed = apppathutil.AppFilesHaveChanged(refreshPaths, files)
+	}
+
+	if !changed {
+		// No files in the declared manifest-generate-paths changed between syncedRevision
+		// and revision. Return syncedRevision as the path-relevant revision: it is the last
+		// point where the app was synced and its manifests are identical to those at HEAD
+		// for the relevant paths. This avoids polluting revision history with commits that
+		// did not affect this application.
+		return syncedRevision, syncedRevision, false, nil
 	}
 
 	return revision, syncedRevision, changed, nil
