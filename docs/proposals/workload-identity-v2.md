@@ -80,7 +80,7 @@ created.
 ### Use Cases
 
 #### Use case 1: AWS ECR with IRSA
-As an operator running ArgoCD on EKS, I want to authenticate to ECR without storing AWS credentials, using IAM roles 
+As an operator running Argo CD on EKS, I want to authenticate to ECR without storing AWS credentials, using IAM roles 
 mapped to Kubernetes service accounts.
 
 #### Use case 2: GCP Artifact Registry with Workload Identity
