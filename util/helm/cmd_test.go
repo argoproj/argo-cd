@@ -181,6 +181,17 @@ func TestDependencyBuild(t *testing.T) {
 	}
 }
 
+func TestDependencyBuildError(t *testing.T) {
+	c, err := newCmdWithVersion(".", false, "", "", func(_ *exec.Cmd, _ func(_ string) string) (string, error) {
+		return "", errors.New("helm dependency build failed")
+	})
+	require.NoError(t, err)
+
+	_, err = c.dependencyBuild(false, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to build dependencies")
+}
+
 func TestWriteCombinedCAFile(t *testing.T) {
 	t.Run("empty paths", func(t *testing.T) {
 		path, closer, err := writeCombinedCAFile(nil)
