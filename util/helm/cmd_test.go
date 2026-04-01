@@ -185,17 +185,16 @@ func TestWriteCombinedCAFile(t *testing.T) {
 	t.Run("empty paths", func(t *testing.T) {
 		path, closer, err := writeCombinedCAFile(nil)
 		require.NoError(t, err)
-		assert.Equal(t, "", path)
+		assert.Empty(t, path)
 		require.NoError(t, closer.Close())
 	})
 
 	t.Run("single CA file", func(t *testing.T) {
-		caFile, err := os.CreateTemp("", "test-ca-*")
+		caFile, err := os.CreateTemp(t.TempDir(), "test-ca-*")
 		require.NoError(t, err)
 		_, err = caFile.WriteString("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n")
 		require.NoError(t, err)
 		caFile.Close()
-		defer os.Remove(caFile.Name())
 
 		path, closer, err := writeCombinedCAFile([]string{caFile.Name()})
 		require.NoError(t, err)
@@ -208,19 +207,17 @@ func TestWriteCombinedCAFile(t *testing.T) {
 	})
 
 	t.Run("multiple CA files are concatenated", func(t *testing.T) {
-		caFile1, err := os.CreateTemp("", "test-ca1-*")
+		caFile1, err := os.CreateTemp(t.TempDir(), "test-ca1-*")
 		require.NoError(t, err)
 		_, err = caFile1.WriteString("-----BEGIN CERTIFICATE-----\nca1\n-----END CERTIFICATE-----\n")
 		require.NoError(t, err)
 		caFile1.Close()
-		defer os.Remove(caFile1.Name())
 
-		caFile2, err := os.CreateTemp("", "test-ca2-*")
+		caFile2, err := os.CreateTemp(t.TempDir(), "test-ca2-*")
 		require.NoError(t, err)
 		_, err = caFile2.WriteString("-----BEGIN CERTIFICATE-----\nca2\n-----END CERTIFICATE-----\n")
 		require.NoError(t, err)
 		caFile2.Close()
-		defer os.Remove(caFile2.Name())
 
 		path, closer, err := writeCombinedCAFile([]string{caFile1.Name(), caFile2.Name()})
 		require.NoError(t, err)
@@ -233,12 +230,11 @@ func TestWriteCombinedCAFile(t *testing.T) {
 	})
 
 	t.Run("duplicate paths are deduplicated", func(t *testing.T) {
-		caFile, err := os.CreateTemp("", "test-ca-*")
+		caFile, err := os.CreateTemp(t.TempDir(), "test-ca-*")
 		require.NoError(t, err)
 		_, err = caFile.WriteString("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----\n")
 		require.NoError(t, err)
 		caFile.Close()
-		defer os.Remove(caFile.Name())
 
 		path, closer, err := writeCombinedCAFile([]string{caFile.Name(), caFile.Name()})
 		require.NoError(t, err)
@@ -253,7 +249,7 @@ func TestWriteCombinedCAFile(t *testing.T) {
 		path, closer, err := writeCombinedCAFile([]string{"/nonexistent/ca.crt"})
 		require.NoError(t, err)
 		defer closer.Close()
-		assert.Equal(t, "", path)
+		assert.Empty(t, path)
 	})
 }
 
