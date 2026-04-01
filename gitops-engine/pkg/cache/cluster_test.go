@@ -416,6 +416,128 @@ func TestStatefulSetOwnershipInferred(t *testing.T) {
 	}
 }
 
+// TestStatefulSetPVC_ParentToChildrenIndex verifies that inferred StatefulSet → PVC
+// relationships are correctly captured in the parentUIDToChildren index during initial sync.
+//
+// The index is updated inline when inferred owner refs are added in setNode()
+// (see the inferred parent handling section in clusterCache.setNode).
+func TestStatefulSetPVC_ParentToChildrenIndex(t *testing.T) {
+	stsUID := types.UID("sts-uid-123")
+
+	// StatefulSet with volumeClaimTemplate named "data"
+	sts := &appsv1.StatefulSet{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: kube.StatefulSetKind},
+		ObjectMeta: metav1.ObjectMeta{UID: stsUID, Name: "web", Namespace: "default"},
+		Spec: appsv1.StatefulSetSpec{
+			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{{
+				ObjectMeta: metav1.ObjectMeta{Name: "data"},
+			}},
+		},
+	}
+
+	// PVCs that match the StatefulSet's volumeClaimTemplate pattern: <template>-<sts>-<ordinal>
+	// These have NO explicit owner references - the relationship is INFERRED
+	pvc0 := &corev1.PersistentVolumeClaim{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: kube.PersistentVolumeClaimKind},
+		ObjectMeta: metav1.ObjectMeta{UID: "pvc-0-uid", Name: "data-web-0", Namespace: "default"},
+	}
+	pvc1 := &corev1.PersistentVolumeClaim{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: kube.PersistentVolumeClaimKind},
+		ObjectMeta: metav1.ObjectMeta{UID: "pvc-1-uid", Name: "data-web-1", Namespace: "default"},
+	}
+
+	// Create cluster with all resources
+	// Must add PersistentVolumeClaim to API resources since it's not in the default set
+	cluster := newCluster(t, sts, pvc0, pvc1).WithAPIResources([]kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "", Kind: kube.PersistentVolumeClaimKind},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "persistentvolumeclaims"},
+		Meta:                 metav1.APIResource{Namespaced: true},
+	}})
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	// Verify the parentUIDToChildren index contains the inferred relationships
+	cluster.lock.RLock()
+	defer cluster.lock.RUnlock()
+
+	pvc0Key := kube.ResourceKey{Group: "", Kind: kube.PersistentVolumeClaimKind, Namespace: "default", Name: "data-web-0"}
+	pvc1Key := kube.ResourceKey{Group: "", Kind: kube.PersistentVolumeClaimKind, Namespace: "default", Name: "data-web-1"}
+
+	children, ok := cluster.parentUIDToChildren[stsUID]
+	require.True(t, ok, "StatefulSet should have entry in parentUIDToChildren index")
+	require.Contains(t, children, pvc0Key, "PVC data-web-0 should be in StatefulSet's children (inferred relationship)")
+	require.Contains(t, children, pvc1Key, "PVC data-web-1 should be in StatefulSet's children (inferred relationship)")
+
+	// Also verify the OwnerRefs were set correctly on the PVCs
+	pvc0Resource := cluster.resources[pvc0Key]
+	require.NotNil(t, pvc0Resource)
+	require.Len(t, pvc0Resource.OwnerRefs, 1, "PVC0 should have inferred owner ref")
+	require.Equal(t, stsUID, pvc0Resource.OwnerRefs[0].UID, "PVC0 owner should be the StatefulSet")
+
+	pvc1Resource := cluster.resources[pvc1Key]
+	require.NotNil(t, pvc1Resource)
+	require.Len(t, pvc1Resource.OwnerRefs, 1, "PVC1 should have inferred owner ref")
+	require.Equal(t, stsUID, pvc1Resource.OwnerRefs[0].UID, "PVC1 owner should be the StatefulSet")
+}
+
+// TestStatefulSetPVC_WatchEvent_IndexUpdated verifies that when a PVC is added
+// via watch event (after initial sync), both the inferred owner reference AND
+// the parentUIDToChildren index are updated correctly.
+//
+// This tests the inline index update logic in setNode() which updates the index
+// immediately when inferred owner refs are added.
+func TestStatefulSetPVC_WatchEvent_IndexUpdated(t *testing.T) {
+	stsUID := types.UID("sts-uid-456")
+
+	// StatefulSet with volumeClaimTemplate
+	sts := &appsv1.StatefulSet{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: kube.StatefulSetKind},
+		ObjectMeta: metav1.ObjectMeta{UID: stsUID, Name: "db", Namespace: "default"},
+		Spec: appsv1.StatefulSetSpec{
+			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{{
+				ObjectMeta: metav1.ObjectMeta{Name: "storage"},
+			}},
+		},
+	}
+
+	// Create cluster with ONLY the StatefulSet - PVC will be added via watch event
+	cluster := newCluster(t, sts).WithAPIResources([]kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "", Kind: kube.PersistentVolumeClaimKind},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "persistentvolumeclaims"},
+		Meta:                 metav1.APIResource{Namespaced: true},
+	}})
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	// PVC that matches the StatefulSet's volumeClaimTemplate pattern
+	// Added via watch event AFTER initial sync
+	pvc := &corev1.PersistentVolumeClaim{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: kube.PersistentVolumeClaimKind},
+		ObjectMeta: metav1.ObjectMeta{UID: "pvc-watch-uid", Name: "storage-db-0", Namespace: "default"},
+	}
+
+	// Simulate watch event adding the PVC
+	cluster.lock.Lock()
+	cluster.setNode(cluster.newResource(mustToUnstructured(pvc)))
+	cluster.lock.Unlock()
+
+	cluster.lock.RLock()
+	defer cluster.lock.RUnlock()
+
+	pvcKey := kube.ResourceKey{Group: "", Kind: kube.PersistentVolumeClaimKind, Namespace: "default", Name: "storage-db-0"}
+
+	// Verify the OwnerRef IS correctly set
+	pvcResource := cluster.resources[pvcKey]
+	require.NotNil(t, pvcResource, "PVC should exist in cache")
+	require.Len(t, pvcResource.OwnerRefs, 1, "PVC should have inferred owner ref from StatefulSet")
+	require.Equal(t, stsUID, pvcResource.OwnerRefs[0].UID, "Owner should be the StatefulSet")
+
+	// Verify the index IS updated for inferred refs via watch events
+	children, indexUpdated := cluster.parentUIDToChildren[stsUID]
+	require.True(t, indexUpdated, "Index should be updated when inferred refs are added via watch events")
+	require.Contains(t, children, pvcKey, "PVC should be in StatefulSet's children (inferred relationship)")
+}
+
 func TestEnsureSyncedSingleNamespace(t *testing.T) {
 	obj1 := &appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -2297,4 +2419,227 @@ func TestIterateHierarchyV2_CircularOwnerChain_NoStackOverflow(t *testing.T) {
 	// Each resource in the circular chain should be visited exactly once
 	assert.Equal(t, 1, visitCount["resource-a"], "resource-a should be visited exactly once")
 	assert.Equal(t, 1, visitCount["resource-b"], "resource-b should be visited exactly once")
+}
+
+// BenchmarkSync_ParentToChildrenIndex measures the overhead of parent-to-children index
+// operations during sync. This benchmark was created to investigate performance regression
+// reported in https://github.com/argoproj/argo-cd/issues/26863
+//
+// The index is now maintained with O(1) operations (set-based) and updated inline
+// in setNode() for both explicit and inferred owner refs. No rebuild is needed.
+//
+// This benchmark measures sync performance with resources that have owner references
+// to quantify the index-building overhead at different scales.
+func BenchmarkSync_ParentToChildrenIndex(b *testing.B) {
+	testCases := []struct {
+		name             string
+		totalResources   int
+		pctWithOwnerRefs int // Percentage of resources with owner references
+	}{
+		// Baseline: no owner refs (index operations are no-ops)
+		{"1000res_0pctOwnerRefs", 1000, 0},
+		{"5000res_0pctOwnerRefs", 5000, 0},
+		{"10000res_0pctOwnerRefs", 10000, 0},
+
+		// Typical case: ~80% of resources have owner refs (pods owned by RS, RS owned by Deployment)
+		{"1000res_80pctOwnerRefs", 1000, 80},
+		{"5000res_80pctOwnerRefs", 5000, 80},
+		{"10000res_80pctOwnerRefs", 10000, 80},
+
+		// Heavy case: all resources have owner refs
+		{"1000res_100pctOwnerRefs", 1000, 100},
+		{"5000res_100pctOwnerRefs", 5000, 100},
+		{"10000res_100pctOwnerRefs", 10000, 100},
+
+		// Stress test: larger scale
+		{"20000res_80pctOwnerRefs", 20000, 80},
+	}
+
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			resources := make([]runtime.Object, 0, tc.totalResources)
+
+			// Create parent resources (deployments) - these won't have owner refs
+			numParents := tc.totalResources / 10 // 10% are parents
+			if numParents < 1 {
+				numParents = 1
+			}
+			parentUIDs := make([]types.UID, numParents)
+			for i := 0; i < numParents; i++ {
+				uid := types.UID(fmt.Sprintf("deploy-uid-%d", i))
+				parentUIDs[i] = uid
+				resources = append(resources, &appsv1.Deployment{
+					TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      fmt.Sprintf("deploy-%d", i),
+						Namespace: "default",
+						UID:       uid,
+					},
+				})
+			}
+
+			// Create child resources (pods) - some with owner refs
+			numChildren := tc.totalResources - numParents
+			numWithOwnerRefs := (numChildren * tc.pctWithOwnerRefs) / 100
+
+			for i := 0; i < numChildren; i++ {
+				pod := &corev1.Pod{
+					TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Pod"},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      fmt.Sprintf("pod-%d", i),
+						Namespace: "default",
+						UID:       types.UID(fmt.Sprintf("pod-uid-%d", i)),
+					},
+				}
+
+				// Add owner refs to the first numWithOwnerRefs pods
+				if i < numWithOwnerRefs {
+					parentIdx := i % numParents
+					pod.OwnerReferences = []metav1.OwnerReference{{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       fmt.Sprintf("deploy-%d", parentIdx),
+						UID:        parentUIDs[parentIdx],
+					}}
+				}
+
+				resources = append(resources, pod)
+			}
+
+			cluster := newCluster(b, resources...)
+
+			b.ResetTimer()
+			b.ReportAllocs()
+
+			for n := 0; n < b.N; n++ {
+				// sync() reinitializes resources, parentUIDToChildren, etc. at the start,
+				// so no manual reset is needed here.
+				err := cluster.sync()
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+// BenchmarkUpdateParentUIDToChildren measures the cost of incremental index updates
+// during setNode. This is called for EVERY resource during sync. The index uses
+// set-based storage so add/remove operations are O(1) regardless of children count.
+func BenchmarkUpdateParentUIDToChildren(b *testing.B) {
+	testCases := []struct {
+		name            string
+		childrenPerParent int
+	}{
+		{"10children", 10},
+		{"50children", 50},
+		{"100children", 100},
+		{"500children", 500},
+		{"1000children", 1000},
+	}
+
+	for _, tc := range testCases {
+		b.Run(tc.name, func(b *testing.B) {
+			cluster := newCluster(b)
+			err := cluster.EnsureSynced()
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			parentUID := types.UID("parent-uid")
+
+			// Pre-populate with existing children
+			childrenSet := make(map[kube.ResourceKey]struct{})
+			for i := 0; i < tc.childrenPerParent; i++ {
+				childKey := kube.ResourceKey{
+					Group:     "",
+					Kind:      "Pod",
+					Namespace: "default",
+					Name:      fmt.Sprintf("existing-child-%d", i),
+				}
+				childrenSet[childKey] = struct{}{}
+			}
+			cluster.parentUIDToChildren[parentUID] = childrenSet
+
+			// Create a new child key to add
+			newChildKey := kube.ResourceKey{
+				Group:     "",
+				Kind:      "Pod",
+				Namespace: "default",
+				Name:      "new-child",
+			}
+
+			b.ResetTimer()
+			b.ReportAllocs()
+
+			for n := 0; n < b.N; n++ {
+				// Simulate adding a new child - O(1) set insertion
+				cluster.addToParentUIDToChildren(parentUID, newChildKey)
+				// Remove it so we can add it again in the next iteration
+				cluster.removeFromParentUIDToChildren(parentUID, newChildKey)
+			}
+		})
+	}
+}
+
+// BenchmarkIncrementalIndexBuild measures the cost of incremental index updates
+// via addToParentUIDToChildren during sync. The index uses O(1) set-based operations.
+//
+// This benchmark was created to investigate issue #26863 and verify the fix.
+func BenchmarkIncrementalIndexBuild(b *testing.B) {
+	testCases := []struct {
+		name              string
+		numParents        int
+		childrenPerParent int
+	}{
+		{"100parents_10children", 100, 10},
+		{"100parents_50children", 100, 50},
+		{"100parents_100children", 100, 100},
+		{"1000parents_10children", 1000, 10},
+		{"1000parents_100children", 1000, 100},
+	}
+
+	for _, tc := range testCases {
+		// Benchmark incremental approach (what happens during setNode)
+		b.Run(tc.name+"_incremental", func(b *testing.B) {
+			cluster := newCluster(b)
+			err := cluster.EnsureSynced()
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			// Prepare parent UIDs and child keys
+			type childInfo struct {
+				parentUID types.UID
+				childKey  kube.ResourceKey
+			}
+			children := make([]childInfo, 0, tc.numParents*tc.childrenPerParent)
+			for p := 0; p < tc.numParents; p++ {
+				parentUID := types.UID(fmt.Sprintf("parent-%d", p))
+				for c := 0; c < tc.childrenPerParent; c++ {
+					children = append(children, childInfo{
+						parentUID: parentUID,
+						childKey: kube.ResourceKey{
+							Kind:      "Pod",
+							Namespace: "default",
+							Name:      fmt.Sprintf("child-%d-%d", p, c),
+						},
+					})
+				}
+			}
+
+			b.ResetTimer()
+			b.ReportAllocs()
+
+			for n := 0; n < b.N; n++ {
+				// Clear the index
+				cluster.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
+
+				// Simulate incremental adds (O(1) set insertions)
+				for _, child := range children {
+					cluster.addToParentUIDToChildren(child.parentUID, child.childKey)
+				}
+			}
+		})
+	}
 }
