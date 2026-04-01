@@ -1868,11 +1868,11 @@
     "@types/react" "^16"
 
 "@types/react-form@^2.16.0":
-  version "2.16.2"
-  resolved "https://registry.yarnpkg.com/@types/react-form/-/react-form-2.16.2.tgz#f8f5df0b0f27a1dcca62fe35e32ad42e8a71d273"
-  integrity sha512-hXWSs5M3OdTbgQHk8q5X1/VhttJz/VgOt3B9ZDj5z8mPv9eaaI5O/h/DUmE8EaGSGoZ1pluDPbhqo0sTmTjRew==
+  version "2.16.15"
+  resolved "https://registry.yarnpkg.com/@types/react-form/-/react-form-2.16.15.tgz#2469ce9e026f0576b2e9b9f58e51cc82fd61169c"
+  integrity sha512-uyonTWluQD07Nzf+lBpzr7kkNyd2bFD/y75WReZ+0/Fe9V6smQjJ1tEUV8v6OpMuO5arojRCTtCc5tsDhbzMaw==
   dependencies:
-    "@types/react" "*"
+    "@types/react" "^16"
 
 "@types/react-helmet@^6.1.6":
   version "6.1.6"
@@ -1935,9 +1935,9 @@
   integrity sha512-xoDlM2S4ortawSWORYqsdU+2rxdh4LRW9ytc3zmT37RIKQh6IHyKwwtKhKis9ah8ol07DCkZxPt8BBvPjC6v4g==
 
 "@types/scheduler@*":
-  version "0.16.2"
-  resolved "https://registry.yarnpkg.com/@types/scheduler/-/scheduler-0.16.2.tgz#1a62f89525723dde24ba1b01b092bf5df8ad4d39"
-  integrity sha512-hppQEBDmlwhFAXKJX2KnWLYu5yMfi91yazPb2l+lbJiwW+wdo1gNeRA+3RgNSO39WYX2euey41KEwnqesU2Jew==
+  version "0.26.0"
+  resolved "https://registry.yarnpkg.com/@types/scheduler/-/scheduler-0.26.0.tgz#2b7183b9bbb622d130b23bedf06899b7fec7eed5"
+  integrity sha512-WFHp9YUJQ6CKshqoC37iOlHnQSmxNc795UhB26CyBBttrN9svdIrUjl/NjnNmfcwtncN0h/0PPAFWv9ovP8mLA==
 
 "@types/semver@^7.5.8":
   version "7.5.8"
@@ -3354,9 +3354,9 @@ cssstyle@^2.3.0:
     cssom "~0.3.6"
 
 csstype@^3.0.2:
-  version "3.0.8"
-  resolved "https://registry.yarnpkg.com/csstype/-/csstype-3.0.8.tgz#d2266a792729fb227cd216fb572f43728e1ad340"
-  integrity sha512-jXKhWqXPmlUeoQnF/EhTtTl4C9SnrxSH/jZUih3jmO6lBKr99rP3/+FmrMj4EFpOXzMtXHAZkd3x0E6h6Fgflw==
+  version "3.2.3"
+  resolved "https://registry.yarnpkg.com/csstype/-/csstype-3.2.3.tgz#ec48c0f3e993e50648c86da559e2610995cf989a"
+  integrity sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==
 
 dagre@^0.8.5:
   version "0.8.5"
