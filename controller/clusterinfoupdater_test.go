@@ -182,10 +182,49 @@ func TestUpdateClusterLabels(t *testing.T) {
 			},
 			assert.Error,
 		},
+		{
+			"EKS version with trailing + is sanitized",
+			&clustercache.ClusterInfo{
+				Server:     "kubernetes.svc.local",
+				K8SVersion: "1.29+",
+			},
+			v1alpha1.Cluster{
+				Server: "kubernetes.svc.local",
+				Labels: map[string]string{"argocd.argoproj.io/auto-label-cluster-info": "true"},
+			},
+			func(_ context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
+				assert.Equal(t, "1.29", cluster.Labels["argocd.argoproj.io/kubernetes-version"])
+				return nil, nil
+			},
+			assert.NoError,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.wantErr(t, updateClusterLabels(t.Context(), tt.clusterInfo, tt.cluster, tt.updateCluster), fmt.Sprintf("updateClusterLabels(%v, %v, %v)", t.Context(), tt.clusterInfo, tt.cluster))
+		})
+	}
+}
+
+func TestSanitizeLabelValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"clean version", "1.28", "1.28"},
+		{"EKS trailing plus", "1.29+", "1.29"},
+		{"multiple invalid chars", "1.30+build.123", "1.30build.123"},
+		{"empty string", "", ""},
+		{"only invalid chars", "+++", ""},
+		{"leading non-alphanumeric after strip", ".1.28", "1.28"},
+		{"trailing non-alphanumeric after strip", "1.28.", "1.28"},
+		{"long value truncated to 63", "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij", "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abc"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sanitizeLabelValue(tt.input)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

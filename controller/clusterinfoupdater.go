@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -172,13 +173,25 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 }
 
 // invalidLabelChars matches characters not allowed in Kubernetes label values.
+// See https://github.com/kubernetes/apimachinery/blob/master/pkg/api/validate/content/kube.go
 var invalidLabelChars = regexp.MustCompile(`[^a-zA-Z0-9._-]`)
 
-// sanitizeLabelValue strips characters that are not valid in Kubernetes label values.
-// This is needed because some managed Kubernetes providers (e.g. EKS) include
-// characters like '+' in version strings which are not valid label values.
+// sanitizeLabelValue produces a valid Kubernetes label value from an arbitrary string.
+// It strips characters not in [a-zA-Z0-9._-], trims leading/trailing non-alphanumeric
+// characters, and truncates to the 63-character maximum. This is needed because some
+// managed Kubernetes providers (e.g. EKS) include characters like '+' in version
+// strings which are not valid label values.
 func sanitizeLabelValue(s string) string {
-	return invalidLabelChars.ReplaceAllString(s, "")
+	s = invalidLabelChars.ReplaceAllString(s, "")
+	isNotAlphanumeric := func(r rune) bool {
+		return (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9')
+	}
+	s = strings.TrimLeftFunc(s, isNotAlphanumeric)
+	s = strings.TrimRightFunc(s, isNotAlphanumeric)
+	if len(s) > 63 {
+		s = s[:63]
+	}
+	return s
 }
 
 func updateClusterLabels(ctx context.Context, clusterInfo *cache.ClusterInfo, cluster appv1.Cluster, updateCluster func(context.Context, *appv1.Cluster) (*appv1.Cluster, error)) error {
