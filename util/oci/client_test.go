@@ -5,16 +5,22 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content"
@@ -761,6 +767,38 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 	}
 }
 
+func TestNewClientUsesHTTP2(t *testing.T) {
+	t.Run("should negotiate HTTP/2 when TLS is configured", func(t *testing.T) {
+		var requestProtos []string
+		server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestProtos = append(requestProtos, r.Proto)
+			t.Logf("called %s with proto %s", r.URL.Path, r.Proto)
+			w.WriteHeader(http.StatusOK)
+		}))
+		// httptest.NewTLSServer only advertises http/1.1 in ALPN, so we must
+		// configure the server to also offer h2 for HTTP/2 negotiation to work.
+		server.TLS = &tls.Config{NextProtos: []string{"h2", "http/1.1"}}
+		server.StartTLS()
+		t.Cleanup(server.Close)
+
+		serverURL, err := url.Parse(server.URL)
+		require.NoError(t, err)
+
+		// NewClient expects oci://host/path format.
+		repoURL := "oci://" + serverURL.Host + "/myorg/myrepo"
+		client, err := NewClient(repoURL, Creds{InsecureSkipVerify: true}, "", "", nil,
+			WithEventHandlers(fakeEventHandlers(t, serverURL.Host+"/myorg/myrepo")))
+		require.NoError(t, err)
+
+		// TestRepo pings the registry's /v2/ endpoint, exercising the transport.
+		_, _ = client.TestRepo(t.Context())
+
+		require.NotEmpty(t, requestProtos, "expected at least one request to the server")
+		hasHTTP2 := slices.Contains(requestProtos, "HTTP/2.0")
+		assert.True(t, hasHTTP2, "expected at least one HTTP/2 request, but got protocols: %v", requestProtos)
+	})
+}
+
 func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {
 	t.Helper()
 	return EventHandlers{
@@ -770,6 +808,9 @@ func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {
 		OnTestRepo:        func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
 		OnGetTags:         func(repo string) func() { return func() { require.Equal(t, repoURL, repo) } },
 		OnGetTagsFail: func(repo string) func() {
+			return func() { require.Equal(t, repoURL, repo) }
+		},
+		OnTestRepoFail: func(repo string) func() {
 			return func() { require.Equal(t, repoURL, repo) }
 		},
 		OnExtractFail: func(repo string) func(revision string) {
