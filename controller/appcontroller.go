@@ -2690,7 +2690,7 @@ func (ctrl *ApplicationController) applyImpersonationConfig(config *rest.Config,
 	if !impersonationEnabled {
 		return nil
 	}
-	user, err := deriveServiceAccountToImpersonate(proj, app, destCluster)
+	user, err := settings_util.DeriveServiceAccountToImpersonate(proj, app, destCluster)
 	if err != nil {
 		return fmt.Errorf("error deriving service account to impersonate: %w", err)
 	}
