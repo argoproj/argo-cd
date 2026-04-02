@@ -292,6 +292,11 @@ func (spec *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *Applica
 
 func (spec *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSource {
 	if spec.SourceHydrator != nil {
+		if sourceIndex < 0 {
+			// If the index is -1, return the dry source.
+			source := spec.SourceHydrator.GetDrySource()
+			return &source
+		}
 		source := spec.SourceHydrator.GetSyncSource()
 		return &source
 	}

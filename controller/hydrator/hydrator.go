@@ -474,30 +474,20 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 	return targetRevision, resp.HydratedSha, errors, nil
 }
 
-// getRepoObjects gets the repository objects for the given application dry source.
-// It returns the repository objects, the manifest response, and a flag indicating if the revisions may contain changes compared to the one in the last successful hydration.
-func (h *Hydrator) getRepoObjects(ctx context.Context, app *appv1.Application, targetRevision string, project *appv1.AppProject) (objs []*unstructured.Unstructured, resp *apiclient.ManifestResponse, err error) {
+// getManifests gets the manifests for the given application and target revision. It returns the resolved revision
+// (a git SHA), and path details for the commit server.
+//
+// If the given target revision is empty, it uses the target revision from the app dry source spec.
+func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, targetRevision string, project *appv1.AppProject) (revision string, pathDetails *commitclient.PathDetails, err error) {
 	drySource := app.Spec.SourceHydrator.GetDrySource()
 	if targetRevision == "" {
 		targetRevision = drySource.TargetRevision
 	}
 
 	// TODO: enable signature verification
-	objs, resp, err = h.dependencies.GetRepoObjs(ctx, app, drySource, targetRevision, project)
+	objs, resp, err := h.dependencies.GetRepoObjs(ctx, app, drySource, targetRevision, project)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
-	}
-	return objs, resp, nil
-}
-
-// getManifests gets the manifests for the given application and target revision. It returns the resolved revision
-// (a git SHA), and path details for the commit server.
-//
-// If the given target revision is empty, it uses the target revision from the app dry source spec.
-func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, targetRevision string, project *appv1.AppProject) (revision string, pathDetails *commitclient.PathDetails, err error) {
-	objs, resp, err := h.getRepoObjects(ctx, app, targetRevision, project)
-	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("failed to get repo objects for app %q: %w", app.QualifiedName(), err)
 	}
 
 	// Set up a ManifestsRequest
@@ -583,7 +573,7 @@ func (h *Hydrator) appNeedsHydration(app *appv1.Application) (needsHydration boo
 	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) > 2*time.Minute:
 		return true, "previous hydrate operation failed more than 2 minutes ago"
 	case h.newRevisionHasChanges(app):
-		return true, "new revision has changes"
+		return true, "new revision may have changes"
 	}
 
 	return false, "hydration not needed"

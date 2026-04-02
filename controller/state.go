@@ -203,20 +203,30 @@ func (m *appStateManager) EvaluateAppRevisionsChanges(ctx context.Context, app *
 // evaluateRevisionChanges checks if a single source revision has changes without generating manifests.
 // Returns the resolved revision and whether changes were detected.
 func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, sourceIndex int, appLabelKey string, revision string, refSources v1alpha1.RefTargetRevisionMapping, syncedRefSources v1alpha1.RefTargetRevisionMapping, noRevisionCache bool, trackingMethod string, installationID string, serverVersion string, apiVersions []string, proj *v1alpha1.AppProject, repoClient apiclient.RepoServerServiceClient) (string, bool, error) {
+	alwaysResolveRevision := false
 	if revision == "" {
 		revision = source.TargetRevision
 	}
 
-	// Determine the synced revision for comparison
+	// Determine the synced revision and source type for comparison
 	syncedRevision := app.Status.Sync.Revision
+	sourceType := app.Status.SourceType
 	if app.Spec.HasMultipleSources() {
 		if sourceIndex < len(app.Status.Sync.Revisions) {
 			syncedRevision = app.Status.Sync.Revisions[sourceIndex]
 		} else {
 			syncedRevision = ""
 		}
+		if sourceIndex < len(app.Status.SourceTypes) {
+			sourceType = app.Status.SourceTypes[sourceIndex]
+		} else {
+			sourceType = ""
+		}
 	} else if app.Spec.SourceHydrator != nil {
 		if drySource := app.Spec.SourceHydrator.GetDrySource(); source.Equals(&drySource) {
+			alwaysResolveRevision = true
+			sourceType = ""  // For the dry source, we don't know the source type. Ignore any optimizations
+			sourceIndex = -1 // Special case allowing GetSourcePtrByIndex() to return the dry source
 			if app.Status.SourceHydrator.LastSuccessfulOperation != nil {
 				syncedRevision = app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
 			} else {
@@ -239,11 +249,10 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 
 	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
-	updateRevisions := processManifestGeneratePathsEnabled &&
-		// app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil && // This is causing problem. Disable it here and create a separate PR
-		app.Status.SourceType != v1alpha1.ApplicationSourceTypeDirectory
+	skipUpdateRevisions := !processManifestGeneratePathsEnabled ||
+		(sourceType == v1alpha1.ApplicationSourceTypeDirectory && !app.Spec.SyncPolicy.IsAutomatedSyncEnabled())
 
-	if updateRevisions && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
+	if !skipUpdateRevisions && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
 		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
 		if err != nil {
 			return "", false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
@@ -281,9 +290,33 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 		}
 
 		return resolvedRevision, updateRevisionResult.Changes, nil
+	} else if alwaysResolveRevision {
+		// In some cases, we do want to evaluate if the syncedRevision is the same as the resolved revision.
+		// This way, we can know with more accuracy if the revisions are the same or not.
+		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
+		if err != nil {
+			return "", false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
+		}
+
+		resp, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
+			Repo:              repo,
+			App:               app,
+			AmbiguousRevision: revision,
+			SourceIndex:       int64(sourceIndex),
+		})
+		if err != nil {
+			return "", false, fmt.Errorf("failed to resolve revision: %w", err)
+		}
+		revision = resp.Revision
+
+		if syncedRevision == revision && revision != "" && len(refSources) == 0 {
+			// if revisions are the same (and we are not using reference sources), we know there is no changes
+			return revision, false, nil
+		}
+		return revision, true, nil
 	}
 
-	// For any types of sources where we cannot know if revision has changed, we return as we cannot make assumptions.
+	// For any types of sources where we cannot know if revision has changed, we return true as we cannot make assumptions.
 	return revision, true, nil
 }
 
@@ -482,39 +515,6 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	logCtx.Info("GetRepoObjs stats")
 
 	return targetObjs, manifestInfos, revisionsMayHaveChanges, nil
-}
-
-// ResolveGitRevision will resolve the given revision to a full commit SHA. Only works for git.
-func (m *appStateManager) ResolveGitRevision(repoURL, revision string) (string, error) {
-	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
-	if err != nil {
-		return "", fmt.Errorf("failed to connect to repo server: %w", err)
-	}
-	defer utilio.Close(conn)
-
-	repo, err := m.db.GetRepository(context.Background(), repoURL, "")
-	if err != nil {
-		return "", fmt.Errorf("failed to get repo %q: %w", repoURL, err)
-	}
-
-	// Mock the app. The repo-server only needs to know whether the "chart" field is populated.
-	app := &v1alpha1.Application{
-		Spec: v1alpha1.ApplicationSpec{
-			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        repoURL,
-				TargetRevision: revision,
-			},
-		},
-	}
-	resp, err := repoClient.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
-		Repo:              repo,
-		App:               app,
-		AmbiguousRevision: revision,
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to determine whether the dry source has changed: %w", err)
-	}
-	return resp.Revision, nil
 }
 
 func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error) {

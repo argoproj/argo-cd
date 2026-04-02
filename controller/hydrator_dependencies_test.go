@@ -140,16 +140,18 @@ func TestEvaluateAppRevisionsChanges(t *testing.T) {
 	}
 
 	data := fakeData{
-		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "new-sha",
-			Changes:  true,
+		resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
+			{
+				Revision:          "new-sha",
+				AmbiguousRevision: app.Spec.SourceHydrator.GetDrySource().TargetRevision,
+			},
 		},
 	}
 
 	ctrl := newFakeController(t.Context(), &data, nil)
 	drySource := app.Spec.SourceHydrator.GetDrySource()
 
-	hasChanges, err := ctrl.EvaluateAppRevisionsChanges(t.Context(), app, drySource, "new-sha", &v1alpha1.AppProject{
+	hasChanges, err := ctrl.EvaluateAppRevisionsChanges(t.Context(), app, drySource, "HEAD", &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
 			Namespace: test.FakeArgoCDNamespace,

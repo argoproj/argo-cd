@@ -127,7 +127,7 @@ func Test_appNeedsHydration(t *testing.T) {
 				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, mock.Anything, mock.Anything, proj).Return(true, nil)
 			},
 			expectedNeedsHydration: true,
-			expectedMessage:        "new revision has changes",
+			expectedMessage:        "new revision may have changes",
 		},
 		{
 			name: "no revision change",

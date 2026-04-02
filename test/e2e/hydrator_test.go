@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -331,7 +332,7 @@ func TestHydratorNoOp(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Then().
-		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
+		ExpectConsistently(HydrationPhaseIs(HydrateOperationPhaseHydrated), 1*time.Second, 5*time.Second).
 		And(func(app *Application) {
 			require.NotEmpty(t, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
 				"Hydrated SHA must not be empty")

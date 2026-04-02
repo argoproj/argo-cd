@@ -15,6 +15,7 @@ import (
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	. "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
+	"github.com/aws/smithy-go/ptr"
 	"github.com/sirupsen/logrus"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -2126,9 +2127,60 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 		expectedHasChanges bool
 	}{
 		{
-			name: "single source with changes",
+			name: "single source with changes (no annotation)",
 			app: func() *v1alpha1.Application {
 				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions:          []string{"def456"},
+			data:               fakeData{},
+			sendRuntimeState:   false,
+			expectedHasChanges: true,
+		},
+		{
+			name: "multiple sources with changes (no annotation)",
+			app: func() *v1alpha1.Application {
+				app := newFakeMultiSourceApp()
+				app.Status.Sync.Revisions = []string{"abc123", "xyz789"}
+				return app
+			}(),
+			sources: []v1alpha1.ApplicationSource{
+				{RepoURL: "https://github.com/test/repo1", Path: "path1", TargetRevision: "main"},
+				{RepoURL: "https://github.com/test/repo2", Path: "path2", TargetRevision: "main"},
+			},
+			revisions:          []string{"abc123", "new-sha"},
+			data:               fakeData{},
+			sendRuntimeState:   false,
+			expectedHasChanges: true,
+		},
+		{
+			name: "single source without changes (no annotation)",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions:          []string{"def456"},
+			data:               fakeData{},
+			sendRuntimeState:   false,
+			expectedHasChanges: true,
+		},
+		{
+			name: "single source without changes (with annotation)",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
 				app.Status.Sync.Revision = "abc123"
 				return app
 			}(),
@@ -2140,48 +2192,6 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 			data: fakeData{
 				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
 					Revision: "def456",
-					Changes:  true,
-				},
-			},
-			sendRuntimeState:   false,
-			expectedHasChanges: true,
-		},
-		{
-			name: "multiple sources with changes",
-			app: func() *v1alpha1.Application {
-				app := newFakeMultiSourceApp()
-				app.Status.Sync.Revisions = []string{"abc123", "xyz789"}
-				return app
-			}(),
-			sources: []v1alpha1.ApplicationSource{
-				{RepoURL: "https://github.com/test/repo1", Path: "path1", TargetRevision: "main"},
-				{RepoURL: "https://github.com/test/repo2", Path: "path2", TargetRevision: "main"},
-			},
-			revisions: []string{"abc123", "new-sha"},
-			data: fakeData{
-				updateRevisionForPathsResponses: []*apiclient.UpdateRevisionForPathsResponse{
-					{Revision: "abc123", Changes: false},
-					{Revision: "new-sha", Changes: true},
-				},
-			},
-			sendRuntimeState:   false,
-			expectedHasChanges: true,
-		},
-		{
-			name: "no changes",
-			app: func() *v1alpha1.Application {
-				app := newFakeApp()
-				app.Status.Sync.Revision = "abc123"
-				return app
-			}(),
-			sources: func() []v1alpha1.ApplicationSource {
-				app := newFakeApp()
-				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
-			}(),
-			revisions: []string{"abc123"},
-			data: fakeData{
-				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
-					Revision: "abc123",
 					Changes:  false,
 				},
 			},
@@ -2199,20 +2209,18 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 				app := newFakeApp()
 				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
 			}(),
-			revisions: []string{"def456"},
-			data: fakeData{
-				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
-					Revision: "def456",
-					Changes:  true,
-				},
-			},
+			revisions:          []string{"def456"},
+			data:               fakeData{},
 			sendRuntimeState:   true,
 			expectedHasChanges: true,
 		},
 		{
-			name: "source hydrator uses dry SHA",
+			name: "dry source with annotation uses UpdateRevisionForPaths",
 			app: func() *v1alpha1.Application {
 				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
 				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
 					DrySource: v1alpha1.DrySource{
 						RepoURL:        app.Spec.Source.RepoURL,
@@ -2253,6 +2261,51 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 			expectedHasChanges: true,
 		},
 		{
+			name: "dry source without annotation uses ResolveRevision",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				// No annotation set
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           app.Spec.Source.Path,
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "hydrated/path",
+					},
+				}
+				app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+					DrySHA: "old-dry-sha",
+				}
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           app.Spec.Source.Path,
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions: []string{"HEAD"},
+			data: fakeData{
+				resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
+					{
+						Revision:          "old-dry-sha",
+						AmbiguousRevision: "HEAD",
+					},
+				},
+			},
+			sendRuntimeState:   false,
+			expectedHasChanges: false,
+		},
+		{
 			name: "ref source always returns false",
 			app:  newFakeApp(),
 			sources: []v1alpha1.ApplicationSource{
@@ -2280,9 +2333,12 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 			expectedHasChanges: false,
 		},
 		{
-			name: "directory source type returns true",
+			name: "directory source type with automated sync disabled returns true",
 			app: func() *v1alpha1.Application {
 				app := newFakeApp()
+				app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{Enabled: ptr.Bool(false)},
+				}
 				app.Status.SourceType = v1alpha1.ApplicationSourceTypeDirectory
 				app.Status.Sync.Revision = "abc123"
 				return app
@@ -2291,10 +2347,172 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 				app := newFakeApp()
 				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
 			}(),
-			revisions:          []string{"def456"},
-			data:               fakeData{},
+			revisions: []string{"def456"},
+			data: fakeData{
+				resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
+					{
+						Revision:          "def456-resolved",
+						AmbiguousRevision: "def456",
+					},
+				},
+			},
 			sendRuntimeState:   false,
 			expectedHasChanges: true,
+		},
+		{
+			name: "directory source type with automated sync enabled uses UpdateRevisionForPaths",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{Enabled: ptr.Bool(true)},
+				}
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
+				app.Status.SourceType = v1alpha1.ApplicationSourceTypeDirectory
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions: []string{"def456"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "def456",
+					Changes:  false,
+				},
+			},
+			sendRuntimeState:   false,
+			expectedHasChanges: false,
+		},
+		{
+			name: "dry source with same SHA returns false",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "sync-path",
+					},
+				}
+				app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+					DrySHA: "same-sha",
+				}
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions:          []string{"same-sha"},
+			data:               fakeData{},
+			sendRuntimeState:   false,
+			expectedHasChanges: false,
+		},
+		{
+			name: "dry source with annotation and changes detected",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "sync-path",
+					},
+				}
+				app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+					DrySHA: "old-dry-sha",
+				}
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions: []string{"HEAD"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "new-dry-sha-resolved",
+					Changes:  true,
+				},
+			},
+			sendRuntimeState:   false,
+			expectedHasChanges: true,
+		},
+		{
+			name: "dry source with annotation but no changes",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "sync-path",
+					},
+				}
+				app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+					DrySHA: "old-dry-sha",
+				}
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions: []string{"HEAD"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "new-dry-sha-resolved",
+					Changes:  false,
+				},
+			},
+			sendRuntimeState:   false,
+			expectedHasChanges: false,
 		},
 	}
 
@@ -2302,6 +2520,133 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
+			ctrl := newFakeController(t.Context(), &tc.data, nil)
+
+			hasChanges, err := ctrl.appStateManager.EvaluateAppRevisionsChanges(
+				context.Background(),
+				tc.app,
+				tc.sources,
+				tc.revisions,
+				&defaultProj,
+				tc.sendRuntimeState,
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedHasChanges, hasChanges)
+		})
+	}
+}
+
+func Test_EvaluateAppRevisionsChanges_ProcessManifestGeneratePathsDisabled(t *testing.T) {
+	// Save original value and restore after test
+	originalValue := processManifestGeneratePathsEnabled
+	processManifestGeneratePathsEnabled = false
+	defer func() {
+		processManifestGeneratePathsEnabled = originalValue
+	}()
+
+	testCases := []struct {
+		name               string
+		app                *v1alpha1.Application
+		sources            []v1alpha1.ApplicationSource
+		revisions          []string
+		data               fakeData
+		sendRuntimeState   bool
+		expectedHasChanges bool
+	}{
+		{
+			name: "dry source with annotation but feature disabled uses ResolveRevision",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "sync-path",
+					},
+				}
+				app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+					DrySHA: "old-dry-sha",
+				}
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: "HEAD",
+						Path:           "dry-path",
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions: []string{"HEAD"},
+			data: fakeData{
+				resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
+					{
+						Revision:          "new-dry-sha-resolved",
+						AmbiguousRevision: "HEAD",
+					},
+				},
+			},
+			sendRuntimeState:   false,
+			expectedHasChanges: true,
+		},
+		{
+			name: "normal source with annotation but feature disabled uses ResolveRevision",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
+				}
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions: []string{"def456"},
+			data: fakeData{
+				resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
+					{
+						Revision:          "def456-resolved",
+						AmbiguousRevision: "def456",
+					},
+				},
+			},
+			sendRuntimeState:   false,
+			expectedHasChanges: true,
+		},
+		{
+			name: "same revision still returns false even with feature disabled",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions:          []string{"abc123"},
+			data:               fakeData{},
+			sendRuntimeState:   false,
+			expectedHasChanges: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			ctrl := newFakeController(t.Context(), &tc.data, nil)
 
 			hasChanges, err := ctrl.appStateManager.EvaluateAppRevisionsChanges(
