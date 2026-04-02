@@ -94,6 +94,26 @@ spec:
 > [!NOTE]
 > Disabling self-heal does not guarantee that live cluster changes in multi-source applications will persist. Although one of the resource's sources remains unchanged, changes in another can trigger `autosync`. To handle such cases, consider disabling `autosync`.
 
+## Automatic Retry with a limit
+
+Argo CD can automatically retry a failed sync operation using exponential backoff. To enable, configure the `retry` field in the sync policy:
+
+```yaml
+spec:
+  syncPolicy:
+    retry:
+      limit: 5 # number of retries (-1 for unlimited retries)
+      backoff:
+        duration: 5s # base duration between retries
+        factor: 2 # exponential backoff factor
+        maxDuration: 3m # maximum duration between retries
+```
+
+- `limit`: number of retry attempts. Set to `-1` for unlimited retries.
+- `backoff.duration`: base wait time before the first retry.
+- `backoff.factor`: multiplier applied after each failed attempt.
+- `backoff.maxDuration`: maximum wait time between retries, regardless of the number of attempts.
+
 ## Automatic Retry Refresh on new revisions
 
 This feature allows users to configure their applications to refresh on new revisions when the current sync is retrying. To enable automatic refresh during sync retries, run:

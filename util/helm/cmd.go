@@ -327,8 +327,12 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	return out, nil
 }
 
-func (c *Cmd) dependencyBuild() (string, error) {
-	out, _, err := c.run(context.Background(), "dependency", "build")
+func (c *Cmd) dependencyBuild(insecure bool) (string, error) {
+	args := []string{"dependency", "build"}
+	if insecure {
+		args = append(args, "--insecure-skip-tls-verify")
+	}
+	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to build dependencies: %w", err)
 	}
