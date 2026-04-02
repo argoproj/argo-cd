@@ -115,7 +115,7 @@ func TestDebugHandler_WithFeatureFlagMiddleware_disabled(t *testing.T) {
 		},
 	}
 	middleware := handler.WithFeatureFlagMiddleware()
-	request := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/debug", http.NoBody)
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "https://argocd.example.com/debug", http.NoBody)
 	recorder := httptest.NewRecorder()
 	middleware.ServeHTTP(recorder, request)
 	assert.Equal(t, http.StatusNotFound, recorder.Result().StatusCode)
