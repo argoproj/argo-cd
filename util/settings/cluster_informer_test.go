@@ -739,7 +739,7 @@ func TestClusterInformer_SecretDeletion(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	_, err = informer.GetClusterByURL("https://cluster1.example.com")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 
 	cluster2, err := informer.GetClusterByURL("https://cluster2.example.com")
