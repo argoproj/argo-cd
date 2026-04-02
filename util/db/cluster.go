@@ -30,11 +30,9 @@ const errCheckingInClusterEnabled = "failed to check in-cluster enabled in %s: %
 
 var (
 	localCluster = appv1.Cluster{
-		Name:   appv1.KubernetesInClusterName,
-		Server: appv1.KubernetesInternalAPIServerAddr,
-		Info: appv1.ClusterInfo{
-			ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
-		},
+		Name:            appv1.KubernetesInClusterName,
+		Server:          appv1.KubernetesInternalAPIServerAddr,
+		ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
 	}
 	initLocalCluster sync.Once
 )
