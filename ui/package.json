@@ -35,7 +35,7 @@
     "prop-types": "^15.8.1",
     "react": "^19.0.0",
     "react-autocomplete": "^1.8.1",
-    "react-diff-view": "^2.4.10",
+    "react-diff-view": "3.3.3",
     "react-dom": "^19.0.0",
     "react-ga": "^2.7.0",
     "react-helmet": "^6.1.0",
