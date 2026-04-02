@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -1956,7 +1957,7 @@ func Test_normalizeClusterScopeTracking(t *testing.T) {
 	require.True(t, called, "normalization function should have called the callback function")
 }
 
-func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
+func TestGetRepoObjs_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
 	app := newFakeApp()
 	// Enable the manifest-generate-paths annotation and set a synced revision
 	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
@@ -1972,7 +1973,10 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
 		},
-		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: false},
+		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+			Changes:  false,
+			Revision: "abc123",
+		},
 	}
 	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
 
@@ -1986,7 +1990,7 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
 	require.False(t, revisionsMayHaveChanges)
 }
 
-func TestCompareAppState_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T) {
+func TestGetRepoObjs_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T) {
 	app := newFakeApp()
 	// Enable the manifest-generate-paths annotation and set a synced revision
 	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
@@ -2105,6 +2109,212 @@ func Test_isObjRequiresDeletionConfirmation(t *testing.T) {
 			app.Spec.SyncPolicy.SyncOptions = tt.appSyncOptions
 
 			require.Equal(t, tt.expected, isObjRequiresDeletionConfirmation(obj, app))
+		})
+	}
+}
+
+func Test_EvaluateAppRevisionsChanges(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name               string
+		app                *v1alpha1.Application
+		sources            []v1alpha1.ApplicationSource
+		revisions          []string
+		data               fakeData
+		sendRuntimeState   bool
+		expectedHasChanges bool
+	}{
+		{
+			name: "single source with changes",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions: []string{"def456"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "def456",
+					Changes:  true,
+				},
+			},
+			sendRuntimeState:   false,
+			expectedHasChanges: true,
+		},
+		{
+			name: "multiple sources with changes",
+			app: func() *v1alpha1.Application {
+				app := newFakeMultiSourceApp()
+				app.Status.Sync.Revisions = []string{"abc123", "xyz789"}
+				return app
+			}(),
+			sources: []v1alpha1.ApplicationSource{
+				{RepoURL: "https://github.com/test/repo1", Path: "path1", TargetRevision: "main"},
+				{RepoURL: "https://github.com/test/repo2", Path: "path2", TargetRevision: "main"},
+			},
+			revisions: []string{"abc123", "new-sha"},
+			data: fakeData{
+				updateRevisionForPathsResponses: []*apiclient.UpdateRevisionForPathsResponse{
+					{Revision: "abc123", Changes: false},
+					{Revision: "new-sha", Changes: true},
+				},
+			},
+			sendRuntimeState:   false,
+			expectedHasChanges: true,
+		},
+		{
+			name: "no changes",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions: []string{"abc123"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "abc123",
+					Changes:  false,
+				},
+			},
+			sendRuntimeState:   false,
+			expectedHasChanges: false,
+		},
+		{
+			name: "with send runtime state",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions: []string{"def456"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "def456",
+					Changes:  true,
+				},
+			},
+			sendRuntimeState:   true,
+			expectedHasChanges: true,
+		},
+		{
+			name: "source hydrator uses dry SHA",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: app.Spec.Source.TargetRevision,
+						Path:           app.Spec.Source.Path,
+					},
+					SyncSource: v1alpha1.SyncSource{
+						TargetBranch: "hydrated",
+						Path:         "hydrated/path",
+					},
+				}
+				app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+					DrySHA: "old-dry-sha",
+				}
+				app.Status.Sync.Revision = "should-not-be-used"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+					DrySource: v1alpha1.DrySource{
+						RepoURL:        app.Spec.Source.RepoURL,
+						TargetRevision: app.Spec.Source.TargetRevision,
+						Path:           app.Spec.Source.Path,
+					},
+				}
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				return []v1alpha1.ApplicationSource{drySource}
+			}(),
+			revisions: []string{"new-dry-sha"},
+			data: fakeData{
+				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+					Revision: "new-dry-sha",
+					Changes:  true,
+				},
+			},
+			sendRuntimeState:   false,
+			expectedHasChanges: true,
+		},
+		{
+			name: "ref source always returns false",
+			app:  newFakeApp(),
+			sources: []v1alpha1.ApplicationSource{
+				{Ref: "ref-name"},
+			},
+			revisions:          []string{"any-revision"},
+			data:               fakeData{},
+			sendRuntimeState:   false,
+			expectedHasChanges: false,
+		},
+		{
+			name: "same revision no ref sources returns false",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions:          []string{"abc123"},
+			data:               fakeData{},
+			sendRuntimeState:   false,
+			expectedHasChanges: false,
+		},
+		{
+			name: "directory source type returns true",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.SourceType = v1alpha1.ApplicationSourceTypeDirectory
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions:          []string{"def456"},
+			data:               fakeData{},
+			sendRuntimeState:   false,
+			expectedHasChanges: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctrl := newFakeController(t.Context(), &tc.data, nil)
+
+			hasChanges, err := ctrl.appStateManager.EvaluateAppRevisionsChanges(
+				context.Background(),
+				tc.app,
+				tc.sources,
+				tc.revisions,
+				&defaultProj,
+				tc.sendRuntimeState,
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedHasChanges, hasChanges)
 		})
 	}
 }

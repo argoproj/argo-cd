@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -123,7 +122,7 @@ func TestGetHydratorCommitMessageTemplate(t *testing.T) {
 	assert.NotEmpty(t, tmpl)
 }
 
-func TestProcessAppHydrateQueueItem_ReconcileTimeout_EnqueuesHydrationOnDryRevisionChange(t *testing.T) {
+func TestEvaluateAppRevisionsChanges(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
 		DrySource: v1alpha1.DrySource{
@@ -136,35 +135,35 @@ func TestProcessAppHydrateQueueItem_ReconcileTimeout_EnqueuesHydrationOnDryRevis
 			Path:         "hydrated/path",
 		},
 	}
-	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
-		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
-		DrySHA:         "old-sha",
-		SourceHydrator: *app.Spec.SourceHydrator,
+	app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+		DrySHA: "old-sha",
 	}
-	reconciledAt := metav1.NewTime(time.Now().Add(-2 * time.Minute))
-	app.Status.ReconciledAt = &reconciledAt
 
 	data := fakeData{
-		apps: []runtime.Object{app, &defaultProj},
-		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
-			Namespace: test.FakeDestNamespace,
-			Server:    test.FakeClusterURL,
-			Revision:  "new-sha",
+		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "new-sha",
+			Changes:  true,
 		},
 	}
 
-	ctrl := newFakeHydratorControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
-	ctrl.appHydrateQueue.Add(app.QualifiedName())
-	processed := ctrl.processAppHydrateQueueItem()
-	require.True(t, processed)
+	ctrl := newFakeController(t.Context(), &data, nil)
+	drySource := app.Spec.SourceHydrator.GetDrySource()
 
-	require.Eventually(t, func() bool {
-		updatedApp, err := ctrl.appLister.Applications(app.Namespace).Get(app.Name)
-		if err != nil {
-			return false
-		}
-		op := updatedApp.Status.SourceHydrator.CurrentOperation
-		return op != nil && op.Phase == v1alpha1.HydrateOperationPhaseHydrating
-	}, 2*time.Second, 25*time.Millisecond)
+	hasChanges, err := ctrl.EvaluateAppRevisionsChanges(t.Context(), app, drySource, "new-sha", &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	assert.True(t, hasChanges)
 }

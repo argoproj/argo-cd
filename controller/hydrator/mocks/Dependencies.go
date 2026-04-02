@@ -81,7 +81,7 @@ func (_c *Dependencies_AddHydrationQueueItem_Call) RunAndReturn(run func(key typ
 	return _c
 }
 
-// EvaluateFastForwardRevisions provides a mock function for the type Dependencies
+// EvaluateAppRevisionsChanges provides a mock function for the type Dependencies
 func (_mock *Dependencies) EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject) (bool, error) {
 	ret := _mock.Called(ctx, app, source, revision, project)
 
@@ -144,7 +144,13 @@ func (_c *Dependencies_EvaluateAppRevisionsChanges_Call) Run(run func(ctx contex
 		if args[4] != nil {
 			arg4 = args[4].(*v1alpha1.AppProject)
 		}
-		run(arg0, arg1, arg2, arg3, arg4)
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
 	})
 	return _c
 }
@@ -154,10 +160,11 @@ func (_c *Dependencies_EvaluateAppRevisionsChanges_Call) Return(b bool, err erro
 	return _c
 }
 
-func (_c *Dependencies_EvaluateAppRevisionsChanges_Call) RunAndReturn(run func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject) (bool, error)) *Dependencies_EvaluateAppRevisionsChanges_Call {
+func (_c *Dependencies_EvaluateAppRevisionsChanges_Call) RunAndReturn(run func(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject) (bool, error)) *Dependencies_EvaluateAppRevisionsChanges_Call {
 	_c.Call.Return(run)
 	return _c
 }
+
 // GetCommitAuthorEmail provides a mock function for the type Dependencies
 func (_mock *Dependencies) GetCommitAuthorEmail() (string, error) {
 	ret := _mock.Called()
@@ -435,7 +442,7 @@ func (_c *Dependencies_GetProcessableApps_Call) RunAndReturn(run func() (*v1alph
 }
 
 // GetRepoObjs provides a mock function for the type Dependencies
-func (_mock *Dependencies) GetRepoObjs(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, bool, error) {
+func (_mock *Dependencies) GetRepoObjs(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	ret := _mock.Called(ctx, app, source, revision, project)
 
 	if len(ret) == 0 {
@@ -444,9 +451,8 @@ func (_mock *Dependencies) GetRepoObjs(ctx context.Context, app *v1alpha1.Applic
 
 	var r0 []*unstructured.Unstructured
 	var r1 *apiclient.ManifestResponse
-	var r2 bool
-	var r3 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, bool, error)); ok {
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)); ok {
 		return returnFunc(ctx, app, source, revision, project)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject) []*unstructured.Unstructured); ok {
@@ -463,17 +469,12 @@ func (_mock *Dependencies) GetRepoObjs(ctx context.Context, app *v1alpha1.Applic
 			r1 = ret.Get(1).(*apiclient.ManifestResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject) bool); ok {
+	if returnFunc, ok := ret.Get(2).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject) error); ok {
 		r2 = returnFunc(ctx, app, source, revision, project)
 	} else {
-		r2 = ret.Get(2).(bool)
+		r2 = ret.Error(2)
 	}
-	if returnFunc, ok := ret.Get(3).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject) error); ok {
-		r3 = returnFunc(ctx, app, source, revision, project)
-	} else {
-		r3 = ret.Error(3)
-	}
-	return r0, r1, r2, r3
+	return r0, r1, r2
 }
 
 // Dependencies_GetRepoObjs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRepoObjs'
@@ -524,12 +525,12 @@ func (_c *Dependencies_GetRepoObjs_Call) Run(run func(ctx context.Context, app *
 	return _c
 }
 
-func (_c *Dependencies_GetRepoObjs_Call) Return(unstructureds []*unstructured.Unstructured, manifestResponse *apiclient.ManifestResponse, b bool, err error) *Dependencies_GetRepoObjs_Call {
-	_c.Call.Return(unstructureds, manifestResponse, b, err)
+func (_c *Dependencies_GetRepoObjs_Call) Return(unstructureds []*unstructured.Unstructured, manifestResponse *apiclient.ManifestResponse, err error) *Dependencies_GetRepoObjs_Call {
+	_c.Call.Return(unstructureds, manifestResponse, err)
 	return _c
 }
 
-func (_c *Dependencies_GetRepoObjs_Call) RunAndReturn(run func(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, bool, error)) *Dependencies_GetRepoObjs_Call {
+func (_c *Dependencies_GetRepoObjs_Call) RunAndReturn(run func(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)) *Dependencies_GetRepoObjs_Call {
 	_c.Call.Return(run)
 	return _c
 }

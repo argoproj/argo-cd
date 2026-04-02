@@ -452,7 +452,7 @@ func setTestAppPhase(app *v1alpha1.Application, phase v1alpha1.HydrateOperationP
 	return app
 }
 
-func TestProcessAppHydrateQueueItem_HydrationNeeded(t *testing.T) {
+func TestProcessAppHydrateQueueItem_HydrationNeeded_NoCurrentOperation(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
 	app := newTestApp("test-app")
@@ -483,7 +483,7 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded(t *testing.T) {
 	assert.Equal(t, *app.Spec.SourceHydrator, persistedStatus.CurrentOperation.SourceHydrator)
 }
 
-func TestProcessAppHydrateQueueItem_HydrationPassedTimeout(t *testing.T) {
+func TestProcessAppHydrateQueueItem_HydrationNeeded_HydrationPassedTimeout(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
 	now := metav1.Now()
@@ -512,7 +512,7 @@ func TestProcessAppHydrateQueueItem_HydrationPassedTimeout(t *testing.T) {
 	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
 }
 
-func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
+func TestProcessAppHydrateQueueItem_HydrationNotNeeded_NoSourceHydrator(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
 	app := newTestApp("test-app")
@@ -529,7 +529,7 @@ func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
 }
 
-func TestProcessAppHydrateQueueItem_HydrationNotNeeded(t *testing.T) {
+func TestProcessAppHydrateQueueItem_HydrationNotNeeded_AlreadyHydrating(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)
 	now := metav1.Now()
@@ -550,6 +550,72 @@ func TestProcessAppHydrateQueueItem_HydrationNotNeeded(t *testing.T) {
 	h.ProcessAppHydrateQueueItem(app)
 
 	// Should not call anything
+	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+}
+
+func TestProcessAppHydrateQueueItem_HydrationNeeded_RevisionChanges(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	proj := newTestProject()
+	app := newTestApp("test-app")
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+		DrySHA:         "old-sha",
+		SourceHydrator: *app.Spec.SourceHydrator,
+	}
+	app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+		DrySHA: "old-sha",
+	}
+
+	var persistedStatus *v1alpha1.SourceHydratorStatus
+	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+		persistedStatus = newStatus
+	}).Return().Once()
+	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
+	d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, mock.Anything, app.Spec.SourceHydrator.DrySource.TargetRevision, proj).Return(true, nil)
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+	h.ProcessAppHydrateQueueItem(app)
+
+	d.AssertCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
+
+	require.NotNil(t, persistedStatus)
+	assert.NotNil(t, persistedStatus.CurrentOperation.StartedAt)
+	assert.Nil(t, persistedStatus.CurrentOperation.FinishedAt)
+	assert.Equal(t, v1alpha1.HydrateOperationPhaseHydrating, persistedStatus.CurrentOperation.Phase)
+	assert.Equal(t, *app.Spec.SourceHydrator, persistedStatus.CurrentOperation.SourceHydrator)
+}
+
+func TestProcessAppHydrateQueueItem_HydrationNotNeeded_NoRevisionChanges(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	proj := newTestProject()
+	app := newTestApp("test-app")
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+		DrySHA:         "old-sha",
+		SourceHydrator: *app.Spec.SourceHydrator,
+	}
+	app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+		DrySHA: "old-sha",
+	}
+
+	d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, mock.Anything, app.Spec.SourceHydrator.DrySource.TargetRevision, proj).Return(false, nil)
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+	}
+	h.ProcessAppHydrateQueueItem(app)
+
+	// Should not call hydration since no changes detected
 	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
 }
@@ -610,7 +676,7 @@ func TestProcessHydrationQueueItem_HydrateFails_AppSpecificError(t *testing.T) {
 	h := &Hydrator{dependencies: d}
 
 	// Make hydrate return app-specific error
-	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil, false, errors.New("hydrate error"))
+	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil, errors.New("hydrate error"))
 
 	// Expect setAppHydratorError to be called
 	var persistedStatus1 *v1alpha1.SourceHydratorStatus
@@ -654,7 +720,7 @@ func TestProcessHydrationQueueItem_HydrateFails_CommonError(t *testing.T) {
 
 	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, &repoclient.ManifestResponse{
 		Revision: "abc123",
-	}, false, nil)
+	}, nil)
 	r.EXPECT().GetRepository(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("repo error"))
 
 	// Expect setAppHydratorError to be called
@@ -706,7 +772,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	d.EXPECT().RequestAppRefresh(app.Name, app.Namespace).Return(nil).Once()
 	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, &repoclient.ManifestResponse{
 		Revision: "abc123",
-	}, false, nil).Once()
+	}, nil).Once()
 	r.EXPECT().GetRepository(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, nil).Once()
 	d.EXPECT().GetWriteCredentials(mock.Anything, "https://example.com/repo", "test-project").Return(nil, nil).Once()
@@ -863,8 +929,8 @@ func TestHydrator_hydrate_Success(t *testing.T) {
 	readRepo := &v1alpha1.Repository{Repo: "https://example.com/repo"}
 	writeRepo := &v1alpha1.Repository{Repo: "https://example.com/repo"}
 
-	d.EXPECT().GetRepoObjs(mock.Anything, app1, app1.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, false, nil)
-	d.EXPECT().GetRepoObjs(mock.Anything, app2, app2.Spec.SourceHydrator.GetDrySource(), "sha123", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, false, nil)
+	d.EXPECT().GetRepoObjs(mock.Anything, app1, app1.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil)
+	d.EXPECT().GetRepoObjs(mock.Anything, app2, app2.Spec.SourceHydrator.GetDrySource(), "sha123", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil)
 	r.EXPECT().GetRepository(mock.Anything, readRepo.Repo, proj.Name).Return(readRepo, nil)
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{Message: "metadata"}, nil).Run(func(_ context.Context, in *repoclient.RepoServerRevisionMetadataRequest, _ ...grpc.CallOption) {
 		assert.Equal(t, readRepo, in.Repo)
@@ -913,7 +979,7 @@ func TestHydrator_hydrate_GetManifestsError(t *testing.T) {
 	proj := newTestProject()
 	projects := map[string]*v1alpha1.AppProject{app.Spec.Project: proj}
 
-	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, nil, false, errors.New("manifests error"))
+	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, nil, errors.New("manifests error"))
 	logCtx := log.NewEntry(log.StandardLogger())
 
 	sha, hydratedSha, errs, err := h.hydrate(logCtx, []*v1alpha1.Application{app}, projects)
@@ -943,7 +1009,7 @@ func TestHydrator_hydrate_RevisionMetadataError(t *testing.T) {
 	proj := newTestProject()
 	projects := map[string]*v1alpha1.AppProject{app.Spec.Project: proj}
 
-	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, false, nil)
+	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil)
 	r.EXPECT().GetRepository(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(nil, errors.New("metadata error"))
 	logCtx := log.NewEntry(log.StandardLogger())
@@ -975,7 +1041,7 @@ func TestHydrator_hydrate_GetWriteCredentialsError(t *testing.T) {
 	proj := newTestProject()
 	projects := map[string]*v1alpha1.AppProject{app.Spec.Project: proj}
 
-	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, false, nil)
+	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil)
 	r.EXPECT().GetRepository(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	d.EXPECT().GetWriteCredentials(mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("creds error"))
@@ -1008,7 +1074,7 @@ func TestHydrator_hydrate_CommitMessageTemplateError(t *testing.T) {
 	proj := newTestProject()
 	projects := map[string]*v1alpha1.AppProject{app.Spec.Project: proj}
 
-	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, false, nil)
+	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil)
 	r.EXPECT().GetRepository(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	d.EXPECT().GetWriteCredentials(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
@@ -1042,7 +1108,7 @@ func TestHydrator_hydrate_TemplatedCommitMessageError(t *testing.T) {
 	proj := newTestProject()
 	projects := map[string]*v1alpha1.AppProject{app.Spec.Project: proj}
 
-	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, false, nil)
+	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil)
 	r.EXPECT().GetRepository(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	d.EXPECT().GetWriteCredentials(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
@@ -1076,7 +1142,7 @@ func TestHydrator_hydrate_CommitHydratedManifestsError(t *testing.T) {
 	proj := newTestProject()
 	projects := map[string]*v1alpha1.AppProject{app.Spec.Project: proj}
 
-	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, false, nil)
+	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, mock.Anything, proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil)
 	r.EXPECT().GetRepository(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
 	rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{}, nil)
 	d.EXPECT().GetWriteCredentials(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{Repo: "https://example.com/repo"}, nil)
@@ -1125,7 +1191,7 @@ func TestHydrator_getManifests_Success(t *testing.T) {
 	d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "sha123", proj).Return([]*unstructured.Unstructured{cm}, &repoclient.ManifestResponse{
 		Revision: "sha123",
 		Commands: []string{"cmd1", "cmd2"},
-	}, false, nil)
+	}, nil)
 
 	rev, pathDetails, err := h.getManifests(t.Context(), app, "sha123", proj)
 	require.NoError(t, err)
@@ -1143,7 +1209,7 @@ func TestHydrator_getManifests_EmptyTargetRevision(t *testing.T) {
 	app := newTestApp("test-app")
 	proj := newTestProject()
 
-	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, "main", proj).Return([]*unstructured.Unstructured{}, &repoclient.ManifestResponse{Revision: "sha123"}, false, nil)
+	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, "main", proj).Return([]*unstructured.Unstructured{}, &repoclient.ManifestResponse{Revision: "sha123"}, nil)
 
 	rev, pathDetails, err := h.getManifests(t.Context(), app, "", proj)
 	require.NoError(t, err)
@@ -1158,7 +1224,7 @@ func TestHydrator_getManifests_GetRepoObjsError(t *testing.T) {
 	app := newTestApp("test-app")
 	proj := newTestProject()
 
-	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, "main", proj).Return(nil, nil, false, errors.New("repo error"))
+	d.EXPECT().GetRepoObjs(mock.Anything, app, mock.Anything, "main", proj).Return(nil, nil, errors.New("repo error"))
 
 	rev, pathDetails, err := h.getManifests(t.Context(), app, "main", proj)
 	require.Error(t, err)
@@ -1189,7 +1255,7 @@ func TestHydrator_hydrate_DeDupe_Success(t *testing.T) {
 
 	// Asserting .Once() confirms that we only make one call to repo-server to get the last hydrated DRY
 	// sha, and then we quit early.
-	d.On("GetRepoObjs", mock.Anything, app1, app1.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, false, nil).Once()
+	d.On("GetRepoObjs", mock.Anything, app1, app1.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil).Once()
 	logCtx := log.NewEntry(log.StandardLogger())
 
 	sha, hydratedSha, errs, err := h.hydrate(logCtx, apps, projects)

@@ -248,7 +248,7 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 		if err != nil {
 			return "", false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 		}
-		if repo.Depth == 0 {
+		if repo.Depth != 0 {
 			// If the repo is configured as a shallow clone, we cannot compare files so return early.
 			return revision, true, nil
 		}

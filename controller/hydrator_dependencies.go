@@ -38,36 +38,36 @@ func (ctrl *ApplicationController) EvaluateAppRevisionsChanges(ctx context.Conte
 	return ctrl.appStateManager.EvaluateAppRevisionsChanges(ctx, app, sources, revisions, project, false)
 }
 
-func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, app *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, bool, error) {
+func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, app *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {
 	drySources := []appv1.ApplicationSource{drySource}
 	dryRevisions := []string{revision}
 
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
 	if err != nil {
-		return nil, nil, false, fmt.Errorf("failed to get app instance label key: %w", err)
+		return nil, nil, fmt.Errorf("failed to get app instance label key: %w", err)
 	}
 
 	// FIXME: use cache and revision cache
-	objs, resp, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, false, project, false)
+	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, false, project, false)
 	if err != nil {
-		return nil, nil, false, fmt.Errorf("failed to get repo objects: %w", err)
+		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}
 
 	trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
 	if err != nil {
-		return nil, nil, false, fmt.Errorf("failed to get tracking method: %w", err)
+		return nil, nil, fmt.Errorf("failed to get tracking method: %w", err)
 	}
 	for _, obj := range objs {
 		if err := argoutil.NewResourceTracking().RemoveAppInstance(obj, trackingMethod); err != nil {
-			return nil, nil, false, fmt.Errorf("failed to remove the app instance value: %w", err)
+			return nil, nil, fmt.Errorf("failed to remove the app instance value: %w", err)
 		}
 	}
 
 	if len(resp) != 1 {
-		return nil, nil, false, fmt.Errorf("expected one manifest response, got %d", len(resp))
+		return nil, nil, fmt.Errorf("expected one manifest response, got %d", len(resp))
 	}
 
-	return objs, resp[0], revisionsMayHaveChanges, nil
+	return objs, resp[0], nil
 }
 
 func (ctrl *ApplicationController) GetWriteCredentials(ctx context.Context, repoURL string, project string) (*appv1.Repository, error) {
