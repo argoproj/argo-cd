@@ -133,6 +133,8 @@ type ApplicationController struct {
 	settingsMgr                   *settings_util.SettingsManager
 	refreshRequestedApps          map[string]CompareWith
 	refreshRequestedAppsMutex     *sync.Mutex
+	requestedAppOperations        map[string]struct{}
+	requestedAppOperationsMutex   *sync.Mutex
 	metricsServer                 *metrics.MetricsServer
 	metricsClusterLabels          []string
 	kubectlSemaphore              *semaphore.Weighted
@@ -205,6 +207,8 @@ func NewApplicationController(
 		statusRefreshJitter:               appResyncJitter,
 		refreshRequestedApps:              make(map[string]CompareWith),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
+		requestedAppOperations:            make(map[string]struct{}),
+		requestedAppOperationsMutex:       &sync.Mutex{},
 		auditLogger:                       argo.NewAuditLogger(kubeClientset, namespace, common.CommandApplicationController, enableK8sEvent),
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
@@ -997,6 +1001,29 @@ func (ctrl *ApplicationController) isRefreshRequested(appName string) (bool, Com
 	return ok, level
 }
 
+// requestAppOperation marks the application as having a newly requested operation
+// and schedules prompt operation processing.
+func (ctrl *ApplicationController) requestAppOperation(appName string) {
+	key := ctrl.toAppKey(appName)
+	ctrl.requestedAppOperationsMutex.Lock()
+	ctrl.requestedAppOperations[key] = struct{}{}
+	ctrl.requestedAppOperationsMutex.Unlock()
+	ctrl.appOperationQueue.Add(key)
+}
+
+func (ctrl *ApplicationController) isAppOperationRequested(appKey string) bool {
+	ctrl.requestedAppOperationsMutex.Lock()
+	defer ctrl.requestedAppOperationsMutex.Unlock()
+	_, ok := ctrl.requestedAppOperations[appKey]
+	return ok
+}
+
+func (ctrl *ApplicationController) clearAppOperationRequest(appKey string) {
+	ctrl.requestedAppOperationsMutex.Lock()
+	defer ctrl.requestedAppOperationsMutex.Unlock()
+	delete(ctrl.requestedAppOperations, appKey)
+}
+
 func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext bool) {
 	appKey, shutdown := ctrl.appOperationQueue.Get()
 	if shutdown {
@@ -1036,16 +1063,34 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		logCtx.Debug("Finished processing app operation queue item")
 	}()
 
-	if app.Operation != nil {
+	requestedOperation := ctrl.isAppOperationRequested(appKey)
+	if app.Operation != nil || requestedOperation {
 		// If we get here, we are about to process an operation, but we cannot rely on informer since it might have stale data.
 		// So always retrieve the latest version to ensure it is not stale to avoid unnecessary syncing.
 		// We cannot rely on informer since applications might be updated by both application controller and api server.
 		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
 		if err != nil {
+			if requestedOperation {
+				if isRetryableAppOperationGetError(err) {
+					logCtx.WithError(err).Warn("Failed to retrieve latest application state, requeueing operation")
+					ctrl.appOperationQueue.AddRateLimited(appKey)
+				} else {
+					ctrl.clearAppOperationRequest(appKey)
+					logCtx.WithError(err).Error("Failed to retrieve latest application state")
+				}
+				return processNext
+			}
+
+			if isRetryableAppOperationGetError(err) {
+				logCtx.WithError(err).Warn("Failed to retrieve latest application state, requeueing operation")
+				ctrl.appOperationQueue.AddRateLimited(appKey)
+				return processNext
+			}
 			logCtx.WithError(err).Error("Failed to retrieve latest application state")
 			return processNext
 		}
 		app = freshApp
+		ctrl.clearAppOperationRequest(appKey)
 	}
 	ts.AddCheckpoint("get_fresh_app_ms")
 
@@ -2550,6 +2595,9 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
 						compareWith = CompareWithLatest.Pointer()
 					}
+					if oldApp.Operation == nil && newApp.Operation != nil {
+						ctrl.requestAppOperation(newApp.QualifiedName())
+					}
 					if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
 						// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
 						jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
@@ -2610,6 +2658,14 @@ func (ctrl *ApplicationController) RegisterClusterSecretUpdater(ctx context.Cont
 
 func isOperationInProgress(app *appv1.Application) bool {
 	return app.Status.OperationState != nil && !app.Status.OperationState.Phase.Completed()
+}
+
+func isRetryableAppOperationGetError(err error) bool {
+	return apierrors.IsInternalError(err) ||
+		apierrors.IsTimeout(err) ||
+		apierrors.IsServerTimeout(err) ||
+		apierrors.IsTooManyRequests(err) ||
+		apierrors.IsServiceUnavailable(err)
 }
 
 // automatedSyncEnabled tests if an app went from auto-sync disabled to enabled.
