@@ -1,0 +1,80 @@
+// Disables all UI animations and transitions when the user has enabled
+// "Reduce motion" in Argo CD preferences or via the OS-level
+// prefers-reduced-motion setting.
+//
+// See https://github.com/argoproj/argo-cd/issues/5982
+
+@mixin no-motion {
+    // Spinning status icons (sync, health, pod phase)
+    .icon.spin {
+        animation: none !important;
+    }
+
+    .status-icon--spin {
+        animation: none !important;
+    }
+
+    .fa-spin {
+        animation: none !important;
+    }
+
+    // Resource tree: network flow dashed-line animation
+    .application-resource-tree--network .application-resource-tree__line {
+        animation: none !important;
+    }
+
+    // Resource tree: node update shadow pulse
+    .application-resource-tree__node-animation {
+        animation: none !important;
+    }
+
+    // Resource tree: node and edge position transitions
+    .application-resource-tree__node {
+        transition: none !important;
+    }
+
+    .application-resource-tree__line {
+        transition: none !important;
+    }
+
+    // Expandable sections
+    .expandable {
+        transition: none !important;
+    }
+
+    // Cluster list link hover
+    .cluster-list .help-text a {
+        transition: none !important;
+    }
+
+    // Pod logs viewer link hover
+    .pod-name-link {
+        transition: none !important;
+    }
+
+    // Application details button hover
+    .application-details__icon-btn,
+    .application-details__tab,
+    .application-details__tab--selected {
+        transition: none !important;
+    }
+
+    // Applications list accordion and search bar
+    .applications-list__accordion {
+        transition: none !important;
+    }
+
+    .applications-list__search {
+        transition: none !important;
+    }
+}
+
+// Respect OS-level reduced motion preference
+@media (prefers-reduced-motion: reduce) {
+    @include no-motion;
+}
+
+// Respect in-app preference via class on root element
+.reduce-motion {
+    @include no-motion;
+}

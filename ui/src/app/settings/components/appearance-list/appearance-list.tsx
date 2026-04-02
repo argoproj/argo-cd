@@ -28,6 +28,17 @@ export const AppearanceList = () => {
                                             {value: 'dark', title: 'Dark'}
                                         ]}></Select>
                                 </div>
+                                <div className='row' style={{marginTop: '16px'}}>
+                                    <span>Reduce motion</span>
+                                    <label className='appearance-list__toggle'>
+                                        <input
+                                            type='checkbox'
+                                            checked={pref.reduceMotion}
+                                            onChange={e => services.viewPreferences.updatePreferences({reduceMotion: e.target.checked})}
+                                        />
+                                        Disable animations
+                                    </label>
+                                </div>
                             </div>
                         </div>
                     </div>

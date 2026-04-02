@@ -4,6 +4,7 @@ import {ViewPreferences} from '../../services';
 import {useTheme} from '../../utils';
 
 require('./layout.scss');
+require('../../../reduce-motion.scss');
 
 export interface LayoutProps {
     navItems: Array<{path: string; iconClassName: string; title: string}>;
@@ -29,8 +30,10 @@ export const Layout = (props: LayoutProps) => {
         }
     }, [theme]);
 
+    const rootClassName = `theme-${theme}${props.pref.reduceMotion ? ' reduce-motion' : ''}`;
+
     return (
-        <div className={`theme-${theme}`}>
+        <div className={rootClassName}>
             <div className={'cd-layout'}>
                 <Sidebar onVersionClick={props.onVersionClick} navItems={props.navItems} pref={props.pref} />
                 <div className={`cd-layout__content ${props.pref.hideSidebar ? 'cd-layout__content--sb-collapsed' : 'cd-layout__content--sb-expanded'} custom-styles`}>
