@@ -220,6 +220,7 @@ func TestSanitizeLabelValue(t *testing.T) {
 		{"leading non-alphanumeric after strip", ".1.28", "1.28"},
 		{"trailing non-alphanumeric after strip", "1.28.", "1.28"},
 		{"long value truncated to 63", "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abcdefghij", "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789abc"},
+		{"truncation trims trailing non-alphanumeric", "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789ab.----", "abcdefghij0123456789abcdefghij0123456789abcdefghij0123456789ab"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

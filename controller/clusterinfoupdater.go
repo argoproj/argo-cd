@@ -190,6 +190,7 @@ func sanitizeLabelValue(s string) string {
 	s = strings.TrimRightFunc(s, isNotAlphanumeric)
 	if len(s) > 63 {
 		s = s[:63]
+		s = strings.TrimRightFunc(s, isNotAlphanumeric)
 	}
 	return s
 }
