@@ -724,6 +724,48 @@ func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
 			"non-ignored field 'app' was clobbered by live value; patchStrategy:replace on selector may cause normalizeTargetResources to overwrite the entire selector")
 	})
 
+	t.Run("ignoring one matchLabels key should not drop non-ignored sibling fields", func(t *testing.T) {
+		// Target has matchExpressions that live does not.
+		// Ignoring a matchLabels key should not cause matchExpressions to be
+		// dropped due to replace semantics pulling the entire live selector
+		// (which lacks matchExpressions) into the target.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		// Add matchExpressions to the target only (not in live).
+		target := cr.reconciliationResult.Target[0]
+		matchExpr := []any{
+			map[string]any{
+				"key":      "tier",
+				"operator": "In",
+				"values":   []any{"frontend"},
+			},
+		}
+		require.NoError(t, unstructured.SetNestedSlice(target.Object, matchExpr, "spec", "selector", "matchExpressions"))
+
+		targets, err := normalizeTargetResources(cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		// matchExpressions should be preserved — it was not ignored.
+		expr, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "selector", "matchExpressions")
+		require.NoError(t, err)
+		assert.True(t, ok, "matchExpressions was dropped from target by replace-strategy collateral")
+		assert.Len(t, expr, 1)
+
+		// app label should still reflect the target change.
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, "myapp-v2", matchLabels["app"])
+		assert.Equal(t, "v1", matchLabels["version"])
+	})
+
 	t.Run("ignoring entire selector should replace target selector with live", func(t *testing.T) {
 		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
 			{

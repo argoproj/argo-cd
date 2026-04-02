@@ -514,32 +514,30 @@ func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObje
 }
 
 // restoreNonIgnoredFields walks patched, original, and normalized in parallel.
-// If a leaf value in patched differs from original, but normalized and original
-// agree (meaning the field was NOT ignored by the normalizer), the original
-// value is restored into patched. This corrects collateral overwrites caused by
-// patchStrategy:"replace" treating a parent field as atomic.
+// If a field in patched differs from original, or was dropped from patched
+// entirely, but normalized and original agree (meaning the field was NOT
+// ignored by the normalizer), the original value is restored into patched.
+// This corrects collateral overwrites caused by patchStrategy:"replace"
+// treating a parent field as atomic.
 func restoreNonIgnoredFields(patched, original, normalized map[string]any) {
-	for key, patchedVal := range patched {
-		originalVal, inOriginal := original[key]
-		if !inOriginal {
-			continue
-		}
+	for key, originalVal := range original {
+		patchedVal, inPatched := patched[key]
 		normalizedVal, inNormalized := normalized[key]
 
 		patchedMap, patchedIsMap := patchedVal.(map[string]any)
 		originalMap, originalIsMap := originalVal.(map[string]any)
 		normalizedMap, normalizedIsMap := normalizedVal.(map[string]any)
 
-		if patchedIsMap && originalIsMap && normalizedIsMap {
+		if inPatched && patchedIsMap && originalIsMap && normalizedIsMap {
 			// Recurse into nested objects.
 			restoreNonIgnoredFields(patchedMap, originalMap, normalizedMap)
 			continue
 		}
 
-		// Leaf (or type-changed) field.
+		// Leaf, type-changed, or missing field.
 		// If normalized == original, the normalizer did not touch this field,
 		// so it is not ignored and should keep the original (target) value.
-		if inNormalized && reflect.DeepEqual(normalizedVal, originalVal) && !reflect.DeepEqual(patchedVal, originalVal) {
+		if inNormalized && reflect.DeepEqual(normalizedVal, originalVal) && (!inPatched || !reflect.DeepEqual(patchedVal, originalVal)) {
 			patched[key] = originalVal
 		}
 	}
