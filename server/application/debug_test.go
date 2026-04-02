@@ -63,9 +63,9 @@ func TestDebugHandler_ServeHTTP_invalid_params(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name        string
-		paramKey    string
-		paramValue  string
+		name       string
+		paramKey   string
+		paramValue string
 	}{
 		{name: "invalid pod name", paramKey: "pod", paramValue: "invalid%20name"},
 		{name: "invalid app name", paramKey: "appName", paramValue: "invalid%20name"},
@@ -74,7 +74,6 @@ func TestDebugHandler_ServeHTTP_invalid_params(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			handler := debugHandler{}

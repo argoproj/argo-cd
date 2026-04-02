@@ -251,7 +251,7 @@ func (s *debugHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // startDebugProcess creates an ephemeral container on the target pod and returns the container name.
 func startDebugProcess(ctx context.Context, k8sClient kubernetes.Interface, namespace, podName, image, targetContainer string) (string, error) {
-	debugContainerName := fmt.Sprintf("debug-%s", randomSuffix(6))
+	debugContainerName := "debug-" + randomSuffix(6)
 
 	ephemeralContainer := corev1.EphemeralContainer{
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
