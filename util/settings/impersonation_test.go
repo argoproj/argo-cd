@@ -170,7 +170,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 
 		user, err := DeriveServiceAccountToImpersonate(project, app, cluster)
 		assert.Empty(t, user)
-		assert.ErrorContains(t, err, "default service account contains invalid chars")
+		assert.ErrorContains(t, err, "service account contains invalid chars")
 	})
 
 	t.Run("BlankServiceAccount", func(t *testing.T) {
@@ -193,7 +193,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 
 		user, err := DeriveServiceAccountToImpersonate(project, app, cluster)
 		assert.Empty(t, user)
-		assert.ErrorContains(t, err, "default service account contains invalid chars")
+		assert.ErrorContains(t, err, "service account contains invalid chars")
 	})
 
 	t.Run("InvalidServerGlobPattern", func(t *testing.T) {
