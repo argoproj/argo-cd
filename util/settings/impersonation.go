@@ -36,7 +36,7 @@ func DeriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 		}
 		if dstServerMatched && dstNamespaceMatched {
 			if strings.Trim(item.DefaultServiceAccount, " ") == "" || strings.ContainsAny(item.DefaultServiceAccount, serviceAccountDisallowedCharSet) {
-				return "", fmt.Errorf("default service account contains invalid chars '%s'", item.DefaultServiceAccount)
+				return "", fmt.Errorf("service account contains invalid chars '%s'", item.DefaultServiceAccount)
 			} else if strings.Contains(item.DefaultServiceAccount, ":") {
 				// service account is specified along with its namespace.
 				return "system:serviceaccount:" + item.DefaultServiceAccount, nil
