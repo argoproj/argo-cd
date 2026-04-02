@@ -523,8 +523,6 @@ clientSecret: $oidc.myoidc.clientSecret
 	defer appInformerCancel()
 	appsetInformerCancel := test.StartInformer(s.appsetInformer)
 	defer appsetInformerCancel()
-	clusterInformerCancel := test.StartInformer(s.clusterInformer)
-	defer clusterInformerCancel()
 
 	shutdown := false
 
