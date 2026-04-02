@@ -103,10 +103,6 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	return newFakeControllerWithResyncAndHydrator(ctx, data, appResyncPeriod, repoErr, revisionPathsErr, false)
 }
 
-func newFakeHydratorControllerWithResync(ctx context.Context, data *fakeData, appResyncPeriod time.Duration, repoErr, revisionPathsErr error) *ApplicationController {
-	return newFakeControllerWithResyncAndHydrator(ctx, data, appResyncPeriod, repoErr, revisionPathsErr, true)
-}
-
 func newFakeControllerWithResyncAndHydrator(ctx context.Context, data *fakeData, appResyncPeriod time.Duration, repoErr, revisionPathsErr error, hydratorEnabled bool) *ApplicationController {
 	var clust corev1.Secret
 	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
