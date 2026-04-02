@@ -147,7 +147,7 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
@@ -325,13 +325,13 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 		Then().
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata})).
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata})).
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
 		Then().
 		Expect(ApplicationsExist([]v1alpha1.Application{expectedAppExternalNamespace2})).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppExternalNamespace2}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppExternalNamespace2}))
 }
 
 func TestSimpleListGenerator(t *testing.T) {
@@ -420,7 +420,7 @@ func TestSimpleListGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSimpleListGeneratorGoTemplate(t *testing.T) {
@@ -509,7 +509,7 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestRenderHelmValuesObject(t *testing.T) {
@@ -581,7 +581,7 @@ func TestRenderHelmValuesObject(t *testing.T) {
 	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
 }
 
 func TestTemplatePatch(t *testing.T) {
@@ -705,7 +705,7 @@ func TestTemplatePatch(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestUpdateHelmValuesObject(t *testing.T) {
@@ -787,7 +787,7 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 		Expect(ApplicationsExist([]v1alpha1.Application{expectedApp})).
 		When().
 		// Delete the ApplicationSet, and verify it deletes the Applications
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
 }
 
 func TestSyncPolicyCreateUpdate(t *testing.T) {
@@ -898,7 +898,7 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
 		// So AppSet deletion will be reflected, but all the applications it generates will still exist
 		When().
-		Delete().Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSyncPolicyCreateDelete(t *testing.T) {
@@ -994,7 +994,7 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 
 		// Delete the ApplicationSet
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSyncPolicyCreateOnly(t *testing.T) {
@@ -1095,7 +1095,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
 		// So AppSet deletion will be reflected, but all the applications it generates will still exist
 		When().
-		Delete().Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func githubSCMMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -1582,7 +1582,7 @@ func TestCustomApplicationFinalizers(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
 }
 
 func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
@@ -1647,7 +1647,7 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp}))
 }
 
 func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -2174,7 +2174,7 @@ func TestApplicationSetAPIListResourceEvents(t *testing.T) {
 			// Events list should be returned (may be empty if no events have been generated yet)
 			assert.NotNil(t, events)
 		}).
-		When().Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{}))
+		When().Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{}))
 }
 
 // TestApplicationSetHealthStatusCLI tests that the CLI commands display the health status field for an ApplicationSet.

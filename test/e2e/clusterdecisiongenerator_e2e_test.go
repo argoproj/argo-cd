@@ -119,7 +119,7 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
@@ -218,7 +218,7 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
@@ -310,7 +310,7 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1, expectedAppCluster2}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1, expectedAppCluster2}))
 }
 
 func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.T) {
@@ -404,7 +404,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1}))
 }
 
 func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *testing.T) {
@@ -505,5 +505,5 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1}))
 }
