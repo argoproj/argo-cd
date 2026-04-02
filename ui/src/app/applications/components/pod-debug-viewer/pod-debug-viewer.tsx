@@ -26,14 +26,7 @@ export interface ShellFrame {
     cols?: number;
 }
 
-export const PodDebugViewer: React.FC<PodDebugViewerProps> = ({
-    selectedNode,
-    applicationName,
-    applicationNamespace,
-    projectName,
-    podState,
-    debugImages
-}) => {
+export const PodDebugViewer: React.FC<PodDebugViewerProps> = ({selectedNode, applicationName, applicationNamespace, projectName, podState, debugImages}) => {
     const terminalRef = React.useRef(null);
     const appContext = React.useContext(Context);
     const fitAddon = new FitAddon();

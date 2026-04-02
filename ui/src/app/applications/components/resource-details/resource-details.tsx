@@ -310,7 +310,21 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const debugAllowed = debugEnabled && (await services.accounts.canI('debug', 'create', application.spec.project + '/' + application.metadata.name));
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
                         const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
-                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, debugEnabled, debugAllowed, debugImages, links, childResources, resourceActionsMenuItems};
+                        return {
+                            controlledState,
+                            liveState,
+                            events,
+                            podState,
+                            execEnabled,
+                            execAllowed,
+                            logsAllowed,
+                            debugEnabled,
+                            debugAllowed,
+                            debugImages,
+                            links,
+                            childResources,
+                            resourceActionsMenuItems
+                        };
                     }}>
                     {data => (
                         <React.Fragment>
