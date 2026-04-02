@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -49,7 +50,7 @@ func TestDebugHandler_ServeHTTP_missing_params(t *testing.T) {
 					paramsArray = append(paramsArray, key+"="+value)
 				}
 				paramsString := strings.Join(paramsArray, "&")
-				request := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/debug?"+paramsString, http.NoBody)
+				request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "https://argocd.example.com/debug?"+paramsString, http.NoBody)
 				recorder := httptest.NewRecorder()
 				handler.ServeHTTP(recorder, request)
 				response := recorder.Result()
@@ -89,7 +90,7 @@ func TestDebugHandler_ServeHTTP_invalid_params(t *testing.T) {
 			for key, value := range params {
 				paramsArray = append(paramsArray, key+"="+value)
 			}
-			request := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/debug?"+strings.Join(paramsArray, "&"), http.NoBody)
+			request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "https://argocd.example.com/debug?"+strings.Join(paramsArray, "&"), http.NoBody)
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, request)
 			assert.Equal(t, http.StatusBadRequest, recorder.Result().StatusCode)
@@ -99,7 +100,7 @@ func TestDebugHandler_ServeHTTP_invalid_params(t *testing.T) {
 
 func TestDebugHandler_ServeHTTP_disallowed_namespace(t *testing.T) {
 	handler := debugHandler{namespace: "argocd", enabledNamespaces: []string{"allowed"}}
-	request := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/debug?pod=valid&appName=valid&projectName=valid&namespace=test&image=busybox:latest&appNamespace=disallowed", http.NoBody)
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "https://argocd.example.com/debug?pod=valid&appName=valid&projectName=valid&namespace=test&image=busybox:latest&appNamespace=disallowed", http.NoBody)
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
 	response := recorder.Result()
@@ -133,7 +134,7 @@ func TestDebugHandler_WithFeatureFlagMiddleware_enabled(t *testing.T) {
 	// Override ServeHTTP to track if it was called by embedding a custom handler
 	// We test that when enabled, the request proceeds past the middleware (gets a non-404 response)
 	middleware := handler.WithFeatureFlagMiddleware()
-	request := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/debug?pod=valid&appName=valid&projectName=valid&namespace=valid&image=busybox:latest", http.NoBody)
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "https://argocd.example.com/debug?pod=valid&appName=valid&projectName=valid&namespace=valid&image=busybox:latest", http.NoBody)
 	recorder := httptest.NewRecorder()
 	middleware.ServeHTTP(recorder, request)
 	// Feature flag is enabled - should NOT return 404
