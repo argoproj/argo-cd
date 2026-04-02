@@ -8,7 +8,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/argoproj/argo-cd/v3/util/templates"
 
