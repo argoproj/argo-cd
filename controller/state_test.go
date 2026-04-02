@@ -1978,7 +1978,7 @@ func TestGetRepoObjs_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
 			Revision: "abc123",
 		},
 	}
-	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
+	ctrl := newFakeController(t.Context(), &data, nil)
 
 	source := app.Spec.GetSource()
 	source.RepoURL = "oci://example.com/argo/argo-cd"
@@ -2032,7 +2032,7 @@ func TestGetRepoObjs_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T) {
 			{Changes: false, Revision: "resolved-main"},
 		},
 	}
-	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
+	ctrl := newFakeController(t.Context(), &data, nil)
 
 	revisions := make([]string, 0)
 	revisions = append(revisions, "0.0.1", "abc123", "main")
