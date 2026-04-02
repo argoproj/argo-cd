@@ -687,6 +687,15 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 
 		source := a.Spec.GetSource()
 
+		if len(query.GetLocalValueFiles()) > 0 {
+			if source.Helm == nil {
+				return fmt.Errorf("--local-values is only supported for Helm applications, but application %q has no Helm source", a.Name)
+			}
+			helmCopy := source.Helm.DeepCopy()
+			helmCopy.ValueFiles = append(helmCopy.ValueFiles, query.GetLocalValueFiles()...)
+			source.Helm = helmCopy
+		}
+
 		proj, err := argo.GetAppProject(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db)
 		if err != nil {
 			return fmt.Errorf("error getting app project: %w", err)

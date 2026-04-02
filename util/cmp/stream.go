@@ -113,7 +113,7 @@ func SendRepoStream(ctx context.Context, appPath, rootPath string, sender Stream
 
 func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string, excludedGlobs []string, opt *senderOption) (*os.File, *pluginclient.AppStreamRequest, error) {
 	// compress all files in rootPath in tgz
-	tgz, filesWritten, checksum, err := tgzstream.CompressFiles(rootPath, nil, excludedGlobs)
+	tgz, filesWritten, checksum, err := tgzstream.CompressFiles(rootPath, nil, excludedGlobs, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
 	}

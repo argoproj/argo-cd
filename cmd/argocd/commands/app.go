@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"sort"
@@ -65,6 +66,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 	"github.com/argoproj/argo-cd/v3/util/text/label"
+	"github.com/argoproj/argo-cd/v3/util/tgzstream"
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
@@ -1289,6 +1291,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		exitCode                  bool
 		diffExitCode              int
 		local                     string
+		localValues               []string
 		revision                  string
 		localRepoRoot             string
 		serverSideGenerate        bool
@@ -1313,6 +1316,10 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(2)
+			}
+
+			if len(localValues) > 0 && (local == "" || !serverSideGenerate) {
+				errors.Fatal(errors.ErrorGeneric, "--local-values requires --local and --server-side-generate")
 			}
 
 			if len(sourceNames) > 0 && len(sourcePositions) > 0 {
@@ -1407,10 +1414,35 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				diffOption.revision = revision
 			case local != "":
 				if serverSideGenerate {
+					if len(localValues) > 0 {
+						for _, vf := range localValues {
+							fi, statErr := os.Stat(vf)
+							if statErr != nil {
+								errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("--local-values %q: %v", vf, statErr))
+							}
+							if fi.IsDir() {
+								errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("--local-values %q: must be a file, not a directory", vf))
+							}
+						}
+					}
+
+					var extraFiles []tgzstream.ExtraFile
+					var localValueFilePaths []string
+					for i, vf := range localValues {
+						absPath, absErr := filepath.Abs(vf)
+						errors.CheckError(absErr)
+						dstPath := fmt.Sprintf("_argocd_extra_values/%d%s", i, filepath.Ext(vf))
+						extraFiles = append(extraFiles, tgzstream.ExtraFile{
+							DstPath: dstPath,
+							SrcPath: absPath,
+						})
+						localValueFilePaths = append(localValueFilePaths, dstPath)
+					}
+
 					client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
 					errors.CheckError(err)
 
-					err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, local, localIncludes)
+					err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, local, localIncludes, extraFiles, localValueFilePaths)
 					errors.CheckError(err)
 
 					res, err := client.CloseAndRecv()
@@ -1448,6 +1480,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&serverSideDiff, "server-side-diff", false, "Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.")
 	addServerSideDiffPerfFlags(command, &serverSideDiffConcurrency, &serverSideDiffMaxBatchKB)
 	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
+	command.Flags().StringArrayVar(&localValues, "local-values", []string{}, "Used with --local --server-side-generate for Helm apps: path(s) to additional values files outside the chart root to include in the diff. Files are bundled into the local tarball and appended to the app's valueFiles for this diff only. Does not affect sync. Can be specified multiple times.")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only render the difference in namespace")
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")

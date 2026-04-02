@@ -88,7 +88,7 @@ func TestManifestStream(t *testing.T) {
 	appDir := filepath.Join(getTestDataDir(t), "app")
 
 	go func() {
-		err := manifeststream.SendApplicationManifestQueryWithFiles(t.Context(), appStreamMock, "test", "test", appDir, nil)
+		err := manifeststream.SendApplicationManifestQueryWithFiles(t.Context(), appStreamMock, "test", "test", appDir, nil, nil, nil)
 		assert.NoError(t, err)
 		appStreamMock.done <- true
 	}()

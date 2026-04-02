@@ -5100,6 +5100,12 @@
         "checksum": {
           "type": "string"
         },
+        "local_value_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "name": {
           "type": "string"
         },
