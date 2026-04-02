@@ -620,6 +620,8 @@ export interface AuthSettings {
     uiBannerPermanent: boolean;
     uiBannerPosition: string;
     execEnabled: boolean;
+    debugEnabled: boolean;
+    debugImages: string[];
     appsInAnyNamespaceEnabled: boolean;
     hydratorEnabled: boolean;
     syncWithReplaceAllowed: boolean;

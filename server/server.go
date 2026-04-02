@@ -1220,6 +1220,11 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	th := util_session.WithAuthMiddleware(server.DisableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, terminal)
 	mux.Handle("/terminal", th)
 
+	debugH := application.NewDebugHandler(server.appLister, server.Namespace, server.ApplicationNamespaces, server.db, appResourceTreeFn, server.sessionMgr, &terminalOpts, server.settingsMgr.GetSettings).
+		WithFeatureFlagMiddleware()
+	dh := util_session.WithAuthMiddleware(server.DisableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, debugH)
+	mux.Handle("/debug", dh)
+
 	// Proxy extension is currently an alpha feature and is disabled
 	// by default.
 	if server.EnableProxyExtension {

@@ -43,6 +43,7 @@ var resourceMap = map[string]string{
 	"log":             rbac.ResourceLogs,
 	"logs":            rbac.ResourceLogs,
 	"exec":            rbac.ResourceExec,
+	"debug":           rbac.ResourceDebug,
 	"proj":            rbac.ResourceProjects,
 	"projs":           rbac.ResourceProjects,
 	"project":         rbac.ResourceProjects,
@@ -62,6 +63,7 @@ var validRBACResourcesActions = map[string]actionTraitMap{
 	rbac.ResourceGPGKeys:         defaultCRDActions,
 	rbac.ResourceLogs:            logsActions,
 	rbac.ResourceExec:            execActions,
+	rbac.ResourceDebug:           debugActions,
 	rbac.ResourceProjects:        defaultCRUDActions,
 	rbac.ResourceRepositories:    defaultCRUDActions,
 }
@@ -96,6 +98,10 @@ var accountsActions = actionTraitMap{
 }
 
 var execActions = actionTraitMap{
+	rbac.ActionCreate: rbacTrait{},
+}
+
+var debugActions = actionTraitMap{
 	rbac.ActionCreate: rbacTrait{},
 }
 

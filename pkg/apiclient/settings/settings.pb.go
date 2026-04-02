@@ -106,6 +106,8 @@ type Settings struct {
 	AdditionalURLs            []string                           `protobuf:"bytes,27,rep,name=additionalUrls,proto3" json:"additionalUrls,omitempty"`
 	HydratorEnabled           bool                               `protobuf:"varint,28,opt,name=hydratorEnabled,proto3" json:"hydratorEnabled,omitempty"`
 	SyncWithReplaceAllowed    bool                               `protobuf:"varint,29,opt,name=syncWithReplaceAllowed,proto3" json:"syncWithReplaceAllowed,omitempty"`
+	DebugEnabled              bool                               `protobuf:"varint,30,opt,name=debugEnabled,proto3" json:"debugEnabled,omitempty"`
+	DebugImages               []string                           `protobuf:"bytes,31,rep,name=debugImages,proto3" json:"debugImages,omitempty"`
 	XXX_NoUnkeyedLiteral      struct{}                           `json:"-"`
 	XXX_unrecognized          []byte                             `json:"-"`
 	XXX_sizecache             int32                              `json:"-"`
@@ -345,6 +347,20 @@ func (m *Settings) GetSyncWithReplaceAllowed() bool {
 		return m.SyncWithReplaceAllowed
 	}
 	return false
+}
+
+func (m *Settings) GetDebugEnabled() bool {
+	if m != nil {
+		return m.DebugEnabled
+	}
+	return false
+}
+
+func (m *Settings) GetDebugImages() []string {
+	if m != nil {
+		return m.DebugImages
+	}
+	return nil
 }
 
 type GoogleAnalyticsConfig struct {

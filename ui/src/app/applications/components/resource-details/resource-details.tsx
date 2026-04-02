@@ -16,6 +16,7 @@ import {ResourceTreeNode} from '../application-resource-tree/application-resourc
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
 import {ApplicationSummary} from '../application-summary/application-summary';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
+import {PodDebugViewer} from '../pod-debug-viewer/pod-debug-viewer';
 import {PodTerminalViewer} from '../pod-terminal-viewer/pod-terminal-viewer';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
@@ -57,7 +58,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         tabs: Tab[],
         execEnabled: boolean,
         execAllowed: boolean,
-        logsAllowed: boolean
+        logsAllowed: boolean,
+        debugEnabled?: boolean,
+        debugAllowed?: boolean,
+        debugImages?: string[]
     ) => {
         if (!node || node === undefined) {
             return [];
@@ -137,6 +141,25 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 selectedNode={selectedNode}
                                 containerName={AppUtils.getContainerName(podState, activeContainer)}
                                 onClickContainer={onClickContainer}
+                            />
+                        )
+                    }
+                ]);
+            }
+            if (selectedNode?.kind === 'Pod' && debugEnabled && debugAllowed) {
+                tabs = tabs.concat([
+                    {
+                        key: 'debug',
+                        icon: 'fa fa-bug',
+                        title: 'Debug',
+                        content: (
+                            <PodDebugViewer
+                                applicationName={application.metadata.name}
+                                applicationNamespace={application.metadata.namespace}
+                                projectName={application.spec.project}
+                                podState={podState}
+                                selectedNode={selectedNode}
+                                debugImages={debugImages || []}
                             />
                         )
                     }
@@ -280,11 +303,14 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
                         const settings = await services.authService.settings();
                         const execEnabled = settings.execEnabled;
+                        const debugEnabled = settings.debugEnabled;
+                        const debugImages: string[] = settings.debugImages || [];
                         const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
                         const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+                        const debugAllowed = debugEnabled && (await services.accounts.canI('debug', 'create', application.spec.project + '/' + application.metadata.name));
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
                         const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
-                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links, childResources, resourceActionsMenuItems};
+                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, debugEnabled, debugAllowed, debugImages, links, childResources, resourceActionsMenuItems};
                     }}>
                     {data => (
                         <React.Fragment>
@@ -350,7 +376,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     ],
                                     data.execEnabled,
                                     data.execAllowed,
-                                    data.logsAllowed
+                                    data.logsAllowed,
+                                    data.debugEnabled,
+                                    data.debugAllowed,
+                                    data.debugImages
                                 )}
                                 selectedTabKey={tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}

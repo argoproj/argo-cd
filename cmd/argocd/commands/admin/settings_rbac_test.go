@@ -85,6 +85,22 @@ func Test_validateRBACResourceAction(t *testing.T) {
 			valid: false,
 		},
 		{
+			name: "Test valid debug create action",
+			args: args{
+				resource: rbac.ResourceDebug,
+				action:   rbac.ActionCreate,
+			},
+			valid: true,
+		},
+		{
+			name: "Test invalid debug get action",
+			args: args{
+				resource: rbac.ResourceDebug,
+				action:   rbac.ActionGet,
+			},
+			valid: false,
+		},
+		{
 			name: "Test valid action with path",
 			args: args{
 				resource: rbac.ResourceApplications,
