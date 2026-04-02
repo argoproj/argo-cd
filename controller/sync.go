@@ -5,6 +5,7 @@ import (
 	stderrors "errors"
 	"fmt"
 	"os"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -452,12 +453,19 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			return nil, err
 		}
 
-		normalizedTarget, err = applyMergePatch(normalizedTarget, livePatch, versionedObject)
+		patchedTarget, err := applyMergePatch(normalizedTarget, livePatch, versionedObject)
 		if err != nil {
 			return nil, err
 		}
 
-		patchedTargets = append(patchedTargets, normalizedTarget)
+		// Restore non-ignored fields that may have been overwritten due to
+		// patchStrategy:"replace" on a parent field (e.g. policy/v1 PDB selector).
+		// Strategic merge patch treats "replace" fields as atomic, so patching in
+		// one ignored sub-field pulls the entire parent from live, clobbering
+		// non-ignored sibling fields. We detect and undo this here.
+		restoreNonIgnoredFields(patchedTarget.Object, originalTarget.Object, normalizedTarget.Object)
+
+		patchedTargets = append(patchedTargets, patchedTarget)
 	}
 	return patchedTargets, nil
 }
@@ -503,6 +511,38 @@ func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObje
 		return nil, err
 	}
 	return patchedObj, nil
+}
+
+// restoreNonIgnoredFields walks patched, original, and normalized in parallel.
+// If a leaf value in patched differs from original, but normalized and original
+// agree (meaning the field was NOT ignored by the normalizer), the original
+// value is restored into patched. This corrects collateral overwrites caused by
+// patchStrategy:"replace" treating a parent field as atomic.
+func restoreNonIgnoredFields(patched, original, normalized map[string]any) {
+	for key, patchedVal := range patched {
+		originalVal, inOriginal := original[key]
+		if !inOriginal {
+			continue
+		}
+		normalizedVal, inNormalized := normalized[key]
+
+		patchedMap, patchedIsMap := patchedVal.(map[string]any)
+		originalMap, originalIsMap := originalVal.(map[string]any)
+		normalizedMap, normalizedIsMap := normalizedVal.(map[string]any)
+
+		if patchedIsMap && originalIsMap && normalizedIsMap {
+			// Recurse into nested objects.
+			restoreNonIgnoredFields(patchedMap, originalMap, normalizedMap)
+			continue
+		}
+
+		// Leaf (or type-changed) field.
+		// If normalized == original, the normalizer did not touch this field,
+		// so it is not ignored and should keep the original (target) value.
+		if inNormalized && reflect.DeepEqual(normalizedVal, originalVal) && !reflect.DeepEqual(patchedVal, originalVal) {
+			patched[key] = originalVal
+		}
+	}
 }
 
 // hasSharedResourceCondition will check if the Application has any resource that has already

@@ -672,6 +672,81 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	})
 }
 
+// TestNormalizeTargetResourcesPDBSelector reproduces https://github.com/argoproj/argo-cd/issues/18232
+// When a PDB (policy/v1) has an ignoreDifferences rule for a matchLabels sub-field and
+// RespectIgnoreDifferences=true is set, normalizeTargetResources should only patch the
+// ignored field — not clobber the entire selector due to patchStrategy:"replace".
+func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
+	setupPDB := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *comparisonResult {
+		t.Helper()
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LivePDBYaml)
+		target := test.YamlToUnstructured(testdata.TargetPDBYaml)
+		return &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live},
+				Target: []*unstructured.Unstructured{target},
+			},
+			diffConfig: dc,
+		}
+	}
+
+	t.Run("ignoring one matchLabels key should not clobber other selector changes", func(t *testing.T) {
+		// User ignores /spec/selector/matchLabels/version but intentionally changes
+		// /spec/selector/matchLabels/app from "myapp" to "myapp-v2".
+		// With patchStrategy:"replace" on the selector field (policy/v1),
+		// normalizeTargetResources should preserve the app label change.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		targets, err := normalizeTargetResources(cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		// The "version" label should take the live value (ignored field — respected).
+		assert.Equal(t, "v1", matchLabels["version"], "ignored field 'version' should use live value")
+
+		// The "app" label should keep the target value — it is NOT ignored.
+		assert.Equal(t, "myapp-v2", matchLabels["app"],
+			"non-ignored field 'app' was clobbered by live value; patchStrategy:replace on selector may cause normalizeTargetResources to overwrite the entire selector")
+	})
+
+	t.Run("ignoring entire selector should replace target selector with live", func(t *testing.T) {
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector"},
+			},
+		})
+
+		targets, err := normalizeTargetResources(cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		// When the entire selector is ignored, both labels should come from live.
+		assert.Equal(t, "myapp", matchLabels["app"])
+		assert.Equal(t, "v1", matchLabels["version"])
+	})
+}
+
 func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 	t.Parallel()
 
