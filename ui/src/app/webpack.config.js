@@ -117,6 +117,10 @@ const config = {
               target: process.env.ARGOCD_API_URL || 'ws://localhost:8080',
               ws: true,
             },
+            '/debug': {
+              target: process.env.ARGOCD_API_URL || 'ws://localhost:8080',
+              ws: true,
+            },
             '/swagger-ui': proxyConf,
             '/swagger.json': proxyConf
         }
