@@ -463,7 +463,11 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 		// Strategic merge patch treats "replace" fields as atomic, so patching in
 		// one ignored sub-field pulls the entire parent from live, clobbering
 		// non-ignored sibling fields. We detect and undo this here.
-		restoreNonIgnoredFields(patchedTarget.Object, originalTarget.Object, normalizedTarget.Object)
+		var normalizedLiveObj map[string]any
+		if normalized.Lives[idx] != nil {
+			normalizedLiveObj = normalized.Lives[idx].Object
+		}
+		restoreNonIgnoredFields(patchedTarget.Object, originalTarget.Object, normalizedTarget.Object, normalizedLiveObj)
 
 		patchedTargets = append(patchedTargets, patchedTarget)
 	}
@@ -513,25 +517,34 @@ func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObje
 	return patchedObj, nil
 }
 
-// restoreNonIgnoredFields walks patched, original, and normalized in parallel.
-// If a field in patched differs from original, or was dropped from patched
-// entirely, but normalized and original agree (meaning the field was NOT
-// ignored by the normalizer), the original value is restored into patched.
-// This corrects collateral overwrites caused by patchStrategy:"replace"
-// treating a parent field as atomic.
-func restoreNonIgnoredFields(patched, original, normalized map[string]any) {
+// restoreNonIgnoredFields walks patched, original, normalized (target), and
+// normalizedLive in parallel. It corrects three classes of collateral damage
+// caused by patchStrategy:"replace" treating a parent field as atomic:
+//
+//  1. Overwrite — a non-ignored value was replaced with the live value.
+//  2. Drop — a non-ignored key was removed because live lacks it.
+//  3. Add — a non-ignored live-only key leaked into the patched target.
+//
+// A field is considered "not ignored" when normalizedTarget == originalTarget
+// for that field (the normalizer left it alone). For live-only keys (pass 2),
+// a key is non-ignored if it exists in normalizedLive (the normalizer did not
+// strip it from live).
+func restoreNonIgnoredFields(patched, original, normalizedTarget, normalizedLive map[string]any) {
 	// Pass 1: restore non-ignored fields that were overwritten or dropped.
 	for key, originalVal := range original {
 		patchedVal, inPatched := patched[key]
-		normalizedVal, inNormalized := normalized[key]
+		normalizedVal, inNormalized := normalizedTarget[key]
 
 		patchedMap, patchedIsMap := patchedVal.(map[string]any)
 		originalMap, originalIsMap := originalVal.(map[string]any)
 		normalizedMap, normalizedIsMap := normalizedVal.(map[string]any)
 
 		if inPatched && patchedIsMap && originalIsMap && normalizedIsMap {
-			// Recurse into nested objects.
-			restoreNonIgnoredFields(patchedMap, originalMap, normalizedMap)
+			var normalizedLiveMap map[string]any
+			if v, ok := normalizedLive[key].(map[string]any); ok {
+				normalizedLiveMap = v
+			}
+			restoreNonIgnoredFields(patchedMap, originalMap, normalizedMap, normalizedLiveMap)
 			continue
 		}
 
@@ -543,11 +556,16 @@ func restoreNonIgnoredFields(patched, original, normalized map[string]any) {
 		}
 	}
 
-	// Pass 2: remove keys that were introduced into patched from the live
-	// object via replace-strategy collateral but do not exist in the original
-	// target. These are live-only fields that should not leak into the target.
+	// Pass 2: remove non-ignored keys that were introduced into patched from
+	// the live object via replace-strategy collateral but do not exist in the
+	// original target. A key is non-ignored if it exists in normalizedLive
+	// (the normalizer did not strip it). Ignored live-only keys are kept —
+	// they were intentionally copied by the livePatch.
 	for key := range patched {
-		if _, inOriginal := original[key]; !inOriginal {
+		if _, inOriginal := original[key]; inOriginal {
+			continue
+		}
+		if _, inNormalizedLive := normalizedLive[key]; inNormalizedLive {
 			delete(patched, key)
 		}
 	}
