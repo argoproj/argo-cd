@@ -474,12 +474,15 @@ func Test_DexReverseProxy(t *testing.T) {
 		fmt.Printf("Fake API Server listening on %s\n", server.URL)
 		defer server.Close()
 		target, _ := url.Parse(fakeDex.URL)
-		resp, err := http.Get(server.URL)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL, http.NoBody)
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
 		assert.NotNil(t, resp)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.Equal(t, host, target.Host)
 		fmt.Printf("%s\n", resp.Status)
+		require.NoError(t, resp.Body.Close())
 	})
 
 	t.Run("Bad case", func(t *testing.T) {
@@ -496,13 +499,16 @@ func Test_DexReverseProxy(t *testing.T) {
 				return http.ErrUseLastResponse
 			},
 		}
-		resp, err := client.Get(server.URL)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL, http.NoBody)
+		require.NoError(t, err)
+		resp, err := client.Do(req)
 		assert.NotNil(t, resp)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 		location, _ := resp.Location()
 		fmt.Printf("%s %s\n", resp.Status, location.RequestURI())
 		assert.True(t, strings.HasPrefix(location.RequestURI(), "/login?has_sso_error=true"))
+		assert.NoError(t, resp.Body.Close())
 	})
 
 	t.Run("Invalid URL for Dex reverse proxy", func(t *testing.T) {
@@ -519,11 +525,12 @@ func Test_DexReverseProxy(t *testing.T) {
 		defer server.Close()
 		rt := NewDexRewriteURLRoundTripper(server.URL, http.DefaultTransport)
 		assert.NotNil(t, rt)
-		req, err := http.NewRequest(http.MethodGet, "/", bytes.NewBuffer([]byte("")))
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 		_, err = rt.RoundTrip(req)
 		require.NoError(t, err)
 		target, _ := url.Parse(server.URL)
 		assert.Equal(t, req.Host, target.Host)
+		require.NoError(t, req.Body.Close())
 	})
 }

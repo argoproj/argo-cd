@@ -30,7 +30,6 @@ interface ResourceDetailsProps {
     application: Application;
     isAppSelected: boolean;
     tree: ApplicationTree;
-    tab?: string;
     appCxt: AppContext;
 }
 
@@ -291,7 +290,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         <React.Fragment>
                             <div className='resource-details__header'>
                                 <div style={{display: 'flex', flexDirection: 'column', marginRight: '15px', alignItems: 'center', fontSize: '12px'}}>
-                                    <ResourceIcon kind={selectedNode.kind} />
+                                    <ResourceIcon group={selectedNode.group} kind={selectedNode.kind} />
                                     {ResourceLabel({kind: selectedNode.kind})}
                                 </div>
                                 <h1>{selectedNode.name}</h1>
@@ -353,7 +352,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     data.execAllowed,
                                     data.logsAllowed
                                 )}
-                                selectedTabKey={props.tab}
+                                selectedTabKey={tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
                             />
                         </React.Fragment>

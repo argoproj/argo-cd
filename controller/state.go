@@ -11,17 +11,17 @@ import (
 	goSync "sync"
 	"time"
 
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync"
-	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
-	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/gitops-engine/pkg/sync/syncwaves"
-	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
+	hookutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/ignore"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/syncwaves"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -41,13 +41,18 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/stats"
 )
 
-var ErrCompareStateRepo = errors.New("failed to get repo objects")
+var (
+	ErrCompareStateRepo = errors.New("failed to get repo objects")
+
+	processManifestGeneratePathsEnabled = env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_PROCESS_MANIFEST_GENERATE_PATHS", true)
+)
 
 type resourceInfoProviderStub struct{}
 
@@ -70,7 +75,7 @@ type managedResource struct {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
+	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState)
 	GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
 }
@@ -90,6 +95,7 @@ type comparisonResult struct {
 	timings            map[string]time.Duration
 	diffResultList     *diff.DiffResultList
 	hasPostDeleteHooks bool
+	hasPreDeleteHooks  bool
 	// revisionsMayHaveChanges indicates if there are any possibilities that the revisions contain changes
 	revisionsMayHaveChanges bool
 }
@@ -223,6 +229,11 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		return nil, nil, false, fmt.Errorf("failed to get ref sources: %w", err)
 	}
 
+	var syncedRefSources v1alpha1.RefTargetRevisionMapping
+	if app.Spec.HasMultipleSources() {
+		syncedRefSources = argo.GetSyncedRefSources(refSources, sources, app.Status.Sync.Revisions)
+	}
+
 	revisionsMayHaveChanges := false
 
 	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
@@ -249,18 +260,22 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 		appNamespace := app.Spec.Destination.Namespace
 		apiVersions := argo.APIResourcesToStrings(apiResources, true)
-		if !sendRuntimeState {
-			appNamespace = ""
-		}
 
-		if !source.IsHelm() && !source.IsOCI() && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
+		updateRevisions := processManifestGeneratePathsEnabled &&
+			// updating revisions result is not required if automated sync is not enabled
+			app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil &&
+			// using updating revisions gains performance only if manifest generation is required.
+			// just reading pre-generated manifests is comparable to updating revisions time-wise
+			app.Status.SourceType != v1alpha1.ApplicationSourceTypeDirectory
+
+		if updateRevisions && repo.Depth == 0 && syncedRevision != "" && !source.IsRef() && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" && (syncedRevision != revision || app.Spec.HasMultipleSources()) {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
 			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 				Repo:               repo,
 				Revision:           revision,
 				SyncedRevision:     syncedRevision,
 				NoRevisionCache:    noRevisionCache,
-				Paths:              path.GetAppRefreshPaths(app),
+				Paths:              path.GetSourceRefreshPaths(app, source),
 				AppLabelKey:        appLabelKey,
 				AppName:            app.InstanceName(m.namespace),
 				Namespace:          appNamespace,
@@ -269,12 +284,14 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 				ApiVersions:        apiVersions,
 				TrackingMethod:     trackingMethod,
 				RefSources:         refSources,
+				SyncedRefSources:   syncedRefSources,
 				HasMultipleSources: app.Spec.HasMultipleSources(),
 				InstallationID:     installationID,
 			})
 			if err != nil {
 				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
 			}
+
 			if updateRevisionResult.Changes {
 				revisionsMayHaveChanges = true
 			}
@@ -283,7 +300,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			if updateRevisionResult.Revision != "" {
 				revision = updateRevisionResult.Revision
 			}
-		} else {
+		} else if !source.IsRef() {
 			// revisionsMayHaveChanges is set to true if at least one revision is not possible to be updated
 			revisionsMayHaveChanges = true
 		}
@@ -350,7 +367,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 }
 
 // ResolveGitRevision will resolve the given revision to a full commit SHA. Only works for git.
-func (m *appStateManager) ResolveGitRevision(repoURL string, revision string) (string, error) {
+func (m *appStateManager) ResolveGitRevision(repoURL, revision string) (string, error) {
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to repo server: %w", err)
@@ -526,10 +543,32 @@ func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application
 	return ns != nil && ns.GetKind() == kubeutil.NamespaceKind && ns.GetName() == app.Spec.Destination.Namespace && app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil
 }
 
+// partitionTargetObjsForSync returns the manifest subset passed to gitops-engine sync, and whether
+// the full manifest set declared PreDelete and/or PostDelete hooks (for finalizer handling).
+// Uses isPreDeleteHook / isPostDeleteHook / hasGitOpsEngineSyncPhaseHook from hook.go.
+func partitionTargetObjsForSync(targetObjs []*unstructured.Unstructured) (syncObjs []*unstructured.Unstructured, hasPreDeleteHooks, hasPostDeleteHooks bool) {
+	for _, obj := range targetObjs {
+		if isPreDeleteHook(obj) {
+			hasPreDeleteHooks = true
+			if !hasGitOpsEngineSyncPhaseHook(obj) {
+				continue
+			}
+		}
+		if isPostDeleteHook(obj) {
+			hasPostDeleteHooks = true
+			if !hasGitOpsEngineSyncPhaseHook(obj) {
+				continue
+			}
+		}
+		syncObjs = append(syncObjs, obj)
+	}
+	return syncObjs, hasPreDeleteHooks, hasPostDeleteHooks
+}
+
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (*comparisonResult, error) {
+func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (*comparisonResult, error) {
 	ts := stats.NewTimingStats()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 
@@ -753,14 +792,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 	}
-	hasPostDeleteHooks := false
-	for _, obj := range targetObjs {
-		if isPostDeleteHook(obj) {
-			hasPostDeleteHooks = true
-		}
-	}
+	targetObjsForSync, hasPreDeleteHooks, hasPostDeleteHooks := partitionTargetObjsForSync(targetObjs)
 
-	reconciliation := sync.Reconcile(targetObjs, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
+	reconciliation := sync.Reconcile(targetObjsForSync, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
 
 	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
@@ -813,9 +847,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		if err != nil {
 			log.Errorf("CompareAppState error getting server side diff dry run applier: %s", err)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
+		} else {
+			defer cleanup()
+			diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(applier))
 		}
-		defer cleanup()
-		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(applier))
 	}
 
 	// enable structured merge diff if application syncs with server-side apply
@@ -853,18 +888,24 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
 
 		resState := v1alpha1.ResourceStatus{
-			Namespace:       obj.GetNamespace(),
-			Name:            obj.GetName(),
-			Kind:            gvk.Kind,
-			Version:         gvk.Version,
-			Group:           gvk.Group,
-			Hook:            isHook(obj),
-			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
-			RequiresDeletionConfirmation: targetObj != nil && resourceutil.HasAnnotationOption(targetObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm) ||
-				liveObj != nil && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm),
+			Namespace:                    obj.GetNamespace(),
+			Name:                         obj.GetName(),
+			Kind:                         gvk.Kind,
+			Version:                      gvk.Version,
+			Group:                        gvk.Group,
+			Hook:                         isHook(obj),
+			RequiresPruning:              targetObj == nil && liveObj != nil && isSelfReferencedObj,
+			RequiresDeletionConfirmation: isObjRequiresDeletionConfirmation(targetObj, app) || isObjRequiresDeletionConfirmation(liveObj, app),
 		}
 		if targetObj != nil {
 			resState.SyncWave = int64(syncwaves.Wave(targetObj))
+		} else if resState.Hook {
+			for _, hookObj := range reconciliation.Hooks {
+				if hookObj.GetName() == liveObj.GetName() && hookObj.GetKind() == liveObj.GetKind() && hookObj.GetNamespace() == liveObj.GetNamespace() {
+					resState.SyncWave = int64(syncwaves.Wave(hookObj))
+					break
+				}
+			}
 		}
 
 		var diffResult diff.DiffResult
@@ -905,7 +946,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		}
 		// set unknown status to all resource that are not permitted in the app project
 		isNamespaced, err := m.liveStateCache.IsNamespaced(destCluster, gvk.GroupKind())
-		if !project.IsGroupKindPermitted(gvk.GroupKind(), isNamespaced && err == nil) {
+		if !project.IsGroupKindNamePermitted(gvk.GroupKind(), obj.GetName(), isNamespaced && err == nil) {
 			resState.Status = v1alpha1.SyncStatusCodeUnknown
 		}
 
@@ -977,6 +1018,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		diffConfig:              diffConfig,
 		diffResultList:          diffResults,
 		hasPostDeleteHooks:      hasPostDeleteHooks,
+		hasPreDeleteHooks:       hasPreDeleteHooks,
 		revisionsMayHaveChanges: revisionsMayHaveChanges,
 	}
 
@@ -1051,6 +1093,29 @@ func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, sources []v1alpha1.Appli
 	specCopy := spec.DeepCopy()
 	compareToSpec := specCopy.BuildComparedToStatus(sources)
 	return reflect.DeepEqual(comparedTo, compareToSpec)
+}
+
+func isObjRequiresDeletionConfirmation(obj *unstructured.Unstructured, app *v1alpha1.Application) bool {
+	if obj == nil {
+		return false
+	}
+	deleteOption := resourceutil.GetAnnotationOptionValue(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDelete)
+	if deleteOption == nil && app.Spec.SyncPolicy != nil {
+		deleteOption = app.Spec.SyncPolicy.SyncOptions.GetOptionValue(synccommon.SyncOptionDelete)
+	}
+	if deleteOption != nil && *deleteOption == synccommon.SyncValueConfirm {
+		return true
+	}
+
+	pruneOption := resourceutil.GetAnnotationOptionValue(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionPrune)
+	if pruneOption == nil && app.Spec.SyncPolicy != nil {
+		pruneOption = app.Spec.SyncPolicy.SyncOptions.GetOptionValue(synccommon.SyncOptionPrune)
+	}
+	if pruneOption != nil && *pruneOption == synccommon.SyncValueConfirm {
+		return true
+	}
+
+	return false
 }
 
 func (m *appStateManager) persistRevisionHistory(

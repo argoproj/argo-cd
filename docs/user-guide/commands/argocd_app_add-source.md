@@ -18,9 +18,9 @@ argocd app add-source APPNAME [flags]
 ### Options
 
 ```
-      --allow-empty                                Set allow zero live resources when sync is automated
+      --allow-empty                                Set allow zero live resources for automated sync policy
   -N, --app-namespace string                       Namespace of the target application where the source will be appended
-      --auto-prune                                 Set automatic pruning when sync is automated
+      --auto-prune                                 Set automatic pruning for automated sync policy
       --config-management-plugin string            Config management plugin name
       --dest-name string                           K8s cluster Name (e.g. minikube)
       --dest-namespace string                      K8s target namespace
@@ -76,7 +76,7 @@ argocd app add-source APPNAME [flags]
       --repo string                                Repository URL, ignored if a file is set
       --revision string                            The tracking source branch, tag, commit or Helm chart version the application will sync to
       --revision-history-limit int                 How many items to keep in revision history (default 10)
-      --self-heal                                  Set self healing when sync is automated
+      --self-heal                                  Set self healing for automated sync policy
       --source-name string                         Name of the source from the list of sources of the app.
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`
       --sync-policy string                         Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))

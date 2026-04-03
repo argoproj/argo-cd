@@ -37,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
+	"github.com/argoproj/argo-cd/v3/util/guard"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -51,6 +52,8 @@ type settingsSource interface {
 const usernameRegex = `[\w\.][\w\.-]{0,30}[\w\.\$-]?`
 
 const payloadQueueSize = 50000
+
+const panicMsgServer = "panic while processing api-server webhook event"
 
 var _ settingsSource = &settings.SettingsManager{}
 
@@ -127,18 +130,17 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 }
 
 func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
-	for i := 0; i < webhookParallelism; i++ {
-		a.Add(1)
-		go func() {
-			defer a.Done()
+	compLog := log.WithField("component", "api-server-webhook")
+	for range webhookParallelism {
+		a.Go(func() {
 			for {
 				payload, ok := <-a.queue
 				if !ok {
 					return
 				}
-				a.HandleEvent(payload)
+				guard.RecoverAndLog(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
 			}
-		}()
+		})
 	}
 }
 
@@ -154,10 +156,12 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
 		webURLs = append(webURLs, payload.Resource.Repository.RemoteURL)
-		revision = ParseRevision(payload.Resource.RefUpdates[0].Name)
-		change.shaAfter = ParseRevision(payload.Resource.RefUpdates[0].NewObjectID)
-		change.shaBefore = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
-		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
+		if len(payload.Resource.RefUpdates) > 0 {
+			revision = ParseRevision(payload.Resource.RefUpdates[0].Name)
+			change.shaAfter = ParseRevision(payload.Resource.RefUpdates[0].NewObjectID)
+			change.shaBefore = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
+			touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
+		}
 		// unfortunately, Azure DevOps doesn't provide a list of changed files
 	case github.PushPayload:
 		// See: https://developer.github.com/v3/activity/events/types/#pushevent
@@ -238,14 +242,18 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 				break
 			}
 			log.Debugf("created bitbucket client with base URL '%s'", apiBaseURL)
-			owner := strings.ReplaceAll(payload.Repository.FullName, "/"+payload.Repository.Name, "")
+			owner, repoSlug, ok := strings.Cut(payload.Repository.FullName, "/")
+			if !ok || owner == "" || repoSlug == "" {
+				log.Warnf("error parsing bitbucket repository full name %q", payload.Repository.FullName)
+				break
+			}
 			spec := change.shaBefore + ".." + change.shaAfter
-			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(ctx, bbClient, owner, payload.Repository.Name, spec)
+			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(ctx, bbClient, owner, repoSlug, spec)
 			if err != nil {
 				log.Warnf("error fetching changed files using bitbucket diffstat api: %v", err)
 			}
 			changedFiles = append(changedFiles, diffStatChangedFiles...)
-			touchedHead, err = isHeadTouched(ctx, bbClient, owner, payload.Repository.Name, revision)
+			touchedHead, err = isHeadTouched(ctx, bbClient, owner, repoSlug, revision)
 			if err != nil {
 				log.Warnf("error fetching bitbucket repo details: %v", err)
 				// To be safe, we just return true and let the controller check for himself.
@@ -259,13 +267,15 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 
 		// Webhook module does not parse the inner links
 		if payload.Repository.Links != nil {
-			for _, l := range payload.Repository.Links["clone"].([]any) {
-				link := l.(map[string]any)
-				if link["name"] == "http" {
-					webURLs = append(webURLs, link["href"].(string))
-				}
-				if link["name"] == "ssh" {
-					webURLs = append(webURLs, link["href"].(string))
+			clone, ok := payload.Repository.Links["clone"].([]any)
+			if ok {
+				for _, l := range clone {
+					link := l.(map[string]any)
+					if link["name"] == "http" || link["name"] == "ssh" {
+						if href, ok := link["href"].(string); ok {
+							webURLs = append(webURLs, href)
+						}
+					}
 				}
 			}
 		}
@@ -284,11 +294,13 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		// so we cannot update changedFiles for this type of payload
 
 	case gogsclient.PushPayload:
-		webURLs = append(webURLs, payload.Repo.HTMLURL)
 		revision = ParseRevision(payload.Ref)
 		change.shaAfter = ParseRevision(payload.After)
 		change.shaBefore = ParseRevision(payload.Before)
-		touchedHead = bool(payload.Repo.DefaultBranch == revision)
+		if payload.Repo != nil {
+			webURLs = append(webURLs, payload.Repo.HTMLURL)
+			touchedHead = payload.Repo.DefaultBranch == revision
+		}
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
 			changedFiles = append(changedFiles, commit.Modified...)
@@ -324,23 +336,23 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	appIf := a.appsLister.Applications(nsFilter)
 	apps, err := appIf.List(labels.Everything())
 	if err != nil {
-		log.Warnf("Failed to list applications: %v", err)
+		log.Errorf("Failed to list applications: %v", err)
 		return
 	}
 
 	installationID, err := a.settingsSrc.GetInstallationID()
 	if err != nil {
-		log.Warnf("Failed to get installation ID: %v", err)
+		log.Errorf("Failed to get installation ID: %v", err)
 		return
 	}
 	trackingMethod, err := a.settingsSrc.GetTrackingMethod()
 	if err != nil {
-		log.Warnf("Failed to get trackingMethod: %v", err)
+		log.Errorf("Failed to get trackingMethod: %v", err)
 		return
 	}
 	appInstanceLabelKey, err := a.settingsSrc.GetAppInstanceLabelKey()
 	if err != nil {
-		log.Warnf("Failed to get appInstanceLabelKey: %v", err)
+		log.Errorf("Failed to get appInstanceLabelKey: %v", err)
 		return
 	}
 
@@ -356,41 +368,47 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	for _, webURL := range webURLs {
 		repoRegexp, err := GetWebURLRegex(webURL)
 		if err != nil {
-			log.Warnf("Failed to get repoRegexp: %s", err)
+			log.Errorf("Failed to get repoRegexp: %s", err)
 			continue
 		}
+
+		// iterate over apps and check if any files specified in their sources have changed
 		for _, app := range filteredApps {
+			// get all sources, including sync source and dry source if source hydrator is configured
+			sources := app.Spec.GetSources()
 			if app.Spec.SourceHydrator != nil {
-				drySource := app.Spec.SourceHydrator.GetDrySource()
-				if sourceRevisionHasChanged(drySource, revision, touchedHead) && sourceUsesURL(drySource, webURL, repoRegexp) {
-					refreshPaths := path.GetAppRefreshPaths(&app)
-					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
-						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-						log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
-						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
-						if err != nil {
-							log.Warnf("Failed to hydrate app '%s' for controller reprocessing: %v", app.Name, err)
-							continue
-						}
-					}
-				}
+				// we already have sync source, so add dry source if source hydrator is configured
+				sources = append(sources, app.Spec.SourceHydrator.GetDrySource())
 			}
 
-			for _, source := range app.Spec.GetSources() {
+			// iterate over all sources and check if any files specified in refresh paths have changed
+			for _, source := range sources {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
-					refreshPaths := path.GetAppRefreshPaths(&app)
+					refreshPaths := path.GetSourceRefreshPaths(&app, source)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
-						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-						_, err = argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, true)
-						if err != nil {
-							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.Name, err)
-							continue
+						hydrate := false
+						if app.Spec.SourceHydrator != nil {
+							drySource := app.Spec.SourceHydrator.GetDrySource()
+							if (&source).Equals(&drySource) {
+								hydrate = true
+							}
 						}
-						// No need to refresh multiple times if multiple sources match.
-						break
+
+						// refresh paths have changed, so we need to refresh the app
+						log.Infof("refreshing app '%s' from webhook", app.Name)
+						if hydrate {
+							// log if we need to hydrate the app
+							log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
+						}
+						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
+						if _, err := argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, hydrate); err != nil {
+							log.Errorf("Failed to refresh app '%s': %v", app.Name, err)
+						}
+						break // we don't need to check other sources
 					} else if change.shaBefore != "" && change.shaAfter != "" {
-						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey, installationID); err != nil {
-							log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
+						// update the cached manifests with the new revision cache key
+						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey, installationID, source); err != nil {
+							log.Errorf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
 						}
 					}
 				}
@@ -443,7 +461,7 @@ func getURLRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error
 	return repoRegexp, nil
 }
 
-func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string) error {
+func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string, source v1alpha1.ApplicationSource) error {
 	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, a.db)
 	if err != nil {
 		return fmt.Errorf("error validating destination: %w", err)
@@ -466,10 +484,10 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 	if err != nil {
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}
-	source := app.Spec.GetSource()
+
 	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
 
-	if err := a.repoCache.SetNewRevisionManifests(change.shaAfter, change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil, installationID); err != nil {
+	if err := a.repoCache.SetNewRevisionManifests(change.shaAfter, change.shaBefore, &source, refSources, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil, nil, installationID); err != nil {
 		return fmt.Errorf("error setting new revision manifests: %w", err)
 	}
 
@@ -545,12 +563,19 @@ func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp 
 // is provided, then oauth based client is created.
 func newBitbucketClient(_ context.Context, repository *v1alpha1.Repository, apiBaseURL string) (*bb.Client, error) {
 	var bbClient *bb.Client
+	var err error
 	if repository.Username != "" && repository.Password != "" {
 		log.Debugf("fetched user/password for repository URL '%s', initializing basic auth client", repository.Repo)
 		if repository.Username == "x-token-auth" {
-			bbClient = bb.NewOAuthbearerToken(repository.Password)
+			bbClient, err = bb.NewOAuthbearerToken(repository.Password)
+			if err != nil {
+				return nil, fmt.Errorf("error creating BitBucket Cloud client with oauth bearer token: %w", err)
+			}
 		} else {
-			bbClient = bb.NewBasicAuth(repository.Username, repository.Password)
+			bbClient, err = bb.NewBasicAuth(repository.Username, repository.Password)
+			if err != nil {
+				return nil, fmt.Errorf("error creating BitBucket Cloud client with basic auth: %w", err)
+			}
 		}
 	} else {
 		if repository.BearerToken != "" {
@@ -558,7 +583,10 @@ func newBitbucketClient(_ context.Context, repository *v1alpha1.Repository, apiB
 		} else {
 			log.Debugf("no credentials available for repository URL '%s', initializing no auth client", repository.Repo)
 		}
-		bbClient = bb.NewOAuthbearerToken(repository.BearerToken)
+		bbClient, err = bb.NewOAuthbearerToken(repository.BearerToken)
+		if err != nil {
+			return nil, fmt.Errorf("error creating BitBucket Cloud client with oauth bearer token: %w", err)
+		}
 	}
 	// parse and set the target URL of the Bitbucket server in the client
 	repoBaseURL, err := url.Parse(apiBaseURL)

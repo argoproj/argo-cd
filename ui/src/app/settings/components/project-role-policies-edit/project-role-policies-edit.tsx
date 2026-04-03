@@ -13,6 +13,7 @@ interface ProjectRolePoliciesProps {
     policies: string[];
     formApi: ReactForm.FormApi;
     newRole: boolean;
+    objectListKind?: string;
 }
 
 function generatePolicy(project: string, role: string, resource?: string, action?: string, object?: string, permission?: string): string {
@@ -21,53 +22,56 @@ function generatePolicy(project: string, role: string, resource?: string, action
 
 const actions = ['get', 'create', 'update', 'delete', 'sync', 'override'];
 
-export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => (
-    <DataLoader load={() => services.applications.list([props.projName], {fields: ['items.metadata.name']}).then(list => list.items)}>
-        {applications => (
-            <React.Fragment>
-                <p>POLICY RULES</p>
-                <div>Manage this role's permissions to applications, appsets, repositories, clusters, exec and logs</div>
-                <div className='argo-table-list'>
-                    <div className='argo-table-list__head'>
-                        <div className='row'>
-                            <div className='columns small-3'>RESOURCE</div>
-                            <div className='columns small-3'>ACTION</div>
-                            <div className='columns small-3'>OBJECT</div>
-                            <div className='columns small-3'>PERMISSION</div>
+export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => {
+    const objectListKind = props.objectListKind || 'application';
+    return (
+        <DataLoader load={() => services.applications.list([props.projName], objectListKind, {fields: ['items.metadata.name']}).then(list => list.items)}>
+            {applications => (
+                <React.Fragment>
+                    <p>POLICY RULES</p>
+                    <div>Manage this role's permissions to applications, appsets, repositories, clusters, exec and logs</div>
+                    <div className='argo-table-list'>
+                        <div className='argo-table-list__head'>
+                            <div className='row'>
+                                <div className='columns small-3'>RESOURCE</div>
+                                <div className='columns small-3'>ACTION</div>
+                                <div className='columns small-3'>OBJECT</div>
+                                <div className='columns small-3'>PERMISSION</div>
+                            </div>
                         </div>
-                    </div>
-                    <div className='argo-table-list__row'>
-                        {props.policies.map((policy, i) => (
-                            <Policy
-                                key={i}
-                                field={['policies', i]}
-                                formApi={props.formApi}
-                                policy={policy}
-                                projName={props.projName}
-                                roleName={props.roleName}
-                                deletePolicy={() => props.formApi.setValue('policies', removeEl(props.policies, i))}
-                                availableApps={applications}
-                                actions={actions}
-                            />
-                        ))}
-                        <div className='row'>
-                            <div className='columns small-4'>
-                                <a
-                                    className='argo-button argo-button--base'
-                                    onClick={() => {
-                                        const newPolicy = generatePolicy(props.projName, props.roleName);
-                                        props.formApi.setValue('policies', (props.formApi.values.policies || []).concat(newPolicy));
-                                    }}>
-                                    Add policy
-                                </a>
+                        <div className='argo-table-list__row'>
+                            {props.policies.map((policy, i) => (
+                                <Policy
+                                    key={i}
+                                    field={['policies', i]}
+                                    formApi={props.formApi}
+                                    policy={policy}
+                                    projName={props.projName}
+                                    roleName={props.roleName}
+                                    deletePolicy={() => props.formApi.setValue('policies', removeEl(props.policies, i))}
+                                    availableApps={applications}
+                                    actions={actions}
+                                />
+                            ))}
+                            <div className='row'>
+                                <div className='columns small-4'>
+                                    <a
+                                        className='argo-button argo-button--base'
+                                        onClick={() => {
+                                            const newPolicy = generatePolicy(props.projName, props.roleName);
+                                            props.formApi.setValue('policies', (props.formApi.values.policies || []).concat(newPolicy));
+                                        }}>
+                                        Add policy
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </React.Fragment>
-        )}
-    </DataLoader>
-);
+                </React.Fragment>
+            )}
+        </DataLoader>
+    );
+};
 
 interface PolicyProps {
     projName: string;

@@ -163,7 +163,7 @@ func TestCreateWriteRepoCredentials(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "https://github.com/argoproj/", creds.URL)
 
-	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), RepoURLToSecretName(credSecretPrefix, creds.URL, ""), metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(t.Context(), RepoURLToSecretName(credWriteSecretPrefix, creds.URL, ""), metav1.GetOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, common.AnnotationValueManagedByArgoCD, secret.Annotations[common.AnnotationKeyManagedBy])
@@ -566,7 +566,7 @@ func TestGetApplicationControllerReplicas(t *testing.T) {
 	expectedReplicas = int32(3)
 	clientset = getClientset(&appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ApplicationController,
+			Name:      common.CommandApplicationController,
 			Namespace: testNamespace,
 		},
 		Spec: appsv1.DeploymentSpec{

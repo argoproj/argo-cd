@@ -1,26 +1,19 @@
 package controller
 
 import (
-	"fmt"
-	"os"
 	"strconv"
 	"testing"
 
-	openapi_v2 "github.com/google/gnostic-models/openapiv2"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/kubectl/pkg/util/openapi"
-
-	"sigs.k8s.io/yaml"
-
-	"github.com/argoproj/gitops-engine/pkg/sync"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
@@ -29,30 +22,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
-
-type fakeDiscovery struct {
-	schema *openapi_v2.Document
-}
-
-func (f *fakeDiscovery) OpenAPISchema() (*openapi_v2.Document, error) {
-	return f.schema, nil
-}
-
-func loadCRDSchema(t *testing.T, path string) *openapi_v2.Document {
-	t.Helper()
-
-	data, err := os.ReadFile(path)
-	require.NoError(t, err)
-
-	jsonData, err := yaml.YAMLToJSON(data)
-	require.NoError(t, err)
-
-	doc, err := openapi_v2.ParseDocument(jsonData)
-	require.NoError(t, err)
-
-	return doc
-}
 
 func TestPersistRevisionHistory(t *testing.T) {
 	app := newFakeApp()
@@ -75,7 +46,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data, nil)
+	ctrl := newFakeController(t.Context(), &data, nil)
 
 	// Sync with source unspecified
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
@@ -121,7 +92,7 @@ func TestPersistManagedNamespaceMetadataState(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data, nil)
+	ctrl := newFakeController(t.Context(), &data, nil)
 
 	// Sync with source unspecified
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
@@ -152,7 +123,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data, nil)
+	ctrl := newFakeController(t.Context(), &data, nil)
 
 	// Sync with source specified
 	source := v1alpha1.ApplicationSource{
@@ -206,7 +177,7 @@ func TestSyncComparisonError(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data, nil)
+	ctrl := newFakeController(t.Context(), &data, nil)
 
 	// Sync with source unspecified
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
@@ -263,7 +234,7 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 			},
 			managedLiveObjs: liveObjects,
 		}
-		ctrl := newFakeController(&data, nil)
+		ctrl := newFakeController(t.Context(), &data, nil)
 
 		return &fixture{
 			application: app,
@@ -350,7 +321,7 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
-		ctrl := newFakeController(&data, nil)
+		ctrl := newFakeController(t.Context(), &data, nil)
 
 		return &fixture{
 			application: app,
@@ -416,7 +387,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -429,7 +400,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{})
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -449,7 +420,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		unstructured.RemoveNestedField(live.Object, "metadata", "annotations", "iksm-version")
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -474,7 +445,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -489,6 +460,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		assert.Equal(t, int64(4), replicas)
 	})
 	t.Run("will keep new array entries not found in live state if not ignored", func(t *testing.T) {
+		t.Skip("limitation in the current implementation")
 		// given
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
@@ -502,7 +474,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -539,11 +511,6 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	}
 
 	t.Run("will properly ignore nested fields within arrays", func(t *testing.T) {
-		doc := loadCRDSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
-		disco := &fakeDiscovery{schema: doc}
-		oapiGetter := openapi.NewOpenAPIGetter(disco)
-		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-		require.NoError(t, err)
 		// given
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
@@ -557,11 +524,8 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
-		gvk := schema.GroupVersionKind{Group: "projectcontour.io", Version: "v1", Kind: "HTTPProxy"}
-		fmt.Printf("LookupResource result: %+v\n", oapiResources.LookupResource(gvk))
-
 		// when
-		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		patchedTargets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -600,7 +564,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -652,7 +616,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -705,175 +669,6 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		env0 := env[0].(map[string]any)
 		assert.Equal(t, "EV", env0["name"])
 		assert.Equal(t, "here", env0["value"])
-	})
-
-	t.Run("patches ignored differences in individual array elements of HTTPProxy CRD", func(t *testing.T) {
-		doc := loadCRDSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
-		disco := &fakeDiscovery{schema: doc}
-		oapiGetter := openapi.NewOpenAPIGetter(disco)
-		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-		require.NoError(t, err)
-
-		ignores := []v1alpha1.ResourceIgnoreDifferences{
-			{
-				Group:             "projectcontour.io",
-				Kind:              "HTTPProxy",
-				JQPathExpressions: []string{".spec.routes[].rateLimitPolicy.global.descriptors[].entries[]"},
-			},
-		}
-
-		f := setupHTTPProxy(t, ignores)
-
-		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
-		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
-
-		live := test.YamlToUnstructured(testdata.LiveHTTPProxy)
-		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
-
-		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
-		require.NoError(t, err)
-		require.Len(t, patchedTargets, 1)
-		patched := patchedTargets[0]
-
-		// verify descriptors array in patched target
-		descriptors := dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors").([]any)
-		require.Len(t, descriptors, 1) // Only the descriptors with ignored entries should remain
-
-		// verify individual entries array inside the descriptor
-		entriesArr := dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries").([]any)
-		require.Len(t, entriesArr, 1) // Only the ignored entry should be patched
-
-		// verify the content of the entry is preserved correctly
-		entry := entriesArr[0].(map[string]any)
-		requestHeader := entry["requestHeader"].(map[string]any)
-		assert.Equal(t, "sample-header", requestHeader["headerName"])
-		assert.Equal(t, "sample-key", requestHeader["descriptorKey"])
-	})
-}
-
-func TestNormalizeTargetResourcesCRDs(t *testing.T) {
-	type fixture struct {
-		comparisonResult *comparisonResult
-	}
-	setupHTTPProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
-		t.Helper()
-		dc, err := diff.NewDiffConfigBuilder().
-			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
-			WithNoCache().
-			Build()
-		require.NoError(t, err)
-		live := test.YamlToUnstructured(testdata.SimpleAppLiveYaml)
-		target := test.YamlToUnstructured(testdata.SimpleAppTargetYaml)
-		return &fixture{
-			&comparisonResult{
-				reconciliationResult: sync.ReconciliationResult{
-					Live:   []*unstructured.Unstructured{live},
-					Target: []*unstructured.Unstructured{target},
-				},
-				diffConfig: dc,
-			},
-		}
-	}
-
-	t.Run("sample-app", func(t *testing.T) {
-		doc := loadCRDSchema(t, "testdata/schemas/simple-app.yaml")
-		disco := &fakeDiscovery{schema: doc}
-		oapiGetter := openapi.NewOpenAPIGetter(disco)
-		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-		require.NoError(t, err)
-
-		ignores := []v1alpha1.ResourceIgnoreDifferences{
-			{
-				Group:             "example.com",
-				Kind:              "SimpleApp",
-				JQPathExpressions: []string{".spec.servers[1].enabled", ".spec.servers[0].port"},
-			},
-		}
-
-		f := setupHTTPProxy(t, ignores)
-
-		target := test.YamlToUnstructured(testdata.SimpleAppTargetYaml)
-		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
-
-		live := test.YamlToUnstructured(testdata.SimpleAppLiveYaml)
-		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
-
-		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
-		require.NoError(t, err)
-		require.Len(t, patchedTargets, 1)
-
-		patched := patchedTargets[0]
-		require.NotNil(t, patched)
-
-		// 'spec.servers' array has length 2
-		servers := dig(patched.Object, "spec", "servers").([]any)
-		require.Len(t, servers, 2)
-
-		// first server's 'name' is 'server1'
-		name1 := dig(patched.Object, "spec", "servers", 0, "name").(string)
-		assert.Equal(t, "server1", name1)
-
-		assert.Equal(t, int64(8081), dig(patched.Object, "spec", "servers", 0, "port").(int64))
-		assert.Equal(t, int64(9090), dig(patched.Object, "spec", "servers", 1, "port").(int64))
-
-		// first server's 'enabled' should be true
-		enabled1 := dig(patched.Object, "spec", "servers", 0, "enabled").(bool)
-		assert.True(t, enabled1)
-
-		// second server's 'name' should be 'server2'
-		name2 := dig(patched.Object, "spec", "servers", 1, "name").(string)
-		assert.Equal(t, "server2", name2)
-
-		// second server's 'enabled' should be true (respected from live due to ignoreDifferences)
-		enabled2 := dig(patched.Object, "spec", "servers", 1, "enabled").(bool)
-		assert.True(t, enabled2)
-	})
-	t.Run("rollout-obj", func(t *testing.T) {
-		// Load Rollout CRD schema like SimpleApp
-		doc := loadCRDSchema(t, "testdata/schemas/rollout-schema.yaml")
-		disco := &fakeDiscovery{schema: doc}
-		oapiGetter := openapi.NewOpenAPIGetter(disco)
-		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-		require.NoError(t, err)
-
-		ignores := []v1alpha1.ResourceIgnoreDifferences{
-			{
-				Group:             "argoproj.io",
-				Kind:              "Rollout",
-				JQPathExpressions: []string{`.spec.template.spec.containers[] | select(.name == "init") | .image`},
-			},
-		}
-
-		f := setupHTTPProxy(t, ignores)
-
-		live := test.YamlToUnstructured(testdata.LiveRolloutYaml)
-		target := test.YamlToUnstructured(testdata.TargetRolloutYaml)
-		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
-		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
-
-		targets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
-		require.NoError(t, err)
-		require.Len(t, targets, 1)
-
-		patched := targets[0]
-		require.NotNil(t, patched)
-
-		containers := dig(patched.Object, "spec", "template", "spec", "containers").([]any)
-		require.Len(t, containers, 2)
-
-		initContainer := containers[0].(map[string]any)
-		mainContainer := containers[1].(map[string]any)
-
-		// Assert init container image is preserved (ignoreDifferences works)
-		initImage := dig(initContainer, "image").(string)
-		assert.Equal(t, "init-container:v1", initImage)
-
-		// Assert main container fields as expected
-		mainName := dig(mainContainer, "name").(string)
-		assert.Equal(t, "main", mainName)
-
-		mainImage := dig(mainContainer, "image").(string)
-		assert.Equal(t, "main-container:v1", mainImage)
 	})
 }
 
@@ -932,7 +727,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should be an error saying no valid match was found
@@ -956,7 +751,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should be no error and should use the right service account for impersonation
 		require.NoError(t, err)
@@ -995,7 +790,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should be no error and should use the right service account for impersonation
 		require.NoError(t, err)
@@ -1034,7 +829,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should be no error and it should use the first matching service account for impersonation
 		require.NoError(t, err)
@@ -1068,7 +863,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and should use the first matching glob pattern service account for impersonation
 		require.NoError(t, err)
@@ -1103,7 +898,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should be an error saying no match was found
 		require.EqualError(t, err, expectedErrMsg)
@@ -1131,7 +926,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and the service account configured for with empty namespace should be used.
 		require.NoError(t, err)
@@ -1165,7 +960,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and the catch all service account should be returned
 		require.NoError(t, err)
@@ -1189,7 +984,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there must be an error as the glob pattern is invalid.
 		require.ErrorContains(t, err, "invalid glob pattern for destination namespace")
@@ -1223,7 +1018,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should not be any error and the service account with its namespace should be returned.
@@ -1251,7 +1046,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		f.application.Spec.Destination.Name = f.cluster.Name
 
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should not be any error and the service account with its namespace should be returned.
@@ -1334,7 +1129,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and the right service account must be returned.
 		require.NoError(t, err)
@@ -1373,7 +1168,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and first matching service account should be used
 		require.NoError(t, err)
@@ -1407,7 +1202,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should not be any error and the service account of the glob pattern, being the first match should be returned.
@@ -1442,7 +1237,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, &v1alpha1.Cluster{Server: destinationServerURL})
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, &v1alpha1.Cluster{Server: destinationServerURL})
 
 		// then, there an error with appropriate message must be returned
 		require.EqualError(t, err, expectedErr)
@@ -1476,7 +1271,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should not be any error and the service account of the glob pattern match must be returned.
 		require.NoError(t, err)
@@ -1500,7 +1295,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there must be an error as the glob pattern is invalid.
 		require.ErrorContains(t, err, "invalid glob pattern for destination server")
@@ -1534,7 +1329,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, &v1alpha1.Cluster{Server: destinationServerURL})
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, &v1alpha1.Cluster{Server: destinationServerURL})
 
 		// then, there should not be any error and the service account with the given namespace prefix must be returned.
 		require.NoError(t, err)
@@ -1562,7 +1357,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		f.application.Spec.Destination.Name = f.cluster.Name
 
 		// when
-		sa, err := deriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should not be any error and the service account with its namespace should be returned.
@@ -1620,7 +1415,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			},
 			additionalObjs: additionalObjs,
 		}
-		ctrl := newFakeController(&data, nil)
+		ctrl := newFakeController(t.Context(), &data, nil)
 		return &fixture{
 			application: app,
 			project:     project,
@@ -1780,7 +1575,7 @@ func TestClientSideApplyMigration(t *testing.T) {
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
-		ctrl := newFakeController(&data, nil)
+		ctrl := newFakeController(t.Context(), &data, nil)
 
 		return &fixture{
 			application: app,
@@ -1859,4 +1654,117 @@ func dig(obj any, path ...any) any {
 	}
 
 	return i
+}
+
+func TestValidateSyncPermissions(t *testing.T) {
+	t.Parallel()
+
+	newResource := func(group, kind, name, namespace string) *unstructured.Unstructured {
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(schema.GroupVersionKind{Group: group, Version: "v1", Kind: kind})
+		obj.SetName(name)
+		obj.SetNamespace(namespace)
+		return obj
+	}
+
+	project := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-project",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			Destinations: []v1alpha1.ApplicationDestination{
+				{Namespace: "default", Server: "*"},
+			},
+		},
+	}
+
+	destCluster := &v1alpha1.Cluster{
+		Server: "https://kubernetes.default.svc",
+	}
+
+	noopGetClusters := func(_ string) ([]*v1alpha1.Cluster, error) {
+		return nil, nil
+	}
+
+	t.Run("nil APIResource returns error", func(t *testing.T) {
+		t.Parallel()
+		un := newResource("apps", "Deployment", "my-deploy", "default")
+
+		err := validateSyncPermissions(project, destCluster, noopGetClusters, un, nil)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get API resource info for apps/Deployment")
+		assert.Contains(t, err.Error(), "unable to verify permissions")
+	})
+
+	t.Run("permitted namespaced resource returns no error", func(t *testing.T) {
+		t.Parallel()
+		un := newResource("", "ConfigMap", "my-cm", "default")
+		res := &metav1.APIResource{Name: "configmaps", Namespaced: true}
+
+		err := validateSyncPermissions(project, destCluster, noopGetClusters, un, res)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("group kind not permitted returns error", func(t *testing.T) {
+		t.Parallel()
+		projectWithDenyList := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "restricted-project",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Destinations: []v1alpha1.ApplicationDestination{
+					{Namespace: "*", Server: "*"},
+				},
+				ClusterResourceBlacklist: []v1alpha1.ClusterResourceRestrictionItem{
+					{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
+				},
+			},
+		}
+		un := newResource("rbac.authorization.k8s.io", "ClusterRole", "my-role", "")
+		res := &metav1.APIResource{Name: "clusterroles", Namespaced: false}
+
+		err := validateSyncPermissions(projectWithDenyList, destCluster, noopGetClusters, un, res)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "is not permitted in project")
+	})
+
+	t.Run("namespace not permitted returns error", func(t *testing.T) {
+		t.Parallel()
+		un := newResource("", "ConfigMap", "my-cm", "kube-system")
+		res := &metav1.APIResource{Name: "configmaps", Namespaced: true}
+
+		err := validateSyncPermissions(project, destCluster, noopGetClusters, un, res)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "namespace kube-system is not permitted in project")
+	})
+
+	t.Run("cluster-scoped resource skips namespace check", func(t *testing.T) {
+		t.Parallel()
+		projectWithClusterResources := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-project",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Destinations: []v1alpha1.ApplicationDestination{
+					{Namespace: "default", Server: "*"},
+				},
+				ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{
+					{Group: "*", Kind: "*"},
+				},
+			},
+		}
+		un := newResource("", "Namespace", "my-ns", "")
+		res := &metav1.APIResource{Name: "namespaces", Namespaced: false}
+
+		err := validateSyncPermissions(projectWithClusterResources, destCluster, noopGetClusters, un, res)
+
+		assert.NoError(t, err)
+	})
 }

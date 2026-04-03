@@ -13,9 +13,10 @@ import (
 )
 
 func TestSwaggerUI(t *testing.T) {
+	lc := &net.ListenConfig{}
 	serve := func(c chan<- string) {
 		// listen on first available dynamic (unprivileged) port
-		listener, err := net.Listen("tcp", ":0")
+		listener, err := lc.Listen(t.Context(), "tcp", ":0")
 		if err != nil {
 			panic(err)
 		}
@@ -44,7 +45,11 @@ func TestSwaggerUI(t *testing.T) {
 	_, err = json.MarshalIndent(specDoc.Spec(), "", "  ")
 	require.NoError(t, err)
 
-	resp, err := http.Get(server + "/swagger-ui")
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server+"/swagger.json", http.NoBody)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	require.Equalf(t, http.StatusOK, resp.StatusCode, "Was expecting status code 200 from swagger-ui, but got %d instead", resp.StatusCode)
+	require.NoError(t, resp.Body.Close())
 }

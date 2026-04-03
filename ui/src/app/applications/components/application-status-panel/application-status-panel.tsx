@@ -8,6 +8,7 @@ import {services} from '../../../shared/services';
 import {
     ApplicationSyncWindowStatusIcon,
     ComparisonStatusIcon,
+    formatApplicationSetProgressiveSyncStep,
     getAppDefaultSource,
     getAppDefaultSyncRevisionExtra,
     getAppOperationState,
@@ -91,22 +92,15 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                 );
             }}
             load={async () => {
-                // Check if user has permission to read ApplicationSets
-                const canReadApplicationSets = await services.accounts.canI('applicationsets', 'get', application.spec.project + '/' + application.metadata.name);
-
                 // Find ApplicationSet by searching all namespaces dynamically
                 const appSetList = await services.applications.listApplicationSets();
                 const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name);
 
-                if (!appSet) {
-                    throw new Error(`ApplicationSet ${appSetRef.name} not found in any namespace`);
-                }
-
-                return {canReadApplicationSets, appSet};
+                return {appSet};
             }}>
-            {({canReadApplicationSets, appSet}: {canReadApplicationSets: boolean; appSet: models.ApplicationSet}) => {
+            {({appSet}: {appSet: models.ApplicationSet}) => {
                 // Hide panel if: Progressive Sync disabled, no permission, or not RollingSync strategy
-                if (!appSet.status?.applicationStatus || appSet?.spec?.strategy?.type !== 'RollingSync' || !canReadApplicationSets) {
+                if (!appSet || !appSet.status?.applicationStatus || appSet?.spec?.strategy?.type !== 'RollingSync') {
                     return null;
                 }
 
@@ -141,7 +135,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                         <div className='application-status-panel__item-value' style={{color: getProgressiveSyncStatusColor(appResource.status)}}>
                             {getProgressiveSyncStatusIcon({status: appResource.status})}&nbsp;{appResource.status}
                         </div>
-                        {appResource?.step && <div className='application-status-panel__item-value'>Wave: {appResource.step}</div>}
+                        {appResource?.step !== undefined && <div className='application-status-panel__item-value'>{formatApplicationSetProgressiveSyncStep(appResource.step)}</div>}
                         {lastTransitionTime && (
                             <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                                 Last Transition: <br />
@@ -349,7 +343,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                 }}>
                 {(data: models.ApplicationSyncWindowState) => (
                     <React.Fragment>
-                        {data.assignedWindows && (
+                        {data?.assignedWindows && (
                             <div className='application-status-panel__item' style={{position: 'relative'}}>
                                 {sectionLabel({
                                     title: 'SYNC WINDOWS',

@@ -66,7 +66,7 @@ spec:
         env:
         - name: GIT_SYNC_REPO
           value: https://github.com/argoproj/argocd-example-apps
-        image: k8s.gcr.io/git-sync:v3.1.6
+        image: registry.k8s.io/git-sync:v3.1.6
         name: git-sync
         volumeMounts:
         - mountPath: /tmp/git

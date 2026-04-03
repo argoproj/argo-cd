@@ -14,7 +14,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 
 	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
@@ -22,10 +22,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2/textlogger"
 
-	"github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/engine"
-	"github.com/argoproj/gitops-engine/pkg/sync"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/engine"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 
 	_ "net/http/pprof"
 )
@@ -59,8 +59,8 @@ func (s *settings) getGCMark(key kube.ResourceKey) string {
 	return "sha256." + base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
 
-func (s *settings) parseManifests() ([]*unstructured.Unstructured, string, error) {
-	cmd := exec.Command("git", "rev-parse", "HEAD")
+func (s *settings) parseManifests(ctx context.Context) ([]*unstructured.Unstructured, string, error) {
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "HEAD")
 	cmd.Dir = s.repoPath
 	revision, err := cmd.CombinedOutput()
 	if err != nil {
@@ -134,6 +134,7 @@ func newCmd(log logr.Logger) *cobra.Command {
 				os.Exit(1)
 			}
 			s := settings{args[0], paths}
+			ctx := cmd.Context()
 			config, err := clientConfig.ClientConfig()
 			checkError(err, log)
 			if namespace == "" {
@@ -184,13 +185,13 @@ func newCmd(log logr.Logger) *cobra.Command {
 			}()
 
 			for ; true; <-resync {
-				target, revision, err := s.parseManifests()
+				target, revision, err := s.parseManifests(ctx)
 				if err != nil {
 					log.Error(err, "Failed to parse target state")
 					continue
 				}
 
-				result, err := gitOpsEngine.Sync(context.Background(), target, func(r *cache.Resource) bool {
+				result, err := gitOpsEngine.Sync(ctx, target, func(r *cache.Resource) bool {
 					return r.Info.(*resourceInfo).gcMark == s.getGCMark(r.ResourceKey())
 				}, revision, namespace, sync.WithPrune(prune), sync.WithLogr(log))
 				if err != nil {
