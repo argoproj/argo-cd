@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -15,6 +16,6 @@ func TestProjectAllowListGen(t *testing.T) {
 	resourceList := []*metav1.APIResourceList{{APIResources: []metav1.APIResource{res}}}
 
 	globalProj, err := generateProjectAllowList(resourceList, "testdata/test_clusterrole.yaml", "testproj")
-	assert.NoError(t, err)
-	assert.True(t, len(globalProj.Spec.NamespaceResourceWhitelist) > 0)
+	require.NoError(t, err)
+	assert.NotEmpty(t, globalProj.Spec.NamespaceResourceWhitelist)
 }

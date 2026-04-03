@@ -1,0 +1,35 @@
+discoveryTests:
+- inputPath: testdata/initial_helmrepository.yaml
+  result:
+    - name: reconcile
+      disabled: false
+    - name: suspend
+      disabled: false
+    - name: resume
+      disabled: true
+- inputPath: testdata/suspended_helmrepository.yaml
+  result:
+    - name: reconcile
+      disabled: true
+    - name: suspend
+      disabled: true
+    - name: resume
+      disabled: false
+- inputPath: testdata/resumed_helmrepository.yaml
+  result:
+    - name: reconcile
+      disabled: false
+    - name: suspend
+      disabled: false
+    - name: resume
+      disabled: true
+actionTests:
+- action: reconcile
+  inputPath: testdata/initial_helmrepository.yaml
+  expectedOutputPath: testdata/reconciled_helmrepository.yaml
+- action: suspend
+  inputPath: testdata/initial_helmrepository.yaml
+  expectedOutputPath: testdata/suspended_helmrepository.yaml
+- action: resume
+  inputPath: testdata/suspended_helmrepository.yaml
+  expectedOutputPath: testdata/resumed_helmrepository.yaml

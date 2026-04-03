@@ -14,10 +14,14 @@ spec:
   sourceRepos:
   - '*'
 
-  # Only permit applications to deploy to the guestbook namespace in the same cluster
+  # Only permit applications to deploy to the 'guestbook' namespace or any namespace starting with 'guestbook-' in the same cluster
   # Destination clusters can be identified by 'server', 'name', or both.
   destinations:
   - namespace: guestbook
+    server: https://kubernetes.default.svc
+    name: in-cluster
+  # Destinations also allow wildcard globbing
+  - namespace: guestbook-*
     server: https://kubernetes.default.svc
     name: in-cluster
 
@@ -25,6 +29,16 @@ spec:
   clusterResourceWhitelist:
   - group: ''
     kind: Namespace
+    # Name is optional. If specified, only resources with a matching name will be allowed.
+    # Globs in Go's filepath.Match syntax are supported. Example: "team1-*".
+    name: ''
+
+  # Deny all Namespace resources from being created if their name starts with 'kube-'
+  clusterResourceBlacklist:
+    - group: ''
+      kind: Namespace
+      # Name is optional. If specified, only resources with a matching name will be denied.
+      name: 'kube-*'
 
   # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
   namespaceResourceBlacklist:
@@ -86,3 +100,13 @@ spec:
     clusters:
       - in-cluster
       - cluster1
+
+  # By default, apps may sync to any cluster specified under the `destinations` field, even if they are not
+  # scoped to this project. Set the following field to `true` to restrict apps in this cluster to only clusters
+  # scoped to this project.
+  permitOnlyProjectScopedClusters: false
+
+  # When using Applications-in-any-namespace, this field determines which namespaces this AppProject permits
+  # Applications to reside in. Details: https://argo-cd.readthedocs.io/en/stable/operator-manual/app-any-namespace/
+  sourceNamespaces:
+  - "argocd-apps-*"

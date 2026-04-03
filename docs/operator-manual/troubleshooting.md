@@ -25,7 +25,7 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 
 **Health Assessment**
 
-Argo CD provides built-in [health assessment](./health.md) for several kubernetes resources which can be further
+Argo CD provides built-in [health assessment](./health.md) for several Kubernetes resources which can be further
 customized by writing your own health checks in [Lua](https://www.lua.org/).
 The health checks are configured in the `resource.customizations` field of `argocd-cm` ConfigMap.
 
@@ -61,7 +61,7 @@ troubleshoot connectivity issues. In this case, it is suggested to use the follo
 
 ```
 kubectl exec -n argocd -it \
-  $(kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-application-controller -o jsonpath='{.items[0].metadata.name}') bash
+  $(kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-application-controller -o jsonpath='{.items[0].metadata.name}') -- bash
 ```
 
 2 Use `argocd admin cluster kubeconfig` command to export kubeconfig file from the configured Secret:

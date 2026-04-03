@@ -1,0 +1,48 @@
+apiVersion: astra.netapp.io/v1
+kind: ResourceBackup
+metadata:
+  annotations:
+    astra.netapp.io/correlationid: ee3baf3b-c470-486f-a327-47a6eada0722
+  creationTimestamp: "2024-04-24T21:30:21Z"
+  finalizers:
+    - astra.netapp.io/finalizer
+  generation: 1
+  name: snapshot-0796d78d-e751-4835-a0d4-be61b9f9076a
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Snapshot
+      name: argo-presync-20240424213020
+      uid: 0796d78d-e751-4835-a0d4-be61b9f9076a
+  resourceVersion: "10661760"
+  uid: 6ed660f0-95be-4369-b548-15cb094a44c2
+spec:
+  appArchivePath: ghost_0af10ee8-772b-4367-8334-44f9e4ad2849/snapshots/20240424213020_argo-presync-20240424213020_0796d78d-e751-4835-a0d4-be61b9f9076a
+  appVaultRef: astra-gcp-backup-743cfd150129
+  applicationRef: ghost
+status:
+  appArchivePath: ghost_0af10ee8-772b-4367-8334-44f9e4ad2849/snapshots/20240424213020_argo-presync-20240424213020_0796d78d-e751-4835-a0d4-be61b9f9076a
+  conditions:
+    - lastTransitionTime: "2024-04-24T21:30:21Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: AppOwnerReferenceCreated
+    - lastTransitionTime: "2024-04-24T21:30:21Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: JobCreated
+    - lastTransitionTime: "2024-04-24T21:30:21Z"
+      message: waiting for resource backup job to complete
+      reason: Waiting
+      status: "False"
+      type: JobCompleted
+    - lastTransitionTime: "2024-04-24T21:30:21Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: JobCleanedUp
+  state: Running

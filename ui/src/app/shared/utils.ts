@@ -1,3 +1,7 @@
+import {useEffect, useState} from 'react';
+import type {CSSProperties} from 'react';
+import {Cluster} from './models';
+
 export function hashCode(str: string) {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -34,3 +38,110 @@ export function isValidURL(url: string): boolean {
         }
     }
 }
+
+// managed-by-url is expected to mostly if not always point to another Argo CD instance URL,
+// so we only consider http/https valid for click-through behavior.
+export function isValidManagedByURL(url: string): boolean {
+    try {
+        const parsedUrl = new URL(url);
+        return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+    } catch (err) {
+        return false;
+    }
+}
+
+export const MANAGED_BY_URL_INVALID_TEXT = 'managed-by-url: invalid url provided';
+export const MANAGED_BY_URL_INVALID_TOOLTIP = 'managed-by-url must be a valid http(s) URL for the managing Argo CD instance. The external link is disabled until this is fixed.';
+
+export const MANAGED_BY_URL_INVALID_COLOR = '#f4c030';
+
+export const managedByURLInvalidLabelStyle: CSSProperties = {
+    color: MANAGED_BY_URL_INVALID_COLOR,
+    marginLeft: '0.5em',
+    fontSize: '13px',
+    fontWeight: 500,
+    lineHeight: 1.35,
+    whiteSpace: 'nowrap'
+};
+
+export const managedByURLInvalidLabelStyleCompact: CSSProperties = {
+    ...managedByURLInvalidLabelStyle,
+    marginLeft: '4px',
+    fontSize: '12px',
+    fontWeight: 600
+};
+
+export const colorSchemes = {
+    light: '(prefers-color-scheme: light)',
+    dark: '(prefers-color-scheme: dark)'
+};
+
+/**
+ * quick method to check system theme
+ * @param theme auto, light, dark
+ * @returns dark or light
+ */
+export function getTheme(theme: string) {
+    if (theme !== 'auto') {
+        return theme;
+    }
+
+    const dark = window.matchMedia(colorSchemes.dark);
+
+    return dark.matches ? 'dark' : 'light';
+}
+
+/**
+ * create a listener for system theme
+ * @param cb callback for theme change
+ * @returns destroy listener
+ */
+export const useSystemTheme = (cb: (theme: string) => void) => {
+    const dark = window.matchMedia(colorSchemes.dark);
+    const light = window.matchMedia(colorSchemes.light);
+
+    const listener = () => {
+        cb(dark.matches ? 'dark' : 'light');
+    };
+
+    dark.addEventListener('change', listener);
+    light.addEventListener('change', listener);
+
+    return () => {
+        dark.removeEventListener('change', listener);
+        light.removeEventListener('change', listener);
+    };
+};
+
+export const useTheme = (props: {theme: string}) => {
+    const [theme, setTheme] = useState(getTheme(props.theme));
+
+    useEffect(() => {
+        let destroyListener: (() => void) | undefined;
+
+        // change theme by system, only register listener when theme is auto
+        if (props.theme === 'auto') {
+            destroyListener = useSystemTheme(systemTheme => {
+                setTheme(systemTheme);
+            });
+        }
+
+        // change theme manually
+        if (props.theme !== theme) {
+            setTheme(getTheme(props.theme));
+        }
+
+        return () => {
+            destroyListener?.();
+        };
+    }, [props.theme]);
+
+    return [theme];
+};
+
+export const formatClusterQueryParam = (cluster: Cluster) => {
+    if (cluster.name === cluster.server) {
+        return cluster.name;
+    }
+    return `${cluster.name} (${cluster.server})`;
+};

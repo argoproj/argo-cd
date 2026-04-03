@@ -40,7 +40,7 @@ func Test_FlagContextNotChanged(t *testing.T) {
 		Annotations:         nil,
 	})
 
-	assert.Equal(t, "", res)
+	assert.Empty(t, res)
 }
 
 func Test_FlagContextChanged(t *testing.T) {
@@ -76,5 +76,5 @@ func Test_FlagContextNil(t *testing.T) {
 		Annotations:         nil,
 	})
 
-	assert.Equal(t, "", res)
+	assert.Empty(t, res)
 }

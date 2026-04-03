@@ -1,0 +1,98 @@
+apiVersion: numaflow.numaproj.io/v1alpha1
+kind: Pipeline
+metadata:
+  creationTimestamp: "2024-10-08T18:22:18Z"
+  finalizers:
+  - pipeline-controller
+  generation: 1
+  name: simple-pipeline
+  namespace: numaflow-system
+  resourceVersion: "358080"
+  uid: bb6cc91c-eb05-4fe7-9380-63b9532a85db
+spec:
+  edges:
+  - from: in
+    to: cat
+  - from: cat
+    to: out
+  lifecycle:
+    deleteGracePeriodSeconds: 30
+    desiredPhase: Running
+    pauseGracePeriodSeconds: 30
+  limits:
+    bufferMaxLength: 30000
+    bufferUsageLimit: 80
+    readBatchSize: 500
+    readTimeout: 1s
+  vertices:
+  - name: in
+    scale:
+      min: 1
+    source:
+      generator:
+        duration: 1s
+        jitter: 0s
+        msgSize: 8
+        rpu: 5
+    updateStrategy:
+      rollingUpdate:
+        maxUnavailable: 25%
+      type: RollingUpdate
+  - name: cat
+    scale:
+      min: 1
+    udf:
+      builtin:
+        name: cat
+    updateStrategy:
+      rollingUpdate:
+        maxUnavailable: 25%
+      type: RollingUpdate
+  - name: out
+    scale:
+      min: 1
+    sink:
+      log: {}
+    updateStrategy:
+      rollingUpdate:
+        maxUnavailable: 25%
+      type: RollingUpdate
+  watermark:
+    disabled: false
+    maxDelay: 0s
+status:
+  conditions:
+  - lastTransitionTime: "2024-10-08T18:22:49Z"
+    message: Successful
+    reason: Successful
+    status: "True"
+    type: Configured
+  - lastTransitionTime: "2024-10-08T18:22:49Z"
+    message: Successful
+    reason: Successful
+    status: "True"
+    type: DaemonServiceHealthy
+  - lastTransitionTime: "2024-10-08T18:22:49Z"
+    message: Successful
+    reason: Successful
+    status: "True"
+    type: Deployed
+  - lastTransitionTime: "2024-10-08T18:22:49Z"
+    message: No Side Inputs attached to the pipeline
+    reason: NoSideInputs
+    status: "True"
+    type: SideInputsManagersHealthy
+  - lastTransitionTime: "2024-10-08T18:22:49Z"
+    message: All vertices are healthy
+    reason: Successful
+    status: "True"
+    type: VerticesHealthy
+  lastUpdated: "2024-10-08T18:22:49Z"
+  mapUDFCount: 1
+  observedGeneration: 1
+  phase: Running
+  reduceUDFCount: 0
+  sinkCount: 1
+  sourceCount: 1
+  udfCount: 1
+  vertexCount: 3

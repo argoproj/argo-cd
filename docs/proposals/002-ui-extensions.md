@@ -63,7 +63,7 @@ As an operator, I would like to configure Argo CD to perform pre-defined actions
 
 ## Proposal
  
-A new `ArgoCDExtension` CRD would be introduced which will allow operators configure Argo CD to understand how to handle and visualize custom resources. Visualizing a object requires javascript to render the object, and health/actions require lua scripts. Aas such, the extension CR would need to point to some location where the javascript/lua code would be hosted.
+A new `ArgoCDExtension` CRD would be introduced which will allow operators configure Argo CD to understand how to handle and visualize custom resources. Visualizing a object requires javascript to render the object, and health/actions require lua scripts. As such, the extension CR would need to point to some location where the javascript/lua code would be hosted.
 
 It is proposed that a git repository be used to contain the javascript code, as well as the lua scripts necessary to assess health or perform actions of a resource.
 
@@ -130,7 +130,7 @@ In the UI, a new tab in the Resource View will be made available. The contents o
 
 At a high level an Argo CD extension is simply a React component, which is dynamically loaded at runtime by the Argo CD API server.
 
-In order for the component to render some visualization about a resource, it needs to be supplied at least two key peices of information:
+In order for the component to render some visualization about a resource, it needs to be supplied at least two key pieces of information:
 1. The full resource object itself
 2. The entire Application Resource Tree
 
@@ -165,7 +165,7 @@ Some changes are required in the Argo CD API server:
 2. It will retrieve Actions Lua scripts from the same well known location mounted by the sidecar instead of from `argocd-cm`
 
 
-### UI Extention Interface
+### UI Extension Interface
 
 TODO
 

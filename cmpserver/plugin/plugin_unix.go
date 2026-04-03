@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package plugin
 
@@ -13,4 +12,8 @@ func newSysProcAttr(setpgid bool) *syscall.SysProcAttr {
 
 func sysCallKill(pid int) error {
 	return syscall.Kill(pid, syscall.SIGKILL)
+}
+
+func sysCallTerm(pid int) error {
+	return syscall.Kill(pid, syscall.SIGTERM)
 }

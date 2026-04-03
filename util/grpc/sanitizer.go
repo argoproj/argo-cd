@@ -1,11 +1,10 @@
 package grpc
 
 import (
+	"context"
 	"errors"
 	"regexp"
 	"strings"
-
-	"context"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
@@ -20,7 +19,7 @@ const (
 // ErrorSanitizerUnaryServerInterceptor returns a new unary server interceptor that sanitizes error messages
 // and provides Sanitizer to define replacements.
 func ErrorSanitizerUnaryServerInterceptor() grpc.UnaryServerInterceptor {
-	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
 		sanitizer := NewSanitizer()
 		resp, err = handler(ContextWithSanitizer(ctx, sanitizer), req)
 		if err == nil {
@@ -65,7 +64,7 @@ func NewSanitizer() *sanitizer {
 // AddReplacement adds a replacement to the Sanitizer
 func (s *sanitizer) AddReplacement(val string, replacement string) {
 	s.replacers = append(s.replacers, func(in string) string {
-		return strings.Replace(in, val, replacement, -1)
+		return strings.ReplaceAll(in, val, replacement)
 	})
 }
 

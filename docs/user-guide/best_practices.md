@@ -2,7 +2,7 @@
 
 ## Separating Config Vs. Source Code Repositories
 
-Using a separate Git repository to hold your kubernetes manifests, keeping the config separate
+Using a separate Git repository to hold your Kubernetes manifests, keeping the config separate
 from your application source code, is highly recommended for the following reasons:
 
 1. It provides a clean separation of application code vs. application config. There will be times
@@ -14,8 +14,8 @@ from your application source code, is highly recommended for the following reaso
    cleaner Git history of what changes were made, without the noise coming from check-ins due to
    normal development activity.
 
-3. Your application may be comprised of services built from multiple Git repositories, but is
-   deployed as a single unit. Oftentimes, microservices applications are comprised of services
+3. Your application may comprise services built from multiple Git repositories, but is
+   deployed as a single unit. Oftentimes, microservices applications comprise services
    with different versioning schemes, and release cycles (e.g. ELK, Kafka + ZooKeeper). It may not
    make sense to store the manifests in one of the source code repositories of a single component.
 
@@ -63,7 +63,7 @@ repository or kustomize base.
 For example, consider the following kustomization.yaml
 
 ```yaml
-bases:
+resources:
 - github.com/argoproj/argo-cd//manifests/cluster-install
 ```
 

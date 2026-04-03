@@ -1,0 +1,14 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Waiting for DBInstance to be available
+  inputPath: testdata/creating.yaml
+- healthStatus:
+    status: Healthy
+    message: Available
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "update failed: cannot update DBInstance in AWS: InvalidParameterValue:
+      Invalid DB Instance class: db.t4g.foobar\n\tstatus code: 400, request id: "
+  inputPath: testdata/degraded.yaml

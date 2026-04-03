@@ -1,0 +1,11 @@
+apiVersion: beat.k8s.elastic.co/v1beta1
+kind: Beat
+metadata:
+  name: quickstart
+spec:
+  version: 8.8.8
+  type: metricbeat
+status:
+  expectedNodes: 1
+  observedGeneration: 1
+  version: 8.8.1

@@ -7,6 +7,8 @@ import (
 )
 
 func Test_AppRBACName(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name           string
 		defaultNS      string
@@ -45,7 +47,7 @@ func Test_AppRBACName(t *testing.T) {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			result := AppRBACName(tcc.defaultNS, tcc.project, tcc.namespace, tcc.appName)
+			result := RBACName(tcc.defaultNS, tcc.project, tcc.namespace, tcc.appName)
 			assert.Equal(t, tcc.expectedResult, result)
 		})
 	}

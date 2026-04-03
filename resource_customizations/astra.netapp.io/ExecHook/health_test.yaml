@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: "No status available"
+    inputPath: testdata/progressing_nostatus.yaml
+  - healthStatus:
+      status: Healthy
+      message: "ExecHook enabled"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Suspended
+      message: "ExecHook disabled"
+    inputPath: testdata/suspended.yaml

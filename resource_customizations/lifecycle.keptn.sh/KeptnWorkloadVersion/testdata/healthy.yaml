@@ -1,0 +1,51 @@
+apiVersion: lifecycle.keptn.sh/v1alpha4
+kind: KeptnWorkloadVersion
+metadata:
+  annotations:
+    traceparent: 00-5050e556a9aaf22814aa689d0518f4d3-cbcff966a6d32c39-01
+  creationTimestamp: "2022-12-14T13:17:36Z"
+  generation: 2
+  name: podtato-head-podtato-head-entry-0.2.7
+  namespace: podtato-kubectl
+  ownerReferences:
+    - apiVersion: lifecycle.keptn.sh/v1alpha2
+      blockOwnerDeletion: true
+      controller: true
+      kind: KeptnWorkload
+      name: podtato-head-podtato-head-entry
+      uid: dcafe814-7f9d-4d50-9a66-f61c81bfe764
+  resourceVersion: "226253"
+  uid: 6987404b-c7b9-40f5-95e9-d5aad55a3f3b
+spec:
+  app: podtato-head
+  resourceReference:
+    kind: ReplicaSet
+    name: podtato-head-entry-6fc8964846
+    uid: 2b6e44bf-27e3-4305-a9fb-65d2f412936b
+  traceId:
+    traceparent: 00-ecdd1f5a7e1068ac9b0d044aa165ca4c-0ae50f2d844888ab-01
+  version: 0.2.7
+  workloadName: podtato-head-podtato-head-entry
+status:
+  currentPhase: Completed
+  deploymentStatus: Succeeded
+  endTime: "2022-12-14T13:18:41Z"
+  phaseTraceIDs:
+    "":
+      traceparent: 00-ecdd1f5a7e1068ac9b0d044aa165ca4c-ca249d3f6e024547-01
+    WorkloadDeploy:
+      traceparent: 00-ecdd1f5a7e1068ac9b0d044aa165ca4c-3be53185e6024eb4-01
+    WorkloadPostDeployEvaluations:
+      traceparent: 00-ecdd1f5a7e1068ac9b0d044aa165ca4c-0dc305a08a0ccf14-01
+    WorkloadPostDeployTasks:
+      traceparent: 00-ecdd1f5a7e1068ac9b0d044aa165ca4c-4c7cf78cbbc40e14-01
+    WorkloadPreDeployEvaluations:
+      traceparent: 00-ecdd1f5a7e1068ac9b0d044aa165ca4c-5eed0ec5420cfc89-01
+    WorkloadPreDeployTasks:
+      traceparent: 00-ecdd1f5a7e1068ac9b0d044aa165ca4c-bef05615fc0138ac-01
+  postDeploymentEvaluationStatus: Succeeded
+  postDeploymentStatus: Succeeded
+  preDeploymentEvaluationStatus: Succeeded
+  preDeploymentStatus: Succeeded
+  startTime: "2022-12-14T13:17:57Z"
+  status: Succeeded

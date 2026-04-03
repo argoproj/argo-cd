@@ -44,7 +44,6 @@ func (m *MockProvider) GetBranches(_ context.Context, repo *Repository) ([]*Repo
 				branchRepos = append(branchRepos, candidateRepo)
 			}
 		}
-
 	}
 	return branchRepos, nil
 }

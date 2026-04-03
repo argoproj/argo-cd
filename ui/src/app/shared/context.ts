@@ -12,6 +12,6 @@ export interface ContextApis {
     baseHref: string;
 }
 export const Context = React.createContext<ContextApis & {history: History}>(null);
-export let {Provider, Consumer} = Context;
+export const {Provider, Consumer} = Context;
 
 export const AuthSettingsCtx = React.createContext<models.AuthSettings>(null);

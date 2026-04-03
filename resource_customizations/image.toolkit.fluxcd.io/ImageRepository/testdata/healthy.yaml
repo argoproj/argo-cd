@@ -1,0 +1,17 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  image: stefanprodan/podinfo
+  interval: 1h
+  provider: generic
+status:
+  conditions:
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: 'successful scan: found 233 tags'
+    observedGeneration: 1
+    reason: Succeeded
+    status: "True"
+    type: Ready

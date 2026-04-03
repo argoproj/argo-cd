@@ -1,0 +1,27 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: Waiting for the status to be reported
+    inputPath: testdata/progressing_no_status.yaml
+  - healthStatus:
+      status: Degraded
+      message: >-
+        violation - namespaces [argo-example] not found; violation - namespaces
+        [argo-example-2] not found
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: Waiting for the status to be updated
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Healthy
+      message: >-
+        notification - namespaces [argo-example] was created successfully;
+        notification - namespaces [argo-example-2] was created successfully
+    inputPath: testdata/healthy_created.yaml
+  - healthStatus:
+      status: Healthy
+      message: >-
+        notification - namespaces [argo-example] found as specified;
+        notification - namespaces [argo-example-2] found as specified
+    inputPath: testdata/healthy_found.yaml

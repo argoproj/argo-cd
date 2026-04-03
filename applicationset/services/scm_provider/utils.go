@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]*Filter, error) {
@@ -17,14 +18,14 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 		if filter.RepositoryMatch != nil {
 			outFilter.RepositoryMatch, err = regexp.Compile(*filter.RepositoryMatch)
 			if err != nil {
-				return nil, fmt.Errorf("error compiling RepositoryMatch regexp %q: %v", *filter.RepositoryMatch, err)
+				return nil, fmt.Errorf("error compiling RepositoryMatch regexp %q: %w", *filter.RepositoryMatch, err)
 			}
 			outFilter.FilterType = FilterTypeRepo
 		}
 		if filter.LabelMatch != nil {
 			outFilter.LabelMatch, err = regexp.Compile(*filter.LabelMatch)
 			if err != nil {
-				return nil, fmt.Errorf("error compiling LabelMatch regexp %q: %v", *filter.LabelMatch, err)
+				return nil, fmt.Errorf("error compiling LabelMatch regexp %q: %w", *filter.LabelMatch, err)
 			}
 			outFilter.FilterType = FilterTypeRepo
 		}
@@ -39,7 +40,7 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 		if filter.BranchMatch != nil {
 			outFilter.BranchMatch, err = regexp.Compile(*filter.BranchMatch)
 			if err != nil {
-				return nil, fmt.Errorf("error compiling BranchMatch regexp %q: %v", *filter.BranchMatch, err)
+				return nil, fmt.Errorf("error compiling BranchMatch regexp %q: %w", *filter.BranchMatch, err)
 			}
 			outFilter.FilterType = FilterTypeBranch
 		}
@@ -58,13 +59,7 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 	}
 
 	if filter.LabelMatch != nil {
-		found := false
-		for _, label := range repo.Labels {
-			if filter.LabelMatch.MatchString(label) {
-				found = true
-				break
-			}
-		}
+		found := slices.ContainsFunc(repo.Labels, filter.LabelMatch.MatchString)
 		if !found {
 			return false, nil
 		}
@@ -172,9 +167,10 @@ func getApplicableFilters(filters []*Filter) map[FilterType][]*Filter {
 		FilterTypeRepo:   {},
 	}
 	for _, filter := range filters {
-		if filter.FilterType == FilterTypeBranch {
+		switch filter.FilterType {
+		case FilterTypeBranch:
 			filterMap[FilterTypeBranch] = append(filterMap[FilterTypeBranch], filter)
-		} else if filter.FilterType == FilterTypeRepo {
+		case FilterTypeRepo:
 			filterMap[FilterTypeRepo] = append(filterMap[FilterTypeRepo], filter)
 		}
 	}

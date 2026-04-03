@@ -1,9 +1,9 @@
 The trigger defines the condition when the notification should be sent. The definition includes name, condition
 and notification templates reference. The condition is a predicate expression that returns true if the notification
 should be sent. The trigger condition evaluation is powered by [antonmedv/expr](https://github.com/antonmedv/expr).
-The condition language syntax is described at [Language-Definition.md](https://github.com/antonmedv/expr/blob/master/docs/Language-Definition.md).
+The condition language syntax is described at [language-definition.md](https://github.com/antonmedv/expr/blob/master/docs/language-definition.md).
 
-The trigger is configured in `argocd-notifications-cm` ConfigMap. For example the following trigger sends a notification
+The trigger is configured in the `argocd-notifications-cm` ConfigMap. For example the following trigger sends a notification
 when application sync status changes to `Unknown` using the `app-sync-status` template:
 
 ```yaml
@@ -17,9 +17,9 @@ data:
       send: [app-sync-status, github-commit-status] # template names
 ```
 
-Each condition might use several templates. Typically each template is responsible for generating a service-specific notification part.
-In the example above `app-sync-status` template "knows" how to create email and slack notification and `github-commit-status` knows how to
-generate payload for Github webhook.
+Each condition might use several templates. Typically, each template is responsible for generating a service-specific notification part.
+In the example above, the `app-sync-status` template "knows" how to create email and Slack notification, and `github-commit-status` knows how to
+generate the payload for GitHub webhook.
 
 ## Conditions Bundles
 
@@ -28,7 +28,6 @@ The end users just need to subscribe to the trigger and specify the notification
 triggers might include multiple conditions with a different set of templates for each condition. For example, the following trigger
 covers all stages of sync status operation and use a different template for different cases:
 
-
 ```yaml
 apiVersion: v1
 kind: ConfigMap
@@ -36,13 +35,25 @@ metadata:
   name: argocd-notifications-cm
 data:
   trigger.sync-operation-change: |
-    - when: app.status.operationState.phase in ['Succeeded']
+    - when: app.status?.operationState.phase in ['Succeeded']
       send: [github-commit-status]
-    - when: app.status.operationState.phase in ['Running']
+    - when: app.status?.operationState.phase in ['Running']
       send: [github-commit-status]
-    - when: app.status.operationState.phase in ['Error', 'Failed']
+    - when: app.status?.operationState.phase in ['Error', 'Failed']
       send: [app-sync-failed, github-commit-status]
 ```
+
+
+## Accessing Optional Manifest Sections and Fields
+
+Note that in the trigger example above, the `?.` (optional chaining) operator is used to access the Application's
+`status.operationState` section. This section is optional; it is not present when an operation has been initiated but has not yet
+started by the Application Controller.
+
+If the `?.` operator were not used, `status.operationState` would resolve to `nil` and the evaluation of the
+`app.status.operationState.phase` expression would fail.  The `app.status?.operationState.phase` expression is equivalent to
+`app.status.operationState != nil ?  app.status.operationState.phase : nil`.
+
 
 ## Avoid Sending Same Notification Too Often
 
@@ -61,14 +72,18 @@ data:
   # Optional 'oncePer' property ensure that notification is sent only once per specified field value
   # E.g. following is triggered once per sync revision
   trigger.on-deployed: |
-    when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
+    when: app.status?.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
     oncePer: app.status.sync.revision
     send: [app-sync-succeeded]
 ```
 
+**Mono Repo Usage**
+
+When one repo is used to sync multiple applications, the `oncePer: app.status.sync.revision` field will trigger a notification for each commit. For mono repos, the better approach will be using `oncePer: app.status?.operationState.syncResult.revision` statement. This way a notification will be sent only for a particular Application's revision.
+
 ### oncePer
 
-The `oncePer` filed is supported like as follows.
+The `oncePer` field is supported like as follows.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -119,7 +134,7 @@ Triggers have access to the set of built-in functions.
 Example:
 
 ```yaml
-when: time.Now().Sub(time.Parse(app.status.operationState.startedAt)).Minutes() >= 5
+when: time.Now().Sub(time.Parse(app.status?.operationState.startedAt)).Minutes() >= 5
 ```
 
 {!docs/operator-manual/notifications/functions.md!}

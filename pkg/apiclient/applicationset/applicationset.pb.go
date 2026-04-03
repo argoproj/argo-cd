@@ -10,13 +10,14 @@ package applicationset
 import (
 	context "context"
 	fmt "fmt"
-	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	v1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	proto "github.com/gogo/protobuf/proto"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
 	io "io"
+	v1 "k8s.io/api/core/v1"
 	math "math"
 	math_bits "math/bits"
 )
@@ -35,7 +36,9 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // ApplicationSetGetQuery is a query for applicationset resources
 type ApplicationSetGetQuery struct {
 	// the applicationsets's name
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// The application set namespace. Default empty is argocd control plane namespace
+	AppsetNamespace      string   `protobuf:"bytes,2,opt,name=appsetNamespace,proto3" json:"appsetNamespace,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -81,11 +84,20 @@ func (m *ApplicationSetGetQuery) GetName() string {
 	return ""
 }
 
+func (m *ApplicationSetGetQuery) GetAppsetNamespace() string {
+	if m != nil {
+		return m.AppsetNamespace
+	}
+	return ""
+}
+
 type ApplicationSetListQuery struct {
 	// the project names to restrict returned list applicationsets
 	Projects []string `protobuf:"bytes,1,rep,name=projects,proto3" json:"projects,omitempty"`
 	// the selector to restrict returned list to applications only with matched labels
-	Selector             string   `protobuf:"bytes,2,opt,name=selector,proto3" json:"selector,omitempty"`
+	Selector string `protobuf:"bytes,2,opt,name=selector,proto3" json:"selector,omitempty"`
+	// The application set namespace. Default empty is argocd control plane namespace
+	AppsetNamespace      string   `protobuf:"bytes,3,opt,name=appsetNamespace,proto3" json:"appsetNamespace,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -138,6 +150,93 @@ func (m *ApplicationSetListQuery) GetSelector() string {
 	return ""
 }
 
+func (m *ApplicationSetListQuery) GetAppsetNamespace() string {
+	if m != nil {
+		return m.AppsetNamespace
+	}
+	return ""
+}
+
+type ApplicationSetWatchQuery struct {
+	Name            string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Projects        []string `protobuf:"bytes,2,rep,name=projects,proto3" json:"projects,omitempty"`
+	Selector        string   `protobuf:"bytes,3,opt,name=selector,proto3" json:"selector,omitempty"`
+	AppSetNamespace string   `protobuf:"bytes,4,opt,name=appSetNamespace,proto3" json:"appSetNamespace,omitempty"`
+	// when specified with a watch call, shows changes that occur after that particular version of a resource.
+	ResourceVersion      string   `protobuf:"bytes,5,opt,name=resourceVersion,proto3" json:"resourceVersion,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ApplicationSetWatchQuery) Reset()         { *m = ApplicationSetWatchQuery{} }
+func (m *ApplicationSetWatchQuery) String() string { return proto.CompactTextString(m) }
+func (*ApplicationSetWatchQuery) ProtoMessage()    {}
+func (*ApplicationSetWatchQuery) Descriptor() ([]byte, []int) {
+	return fileDescriptor_eacb9df0ce5738fa, []int{2}
+}
+func (m *ApplicationSetWatchQuery) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ApplicationSetWatchQuery) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ApplicationSetWatchQuery.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ApplicationSetWatchQuery) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ApplicationSetWatchQuery.Merge(m, src)
+}
+func (m *ApplicationSetWatchQuery) XXX_Size() int {
+	return m.Size()
+}
+func (m *ApplicationSetWatchQuery) XXX_DiscardUnknown() {
+	xxx_messageInfo_ApplicationSetWatchQuery.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ApplicationSetWatchQuery proto.InternalMessageInfo
+
+func (m *ApplicationSetWatchQuery) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *ApplicationSetWatchQuery) GetProjects() []string {
+	if m != nil {
+		return m.Projects
+	}
+	return nil
+}
+
+func (m *ApplicationSetWatchQuery) GetSelector() string {
+	if m != nil {
+		return m.Selector
+	}
+	return ""
+}
+
+func (m *ApplicationSetWatchQuery) GetAppSetNamespace() string {
+	if m != nil {
+		return m.AppSetNamespace
+	}
+	return ""
+}
+
+func (m *ApplicationSetWatchQuery) GetResourceVersion() string {
+	if m != nil {
+		return m.ResourceVersion
+	}
+	return ""
+}
+
 type ApplicationSetResponse struct {
 	Project              string                   `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
 	Applicationset       *v1alpha1.ApplicationSet `protobuf:"bytes,2,opt,name=applicationset,proto3" json:"applicationset,omitempty"`
@@ -150,7 +249,7 @@ func (m *ApplicationSetResponse) Reset()         { *m = ApplicationSetResponse{}
 func (m *ApplicationSetResponse) String() string { return proto.CompactTextString(m) }
 func (*ApplicationSetResponse) ProtoMessage()    {}
 func (*ApplicationSetResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_eacb9df0ce5738fa, []int{2}
+	return fileDescriptor_eacb9df0ce5738fa, []int{3}
 }
 func (m *ApplicationSetResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -196,6 +295,7 @@ func (m *ApplicationSetResponse) GetApplicationset() *v1alpha1.ApplicationSet {
 type ApplicationSetCreateRequest struct {
 	Applicationset       *v1alpha1.ApplicationSet `protobuf:"bytes,1,opt,name=applicationset,proto3" json:"applicationset,omitempty"`
 	Upsert               bool                     `protobuf:"varint,2,opt,name=upsert,proto3" json:"upsert,omitempty"`
+	DryRun               bool                     `protobuf:"varint,3,opt,name=dryRun,proto3" json:"dryRun,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
 	XXX_unrecognized     []byte                   `json:"-"`
 	XXX_sizecache        int32                    `json:"-"`
@@ -205,7 +305,7 @@ func (m *ApplicationSetCreateRequest) Reset()         { *m = ApplicationSetCreat
 func (m *ApplicationSetCreateRequest) String() string { return proto.CompactTextString(m) }
 func (*ApplicationSetCreateRequest) ProtoMessage()    {}
 func (*ApplicationSetCreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_eacb9df0ce5738fa, []int{3}
+	return fileDescriptor_eacb9df0ce5738fa, []int{4}
 }
 func (m *ApplicationSetCreateRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -248,8 +348,17 @@ func (m *ApplicationSetCreateRequest) GetUpsert() bool {
 	return false
 }
 
+func (m *ApplicationSetCreateRequest) GetDryRun() bool {
+	if m != nil {
+		return m.DryRun
+	}
+	return false
+}
+
 type ApplicationSetDeleteRequest struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// The application set namespace. Default empty is argocd control plane namespace
+	AppsetNamespace      string   `protobuf:"bytes,2,opt,name=appsetNamespace,proto3" json:"appsetNamespace,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -259,7 +368,7 @@ func (m *ApplicationSetDeleteRequest) Reset()         { *m = ApplicationSetDelet
 func (m *ApplicationSetDeleteRequest) String() string { return proto.CompactTextString(m) }
 func (*ApplicationSetDeleteRequest) ProtoMessage()    {}
 func (*ApplicationSetDeleteRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_eacb9df0ce5738fa, []int{4}
+	return fileDescriptor_eacb9df0ce5738fa, []int{5}
 }
 func (m *ApplicationSetDeleteRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -295,12 +404,176 @@ func (m *ApplicationSetDeleteRequest) GetName() string {
 	return ""
 }
 
+func (m *ApplicationSetDeleteRequest) GetAppsetNamespace() string {
+	if m != nil {
+		return m.AppsetNamespace
+	}
+	return ""
+}
+
+type ApplicationSetTreeQuery struct {
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// The application set namespace. Default empty is argocd control plane namespace
+	AppsetNamespace      string   `protobuf:"bytes,2,opt,name=appsetNamespace,proto3" json:"appsetNamespace,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ApplicationSetTreeQuery) Reset()         { *m = ApplicationSetTreeQuery{} }
+func (m *ApplicationSetTreeQuery) String() string { return proto.CompactTextString(m) }
+func (*ApplicationSetTreeQuery) ProtoMessage()    {}
+func (*ApplicationSetTreeQuery) Descriptor() ([]byte, []int) {
+	return fileDescriptor_eacb9df0ce5738fa, []int{6}
+}
+func (m *ApplicationSetTreeQuery) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ApplicationSetTreeQuery) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ApplicationSetTreeQuery.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ApplicationSetTreeQuery) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ApplicationSetTreeQuery.Merge(m, src)
+}
+func (m *ApplicationSetTreeQuery) XXX_Size() int {
+	return m.Size()
+}
+func (m *ApplicationSetTreeQuery) XXX_DiscardUnknown() {
+	xxx_messageInfo_ApplicationSetTreeQuery.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ApplicationSetTreeQuery proto.InternalMessageInfo
+
+func (m *ApplicationSetTreeQuery) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *ApplicationSetTreeQuery) GetAppsetNamespace() string {
+	if m != nil {
+		return m.AppsetNamespace
+	}
+	return ""
+}
+
+// ApplicationSetGetQuery is a query for applicationset resources
+type ApplicationSetGenerateRequest struct {
+	// the applicationsets
+	ApplicationSet       *v1alpha1.ApplicationSet `protobuf:"bytes,1,opt,name=applicationSet,proto3" json:"applicationSet,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
+	XXX_unrecognized     []byte                   `json:"-"`
+	XXX_sizecache        int32                    `json:"-"`
+}
+
+func (m *ApplicationSetGenerateRequest) Reset()         { *m = ApplicationSetGenerateRequest{} }
+func (m *ApplicationSetGenerateRequest) String() string { return proto.CompactTextString(m) }
+func (*ApplicationSetGenerateRequest) ProtoMessage()    {}
+func (*ApplicationSetGenerateRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_eacb9df0ce5738fa, []int{7}
+}
+func (m *ApplicationSetGenerateRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ApplicationSetGenerateRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ApplicationSetGenerateRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ApplicationSetGenerateRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ApplicationSetGenerateRequest.Merge(m, src)
+}
+func (m *ApplicationSetGenerateRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *ApplicationSetGenerateRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ApplicationSetGenerateRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ApplicationSetGenerateRequest proto.InternalMessageInfo
+
+func (m *ApplicationSetGenerateRequest) GetApplicationSet() *v1alpha1.ApplicationSet {
+	if m != nil {
+		return m.ApplicationSet
+	}
+	return nil
+}
+
+// ApplicationSetGenerateResponse is a response for applicationset generate request
+type ApplicationSetGenerateResponse struct {
+	Applications         []*v1alpha1.Application `protobuf:"bytes,1,rep,name=applications,proto3" json:"applications,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}                `json:"-"`
+	XXX_unrecognized     []byte                  `json:"-"`
+	XXX_sizecache        int32                   `json:"-"`
+}
+
+func (m *ApplicationSetGenerateResponse) Reset()         { *m = ApplicationSetGenerateResponse{} }
+func (m *ApplicationSetGenerateResponse) String() string { return proto.CompactTextString(m) }
+func (*ApplicationSetGenerateResponse) ProtoMessage()    {}
+func (*ApplicationSetGenerateResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_eacb9df0ce5738fa, []int{8}
+}
+func (m *ApplicationSetGenerateResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ApplicationSetGenerateResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ApplicationSetGenerateResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ApplicationSetGenerateResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ApplicationSetGenerateResponse.Merge(m, src)
+}
+func (m *ApplicationSetGenerateResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *ApplicationSetGenerateResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ApplicationSetGenerateResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ApplicationSetGenerateResponse proto.InternalMessageInfo
+
+func (m *ApplicationSetGenerateResponse) GetApplications() []*v1alpha1.Application {
+	if m != nil {
+		return m.Applications
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*ApplicationSetGetQuery)(nil), "applicationset.ApplicationSetGetQuery")
 	proto.RegisterType((*ApplicationSetListQuery)(nil), "applicationset.ApplicationSetListQuery")
+	proto.RegisterType((*ApplicationSetWatchQuery)(nil), "applicationset.ApplicationSetWatchQuery")
 	proto.RegisterType((*ApplicationSetResponse)(nil), "applicationset.ApplicationSetResponse")
 	proto.RegisterType((*ApplicationSetCreateRequest)(nil), "applicationset.ApplicationSetCreateRequest")
 	proto.RegisterType((*ApplicationSetDeleteRequest)(nil), "applicationset.ApplicationSetDeleteRequest")
+	proto.RegisterType((*ApplicationSetTreeQuery)(nil), "applicationset.ApplicationSetTreeQuery")
+	proto.RegisterType((*ApplicationSetGenerateRequest)(nil), "applicationset.ApplicationSetGenerateRequest")
+	proto.RegisterType((*ApplicationSetGenerateResponse)(nil), "applicationset.ApplicationSetGenerateResponse")
 }
 
 func init() {
@@ -308,39 +581,58 @@ func init() {
 }
 
 var fileDescriptor_eacb9df0ce5738fa = []byte{
-	// 501 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x94, 0xcf, 0x6e, 0x13, 0x31,
-	0x10, 0xc6, 0xe5, 0xb6, 0x84, 0xd6, 0x48, 0x1c, 0x2c, 0xd1, 0x86, 0x05, 0x85, 0x68, 0x0f, 0xa5,
-	0x14, 0xb0, 0x95, 0x70, 0x83, 0x13, 0x7f, 0xa4, 0x0a, 0x29, 0x07, 0xba, 0xbd, 0x71, 0x41, 0xae,
-	0x33, 0xda, 0x2e, 0xdd, 0xae, 0x8d, 0xed, 0xac, 0x84, 0x10, 0x17, 0x24, 0x9e, 0x80, 0x27, 0x00,
-	0x2e, 0x48, 0x5c, 0x79, 0x08, 0x8e, 0x48, 0xbc, 0x00, 0x8a, 0x78, 0x10, 0x64, 0x6f, 0x36, 0xe9,
-	0x5a, 0x69, 0xc3, 0x21, 0xbd, 0x79, 0xd6, 0xe3, 0xf1, 0x6f, 0x3f, 0x7f, 0x33, 0x78, 0xd7, 0x80,
-	0x2e, 0x41, 0x33, 0xae, 0x54, 0x9e, 0x09, 0x6e, 0x33, 0x59, 0x18, 0xb0, 0x41, 0x48, 0x95, 0x96,
-	0x56, 0x92, 0xab, 0xcd, 0xaf, 0xd1, 0xcd, 0x54, 0xca, 0x34, 0x07, 0xc6, 0x55, 0xc6, 0x78, 0x51,
-	0x48, 0x5b, 0xed, 0x54, 0xd9, 0xd1, 0x20, 0xcd, 0xec, 0xd1, 0xe8, 0x90, 0x0a, 0x79, 0xc2, 0xb8,
-	0x4e, 0xa5, 0xd2, 0xf2, 0xb5, 0x5f, 0xdc, 0x17, 0x43, 0x56, 0xf6, 0x99, 0x3a, 0x4e, 0xdd, 0x49,
-	0x73, 0xfa, 0x2e, 0x56, 0xf6, 0x78, 0xae, 0x8e, 0x78, 0x8f, 0xa5, 0x50, 0x80, 0xe6, 0x16, 0x86,
-	0x55, 0xb5, 0xf8, 0x1e, 0xde, 0x7c, 0x3c, 0xcb, 0x3b, 0x00, 0xbb, 0x07, 0x76, 0x7f, 0x04, 0xfa,
-	0x2d, 0x21, 0x78, 0xad, 0xe0, 0x27, 0xd0, 0x46, 0x5d, 0xb4, 0xb3, 0x91, 0xf8, 0x75, 0xbc, 0x8f,
-	0xb7, 0x9a, 0xd9, 0x83, 0xcc, 0x4c, 0xd2, 0x23, 0xbc, 0xee, 0x48, 0x40, 0x58, 0xd3, 0x46, 0xdd,
-	0xd5, 0x9d, 0x8d, 0x64, 0x1a, 0xbb, 0x3d, 0x03, 0x39, 0x08, 0x2b, 0x75, 0x7b, 0xc5, 0x97, 0x9b,
-	0xc6, 0xf1, 0x37, 0x14, 0x12, 0x24, 0x60, 0x94, 0x13, 0x82, 0xb4, 0xf1, 0xe5, 0x49, 0x89, 0x09,
-	0x44, 0x1d, 0x12, 0x8b, 0x03, 0xcd, 0x7c, 0xd9, 0x2b, 0xfd, 0x01, 0x9d, 0x89, 0x43, 0x6b, 0x71,
-	0xfc, 0xe2, 0x95, 0x18, 0xd2, 0xb2, 0x4f, 0xd5, 0x71, 0x4a, 0x9d, 0x38, 0xf4, 0xd4, 0x71, 0x5a,
-	0x8b, 0x43, 0x03, 0x8e, 0xe0, 0x8e, 0xf8, 0x3b, 0xc2, 0x37, 0x9a, 0x29, 0x4f, 0x35, 0x70, 0x0b,
-	0x09, 0xbc, 0x19, 0x81, 0x99, 0x47, 0x85, 0x2e, 0x9e, 0x8a, 0x6c, 0xe2, 0xd6, 0x48, 0x19, 0xd0,
-	0x95, 0x06, 0xeb, 0xc9, 0x24, 0x8a, 0x7b, 0x21, 0xec, 0x33, 0xc8, 0x61, 0x06, 0x3b, 0xe7, 0x79,
-	0xfb, 0x9f, 0x2f, 0xe1, 0x6b, 0xcd, 0x33, 0x07, 0xa0, 0xcb, 0x4c, 0x00, 0xf9, 0x8a, 0xf0, 0xea,
-	0x1e, 0x58, 0xb2, 0x4d, 0x03, 0x07, 0xcf, 0x37, 0x4f, 0xb4, 0xd4, 0x5f, 0x8e, 0xb7, 0x3f, 0xfc,
-	0xfe, 0xfb, 0x69, 0xa5, 0x4b, 0x3a, 0xbe, 0x25, 0xca, 0x5e, 0xd0, 0x46, 0x86, 0xbd, 0x73, 0xf8,
-	0xef, 0xc9, 0x17, 0x84, 0xd7, 0x9c, 0x23, 0xc9, 0xed, 0xf3, 0x31, 0xa7, 0xae, 0x8d, 0x5e, 0x2c,
-	0x93, 0xd3, 0x95, 0x8d, 0x6f, 0x79, 0xd6, 0xeb, 0x64, 0xeb, 0x0c, 0x56, 0xf2, 0x03, 0xe1, 0x56,
-	0xe5, 0x1b, 0x72, 0xf7, 0x7c, 0xcc, 0x86, 0xbb, 0x96, 0x2c, 0x29, 0xf3, 0x98, 0x77, 0xe2, 0xb3,
-	0x30, 0x1f, 0x86, 0x36, 0xfb, 0x88, 0x70, 0xab, 0x72, 0xd0, 0x22, 0xec, 0x86, 0xcf, 0xa2, 0x05,
-	0x8e, 0xa9, 0x9b, 0xbd, 0x7e, 0xe3, 0xdd, 0x05, 0x6f, 0xfc, 0xe4, 0xf9, 0xcf, 0x71, 0x07, 0xfd,
-	0x1a, 0x77, 0xd0, 0x9f, 0x71, 0x07, 0xbd, 0x7c, 0xf4, 0x7f, 0xc3, 0x50, 0xe4, 0x19, 0x14, 0xe1,
-	0xf4, 0x3d, 0x6c, 0xf9, 0x11, 0xf8, 0xe0, 0x5f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xb1, 0x22, 0xb1,
-	0x96, 0xac, 0x05, 0x00, 0x00,
+	// 801 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x96, 0x4b, 0x6b, 0x14, 0x4b,
+	0x14, 0xc7, 0xa9, 0x4c, 0x32, 0x77, 0x52, 0x09, 0xf7, 0x42, 0xc1, 0x4d, 0xc6, 0xd6, 0x8c, 0x43,
+	0x43, 0x92, 0x31, 0x71, 0xaa, 0x9d, 0xc4, 0x85, 0xc4, 0x95, 0x2f, 0x42, 0x20, 0x88, 0xf6, 0x48,
+	0x02, 0xba, 0x90, 0x4e, 0xcf, 0x61, 0xd2, 0x66, 0xa6, 0xbb, 0xad, 0xaa, 0x69, 0x08, 0xc1, 0x8d,
+	0xe0, 0xc6, 0x8d, 0x0b, 0xd1, 0x0f, 0xa0, 0x1b, 0xf7, 0xba, 0x72, 0x93, 0x85, 0x1b, 0x97, 0x82,
+	0x5f, 0x40, 0x82, 0x1f, 0x44, 0xaa, 0xba, 0xe7, 0xd1, 0x95, 0x79, 0x04, 0x1c, 0xdd, 0x75, 0x3d,
+	0xfa, 0xd4, 0xaf, 0xce, 0xf9, 0xd7, 0xbf, 0x0a, 0xaf, 0x70, 0x60, 0x11, 0x30, 0xcb, 0x09, 0xc3,
+	0x86, 0xe7, 0x3a, 0xc2, 0x0b, 0x7c, 0x0e, 0x42, 0x6b, 0xd2, 0x90, 0x05, 0x22, 0x20, 0xff, 0xa6,
+	0x7b, 0x8d, 0x0b, 0xf5, 0x20, 0xa8, 0x37, 0xc0, 0x72, 0x42, 0xcf, 0x72, 0x7c, 0x3f, 0x10, 0xf1,
+	0x48, 0x3c, 0xdb, 0x30, 0x0f, 0xae, 0x71, 0xea, 0x05, 0x6a, 0xd4, 0x0d, 0x18, 0x58, 0x51, 0xc5,
+	0xaa, 0x83, 0x0f, 0xcc, 0x11, 0x50, 0x4b, 0xe6, 0x6c, 0xd7, 0x3d, 0xb1, 0xdf, 0xda, 0xa3, 0x6e,
+	0xd0, 0xb4, 0x1c, 0x56, 0x0f, 0x42, 0x16, 0x3c, 0x51, 0x1f, 0x65, 0xb7, 0x66, 0x45, 0xeb, 0x56,
+	0x78, 0x50, 0x97, 0xff, 0xf3, 0x5e, 0x1e, 0x2b, 0xaa, 0x38, 0x8d, 0x70, 0xdf, 0x39, 0x15, 0xcd,
+	0xdc, 0xc1, 0x73, 0x37, 0xba, 0xf3, 0xaa, 0x20, 0x36, 0x41, 0xdc, 0x6f, 0x01, 0x3b, 0x24, 0x04,
+	0x4f, 0xfa, 0x4e, 0x13, 0xf2, 0xa8, 0x88, 0x4a, 0xd3, 0xb6, 0xfa, 0x26, 0x25, 0xfc, 0x9f, 0x13,
+	0x86, 0x1c, 0xc4, 0x5d, 0xa7, 0x09, 0x3c, 0x74, 0x5c, 0xc8, 0x4f, 0xa8, 0x61, 0xbd, 0xdb, 0x3c,
+	0xc2, 0xf3, 0xe9, 0xb8, 0xdb, 0x1e, 0x4f, 0x02, 0x1b, 0x38, 0x27, 0x99, 0xc1, 0x15, 0x3c, 0x8f,
+	0x8a, 0x99, 0xd2, 0xb4, 0xdd, 0x69, 0xcb, 0x31, 0x0e, 0x0d, 0x70, 0x45, 0xc0, 0x92, 0xc8, 0x9d,
+	0x76, 0xbf, 0xc5, 0x33, 0xfd, 0x17, 0xff, 0x8c, 0x70, 0x3e, 0xbd, 0xfa, 0xae, 0x23, 0xdc, 0xfd,
+	0xc1, 0xfb, 0xea, 0x45, 0x9a, 0x18, 0x82, 0x94, 0xe9, 0x8b, 0x54, 0xed, 0x45, 0x9a, 0xec, 0x20,
+	0xf5, 0x76, 0xcb, 0x99, 0x0c, 0x78, 0xd0, 0x62, 0x2e, 0xec, 0x00, 0xe3, 0x5e, 0xe0, 0xe7, 0xa7,
+	0xe2, 0x99, 0x5a, 0xb7, 0xf9, 0x01, 0xe9, 0x25, 0xb1, 0x81, 0x87, 0x52, 0x3d, 0x24, 0x8f, 0xff,
+	0x49, 0xb0, 0x12, 0xfa, 0x76, 0x93, 0x08, 0xac, 0x09, 0x4d, 0x65, 0x6f, 0x66, 0x6d, 0x9b, 0x76,
+	0xd5, 0x42, 0xdb, 0x6a, 0x51, 0x1f, 0x8f, 0xdd, 0x1a, 0x8d, 0xd6, 0x69, 0x78, 0x50, 0xa7, 0x52,
+	0x2d, 0xb4, 0xe7, 0x77, 0xda, 0x56, 0x0b, 0xd5, 0x38, 0xb4, 0x35, 0xcc, 0x2f, 0x08, 0x9f, 0x4f,
+	0x4f, 0xb9, 0xc5, 0xc0, 0x11, 0x60, 0xc3, 0xd3, 0x16, 0xf0, 0x7e, 0x54, 0xe8, 0xcf, 0x53, 0x91,
+	0x39, 0x9c, 0x6d, 0x85, 0x1c, 0x58, 0x9c, 0x83, 0x9c, 0x9d, 0xb4, 0x64, 0x7f, 0x8d, 0x1d, 0xda,
+	0x2d, 0x5f, 0x95, 0x31, 0x67, 0x27, 0x2d, 0xf3, 0x91, 0xbe, 0x89, 0xdb, 0xd0, 0x80, 0xee, 0x26,
+	0x7e, 0xef, 0x1c, 0xec, 0xea, 0xe7, 0xe0, 0x01, 0x03, 0x18, 0xc7, 0x01, 0x7b, 0x83, 0xf0, 0x82,
+	0x7e, 0x72, 0xe3, 0xa3, 0xdd, 0x3f, 0xfb, 0xd5, 0xbf, 0x90, 0xfd, 0x2a, 0x08, 0xf3, 0x15, 0xc2,
+	0x85, 0x41, 0x5c, 0x89, 0x8c, 0x9b, 0x78, 0xb6, 0xb7, 0x64, 0xca, 0x04, 0x66, 0xd6, 0xb6, 0xc6,
+	0x86, 0x65, 0xa7, 0xc2, 0xaf, 0x1d, 0x63, 0xfc, 0x7f, 0x9a, 0xa8, 0x0a, 0x2c, 0xf2, 0x5c, 0x20,
+	0xef, 0x11, 0xce, 0x6c, 0x82, 0x20, 0x4b, 0x54, 0xf3, 0xee, 0xfe, 0x96, 0x68, 0x8c, 0x35, 0x73,
+	0xe6, 0xd2, 0xf3, 0xef, 0x3f, 0x5f, 0x4f, 0x14, 0x49, 0x41, 0xd9, 0x7d, 0x54, 0xd1, 0x2e, 0x10,
+	0x6e, 0x1d, 0x49, 0x49, 0x3c, 0x23, 0x6f, 0x11, 0xce, 0xb5, 0x73, 0x48, 0xca, 0xa3, 0x50, 0x53,
+	0x1a, 0x30, 0xe8, 0x59, 0xa7, 0xc7, 0xa5, 0x31, 0x57, 0x15, 0xd3, 0xa2, 0x59, 0x1c, 0xc4, 0xd4,
+	0xbe, 0x3f, 0x36, 0xd0, 0x0a, 0x79, 0x87, 0xf0, 0xa4, 0xb4, 0x75, 0xb2, 0x3c, 0x7c, 0x95, 0x8e,
+	0xf5, 0x1b, 0xf7, 0xc6, 0x99, 0x40, 0x19, 0xd6, 0xbc, 0xa8, 0x80, 0xcf, 0x91, 0xf9, 0x01, 0xc0,
+	0xe4, 0x13, 0xc2, 0xd9, 0xd8, 0x95, 0xc8, 0xea, 0x70, 0xcc, 0x94, 0x77, 0x8d, 0xb9, 0xd6, 0x96,
+	0xc2, 0xbc, 0x64, 0x0e, 0xc2, 0xdc, 0xd0, 0x4d, 0xec, 0x05, 0xc2, 0xd9, 0xd8, 0x87, 0x46, 0x61,
+	0xa7, 0xdc, 0xca, 0x18, 0x21, 0xe5, 0x4e, 0xa1, 0x13, 0xf1, 0xad, 0x8c, 0x12, 0xdf, 0x31, 0xc2,
+	0xb3, 0x76, 0x72, 0x43, 0x49, 0xeb, 0x1a, 0x55, 0xeb, 0x8e, 0xbd, 0x8d, 0xb7, 0xd6, 0x32, 0xac,
+	0x79, 0x55, 0x31, 0x53, 0x72, 0x79, 0x38, 0xb3, 0xd5, 0xbe, 0x51, 0xcb, 0x42, 0x02, 0xbf, 0x44,
+	0x98, 0x48, 0xa9, 0xb4, 0x77, 0x71, 0x27, 0x02, 0x5f, 0xf0, 0x33, 0x9f, 0xf9, 0x05, 0x1a, 0xbf,
+	0xc9, 0x24, 0x2a, 0x95, 0x6f, 0x32, 0x1a, 0x55, 0xa8, 0x8a, 0xa1, 0xf4, 0x57, 0x56, 0x4c, 0xcb,
+	0x64, 0x71, 0x04, 0x13, 0xc4, 0xab, 0x7e, 0x44, 0x78, 0x4a, 0xbd, 0x45, 0x48, 0x69, 0xf8, 0xfa,
+	0xdd, 0x07, 0x8b, 0xb1, 0x33, 0xce, 0x44, 0xaa, 0xb8, 0x0a, 0xff, 0xb4, 0xff, 0x70, 0xc1, 0xc0,
+	0x69, 0xea, 0x3b, 0xb8, 0x82, 0x6e, 0x6e, 0x7d, 0x3d, 0x29, 0xa0, 0x6f, 0x27, 0x05, 0xf4, 0xe3,
+	0xa4, 0x80, 0x1e, 0x5e, 0x3f, 0xdb, 0x03, 0xd4, 0x6d, 0x78, 0xe0, 0xeb, 0xaf, 0xe2, 0xbd, 0xac,
+	0x7a, 0x76, 0xae, 0xff, 0x0a, 0x00, 0x00, 0xff, 0xff, 0x03, 0xd8, 0x6f, 0x1e, 0x44, 0x0b, 0x00,
+	0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -357,12 +649,19 @@ const _ = grpc.SupportPackageIsVersion4
 type ApplicationSetServiceClient interface {
 	// Get returns an applicationset by name
 	Get(ctx context.Context, in *ApplicationSetGetQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationSet, error)
+	// Generate generates
+	Generate(ctx context.Context, in *ApplicationSetGenerateRequest, opts ...grpc.CallOption) (*ApplicationSetGenerateResponse, error)
 	//List returns list of applicationset
 	List(ctx context.Context, in *ApplicationSetListQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationSetList, error)
 	//Create creates an applicationset
 	Create(ctx context.Context, in *ApplicationSetCreateRequest, opts ...grpc.CallOption) (*v1alpha1.ApplicationSet, error)
 	// Delete deletes an application set
 	Delete(ctx context.Context, in *ApplicationSetDeleteRequest, opts ...grpc.CallOption) (*ApplicationSetResponse, error)
+	// ResourceTree returns resource tree
+	ResourceTree(ctx context.Context, in *ApplicationSetTreeQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationSetTree, error)
+	// ListResourceEvents returns a list of event resources
+	ListResourceEvents(ctx context.Context, in *ApplicationSetGetQuery, opts ...grpc.CallOption) (*v1.EventList, error)
+	Watch(ctx context.Context, in *ApplicationSetWatchQuery, opts ...grpc.CallOption) (ApplicationSetService_WatchClient, error)
 }
 
 type applicationSetServiceClient struct {
@@ -376,6 +675,15 @@ func NewApplicationSetServiceClient(cc *grpc.ClientConn) ApplicationSetServiceCl
 func (c *applicationSetServiceClient) Get(ctx context.Context, in *ApplicationSetGetQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationSet, error) {
 	out := new(v1alpha1.ApplicationSet)
 	err := c.cc.Invoke(ctx, "/applicationset.ApplicationSetService/Get", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *applicationSetServiceClient) Generate(ctx context.Context, in *ApplicationSetGenerateRequest, opts ...grpc.CallOption) (*ApplicationSetGenerateResponse, error) {
+	out := new(ApplicationSetGenerateResponse)
+	err := c.cc.Invoke(ctx, "/applicationset.ApplicationSetService/Generate", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -409,16 +717,73 @@ func (c *applicationSetServiceClient) Delete(ctx context.Context, in *Applicatio
 	return out, nil
 }
 
+func (c *applicationSetServiceClient) ResourceTree(ctx context.Context, in *ApplicationSetTreeQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationSetTree, error) {
+	out := new(v1alpha1.ApplicationSetTree)
+	err := c.cc.Invoke(ctx, "/applicationset.ApplicationSetService/ResourceTree", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *applicationSetServiceClient) ListResourceEvents(ctx context.Context, in *ApplicationSetGetQuery, opts ...grpc.CallOption) (*v1.EventList, error) {
+	out := new(v1.EventList)
+	err := c.cc.Invoke(ctx, "/applicationset.ApplicationSetService/ListResourceEvents", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *applicationSetServiceClient) Watch(ctx context.Context, in *ApplicationSetWatchQuery, opts ...grpc.CallOption) (ApplicationSetService_WatchClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_ApplicationSetService_serviceDesc.Streams[0], "/applicationset.ApplicationSetService/Watch", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &applicationSetServiceWatchClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type ApplicationSetService_WatchClient interface {
+	Recv() (*v1alpha1.ApplicationSetWatchEvent, error)
+	grpc.ClientStream
+}
+
+type applicationSetServiceWatchClient struct {
+	grpc.ClientStream
+}
+
+func (x *applicationSetServiceWatchClient) Recv() (*v1alpha1.ApplicationSetWatchEvent, error) {
+	m := new(v1alpha1.ApplicationSetWatchEvent)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // ApplicationSetServiceServer is the server API for ApplicationSetService service.
 type ApplicationSetServiceServer interface {
 	// Get returns an applicationset by name
 	Get(context.Context, *ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error)
+	// Generate generates
+	Generate(context.Context, *ApplicationSetGenerateRequest) (*ApplicationSetGenerateResponse, error)
 	//List returns list of applicationset
 	List(context.Context, *ApplicationSetListQuery) (*v1alpha1.ApplicationSetList, error)
 	//Create creates an applicationset
 	Create(context.Context, *ApplicationSetCreateRequest) (*v1alpha1.ApplicationSet, error)
 	// Delete deletes an application set
 	Delete(context.Context, *ApplicationSetDeleteRequest) (*ApplicationSetResponse, error)
+	// ResourceTree returns resource tree
+	ResourceTree(context.Context, *ApplicationSetTreeQuery) (*v1alpha1.ApplicationSetTree, error)
+	// ListResourceEvents returns a list of event resources
+	ListResourceEvents(context.Context, *ApplicationSetGetQuery) (*v1.EventList, error)
+	Watch(*ApplicationSetWatchQuery, ApplicationSetService_WatchServer) error
 }
 
 // UnimplementedApplicationSetServiceServer can be embedded to have forward compatible implementations.
@@ -428,6 +793,9 @@ type UnimplementedApplicationSetServiceServer struct {
 func (*UnimplementedApplicationSetServiceServer) Get(ctx context.Context, req *ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
 }
+func (*UnimplementedApplicationSetServiceServer) Generate(ctx context.Context, req *ApplicationSetGenerateRequest) (*ApplicationSetGenerateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Generate not implemented")
+}
 func (*UnimplementedApplicationSetServiceServer) List(ctx context.Context, req *ApplicationSetListQuery) (*v1alpha1.ApplicationSetList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method List not implemented")
 }
@@ -436,6 +804,15 @@ func (*UnimplementedApplicationSetServiceServer) Create(ctx context.Context, req
 }
 func (*UnimplementedApplicationSetServiceServer) Delete(ctx context.Context, req *ApplicationSetDeleteRequest) (*ApplicationSetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
+}
+func (*UnimplementedApplicationSetServiceServer) ResourceTree(ctx context.Context, req *ApplicationSetTreeQuery) (*v1alpha1.ApplicationSetTree, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ResourceTree not implemented")
+}
+func (*UnimplementedApplicationSetServiceServer) ListResourceEvents(ctx context.Context, req *ApplicationSetGetQuery) (*v1.EventList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListResourceEvents not implemented")
+}
+func (*UnimplementedApplicationSetServiceServer) Watch(req *ApplicationSetWatchQuery, srv ApplicationSetService_WatchServer) error {
+	return status.Errorf(codes.Unimplemented, "method Watch not implemented")
 }
 
 func RegisterApplicationSetServiceServer(s *grpc.Server, srv ApplicationSetServiceServer) {
@@ -456,6 +833,24 @@ func _ApplicationSetService_Get_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ApplicationSetServiceServer).Get(ctx, req.(*ApplicationSetGetQuery))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ApplicationSetService_Generate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApplicationSetGenerateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationSetServiceServer).Generate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/applicationset.ApplicationSetService/Generate",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationSetServiceServer).Generate(ctx, req.(*ApplicationSetGenerateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -514,6 +909,63 @@ func _ApplicationSetService_Delete_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ApplicationSetService_ResourceTree_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApplicationSetTreeQuery)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationSetServiceServer).ResourceTree(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/applicationset.ApplicationSetService/ResourceTree",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationSetServiceServer).ResourceTree(ctx, req.(*ApplicationSetTreeQuery))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ApplicationSetService_ListResourceEvents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ApplicationSetGetQuery)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ApplicationSetServiceServer).ListResourceEvents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/applicationset.ApplicationSetService/ListResourceEvents",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ApplicationSetServiceServer).ListResourceEvents(ctx, req.(*ApplicationSetGetQuery))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ApplicationSetService_Watch_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ApplicationSetWatchQuery)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ApplicationSetServiceServer).Watch(m, &applicationSetServiceWatchServer{stream})
+}
+
+type ApplicationSetService_WatchServer interface {
+	Send(*v1alpha1.ApplicationSetWatchEvent) error
+	grpc.ServerStream
+}
+
+type applicationSetServiceWatchServer struct {
+	grpc.ServerStream
+}
+
+func (x *applicationSetServiceWatchServer) Send(m *v1alpha1.ApplicationSetWatchEvent) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 var _ApplicationSetService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "applicationset.ApplicationSetService",
 	HandlerType: (*ApplicationSetServiceServer)(nil),
@@ -521,6 +973,10 @@ var _ApplicationSetService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Get",
 			Handler:    _ApplicationSetService_Get_Handler,
+		},
+		{
+			MethodName: "Generate",
+			Handler:    _ApplicationSetService_Generate_Handler,
 		},
 		{
 			MethodName: "List",
@@ -534,8 +990,22 @@ var _ApplicationSetService_serviceDesc = grpc.ServiceDesc{
 			MethodName: "Delete",
 			Handler:    _ApplicationSetService_Delete_Handler,
 		},
+		{
+			MethodName: "ResourceTree",
+			Handler:    _ApplicationSetService_ResourceTree_Handler,
+		},
+		{
+			MethodName: "ListResourceEvents",
+			Handler:    _ApplicationSetService_ListResourceEvents_Handler,
+		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Watch",
+			Handler:       _ApplicationSetService_Watch_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "server/applicationset/applicationset.proto",
 }
 
@@ -562,6 +1032,13 @@ func (m *ApplicationSetGetQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 	if m.XXX_unrecognized != nil {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.AppsetNamespace) > 0 {
+		i -= len(m.AppsetNamespace)
+		copy(dAtA[i:], m.AppsetNamespace)
+		i = encodeVarintApplicationset(dAtA, i, uint64(len(m.AppsetNamespace)))
+		i--
+		dAtA[i] = 0x12
 	}
 	if len(m.Name) > 0 {
 		i -= len(m.Name)
@@ -597,6 +1074,13 @@ func (m *ApplicationSetListQuery) MarshalToSizedBuffer(dAtA []byte) (int, error)
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if len(m.AppsetNamespace) > 0 {
+		i -= len(m.AppsetNamespace)
+		copy(dAtA[i:], m.AppsetNamespace)
+		i = encodeVarintApplicationset(dAtA, i, uint64(len(m.AppsetNamespace)))
+		i--
+		dAtA[i] = 0x1a
+	}
 	if len(m.Selector) > 0 {
 		i -= len(m.Selector)
 		copy(dAtA[i:], m.Selector)
@@ -612,6 +1096,70 @@ func (m *ApplicationSetListQuery) MarshalToSizedBuffer(dAtA []byte) (int, error)
 			i--
 			dAtA[i] = 0xa
 		}
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ApplicationSetWatchQuery) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ApplicationSetWatchQuery) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ApplicationSetWatchQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.ResourceVersion) > 0 {
+		i -= len(m.ResourceVersion)
+		copy(dAtA[i:], m.ResourceVersion)
+		i = encodeVarintApplicationset(dAtA, i, uint64(len(m.ResourceVersion)))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if len(m.AppSetNamespace) > 0 {
+		i -= len(m.AppSetNamespace)
+		copy(dAtA[i:], m.AppSetNamespace)
+		i = encodeVarintApplicationset(dAtA, i, uint64(len(m.AppSetNamespace)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.Selector) > 0 {
+		i -= len(m.Selector)
+		copy(dAtA[i:], m.Selector)
+		i = encodeVarintApplicationset(dAtA, i, uint64(len(m.Selector)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Projects) > 0 {
+		for iNdEx := len(m.Projects) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Projects[iNdEx])
+			copy(dAtA[i:], m.Projects[iNdEx])
+			i = encodeVarintApplicationset(dAtA, i, uint64(len(m.Projects[iNdEx])))
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplicationset(dAtA, i, uint64(len(m.Name)))
+		i--
+		dAtA[i] = 0xa
 	}
 	return len(dAtA) - i, nil
 }
@@ -686,6 +1234,16 @@ func (m *ApplicationSetCreateRequest) MarshalToSizedBuffer(dAtA []byte) (int, er
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if m.DryRun {
+		i--
+		if m.DryRun {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x18
+	}
 	if m.Upsert {
 		i--
 		if m.Upsert {
@@ -735,12 +1293,140 @@ func (m *ApplicationSetDeleteRequest) MarshalToSizedBuffer(dAtA []byte) (int, er
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if len(m.AppsetNamespace) > 0 {
+		i -= len(m.AppsetNamespace)
+		copy(dAtA[i:], m.AppsetNamespace)
+		i = encodeVarintApplicationset(dAtA, i, uint64(len(m.AppsetNamespace)))
+		i--
+		dAtA[i] = 0x12
+	}
 	if len(m.Name) > 0 {
 		i -= len(m.Name)
 		copy(dAtA[i:], m.Name)
 		i = encodeVarintApplicationset(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ApplicationSetTreeQuery) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ApplicationSetTreeQuery) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ApplicationSetTreeQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.AppsetNamespace) > 0 {
+		i -= len(m.AppsetNamespace)
+		copy(dAtA[i:], m.AppsetNamespace)
+		i = encodeVarintApplicationset(dAtA, i, uint64(len(m.AppsetNamespace)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplicationset(dAtA, i, uint64(len(m.Name)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ApplicationSetGenerateRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ApplicationSetGenerateRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ApplicationSetGenerateRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.ApplicationSet != nil {
+		{
+			size, err := m.ApplicationSet.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintApplicationset(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *ApplicationSetGenerateResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ApplicationSetGenerateResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *ApplicationSetGenerateResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if len(m.Applications) > 0 {
+		for iNdEx := len(m.Applications) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Applications[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintApplicationset(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
 	}
 	return len(dAtA) - i, nil
 }
@@ -766,6 +1452,10 @@ func (m *ApplicationSetGetQuery) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovApplicationset(uint64(l))
 	}
+	l = len(m.AppsetNamespace)
+	if l > 0 {
+		n += 1 + l + sovApplicationset(uint64(l))
+	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -785,6 +1475,44 @@ func (m *ApplicationSetListQuery) Size() (n int) {
 		}
 	}
 	l = len(m.Selector)
+	if l > 0 {
+		n += 1 + l + sovApplicationset(uint64(l))
+	}
+	l = len(m.AppsetNamespace)
+	if l > 0 {
+		n += 1 + l + sovApplicationset(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ApplicationSetWatchQuery) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	if l > 0 {
+		n += 1 + l + sovApplicationset(uint64(l))
+	}
+	if len(m.Projects) > 0 {
+		for _, s := range m.Projects {
+			l = len(s)
+			n += 1 + l + sovApplicationset(uint64(l))
+		}
+	}
+	l = len(m.Selector)
+	if l > 0 {
+		n += 1 + l + sovApplicationset(uint64(l))
+	}
+	l = len(m.AppSetNamespace)
+	if l > 0 {
+		n += 1 + l + sovApplicationset(uint64(l))
+	}
+	l = len(m.ResourceVersion)
 	if l > 0 {
 		n += 1 + l + sovApplicationset(uint64(l))
 	}
@@ -827,6 +1555,9 @@ func (m *ApplicationSetCreateRequest) Size() (n int) {
 	if m.Upsert {
 		n += 2
 	}
+	if m.DryRun {
+		n += 2
+	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -842,6 +1573,64 @@ func (m *ApplicationSetDeleteRequest) Size() (n int) {
 	l = len(m.Name)
 	if l > 0 {
 		n += 1 + l + sovApplicationset(uint64(l))
+	}
+	l = len(m.AppsetNamespace)
+	if l > 0 {
+		n += 1 + l + sovApplicationset(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ApplicationSetTreeQuery) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Name)
+	if l > 0 {
+		n += 1 + l + sovApplicationset(uint64(l))
+	}
+	l = len(m.AppsetNamespace)
+	if l > 0 {
+		n += 1 + l + sovApplicationset(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ApplicationSetGenerateRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.ApplicationSet != nil {
+		l = m.ApplicationSet.Size()
+		n += 1 + l + sovApplicationset(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ApplicationSetGenerateResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Applications) > 0 {
+		for _, e := range m.Applications {
+			l = e.Size()
+			n += 1 + l + sovApplicationset(uint64(l))
+		}
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -915,6 +1704,38 @@ func (m *ApplicationSetGetQuery) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AppsetNamespace", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AppsetNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -1030,6 +1851,249 @@ func (m *ApplicationSetListQuery) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Selector = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AppsetNamespace", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AppsetNamespace = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipApplicationset(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ApplicationSetWatchQuery) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowApplicationset
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ApplicationSetWatchQuery: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ApplicationSetWatchQuery: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Projects", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Projects = append(m.Projects, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Selector", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Selector = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AppSetNamespace", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AppSetNamespace = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ResourceVersion", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ResourceVersion = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -1257,6 +2321,26 @@ func (m *ApplicationSetCreateRequest) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.Upsert = bool(v != 0)
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DryRun", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.DryRun = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApplicationset(dAtA[iNdEx:])
@@ -1339,6 +2423,325 @@ func (m *ApplicationSetDeleteRequest) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AppsetNamespace", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AppsetNamespace = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipApplicationset(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ApplicationSetTreeQuery) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowApplicationset
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ApplicationSetTreeQuery: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ApplicationSetTreeQuery: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Name", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Name = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AppsetNamespace", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AppsetNamespace = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipApplicationset(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ApplicationSetGenerateRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowApplicationset
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ApplicationSetGenerateRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ApplicationSetGenerateRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ApplicationSet", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.ApplicationSet == nil {
+				m.ApplicationSet = &v1alpha1.ApplicationSet{}
+			}
+			if err := m.ApplicationSet.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipApplicationset(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ApplicationSetGenerateResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowApplicationset
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ApplicationSetGenerateResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ApplicationSetGenerateResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Applications", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowApplicationset
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthApplicationset
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Applications = append(m.Applications, &v1alpha1.Application{})
+			if err := m.Applications[len(m.Applications)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

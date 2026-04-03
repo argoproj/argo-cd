@@ -43,8 +43,8 @@ spec:
       recurse: true
 ```
 
-!!! warning
-    Directory-type applications only work for plain manifest files. If Argo CD encounters Kustomize, Helm, or Jsonnet files when directory: is set, it will fail to render the manifests.
+> [!WARNING]
+> Directory-type applications only work for plain manifest files. If Argo CD encounters Kustomize, Helm, or Jsonnet files when directory: is set, it will fail to render the manifests.
 
 ## Including/Excluding Files
 
@@ -59,8 +59,8 @@ For example, if you want to include only `.yaml` files, you can use this pattern
 argocd app set guestbook --directory-include "*.yaml"
 ```
 
-!!! note
-    It is important to quote `*.yaml` so that the shell does not expand the pattern before sending it to Argo CD.
+> [!NOTE]
+> It is important to quote `*.yaml` so that the shell does not expand the pattern before sending it to Argo CD.
 
 It is also possible to include multiple patterns. Wrap the patterns with `{}` and separate them with commas. To include
 `.yml` and `.yaml` files, use this pattern:
@@ -130,3 +130,28 @@ spec:
       exclude: '{config.json,env-usw2/*}'
       include: '*.yaml'
 ```
+
+### Skipping File Rendering
+
+In some cases, repositories may contain YAML files that resemble Kubernetes manifests because they include fields like `apiVersion`, `kind`, and `metadata`, but are not intended to be rendered or applied as actual Kubernetes resources. Examples include Helm `values.yaml` files or configuration snippets used by CI/CD pipelines.
+
+To prevent Argo CD from attempting to parse these files as manifests (which could result in errors), you can explicitly mark them to be skipped using a special comment directive:
+
+```yaml
+# +argocd:skip-file-rendering
+```
+
+When this comment is present anywhere in the file, Argo CD will ignore the file during manifest processing. This allows for safe coexistence of Kubernetes-like files that are not actual manifests.
+
+#### Example
+
+```yaml
+# +argocd:skip-file-rendering
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: example
+data:
+  not-actually: a-manifest
+```
+

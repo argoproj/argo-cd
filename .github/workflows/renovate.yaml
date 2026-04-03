@@ -1,0 +1,38 @@
+name: Renovate
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  renovate:
+    runs-on: ubuntu-24.04
+    if: github.repository == 'argoproj/argo-cd'
+    steps:
+      - name: Get token
+        id: get_token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        with:
+          app-id: ${{ vars.RENOVATE_APP_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+
+      # Renovate do not pin their docker image versions to SHA, so
+      # when bumping renovate action version please check if renovate image
+      # has been updated (see it's numeric version in action.yaml)
+      # and update `renovate-version` parameter accordingly
+      - name: Self-hosted Renovate
+        uses: renovatebot/github-action@3633cede7d4d4598438e654eac4a695e46004420 #46.1.7
+        with:
+          configurationFile: .github/configs/renovate-config.js
+          token: '${{ steps.get_token.outputs.token }}'
+          renovate-image: "ghcr.io/renovatebot/renovate@sha256"
+          renovate-version: "5dfeab680f40edd2713b8fcae574824e60d2c831b8d89cc965e51621894c7084" #43
+        env:
+          LOG_LEVEL: 'debug'
+          RENOVATE_REPOSITORIES: '${{ github.repository }}'

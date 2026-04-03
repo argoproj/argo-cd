@@ -1,6 +1,6 @@
 # Security Policy for Argo CD
 
-Version: **v1.4 (2022-01-23)**
+Version: **v1.5 (2023-03-06)**
 
 ## Preface
 
@@ -35,13 +35,11 @@ impact on Argo CD before opening an issue at least roughly.
 
 ## Supported Versions
 
-We currently support the most recent release (`N`, e.g. `1.8`) and the release
-previous to the most recent one (`N-1`, e.g. `1.7`). With the release of
-`N+1`, `N-1` drops out of support and `N` becomes `N-1`.
+We currently support the last 3 minor versions of Argo CD with security and bug fixes.
 
 We regularly perform patch releases (e.g. `1.8.5` and `1.7.12`) for the
 supported versions, which will contain fixes for security vulnerabilities and
-important bugs. Prior releases might receive critical security fixes on a best
+important bugs. Prior releases might receive critical security fixes on best
 effort basis, however, it cannot be guaranteed that security fixes get
 back-ported to these unsupported versions.
 
@@ -50,9 +48,26 @@ otherwise very intrusive, and there's a workaround available, we may decide to
 provide a forward-fix only, e.g. to be released the next minor release, instead
 of releasing it within a patch branch for the currently supported releases.
 
+## Dependency Upgrade Policy
+
+Argo CD relies on certain binaries and libraries that might appear in security scanners.
+
+Upgrading certain dependencies, such as Helm, Kustomize, and git, may have negative impacts
+on users, as they may include breaking changes or changes in behavior. For this reason,
+we will only upgrade to new patch versions within the same minor version series within
+a supported Argo CD version. For example, if we are currently on Helm 3.12.0 and Argo CD
+3.4.0, we will only upgrade to Helm 3.12.x within Argo CD 3.4.x, and not to Helm 3.13.0 
+or later.
+
+If there is a critical, _exploitable_ vulnerability in a dependency that will not be fixed
+in a patch release, we will evaluate the impact of the vulnerability and the risk of not
+upgrading the dependency. We ask that, if you believe a version bump is justified, please
+open an issue _describing how the vulnerability is exploitable in the context of Argo CD_,
+and we will evaluate it and decide whether or not to upgrade the dependency.
+
 ## Reporting a Vulnerability
 
-If you find a security related bug in ArgoCD, we kindly ask you for responsible
+If you find a security related bug in Argo CD, we kindly ask you for responsible
 disclosure and for giving us appropriate time to react, analyze and develop a
 fix to mitigate the found security vulnerability.
 
@@ -61,13 +76,28 @@ and disclosure with you. Sometimes, it might take a little longer for us to
 react (e.g. out of office conditions), so please bear with us in these cases.
 
 We will publish security advisories using the
-[Git Hub Security Advisories](https://github.com/argoproj/argo-cd/security/advisories)
-feature to keep our community well informed, and will credit you for your
+[GitHub Security Advisories](https://github.com/argoproj/argo-cd/security/advisories)
+feature to keep our community well-informed, and will credit you for your
 findings (unless you prefer to stay anonymous, of course).
 
-Please report vulnerabilities by e-mail to the following address:
+There are two ways to report a vulnerability to the Argo CD team:
 
-* cncf-argo-security@lists.cncf.io
+* By opening a draft GitHub security advisory: https://github.com/argoproj/argo-cd/security/advisories/new
+* By e-mail to the following address: cncf-argo-security@lists.cncf.io
+
+## Internet Bug Bounty collaboration
+
+We're happy to announce that the Argo project is collaborating with the great
+folks over at
+[Hacker One](https://hackerone.com/) and their
+[Internet Bug Bounty program](https://hackerone.com/ibb)
+to reward the awesome people who find security vulnerabilities in the four
+main Argo projects (CD, Events, Rollouts and Workflows) and then work with
+us to fix and disclose them in a responsible manner.
+
+If you report a vulnerability to us as outlined in this security policy, we
+will work together with you to find out whether your finding is eligible for
+claiming a bounty, and also on how to claim it.
 
 ## Securing your Argo CD Instance
 

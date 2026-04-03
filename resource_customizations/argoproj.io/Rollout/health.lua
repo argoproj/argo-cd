@@ -1,9 +1,9 @@
 function checkReplicasStatus(obj)
-  hs = {}
-  desiredReplicas = getNumberValueOrDefault(obj.spec.replicas, 1)
+  local hs = {}
+  local desiredReplicas = getNumberValueOrDefault(obj.spec.replicas, 1)
   statusReplicas = getNumberValueOrDefault(obj.status.replicas, 0)
   updatedReplicas = getNumberValueOrDefault(obj.status.updatedReplicas, 0)
-  availableReplicas = getNumberValueOrDefault(obj.status.availableReplicas, 0)
+  local availableReplicas = getNumberValueOrDefault(obj.status.availableReplicas, 0)
   
   if updatedReplicas < desiredReplicas then
     hs.status = "Progressing"
@@ -38,7 +38,7 @@ function getNumberValueOrDefault(field, default)
 end
 
 function checkPaused(obj)
-  hs = {}
+  local hs = {}
   hs.status = "Suspended"
   hs.message = "Rollout is paused"
   if obj.status.pauseConditions ~= nil and table.getn(obj.status.pauseConditions) > 0 then
@@ -73,12 +73,12 @@ function isWorkloadGenerationObserved(obj)
     -- rollout is v1.0 or earlier
     return true
   end
-  workloadGen = tonumber(obj.metadata.annotations["rollout.argoproj.io/workload-generation"])
-  observedWorkloadGen = tonumber(obj.status.workloadObservedGeneration)
+  local workloadGen = tonumber(obj.metadata.annotations["rollout.argoproj.io/workload-generation"])
+  local observedWorkloadGen = tonumber(obj.status.workloadObservedGeneration)
   return workloadGen == observedWorkloadGen
 end
 
-hs = {}
+local hs = {}
 if not isGenerationObserved(obj) or not isWorkloadGenerationObserved(obj) then
   hs.status = "Progressing"
   hs.message = "Waiting for rollout spec update to be observed"
@@ -115,7 +115,7 @@ for _, condition in ipairs(obj.status.conditions) do
   end
 end
 
-isPaused = checkPaused(obj)
+local isPaused = checkPaused(obj)
 if isPaused ~= nil then
   return isPaused
 end
@@ -132,7 +132,7 @@ if replicasHS ~= nil then
 end
 
 
-stableRS = getStableRS(obj)
+local stableRS = getStableRS(obj)
 
 if obj.spec.strategy.blueGreen ~= nil then
   if obj.status.blueGreen == nil or obj.status.blueGreen.activeSelector ~= obj.status.currentPodHash then

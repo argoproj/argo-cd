@@ -1,0 +1,61 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: ConfigurationPolicy
+metadata:
+  name: policy-namespace
+  generation: 2
+  namespace: local-cluster
+spec:
+  object-templates:
+    - complianceType: musthave
+      objectDefinition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: argo-example
+      recreateOption: None
+    - complianceType: musthave
+      objectDefinition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: argo-example-2
+      recreateOption: None
+  pruneObjectBehavior: None
+  remediationAction: inform
+  severity: low
+status:
+  compliancyDetails:
+    - Compliant: NonCompliant
+      Validity: {}
+      conditions:
+        - lastTransitionTime: '2024-07-29T16:34:29Z'
+          message: 'namespaces [argo-example] not found'
+          reason: K8s does not have a `must have` object
+          status: 'True'
+          type: violation
+    - Compliant: NonCompliant
+      Validity: {}
+      conditions:
+        - lastTransitionTime: '2024-07-29T16:39:00Z'
+          message: 'namespaces [argo-example-2] not found'
+          reason: K8s does not have a `must have` object
+          status: 'True'
+          type: violation
+  compliant: NonCompliant
+  lastEvaluated: '2024-07-29T16:39:18Z'
+  lastEvaluatedGeneration: 2
+  relatedObjects:
+    - compliant: NonCompliant
+      object:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: argo-example
+      reason: Resource not found but should exist
+    - compliant: NonCompliant
+      object:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: argo-example-2
+      reason: Resource not found but should exist

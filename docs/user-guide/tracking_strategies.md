@@ -6,12 +6,12 @@ In all tracking strategies, the app has the option to sync automatically. If [au
 is configured, the new resources manifests will be applied automatically -- as soon as a difference
 is detected.
 
-!!! note
-    In all tracking strategies, any [parameter overrides](parameters.md) take precedence over the Git state.
+> [!NOTE]
+> In all tracking strategies, any [parameter overrides](parameters.md) take precedence over the Git state.
 
 ## Helm
 
-For Helm, all versions are [Semantic Versions](https://semver.org/). As a result, you can either version ranges:
+Helm chart versions are [Semantic Versions](https://semver.org/). As a result, you can use any of the following version ranges:
 
 | Use Case | How | Examples |
 |-|-|-|
@@ -19,24 +19,31 @@ For Helm, all versions are [Semantic Versions](https://semver.org/). As a result
 | Track patches (e.g. in pre-production) | Use a range | `1.2.*` or `>=1.2.0 <1.3.0` |
 | Track minor releases (e.g. in QA) | Use a range | `1.*` or `>=1.0.0 <2.0.0` |
 | Use the latest (e.g. in local development) | Use star range |  `*` or `>=0.0.0` |
+| Use the latest including pre-releases | Use star range with `-0` suffix |  `*-0` or `>=0.0.0-0` |
 
 [Read about version ranges](https://www.telerik.com/blogs/the-mystical-magical-semver-ranges-used-by-npm-bower)
 
+> [!NOTE]
+> If you want Argo CD to include all existing prerelease version tags of a repository in the comparison logic, you explicitly have to add a prerelease `-0` suffix to the version constraint. As mentioned `*-0` will compare against prerelease versions in a repository, `*` will not. The same applies for other constraints e.g. `>=1.2.2` will **not** compare prerelease versions vs. `>=1.2.2-0` which will include prerelease versions in the comparison.
+
+[Read about prerelease version comparison](https://github.com/Masterminds/semver?tab=readme-ov-file#working-with-prerelease-versions)
+
 ## Git
 
-For Git, all versions are Git references:
+For Git, all versions are Git references but tags [Semantic Versions](https://semver.org/) can also be used:
 
 | Use Case | How | Notes |
 |-|-|-|
 | Pin to a version (e.g. in production) | Either (a) tag the commit with (e.g. `v1.2.0`) and use that tag, or (b) using commit SHA. | See [commit pinning](#commit-pinning). |
-| Track patches (e.g. in pre-production) | Tag/re-tag the commit, e.g. (e.g. `v1.2`) and use that tag. | See [tag tracking](#tag-tracking) |
-| Track minor releases (e.g. in QA) | Re-tag the commit as (e.g. `v1`) and use that tag. | See [tag tracking](#tag-tracking) |
-| Use the latest (e.g. in local development) | Use `HEAD` or `master` (assuming `master` is your master branch). | See [HEAD / Branch Tracking](#head-branch-tracking) |
+| Track patches (e.g. in pre-production) | Use a range (e.g. `1.2.*` or `>=1.2.0 <1.3.0`)                                           | See [tag tracking](#tag-tracking) |
+| Track minor releases (e.g. in QA) | Use a range (e.g. `1.*` or `>=1.0.0 <2.0.0`)                                             | See [tag tracking](#tag-tracking) |
+| Use the latest (e.g. in local development) | Use `HEAD` or `master` (assuming `master` is your master branch).                        | See [HEAD / Branch Tracking](#head-branch-tracking) |
+| Use the latest including pre-releases | Use star range with `-0` suffix | `*-0` or `>=0.0.0-0` |
 
 
 ### HEAD / Branch Tracking
 
-If a branch name, or a symbolic reference (like HEAD) is specified, Argo CD will continually compare
+If a branch name or a symbolic reference (like HEAD) is specified, Argo CD will continually compare
 live state against the resource manifests defined at the tip of the specified branch or the
 resolved commit of the symbolic reference.
 
@@ -52,6 +59,9 @@ To redeploy an app, the user uses Git to change the meaning of a tag by retaggin
 different commit SHA. Argo CD will detect the new meaning of the tag when performing the
 comparison/sync.
 
+But if you're using semantic versioning you can set the constraint in your service revision
+and Argo CD will get the latest version following the constraint rules.
+
 ### Commit Pinning
 
 If a Git commit SHA is specified, the app is effectively pinned to the manifests defined at
@@ -63,3 +73,26 @@ which is pinned to a commit, is by updating the tracking revision in the applica
 commit containing the new manifests. Note that [parameter overrides](parameters.md) can still be set
 on an app which is pinned to a revision.
 
+### Handling Ambiguous Git References in Argo CD
+
+When deploying applications, Argo CD relies on the `targetRevision` field to determine
+which revision of the Git repository to use. This can be a branch, tag, or commit SHA.
+Sometimes, multiple Git references can have the same name (eg. a branch and a tag both named `release-1.0`).
+These ambiguous references can lead to unexpected behavior, such as constant reconciliation loops.
+
+Today, Argo CD fetches all branches and tags from the repository. If the `targetRevision` matches multiple references, Argo CD
+attempts to resolve it and may select a different commit than expected. For example, suppose your repository has the following references:
+
+```text
+refs/heads/release-1.0 -> commit B
+refs/tags/release-1.0  -> commit A
+```
+
+In the above scenario, `release-1.0` refers to both a branch (pointing to commit B) and a tag (pointing to commit A). 
+If your application's `targetRevision` is set to `release-1.0`, Argo CD may resolve it to either commit A or commit B.
+If the resolved commit differs from what is currently deployed, Argo CD will continuously attempt to sync, causing constant
+reconciliation. In order to avoid this ambiguity, you can follow these best practices:
+
+1. Use fully-qualified Git references in the `targetRevision` field. For example, use `refs/heads/release-1.0` for branches
+   and `refs/tags/release-1.0` for tags.
+2. Avoid using the same name for branches and tags in your Git repository.

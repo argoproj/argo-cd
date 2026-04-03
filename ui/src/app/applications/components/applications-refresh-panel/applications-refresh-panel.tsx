@@ -6,6 +6,7 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationSelector} from '../../../shared/components';
+import {isApp} from '../utils';
 
 interface Progress {
     percentage: number;
@@ -45,49 +46,58 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                                 return;
                             }
 
-                            setProgress({percentage: 0, title: 'Starting...'});
+                            setProgress({percentage: 0, title: 'Refreshing applications'});
                             let i = 0;
+                            const refreshActions = [];
                             for (const app of selectedApps) {
-                                await services.applications.get(app.metadata.name, app.metadata.namespace, params.refreshType).catch(e => {
-                                    ctx.notifications.show({
-                                        content: <ErrorNotification title={`Unable to refresh ${app.metadata.name}`} e={e} />,
-                                        type: NotificationType.Error
+                                const refreshAction = async () => {
+                                    const objectListKind = isApp(app) ? 'application' : 'applicationset';
+                                    await services.applications.get(app.metadata.name, app.metadata.namespace, objectListKind, params.refreshType).catch(e => {
+                                        ctx.notifications.show({
+                                            content: <ErrorNotification title={`Unable to refresh ${app.metadata.name}`} e={e} />,
+                                            type: NotificationType.Error
+                                        });
                                     });
-                                });
-                                i++;
-                                setProgress({
-                                    percentage: i / selectedApps.length,
-                                    title: `${i} of ${selectedApps.length} apps now refreshing`
-                                });
+                                    i++;
+                                    setProgress({
+                                        percentage: i / selectedApps.length,
+                                        title: `Refreshed ${i} of ${selectedApps.length} applications`
+                                    });
+                                };
+                                refreshActions.push(refreshAction());
+
+                                if (refreshActions.length >= 20) {
+                                    await Promise.all(refreshActions);
+                                    refreshActions.length = 0;
+                                }
                             }
+                            await Promise.all(refreshActions);
                             setProgress({percentage: 100, title: 'Complete'});
                         }}
                         getApi={setForm}>
                         {formApi => (
-                            <React.Fragment>
-                                <div className='argo-form-row' style={{marginTop: 0}}>
-                                    <h4>Refresh app(s)</h4>
-                                    {progress !== null && <ProgressPopup onClose={() => setProgress(null)} percentage={progress.percentage} title={progress.title} />}
-                                    <div style={{marginBottom: '1em'}}>
-                                        <label>Refresh Type</label>
-                                        <div className='row application-sync-options'>
-                                            {RefreshTypes.map(refreshType => (
-                                                <label key={refreshType} style={{paddingRight: '1.5em', marginTop: '0.4em'}}>
-                                                    <input
-                                                        type='radio'
-                                                        value={refreshType}
-                                                        checked={formApi.values.refreshType === refreshType}
-                                                        onChange={() => formApi.setValue('refreshType', refreshType)}
-                                                        style={{marginRight: '5px', transform: 'translateY(2px)'}}
-                                                    />
-                                                    {refreshType}
-                                                </label>
-                                            ))}
-                                        </div>
+                            <div className='argo-form-row' style={{marginTop: 0}}>
+                                <h4>Refresh app(s)</h4>
+                                {progress !== null && <ProgressPopup onClose={() => setProgress(null)} percentage={progress.percentage} title={progress.title} />}
+                                <div style={{marginBottom: '1em'}}>
+                                    <label>Refresh Type</label>
+                                    <div className='row application-sync-options'>
+                                        {RefreshTypes.map(refreshType => (
+                                            <label key={refreshType} style={{paddingRight: '1.5em', marginTop: '0.4em'}}>
+                                                <input
+                                                    type='radio'
+                                                    value={refreshType}
+                                                    checked={formApi.values.refreshType === refreshType}
+                                                    onChange={() => formApi.setValue('refreshType', refreshType)}
+                                                    style={{marginRight: '5px', transform: 'translateY(2px)'}}
+                                                />
+                                                {refreshType}
+                                            </label>
+                                        ))}
                                     </div>
-                                    <ApplicationSelector apps={apps} formApi={formApi} />
                                 </div>
-                            </React.Fragment>
+                                {show && <ApplicationSelector apps={apps} formApi={formApi} />}
+                            </div>
                         )}
                     </Form>
                 </SlidingPanel>

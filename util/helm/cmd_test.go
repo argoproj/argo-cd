@@ -1,10 +1,14 @@
 package helm
 
 import (
+	"errors"
 	"log"
+	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_cmd_redactor(t *testing.T) {
@@ -14,35 +18,189 @@ func Test_cmd_redactor(t *testing.T) {
 }
 
 func TestCmd_template_kubeVersion(t *testing.T) {
-	cmd, err := NewCmdWithVersion(".", HelmV3, false, "")
-	assert.NoError(t, err)
-	s, err := cmd.template("testdata/redis", &TemplateOpts{
+	cmd, err := NewCmdWithVersion(".", false, "", "")
+	require.NoError(t, err)
+	s, _, err := cmd.template("testdata/redis", &TemplateOpts{
 		KubeVersion: "1.14",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, s)
 }
 
-func TestNewCmd_helmV3(t *testing.T) {
-	cmd, err := NewCmd(".", "v3", "")
-	assert.NoError(t, err)
-	assert.Equal(t, "helm", cmd.HelmVer.binaryName)
-}
-
-func TestNewCmd_helmDefaultVersion(t *testing.T) {
-	cmd, err := NewCmd(".", "", "")
-	assert.NoError(t, err)
-	assert.Equal(t, "helm", cmd.HelmVer.binaryName)
+func TestCmd_template_noApiVersionsInError(t *testing.T) {
+	cmd, err := NewCmdWithVersion(".", false, "", "")
+	require.NoError(t, err)
+	_, _, err = cmd.template("testdata/chart-does-not-exist", &TemplateOpts{
+		KubeVersion: "1.14",
+		APIVersions: []string{"foo", "bar"},
+	})
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "--api-version")
+	assert.ErrorContains(t, err, "<api versions removed> ")
 }
 
 func TestNewCmd_helmInvalidVersion(t *testing.T) {
-	_, err := NewCmd(".", "abcd", "")
+	_, err := NewCmd(".", "abcd", "", "")
 	log.Println(err)
 	assert.EqualError(t, err, "helm chart version 'abcd' is not supported")
 }
 
 func TestNewCmd_withProxy(t *testing.T) {
-	cmd, err := NewCmd(".", "", "https://proxy:8888")
-	assert.NoError(t, err)
+	cmd, err := NewCmd(".", "", "https://proxy:8888", ".argoproj.io")
+	require.NoError(t, err)
 	assert.Equal(t, "https://proxy:8888", cmd.proxy)
+	assert.Equal(t, ".argoproj.io", cmd.noProxy)
+}
+
+func TestRegistryLogin(t *testing.T) {
+	tests := []struct {
+		name        string
+		repo        string
+		creds       *HelmCreds
+		execErr     error
+		expectedErr error
+		expectedOut string
+	}{
+		{
+			name:        "username and password",
+			repo:        "my.registry.com/repo",
+			creds:       &HelmCreds{Username: "user", Password: "pass"},
+			expectedOut: "helm registry login my.registry.com --username user --password pass",
+		},
+		{
+			name:        "username and password with just the hostname",
+			repo:        "my.registry.com",
+			creds:       &HelmCreds{Username: "user", Password: "pass"},
+			expectedOut: "helm registry login my.registry.com --username user --password pass",
+		},
+		{
+			name:        "ca file path",
+			repo:        "my.registry.com/repo",
+			creds:       &HelmCreds{CAPath: "/path/to/ca"},
+			expectedOut: "helm registry login my.registry.com --ca-file /path/to/ca",
+		},
+		{
+			name:        "insecure skip verify",
+			repo:        "my.registry.com/repo",
+			creds:       &HelmCreds{InsecureSkipVerify: true},
+			expectedOut: "helm registry login my.registry.com --insecure",
+		},
+		{
+			name:        "helm failure",
+			repo:        "my.registry.com/repo",
+			creds:       &HelmCreds{},
+			execErr:     errors.New("exit status 1"),
+			expectedErr: errors.New("failed to login to registry: failed running helm: exit status 1"),
+		},
+		{
+			name:        "invalid repo",
+			repo:        ":///bad-url",
+			expectedErr: errors.New("failed to parse registry URL: parse \":///bad-url\": missing protocol scheme"),
+		},
+		{
+			name:        "username & password",
+			repo:        "my.registry.com/repo",
+			creds:       &HelmCreds{Username: "user", Password: "pass"},
+			expectedOut: "helm registry login my.registry.com --username user --password pass",
+		},
+		{
+			name: "combined flags",
+			repo: "my.registry.com:5000/repo",
+			creds: &HelmCreds{
+				Username:           "u",
+				Password:           "p",
+				CAPath:             "/ca",
+				InsecureSkipVerify: true,
+			},
+			expectedOut: "helm registry login my.registry.com:5000 --username u --password p --ca-file /ca --insecure",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+				if tc.execErr != nil {
+					return "", tc.execErr
+				}
+				return strings.Join(cmd.Args, " "), nil
+			})
+			require.NoError(t, err)
+			out, err := c.RegistryLogin(tc.repo, tc.creds)
+			assert.Equal(t, tc.expectedOut, out)
+			if tc.expectedErr != nil {
+				require.EqualError(t, err, tc.expectedErr.Error())
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestDependencyBuild(t *testing.T) {
+	tests := []struct {
+		name        string
+		insecure    bool
+		expectedOut string
+	}{
+		{
+			name:        "without insecure",
+			insecure:    false,
+			expectedOut: "helm dependency build",
+		},
+		{
+			name:        "with insecure",
+			insecure:    true,
+			expectedOut: "helm dependency build --insecure-skip-tls-verify",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+				return strings.Join(cmd.Args, " "), nil
+			})
+			require.NoError(t, err)
+			out, err := c.dependencyBuild(tc.insecure)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedOut, out)
+		})
+	}
+}
+
+func TestRegistryLogout(t *testing.T) {
+	tests := []struct {
+		name        string
+		repo        string
+		execErr     error
+		expectedErr error
+		expectedOut string
+	}{
+		{
+			name:        "valid repo",
+			repo:        "my.registry.com/repo",
+			expectedOut: "helm registry logout my.registry.com",
+			expectedErr: nil,
+		},
+		{
+			name:        "invalid repo",
+			repo:        ":///bad-url",
+			expectedErr: errors.New("failed to parse registry URL: parse \":///bad-url\": missing protocol scheme"),
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+				if tc.execErr != nil {
+					return "", tc.execErr
+				}
+				return strings.Join(cmd.Args, " "), nil
+			})
+			require.NoError(t, err)
+			out, err := c.RegistryLogout(tc.repo, nil)
+			assert.Equal(t, tc.expectedOut, out)
+			if tc.expectedErr != nil {
+				require.EqualError(t, err, tc.expectedErr.Error())
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }

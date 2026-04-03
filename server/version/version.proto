@@ -1,5 +1,5 @@
 syntax = "proto3";
-option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/version";
+option go_package = "github.com/argoproj/argo-cd/v3/pkg/apiclient/version";
 
 // Version Service
 //
@@ -23,6 +23,7 @@ message VersionMessage {
 	string HelmVersion = 11;
 	string KubectlVersion = 12;
 	string JsonnetVersion = 13;
+	string ExtraBuildInfo = 14;
 }
 
 // VersionService returns the version of the API server.

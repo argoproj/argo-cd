@@ -1,15 +1,17 @@
 package controller
 
 import (
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/argo"
-	gitopscommon "github.com/argoproj/gitops-engine/pkg/sync/common"
+	"maps"
+
+	gitopscommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 // syncNamespace determine if Argo CD should create and/or manage the namespace
 // where the application will be deployed.
-func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, trackingMethod v1alpha1.TrackingMethod, appName string, syncPolicy *v1alpha1.SyncPolicy) func(m, l *unstructured.Unstructured) (bool, error) {
+func syncNamespace(syncPolicy *v1alpha1.SyncPolicy) func(m *unstructured.Unstructured, l *unstructured.Unstructured) (bool, error) {
 	// This function must return true for the managed namespace to be synced.
 	return func(managedNs, liveNs *unstructured.Unstructured) (bool, error) {
 		if managedNs == nil {
@@ -47,9 +49,7 @@ func syncNamespace(resourceTracking argo.ResourceTracking, appLabelKey string, t
 // with server-side apply
 func appendSSAAnnotation(in map[string]string) map[string]string {
 	r := map[string]string{}
-	for k, v := range in {
-		r[k] = v
-	}
+	maps.Copy(r, in)
 	r[gitopscommon.AnnotationSyncOptions] = gitopscommon.SyncOptionServerSideApply
 	return r
 }

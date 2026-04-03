@@ -1,0 +1,26 @@
+apiVersion: policy.open-cluster-management.io/v1beta1
+kind: OperatorPolicy
+metadata:
+  name: install-argocd
+  generation: 1
+  namespace: local-cluster
+spec:
+  complianceConfig:
+    catalogSourceUnhealthy: Compliant
+    deploymentsUnavailable: NonCompliant
+    upgradesAvailable: Compliant
+  complianceType: musthave
+  remediationAction: inform
+  removalBehavior:
+    clusterServiceVersions: Delete
+    customResourceDefinitions: Keep
+    operatorGroups: DeleteIfUnused
+    subscriptions: Delete
+  severity: high
+  subscription:
+    channel: alpha
+    name: argocd-operator
+    source: community-operators
+    sourceNamespace: openshift-marketplace
+  upgradeApproval: None
+  versions: []

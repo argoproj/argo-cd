@@ -1,0 +1,125 @@
+apiVersion: solr.apache.org/v1beta1
+kind: SolrCloud
+metadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: foobar-solr:solr.apache.org/SolrCloud:foo/solr
+  creationTimestamp: '2024-10-07T09:30:03Z'
+  finalizers:
+    - storage.finalizers.solr.apache.org
+  generation: 2
+  labels:
+    app.kubernetes.io/instance: foobar-solr
+    app.kubernetes.io/name: solr
+    app.kubernetes.io/version: 8.11.1
+    helm.sh/chart: solr-0.8.1
+  name: solr
+  namespace: foo
+  resourceVersion: '339148'
+  uid: 42f073e1-bf7c-4d2f-923a-66886898e6a2
+spec:
+  availability:
+    podDisruptionBudget:
+      enabled: true
+      method: ClusterWide
+  busyBoxImage:
+    repository: library/busybox
+    tag: 1.28.0-glibc
+  customSolrKubeOptions:
+    podOptions:
+      defaultInitContainerResources: {}
+      nodeSelector:
+        node-role.kubernetes.io/worker: ''
+      podSecurityContext:
+        runAsGroup: 8983
+        runAsNonRoot: true
+        runAsUser: 8983
+        seccompProfile:
+          type: RuntimeDefault
+      resources: {}
+      serviceAccountName: solr-sa
+      startupProbe:
+        periodSeconds: 10
+        timeoutSeconds: 30
+  dataStorage:
+    persistent:
+      pvcTemplate:
+        metadata:
+          annotations:
+            foobar: solr-data
+          labels:
+            foobar: solr-data
+          name: solr-data
+        spec:
+          resources:
+            requests:
+              storage: 20Gi
+      reclaimPolicy: Delete
+  replicas: 2
+  scaling:
+    populatePodsOnScaleUp: true
+    vacatePodsOnScaleDown: true
+  solrAddressability:
+    commonServicePort: 80
+    podPort: 8983
+  solrImage:
+    repository: solr
+    tag: '8.11'
+  solrJavaMem: '-Xms1g -Xmx2g'
+  solrLogLevel: DEBUG
+  solrOpts: '-Dsolr.disable.shardsWhitelist=true'
+  updateStrategy:
+    managed: {}
+    method: Managed
+  zookeeperRef:
+    provided:
+      adminServerService: {}
+      chroot: /
+      clientService: {}
+      config: {}
+      headlessService: {}
+      image:
+        pullPolicy: IfNotPresent
+        repository: pravega/zookeeper
+      maxUnavailableReplicas: 1
+      persistence:
+        reclaimPolicy: Delete
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 5Gi
+      replicas: 1
+      zookeeperPodPolicy:
+        resources: {}
+        securityContext:
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+status:
+  internalCommonAddress: http://solr-solrcloud-common.foo
+  podSelector: solr-cloud=solr,technology=solr-cloud
+  readyReplicas: 1
+  replicas: 2
+  solrNodes:
+    - internalAddress: http://solr-solrcloud-0.solr-solrcloud-headless.foo:8983
+      name: solr-solrcloud-0
+      nodeName: crc-j5m2n-master-0
+      ready: true
+      scheduledForDeletion: false
+      specUpToDate: true
+      version: '8.11'
+    - internalAddress: http://solr-solrcloud-1.solr-solrcloud-headless.foo:8983
+      name: solr-solrcloud-1
+      nodeName: ''
+      ready: false
+      scheduledForDeletion: false
+      specUpToDate: true
+      version: ''
+  upToDateNodes: 2
+  version: '8.11'
+  zookeeperConnectionInfo:
+    chroot: /
+    externalConnectionString: N/A
+    internalConnectionString: >-
+      solr-solrcloud-zookeeper-0.solr-solrcloud-zookeeper-headless.foo.svc.cluster.local:2181

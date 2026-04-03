@@ -1,0 +1,81 @@
+apiVersion: astra.netapp.io/v1
+kind: Snapshot
+metadata:
+  annotations:
+    astra.netapp.io/correlationid: 87091676-6489-4c76-8728-6b81bf4936b0
+  creationTimestamp: "2024-04-24T14:23:18Z"
+  finalizers:
+    - astra.netapp.io/finalizer
+  generation: 2
+  name: argo-presync-20240424142317
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      kind: Application
+      name: ghost
+      uid: 0af10ee8-772b-4367-8334-44f9e4ad2849
+  resourceVersion: "10421471"
+  uid: 152faab3-0374-4cef-bac9-6e7940b06aa9
+spec:
+  appVaultRef: astra-gcp-backup-743cfd150129
+  applicationRef: ghost
+  completionTimeout: 0s
+  volumeSnapshotsCreatedTimeout: 0s
+  volumeSnapshotsReadyToUseTimeout: 0s
+status:
+  appArchivePath: ghost_0af10ee8-772b-4367-8334-44f9e4ad2849/snapshots/20240424142318_argo-presync-20240424142317_152faab3-0374-4cef-bac9-6e7940b06aa9
+  completionTimestamp: "2024-04-24T14:23:43Z"
+  conditions:
+    - lastTransitionTime: "2024-04-24T14:23:18Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: AppOwnerReferenceCreated
+    - lastTransitionTime: "2024-04-24T14:23:18Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: AppArchivePathNameGenerated
+    - lastTransitionTime: "2024-04-24T14:23:30Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: ResourceBackupCompleted
+    - lastTransitionTime: "2024-04-24T14:23:31Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: PreSnapshotExecHooksRunCompleted
+    - lastTransitionTime: "2024-04-24T14:23:41Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: VolumeSnapshotsCreated
+    - lastTransitionTime: "2024-04-24T14:23:42Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: PostSnapshotExecHooksRunCompleted
+    - lastTransitionTime: "2024-04-24T14:23:43Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: VolumeSnapshotsReady
+    - lastTransitionTime: "2024-04-24T14:23:43Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: Completed
+    - lastTransitionTime: "2024-04-24T14:23:18Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: OnFailurePostSnapshotExecHooksRunCompleted
+  postSnapshotExecHooksRunResults: []
+  preSnapshotExecHooksRunResults: []
+  state: Completed
+  volumeSnapshots:
+    - name: snapshot-152faab3-0374-4cef-bac9-6e7940b06aa9-pvc-b9ff9e05-5049-4862-82c6-dea080c2fe0d
+      namespace: ghost
+    - name: snapshot-152faab3-0374-4cef-bac9-6e7940b06aa9-pvc-38c468b3-eed6-48f2-b43b-15083dd1c030
+      namespace: ghost

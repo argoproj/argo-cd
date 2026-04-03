@@ -1,6 +1,8 @@
 import * as React from 'react';
 
 import * as monacoEditor from 'monaco-editor';
+import {services} from '../services';
+import {getTheme, useSystemTheme} from '../utils';
 
 export interface EditorInput {
     text: string;
@@ -25,15 +27,49 @@ const DEFAULT_LINE_HEIGHT = 18;
 
 const MonacoEditorLazy = React.lazy(() =>
     import('monaco-editor').then(monaco => {
-        require('monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js');
-
-        const component = (props: MonacoProps) => {
+        const Component = (props: MonacoProps) => {
             const [height, setHeight] = React.useState(0);
+            const [theme, setTheme] = React.useState('dark');
+            const editorApiRef = React.useRef<monacoEditor.editor.IEditor | null>(null);
+
+            React.useEffect(() => {
+                const destroySystemThemeListener = useSystemTheme(systemTheme => {
+                    if (theme === 'auto') {
+                        monaco.editor.setTheme(systemTheme === 'dark' ? 'vs-dark' : 'vs');
+                    }
+                });
+
+                return () => {
+                    destroySystemThemeListener();
+                };
+            }, [theme]);
+
+            React.useEffect(() => {
+                const subscription = services.viewPreferences.getPreferences().subscribe(preferences => {
+                    setTheme(preferences.theme);
+
+                    monaco.editor.setTheme(getTheme(preferences.theme) === 'dark' ? 'vs-dark' : 'vs');
+                });
+
+                return () => {
+                    subscription.unsubscribe();
+                };
+            }, []);
+
+            React.useEffect(() => {
+                const onResize = () => {
+                    editorApiRef.current?.layout();
+                };
+                window.addEventListener('resize', onResize);
+                return () => {
+                    window.removeEventListener('resize', onResize);
+                };
+            }, []);
 
             return (
                 <div
                     style={{
-                        height: `${Math.max(props.minHeight || 0, height + 100)}px`,
+                        height: `${Math.max(props.minHeight || 0, height)}px`,
                         overflowY: 'hidden'
                     }}
                     ref={el => {
@@ -48,17 +84,19 @@ const MonacoEditorLazy = React.lazy(() =>
                                         ...props.editor.options,
                                         scrollBeyondLastLine: props.vScrollBar,
                                         scrollbar: {
-                                            handleMouseWheel: false,
+                                            alwaysConsumeMouseWheel: false,
                                             vertical: props.vScrollBar ? 'visible' : 'hidden'
                                         }
                                     });
 
                                     container.editorApi = editor;
+                                    editorApiRef.current = editor;
                                 }
 
                                 const model = monaco.editor.createModel(props.editor.input.text, props.editor.input.language);
                                 const lineCount = model.getLineCount();
-                                setHeight(lineCount * DEFAULT_LINE_HEIGHT);
+                                const newHeight = lineCount * DEFAULT_LINE_HEIGHT + 50;
+                                setHeight(newHeight > window.innerHeight * 0.95 ? window.innerHeight * 0.95 : newHeight);
 
                                 if (!IsEqualInput(container.prevEditorInput, props.editor.input)) {
                                     container.prevEditorInput = props.editor.input;
@@ -77,7 +115,7 @@ const MonacoEditorLazy = React.lazy(() =>
         };
 
         return {
-            default: component
+            default: Component
         };
     })
 );

@@ -1,0 +1,27 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: Connector
+metadata:
+  finalizers:
+    - connect.finalizers.platform.confluent.io
+  generation: 1
+  name: connect
+  namespace: confluent
+spec:
+  class: io.confluent.connect.sftp.SftpSinkConnector
+  configs:
+    topics: test-topic
+  connectClusterRef:
+    name: connect
+  name: test-sftp-connector
+  taskMax: 3
+status:
+  appState: Failed
+  conditions:
+    - lastProbeTime: '2024-04-02T07:43:35Z'
+      lastTransitionTime: '2024-04-02T07:43:35Z'
+      message: >-
+        connect Rest API request failed: Connector configuration is invalid and contains the following 1 error(s): Could not read properties from file
+      reason: CreateFailed
+      status: 'False'
+      type: platform.confluent.io/app-ready
+  state: ERROR

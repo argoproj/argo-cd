@@ -7,7 +7,5 @@ spec:
     spec:
       containers:
       - name: argocd-application-controller
-        command:
-        - argocd-application-controller
-        - --redis
-        - "argocd-redis-ha-haproxy:6379"
+        args:
+        - /usr/local/bin/argocd-application-controller

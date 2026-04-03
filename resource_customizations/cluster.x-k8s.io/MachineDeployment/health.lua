@@ -1,4 +1,4 @@
-hs = {}
+local hs = {}
 hs.status = "Progressing"
 hs.message = "Waiting for machines"
 

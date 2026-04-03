@@ -1,0 +1,17 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-service
+  annotations:
+    valid-annotation: existing-value
+    invalid-annotation: null
+  labels:
+    valid-label: existing-value
+    invalid-label: null
+spec:
+  selector:
+    app: MyApp
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 9376

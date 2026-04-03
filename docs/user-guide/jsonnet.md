@@ -1,6 +1,6 @@
 # Jsonnet
 
-Any file matching `*.jsonnet` in a directory app is treated as a Jsonnet file. ArgoCD evaluates the Jsonnet and is able to parse a generated object or array.
+Any file matching `*.jsonnet` in a directory app is treated as a Jsonnet file. Argo CD evaluates the Jsonnet and is able to parse a generated object or array.
 
 ## Build Environment
 
@@ -22,8 +22,8 @@ Or by declarative syntax:
   directory:
     jsonnet:
       extVars:
-      - name: app
-        value: $ARGOCD_APP_NAME
+        - name: app
+          value: $ARGOCD_APP_NAME
       tlas:
         - name: ns
           value: $ARGOCD_APP_NAMESPACE

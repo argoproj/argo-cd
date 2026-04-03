@@ -1,0 +1,12 @@
+actionTests:
+  - action: refresh
+    inputPath: testdata/external-secret.yaml
+    expectedOutputPath: testdata/external-secret-updated.yaml
+
+discoveryTests:
+  - inputPath: testdata/external-secret.yaml
+    result:
+      - name: "refresh"
+  - inputPath: testdata/external-secret-refresh-policy.yaml
+    result:
+      - name: "refresh"

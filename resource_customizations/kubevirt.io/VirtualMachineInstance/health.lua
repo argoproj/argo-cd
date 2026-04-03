@@ -1,4 +1,4 @@
-hs = { status="Progressing", message="No status available"}
+local hs = { status="Progressing", message="No status available"}
 if obj.status ~= nil then
   if obj.status.phase ~= nil then
     hs.message = obj.status.phase

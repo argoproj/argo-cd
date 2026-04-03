@@ -1,0 +1,15 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  finalizers:
+    - snapshot.storage.kubernetes.io/volumesnapshot-as-source-protection
+    - snapshot.storage.kubernetes.io/volumesnapshot-bound-protection
+status:
+  boundVolumeSnapshotContentName: snapcontent-7db10be0-424c-4ed2-9dfe-6c2120eae05b
+  creationTime: '2023-06-04T19:13:20Z'
+  readyToUse: true
+  restoreSize: 1Ti
+spec:
+  source:
+    persistentVolumeClaimName: mask-data-process-trcxk-mysql-data
+  volumeSnapshotClassName: azure-tools

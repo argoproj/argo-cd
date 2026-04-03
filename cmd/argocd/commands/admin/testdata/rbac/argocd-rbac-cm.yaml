@@ -8,8 +8,14 @@ data:
     p, role:user, applications, create, */*, allow
     p, role:user, applications, delete, *, allow
     p, role:user, applications, delete, */guestbook, deny
+    p, role:user, applicationsets, create, */*, allow
+    p, role:user, applicationsets, delete, */*, allow
     p, role:user, logs, get, */*, allow
     g, test, role:user
+  policy.overlay.csv: |
+    p, role:tester, applications, *, */*, allow
+    p, role:tester, projects, *, *, allow
+    g, my-org:team-qa, role:tester
   policy.default: role:unknown
 kind: ConfigMap
 metadata:

@@ -7,7 +7,15 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
-import {ApplicationManualSyncFlags, ApplicationSyncOptions, FORCE_WARNING, SyncFlags, REPLACE_WARNING} from '../application-sync-options/application-sync-options';
+import {
+    ApplicationManualSyncFlags,
+    ApplicationSyncOptions,
+    FORCE_WARNING,
+    SyncFlags,
+    REPLACE_WARNING,
+    PRUNE_ALL_WARNING,
+    PRUNE_SOME_WARNING
+} from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
 
 import './application-sync-panel.scss';
@@ -16,7 +24,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
     const [form, setForm] = React.useState<FormApi>(null);
     const isVisible = !!(selectedResource && application);
     const appResources = ((application && selectedResource && application.status && application.status.resources) || [])
-        .sort((first, second) => nodeKey(first).localeCompare(nodeKey(second)))
+        .sort((first, second) => nodeKey(first).localeCompare(nodeKey(second), undefined, {numeric: true}))
         .filter(item => !item.hook);
     const syncResIndex = appResources.findIndex(item => nodeKey(item) === selectedResource);
     const syncStrategy = {} as models.SyncStrategy;
@@ -48,7 +56,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                     {isVisible && (
                         <Form
                             defaultValues={{
-                                revision: source.targetRevision || 'HEAD',
+                                revision: new URLSearchParams(ctx.history.location.search).get('revision') || source.targetRevision || 'HEAD',
                                 resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
                                 syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : []
                             }}
@@ -57,24 +65,145 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                             })}
                             onSubmit={async (params: any) => {
                                 setPending(true);
-                                let resources = appResources.filter((_, i) => params.resources[i]);
-                                if (resources.length === appResources.length) {
-                                    resources = null;
+                                let selectedResources = appResources.filter((_, i) => params.resources[i]);
+                                const allResourcesAreSelected = selectedResources.length === appResources.length;
+                                const syncFlags = {...params.syncFlags} as SyncFlags;
+
+                                const resourcesToPrune = selectedResources.filter(resource => resource?.requiresPruning);
+                                const allRequirePruning = resourcesToPrune.length === selectedResources.length;
+                                const anyRequirePruning = resourcesToPrune.length > 0;
+                                const warnAgainstPruneAll = allRequirePruning && allResourcesAreSelected;
+
+                                if (syncFlags.Prune) {
+                                    if (warnAgainstPruneAll) {
+                                        const confirmed = await ctx.popup.prompt(
+                                            'Prune all resources?',
+                                            api => (
+                                                <div>
+                                                    <p>{PRUNE_ALL_WARNING}</p>
+                                                    <p>
+                                                        <strong>Resources to be deleted ({resourcesToPrune.length}):</strong>
+                                                    </p>
+                                                    <ul style={{maxHeight: '200px', overflowY: 'auto', marginBottom: '1em'}}>
+                                                        {resourcesToPrune.map(resource => (
+                                                            <li key={nodeKey(resource)}>
+                                                                {resource.kind}/{resource.name}
+                                                                {resource.namespace && ` (${resource.namespace})`}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                    <div className='argo-form-row'>
+                                                        <FormField
+                                                            label="Please type 'prune' to confirm this action"
+                                                            formApi={api}
+                                                            field='confirmText'
+                                                            qeId='prune-all-field-confirmation'
+                                                            component={Text}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ),
+                                            {
+                                                validate: vals => ({
+                                                    confirmText: vals.confirmText !== 'prune' && "Type 'prune' to confirm"
+                                                }),
+                                                submit: async (vals, _, close) => {
+                                                    close();
+                                                }
+                                            },
+                                            {name: 'argo-icon-warning', color: 'warning'},
+                                            'yellow'
+                                        );
+                                        if (!confirmed) {
+                                            setPending(false);
+                                            return;
+                                        }
+                                    } else if (anyRequirePruning && !warnAgainstPruneAll) {
+                                        const confirmed = await ctx.popup.prompt(
+                                            'Prune resources?',
+                                            api => (
+                                                <div>
+                                                    <p>{PRUNE_SOME_WARNING}</p>
+                                                    <p>
+                                                        <strong>Resources to be deleted ({resourcesToPrune.length}):</strong>
+                                                    </p>
+                                                    <ul style={{maxHeight: '200px', overflowY: 'auto', marginBottom: '1em'}}>
+                                                        {resourcesToPrune.map(resource => (
+                                                            <li key={nodeKey(resource)}>
+                                                                {resource.kind}/{resource.name}
+                                                                {resource.namespace && ` (${resource.namespace})`}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                    <div className='argo-form-row'>
+                                                        <FormField
+                                                            label="Please type 'prune' to confirm this action"
+                                                            formApi={api}
+                                                            field='confirmText'
+                                                            qeId='prune-some-field-confirmation'
+                                                            component={Text}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ),
+                                            {
+                                                validate: vals => ({
+                                                    confirmText: vals.confirmText !== 'prune' && "Type 'prune' to confirm"
+                                                }),
+                                                submit: async (vals, _, close) => {
+                                                    close();
+                                                }
+                                            },
+                                            {name: 'argo-icon-warning', color: 'warning'},
+                                            'yellow'
+                                        );
+                                        if (!confirmed) {
+                                            setPending(false);
+                                            return;
+                                        }
+                                    }
                                 }
                                 const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
                                 if (replace) {
-                                    const confirmed = await ctx.popup.confirm('Synchronize using replace?', () => (
-                                        <div>
-                                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {REPLACE_WARNING} Are you sure you want to continue?
-                                        </div>
-                                    ));
+                                    const confirmed = await ctx.popup.prompt(
+                                        'Synchronize using replace?',
+                                        api => (
+                                            <div>
+                                                <div>{REPLACE_WARNING}</div>
+                                                <p>
+                                                    Are you sure you want to <strong>delete and recreate {selectedResources?.length || 0} resources</strong>?
+                                                </p>
+                                                <div className='argo-form-row'>
+                                                    <FormField
+                                                        label="Please type 'replace' to confirm this action"
+                                                        formApi={api}
+                                                        field='confirmText'
+                                                        qeId='replace-field-confirmation'
+                                                        component={Text}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ),
+                                        {
+                                            validate: vals => ({
+                                                confirmText: vals.confirmText !== 'replace' && "Type 'replace' to confirm"
+                                            }),
+                                            submit: async (vals, _, close) => {
+                                                close();
+                                            }
+                                        },
+                                        {name: 'argo-icon-warning', color: 'warning'},
+                                        'yellow'
+                                    );
                                     if (!confirmed) {
                                         setPending(false);
                                         return;
                                     }
                                 }
+                                if (allResourcesAreSelected) {
+                                    selectedResources = null;
+                                }
 
-                                const syncFlags = {...params.syncFlags} as SyncFlags;
                                 const force = syncFlags.Force || false;
 
                                 if (syncFlags.ApplyOnly) {
@@ -102,7 +231,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         syncFlags.Prune || false,
                                         syncFlags.DryRun || false,
                                         syncStrategy,
-                                        resources,
+                                        selectedResources,
                                         params.syncOptions,
                                         params.retryStrategy
                                     );
