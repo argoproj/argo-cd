@@ -2,10 +2,15 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	gohttp "net/http"
+	"net/textproto"
 	"strings"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/util/kube"
 
@@ -14,6 +19,8 @@ import (
 
 	//nolint:staticcheck
 	"github.com/golang/protobuf/proto"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -71,38 +78,47 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 	},
 }
 
+// processAppFields extracts the requested fields from a single application into a map.
+func processAppFields(app *v1alpha1.Application, fields map[string]any, exclude bool) (map[string]any, error) {
+	converted := make(map[string]any)
+	for field, fn := range appFields {
+		if _, ok := fields["items."+field]; ok == exclude {
+			continue
+		}
+		value := fn(app)
+		if value == nil {
+			continue
+		}
+		parts := strings.Split(field, ".")
+		item := converted
+		for i := range parts {
+			subField := parts[i]
+			if i == len(parts)-1 {
+				item[subField] = value
+			} else {
+				if _, ok := item[subField]; !ok {
+					item[subField] = make(map[string]any)
+				}
+				nestedMap, ok := item[subField].(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("field %s is not a map", field)
+				}
+				item = nestedMap
+			}
+		}
+	}
+	return converted, nil
+}
+
 func processApplicationListField(v any, fields map[string]any, exclude bool) (any, error) {
 	if appList, ok := v.(*v1alpha1.ApplicationList); ok {
 		var items []map[string]any
-		for _, app := range appList.Items {
-			converted := make(map[string]any)
-			items = append(items, converted)
-			for field, fn := range appFields {
-				if _, ok := fields["items."+field]; ok == exclude {
-					continue
-				}
-				value := fn(&app)
-				if value == nil {
-					continue
-				}
-				parts := strings.Split(field, ".")
-				item := converted
-				for i := range parts {
-					subField := parts[i]
-					if i == len(parts)-1 {
-						item[subField] = value
-					} else {
-						if _, ok := item[subField]; !ok {
-							item[subField] = make(map[string]any)
-						}
-						nestedMap, ok := item[subField].(map[string]any)
-						if !ok {
-							return nil, fmt.Errorf("field %s is not a map", field)
-						}
-						item = nestedMap
-					}
-				}
+		for i := range appList.Items {
+			converted, err := processAppFields(&appList.Items[i], fields, exclude)
+			if err != nil {
+				return nil, err
 			}
+			items = append(items, converted)
 		}
 		return map[string]any{
 			"items":    items,
@@ -110,6 +126,108 @@ func processApplicationListField(v any, fields map[string]any, exclude bool) (an
 		}, nil
 	}
 	return nil, errors.New("not an application list")
+}
+
+// streamApplicationListJSON writes the ApplicationList as JSON directly to w,
+// streaming one application at a time to avoid buffering the entire response.
+func streamApplicationListJSON(w io.Writer, appList *v1alpha1.ApplicationList, fields map[string]any, exclude bool) error {
+	useFieldFilter := len(fields) > 0
+
+	if _, err := w.Write([]byte("{")); err != nil {
+		return err
+	}
+
+	// When not field-filtering, include TypeMeta fields to match json.Marshal(ApplicationList) output.
+	if !useFieldFilter {
+		if err := writeInlineTypeMeta(w, &appList.TypeMeta); err != nil {
+			return err
+		}
+	}
+
+	if _, err := w.Write([]byte(`"metadata":`)); err != nil {
+		return err
+	}
+	metaData, err := json.Marshal(appList.ListMeta)
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write(metaData); err != nil {
+		return err
+	}
+	if _, err := w.Write([]byte(`,"items":[`)); err != nil {
+		return err
+	}
+
+	for i := range appList.Items {
+		if i > 0 {
+			if _, err := w.Write([]byte(",")); err != nil {
+				return err
+			}
+		}
+		var data []byte
+		if useFieldFilter {
+			converted, err := processAppFields(&appList.Items[i], fields, exclude)
+			if err != nil {
+				return err
+			}
+			data, err = json.Marshal(converted)
+			if err != nil {
+				return err
+			}
+		} else {
+			data, err = json.Marshal(appList.Items[i])
+			if err != nil {
+				return err
+			}
+		}
+		if _, err := w.Write(data); err != nil {
+			return err
+		}
+	}
+
+	_, err = w.Write([]byte("]}"))
+	return err
+}
+
+// writeInlineTypeMeta writes the TypeMeta fields as inline JSON key-value pairs
+// (with trailing comma), matching the behavior of json:",inline" on the struct tag.
+// Respects omitempty: fields are only written when non-empty.
+func writeInlineTypeMeta(w io.Writer, tm *metav1.TypeMeta) error {
+	if tm.Kind != "" {
+		data, err := json.Marshal(tm.Kind)
+		if err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(w, `"kind":%s,`, data); err != nil {
+			return err
+		}
+	}
+	if tm.APIVersion != "" {
+		data, err := json.Marshal(tm.APIVersion)
+		if err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(w, `"apiVersion":%s,`, data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// parseFieldSelection parses the "fields" query parameter into a field map and exclude flag.
+func parseFieldSelection(req *gohttp.Request) (fields map[string]any, exclude bool) {
+	fieldsQuery := req.URL.Query().Get("fields")
+	fields = make(map[string]any)
+	if fieldsQuery != "" {
+		if strings.HasPrefix(fieldsQuery, "-") {
+			fieldsQuery = fieldsQuery[1:]
+			exclude = true
+		}
+		for field := range strings.SplitSeq(fieldsQuery, ",") {
+			fields[field] = true
+		}
+	}
+	return fields, exclude
 }
 
 func init() {
@@ -153,6 +271,50 @@ func init() {
 		}
 		return event.Application.Name, nil
 	})
-	forward_ApplicationService_List_0 = http.UnaryForwarderWithFieldProcessor(processApplicationListField)
+	forward_ApplicationService_List_0 = func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w gohttp.ResponseWriter, req *gohttp.Request, resp proto.Message, opts ...func(context.Context, gohttp.ResponseWriter, proto.Message) error) {
+		appList, ok := resp.(*v1alpha1.ApplicationList)
+		if !ok {
+			runtime.ForwardResponseMessage(ctx, mux, marshaler, w, req, resp, opts...)
+			return
+		}
+
+		// Replicate grpc-gateway ForwardResponseMessage header handling.
+		md, ok := runtime.ServerMetadataFromContext(ctx)
+		if ok {
+			for k, vs := range md.HeaderMD {
+				for _, v := range vs {
+					w.Header().Add(fmt.Sprintf("%s%s", runtime.MetadataHeaderPrefix, k), v)
+				}
+			}
+			for k := range md.TrailerMD {
+				tKey := textproto.CanonicalMIMEHeaderKey(fmt.Sprintf("%s%s", runtime.MetadataTrailerPrefix, k))
+				w.Header().Add("Trailer", tKey)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		for _, opt := range opts {
+			if err := opt(ctx, w, resp); err != nil {
+				runtime.HTTPError(ctx, mux, marshaler, w, req, err)
+				return
+			}
+		}
+
+		fields, exclude := parseFieldSelection(req)
+
+		if err := streamApplicationListJSON(w, appList, fields, exclude); err != nil {
+			log.Errorf("Failed to stream application list response: %v", err)
+		}
+
+		if ok {
+			for k, vs := range md.TrailerMD {
+				tKey := fmt.Sprintf("%s%s", runtime.MetadataTrailerPrefix, k)
+				for _, v := range vs {
+					w.Header().Add(tKey, v)
+				}
+			}
+		}
+	}
 	forward_ApplicationService_ManagedResources_0 = http.UnaryForwarder
 }
