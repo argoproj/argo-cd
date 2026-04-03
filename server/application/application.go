@@ -806,7 +806,10 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 	})
 	defer unsubscribe()
 
-	app, err := argo.RefreshApp(appIf, appName, refreshType, true)
+	// For now, only hydrate on hard refresh until there is a way to specifically control wether we want to explicitly re-evaluate hydration
+	hydrate := refreshType == v1alpha1.RefreshTypeHard
+
+	app, err := argo.RefreshApp(appIf, appName, refreshType, hydrate)
 	if err != nil {
 		return nil, fmt.Errorf("error refreshing the app: %w", err)
 	}
@@ -2431,6 +2434,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application,
 		App:               app,
 		AmbiguousRevision: ambiguousRevision,
 		SourceIndex:       int64(sourceIndex),
+		NoRevisionCache:   true,
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("error resolving repo revision: %w", err)
