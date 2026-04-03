@@ -3393,7 +3393,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				paths.EXPECT().GetPath(repoPathKey(refRepoURL)).Return(refRoot, nil)
 				paths.EXPECT().GetPathIfExists(repoPathKey(refRepoURL)).Return(refRoot)
 				paths.EXPECT().GetPathIfExists(repoPathKey(refRepoURL)).Return(refRoot)
-				paths.EXPECT().GetPathIfExists(refRepoURL).Return(refRoot)
+				paths.EXPECT().GetPathIfExists(repoPathKey(refRepoURL)).Return(refRoot)
 			},
 			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
 				client := gitmocks.Client{}
@@ -3603,7 +3603,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				paths.EXPECT().GetPath(repoPathKey(refRepoURL)).Return(refRoot, nil)
 				paths.EXPECT().GetPathIfExists(repoPathKey(refRepoURL)).Return(refRoot)
 				paths.EXPECT().GetPathIfExists(repoPathKey(refRepoURL)).Return(refRoot)
-				paths.EXPECT().GetPathIfExists(refRepoURL).Return(refRoot)
+				paths.EXPECT().GetPathIfExists(repoPathKey(refRepoURL)).Return(refRoot)
 				// No expectations for "https://github.com/foo/unused" on purpose: it should not be used.
 			},
 			newGitClient: func(repo string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (git.Client, error) {

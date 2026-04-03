@@ -566,9 +566,9 @@ func (m *nativeGitClient) ConfigureSparseCheckout(paths []string) error {
 
 // FetchSparseBlobs pre-fetches blobs needed for the given sparse checkout paths in a single
 // batch request. Call this after a --filter=blob:none fetch and before checkout.
-// This uses "git rev-list --objects --no-object-names" to list all object SHAs under the sparse
-// paths, then pipes them to "git cat-file --batch-check" to identify missing blobs, and finally
-// uses "git fetch origin" to fetch them in one batch from the promisor remote.
+// This uses "git rev-list --objects --no-object-names --missing=print" to list all object SHAs
+// under the sparse paths and identify missing blobs in a single pass, then uses "git fetch origin"
+// to fetch them in one batch from the promisor remote.
 func (m *nativeGitClient) FetchSparseBlobs(revision string, paths []string) error {
 	if len(paths) == 0 || revision == "" {
 		return nil

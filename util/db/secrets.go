@@ -96,7 +96,14 @@ func stringArrayOrEmpty(secret *corev1.Secret, key string) []string {
 		if str == "" {
 			return []string{}
 		}
-		return strings.Split(str, ",")
+		parts := strings.Split(str, ",")
+		result := make([]string, 0, len(parts))
+		for _, p := range parts {
+			if trimmed := strings.TrimSpace(p); trimmed != "" {
+				result = append(result, trimmed)
+			}
+		}
+		return result
 	}
 	return []string{}
 }

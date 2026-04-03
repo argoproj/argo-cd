@@ -195,7 +195,8 @@ func (s *Service) Init() error {
 				var pathSHA string
 				sparsePaths, err := getSparseCheckoutPathsFromRepo(context.Background(), fullPath)
 				if err != nil {
-					log.Warnf("Failed to get sparse checkout paths from %s: %v", fullPath, err)
+					// Non-sparse repos will fail here; that's normal, not worth a warning.
+					log.Debugf("No sparse checkout configured for %s: %v", fullPath, err)
 				} else if len(sparsePaths) > 0 {
 					pathSHA = git.ComputePathHash(sparsePaths)
 				}
@@ -288,7 +289,13 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("error setting up git client and resolving given revision: %w", err)
 	}
-	if apps, err := s.cache.ListApps(q.Repo.Repo, commitSHA); err == nil {
+
+	var pathsSHA string
+	if len(q.Repo.SparsePaths) > 0 {
+		pathsSHA = git.ComputePathHash(q.Repo.SparsePaths)
+	}
+
+	if apps, err := s.cache.ListApps(q.Repo.Repo, commitSHA, pathsSHA); err == nil {
 		log.Infof("cache hit: %s/%s", q.Repo.Repo, q.Revision)
 		return &apiclient.AppList{Apps: apps}, nil
 	}
@@ -308,7 +315,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("error discovering applications: %w", err)
 	}
-	err = s.cache.SetApps(q.Repo.Repo, commitSHA, apps)
+	err = s.cache.SetApps(q.Repo.Repo, commitSHA, pathsSHA, apps)
 	if err != nil {
 		log.Warnf("cache set error %s/%s: %v", q.Repo.Repo, commitSHA, err)
 	}
@@ -1491,7 +1498,8 @@ func getResolvedValueFiles(
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
 			}
-			if refRepoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(referencedSource.Repo.Repo)); refRepoPath != "" {
+			refRepoKey := repoPathKey(referencedSource.Repo)
+			if refRepoPath := gitRepoPaths.GetPathIfExists(refRepoKey); refRepoPath != "" {
 				effectiveRoot = refRepoPath
 			}
 		} else {
@@ -1552,21 +1560,8 @@ func getResolvedValueFiles(
 
 func getResolvedRefValueFile(rawValueFile string, env *v1alpha1.Env, allowedValueFilesSchemas []string, repo v1alpha1.Repository, gitRepoPaths utilio.TempPaths) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
-	var pathsSHA string
 
-	// We want a unique checkout per unique path permutation if partial clones are enabled and paths have been set.
-	// Otherwise we'll do a plain old checkout.
-	if len(repo.SparsePaths) > 0 {
-		pathsSHA = git.ComputePathHash(repo.SparsePaths)
-	}
-
-	normalizedURL := git.NormalizeGitURL(repo.Repo)
-	keyData, err := json.Marshal(map[string]string{"url": normalizedURL, "pathSHA": pathsSHA})
-	if err != nil {
-		log.Warnf("Failed to marshal repo URL cache string %s: %v", normalizedURL, err)
-	}
-
-	repoPath := gitRepoPaths.GetPathIfExists(string(keyData))
+	repoPath := gitRepoPaths.GetPathIfExists(repoPathKey(repo))
 
 	if repoPath == "" {
 		return "", fmt.Errorf("failed to find repo %q", repo.Repo)
@@ -2846,22 +2841,21 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 	return q.Source.Helm.FileParameters
 }
 
-func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
+// repoPathKey builds the JSON cache key used to look up repository checkout paths.
+// The key encodes both the normalized URL and (when sparse paths are configured) a
+// hash of those paths so that each sparse-path permutation gets its own checkout.
+func repoPathKey(repo v1alpha1.Repository) string {
 	var pathsSHA string
-
-	// We want a unique checkout per unique path permutation if partial clones are enabled and paths have been set.
-	// Otherwise we'll do a plain old checkout.
 	if len(repo.SparsePaths) > 0 {
 		pathsSHA = git.ComputePathHash(repo.SparsePaths)
 	}
-
 	normalizedURL := git.NormalizeGitURL(repo.Repo)
-	keyData, err := json.Marshal(map[string]string{"url": normalizedURL, "pathSHA": pathsSHA})
-	if err != nil {
-		log.Warnf("Failed to marshal repo URL cache string %s: %v", normalizedURL, err)
-	}
+	keyData, _ := json.Marshal(map[string]string{"url": normalizedURL, "pathSHA": pathsSHA})
+	return string(keyData)
+}
 
-	repoPath, err := s.gitRepoPaths.GetPath(string(keyData))
+func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
+	repoPath, err := s.gitRepoPaths.GetPath(repoPathKey(*repo))
 	if err != nil {
 		return nil, err
 	}
@@ -3306,8 +3300,13 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 		return nil, err
 	}
 
+	var pathsSHA string
+	if len(repo.SparsePaths) > 0 {
+		pathsSHA = git.ComputePathHash(repo.SparsePaths)
+	}
+
 	// check the cache and return the results if present
-	if cachedPaths, err := s.cache.GetGitDirectories(repo.Repo, revision); err == nil {
+	if cachedPaths, err := s.cache.GetGitDirectories(repo.Repo, revision, pathsSHA); err == nil {
 		log.Debugf("cache hit for repo: %s revision: %s", repo.Repo, revision)
 		return &apiclient.GitDirectoriesResponse{
 			Paths: cachedPaths,
@@ -3357,7 +3356,7 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	}
 
 	log.Debugf("found %d git paths from %s", len(paths), repo.Repo)
-	err = s.cache.SetGitDirectories(repo.Repo, revision, paths)
+	err = s.cache.SetGitDirectories(repo.Repo, revision, pathsSHA, paths)
 	if err != nil {
 		log.Warnf("error caching git directories for repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
