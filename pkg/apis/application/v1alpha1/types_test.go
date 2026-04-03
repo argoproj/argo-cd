@@ -122,6 +122,22 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
+			name: "empty namespace matches only empty namespace",
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: ""},
+			isPermitted: true,
+		},
+		{
+			name: "empty namespace does not match non-empty namespace",
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+			isPermitted: false,
+		},
+		{
 			name: "namespace does not match",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "default",
@@ -571,6 +587,20 @@ func TestGlobMatch(t *testing.T) {
 		allowNegation bool
 		expected      bool
 	}{
+		{
+			name:          "empty pattern matches empty value",
+			pattern:       "",
+			val:           "",
+			allowNegation: false,
+			expected:      true,
+		},
+		{
+			name:          "empty pattern does not match non-empty value",
+			pattern:       "",
+			val:           "foo",
+			allowNegation: false,
+			expected:      false,
+		},
 		{
 			name:          "exact match",
 			pattern:       "foo",
