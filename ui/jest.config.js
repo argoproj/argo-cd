@@ -7,7 +7,7 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   transformIgnorePatterns: ['node_modules/(?!(argo-ui|.*\\.pnpm.*argo-ui.*)/)'],
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', {isolatedModules: true}]
+    '^.+\\.tsx?$': ['ts-jest', {isolatedModules: true, tsconfig: '<rootDir>/src/app/tsconfig.json'}]
   },
   globals: {
     'self': {}
