@@ -22,7 +22,7 @@ import (
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-var ExcludedCacheHeaders = []string{
+var excludedCacheHeaders = []string{
 	"Date",
 	"Set-Cookie",
 	"X-GitHub-Request-ID",
@@ -362,7 +362,7 @@ func (t *GitHubCacheTransport) RoundTrip(req *http.Request) (resp *http.Response
 		cacheResp.Header = maps.Clone(resp.Header)
 
 		// Remove excluded headers from the cached response
-		for _, header := range ExcludedCacheHeaders {
+		for _, header := range excludedCacheHeaders {
 			cacheResp.Header.Del(header)
 		}
 
