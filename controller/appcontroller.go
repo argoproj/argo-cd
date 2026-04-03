@@ -1851,7 +1851,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		logCtx = logCtx.WithField(k, v.Milliseconds())
 	}
 
-	ctrl.normalizeApplication(origApp, app)
+	ctrl.normalizeApplication(app)
 	ts.AddCheckpoint("normalize_application_ms")
 
 	tree, err := ctrl.setAppManagedResources(destCluster, app, compareResult)
@@ -2090,7 +2090,8 @@ func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) 
 }
 
 // normalizeApplication normalizes an application.spec and additionally persists updates if it changed
-func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Application) {
+func (ctrl *ApplicationController) normalizeApplication(app *appv1.Application) {
+	orig := app.DeepCopy()
 	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 
@@ -2689,7 +2690,7 @@ func (ctrl *ApplicationController) applyImpersonationConfig(config *rest.Config,
 	if !impersonationEnabled {
 		return nil
 	}
-	user, err := deriveServiceAccountToImpersonate(proj, app, destCluster)
+	user, err := settings_util.DeriveServiceAccountToImpersonate(proj, app, destCluster)
 	if err != nil {
 		return fmt.Errorf("error deriving service account to impersonate: %w", err)
 	}

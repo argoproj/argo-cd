@@ -76,6 +76,21 @@ func isPostDeleteHook(obj *unstructured.Unstructured) bool {
 	return isHookOfType(obj, PostDeleteHookType)
 }
 
+// hasGitOpsEngineSyncPhaseHook is true when gitops-engine would run the resource during a sync
+// phase (PreSync, Sync, PostSync, SyncFail). PreDelete/PostDelete are not sync phases;
+// without this check, state reconciliation drops such resources
+// entirely because isPreDeleteHook/isPostDeleteHook match any comma-separated value.
+// HookTypeSkip is omitted as it is not a sync phase.
+func hasGitOpsEngineSyncPhaseHook(obj *unstructured.Unstructured) bool {
+	for _, t := range hook.Types(obj) {
+		switch t {
+		case common.HookTypePreSync, common.HookTypeSync, common.HookTypePostSync, common.HookTypeSyncFail:
+			return true
+		}
+	}
+	return false
+}
+
 // executeHooks is a generic function to execute hooks of a specified type
 func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Application, proj *appv1.AppProject, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
 	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()

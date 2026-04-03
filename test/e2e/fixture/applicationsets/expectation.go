@@ -354,3 +354,41 @@ func ApplicationSetHasApplicationStatus(expectedApplicationStatusLength int) Exp
 		return succeeded, fmt.Sprintf("All Applications in ApplicationSet: '%s' are Healthy ", c.context.GetName())
 	}
 }
+
+// ApplicationDeletionStarted verifies at least one application from provided list of appNames has DeletionTimestamp set,
+// indicating deletion has begun for this step. Returns failed if any application doesn't exist, does not expect completion of deletion.
+func ApplicationDeletionStarted(appNames []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		anyapp := false
+		for _, appName := range appNames {
+			app := c.app(appName)
+			if app == nil {
+				// with test finalizer explicitly added, application should not be deleted
+				return failed, fmt.Sprintf("no application found with name '%s'", c.context.GetName())
+			}
+			if app.DeletionTimestamp != nil {
+				anyapp = true
+			}
+		}
+		if !anyapp {
+			return pending, "no app in this step is being deleted yet"
+		}
+		return succeeded, fmt.Sprintf("at least one app in %v is being deleted or gone", appNames)
+	}
+}
+
+// ApplicationsExistAndNotBeingDeleted checks that specified apps exist and do NOT have DeletionTimestamp set
+func ApplicationsExistAndNotBeingDeleted(appNames []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, appName := range appNames {
+			app := c.app(appName)
+			if app == nil {
+				return failed, fmt.Sprintf("app '%s' does not exist but should", appName)
+			}
+			if app.DeletionTimestamp != nil {
+				return failed, fmt.Sprintf("app '%s' is being deleted but should not be yet", appName)
+			}
+		}
+		return succeeded, fmt.Sprintf("all apps %v exist and are not being deleted", appNames)
+	}
+}

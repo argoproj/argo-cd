@@ -1069,3 +1069,7 @@ func FormatAccessTokenCacheKey(sub string) string {
 func formatOidcTokenCacheKey(sub string, sid string) string {
 	return fmt.Sprintf("%s_%s_%s", OidcTokenCachePrefix, sub, sid)
 }
+
+func (a *ClientApp) IssuerURL() string {
+	return a.issuerURL
+}
