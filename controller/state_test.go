@@ -2333,6 +2333,24 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 			expectedHasChanges: false,
 		},
 		{
+			name: "directory source type without sync policy returns true",
+			app: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Spec.SyncPolicy = nil
+				app.Status.SourceType = v1alpha1.ApplicationSourceTypeDirectory
+				app.Status.Sync.Revision = "abc123"
+				return app
+			}(),
+			sources: func() []v1alpha1.ApplicationSource {
+				app := newFakeApp()
+				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			}(),
+			revisions:          []string{"def456"},
+			data:               fakeData{},
+			sendRuntimeState:   false,
+			expectedHasChanges: true,
+		},
+		{
 			name: "directory source type with automated sync disabled returns true",
 			app: func() *v1alpha1.Application {
 				app := newFakeApp()

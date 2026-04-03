@@ -250,7 +250,7 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
 	skipUpdateRevisions := !processManifestGeneratePathsEnabled ||
-		(sourceType == v1alpha1.ApplicationSourceTypeDirectory && !app.Spec.SyncPolicy.IsAutomatedSyncEnabled())
+		(sourceType == v1alpha1.ApplicationSourceTypeDirectory && (app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.IsAutomatedSyncEnabled()))
 
 	if !skipUpdateRevisions && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
 		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
