@@ -1,0 +1,43 @@
+name: branch build
+
+on:
+  push:
+    branches:
+      - 'master'
+  pull_request:
+    branches:
+      - 'master'
+
+jobs:
+  local:
+    # only build if the push is to a local branch, or if the PR is from a local branch
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+    uses: ethereum-optimism/factory/.github/workflows/docker.yaml@f8f3cb4800e538003134fb5f50cc734c2c98d762
+    with:
+      image_name: argocd
+      context: .
+      dockerfile: Dockerfile
+      gcp_project_id: ${{ vars.GCP_PROJECT_ID_OPLABS_TOOLS_ARTIFACTS }}
+      registry: us-docker.pkg.dev/oplabs-tools-artifacts/internal-images
+      build_args: |
+        GIT_COMMIT=${{ github.sha }}
+        GIT_TREE_STATE=clean
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+
+  fork:
+    # only build if the PR is from a fork
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository
+    uses: ethereum-optimism/factory/.github/workflows/docker.yaml@f8f3cb4800e538003134fb5f50cc734c2c98d762
+    with:
+      image_name: argocd
+      context: .
+      dockerfile: Dockerfile
+      registry: ttl.sh/${{ github.sha }}
+      build_args: |
+        GIT_COMMIT=${{ github.sha }}
+        GIT_TREE_STATE=clean
+    permissions:
+      contents: read

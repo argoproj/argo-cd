@@ -1,0 +1,25 @@
+name: tag build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  tag:
+    uses: ethereum-optimism/factory/.github/workflows/docker.yaml@f8f3cb4800e538003134fb5f50cc734c2c98d762
+    with:
+      image_name: argocd
+      context: .
+      dockerfile: Dockerfile
+      tag: ${{ github.ref_name }}
+      gcp_project_id: ${{ vars.GCP_PROJECT_ID_OPLABS_TOOLS_ARTIFACTS }}
+      registry: us-docker.pkg.dev/oplabs-tools-artifacts/internal-images
+      build_args: |
+        GIT_COMMIT=${{ github.sha }}
+        GIT_TAG=${{ github.ref_name }}
+        GIT_TREE_STATE=clean
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
