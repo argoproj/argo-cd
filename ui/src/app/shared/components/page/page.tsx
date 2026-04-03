@@ -41,12 +41,13 @@ export const AddAuthToToolbar = (init: Toolbar | Observable<Toolbar>, ctx: Conte
     );
 };
 
-interface PageProps extends React.Props<any> {
+interface PageProps {
     title: string;
     hideAuth?: boolean;
     toolbar?: Toolbar | Observable<Toolbar>;
     topBarTitle?: string;
     useTitleOnly?: boolean;
+    children?: React.ReactNode;
 }
 
 export const Page = (props: PageProps) => {

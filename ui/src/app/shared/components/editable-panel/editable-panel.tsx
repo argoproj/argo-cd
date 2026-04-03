@@ -1,7 +1,8 @@
 import {ErrorNotification, HelpIcon, NotificationType} from 'argo-ui';
 import * as classNames from 'classnames';
-import React, {type ReactNode, useCallback, useContext, useEffect, useRef, useState, Fragment} from 'react';
-import {Form, type FormApi} from 'react-form';
+import * as React from 'react';
+import {type ReactNode, useCallback, useContext, useEffect, useRef, useState, Fragment} from 'react';
+import {Form, type FormApi} from 'argo-ui';
 import {helpTip} from '../../../applications/components/utils';
 import {Context} from '../../context';
 import {Spinner} from '../spinner';

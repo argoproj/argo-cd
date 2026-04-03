@@ -1319,7 +1319,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const graphNodes = graph.nodes();
     const size = getGraphSize(graphNodes.map(id => graph.node(id)));
 
-    const resourceTreeRef = React.useRef<HTMLDivElement>();
+    const resourceTreeRef = React.useRef<HTMLDivElement | null>(null);
 
     const graphMoving = React.useRef({
         enable: false,

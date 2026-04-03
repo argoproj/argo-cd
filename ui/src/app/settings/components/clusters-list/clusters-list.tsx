@@ -44,7 +44,7 @@ const CustomTopBar = (props: {toolbar?: Toolbar | Observable<Toolbar>}) => {
 };
 
 export const ClustersList = () => {
-    const clustersLoaderRef = React.useRef<DataLoader>();
+    const clustersLoaderRef = React.useRef<DataLoader | null>(null);
     return (
         <Consumer>
             {ctx => (

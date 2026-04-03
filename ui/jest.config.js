@@ -3,6 +3,8 @@ module.exports = {
   testEnvironment: 'jsdom',
   reporters: ['default', 'jest-junit'],
   collectCoverage: true,
+  testPathIgnorePatterns: ['/node_modules/', '/.yalc/'],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   transformIgnorePatterns: ['node_modules/(?!(argo-ui)/)'],
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {

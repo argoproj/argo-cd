@@ -1,5 +1,5 @@
 import * as React from 'react';
-import * as renderer from 'react-test-renderer';
+import {render, screen} from '@testing-library/react';
 import {ResourceIcon} from './resource-icon';
 
 // Mock the resourceIcons and resourceCustomizations
@@ -22,63 +22,60 @@ jest.mock('./resource-customizations', () => ({
 }));
 
 describe('ResourceIcon', () => {
+    const renderResourceIcon = (group: string, kind: string) => {
+        render(<ResourceIcon group={group} kind={kind} />);
+    };
+
     describe('kind-based icons (no group)', () => {
         it('should show kind-based icon for ConfigMap without group', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='' kind='ConfigMap' />);
-            const testInstance = testRenderer.root;
-            const imgs = testInstance.findAllByType('img');
+            renderResourceIcon('', 'ConfigMap');
+            const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
-            expect(imgs[0].props.src).toBe('assets/images/resources/cm.svg');
+            expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/cm.svg');
         });
 
         it('should show kind-based icon for Deployment without group', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='' kind='Deployment' />);
-            const testInstance = testRenderer.root;
-            const imgs = testInstance.findAllByType('img');
+            renderResourceIcon('', 'Deployment');
+            const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
-            expect(imgs[0].props.src).toBe('assets/images/resources/deploy.svg');
+            expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/deploy.svg');
         });
     });
 
     describe('group-based icons (with matching group)', () => {
         it('should show group-based icon for exact group match', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='cert-manager.io' kind='Certificate' />);
-            const testInstance = testRenderer.root;
-            const imgs = testInstance.findAllByType('img');
+            renderResourceIcon('cert-manager.io', 'Certificate');
+            const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
-            expect(imgs[0].props.src).toBe('assets/images/resources/cert-manager.io/icon.svg');
+            expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/cert-manager.io/icon.svg');
         });
 
         it('should show group-based icon for wildcard group match (crossplane)', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='pkg.crossplane.io' kind='Provider' />);
-            const testInstance = testRenderer.root;
-            const imgs = testInstance.findAllByType('img');
+            renderResourceIcon('pkg.crossplane.io', 'Provider');
+            const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
             // Wildcard '*' should be replaced with '_' in the path
-            expect(imgs[0].props.src).toBe('assets/images/resources/_.crossplane.io/icon.svg');
+            expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/_.crossplane.io/icon.svg');
 
-            const complexTestRenderer = renderer.create(<ResourceIcon group='identify.provider.crossplane.io' kind='Provider' />);
-            const complexTestInstance = complexTestRenderer.root;
-            const complexImgs = complexTestInstance.findAllByType('img');
+            const {getAllByRole} = render(<ResourceIcon group='identify.provider.crossplane.io' kind='Provider' />);
+            const complexImgs = getAllByRole('img');
             expect(complexImgs.length).toBeGreaterThan(0);
             // Wildcard '*' should be replaced with '_' in the path
-            expect(complexImgs[0].props.src).toBe('assets/images/resources/_.crossplane.io/icon.svg');
+            expect(complexImgs[0]).toHaveAttribute('src', 'assets/images/resources/_.crossplane.io/icon.svg');
         });
 
         it('should show group-based icon for wildcard group match (fluxcd)', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='source.fluxcd.io' kind='GitRepository' />);
-            const testInstance = testRenderer.root;
-            const imgs = testInstance.findAllByType('img');
+            renderResourceIcon('source.fluxcd.io', 'GitRepository');
+            const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
-            expect(imgs[0].props.src).toBe('assets/images/resources/_.fluxcd.io/icon.svg');
+            expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/_.fluxcd.io/icon.svg');
         });
 
         it('should show group-based icon for promoter.argoproj.io', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='promoter.argoproj.io' kind='PromotionStrategy' />);
-            const testInstance = testRenderer.root;
-            const imgs = testInstance.findAllByType('img');
+            render(<ResourceIcon group='promoter.argoproj.io' kind='PromotionStrategy' />);
+            const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
-            expect(imgs[0].props.src).toBe('assets/images/resources/promoter.argoproj.io/icon.svg');
+            expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/promoter.argoproj.io/icon.svg');
         });
     });
 
@@ -87,60 +84,50 @@ describe('ResourceIcon', () => {
             // This is the main bug fix test case
             // Ingress has group 'networking.k8s.io' which is NOT in resourceCustomizations
             // But Ingress IS in resourceIcons, so it should still show the icon
-            const testRenderer = renderer.create(<ResourceIcon group='networking.k8s.io' kind='Ingress' />);
-            const testInstance = testRenderer.root;
-            const imgs = testInstance.findAllByType('img');
+            renderResourceIcon('networking.k8s.io', 'Ingress');
+            const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
-            expect(imgs[0].props.src).toBe('assets/images/resources/ing.svg');
+            expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/ing.svg');
         });
 
         it('should fallback to kind-based icon for Service with core group', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='' kind='Service' />);
-            const testInstance = testRenderer.root;
-            const imgs = testInstance.findAllByType('img');
+            renderResourceIcon('', 'Service');
+            const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
-            expect(imgs[0].props.src).toBe('assets/images/resources/svc.svg');
+            expect(imgs[0]).toHaveAttribute('src', 'assets/images/resources/svc.svg');
         });
     });
 
     describe('fallback to initials (no matching group or kind)', () => {
         it('should show initials for unknown resource with unknown group', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='unknown.example.io' kind='UnknownResource' />);
-            const testInstance = testRenderer.root;
-            const imgs = testInstance.findAllByType('img');
+            renderResourceIcon('unknown.example.io', 'UnknownResource');
+            const imgs = screen.queryAllByRole('img');
             expect(imgs.length).toBe(0);
             // Should show initials "UR" (uppercase letters from UnknownResource)
-            const spans = testInstance.findAllByType('span');
-            const textSpan = spans.find(s => s.children.includes('UR'));
-            expect(textSpan).toBeTruthy();
+            expect(screen.getByText('UR')).toBeInTheDocument();
         });
 
         it('should show initials for MyCustomKind', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='' kind='MyCustomKind' />);
-            const testInstance = testRenderer.root;
-            const imgs = testInstance.findAllByType('img');
+            renderResourceIcon('', 'MyCustomKind');
+            const imgs = screen.queryAllByRole('img');
             expect(imgs.length).toBe(0);
             // Should show initials "MCK"
-            const spans = testInstance.findAllByType('span');
-            const textSpan = spans.find(s => s.children.includes('MCK'));
-            expect(textSpan).toBeTruthy();
+            expect(screen.getByText('MCK')).toBeInTheDocument();
         });
     });
 
     describe('special cases', () => {
         it('should show node icon for kind=node', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='' kind='node' />);
-            const testInstance = testRenderer.root;
-            const imgs = testInstance.findAllByType('img');
+            renderResourceIcon('', 'node');
+            const imgs = screen.getAllByRole('img');
             expect(imgs.length).toBeGreaterThan(0);
-            expect(imgs[0].props.src).toBe('assets/images/infrastructure_components/node.svg');
+            expect(imgs[0]).toHaveAttribute('src', 'assets/images/infrastructure_components/node.svg');
         });
 
         it('should show application icon for kind=Application', () => {
-            const testRenderer = renderer.create(<ResourceIcon group='' kind='Application' />);
-            const testInstance = testRenderer.root;
-            const icons = testInstance.findAll(node => node.type === 'i' && typeof node.props.className === 'string' && node.props.className.includes('argo-icon-application'));
-            expect(icons.length).toBeGreaterThan(0);
+            renderResourceIcon('', 'Application');
+            const icon = document.querySelector('i.argo-icon-application');
+            expect(icon).toBeTruthy();
         });
     });
 });

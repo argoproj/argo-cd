@@ -1,7 +1,7 @@
 /* eslint-disable no-prototype-builtins */
 import {AutocompleteField, Checkbox, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
 import * as React from 'react';
-import {FormApi, Text} from 'react-form';
+import {FormApi, Text} from 'argo-ui';
 import {
     ClipboardText,
     Cluster,

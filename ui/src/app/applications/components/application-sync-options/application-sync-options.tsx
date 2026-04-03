@@ -1,7 +1,7 @@
 import {Checkbox, DataLoader, Select, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import * as ReactForm from 'react-form';
+import {ReactForm} from 'argo-ui';
 
 import './application-sync-options.scss';
 import {services} from '../../../shared/services';

@@ -1,6 +1,6 @@
 import {AutocompleteField, DataLoader, ErrorNotification, FormField, FormSelect, getNestedField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
-import {FieldApi, FormApi, FormField as ReactFormField, Text, TextArea} from 'react-form';
+import {FieldApi, FormApi, FormFieldHOC as ReactFormField, Text, TextArea} from 'argo-ui';
 import {cloneDeep} from 'lodash-es';
 import {
     ArrayInputField,
@@ -85,7 +85,7 @@ function getParamsEditableItems(
         original: string;
         metadata: {name: string; value: string};
     }[],
-    component: React.ComponentType = TextWithMetadataField
+    component: React.ComponentType<any> = TextWithMetadataField
 ) {
     return params
         .sort(overridesFirst)
@@ -184,7 +184,7 @@ export const ApplicationParameters = (props: {
                         props.setPageNumber(page);
                     }}>
                     {data => {
-                        const listOfPanels: JSX.Element[] = [];
+                        const listOfPanels: React.ReactElement[] = [];
                         data.forEach(appSource => {
                             const i = app.spec.sources.indexOf(appSource);
                             listOfPanels.push(getEditablePanelForSources(i, appSource));
@@ -294,7 +294,7 @@ export const ApplicationParameters = (props: {
     }
 
     // Collapse button is separate
-    function getEditablePanelForSources(index: number, appSource: models.ApplicationSource): JSX.Element {
+    function getEditablePanelForSources(index: number, appSource: models.ApplicationSource): React.ReactElement {
         return (collapsible && props.collapsedSources[index] === undefined) || props.collapsedSources[index] ? (
             <div
                 key={'app_params_collapsed_' + index}

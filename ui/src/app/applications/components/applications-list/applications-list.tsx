@@ -450,7 +450,7 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
     const [createApi, setCreateApi] = React.useState(null);
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
-    const loaderRef = React.useRef<DataLoader>();
+    const loaderRef = React.useRef<DataLoader | null>(null);
     const {List, Summary, Tiles} = AppsListViewKey;
 
     const objectListKind = props.objectListKind;

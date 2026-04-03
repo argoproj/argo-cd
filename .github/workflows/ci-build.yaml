@@ -336,7 +336,7 @@ jobs:
           cd ui && yarn install --frozen-lockfile --ignore-optional --non-interactive
       - name: Build UI code
         run: |
-          yarn test
+          NODE_ENV=test yarn test
           yarn build
         env:
           NODE_ENV: production

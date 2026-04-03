@@ -1,6 +1,7 @@
 import {NotificationType, SlidingPanel, Tooltip, SplitButtonAction} from 'argo-ui';
 import * as classNames from 'classnames';
-import React, {useState, useEffect, useCallback, useRef, useContext, FC} from 'react';
+import * as React from 'react';
+import {useState, useEffect, useCallback, useRef, useContext, FC} from 'react';
 import * as ReactDOM from 'react-dom';
 import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
@@ -330,7 +331,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
             aVersionId: number | null,
             indx: number,
             aSource: models.ApplicationSource,
-            sourceHeader?: JSX.Element
+            sourceHeader?: React.ReactElement
         ) => {
             const showChartNonMetadataInfo = (aRevision: string, aRepoUrl: string) => {
                 return (
@@ -406,7 +407,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
             aVersionId: number | null,
             indx: number,
             aSource: models.ApplicationSource,
-            sourceHeader?: JSX.Element
+            sourceHeader?: React.ReactElement
         ) => {
             const showChartNonMetadataInfo = (aRevision: string, aRepoUrl: string) => {
                 return (
@@ -498,7 +499,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
             aVersionId: number | null,
             indx: number,
             aSource: models.ApplicationSource,
-            sourceHeader?: JSX.Element
+            sourceHeader?: React.ReactElement
         ) => {
             const showNonMetadataInfo = (aSource: models.ApplicationSource, aRevision: string) => {
                 return (
@@ -568,7 +569,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 </DataLoader>
             );
         };
-        const cont: JSX.Element[] = [];
+        const cont: React.ReactElement[] = [];
         const sources: models.ApplicationSource[] = application.spec.sources;
         if (sources?.length > 0 && revisions) {
             revisions.forEach((rev, indx) => {
