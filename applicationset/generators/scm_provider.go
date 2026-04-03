@@ -288,6 +288,7 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 	}
 
 	if g.enableGitHubCache {
+		services.RegisterGitHubCacheMetrics()
 		cacheCtx = &services.GitHubCacheContext{
 			AppSecretName: github.AppSecretName,
 			TokenRef:      github.TokenRef,

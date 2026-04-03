@@ -114,12 +114,16 @@ func NewGitHubCacheMetrics() *CacheMetrics {
 
 var globalGitHubCacheMetrics = NewGitHubCacheMetrics()
 
-func init() {
-	log.Debug("Registering GitHub Cache metrics")
-	metrics.Registry.MustRegister(globalGitHubStorageMetrics.StorageItemsTotal)
-	metrics.Registry.MustRegister(globalGitHubStorageMetrics.StorageItemsEvicted)
-	metrics.Registry.MustRegister(globalGitHubCacheMetrics.CacheRequestHits)
-	metrics.Registry.MustRegister(globalGitHubCacheMetrics.CacheRequestTotal)
+var registerMetricsOnce sync.Once
+
+func RegisterGitHubCacheMetrics() {
+	registerMetricsOnce.Do(func() {
+		log.Debug("Registering GitHub Cache metrics")
+		metrics.Registry.MustRegister(globalGitHubStorageMetrics.StorageItemsTotal)
+		metrics.Registry.MustRegister(globalGitHubStorageMetrics.StorageItemsEvicted)
+		metrics.Registry.MustRegister(globalGitHubCacheMetrics.CacheRequestHits)
+		metrics.Registry.MustRegister(globalGitHubCacheMetrics.CacheRequestTotal)
+	})
 }
 
 type Storage struct {
