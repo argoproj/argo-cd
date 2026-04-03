@@ -766,6 +766,38 @@ func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
 		assert.Equal(t, "v1", matchLabels["version"])
 	})
 
+	t.Run("ignoring one matchLabels key should not add live-only non-ignored selector keys", func(t *testing.T) {
+		// Live has an additional non-ignored label ("track") that target does not.
+		// Replace semantics should not copy it into the patched target.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		live := cr.reconciliationResult.Live[0]
+		matchLabels, ok, err := unstructured.NestedStringMap(live.Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+		matchLabels["track"] = "stable"
+		require.NoError(t, unstructured.SetNestedStringMap(live.Object, matchLabels, "spec", "selector", "matchLabels"))
+
+		targets, err := normalizeTargetResources(cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		patchedMatchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		assert.Equal(t, "myapp-v2", patchedMatchLabels["app"])
+		assert.Equal(t, "v1", patchedMatchLabels["version"])
+		_, found := patchedMatchLabels["track"]
+		assert.False(t, found, "live-only non-ignored selector key was added to target by replace-strategy collateral")
+	})
+
 	t.Run("ignoring entire selector should replace target selector with live", func(t *testing.T) {
 		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
 			{

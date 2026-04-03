@@ -520,6 +520,7 @@ func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObje
 // This corrects collateral overwrites caused by patchStrategy:"replace"
 // treating a parent field as atomic.
 func restoreNonIgnoredFields(patched, original, normalized map[string]any) {
+	// Pass 1: restore non-ignored fields that were overwritten or dropped.
 	for key, originalVal := range original {
 		patchedVal, inPatched := patched[key]
 		normalizedVal, inNormalized := normalized[key]
@@ -539,6 +540,15 @@ func restoreNonIgnoredFields(patched, original, normalized map[string]any) {
 		// so it is not ignored and should keep the original (target) value.
 		if inNormalized && reflect.DeepEqual(normalizedVal, originalVal) && (!inPatched || !reflect.DeepEqual(patchedVal, originalVal)) {
 			patched[key] = originalVal
+		}
+	}
+
+	// Pass 2: remove keys that were introduced into patched from the live
+	// object via replace-strategy collateral but do not exist in the original
+	// target. These are live-only fields that should not leak into the target.
+	for key := range patched {
+		if _, inOriginal := original[key]; !inOriginal {
+			delete(patched, key)
 		}
 	}
 }
