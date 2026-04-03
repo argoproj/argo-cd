@@ -42,7 +42,7 @@ var globalGitHubCache = &gitHubCacheRegistry{
 const (
 	githubCacheStorageItemsTotal   = "argocd_github_cache_storage_items_total"
 	githubCacheStorageItemsEvicted = "argocd_github_cache_storage_items_evicted_total"
-	githubCacheCacheHits           = "argocd_github_cache_hits_total"
+	githubCacheHits                = "argocd_github_cache_hits_total"
 	githubCacheCacheTotal          = "argocd_github_cache_request_total"
 )
 
@@ -88,7 +88,7 @@ type CacheMetrics struct {
 func NewGitHubCacheHits() *prometheus.CounterVec {
 	return prometheus.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: githubCacheCacheHits,
+			Name: githubCacheHits,
 			Help: "Total number of cache request hits in GitHub cache",
 		},
 		[]string{"key"},
@@ -197,7 +197,7 @@ type GitHubCacheContext struct {
 	AppSecretName string
 }
 
-func newLRUSStorage(cacheCtx *GitHubCacheContext, size int) Storage {
+func newLRUStorage(cacheCtx *GitHubCacheContext, size int) Storage {
 	globalGitHubCache.lock.Lock()
 	defer globalGitHubCache.lock.Unlock()
 	// Generate a unique key for this cache context
@@ -381,7 +381,7 @@ func (t *GitHubCacheTransport) RoundTrip(req *http.Request) (resp *http.Response
 }
 
 func NewGitHubCacheTransport(cacheCtx *GitHubCacheContext, size int, parent http.RoundTripper) *GitHubCacheTransport {
-	storage := newLRUSStorage(cacheCtx, size)
+	storage := newLRUStorage(cacheCtx, size)
 	if parent == nil {
 		parent = http.DefaultTransport
 	}

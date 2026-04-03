@@ -367,7 +367,7 @@ func TestIsSameVaryHeader(t *testing.T) {
 	}
 }
 
-func TestNewLRUSStorage_CacheKeys(t *testing.T) {
+func TestNewLRUStorage_CacheKeys(t *testing.T) {
 	tests := []struct {
 		name        string
 		cacheCtx    *GitHubCacheContext
@@ -402,16 +402,16 @@ func TestNewLRUSStorage_CacheKeys(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			storage := newLRUSStorage(tt.cacheCtx, 10)
+			storage := newLRUStorage(tt.cacheCtx, 10)
 			assert.Equal(t, tt.expectedKey, storage.key)
 		})
 	}
 }
 
-func TestNewLRUSStorage_ReusesSameStorage(t *testing.T) {
+func TestNewLRUStorage_ReusesSameStorage(t *testing.T) {
 	cacheCtx := &GitHubCacheContext{AppSecretName: "reuse-test-secret"}
-	s1 := newLRUSStorage(cacheCtx, 10)
-	s2 := newLRUSStorage(cacheCtx, 10)
+	s1 := newLRUStorage(cacheCtx, 10)
+	s2 := newLRUStorage(cacheCtx, 10)
 	// Same pointer to underlying lruMap means the same storage is returned
 	assert.Same(t, s1.lock, s2.lock, "Same storage instance should be reused for identical context")
 }
@@ -559,7 +559,7 @@ func TestGitHubCacheContext_TokenRefKey(t *testing.T) {
 	ctxB := &GitHubCacheContext{
 		TokenRef: &argoprojiov1alpha1.SecretRef{SecretName: "secret-b", Key: "token"},
 	}
-	storageA := newLRUSStorage(ctxA, 10)
-	storageB := newLRUSStorage(ctxB, 10)
+	storageA := newLRUStorage(ctxA, 10)
+	storageB := newLRUStorage(ctxB, 10)
 	assert.NotEqual(t, storageA.key, storageB.key, "Different TokenRefs must produce different storage keys")
 }
