@@ -34,8 +34,10 @@ func (ctrl *ApplicationController) GetProcessableApps() (*appv1.ApplicationList,
 func (ctrl *ApplicationController) EvaluateAppRevisionsChanges(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) (bool, error) {
 	sources := []appv1.ApplicationSource{source}
 	revisions := []string{revision}
-
-	return ctrl.appStateManager.EvaluateAppRevisionsChanges(ctx, app, sources, revisions, project, false)
+	// we always want to use the cache to resolve revision since this is called
+	// on each update to know if there is a new commit
+	noRevisionCache := false
+	return ctrl.appStateManager.EvaluateAppRevisionsChanges(ctx, app, sources, revisions, project, false, noRevisionCache)
 }
 
 func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, app *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {

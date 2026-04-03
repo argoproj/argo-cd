@@ -77,7 +77,7 @@ type managedResource struct {
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState)
-	EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, revisions []string, proj *v1alpha1.AppProject, sendRuntimeState bool) (bool, error)
+	EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, revisions []string, proj *v1alpha1.AppProject, sendRuntimeState bool, noRevisionCache bool) (bool, error)
 	GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
 }
 
@@ -133,7 +133,7 @@ type appStateManager struct {
 // EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
 // If it does not, then the cached manifests are updated to the current revisions.
 // Returns whether any changes were detected across all sources.
-func (m *appStateManager) EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, revisions []string, proj *v1alpha1.AppProject, sendRuntimeState bool) (bool, error) {
+func (m *appStateManager) EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, revisions []string, proj *v1alpha1.AppProject, sendRuntimeState bool, noRevisionCache bool) (bool, error) {
 	hasChanges := false
 
 	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
@@ -187,7 +187,7 @@ func (m *appStateManager) EvaluateAppRevisionsChanges(ctx context.Context, app *
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
-		_, revisionsMayHaveChanges, err := m.evaluateRevisionChanges(ctx, app, source, i, appLabelKey, revisions[i], refSources, syncedRefSources, false, trackingMethod, installationID, serverVersion, apiVersions, proj, repoClient)
+		_, revisionsMayHaveChanges, err := m.evaluateRevisionChanges(ctx, app, source, i, appLabelKey, revisions[i], refSources, syncedRefSources, noRevisionCache, trackingMethod, installationID, serverVersion, apiVersions, proj, repoClient)
 		if err != nil {
 			return false, fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
 		}
@@ -303,6 +303,7 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 			App:               app,
 			AmbiguousRevision: revision,
 			SourceIndex:       int64(sourceIndex),
+			NoRevisionCache:   noRevisionCache,
 		})
 		if err != nil {
 			return "", false, fmt.Errorf("failed to resolve revision: %w", err)

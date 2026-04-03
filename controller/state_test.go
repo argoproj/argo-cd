@@ -2547,6 +2547,7 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 				tc.revisions,
 				&defaultProj,
 				tc.sendRuntimeState,
+				false,
 			)
 
 			require.NoError(t, err)
@@ -2674,6 +2675,7 @@ func Test_EvaluateAppRevisionsChanges_ProcessManifestGeneratePathsDisabled(t *te
 				tc.revisions,
 				&defaultProj,
 				tc.sendRuntimeState,
+				false,
 			)
 
 			require.NoError(t, err)
