@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	gohttp "net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -381,7 +380,7 @@ func TestForwarder_HeadersMatchForwardResponseMessage(t *testing.T) {
 
 	// Track whether forward-response opts are called
 	optCalled := false
-	testOpt := func(_ context.Context, w gohttp.ResponseWriter, _ proto.Message) error {
+	testOpt := func(_ context.Context, w http.ResponseWriter, _ proto.Message) error {
 		w.Header().Set("X-Test-Opt", "applied")
 		optCalled = true
 		return nil
@@ -390,14 +389,14 @@ func TestForwarder_HeadersMatchForwardResponseMessage(t *testing.T) {
 	// --- Old path: UnaryForwarderWithFieldProcessor via ForwardResponseMessage ---
 	oldForwarder := argohttp.UnaryForwarderWithFieldProcessor(processApplicationListField)
 	oldRec := httptest.NewRecorder()
-	oldReq := httptest.NewRequest(http.MethodGet, "/api/v1/applications?fields=items.metadata.name", nil)
+	oldReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/applications?fields=items.metadata.name", http.NoBody)
 	oldForwarder(ctx, mux, nil, oldRec, oldReq, list, testOpt)
 	require.True(t, optCalled, "old path should call forward-response option")
 
 	// --- New path: streaming forwarder ---
 	optCalled = false
 	newRec := httptest.NewRecorder()
-	newReq := httptest.NewRequest(http.MethodGet, "/api/v1/applications?fields=items.metadata.name", nil)
+	newReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/applications?fields=items.metadata.name", http.NoBody)
 	forward_ApplicationService_List_0(ctx, mux, nil, newRec, newReq, list, testOpt)
 	require.True(t, optCalled, "new path should call forward-response option")
 
