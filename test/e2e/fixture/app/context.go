@@ -209,6 +209,11 @@ func (c *Context) HelmOCIRepoAdded(name string) *Context {
 	return c
 }
 
+func (c *Context) AuthenticatedHelmOCIRepoAdded(name string) *Context {
+	repos.AddAuthenticatedHelmOCIRepo(c.T(), name)
+	return c
+}
+
 func (c *Context) PushImageToOCIRegistry(pathName, tag string) *Context {
 	repos.PushImageToOCIRegistry(c.T(), pathName, tag)
 	return c

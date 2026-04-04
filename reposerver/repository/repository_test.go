@@ -3760,7 +3760,82 @@ func Test_getOCIHelmChartReposFromKustomization(t *testing.T) {
 	assert.True(t, repos[0].EnableOCI)
 }
 
-func Test_prepareKustomizeHelmOCIRegistryCredentials_injectsConfigHomeAndLogsIn(t *testing.T) {
+func Test_isKustomizeHelmEnabled(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		buildOptions string
+		expected     bool
+	}{
+		{name: "missing", buildOptions: "--load-restrictor LoadRestrictionsNone", expected: false},
+		{name: "exact flag", buildOptions: "--enable-helm", expected: true},
+		{name: "true assignment", buildOptions: "--enable-helm=true", expected: true},
+		{name: "false assignment", buildOptions: "--enable-helm=false", expected: false},
+		{name: "substring only", buildOptions: "--enable-helm-plugins", expected: false},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, testCase.expected, isKustomizeHelmEnabled(&v1alpha1.KustomizeOptions{BuildOptions: testCase.buildOptions}))
+		})
+	}
+}
+
+func Test_getResolvedKustomizeHelmOCIRepos(t *testing.T) {
+	t.Parallel()
+
+	t.Run("uses repo creds template when no repository match exists", func(t *testing.T) {
+		t.Parallel()
+
+		dependencies := []*v1alpha1.Repository{{
+			Repo:      "example.azurecr.io/charts",
+			Name:      "example-azurecr-io-charts",
+			EnableOCI: true,
+		}}
+		helmRepoCreds := []*v1alpha1.RepoCreds{{
+			URL:       "example.azurecr.io/charts",
+			Username:  "template-user",
+			Password:  "template-password",
+			EnableOCI: true,
+		}}
+
+		repos := getResolvedKustomizeHelmOCIRepos(dependencies, nil, helmRepoCreds)
+		require.Len(t, repos, 1)
+		assert.Equal(t, "template-user", repos[0].GetUsername())
+		password, err := repos[0].GetPassword()
+		require.NoError(t, err)
+		assert.Equal(t, "template-password", password)
+		assert.True(t, repos[0].EnableOci)
+	})
+
+	t.Run("falls back to OCI repository prefix match", func(t *testing.T) {
+		t.Parallel()
+
+		dependencies := []*v1alpha1.Repository{{
+			Repo:      "example.azurecr.io/charts/team-a",
+			Name:      "example-azurecr-io-charts-team-a",
+			EnableOCI: true,
+		}}
+		repositories := []*v1alpha1.Repository{{
+			Repo:      "oci://example.azurecr.io/charts",
+			Username:  "prefix-user",
+			Password:  "prefix-password",
+			EnableOCI: true,
+		}}
+
+		repos := getResolvedKustomizeHelmOCIRepos(dependencies, repositories, nil)
+		require.Len(t, repos, 1)
+		assert.Equal(t, "prefix-user", repos[0].GetUsername())
+		password, err := repos[0].GetPassword()
+		require.NoError(t, err)
+		assert.Equal(t, "prefix-password", password)
+		assert.True(t, repos[0].EnableOci)
+	})
+}
+
+func Test_prepareKustomizeHelmOCIRegistryCredentials_returnsConfigHomeAndLogsIn(t *testing.T) {
 	appPath := t.TempDir()
 	kustomizationPath := filepath.Join(appPath, "kustomization.yaml")
 	err := os.WriteFile(kustomizationPath, []byte(`
@@ -3772,21 +3847,26 @@ helmCharts:
     version: 1.2.3
 `), 0o644)
 	require.NoError(t, err)
+	originalKustomization, err := os.ReadFile(kustomizationPath)
+	require.NoError(t, err)
 
 	binDir := filepath.Join(t.TempDir(), "bin")
 	require.NoError(t, os.MkdirAll(binDir, 0o755))
 	helmArgsFile := filepath.Join(t.TempDir(), "helm-args.log")
 	helmConfigHomeFile := filepath.Join(t.TempDir(), "helm-config-home.log")
+	helmEnvFile := filepath.Join(t.TempDir(), "helm-env.log")
+	helmPasswordFile := filepath.Join(t.TempDir(), "helm-password.log")
 	fakeHelm := filepath.Join(binDir, "helm")
-	fakeHelmScript := `#!/bin/sh
-echo "$HELM_CONFIG_HOME" > "$HELM_TEST_CONFIG_HOME_FILE"
-echo "$@" >> "$HELM_TEST_ARGS_FILE"
+	fakeHelmScript := fmt.Sprintf(`#!/bin/sh
+cat > %q
+env | sort > %q
+echo "$HELM_CONFIG_HOME" > %q
+echo "$@" >> %q
 exit 0
-`
+`, helmPasswordFile, helmEnvFile, helmConfigHomeFile, helmArgsFile)
 	require.NoError(t, os.WriteFile(fakeHelm, []byte(fakeHelmScript), 0o755))
 	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
-	t.Setenv("HELM_TEST_ARGS_FILE", helmArgsFile)
-	t.Setenv("HELM_TEST_CONFIG_HOME_FILE", helmConfigHomeFile)
+	t.Setenv("KUSTOMIZE_HELM_UNRELATED_ENV", "should-not-be-passed")
 
 	repositories := []*v1alpha1.Repository{{
 		Repo:      "oci://example.azurecr.io/charts",
@@ -3795,16 +3875,13 @@ exit 0
 		EnableOCI: true,
 	}}
 
-	closer, err := prepareKustomizeHelmOCIRegistryCredentials(t.Context(), appPath, repositories, nil, "", "")
+	closer, configHome, err := prepareKustomizeHelmOCIRegistryCredentials(t.Context(), appPath, repositories, nil, "", "")
 	require.NoError(t, err)
+	require.NotEmpty(t, configHome)
 
 	updatedKustomization, err := os.ReadFile(kustomizationPath)
 	require.NoError(t, err)
-	kMap := map[string]any{}
-	require.NoError(t, yaml.Unmarshal(updatedKustomization, &kMap))
-
-	configHome := getKustomizeHelmGlobalsConfigHome(kMap)
-	require.NotEmpty(t, configHome)
+	assert.Equal(t, string(originalKustomization), string(updatedKustomization))
 
 	loggedConfigHome, err := os.ReadFile(helmConfigHomeFile)
 	require.NoError(t, err)
@@ -3813,14 +3890,28 @@ exit 0
 	argsLog, err := os.ReadFile(helmArgsFile)
 	require.NoError(t, err)
 	assert.Contains(t, string(argsLog), "registry login example.azurecr.io")
+	assert.Contains(t, string(argsLog), "--password-stdin")
+	assert.NotContains(t, string(argsLog), "--password test-password")
 
-	utilio.Close(closer)
+	loggedPassword, err := os.ReadFile(helmPasswordFile)
+	require.NoError(t, err)
+	assert.Equal(t, "test-password", strings.TrimSpace(string(loggedPassword)))
+
+	envLog, err := os.ReadFile(helmEnvFile)
+	require.NoError(t, err)
+	assert.Contains(t, string(envLog), "HELM_CONFIG_HOME="+strings.TrimSpace(string(configHome)))
+	assert.Contains(t, string(envLog), "HELM_CACHE_HOME="+strings.TrimSpace(string(configHome))+"/.cache")
+	assert.Contains(t, string(envLog), "HELM_DATA_HOME="+strings.TrimSpace(string(configHome))+"/.data")
+	assert.NotContains(t, string(envLog), "KUSTOMIZE_HELM_UNRELATED_ENV=should-not-be-passed")
+
+	require.NoError(t, closer.Close())
+
+	_, err = os.Stat(configHome)
+	assert.True(t, os.IsNotExist(err))
 
 	restoredKustomization, err := os.ReadFile(kustomizationPath)
 	require.NoError(t, err)
-	restoredMap := map[string]any{}
-	require.NoError(t, yaml.Unmarshal(restoredKustomization, &restoredMap))
-	assert.Empty(t, getKustomizeHelmGlobalsConfigHome(restoredMap))
+	assert.Equal(t, string(originalKustomization), string(restoredKustomization))
 }
 
 func Test_prepareKustomizeHelmOCIRegistryCredentials_respectsExistingConfigHome(t *testing.T) {
@@ -3858,8 +3949,9 @@ exit 0
 		EnableOCI: true,
 	}}
 
-	closer, err := prepareKustomizeHelmOCIRegistryCredentials(t.Context(), appPath, repositories, nil, "", "")
+	closer, configHome, err := prepareKustomizeHelmOCIRegistryCredentials(t.Context(), appPath, repositories, nil, "", "")
 	require.NoError(t, err)
+	assert.Empty(t, configHome)
 	utilio.Close(closer)
 
 	updatedKustomization, err := os.ReadFile(kustomizationPath)
@@ -3870,6 +3962,221 @@ exit 0
 
 	_, err = os.Stat(helmArgsFile)
 	assert.True(t, os.IsNotExist(err))
+}
+
+func Test_prepareKustomizeHelmOCIRegistryCredentials_cleanupRemovesTempDir(t *testing.T) {
+	appPath := t.TempDir()
+	kustomizationPath := filepath.Join(appPath, "kustomization.yaml")
+	err := os.WriteFile(kustomizationPath, []byte(`
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+helmCharts:
+  - name: my-chart
+    repo: oci://example.azurecr.io/charts
+    version: 1.2.3
+`), 0o644)
+	require.NoError(t, err)
+
+	binDir := filepath.Join(t.TempDir(), "bin")
+	require.NoError(t, os.MkdirAll(binDir, 0o755))
+	fakeHelm := filepath.Join(binDir, "helm")
+	require.NoError(t, os.WriteFile(fakeHelm, []byte("#!/bin/sh\nexit 0\n"), 0o755))
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	repositories := []*v1alpha1.Repository{{
+		Repo:      "oci://example.azurecr.io/charts",
+		Username:  "test-user",
+		Password:  "test-password",
+		EnableOCI: true,
+	}}
+
+	closer, configHome, err := prepareKustomizeHelmOCIRegistryCredentials(t.Context(), appPath, repositories, nil, "", "")
+	require.NoError(t, err)
+	require.NotEmpty(t, configHome)
+	if info, err := os.Stat(configHome); assert.NoError(t, err) {
+		assert.True(t, info.IsDir())
+	}
+
+	require.NoError(t, closer.Close())
+	_, err = os.Stat(configHome)
+	assert.True(t, os.IsNotExist(err))
+}
+
+func Test_runKustomizeBuild_serializesEnableHelmBuilds(t *testing.T) {
+	t.Parallel()
+
+	appPath := t.TempDir()
+	buildOptions := &v1alpha1.KustomizeOptions{BuildOptions: "--enable-helm"}
+
+	firstStarted := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	secondStarted := make(chan struct{})
+	errCh := make(chan error, 2)
+
+	go func() {
+		errCh <- runKustomizeBuild(t.Context(), appPath, buildOptions, "kustomize", nil, nil, "", "", func(_ string) error {
+			close(firstStarted)
+			<-releaseFirst
+			return nil
+		})
+	}()
+
+	<-firstStarted
+
+	go func() {
+		errCh <- runKustomizeBuild(t.Context(), appPath, buildOptions, "kustomize", nil, nil, "", "", func(_ string) error {
+			close(secondStarted)
+			return nil
+		})
+	}()
+
+	select {
+	case <-secondStarted:
+		t.Fatal("second kustomize build started before first build released the lock")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(releaseFirst)
+
+	select {
+	case <-secondStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("second kustomize build did not start after first build released the lock")
+	}
+
+	require.NoError(t, <-errCh)
+	require.NoError(t, <-errCh)
+}
+
+func Test_runKustomizeBuild_injectsHelmCommandWhenSupported(t *testing.T) {
+	appPath := t.TempDir()
+	kustomizationPath := filepath.Join(appPath, "kustomization.yaml")
+	err := os.WriteFile(kustomizationPath, []byte(`
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+helmCharts:
+  - name: my-chart
+    repo: oci://example.azurecr.io/charts
+    version: 1.2.3
+`), 0o644)
+	require.NoError(t, err)
+
+	binDir := filepath.Join(t.TempDir(), "bin")
+	require.NoError(t, os.MkdirAll(binDir, 0o755))
+
+	fakeHelm := filepath.Join(binDir, "helm")
+	require.NoError(t, os.WriteFile(fakeHelm, []byte(`#!/bin/sh
+exit 0
+`), 0o755))
+
+	fakeKustomize := filepath.Join(binDir, "kustomize-test")
+	require.NoError(t, os.WriteFile(fakeKustomize, []byte(`#!/bin/sh
+if [ "$1" = "build" ] && [ "$2" = "--help" ]; then
+	echo "      --helm-command string"
+	exit 0
+fi
+exit 1
+`), 0o755))
+
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	repositories := []*v1alpha1.Repository{{
+		Repo:      "oci://example.azurecr.io/charts",
+		Username:  "test-user",
+		Password:  "test-password",
+		EnableOCI: true,
+	}}
+
+	var helmCommandPath string
+	err = runKustomizeBuild(t.Context(), appPath, &v1alpha1.KustomizeOptions{BuildOptions: "--enable-helm"}, fakeKustomize, repositories, nil, "", "", func(helmCommand string) error {
+		helmCommandPath = helmCommand
+		require.NotEmpty(t, helmCommand)
+		contents, err := os.ReadFile(helmCommand)
+		require.NoError(t, err)
+		assert.Contains(t, string(contents), "HELM_CONFIG_HOME=")
+		assert.Contains(t, string(contents), "exec ")
+		return nil
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, helmCommandPath)
+
+	_, err = os.Stat(helmCommandPath)
+	assert.True(t, os.IsNotExist(err))
+}
+
+func Test_runKustomizeBuild_returnsErrorWhenHelmCommandUnsupported(t *testing.T) {
+	appPath := t.TempDir()
+	kustomizationPath := filepath.Join(appPath, "kustomization.yaml")
+	err := os.WriteFile(kustomizationPath, []byte(`
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+helmCharts:
+  - name: my-chart
+    repo: oci://example.azurecr.io/charts
+    version: 1.2.3
+`), 0o644)
+	require.NoError(t, err)
+
+	binDir := filepath.Join(t.TempDir(), "bin")
+	require.NoError(t, os.MkdirAll(binDir, 0o755))
+	fakeHelm := filepath.Join(binDir, "helm")
+	require.NoError(t, os.WriteFile(fakeHelm, []byte(`#!/bin/sh
+exit 0
+`), 0o755))
+
+	fakeKustomize := filepath.Join(binDir, "kustomize-test")
+	require.NoError(t, os.WriteFile(fakeKustomize, []byte(`#!/bin/sh
+if [ "$1" = "build" ] && [ "$2" = "--help" ]; then
+	echo "kustomize build help"
+	exit 0
+fi
+exit 1
+`), 0o755))
+
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	repositories := []*v1alpha1.Repository{{
+		Repo:      "oci://example.azurecr.io/charts",
+		Username:  "test-user",
+		Password:  "test-password",
+		EnableOCI: true,
+	}}
+
+	buildCalled := false
+	err = runKustomizeBuild(t.Context(), appPath, &v1alpha1.KustomizeOptions{BuildOptions: "--enable-helm"}, fakeKustomize, repositories, nil, "", "", func(_ string) error {
+		buildCalled = true
+		return nil
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not support --helm-command")
+	assert.False(t, buildCalled)
+}
+
+func Test_findKustomizationFilePath(t *testing.T) {
+	t.Parallel()
+
+	t.Run("finds alternate kustomization file names", func(t *testing.T) {
+		t.Parallel()
+
+		appPath := t.TempDir()
+		kustomizationPath := filepath.Join(appPath, "kustomization.yml")
+		require.NoError(t, os.WriteFile(kustomizationPath, []byte("kind: Kustomization\n"), 0o644))
+
+		resolvedPath, err := findKustomizationFilePath(appPath)
+		require.NoError(t, err)
+		assert.Equal(t, kustomizationPath, resolvedPath)
+	})
+
+	t.Run("returns stat error for invalid app path", func(t *testing.T) {
+		t.Parallel()
+
+		appPath := filepath.Join(t.TempDir(), "not-a-directory")
+		require.NoError(t, os.WriteFile(appPath, []byte("not a directory"), 0o644))
+
+		_, err := findKustomizationFilePath(appPath)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to stat")
+	})
 }
 
 func Test_getResolvedValueFiles(t *testing.T) {

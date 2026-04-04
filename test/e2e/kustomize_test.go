@@ -353,6 +353,36 @@ func TestKustomizeApiVersions(t *testing.T) {
 		})
 }
 
+func TestKustomizeWithAuthenticatedOCIHelmChart(t *testing.T) {
+	ctx := Given(t)
+	ctx.PushChartToAuthenticatedOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
+		AuthenticatedHelmOCIRepoAdded("myrepo-auth").
+		Path("kustomize-oci-helm-authenticated").
+		And(func() {
+			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+				"-n", fixture.TestNamespace(),
+				"-p", `{ "data": { "kustomize.buildOptions": "--enable-helm" } }`))
+		}).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(_ *Application) {
+			foo := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
+				"-o", "jsonpath={.data.foo}")).(string)
+			assert.Equal(t, "bar", foo)
+		}).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
 func TestKustomizeNamespaceOverride(t *testing.T) {
 	Given(t).
 		Path("kustomize-kube-version").

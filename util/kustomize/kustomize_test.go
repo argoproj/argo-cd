@@ -169,6 +169,114 @@ func TestParseKustomizeBuildHelmOptions(t *testing.T) {
 	}, built)
 }
 
+func TestParseKustomizeBuildHelmOptionsWithHelmCommand(t *testing.T) {
+	built := parseKustomizeBuildOptions(t.Context(), &kustomize{path: "guestbook"}, "-v 6 --logtostderr --enable-helm", &BuildOpts{
+		KubeVersion: "1.27",
+		APIVersions: []string{"foo", "bar"},
+		HelmCommand: "/tmp/kustomize-helm-wrapper",
+	})
+	assert.Equal(t, []string{
+		"build", "guestbook",
+		"-v", "6", "--logtostderr", "--enable-helm",
+		"--helm-command", "/tmp/kustomize-helm-wrapper",
+		"--helm-kube-version", "1.27",
+		"--helm-api-versions", "foo", "--helm-api-versions", "bar",
+	}, built)
+}
+
+func TestHasEnableHelmFlag(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		buildOptions string
+		expected     bool
+	}{
+		{name: "missing", buildOptions: "--load-restrictor LoadRestrictionsNone", expected: false},
+		{name: "exact flag", buildOptions: "--enable-helm --load-restrictor LoadRestrictionsNone", expected: true},
+		{name: "true assignment", buildOptions: "--enable-helm=true", expected: true},
+		{name: "false assignment", buildOptions: "--enable-helm=false", expected: false},
+		{name: "substring only", buildOptions: "--enable-helm-plugins", expected: false},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, testCase.expected, HasEnableHelmFlag(testCase.buildOptions))
+		})
+	}
+}
+
+func TestSupportsHelmCommandFlag(t *testing.T) {
+	t.Parallel()
+
+	makeScript := func(content string) string {
+		t.Helper()
+		path := filepath.Join(t.TempDir(), "kustomize")
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o755))
+		return path
+	}
+
+	t.Run("supported", func(t *testing.T) {
+		t.Parallel()
+		kustomizePath := makeScript(`#!/bin/sh
+if [ "$1" = "build" ] && [ "$2" = "--help" ]; then
+	echo "      --helm-command string"
+	exit 0
+fi
+exit 1
+`)
+		assert.True(t, SupportsHelmCommandFlag(t.Context(), kustomizePath))
+	})
+
+	t.Run("unsupported", func(t *testing.T) {
+		t.Parallel()
+		kustomizePath := makeScript(`#!/bin/sh
+if [ "$1" = "build" ] && [ "$2" = "--help" ]; then
+	echo "kustomize build help"
+	exit 0
+fi
+exit 1
+`)
+		assert.False(t, SupportsHelmCommandFlag(t.Context(), kustomizePath))
+	})
+}
+
+func TestSupportsHelmCommandFlag_DoesNotCacheProbeFailure(t *testing.T) {
+	clearHelmCommandSupportCache()
+	t.Cleanup(clearHelmCommandSupportCache)
+
+	probeCounter := filepath.Join(t.TempDir(), "probe-counter")
+	kustomizePath := filepath.Join(t.TempDir(), "kustomize")
+	script := fmt.Sprintf(`#!/bin/sh
+if [ "$1" = "build" ] && [ "$2" = "--help" ]; then
+	count=0
+	if [ -f %q ]; then
+		count=$(cat %q)
+	fi
+	count=$((count + 1))
+	echo "$count" > %q
+	if [ "$count" -eq 1 ]; then
+		exit 1
+	fi
+	echo "      --helm-command string"
+	exit 0
+fi
+exit 1
+`, probeCounter, probeCounter, probeCounter)
+	require.NoError(t, os.WriteFile(kustomizePath, []byte(script), 0o755))
+
+	assert.False(t, SupportsHelmCommandFlag(t.Context(), kustomizePath))
+	assert.True(t, SupportsHelmCommandFlag(t.Context(), kustomizePath))
+}
+
+func clearHelmCommandSupportCache() {
+	helmCommandSupportCache.Range(func(key, _ any) bool {
+		helmCommandSupportCache.Delete(key)
+		return true
+	})
+}
+
 func TestVersion(t *testing.T) {
 	ver, err := Version()
 	require.NoError(t, err)

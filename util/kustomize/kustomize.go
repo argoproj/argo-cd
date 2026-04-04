@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -36,6 +37,7 @@ type Image = string
 type BuildOpts struct {
 	KubeVersion string
 	APIVersions []string
+	HelmCommand string
 }
 
 // Kustomize provides wrapper functionality around the `kustomize` command.
@@ -412,7 +414,11 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 func parseKustomizeBuildOptions(ctx context.Context, k *kustomize, buildOptions string, buildOpts *BuildOpts) []string {
 	buildOptsParams := append([]string{"build", k.path}, strings.Fields(buildOptions)...)
 
-	if buildOpts != nil && !getSemverSafe(ctx, k).LessThan(semver.MustParse("v5.3.0")) && isHelmEnabled(buildOptions) {
+	if buildOpts != nil && buildOpts.HelmCommand != "" && HasEnableHelmFlag(buildOptions) {
+		buildOptsParams = append(buildOptsParams, "--helm-command", buildOpts.HelmCommand)
+	}
+
+	if buildOpts != nil && !getSemverSafe(ctx, k).LessThan(semver.MustParse("v5.3.0")) && HasEnableHelmFlag(buildOptions) {
 		if buildOpts.KubeVersion != "" {
 			buildOptsParams = append(buildOptsParams, "--helm-kube-version", buildOpts.KubeVersion)
 		}
@@ -424,8 +430,55 @@ func parseKustomizeBuildOptions(ctx context.Context, k *kustomize, buildOptions 
 	return buildOptsParams
 }
 
-func isHelmEnabled(buildOptions string) bool {
-	return strings.Contains(buildOptions, "--enable-helm")
+// HasEnableHelmFlag reports whether build options contain an enabled --enable-helm flag.
+// It follows the same tokenization used when we later pass the options to kustomize.
+func HasEnableHelmFlag(buildOptions string) bool {
+	var (
+		enabled bool
+		seen    bool
+	)
+
+	for option := range strings.FieldsSeq(buildOptions) {
+		switch option {
+		case "--enable-helm":
+			enabled = true
+			seen = true
+		default:
+			value, found := strings.CutPrefix(option, "--enable-helm=")
+			if !found {
+				continue
+			}
+			parsed, err := strconv.ParseBool(value)
+			if err != nil {
+				continue
+			}
+			enabled = parsed
+			seen = true
+		}
+	}
+
+	return seen && enabled
+}
+
+func SupportsHelmCommandFlag(ctx context.Context, binaryPath string) bool {
+	if binaryPath == "" {
+		binaryPath = "kustomize"
+	}
+
+	if cached, ok := helmCommandSupportCache.Load(binaryPath); ok {
+		return cached.(bool)
+	}
+
+	cmd := exec.CommandContext(ctx, binaryPath, "build", "--help")
+	out, err := executil.Run(cmd)
+	if err != nil {
+		log.Warnf("Failed to detect --helm-command support for %s: %v", binaryPath, err)
+		return false
+	}
+
+	supported := strings.Contains(out, "--helm-command")
+	helmCommandSupportCache.Store(binaryPath, supported)
+	return supported
 }
 
 // semver/v3 doesn't export the regexp anymore, so shamelessly copied it over to
@@ -440,6 +493,8 @@ var (
 	semverRegex    = regexp.MustCompile(semVerRegex)
 	semVer         *semver.Version
 	semVerLock     sync.Mutex
+
+	helmCommandSupportCache sync.Map
 )
 
 // getSemver returns parsed kustomize version
