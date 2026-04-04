@@ -63,6 +63,7 @@ func TestSwaggerUI(t *testing.T) {
 
 	uiResp, err := http.DefaultClient.Do(uiReq)
 	require.NoError(t, err)
+	require.Equalf(t, http.StatusOK, uiResp.StatusCode, "Was expecting status code 200 from swagger-ui, but got %d instead", uiResp.StatusCode)
 	require.Equal(t, "DENY", uiResp.Header.Get("X-Frame-Options"))
 	require.Equal(t, "frame-ancestors 'none'", uiResp.Header.Get("Content-Security-Policy"))
 	require.NoError(t, uiResp.Body.Close())
