@@ -182,7 +182,7 @@ func TestSanitizeUnmarshalError(t *testing.T) {
 	t.Run("json type error", func(t *testing.T) {
 		err := &json.UnmarshalTypeError{Field: "tlsClientConfig.insecure"}
 		msg := sanitizeUnmarshalError(err)
-		assert.Equal(t, `cannot unmarshal into field "tlsClientConfig.insecure"`, msg)
+		assert.Equal(t, "cannot unmarshal into field \"tlsClientConfig.insecure\"", msg)
 	})
 
 	t.Run("wrapped json syntax error", func(t *testing.T) {
