@@ -14,6 +14,9 @@ argocd appset create [flags]
   # Create ApplicationSets
   argocd appset create <filename or URL> (<filename or URL>...)
   
+  # Create ApplicationSet in a specific namespace using
+  argocd appset create --appset-namespace=APPSET_NAMESPACE <filename or URL> (<filename or URL>...)
+  
   # Dry-run AppSet creation to see what applications would be managed
   argocd appset create --dry-run <filename or URL> -o json | jq -r '.status.resources[].name'
 ```
@@ -21,11 +24,12 @@ argocd appset create [flags]
 ### Options
 
 ```
-      --dry-run         Allows to evaluate the ApplicationSet template on the server to get a preview of the applications that would be created
-  -h, --help            help for create
-  -o, --output string   Output format. One of: json|yaml|wide (default "wide")
-      --upsert          Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec
-      --wait            Wait until the ApplicationSet's resources are up to date. Will block indefinitely if the ApplicationSet has errors
+  -N, --appset-namespace string   Namespace where the ApplicationSet will be created in (ignored when provided YAML file has namespace set in metadata)
+      --dry-run                   Allows to evaluate the ApplicationSet template on the server to get a preview of the applications that would be created
+  -h, --help                      help for create
+  -o, --output string             Output format. One of: json|yaml|wide (default "wide")
+      --upsert                    Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec
+      --wait                      Wait until the ApplicationSet's resources are up to date. Will block indefinitely if the ApplicationSet has errors
 ```
 
 ### Options inherited from parent commands
