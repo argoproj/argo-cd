@@ -1,19 +1,8 @@
 name: govulncheck
 on:
-  workflow_dispatch: # For testing purpose
-  push:
-    branches:
-      - 'master'
-      - 'release-*'
-      - '!release-1.4'
-      - '!release-1.5'
-  pull_request:
-    branches:
-      - 'master'
-      - 'release-*'
+  workflow_dispatch: {}
   schedule:
-    # Run weekly on Monday at 08:00 UTC to catch newly disclosed CVEs
-    - cron: '0 8 * * 1'
+    - cron: '0 8 * * 1' # Run weekly on Monday at 08:00 UTC to catch newly disclosed CVEs
 
 env:
   # Golang version to use across CI steps
