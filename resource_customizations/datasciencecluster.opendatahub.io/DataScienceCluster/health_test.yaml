@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "DataScienceCluster is ready"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for DataScienceCluster to become ready"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for DataScienceCluster to become ready"
+  inputPath: testdata/progressing_not_ready.yaml
+- healthStatus:
+    status: Degraded
+    message: "component dashboard is in error state"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for DataScienceCluster to become ready"
+  inputPath: testdata/no_status.yaml
