@@ -133,7 +133,7 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
@@ -240,7 +240,7 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
@@ -335,7 +335,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		// verify the ApplicationSet error status conditions were set correctly
 		Expect(ApplicationSetHasConditions(expectedConditionsParamsError)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
@@ -438,7 +438,7 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 		Expect(ApplicationSetHasConditions(expectedConditionsParamsError)).
 		Expect(ApplicationsDoNotExist(expectedApps)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestSimpleGitFilesGenerator(t *testing.T) {
@@ -544,7 +544,7 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
@@ -639,7 +639,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		// verify the ApplicationSet error status conditions were set correctly
 		Expect(ApplicationSetHasConditions(expectedConditionsParamsError)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
@@ -738,7 +738,7 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 		Expect(ApplicationSetHasConditions(expectedConditionsParamsError)).
 		Expect(ApplicationsDoNotExist(expectedApps)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
@@ -845,7 +845,7 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
@@ -894,7 +894,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 			// We use an extra-long duration here, as we might need to wait for image pull.
 		}).Then().ExpectWithDuration(Pod(t, func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }), 6*time.Minute).
 		When().
-		Delete().
+		Delete(metav1.DeletePropagationForeground).
 		And(func() {
 			t.Log("Waiting 15 seconds to give the cluster a chance to delete the pods.")
 			// Wait 15 seconds to give the cluster a chance to deletes the pods, if it is going to do so.
@@ -952,7 +952,7 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 			// We use an extra-long duration here, as we might need to wait for image pull.
 		}).Then().ExpectWithDuration(Pod(t, func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }), 6*time.Minute).
 		When().
-		Delete().
+		Delete(metav1.DeletePropagationForeground).
 		And(func() {
 			t.Log("Waiting 15 seconds to give the cluster a chance to delete the pods.")
 			// Wait 15 seconds to give the cluster a chance to deletes the pods, if it is going to do so.
@@ -1034,7 +1034,7 @@ func TestGitGeneratorPrivateRepo(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
@@ -1108,7 +1108,7 @@ func TestGitGeneratorPrivateRepoGoTemplate(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestSimpleGitGeneratorPrivateRepoWithNoRepo(t *testing.T) {
@@ -1180,7 +1180,7 @@ func TestSimpleGitGeneratorPrivateRepoWithNoRepo(t *testing.T) {
 		}).Then().Expect(ApplicationsDoNotExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestSimpleGitGeneratorPrivateRepoWithMatchingProject(t *testing.T) {
@@ -1251,7 +1251,7 @@ func TestSimpleGitGeneratorPrivateRepoWithMatchingProject(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestSimpleGitGeneratorPrivateRepoWithMismatchingProject(t *testing.T) {
@@ -1324,7 +1324,7 @@ func TestSimpleGitGeneratorPrivateRepoWithMismatchingProject(t *testing.T) {
 		}).Then().Expect(ApplicationsDoNotExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestGitGeneratorPrivateRepoWithTemplatedProject(t *testing.T) {
@@ -1400,7 +1400,7 @@ func TestGitGeneratorPrivateRepoWithTemplatedProject(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
 func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *testing.T) {
@@ -1484,5 +1484,5 @@ func TestGitGeneratorPrivateRepoWithTemplatedProjectAndProjectScopedRepo(t *test
 		}).Then().Expect(ApplicationsDoNotExist(expectedApps)).
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }

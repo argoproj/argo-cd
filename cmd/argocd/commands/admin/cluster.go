@@ -20,7 +20,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/ptr"
 
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -137,7 +136,7 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 			cluster := batch[i]
 			if replicas > 0 {
 				clusterShard = clusterShards[cluster.Server]
-				cluster.Shard = ptr.To(int64(clusterShard))
+				cluster.Shard = new(int64(clusterShard))
 				log.Infof("Cluster with uid: %s will be processed by shard %d", cluster.ID, clusterShard)
 			}
 			if shard != -1 && clusterShard != shard {

@@ -543,6 +543,28 @@ func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application
 	return ns != nil && ns.GetKind() == kubeutil.NamespaceKind && ns.GetName() == app.Spec.Destination.Namespace && app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.ManagedNamespaceMetadata != nil
 }
 
+// partitionTargetObjsForSync returns the manifest subset passed to gitops-engine sync, and whether
+// the full manifest set declared PreDelete and/or PostDelete hooks (for finalizer handling).
+// Uses isPreDeleteHook / isPostDeleteHook / hasGitOpsEngineSyncPhaseHook from hook.go.
+func partitionTargetObjsForSync(targetObjs []*unstructured.Unstructured) (syncObjs []*unstructured.Unstructured, hasPreDeleteHooks, hasPostDeleteHooks bool) {
+	for _, obj := range targetObjs {
+		if isPreDeleteHook(obj) {
+			hasPreDeleteHooks = true
+			if !hasGitOpsEngineSyncPhaseHook(obj) {
+				continue
+			}
+		}
+		if isPostDeleteHook(obj) {
+			hasPostDeleteHooks = true
+			if !hasGitOpsEngineSyncPhaseHook(obj) {
+				continue
+			}
+		}
+		syncObjs = append(syncObjs, obj)
+	}
+	return syncObjs, hasPreDeleteHooks, hasPostDeleteHooks
+}
+
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
@@ -770,24 +792,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 	}
-	hasPreDeleteHooks := false
-	hasPostDeleteHooks := false
-	// Filter out PreDelete and PostDelete hooks from targetObjs since they should not be synced
-	// as regular resources. They are only executed during deletion.
-	var targetObjsForSync []*unstructured.Unstructured
-	for _, obj := range targetObjs {
-		if isPreDeleteHook(obj) {
-			hasPreDeleteHooks = true
-			// Skip PreDelete hooks - they are not synced, only executed during deletion
-			continue
-		}
-		if isPostDeleteHook(obj) {
-			hasPostDeleteHooks = true
-			// Skip PostDelete hooks - they are not synced, only executed after deletion
-			continue
-		}
-		targetObjsForSync = append(targetObjsForSync, obj)
-	}
+	targetObjsForSync, hasPreDeleteHooks, hasPostDeleteHooks := partitionTargetObjsForSync(targetObjs)
 
 	reconciliation := sync.Reconcile(targetObjsForSync, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
@@ -842,9 +847,10 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		if err != nil {
 			log.Errorf("CompareAppState error getting server side diff dry run applier: %s", err)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
+		} else {
+			defer cleanup()
+			diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(applier))
 		}
-		defer cleanup()
-		diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(applier))
 	}
 
 	// enable structured merge diff if application syncs with server-side apply
@@ -882,17 +888,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
 
 		resState := v1alpha1.ResourceStatus{
-			Namespace:       obj.GetNamespace(),
-			Name:            obj.GetName(),
-			Kind:            gvk.Kind,
-			Version:         gvk.Version,
-			Group:           gvk.Group,
-			Hook:            isHook(obj),
-			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
-			RequiresDeletionConfirmation: targetObj != nil && resourceutil.HasAnnotationOption(targetObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm) ||
-				liveObj != nil && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm) ||
-				targetObj != nil && resourceutil.HasAnnotationOption(targetObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionPruneRequireConfirm) ||
-				liveObj != nil && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionPruneRequireConfirm),
+			Namespace:                    obj.GetNamespace(),
+			Name:                         obj.GetName(),
+			Kind:                         gvk.Kind,
+			Version:                      gvk.Version,
+			Group:                        gvk.Group,
+			Hook:                         isHook(obj),
+			RequiresPruning:              targetObj == nil && liveObj != nil && isSelfReferencedObj,
+			RequiresDeletionConfirmation: isObjRequiresDeletionConfirmation(targetObj, app) || isObjRequiresDeletionConfirmation(liveObj, app),
 		}
 		if targetObj != nil {
 			resState.SyncWave = int64(syncwaves.Wave(targetObj))
@@ -1090,6 +1093,29 @@ func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, sources []v1alpha1.Appli
 	specCopy := spec.DeepCopy()
 	compareToSpec := specCopy.BuildComparedToStatus(sources)
 	return reflect.DeepEqual(comparedTo, compareToSpec)
+}
+
+func isObjRequiresDeletionConfirmation(obj *unstructured.Unstructured, app *v1alpha1.Application) bool {
+	if obj == nil {
+		return false
+	}
+	deleteOption := resourceutil.GetAnnotationOptionValue(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDelete)
+	if deleteOption == nil && app.Spec.SyncPolicy != nil {
+		deleteOption = app.Spec.SyncPolicy.SyncOptions.GetOptionValue(synccommon.SyncOptionDelete)
+	}
+	if deleteOption != nil && *deleteOption == synccommon.SyncValueConfirm {
+		return true
+	}
+
+	pruneOption := resourceutil.GetAnnotationOptionValue(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionPrune)
+	if pruneOption == nil && app.Spec.SyncPolicy != nil {
+		pruneOption = app.Spec.SyncPolicy.SyncOptions.GetOptionValue(synccommon.SyncOptionPrune)
+	}
+	if pruneOption != nil && *pruneOption == synccommon.SyncValueConfirm {
+		return true
+	}
+
+	return false
 }
 
 func (m *appStateManager) persistRevisionHistory(

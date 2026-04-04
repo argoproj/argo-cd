@@ -249,6 +249,231 @@ func TestTransForm(t *testing.T) {
 	}
 }
 
+func TestTransFormGoTemplate(t *testing.T) {
+	testCases := []struct {
+		name     string
+		selector *metav1.LabelSelector
+		values   map[string]string
+		expected []map[string]any
+	}{
+		{
+			name: "server filter",
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"server": "https://production-01.example.com"},
+			},
+			expected: []map[string]any{{
+				"name":           "production_01/west",
+				"nameNormalized": "production-01-west",
+				"server":         "https://production-01.example.com",
+				"project":        "",
+				"metadata": map[string]any{
+					"labels": map[string]string{
+						"argocd.argoproj.io/secret-type": "cluster",
+						"environment":                    "production",
+						"org":                            "bar",
+					},
+					"annotations": map[string]string{
+						"foo.argoproj.io": "production",
+					},
+				},
+			}},
+		},
+		{
+			name: "label MatchLabels",
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"metadata.labels.environment": "staging"},
+			},
+			expected: []map[string]any{{
+				"name":           "staging-01",
+				"nameNormalized": "staging-01",
+				"server":         "https://staging-01.example.com",
+				"project":        "",
+				"metadata": map[string]any{
+					"labels": map[string]string{
+						"argocd.argoproj.io/secret-type": "cluster",
+						"environment":                    "staging",
+						"org":                            "foo",
+					},
+					"annotations": map[string]string{
+						"foo.argoproj.io": "staging",
+					},
+				},
+			}},
+		},
+		{
+			name: "label NotIn matchExpression",
+			selector: &metav1.LabelSelector{
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{
+						Key:      "metadata.labels.environment",
+						Operator: metav1.LabelSelectorOpNotIn,
+						Values:   []string{"staging"},
+					},
+				},
+			},
+			// staging-01 is excluded; production-01, some-really-long-server-url, and
+			// in-cluster (no labels) are all included because NotIn vacuously passes
+			// when the key is absent.
+			expected: []map[string]any{
+				{
+					"name":           "production_01/west",
+					"nameNormalized": "production-01-west",
+					"server":         "https://production-01.example.com",
+					"project":        "",
+					"metadata": map[string]any{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "production",
+							"org":                            "bar",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "production",
+						},
+					},
+				},
+				{
+					"name":           "some-really-long-server-url",
+					"nameNormalized": "some-really-long-server-url",
+					"server":         "https://some-really-long-url-that-will-exceed-63-characters.com",
+					"project":        "",
+					"metadata": map[string]any{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "production",
+							"org":                            "bar",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "production",
+						},
+					},
+				},
+				{
+					// in-cluster (local cluster) has no labels; NotIn vacuously passes.
+					"name":           "in-cluster",
+					"nameNormalized": "in-cluster",
+					"server":         "https://kubernetes.default.svc",
+					"project":        "",
+				},
+			},
+		},
+		{
+			name: "slash key in label",
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"metadata.labels.argocd.argoproj.io/secret-type": "cluster"},
+			},
+			expected: []map[string]any{
+				{
+					"name":           "staging-01",
+					"nameNormalized": "staging-01",
+					"server":         "https://staging-01.example.com",
+					"project":        "",
+					"metadata": map[string]any{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "staging",
+							"org":                            "foo",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "staging",
+						},
+					},
+				},
+				{
+					"name":           "production_01/west",
+					"nameNormalized": "production-01-west",
+					"server":         "https://production-01.example.com",
+					"project":        "",
+					"metadata": map[string]any{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "production",
+							"org":                            "bar",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "production",
+						},
+					},
+				},
+				{
+					"name":           "some-really-long-server-url",
+					"nameNormalized": "some-really-long-server-url",
+					"server":         "https://some-really-long-url-that-will-exceed-63-characters.com",
+					"project":        "",
+					"metadata": map[string]any{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "production",
+							"org":                            "bar",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "production",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "values filter",
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"values.env": "staging"},
+			},
+			values: map[string]string{"env": "{{.metadata.labels.environment}}"},
+			expected: []map[string]any{{
+				"name":           "staging-01",
+				"nameNormalized": "staging-01",
+				"server":         "https://staging-01.example.com",
+				"project":        "",
+				"metadata": map[string]any{
+					"labels": map[string]string{
+						"argocd.argoproj.io/secret-type": "cluster",
+						"environment":                    "staging",
+						"org":                            "foo",
+					},
+					"annotations": map[string]string{
+						"foo.argoproj.io": "staging",
+					},
+				},
+				"values": map[string]string{
+					"env": "staging",
+				},
+			}},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			testGenerators := map[string]Generator{
+				"Clusters": getMockClusterGenerator(),
+			}
+
+			applicationSetInfo := argov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argov1alpha1.ApplicationSetSpec{
+					GoTemplate: true,
+				},
+			}
+
+			results, err := Transform(
+				argov1alpha1.ApplicationSetGenerator{
+					Selector: testCase.selector,
+					Clusters: &argov1alpha1.ClusterGenerator{
+						Selector: metav1.LabelSelector{},
+						Template: argov1alpha1.ApplicationSetTemplate{},
+						Values:   testCase.values,
+					},
+				},
+				testGenerators,
+				emptyTemplate(),
+				&applicationSetInfo, nil, nil)
+
+			require.NoError(t, err)
+			assert.ElementsMatch(t, testCase.expected, results[0].Params)
+		})
+	}
+}
+
 func emptyTemplate() argov1alpha1.ApplicationSetTemplate {
 	return argov1alpha1.ApplicationSetTemplate{
 		Spec: argov1alpha1.ApplicationSpec{
@@ -528,7 +753,7 @@ func TestInterpolateGeneratorError(t *testing.T) {
 		{name: "Error templating", args: args{
 			requestedGenerator: &argov1alpha1.ApplicationSetGenerator{Git: &argov1alpha1.GitGenerator{
 				RepoURL:  "foo",
-				Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "bar/"}},
+				Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "path/{{ index .rmap (default .override .test) }}"}},
 				Revision: "main",
 				Values: map[string]string{
 					"git_test":  "{{ toPrettyJson . }}",
@@ -542,7 +767,7 @@ func TestInterpolateGeneratorError(t *testing.T) {
 			},
 			useGoTemplate:     true,
 			goTemplateOptions: []string{},
-		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: "failed to replace parameters in generator: failed to execute go template {{ index .rmap (default .override .test) }}: template: base:1:3: executing \"base\" at <index .rmap (default .override .test)>: error calling index: index of untyped nil"},
+		}, want: argov1alpha1.ApplicationSetGenerator{}, expectedErrStr: "failed to replace parameters in generator: failed to execute go template path/{{ index .rmap (default .override .test) }}: template: base:1:8: executing \"base\" at <index .rmap (default .override .test)>: error calling index: index of untyped nil"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -553,6 +778,181 @@ func TestInterpolateGeneratorError(t *testing.T) {
 				require.NoError(t, err)
 			}
 			assert.Equalf(t, tt.want, got, "InterpolateGenerator(%v, %v, %v, %v)", tt.args.requestedGenerator, tt.args.params, tt.args.useGoTemplate, tt.args.goTemplateOptions)
+		})
+	}
+}
+
+func TestInterpolateGeneratorValuesHandling(t *testing.T) {
+	applicationSetTemplate := argov1alpha1.ApplicationSetTemplate{
+		ApplicationSetTemplateMeta: argov1alpha1.ApplicationSetTemplateMeta{
+			Labels:      map[string]string{},
+			Annotations: map[string]string{},
+			Finalizers:  []string{},
+		},
+		Spec: argov1alpha1.ApplicationSpec{
+			IgnoreDifferences: argov1alpha1.IgnoreDifferences{},
+			Info:              []argov1alpha1.Info{},
+			Sources:           argov1alpha1.ApplicationSources{},
+		},
+	}
+	type args struct {
+		requestedGenerator *argov1alpha1.ApplicationSetGenerator
+		params             map[string]any
+		useGoTemplate      bool
+		goTemplateOptions  []string
+	}
+	tests := []struct {
+		name           string
+		args           args
+		want           argov1alpha1.ApplicationSetGenerator
+		expectedErrStr string
+	}{
+		{
+			name: "Generator with values set",
+			args: args{
+				requestedGenerator: &argov1alpha1.ApplicationSetGenerator{
+					Git: &argov1alpha1.GitGenerator{
+						RepoURL:  "https://somewhere.com/per-cluster/{{.name}}.git",
+						Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+						Revision: "main",
+						Values: map[string]string{
+							"appname": "{{ .path.basenameNormalized }}",
+						},
+						Template: applicationSetTemplate,
+					},
+				},
+				params: map[string]any{
+					"name":   "in-cluster",
+					"server": "https://kubernetes.default.svc",
+				},
+				useGoTemplate:     true,
+				goTemplateOptions: []string{},
+			},
+			want: argov1alpha1.ApplicationSetGenerator{
+				Git: &argov1alpha1.GitGenerator{
+					RepoURL:  "https://somewhere.com/per-cluster/in-cluster.git",
+					Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+					Revision: "main",
+					Values: map[string]string{
+						// must stay not interpolated
+						"appname": "{{ .path.basenameNormalized }}",
+					},
+					Directories: []argov1alpha1.GitDirectoryGeneratorItem{},
+					Template:    applicationSetTemplate,
+				},
+			},
+			expectedErrStr: "",
+		},
+		{
+			name: "Generator with no values set",
+			args: args{
+				requestedGenerator: &argov1alpha1.ApplicationSetGenerator{
+					Git: &argov1alpha1.GitGenerator{
+						RepoURL:  "https://somewhere.com/per-cluster/{{.name}}.git",
+						Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+						Revision: "main",
+						Values:   map[string]string{},
+						Template: applicationSetTemplate,
+					},
+				},
+				params: map[string]any{
+					"name":   "in-cluster",
+					"server": "https://kubernetes.default.svc",
+				},
+				useGoTemplate:     true,
+				goTemplateOptions: []string{},
+			},
+			want: argov1alpha1.ApplicationSetGenerator{
+				Git: &argov1alpha1.GitGenerator{
+					RepoURL:     "https://somewhere.com/per-cluster/in-cluster.git",
+					Files:       []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+					Revision:    "main",
+					Values:      map[string]string{},
+					Directories: []argov1alpha1.GitDirectoryGeneratorItem{},
+					Template:    applicationSetTemplate,
+				},
+			},
+			expectedErrStr: "",
+		},
+		{
+			name: "Generator with values set without go templates",
+			args: args{
+				requestedGenerator: &argov1alpha1.ApplicationSetGenerator{
+					Git: &argov1alpha1.GitGenerator{
+						RepoURL:  "https://somewhere.com/per-cluster/{{name}}.git",
+						Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+						Revision: "main",
+						Values: map[string]string{
+							"appname": "{{ .path.basenameNormalized }}",
+						},
+						Template: applicationSetTemplate,
+					},
+				},
+				params: map[string]any{
+					"name":   "in-cluster",
+					"server": "https://kubernetes.default.svc",
+				},
+				useGoTemplate: false,
+			},
+			want: argov1alpha1.ApplicationSetGenerator{
+				Git: &argov1alpha1.GitGenerator{
+					RepoURL:  "https://somewhere.com/per-cluster/in-cluster.git",
+					Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+					Revision: "main",
+					Values: map[string]string{
+						"appname": "{{ .path.basenameNormalized }}",
+					},
+					Directories: []argov1alpha1.GitDirectoryGeneratorItem{},
+					Template:    applicationSetTemplate,
+				},
+			},
+			expectedErrStr: "",
+		},
+		{
+			name: "Generator without values set and no go templates",
+			args: args{
+				requestedGenerator: &argov1alpha1.ApplicationSetGenerator{
+					Git: &argov1alpha1.GitGenerator{
+						RepoURL:  "https://somewhere.com/per-cluster/{{name}}.git",
+						Files:    []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+						Revision: "main",
+						Values:   map[string]string{},
+						Template: applicationSetTemplate,
+					},
+				},
+				params: map[string]any{
+					"name":   "in-cluster",
+					"server": "https://kubernetes.default.svc",
+				},
+				useGoTemplate: false,
+			},
+			want: argov1alpha1.ApplicationSetGenerator{
+				Git: &argov1alpha1.GitGenerator{
+					RepoURL:     "https://somewhere.com/per-cluster/in-cluster.git",
+					Files:       []argov1alpha1.GitFileGeneratorItem{{Path: "somedir/*"}},
+					Revision:    "main",
+					Values:      map[string]string{},
+					Directories: []argov1alpha1.GitDirectoryGeneratorItem{},
+					Template:    applicationSetTemplate,
+				},
+			},
+			expectedErrStr: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := InterpolateGenerator(tt.args.requestedGenerator, tt.args.params, tt.args.useGoTemplate, tt.args.goTemplateOptions)
+			if tt.expectedErrStr != "" {
+				require.EqualError(t, err, tt.expectedErrStr)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.want.Git.Values, got.Git.Values)
+			assert.Equal(t, tt.want.Git.Revision, got.Git.Revision)
+			assert.Equal(t, tt.want.Git.RepoURL, got.Git.RepoURL)
+			assert.Equal(t, tt.want.Git.Files, got.Git.Files)
+			assert.Equal(t, tt.want.Git.Directories, got.Git.Directories)
+			assert.Equal(t, tt.want.Git.Template, got.Git.Template)
 		})
 	}
 }

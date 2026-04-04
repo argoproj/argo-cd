@@ -18,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
@@ -663,8 +662,7 @@ func TestAutoSync(t *testing.T) {
 
 func TestAutoSyncEnabledSetToTrue(t *testing.T) {
 	app := newFakeApp()
-	enable := true
-	app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: &enable}
+	app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: new(true)}
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	syncStatus := v1alpha1.SyncStatus{
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -684,7 +682,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 	// So our Sync Revisions and SyncStatus Revisions should deep equal
 	t.Run("ClusterObjectChangeShouldNotTriggerAutoSync", func(t *testing.T) {
 		app := newFakeMultiSourceApp()
-		app.Spec.SyncPolicy.Automated.SelfHeal = false
+		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
 		app.Status.OperationState.SyncResult.Revisions = []string{"z", "x", "v"}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
@@ -699,7 +697,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 	})
 	t.Run("NewRevisionChangeShouldTriggerAutoSync", func(t *testing.T) {
 		app := newFakeMultiSourceApp()
-		app.Spec.SyncPolicy.Automated.SelfHeal = false
+		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
 		app.Status.OperationState.SyncResult.Revisions = []string{"z", "x", "v"}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
@@ -716,7 +714,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 
 func TestAutoSyncNotAllowEmpty(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.SyncPolicy.Automated.Prune = true
+	app.Spec.SyncPolicy.Automated.Prune = new(true)
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	syncStatus := v1alpha1.SyncStatus{
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -728,8 +726,8 @@ func TestAutoSyncNotAllowEmpty(t *testing.T) {
 
 func TestAutoSyncAllowEmpty(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.SyncPolicy.Automated.Prune = true
-	app.Spec.SyncPolicy.Automated.AllowEmpty = true
+	app.Spec.SyncPolicy.Automated.Prune = new(true)
+	app.Spec.SyncPolicy.Automated.AllowEmpty = new(true)
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	syncStatus := v1alpha1.SyncStatus{
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -790,8 +788,7 @@ func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when auto-sync is disabled
 	t.Run("AutoSyncEnableFieldIsSetFalse", func(t *testing.T) {
 		app := newFakeApp()
-		enable := false
-		app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: &enable}
+		app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: new(false)}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -1363,6 +1360,71 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		require.ElementsMatch(t, expectedNames, deletedResources, "Deleted resources should match expected names")
 		// finalizer is not removed
 		assert.False(t, patched)
+	})
+
+	// Ensure cache is cleared using correct key (InstanceName) for apps in different namespace
+	t.Run("MultiNamespaceCacheClear", func(t *testing.T) {
+		// Create a project that allows apps from other-ns namespace
+		multiNsProj := v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "default",
+				Namespace: test.FakeArgoCDNamespace,
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{
+					{
+						Server:    "*",
+						Namespace: "*",
+					},
+				},
+				SourceNamespaces: []string{"other-ns"},
+			},
+		}
+		app := newFakeApp()
+		// Set app to a different namespace than controller namespace
+		app.Namespace = "other-ns"
+		app.DeletionTimestamp = &now
+		ctrl := newFakeController(t.Context(), &fakeData{
+			apps:                  []runtime.Object{app, &multiNsProj},
+			managedLiveObjs:       map[kube.ResourceKey]*unstructured.Unstructured{},
+			applicationNamespaces: []string{"other-ns"},
+		}, nil)
+
+		// Pre-populate cache with InstanceName key (simulating normal operation)
+		instanceName := app.InstanceName(ctrl.namespace)
+		assert.Equal(t, "other-ns_my-app", instanceName, "InstanceName should include namespace prefix")
+
+		err := ctrl.cache.SetAppManagedResources(instanceName, []*v1alpha1.ResourceDiff{{Name: "test"}})
+		require.NoError(t, err)
+		err = ctrl.cache.SetAppResourcesTree(instanceName, &v1alpha1.ApplicationTree{Nodes: []v1alpha1.ResourceNode{{ResourceRef: v1alpha1.ResourceRef{Name: "test"}}}})
+		require.NoError(t, err)
+
+		// Verify cache is populated
+		var managedResources []*v1alpha1.ResourceDiff
+		err = ctrl.cache.GetAppManagedResources(instanceName, &managedResources)
+		require.NoError(t, err)
+		assert.Len(t, managedResources, 1)
+
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return true, &v1alpha1.Application{}, nil
+		})
+
+		// Execute deletion
+		err = ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		require.NoError(t, err)
+
+		// Verify cache is cleared using InstanceName key
+		err = ctrl.cache.GetAppManagedResources(instanceName, &managedResources)
+		assert.ErrorIs(t, err, appstatecache.ErrCacheMiss, "Cache should be cleared for InstanceName key")
 	})
 }
 
@@ -2540,7 +2602,7 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailedBackoff(t *testing.
 			Limit: 1,
 			Backoff: &v1alpha1.Backoff{
 				Duration:    "1h",
-				Factor:      ptr.To(int64(100)),
+				Factor:      new(int64(100)),
 				MaxDuration: "1h",
 			},
 		},
@@ -2742,7 +2804,7 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 				StartedAt: metav1.NewTime(time.Now().Add(-tc.startedSince)),
 			}
 			if tc.retryAttempt > 0 {
-				app.Status.OperationState.FinishedAt = ptr.To(metav1.NewTime(time.Now().Add(-tc.startedSince)))
+				app.Status.OperationState.FinishedAt = new(metav1.NewTime(time.Now().Add(-tc.startedSince)))
 				app.Status.OperationState.RetryCount = int64(tc.retryAttempt)
 			}
 
@@ -2920,6 +2982,21 @@ func Test_syncDeleteOption(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
 		cmObj.SetAnnotations(map[string]string{"helm.sh/resource-policy": "keep"})
 		assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
+	})
+
+	t.Run("delete set on the app level", func(t *testing.T) {
+		newApp := app.DeepCopy()
+		newApp.Spec.SyncPolicy.SyncOptions = []string{"Delete=false"}
+		cmObj := kube.MustToUnstructured(&cm)
+		cmObj.SetAnnotations(map[string]string{})
+		assert.False(t, ctrl.shouldBeDeleted(newApp, cmObj))
+	})
+	t.Run("delete should be overridden on the resource", func(t *testing.T) {
+		newApp := app.DeepCopy()
+		newApp.Spec.SyncPolicy.SyncOptions = []string{"Delete=false"}
+		cmObj := kube.MustToUnstructured(&cm)
+		cmObj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=foo"})
+		assert.True(t, ctrl.shouldBeDeleted(newApp, cmObj))
 	})
 }
 
@@ -3224,17 +3301,17 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 		shouldSelfHeal   bool
 	}{{
 		attempts:         0,
-		finishedAt:       ptr.To(metav1.Now()),
+		finishedAt:       new(metav1.Now()),
 		expectedDuration: 0,
 		shouldSelfHeal:   true,
 	}, {
 		attempts:         1,
-		finishedAt:       ptr.To(metav1.Now()),
+		finishedAt:       new(metav1.Now()),
 		expectedDuration: 2 * time.Second,
 		shouldSelfHeal:   false,
 	}, {
 		attempts:         2,
-		finishedAt:       ptr.To(metav1.Now()),
+		finishedAt:       new(metav1.Now()),
 		expectedDuration: 6 * time.Second,
 		shouldSelfHeal:   false,
 	}, {
@@ -3259,7 +3336,7 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 		shouldSelfHeal:   false,
 	}, {
 		attempts:         6,
-		finishedAt:       ptr.To(metav1.Now()),
+		finishedAt:       new(metav1.Now()),
 		expectedDuration: 120 * time.Second,
 		shouldSelfHeal:   false,
 	}, {

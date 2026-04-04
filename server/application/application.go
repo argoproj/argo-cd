@@ -39,7 +39,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/utils/ptr"
 
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
@@ -48,6 +47,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/server/broadcast"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/deeplinks"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
@@ -91,7 +91,7 @@ type Server struct {
 	appclientset           appclientset.Interface
 	appLister              applisters.ApplicationLister
 	appInformer            cache.SharedIndexInformer
-	appBroadcaster         Broadcaster
+	appBroadcaster         broadcast.Broadcaster[v1alpha1.ApplicationWatchEvent]
 	repoClientset          apiclient.Clientset
 	kubectl                kube.Kubectl
 	db                     db.ArgoDB
@@ -112,7 +112,7 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appLister applisters.ApplicationLister,
 	appInformer cache.SharedIndexInformer,
-	appBroadcaster Broadcaster,
+	appBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationWatchEvent],
 	repoClientset apiclient.Clientset,
 	cache *servercache.Cache,
 	kubectl kube.Kubectl,
@@ -126,8 +126,15 @@ func NewServer(
 	syncWithReplaceAllowed bool,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
-		appBroadcaster = &broadcasterHandler{}
+		appBroadcaster = broadcast.NewHandler[v1alpha1.Application, v1alpha1.ApplicationWatchEvent](
+			func(app *v1alpha1.Application, eventType watch.EventType) *v1alpha1.ApplicationWatchEvent {
+				return &v1alpha1.ApplicationWatchEvent{Application: *app, Type: eventType}
+			},
+			applog.GetAppLogFields,
+		)
 	}
+	// Register Application-level broadcaster to receive create/update/delete events
+	// and handle general application event processing.
 	_, err := appInformer.AddEventHandler(appBroadcaster)
 	if err != nil {
 		log.Error(err)
@@ -145,7 +152,7 @@ func NewServer(
 		kubectl:                kubectl,
 		enf:                    enf,
 		projectLock:            projectLock,
-		auditLogger:            argo.NewAuditLogger(kubeclientset, "argocd-server", enableK8sEvent),
+		auditLogger:            argo.NewAuditLogger(kubeclientset, namespace, "argocd-server", enableK8sEvent),
 		settingsMgr:            settingsMgr,
 		projInformer:           projInformer,
 		enabledNamespaces:      enabledNamespaces,
@@ -501,7 +508,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
 		}
 
-		config, err := s.getApplicationClusterConfig(ctx, a)
+		config, err := s.getApplicationClusterConfig(ctx, a, proj)
 		if err != nil {
 			return fmt.Errorf("error getting application cluster config: %w", err)
 		}
@@ -663,7 +670,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error getting trackingMethod from settings: %w", err)
 		}
 
-		config, err := s.getApplicationClusterConfig(ctx, a)
+		config, err := s.getApplicationClusterConfig(ctx, a, proj)
 		if err != nil {
 			return fmt.Errorf("error getting application cluster config: %w", err)
 		}
@@ -872,7 +879,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 
 // ListResourceEvents returns a list of event resources
 func (s *Server) ListResourceEvents(ctx context.Context, q *application.ApplicationResourceEventsQuery) (*corev1.EventList, error) {
-	a, _, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	a, p, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
 		return nil, err
 	}
@@ -911,7 +918,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 
 		namespace = q.GetResourceNamespace()
 		var config *rest.Config
-		config, err = s.getApplicationClusterConfig(ctx, a)
+		config, err = s.getApplicationClusterConfig(ctx, a, p)
 		if err != nil {
 			return nil, fmt.Errorf("error getting application cluster config: %w", err)
 		}
@@ -1370,7 +1377,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 	return nil
 }
 
-func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Application) (*rest.Config, error) {
+func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Application, p *v1alpha1.AppProject) (*rest.Config, error) {
 	cluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
 	if err != nil {
 		return nil, fmt.Errorf("error validating destination: %w", err)
@@ -1378,6 +1385,24 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 	config, err := cluster.RESTConfig()
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
+	}
+
+	impersonationEnabled, err := s.settingsMgr.IsImpersonationEnabled()
+	if err != nil {
+		return nil, fmt.Errorf("error getting impersonation setting: %w", err)
+	}
+
+	if !impersonationEnabled {
+		return config, nil
+	}
+
+	user, err := settings.DeriveServiceAccountToImpersonate(p, a, cluster)
+	if err != nil {
+		return nil, fmt.Errorf("error deriving service account to impersonate: %w", err)
+	}
+
+	config.Impersonate = rest.ImpersonationConfig{
+		UserName: user,
 	}
 
 	return config, err
@@ -1395,9 +1420,9 @@ func (s *Server) getCachedAppState(ctx context.Context, a *v1alpha1.Application,
 			return errors.New(argo.FormatAppConditions(conditions))
 		}
 		_, err = s.Get(ctx, &application.ApplicationQuery{
-			Name:         ptr.To(a.GetName()),
-			AppNamespace: ptr.To(a.GetNamespace()),
-			Refresh:      ptr.To(string(v1alpha1.RefreshTypeNormal)),
+			Name:         new(a.GetName()),
+			AppNamespace: new(a.GetNamespace()),
+			Refresh:      new(string(v1alpha1.RefreshTypeNormal)),
 		})
 		if err != nil {
 			return fmt.Errorf("error getting application by query: %w", err)
@@ -1430,7 +1455,7 @@ func (s *Server) getAppLiveResource(ctx context.Context, action string, q *appli
 	if fineGrainedInheritanceDisabled && (action == rbac.ActionDelete || action == rbac.ActionUpdate) {
 		action = fmt.Sprintf("%s/%s/%s/%s/%s", action, q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
 	}
-	a, _, err := s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	a, p, err := s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if !fineGrainedInheritanceDisabled && err != nil && errors.Is(err, argocommon.PermissionDeniedAPIError) && (action == rbac.ActionDelete || action == rbac.ActionUpdate) {
 		action = fmt.Sprintf("%s/%s/%s/%s/%s", action, q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
 		a, _, err = s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
@@ -1448,10 +1473,11 @@ func (s *Server) getAppLiveResource(ctx context.Context, action string, q *appli
 	if found == nil || found.UID == "" {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.GetKind(), q.GetGroup(), q.GetResourceName(), q.GetName())
 	}
-	config, err := s.getApplicationClusterConfig(ctx, a)
+	config, err := s.getApplicationClusterConfig(ctx, a, p)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error getting application cluster config: %w", err)
 	}
+
 	return found, config, a, nil
 }
 
@@ -1564,6 +1590,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 		propagationPolicy := metav1.DeletePropagationForeground
 		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	}
+
 	err = s.kubectl.DeleteResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace, deleteOption)
 	if err != nil {
 		return nil, fmt.Errorf("error deleting resource: %w", err)
@@ -1794,10 +1821,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 
 	var sinceSeconds, tailLines *int64
 	if q.GetSinceSeconds() > 0 {
-		sinceSeconds = ptr.To(q.GetSinceSeconds())
+		sinceSeconds = new(q.GetSinceSeconds())
 	}
 	if q.GetTailLines() > 0 {
-		tailLines = ptr.To(q.GetTailLines())
+		tailLines = new(q.GetTailLines())
 	}
 	var untilTime *metav1.Time
 	if q.GetUntilTime() != "" {
@@ -1819,7 +1846,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		}
 	}
 
-	a, _, err := s.getApplicationEnforceRBACInformer(ws.Context(), rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	a, p, err := s.getApplicationEnforceRBACInformer(ws.Context(), rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
 		return err
 	}
@@ -1833,7 +1860,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return fmt.Errorf("error getting app resource tree: %w", err)
 	}
 
-	config, err := s.getApplicationClusterConfig(ws.Context(), a)
+	config, err := s.getApplicationClusterConfig(ws.Context(), a, p)
 	if err != nil {
 		return fmt.Errorf("error getting application cluster config: %w", err)
 	}
@@ -1913,10 +1940,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			ts := metav1.NewTime(entry.timeStamp)
 			if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
 				done <- ws.Send(&application.LogEntry{
-					Last:         ptr.To(true),
+					Last:         new(true),
 					PodName:      &entry.podName,
 					Content:      &entry.line,
-					TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
+					TimeStampStr: new(entry.timeStamp.Format(time.RFC3339Nano)),
 					TimeStamp:    &ts,
 				})
 				return
@@ -1925,9 +1952,9 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			if err := ws.Send(&application.LogEntry{
 				PodName:      &entry.podName,
 				Content:      &entry.line,
-				TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
+				TimeStampStr: new(entry.timeStamp.Format(time.RFC3339Nano)),
 				TimeStamp:    &ts,
-				Last:         ptr.To(false),
+				Last:         new(false),
 			}); err != nil {
 				done <- err
 				break
@@ -1936,10 +1963,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		now := time.Now()
 		nowTS := metav1.NewTime(now)
 		done <- ws.Send(&application.LogEntry{
-			Last:         ptr.To(true),
-			PodName:      ptr.To(""),
-			Content:      ptr.To(""),
-			TimeStampStr: ptr.To(now.Format(time.RFC3339Nano)),
+			Last:         new(true),
+			PodName:      new(""),
+			Content:      new(""),
+			TimeStampStr: new(now.Format(time.RFC3339Nano)),
 			TimeStamp:    &nowTS,
 		})
 	}()
@@ -2078,7 +2105,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	var source *v1alpha1.ApplicationSource
 	if !a.Spec.HasMultipleSources() {
-		source = ptr.To(a.Spec.GetSource())
+		source = new(a.Spec.GetSource())
 	}
 
 	op := v1alpha1.Operation{
@@ -2508,7 +2535,8 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 
 func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacRequest string, q *application.ApplicationResourceRequest) (obj *unstructured.Unstructured, res *v1alpha1.ResourceNode, app *v1alpha1.Application, config *rest.Config, err error) {
 	if q.GetKind() == applicationType.ApplicationKind && q.GetGroup() == applicationType.Group && q.GetName() == q.GetResourceName() {
-		app, _, err = s.getApplicationEnforceRBACInformer(ctx, rbacRequest, q.GetProject(), q.GetAppNamespace(), q.GetName())
+		var p *v1alpha1.AppProject
+		app, p, err = s.getApplicationEnforceRBACInformer(ctx, rbacRequest, q.GetProject(), q.GetAppNamespace(), q.GetName())
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
@@ -2516,7 +2544,7 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
-		config, err = s.getApplicationClusterConfig(ctx, app)
+		config, err = s.getApplicationClusterConfig(ctx, app, p)
 		if err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("error getting application cluster config: %w", err)
 		}

@@ -238,14 +238,18 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 				break
 			}
 			log.Debugf("created bitbucket client with base URL '%s'", apiBaseURL)
-			owner := strings.ReplaceAll(payload.Repository.FullName, "/"+payload.Repository.Name, "")
+			owner, repoSlug, ok := strings.Cut(payload.Repository.FullName, "/")
+			if !ok || owner == "" || repoSlug == "" {
+				log.Warnf("error parsing bitbucket repository full name %q", payload.Repository.FullName)
+				break
+			}
 			spec := change.shaBefore + ".." + change.shaAfter
-			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(ctx, bbClient, owner, payload.Repository.Name, spec)
+			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(ctx, bbClient, owner, repoSlug, spec)
 			if err != nil {
 				log.Warnf("error fetching changed files using bitbucket diffstat api: %v", err)
 			}
 			changedFiles = append(changedFiles, diffStatChangedFiles...)
-			touchedHead, err = isHeadTouched(ctx, bbClient, owner, payload.Repository.Name, revision)
+			touchedHead, err = isHeadTouched(ctx, bbClient, owner, repoSlug, revision)
 			if err != nil {
 				log.Warnf("error fetching bitbucket repo details: %v", err)
 				// To be safe, we just return true and let the controller check for himself.

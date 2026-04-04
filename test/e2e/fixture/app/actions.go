@@ -199,7 +199,7 @@ func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 			},
 			SyncPolicy: &v1alpha1.SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
-					SelfHeal: true,
+					SelfHeal: new(true),
 				},
 			},
 		},
@@ -443,9 +443,10 @@ func (a *Actions) ConfirmDeletion() *Actions {
 
 	a.runCli("app", "confirm-deletion", a.context.AppQualifiedName())
 
-	// Always sleep more than a second after the confirmation so the timestamp
-	// is not valid for immediate subsequent operations
-	time.Sleep(1500 * time.Millisecond)
+	// Always sleep a few seconds after the confirmation so the timestamp
+	// is not valid for immediate subsequent operations.
+	// Kubernetes containers may have clocks with a few seconds difference, and we want to avoid race conditions.
+	time.Sleep(3 * time.Second)
 
 	return a
 }
