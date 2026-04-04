@@ -11,23 +11,21 @@ import (
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-func compileTimeDurationFilter(filterValue *string, output **time.Duration, filterName string) error {
+func compileTimeDurationFilter(filterValue *string, filterName string) (*time.Duration, error) {
 	if filterValue == nil {
-		return nil
+		return nil, nil
 	}
 
 	d, err := time.ParseDuration(*filterValue)
 	if err != nil {
-		return fmt.Errorf("error parsing %s duration %s: %w", filterName, *filterValue, err)
+		return nil, fmt.Errorf("error parsing %s duration %s: %w", filterName, *filterValue, err)
 	}
 
 	if d <= 0 {
-		return fmt.Errorf("%s duration must be greater than 0, got %s", filterName, *filterValue)
+		return nil, fmt.Errorf("%s duration must be greater than 0, got %s", filterName, *filterValue)
 	}
 
-	*output = &d
-
-	return nil
+	return &d, nil
 }
 
 func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]*Filter, error) {
@@ -53,10 +51,10 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 				return nil, fmt.Errorf("error compiling TitleMatch regexp %q: %w", *filter.TitleMatch, err)
 			}
 		}
-		if err := compileTimeDurationFilter(filter.CreatedWithin, &outFilter.CreatedWithin, "CreatedWithin"); err != nil {
+		if outFilter.CreatedWithin, err = compileTimeDurationFilter(filter.CreatedWithin, "CreatedWithin"); err != nil {
 			return nil, err
 		}
-		if err := compileTimeDurationFilter(filter.UpdatedWithin, &outFilter.UpdatedWithin, "UpdatedWithin"); err != nil {
+		if outFilter.UpdatedWithin, err = compileTimeDurationFilter(filter.UpdatedWithin, "UpdatedWithin"); err != nil {
 			return nil, err
 		}
 		outFilters = append(outFilters, outFilter)
