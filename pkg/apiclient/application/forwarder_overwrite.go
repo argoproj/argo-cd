@@ -132,6 +132,7 @@ func processApplicationListField(v any, fields map[string]any, exclude bool) (an
 // streaming one application at a time to avoid buffering the entire response.
 func streamApplicationListJSON(w io.Writer, appList *v1alpha1.ApplicationList, fields map[string]any, exclude bool) error {
 	useFieldFilter := len(fields) > 0
+	enc := json.NewEncoder(w)
 
 	if _, err := w.Write([]byte("{")); err != nil {
 		return err
@@ -147,11 +148,7 @@ func streamApplicationListJSON(w io.Writer, appList *v1alpha1.ApplicationList, f
 	if _, err := w.Write([]byte(`"metadata":`)); err != nil {
 		return err
 	}
-	metaData, err := json.Marshal(appList.ListMeta)
-	if err != nil {
-		return err
-	}
-	if _, err := w.Write(metaData); err != nil {
+	if err := enc.Encode(appList.ListMeta); err != nil {
 		return err
 	}
 	if _, err := w.Write([]byte(`,"items":[`)); err != nil {
@@ -164,29 +161,24 @@ func streamApplicationListJSON(w io.Writer, appList *v1alpha1.ApplicationList, f
 				return err
 			}
 		}
-		var data []byte
 		if useFieldFilter {
 			converted, err := processAppFields(&appList.Items[i], fields, exclude)
 			if err != nil {
 				return err
 			}
-			data, err = json.Marshal(converted)
-			if err != nil {
+			if err := enc.Encode(converted); err != nil {
 				return err
 			}
 		} else {
-			data, err = json.Marshal(appList.Items[i])
-			if err != nil {
+			if err := enc.Encode(&appList.Items[i]); err != nil {
 				return err
 			}
 		}
-		if _, err := w.Write(data); err != nil {
-			return err
-		}
 	}
-
-	_, err = w.Write([]byte("]}"))
-	return err
+	if _, err := w.Write([]byte("]}")); err != nil {
+		return err
+	}
+	return nil
 }
 
 // writeInlineTypeMeta writes the TypeMeta fields as inline JSON key-value pairs
