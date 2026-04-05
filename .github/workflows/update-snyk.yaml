@@ -24,7 +24,7 @@ jobs:
         uses: dudinea/harden-runner@ff030d10d2384947f354e85c5d00ee03aa9640ec # v2.16.0
         with:
           egress-policy: audit
-          agent_enabled: "false"
+          agent-enabled: "false"
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
