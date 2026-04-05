@@ -75,7 +75,7 @@ jobs:
         run: |
           go mod tidy
           git diff --exit-code -- .
-  build-go:    
+  build-go:
     name: Build & cache Go code
     if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-24.04
