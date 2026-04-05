@@ -2993,10 +2993,9 @@ func fetch(gitClient git.Client, targetRevisions []string, usePartialClone bool)
 	}
 	for _, revision := range targetRevisions {
 		if !gitClient.IsRevisionPresent(revision) {
-			// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If fetch fails
-			// for the given revision, try explicitly fetching it.
-			log.Infof("Failed to fetch revision %s: %v", revision, err)
-			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
+			// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If the
+			// revision is not present after the default fetch, try explicitly fetching it.
+			log.Infof("Revision %s not found after default fetch, fetching explicitly. Ref might not have been in the default refspec.", revision)
 
 			if err := gitClient.Fetch(revision, 0, usePartialClone); err != nil {
 				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
@@ -3032,6 +3031,9 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 			// Configure sparse checkout before fetching
 			if err = gitClient.ConfigureSparseCheckout(sparsePaths); err != nil {
 				log.Warnf("Failed to configure sparse checkout, falling back to full checkout: %v", err)
+				// Disable sparse-checkout so the fallback full fetch isn't constrained by
+				// a partially-configured sparse-checkout that would produce an incomplete tree.
+				_ = gitClient.DisableSparseCheckout()
 				// Fall back to regular fetch
 				if depth > 0 {
 					err = gitClient.Fetch(revision, depth, false)

@@ -126,7 +126,7 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
                 params.username = input.username || '';
                 params.password = input.password || '';
                 params.bearerToken = input.bearerToken || '';
-                params.sparsePaths = input.sparsePaths || '';
+                params.sparsePaths = input.sparsePaths.join(',') || '';
                 save(params);
             }}
             title='CONNECTED REPOSITORY'

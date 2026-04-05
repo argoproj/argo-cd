@@ -132,6 +132,7 @@ type Client interface {
 	// to avoid slow individual lazy-fetch requests during git checkout.
 	FetchSparseBlobs(revision string, paths []string) error
 	ConfigureSparseCheckout(paths []string) error
+	DisableSparseCheckout() error
 	Submodule() error
 	Checkout(revision string, submoduleEnabled bool, cleanState bool) (string, error)
 	LsRefs() (*Refs, error)
@@ -564,6 +565,17 @@ func (m *nativeGitClient) ConfigureSparseCheckout(paths []string) error {
 	return nil
 }
 
+// DisableSparseCheckout disables sparse-checkout so that the full working tree
+// is restored. This is used when sparse-checkout configuration fails partway
+// through and the caller needs to fall back to a full checkout.
+func (m *nativeGitClient) DisableSparseCheckout() error {
+	ctx := context.Background()
+	if _, err := m.runCmd(ctx, "sparse-checkout", "disable"); err != nil {
+		return fmt.Errorf("failed to disable sparse-checkout: %w", err)
+	}
+	return nil
+}
+
 // FetchSparseBlobs pre-fetches blobs needed for the given sparse checkout paths in a single
 // batch request. Call this after a --filter=blob:none fetch and before checkout.
 // This uses "git rev-list --objects --no-object-names --missing=print" to list all object SHAs
@@ -602,10 +614,15 @@ func (m *nativeGitClient) FetchSparseBlobs(revision string, paths []string) erro
 
 	log.Infof("Pre-fetching %d missing blobs for sparse paths", len(missingBlobs))
 
-	// Batch-fetch all missing blobs from the promisor remote in a single request.
-	if err := m.runCredentialedCmd(ctx, slices.Concat([]string{"fetch", "origin"}, missingBlobs)...); err != nil {
-		log.Warnf("Batch blob pre-fetch failed, checkout will lazy-fetch: %v", err)
-		return nil // Non-fatal: checkout will still work via lazy fetching
+	// Fetch in chunks to avoid exceeding OS argument length limits (ARG_MAX).
+	const batchSize = 500
+	for i := 0; i < len(missingBlobs); i += batchSize {
+		end := min(i+batchSize, len(missingBlobs))
+		batch := missingBlobs[i:end]
+		if err := m.runCredentialedCmd(ctx, slices.Concat([]string{"fetch", "origin"}, batch)...); err != nil {
+			log.Warnf("Batch blob pre-fetch failed (batch %d-%d of %d), checkout will lazy-fetch: %v", i, end, len(missingBlobs), err)
+			return nil // Non-fatal: checkout will still work via lazy fetching
+		}
 	}
 
 	log.Infof("Successfully pre-fetched %d blobs for sparse paths", len(missingBlobs))

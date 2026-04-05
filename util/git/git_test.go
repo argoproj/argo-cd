@@ -932,6 +932,8 @@ func TestSparseCheckoutConfiguration(t *testing.T) {
 
 	// Initialize a git repo
 	require.NoError(t, runCmd(ctx, tmpDir, "git", "init"))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "config", "user.email", "test@test.com"))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "config", "user.name", "Test"))
 
 	// Create directory structure
 	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "app1"), 0o755))
@@ -966,11 +968,27 @@ func TestSparseCheckoutConfiguration(t *testing.T) {
 }
 
 func TestPartialCloneFetch(t *testing.T) {
-	// This test requires a real git repository with partial clone support
-	// We'll use the ArgoCD repo as it's publicly accessible
-	tmpDir := t.TempDir()
+	// Use a local bare repo as a remote to avoid network dependencies in CI.
+	ctx := t.Context()
+	bareDir := t.TempDir()
+	require.NoError(t, runCmd(ctx, bareDir, "git", "init", "--bare"))
+	require.NoError(t, runCmd(ctx, bareDir, "git", "symbolic-ref", "HEAD", "refs/heads/main"))
 
-	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", tmpDir, NopCreds{}, false, false, "", "")
+	// Create a source repo, commit some content, then push to the bare remote.
+	srcDir := t.TempDir()
+	require.NoError(t, runCmd(ctx, srcDir, "git", "init", "-b", "main"))
+	require.NoError(t, runCmd(ctx, srcDir, "git", "config", "user.email", "test@test.com"))
+	require.NoError(t, runCmd(ctx, srcDir, "git", "config", "user.name", "Test"))
+	require.NoError(t, os.MkdirAll(filepath.Join(srcDir, "cmd", "argocd"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "cmd", "argocd", "main.go"), []byte("package main"), 0o644))
+	require.NoError(t, runCmd(ctx, srcDir, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, srcDir, "git", "commit", "-m", "init"))
+	require.NoError(t, runCmd(ctx, srcDir, "git", "remote", "add", "origin", bareDir))
+	require.NoError(t, runCmd(ctx, srcDir, "git", "push", "origin", "main"))
+
+	// Clone from the bare repo with partial clone filter.
+	tmpDir := t.TempDir()
+	client, err := NewClientExt(bareDir, tmpDir, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -986,10 +1004,8 @@ func TestPartialCloneFetch(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify that the repo was cloned with partial clone
-	// Check for filter configuration
-	output, err := runCmdOutput(t.Context(), tmpDir, "git", "config", "remote.origin.promisor")
+	output, err := runCmdOutput(ctx, tmpDir, "git", "config", "remote.origin.promisor")
 	if err == nil {
-		// If promisor is configured, verify it's true
 		assert.Contains(t, string(output), "true")
 	}
 }
@@ -1003,6 +1019,8 @@ func TestSparseCheckoutWithMultiplePaths(t *testing.T) {
 
 	// Initialize a git repo
 	require.NoError(t, runCmd(ctx, tmpDir, "git", "init"))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "config", "user.email", "test@test.com"))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "config", "user.name", "Test"))
 
 	// Create complex directory structure
 	dirs := []string{

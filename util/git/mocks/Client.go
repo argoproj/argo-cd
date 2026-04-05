@@ -547,6 +547,50 @@ func (_c *Client_ConfigureSparseCheckout_Call) RunAndReturn(run func(paths []str
 	return _c
 }
 
+// DisableSparseCheckout provides a mock function for the type Client
+func (_mock *Client) DisableSparseCheckout() error {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for DisableSparseCheckout")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func() error); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Client_DisableSparseCheckout_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DisableSparseCheckout'
+type Client_DisableSparseCheckout_Call struct {
+	*mock.Call
+}
+
+// DisableSparseCheckout is a helper method to define mock.On call
+func (_e *Client_Expecter) DisableSparseCheckout() *Client_DisableSparseCheckout_Call {
+	return &Client_DisableSparseCheckout_Call{Call: _e.mock.On("DisableSparseCheckout")}
+}
+
+func (_c *Client_DisableSparseCheckout_Call) Run(run func()) *Client_DisableSparseCheckout_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *Client_DisableSparseCheckout_Call) Return(err error) *Client_DisableSparseCheckout_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Client_DisableSparseCheckout_Call) RunAndReturn(run func() error) *Client_DisableSparseCheckout_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Fetch provides a mock function for the type Client
 func (_mock *Client) Fetch(revision string, depth int64, usePartialClone bool) error {
 	ret := _mock.Called(revision, depth, usePartialClone)

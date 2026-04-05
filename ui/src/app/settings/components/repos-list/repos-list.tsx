@@ -192,7 +192,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     };
 
     const onChooseDefaultValues = (): FormValues => {
-        return {type: 'git', ghType: 'GitHub', write: false};
+        return {type: 'git', ghType: 'GitHub', write: false, sparsePaths: ''};
     };
 
     const onValidateErrors = (params: FormValues): FormErrors => {
