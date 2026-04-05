@@ -7,8 +7,8 @@ on:
 permissions:
   contents: read
 
-env:
-  STEP_SECURITY_HARDEN_RUNNER: "true"
+# env:
+#   STEP_SECURITY_HARDEN_RUNNER: "true"
 
 jobs:
   snyk-report:
