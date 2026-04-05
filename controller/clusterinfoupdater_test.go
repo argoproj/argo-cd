@@ -101,6 +101,121 @@ func TestClusterSecretUpdater(t *testing.T) {
 	}
 }
 
+func TestGetUpdatedClusterInfo_AppCount(t *testing.T) {
+	const fakeNamespace = "fake-ns"
+	const clusterServer = "https://prod.example.com"
+	const clusterName = "prod"
+
+	emptyArgoCDConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: fakeNamespace,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+		Data: map[string]string{},
+	}
+	argoCDSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: fakeNamespace,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+		Data: map[string][]byte{"admin.password": nil, "server.secretkey": nil},
+	}
+	clusterSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "prod-cluster",
+			Namespace: fakeNamespace,
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte(clusterName),
+			"server": []byte(clusterServer),
+			"config": []byte("{}"),
+		},
+	}
+
+	kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret, clusterSecret)
+	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+	argoDB := db.NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+	apps := []*v1alpha1.Application{
+		{Spec: v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Name: clusterName}}},
+		{Spec: v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Server: clusterServer}}},
+		{Spec: v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Server: "https://other.example.com"}}},
+	}
+
+	updater := &clusterInfoUpdater{db: argoDB, namespace: fakeNamespace}
+	cluster := v1alpha1.Cluster{Server: clusterServer}
+
+	info := updater.getUpdatedClusterInfo(t.Context(), apps, cluster, nil, metav1.Now())
+
+	assert.Equal(t, int64(2), info.ApplicationsCount)
+}
+
+func TestGetUpdatedClusterInfo_AmbiguousName(t *testing.T) {
+	const fakeNamespace = "fake-ns"
+	const clusterServer = "https://prod.example.com"
+	const clusterName = "prod"
+
+	emptyArgoCDConfigMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: fakeNamespace,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+		Data: map[string]string{},
+	}
+	argoCDSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: fakeNamespace,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+		Data: map[string][]byte{"admin.password": nil, "server.secretkey": nil},
+	}
+	makeClusterSecret := func(secretName, server string) *corev1.Secret {
+		return &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: fakeNamespace,
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+				Annotations: map[string]string{
+					common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+				},
+			},
+			Data: map[string][]byte{
+				"name":   []byte(clusterName),
+				"server": []byte(server),
+				"config": []byte("{}"),
+			},
+		}
+	}
+
+	// Two secrets share the same cluster name
+	kubeclientset := fake.NewClientset(
+		emptyArgoCDConfigMap, argoCDSecret,
+		makeClusterSecret("prod-cluster-1", clusterServer),
+		makeClusterSecret("prod-cluster-2", "https://prod2.example.com"),
+	)
+	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+	argoDB := db.NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+	apps := []*v1alpha1.Application{
+		{Spec: v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Name: clusterName}}},
+	}
+
+	updater := &clusterInfoUpdater{db: argoDB, namespace: fakeNamespace}
+	cluster := v1alpha1.Cluster{Server: clusterServer}
+
+	info := updater.getUpdatedClusterInfo(t.Context(), apps, cluster, nil, metav1.Now())
+
+	assert.Equal(t, int64(0), info.ApplicationsCount, "ambiguous name should not count app")
+}
+
 func TestUpdateClusterLabels(t *testing.T) {
 	shouldNotBeInvoked := func(_ context.Context, _ *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 		shouldNotHappen := errors.New("if an error happens here, something's wrong")

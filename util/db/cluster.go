@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,9 +26,11 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
+const errCheckingInClusterEnabled = "failed to check in-cluster enabled in %s: %w"
+
 var (
 	localCluster = appv1.Cluster{
-		Name:            "in-cluster",
+		Name:            appv1.KubernetesInClusterName,
 		Server:          appv1.KubernetesInternalAPIServerAddr,
 		ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
 	}
@@ -234,7 +237,10 @@ func (db *db) getClusterSecret(server string) (*corev1.Secret, error) {
 
 // GetCluster returns a cluster from a query
 func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, error) {
-	informer := db.settingsMgr.GetClusterInformer()
+	informer, err := db.settingsMgr.GetClusterInformer()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
+	}
 	if server == appv1.KubernetesInternalAPIServerAddr {
 		argoSettings, err := db.settingsMgr.GetSettings()
 		if err != nil {
@@ -285,24 +291,32 @@ func (db *db) GetProjectClusters(_ context.Context, project string) ([]*appv1.Cl
 }
 
 func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string, error) {
-	argoSettings, err := db.settingsMgr.GetSettings()
+	informer, err := db.settingsMgr.GetClusterInformer()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
 	}
-
-	informer := db.settingsMgr.GetClusterInformer()
 	servers, err := informer.GetClusterServersByName(name)
 	if err != nil {
 		return nil, err
 	}
 
+	// attempt to short circuit if the in-cluster name is not involved
+	if name != appv1.KubernetesInClusterName && !slices.Contains(servers, appv1.KubernetesInternalAPIServerAddr) {
+		return servers, nil
+	}
+
+	inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
+	if err != nil {
+		return nil, fmt.Errorf(errCheckingInClusterEnabled, "GetClusterServersByName", err)
+	}
+
 	// Handle local cluster special case
-	if len(servers) == 0 && name == "in-cluster" && argoSettings.InClusterEnabled {
+	if len(servers) == 0 && name == appv1.KubernetesInClusterName && inClusterEnabled {
 		return []string{appv1.KubernetesInternalAPIServerAddr}, nil
 	}
 
 	// Filter out disabled in-cluster
-	if !argoSettings.InClusterEnabled {
+	if !inClusterEnabled {
 		filtered := make([]string, 0, len(servers))
 		for _, s := range servers {
 			if s != appv1.KubernetesInternalAPIServerAddr {
