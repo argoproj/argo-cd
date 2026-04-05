@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="48 known vulnerabilities found in 144 vulnerable dependency paths.">
+  <meta name="description" content="49 known vulnerabilities found in 146 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">March 29th 2026, 12:39:36 am (UTC+00:00)</p>
+                <p class="timestamp">April 5th 2026, 12:40:17 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -505,8 +505,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>48</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>144 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>49</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>146 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>1134</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -1397,6 +1397,92 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOLANGJWTJWTV5-9510922">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Uncaught Exception</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.43.0/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v4
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and github.com/go-jose/go-jose/v4@v4.0.2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@v4.0.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@v4.1.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Uncaught Exception in the <code>cipher.KeyUnwrap</code> function when decrypting a JSON Web Encryption (JWE) object with a key wrapping algorithm (ending in &#39;KW&#39;, except for &#39;A128GCMKW&#39;, &#39;A192GCMKW&#39;, and &#39;A256GCMKW&#39;) and the <code>encrypted_key</code> field is empty. An attacker can cause a panic and disrupt service by submitting a crafted JWE object with an empty <code>encrypted_key</code> field or by directly invoking <code>cipher.KeyUnwrap</code> with a ciphertext parameter less than 16 bytes long.</p>
+        <p><strong>Note:</strong></p>
+        <p>This is only exploitable if the list of accepted key algorithms includes key wrapping algorithms.</p>
+        <h2 id="workaround">Workaround</h2>
+        <p>This vulnerability can be mitigated by prevalidating JWE objects to ensure the <code>encrypted_key</code> field is nonempty, or by excluding key wrapping algorithms from the list of accepted key algorithms.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-jose/go-jose/v4</code> to version 4.1.4 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/security/advisories/GHSA-78h2-9frx-2jm8">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/0e59876635f3dbf46d7b5e97b52bb75a3f96e7d9">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV4-15875221">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
