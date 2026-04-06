@@ -135,9 +135,7 @@ func TestEvaluateAppRevisionsChanges(t *testing.T) {
 			Path:         "hydrated/path",
 		},
 	}
-	app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
-		DrySHA: "old-sha",
-	}
+	app.Status.SourceHydrator.LastComparedDryRevision = "old-sha"
 
 	data := fakeData{
 		resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
@@ -151,7 +149,7 @@ func TestEvaluateAppRevisionsChanges(t *testing.T) {
 	ctrl := newFakeController(t.Context(), &data, nil)
 	drySource := app.Spec.SourceHydrator.GetDrySource()
 
-	hasChanges, err := ctrl.EvaluateAppRevisionsChanges(t.Context(), app, drySource, "HEAD", &v1alpha1.AppProject{
+	hasChanges, resolvedRev, err := ctrl.EvaluateAppRevisionsChanges(t.Context(), app, drySource, "HEAD", &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
 			Namespace: test.FakeArgoCDNamespace,
@@ -168,4 +166,5 @@ func TestEvaluateAppRevisionsChanges(t *testing.T) {
 	}, false)
 	require.NoError(t, err)
 	assert.True(t, hasChanges)
+	assert.Equal(t, "new-sha", resolvedRev)
 }

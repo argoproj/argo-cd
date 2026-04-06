@@ -2118,13 +2118,14 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name               string
-		app                *v1alpha1.Application
-		sources            []v1alpha1.ApplicationSource
-		revisions          []string
-		data               fakeData
-		sendRuntimeState   bool
-		expectedHasChanges bool
+		name                      string
+		app                       *v1alpha1.Application
+		sources                   []v1alpha1.ApplicationSource
+		revisions                 []string
+		data                      fakeData
+		sendRuntimeState          bool
+		expectedHasChanges        bool
+		expectedResolvedRevisions []string
 	}{
 		{
 			name: "single source with changes (no annotation)",
@@ -2137,10 +2138,11 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 				app := newFakeApp()
 				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
 			}(),
-			revisions:          []string{"def456"},
-			data:               fakeData{},
-			sendRuntimeState:   false,
-			expectedHasChanges: true,
+			revisions:                 []string{"def456"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"def456"},
 		},
 		{
 			name: "multiple sources with changes (no annotation)",
@@ -2153,10 +2155,11 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 				{RepoURL: "https://github.com/test/repo1", Path: "path1", TargetRevision: "main"},
 				{RepoURL: "https://github.com/test/repo2", Path: "path2", TargetRevision: "main"},
 			},
-			revisions:          []string{"abc123", "new-sha"},
-			data:               fakeData{},
-			sendRuntimeState:   false,
-			expectedHasChanges: true,
+			revisions:                 []string{"abc123", "new-sha"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"abc123", "new-sha"},
 		},
 		{
 			name: "single source without changes (no annotation)",
@@ -2169,10 +2172,11 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 				app := newFakeApp()
 				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
 			}(),
-			revisions:          []string{"def456"},
-			data:               fakeData{},
-			sendRuntimeState:   false,
-			expectedHasChanges: true,
+			revisions:                 []string{"def456"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"def456"},
 		},
 		{
 			name: "single source without changes (with annotation)",
@@ -2195,8 +2199,9 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 					Changes:  false,
 				},
 			},
-			sendRuntimeState:   false,
-			expectedHasChanges: false,
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"def456"},
 		},
 		{
 			name: "with send runtime state",
@@ -2209,10 +2214,11 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 				app := newFakeApp()
 				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
 			}(),
-			revisions:          []string{"def456"},
-			data:               fakeData{},
-			sendRuntimeState:   true,
-			expectedHasChanges: true,
+			revisions:                 []string{"def456"},
+			data:                      fakeData{},
+			sendRuntimeState:          true,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"def456"},
 		},
 		{
 			name: "dry source with annotation uses UpdateRevisionForPaths",
@@ -2232,9 +2238,7 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 						Path:         "hydrated/path",
 					},
 				}
-				app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
-					DrySHA: "old-dry-sha",
-				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-dry-sha"
 				app.Status.Sync.Revision = "should-not-be-used"
 				return app
 			}(),
@@ -2257,8 +2261,9 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 					Changes:  true,
 				},
 			},
-			sendRuntimeState:   false,
-			expectedHasChanges: true,
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"new-dry-sha"},
 		},
 		{
 			name: "dry source without annotation uses ResolveRevision",
@@ -2276,9 +2281,7 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 						Path:         "hydrated/path",
 					},
 				}
-				app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
-					DrySHA: "old-dry-sha",
-				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-dry-sha"
 				return app
 			}(),
 			sources: func() []v1alpha1.ApplicationSource {
@@ -2302,8 +2305,9 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 					},
 				},
 			},
-			sendRuntimeState:   false,
-			expectedHasChanges: false,
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"old-dry-sha"},
 		},
 		{
 			name: "ref source always returns false",
@@ -2311,10 +2315,11 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 			sources: []v1alpha1.ApplicationSource{
 				{Ref: "ref-name"},
 			},
-			revisions:          []string{"any-revision"},
-			data:               fakeData{},
-			sendRuntimeState:   false,
-			expectedHasChanges: false,
+			revisions:                 []string{"any-revision"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"any-revision"},
 		},
 		{
 			name: "same revision no ref sources returns false",
@@ -2327,10 +2332,11 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 				app := newFakeApp()
 				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
 			}(),
-			revisions:          []string{"abc123"},
-			data:               fakeData{},
-			sendRuntimeState:   false,
-			expectedHasChanges: false,
+			revisions:                 []string{"abc123"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"abc123"},
 		},
 		{
 			name: "directory source type without sync policy returns true",
@@ -2345,10 +2351,11 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 				app := newFakeApp()
 				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
 			}(),
-			revisions:          []string{"def456"},
-			data:               fakeData{},
-			sendRuntimeState:   false,
-			expectedHasChanges: true,
+			revisions:                 []string{"def456"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"def456"},
 		},
 		{
 			name: "directory source type with automated sync disabled returns true",
@@ -2374,8 +2381,9 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 					},
 				},
 			},
-			sendRuntimeState:   false,
-			expectedHasChanges: true,
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"def456"},
 		},
 		{
 			name: "directory source type with automated sync enabled uses UpdateRevisionForPaths",
@@ -2402,8 +2410,9 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 					Changes:  false,
 				},
 			},
-			sendRuntimeState:   false,
-			expectedHasChanges: false,
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"def456"},
 		},
 		{
 			name: "dry source with same SHA returns false",
@@ -2420,9 +2429,7 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 						Path:         "sync-path",
 					},
 				}
-				app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
-					DrySHA: "same-sha",
-				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "same-sha"
 				return app
 			}(),
 			sources: func() []v1alpha1.ApplicationSource {
@@ -2437,10 +2444,11 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 				drySource := app.Spec.SourceHydrator.GetDrySource()
 				return []v1alpha1.ApplicationSource{drySource}
 			}(),
-			revisions:          []string{"same-sha"},
-			data:               fakeData{},
-			sendRuntimeState:   false,
-			expectedHasChanges: false,
+			revisions:                 []string{"same-sha"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"same-sha"},
 		},
 		{
 			name: "dry source with annotation and changes detected",
@@ -2460,9 +2468,7 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 						Path:         "sync-path",
 					},
 				}
-				app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
-					DrySHA: "old-dry-sha",
-				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-dry-sha"
 				return app
 			}(),
 			sources: func() []v1alpha1.ApplicationSource {
@@ -2484,8 +2490,9 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 					Changes:  true,
 				},
 			},
-			sendRuntimeState:   false,
-			expectedHasChanges: true,
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"new-dry-sha-resolved"},
 		},
 		{
 			name: "dry source with annotation but no changes",
@@ -2505,9 +2512,7 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 						Path:         "sync-path",
 					},
 				}
-				app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
-					DrySHA: "old-dry-sha",
-				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-dry-sha"
 				return app
 			}(),
 			sources: func() []v1alpha1.ApplicationSource {
@@ -2529,8 +2534,9 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 					Changes:  false,
 				},
 			},
-			sendRuntimeState:   false,
-			expectedHasChanges: false,
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"new-dry-sha-resolved"},
 		},
 	}
 
@@ -2540,7 +2546,7 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 
 			ctrl := newFakeController(t.Context(), &tc.data, nil)
 
-			hasChanges, err := ctrl.appStateManager.EvaluateAppRevisionsChanges(
+			hasChanges, resolvedRevisions, err := ctrl.appStateManager.EvaluateAppRevisionsChanges(
 				context.Background(),
 				tc.app,
 				tc.sources,
@@ -2552,6 +2558,8 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedHasChanges, hasChanges)
+			require.Len(t, resolvedRevisions, len(tc.sources))
+			assert.Equal(t, tc.expectedResolvedRevisions, resolvedRevisions)
 		})
 	}
 }
@@ -2565,13 +2573,14 @@ func Test_EvaluateAppRevisionsChanges_ProcessManifestGeneratePathsDisabled(t *te
 	}()
 
 	testCases := []struct {
-		name               string
-		app                *v1alpha1.Application
-		sources            []v1alpha1.ApplicationSource
-		revisions          []string
-		data               fakeData
-		sendRuntimeState   bool
-		expectedHasChanges bool
+		name                      string
+		app                       *v1alpha1.Application
+		sources                   []v1alpha1.ApplicationSource
+		revisions                 []string
+		data                      fakeData
+		sendRuntimeState          bool
+		expectedHasChanges        bool
+		expectedResolvedRevisions []string
 	}{
 		{
 			name: "dry source with annotation but feature disabled uses ResolveRevision",
@@ -2591,9 +2600,7 @@ func Test_EvaluateAppRevisionsChanges_ProcessManifestGeneratePathsDisabled(t *te
 						Path:         "sync-path",
 					},
 				}
-				app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
-					DrySHA: "old-dry-sha",
-				}
+				app.Status.SourceHydrator.LastComparedDryRevision = "old-dry-sha"
 				return app
 			}(),
 			sources: func() []v1alpha1.ApplicationSource {
@@ -2617,11 +2624,12 @@ func Test_EvaluateAppRevisionsChanges_ProcessManifestGeneratePathsDisabled(t *te
 					},
 				},
 			},
-			sendRuntimeState:   false,
-			expectedHasChanges: true,
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"new-dry-sha-resolved"},
 		},
 		{
-			name: "normal source with annotation but feature disabled uses ResolveRevision",
+			name: "normal source with annotation but feature disabled returns original revision",
 			app: func() *v1alpha1.Application {
 				app := newFakeApp()
 				app.Annotations = map[string]string{
@@ -2634,17 +2642,11 @@ func Test_EvaluateAppRevisionsChanges_ProcessManifestGeneratePathsDisabled(t *te
 				app := newFakeApp()
 				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
 			}(),
-			revisions: []string{"def456"},
-			data: fakeData{
-				resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
-					{
-						Revision:          "def456-resolved",
-						AmbiguousRevision: "def456",
-					},
-				},
-			},
-			sendRuntimeState:   false,
-			expectedHasChanges: true,
+			revisions:                 []string{"def456"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        true,
+			expectedResolvedRevisions: []string{"def456"},
 		},
 		{
 			name: "same revision still returns false even with feature disabled",
@@ -2657,10 +2659,11 @@ func Test_EvaluateAppRevisionsChanges_ProcessManifestGeneratePathsDisabled(t *te
 				app := newFakeApp()
 				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
 			}(),
-			revisions:          []string{"abc123"},
-			data:               fakeData{},
-			sendRuntimeState:   false,
-			expectedHasChanges: false,
+			revisions:                 []string{"abc123"},
+			data:                      fakeData{},
+			sendRuntimeState:          false,
+			expectedHasChanges:        false,
+			expectedResolvedRevisions: []string{"abc123"},
 		},
 	}
 
@@ -2668,7 +2671,7 @@ func Test_EvaluateAppRevisionsChanges_ProcessManifestGeneratePathsDisabled(t *te
 		t.Run(tc.name, func(t *testing.T) {
 			ctrl := newFakeController(t.Context(), &tc.data, nil)
 
-			hasChanges, err := ctrl.appStateManager.EvaluateAppRevisionsChanges(
+			hasChanges, resolvedRevisions, err := ctrl.appStateManager.EvaluateAppRevisionsChanges(
 				context.Background(),
 				tc.app,
 				tc.sources,
@@ -2680,6 +2683,8 @@ func Test_EvaluateAppRevisionsChanges_ProcessManifestGeneratePathsDisabled(t *te
 
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedHasChanges, hasChanges)
+			require.Len(t, resolvedRevisions, len(tc.sources))
+			assert.Equal(t, tc.expectedResolvedRevisions, resolvedRevisions)
 		})
 	}
 }

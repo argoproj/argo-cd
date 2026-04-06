@@ -82,7 +82,7 @@ func (_c *Dependencies_AddHydrationQueueItem_Call) RunAndReturn(run func(key typ
 }
 
 // EvaluateAppRevisionsChanges provides a mock function for the type Dependencies
-func (_mock *Dependencies) EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject, noRevisionCache bool) (bool, error) {
+func (_mock *Dependencies) EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject, noRevisionCache bool) (bool, string, error) {
 	ret := _mock.Called(ctx, app, source, revision, project, noRevisionCache)
 
 	if len(ret) == 0 {
@@ -90,8 +90,9 @@ func (_mock *Dependencies) EvaluateAppRevisionsChanges(ctx context.Context, app 
 	}
 
 	var r0 bool
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject, bool) (bool, error)); ok {
+	var r1 string
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject, bool) (bool, string, error)); ok {
 		return returnFunc(ctx, app, source, revision, project, noRevisionCache)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject, bool) bool); ok {
@@ -99,12 +100,17 @@ func (_mock *Dependencies) EvaluateAppRevisionsChanges(ctx context.Context, app 
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject, bool) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject, bool) string); ok {
 		r1 = returnFunc(ctx, app, source, revision, project, noRevisionCache)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(string)
 	}
-	return r0, r1
+	if returnFunc, ok := ret.Get(2).(func(context.Context, *v1alpha1.Application, v1alpha1.ApplicationSource, string, *v1alpha1.AppProject, bool) error); ok {
+		r2 = returnFunc(ctx, app, source, revision, project, noRevisionCache)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
 }
 
 // Dependencies_EvaluateAppRevisionsChanges_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EvaluateAppRevisionsChanges'
@@ -161,12 +167,12 @@ func (_c *Dependencies_EvaluateAppRevisionsChanges_Call) Run(run func(ctx contex
 	return _c
 }
 
-func (_c *Dependencies_EvaluateAppRevisionsChanges_Call) Return(b bool, err error) *Dependencies_EvaluateAppRevisionsChanges_Call {
-	_c.Call.Return(b, err)
+func (_c *Dependencies_EvaluateAppRevisionsChanges_Call) Return(b bool, s string, err error) *Dependencies_EvaluateAppRevisionsChanges_Call {
+	_c.Call.Return(b, s, err)
 	return _c
 }
 
-func (_c *Dependencies_EvaluateAppRevisionsChanges_Call) RunAndReturn(run func(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject, noRevisionCache bool) (bool, error)) *Dependencies_EvaluateAppRevisionsChanges_Call {
+func (_c *Dependencies_EvaluateAppRevisionsChanges_Call) RunAndReturn(run func(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, revision string, project *v1alpha1.AppProject, noRevisionCache bool) (bool, string, error)) *Dependencies_EvaluateAppRevisionsChanges_Call {
 	_c.Call.Return(run)
 	return _c
 }

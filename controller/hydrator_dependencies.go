@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 
@@ -32,11 +33,21 @@ func (ctrl *ApplicationController) GetProcessableApps() (*appv1.ApplicationList,
 	return ctrl.getAppList(metav1.ListOptions{})
 }
 
-func (ctrl *ApplicationController) EvaluateAppRevisionsChanges(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject, noRevisionCache bool) (bool, error) {
+func (ctrl *ApplicationController) EvaluateAppRevisionsChanges(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject, noRevisionCache bool) (bool, string, error) {
 	sources := []appv1.ApplicationSource{source}
 	revisions := []string{revision}
 
-	return ctrl.appStateManager.EvaluateAppRevisionsChanges(ctx, app, sources, revisions, project, false, noRevisionCache)
+	hasChanges, resolvedRevisions, err := ctrl.appStateManager.EvaluateAppRevisionsChanges(ctx, app, sources, revisions, project, false, noRevisionCache)
+	if err != nil {
+		return false, "", err
+	}
+	if len(resolvedRevisions) != 1 {
+		return false, "", fmt.Errorf("expected exactly one resolved revision for single source, got %d", len(resolvedRevisions))
+	}
+	if resolvedRevisions[0] == "" {
+		return false, "", errors.New("resolved revision is empty for dry source")
+	}
+	return hasChanges, resolvedRevisions[0], nil
 }
 
 func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, app *appv1.Application, drySource appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error) {

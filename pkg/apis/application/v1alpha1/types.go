@@ -1227,6 +1227,9 @@ type SourceHydratorStatus struct {
 	LastSuccessfulOperation *SuccessfulHydrateOperation `json:"lastSuccessfulOperation,omitempty" protobuf:"bytes,1,opt,name=lastSuccessfulOperation"`
 	// CurrentOperation holds the status of the hydrate operation
 	CurrentOperation *HydrateOperation `json:"currentOperation,omitempty" protobuf:"bytes,2,opt,name=currentOperation"`
+	// LastComparedDryRevision holds the resolved revision from the most recent dry source comparison.
+	// This is updated on every evaluation, even when hydration is skipped due to no changes.
+	LastComparedDryRevision string `json:"lastComparedDryRevision,omitempty" protobuf:"bytes,3,opt,name=lastComparedDryRevision"`
 }
 
 func (status *ApplicationStatus) FindResource(key kube.ResourceKey) (*ResourceStatus, bool) {
