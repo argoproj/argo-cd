@@ -10,12 +10,11 @@ on:
 permissions: {}
 
 env:
-  # a workaround to disable harden runner
-  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
-
-env:
   # renovate: datasource=golang-version packageName=golang
   GOLANG_VERSION: '1.26.0' # Note: go-version must also be set in job argocd-image.with.go-version
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+  
 
 jobs:
   argocd-image:
