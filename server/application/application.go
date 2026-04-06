@@ -2451,6 +2451,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application,
 		App:               app,
 		AmbiguousRevision: ambiguousRevision,
 		SourceIndex:       int64(sourceIndex),
+		NoRevisionCache:   true,
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("error resolving repo revision: %w", err)
