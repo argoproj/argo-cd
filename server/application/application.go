@@ -806,10 +806,16 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 	})
 	defer unsubscribe()
 
-	// For now, only hydrate on hard refresh until there is a way to specifically control wether we want to explicitly re-evaluate hydration
-	hydrate := refreshType == v1alpha1.RefreshTypeHard
+	var hydrateType *v1alpha1.HydrateType
+	if refreshType == v1alpha1.RefreshTypeHard {
+		ht := v1alpha1.HydrateTypeHard
+		hydrateType = &ht
+	} else {
+		ht := v1alpha1.HydrateTypeNormal
+		hydrateType = &ht
+	}
 
-	app, err := argo.RefreshApp(appIf, appName, refreshType, hydrate)
+	app, err := argo.RefreshApp(appIf, appName, refreshType, hydrateType)
 	if err != nil {
 		return nil, fmt.Errorf("error refreshing the app: %w", err)
 	}

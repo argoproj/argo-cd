@@ -31,12 +31,10 @@ func (ctrl *ApplicationController) GetProcessableApps() (*appv1.ApplicationList,
 	return ctrl.getAppList(metav1.ListOptions{})
 }
 
-func (ctrl *ApplicationController) EvaluateAppRevisionsChanges(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) (bool, error) {
+func (ctrl *ApplicationController) EvaluateAppRevisionsChanges(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject, noRevisionCache bool) (bool, error) {
 	sources := []appv1.ApplicationSource{source}
 	revisions := []string{revision}
-	// we always want to use the cache to resolve revision since this is called
-	// on each update to know if there is a new commit
-	noRevisionCache := false
+
 	return ctrl.appStateManager.EvaluateAppRevisionsChanges(ctx, app, sources, revisions, project, false, noRevisionCache)
 }
 
@@ -81,8 +79,8 @@ func (ctrl *ApplicationController) RequestAppRefresh(appName string, appNamespac
 	// guarantee that the hydrator is running on the same controller shard as is processing the application.
 
 	// This function is called for each app after a hydrate operation is completed so that the app controller can pick
-	// up the newly-hydrated changes. So we set hydrate=false to avoid a hydrate loop.
-	_, err := argoutil.RefreshApp(ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace), appName, appv1.RefreshTypeNormal, false)
+	// up the newly-hydrated changes. So we pass nil hydrateType to avoid a hydrate loop.
+	_, err := argoutil.RefreshApp(ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace), appName, appv1.RefreshTypeNormal, nil)
 	if err != nil {
 		return fmt.Errorf("failed to request app refresh: %w", err)
 	}

@@ -165,7 +165,7 @@ func TestEvaluateAppRevisionsChanges(t *testing.T) {
 				},
 			},
 		},
-	})
+	}, false)
 	require.NoError(t, err)
 	assert.True(t, hasChanges)
 }

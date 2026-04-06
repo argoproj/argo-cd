@@ -239,7 +239,7 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 }
 
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
-func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrate bool) (*argoappv1.Application, error) {
+func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrateType *argoappv1.HydrateType) (*argoappv1.Application, error) {
 	metadata := map[string]any{
 		"metadata": map[string]any{
 			"annotations": map[string]string{
@@ -247,8 +247,8 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 			},
 		},
 	}
-	if hydrate {
-		metadata["metadata"].(map[string]any)["annotations"].(map[string]string)[argoappv1.AnnotationKeyHydrate] = string(argoappv1.HydrateTypeNormal)
+	if hydrateType != nil {
+		metadata["metadata"].(map[string]any)["annotations"].(map[string]string)[argoappv1.AnnotationKeyHydrate] = string(*hydrateType)
 	}
 
 	var err error
