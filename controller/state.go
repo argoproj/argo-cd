@@ -261,49 +261,15 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		appNamespace := app.Spec.Destination.Namespace
 		apiVersions := argo.APIResourcesToStrings(apiResources, true)
 
-		updateRevisions := processManifestGeneratePathsEnabled &&
-			// updating revisions result is not required if automated sync is not enabled
-			app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil &&
-			// using updating revisions gains performance only if manifest generation is required.
-			// just reading pre-generated manifests is comparable to updating revisions time-wise
-			app.Status.SourceType != v1alpha1.ApplicationSourceTypeDirectory
-
-		if updateRevisions && repo.Depth == 0 && syncedRevision != "" && !source.IsRef() && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" && (syncedRevision != revision || app.Spec.HasMultipleSources()) {
-			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
-			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
-				Repo:               repo,
-				Revision:           revision,
-				SyncedRevision:     syncedRevision,
-				NoRevisionCache:    noRevisionCache,
-				Paths:              path.GetSourceRefreshPaths(app, source),
-				AppLabelKey:        appLabelKey,
-				AppName:            app.InstanceName(m.namespace),
-				Namespace:          appNamespace,
-				ApplicationSource:  &source,
-				KubeVersion:        serverVersion,
-				ApiVersions:        apiVersions,
-				TrackingMethod:     trackingMethod,
-				RefSources:         refSources,
-				SyncedRefSources:   syncedRefSources,
-				HasMultipleSources: app.Spec.HasMultipleSources(),
-				InstallationID:     installationID,
-			})
-			if err != nil {
-				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
-			}
-
-			if updateRevisionResult.Changes {
-				revisionsMayHaveChanges = true
-			}
-
-			// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
-			if updateRevisionResult.Revision != "" {
-				revision = updateRevisionResult.Revision
-			}
-		} else if !source.IsRef() {
-			// revisionsMayHaveChanges is set to true if at least one revision is not possible to be updated
+		// Evaluate if the revision has changes
+		resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(ctx, repoClient, app, &source, repo, revision, syncedRevision, refSources, syncedRefSources, processManifestGeneratePathsEnabled, noRevisionCache, appLabelKey, serverVersion, apiVersions, trackingMethod, installationID, keyManifestGenerateAnnotationExists, keyManifestGenerateAnnotationVal)
+		if err != nil {
+			return nil, nil, false, fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
+		}
+		if hasChanges {
 			revisionsMayHaveChanges = true
 		}
+		revision = resolvedRevision
 
 		repos := permittedHelmRepos
 		helmRepoCreds := permittedHelmCredentials
@@ -364,6 +330,80 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	logCtx.Info("GetRepoObjs stats")
 
 	return targetObjs, manifestInfos, revisionsMayHaveChanges, nil
+}
+
+// evaluateRevisionChanges determines if a source revision has changes compared to the synced revision.
+// Returns the resolved revision, whether changes were detected, and any error.
+func (m *appStateManager) evaluateRevisionChanges(
+	ctx context.Context,
+	repoClient apiclient.RepoServerServiceClient,
+	app *v1alpha1.Application,
+	source *v1alpha1.ApplicationSource,
+	repo *v1alpha1.Repository,
+	revision string,
+	syncedRevision string,
+	refSources map[string]*v1alpha1.RefTarget,
+	syncedRefSources v1alpha1.RefTargetRevisionMapping,
+	processManifestGeneratePathsEnabled bool,
+	noRevisionCache bool,
+	appLabelKey string,
+	serverVersion string,
+	apiVersions []string,
+	trackingMethod string,
+	installationID string,
+	keyManifestGenerateAnnotationExists bool,
+	keyManifestGenerateAnnotationVal string,
+) (string, bool, error) {
+	// For ref source specifically, we always return false since their change are evaluated as part of the source
+	// referencing them.
+	if source.IsRef() {
+		return revision, false, nil
+	}
+
+	// if revisions are the same (and we are not using reference sources), we know there is no changes
+	if syncedRevision == revision && revision != "" && len(refSources) == 0 {
+		return revision, false, nil
+	}
+
+	skipUpdateRevisions := !processManifestGeneratePathsEnabled ||
+		(app.Status.SourceType == v1alpha1.ApplicationSourceTypeDirectory && (app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.IsAutomatedSyncEnabled()))
+
+	appNamespace := app.Spec.Destination.Namespace
+
+	if !skipUpdateRevisions && repo.Depth == 0 && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
+		// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
+		updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
+			Repo:               repo,
+			Revision:           revision,
+			SyncedRevision:     syncedRevision,
+			NoRevisionCache:    noRevisionCache,
+			Paths:              path.GetSourceRefreshPaths(app, source),
+			AppLabelKey:        appLabelKey,
+			AppName:            app.InstanceName(m.namespace),
+			Namespace:          appNamespace,
+			ApplicationSource:  source,
+			KubeVersion:        serverVersion,
+			ApiVersions:        apiVersions,
+			TrackingMethod:     trackingMethod,
+			RefSources:         refSources,
+			SyncedRefSources:   syncedRefSources,
+			HasMultipleSources: app.Spec.HasMultipleSources(),
+			InstallationID:     installationID,
+		})
+		if err != nil {
+			return "", false, err
+		}
+
+		// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
+		if updateRevisionResult.Revision != "" {
+			revision = updateRevisionResult.Revision
+		}
+
+		return revision, updateRevisionResult.Changes, nil
+	}
+
+	// revisionsMayHaveChanges is set to true if at least one revision is not possible to be updated
+	return revision, true, nil
 }
 
 // ResolveGitRevision will resolve the given revision to a full commit SHA. Only works for git.
