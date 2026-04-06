@@ -216,7 +216,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		false,
 		normalizers.IgnoreNormalizerOpts{},
 		testEnableEventList,
-		true,
+		false,
 	)
 	db := &dbmocks.ArgoDB{}
 	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
