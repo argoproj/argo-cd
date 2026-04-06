@@ -419,6 +419,10 @@ func TestHydratorHydratesAutomatically_NewCommit(t *testing.T) {
 			require.NotEmpty(t, firstHydratedSHA)
 			require.False(t, firstStartedAt.IsZero())
 			t.Logf("Initial hydration - drySHA: %s, hydratedSHA: %s, startedAt: %s", firstDrySHA, firstHydratedSHA, firstStartedAt)
+
+			// Wait a second here because we using the firstStartedAt timestamp and do not want it to be the same
+			// if we refresh too fast
+			time.Sleep(time.Second)
 		}).
 		// Verify the hydration is stable: a normal refresh should not trigger a new hydration
 		// when no commits have been made.
@@ -495,6 +499,10 @@ func TestHydratorHydratesAutomatically_NewCommit_WithChanges(t *testing.T) {
 			require.NotEmpty(t, firstDrySHA)
 			require.NotEmpty(t, firstHydratedSHA)
 			t.Logf("Initial hydration - drySHA: %s, hydratedSHA: %s", firstDrySHA, firstHydratedSHA)
+
+			// Wait a second here because we using the firstStartedAt timestamp and do not want it to be the same
+			// if we refresh too fast
+			time.Sleep(time.Second)
 		}).
 		// A change inside the watched path should trigger re-hydration.
 		When().
@@ -554,6 +562,10 @@ func TestHydratorHydratesAutomatically_NewCommit_WithoutChanges(t *testing.T) {
 			require.NotEmpty(t, firstDrySHA)
 			require.NotEmpty(t, firstHydratedSHA)
 			t.Logf("Initial hydration - drySHA: %s, hydratedSHA: %s", firstDrySHA, firstHydratedSHA)
+
+			// Wait a second here because we using the firstStartedAt timestamp and do not want it to be the same
+			// if we refresh too fast
+			time.Sleep(time.Second)
 		}).
 		// A change outside the watched path should NOT trigger re-hydration.
 		// Use fixture.AddFile directly to write outside the context path.
