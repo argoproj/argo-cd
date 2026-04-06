@@ -95,12 +95,12 @@ func Test_appNeedsHydration(t *testing.T) {
 					LastComparedDryRevision: "old-sha",
 				}},
 			},
-		setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
-			proj := newTestProject()
-			d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
-			drySource := app.Spec.SourceHydrator.GetDrySource()
-			d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, true).Return(true, "new-sha", nil)
-		},
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				proj := newTestProject()
+				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, true).Return(true, "new-sha", nil)
+			},
 			expectedNeedsHydration: true,
 			expectedMessage:        "new revision may have changes",
 			expectedResolvedRev:    "new-sha",
@@ -115,12 +115,12 @@ func Test_appNeedsHydration(t *testing.T) {
 					LastComparedDryRevision: "same-sha",
 				}},
 			},
-		setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
-			proj := newTestProject()
-			d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
-			drySource := app.Spec.SourceHydrator.GetDrySource()
-			d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, true).Return(false, "same-sha", nil)
-		},
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				proj := newTestProject()
+				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, true).Return(false, "same-sha", nil)
+			},
 			expectedNeedsHydration: false,
 			expectedMessage:        "hydration not needed",
 			expectedResolvedRev:    "same-sha",
@@ -162,12 +162,12 @@ func Test_appNeedsHydration(t *testing.T) {
 					LastComparedDryRevision: "abc123",
 				}},
 			},
-		setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
-			proj := newTestProject()
-			d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
-			drySource := app.Spec.SourceHydrator.GetDrySource()
-			d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, false).Return(false, "abc123", nil)
-		},
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				proj := newTestProject()
+				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, false).Return(false, "abc123", nil)
+			},
 			expectedNeedsHydration: false,
 			expectedMessage:        "hydration not needed",
 			expectedResolvedRev:    "abc123",
@@ -244,15 +244,15 @@ func Test_appNeedsHydration(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			h := &Hydrator{}
-		if tc.setupMocks != nil {
-			d := mocks.NewDependencies(t)
-			tc.setupMocks(d, tc.app)
-			h.dependencies = d
-		}
-		needsHydration, message, resolvedRev := h.appNeedsHydration(tc.app)
-		assert.Equal(t, tc.expectedNeedsHydration, needsHydration)
-		assert.Equal(t, tc.expectedMessage, message)
-		assert.Equal(t, tc.expectedResolvedRev, resolvedRev)
+			if tc.setupMocks != nil {
+				d := mocks.NewDependencies(t)
+				tc.setupMocks(d, tc.app)
+				h.dependencies = d
+			}
+			needsHydration, message, resolvedRev := h.appNeedsHydration(tc.app)
+			assert.Equal(t, tc.expectedNeedsHydration, needsHydration)
+			assert.Equal(t, tc.expectedMessage, message)
+			assert.Equal(t, tc.expectedResolvedRev, resolvedRev)
 		})
 	}
 }

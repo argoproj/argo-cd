@@ -120,7 +120,9 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	logCtx.Debug("Processing app hydrate queue item")
 
 	needsHydration, reason, resolvedDryRevision := h.appNeedsHydration(app)
-	if resolvedDryRevision != "" {
+	if resolvedDryRevision != "" && resolvedDryRevision != app.Status.SourceHydrator.LastComparedDryRevision {
+		// Update the last compared dry revision to the resolved revision
+		// If the app is currently hydrating, we should not have a resolvedDryRevision
 		app.Status.SourceHydrator.LastComparedDryRevision = resolvedDryRevision
 		logCtx.WithField("lastComparedDryRevision", resolvedDryRevision).Debug("Updated last compared dry revision")
 	}
