@@ -105,7 +105,7 @@ A new Argo CD release results in:
 - Docker images and SBOM artifacts are published
 
 Because of all the above dependencies, in a case of a release that failed, it is not safe to delete and recreate it.
-Instead, create the next patch release (for example, if 3.2.4 failed, create 3.2.5 after fixing the problem, but don't recreate 3.2.4).
+Instead, create the next patch release (for example, if `3.2.4` failed, create `3.2.5` after fixing the problem, but don't recreate `3.2.4`).
 Upon successful publishing of the fixed release (3.2.5 in our example), copy the full release notes manually from the failed release (3.2.4 in our example) and then update the failed release (3.2.4 in our example) release notes to state this release is invalid and should not be used.
 
 ### Manual releasing
