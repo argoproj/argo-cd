@@ -476,17 +476,9 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, project
 //
 // If the given target revision is empty, it uses the target revision from the app dry source spec.
 func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, targetRevision string, project *appv1.AppProject) (revision string, pathDetails *commitclient.PathDetails, err error) {
-	drySource := appv1.ApplicationSource{
-		RepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
-		Path:           app.Spec.SourceHydrator.DrySource.Path,
-		TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-		Helm:           app.Spec.SourceHydrator.DrySource.Helm,
-		Kustomize:      app.Spec.SourceHydrator.DrySource.Kustomize,
-		Directory:      app.Spec.SourceHydrator.DrySource.Directory,
-		Plugin:         app.Spec.SourceHydrator.DrySource.Plugin,
-	}
+	drySource := app.Spec.SourceHydrator.GetDrySource()
 	if targetRevision == "" {
-		targetRevision = app.Spec.SourceHydrator.DrySource.TargetRevision
+		targetRevision = drySource.TargetRevision
 	}
 
 	// TODO: enable signature verification
