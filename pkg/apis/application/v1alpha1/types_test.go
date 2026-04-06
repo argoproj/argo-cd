@@ -5202,7 +5202,7 @@ func TestGetDrySource_PreservesAllFields(t *testing.T) {
 			assert.Equal(t, tt.hydrator.DrySource.TargetRevision, source.TargetRevision)
 
 			// Verify source type fields are preserved
-			fieldMap := map[string]interface{}{
+			fieldMap := map[string]any{
 				"Helm":      source.Helm,
 				"Kustomize": source.Kustomize,
 				"Directory": source.Directory,
