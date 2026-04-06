@@ -2118,7 +2118,7 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 		sourceType                          v1alpha1.ApplicationSourceType
 		syncPolicy                          *v1alpha1.SyncPolicy
 		revision                            string
-		syncedRevision                      string
+		appSyncedRevision                   string
 		refSources                          map[string]*v1alpha1.RefTarget
 		processManifestGeneratePathsEnabled bool
 		repoDepth                           int64
@@ -2137,7 +2137,7 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			},
 			sourceType:         v1alpha1.ApplicationSourceTypeHelm,
 			revision:           "abc123",
-			syncedRevision:     "def456",
+			appSyncedRevision:  "def456",
 			expectedRevision:   "abc123",
 			expectedHasChanges: false,
 		},
@@ -2149,7 +2149,7 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			},
 			sourceType:         v1alpha1.ApplicationSourceTypeKustomize,
 			revision:           "abc123",
-			syncedRevision:     "abc123",
+			appSyncedRevision:  "abc123",
 			refSources:         map[string]*v1alpha1.RefTarget{},
 			expectedRevision:   "abc123",
 			expectedHasChanges: false,
@@ -2160,9 +2160,9 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 				RepoURL: "https://github.com/example/repo",
 				Path:    "manifests",
 			},
-			sourceType:     v1alpha1.ApplicationSourceTypeKustomize,
-			revision:       "abc123",
-			syncedRevision: "abc123",
+			sourceType:        v1alpha1.ApplicationSourceTypeKustomize,
+			revision:          "abc123",
+			appSyncedRevision: "abc123",
 			refSources: map[string]*v1alpha1.RefTarget{
 				"ref1": {Repo: v1alpha1.Repository{Repo: "https://github.com/example/ref"}},
 			},
@@ -2187,7 +2187,7 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			sourceType:                          v1alpha1.ApplicationSourceTypeDirectory,
 			syncPolicy:                          nil,
 			revision:                            "abc123",
-			syncedRevision:                      "def456",
+			appSyncedRevision:                   "def456",
 			processManifestGeneratePathsEnabled: true,
 			repoDepth:                           0,
 			keyManifestGenerateAnnotationExists: true,
@@ -2207,7 +2207,7 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 				Automated: &v1alpha1.SyncPolicyAutomated{},
 			},
 			revision:                            "abc123",
-			syncedRevision:                      "def456",
+			appSyncedRevision:                   "def456",
 			processManifestGeneratePathsEnabled: true,
 			repoDepth:                           0,
 			keyManifestGenerateAnnotationExists: true,
@@ -2229,7 +2229,7 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			sourceType:                          v1alpha1.ApplicationSourceTypeKustomize,
 			syncPolicy:                          nil,
 			revision:                            "abc123",
-			syncedRevision:                      "def456",
+			appSyncedRevision:                   "def456",
 			processManifestGeneratePathsEnabled: true,
 			repoDepth:                           0,
 			keyManifestGenerateAnnotationExists: true,
@@ -2253,7 +2253,7 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 				Automated: &v1alpha1.SyncPolicyAutomated{},
 			},
 			revision:                            "abc123",
-			syncedRevision:                      "def456",
+			appSyncedRevision:                   "def456",
 			processManifestGeneratePathsEnabled: false,
 			repoDepth:                           0,
 			keyManifestGenerateAnnotationExists: true,
@@ -2273,7 +2273,7 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 				Automated: &v1alpha1.SyncPolicyAutomated{},
 			},
 			revision:                            "abc123",
-			syncedRevision:                      "def456",
+			appSyncedRevision:                   "def456",
 			processManifestGeneratePathsEnabled: true,
 			repoDepth:                           1,
 			keyManifestGenerateAnnotationExists: true,
@@ -2293,7 +2293,7 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 				Automated: &v1alpha1.SyncPolicyAutomated{},
 			},
 			revision:                            "abc123",
-			syncedRevision:                      "def456",
+			appSyncedRevision:                   "def456",
 			processManifestGeneratePathsEnabled: true,
 			repoDepth:                           0,
 			keyManifestGenerateAnnotationExists: false,
@@ -2313,7 +2313,7 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 				Automated: &v1alpha1.SyncPolicyAutomated{},
 			},
 			revision:                            "HEAD",
-			syncedRevision:                      "def456",
+			appSyncedRevision:                   "def456",
 			processManifestGeneratePathsEnabled: true,
 			repoDepth:                           0,
 			keyManifestGenerateAnnotationExists: true,
@@ -2331,8 +2331,9 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app := newFakeApp()
-			app.Status.SourceType = tt.sourceType
 			app.Spec.SyncPolicy = tt.syncPolicy
+			app.Status.Sync.Revision = tt.appSyncedRevision
+			app.Status.SourceType = tt.sourceType
 			if tt.keyManifestGenerateAnnotationExists {
 				app.Annotations = map[string]string{
 					v1alpha1.AnnotationKeyManifestGeneratePaths: tt.keyManifestGenerateAnnotationVal,
@@ -2358,9 +2359,9 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 				mockRepoClient,
 				app,
 				tt.source,
+				0, // sourceIndex
 				repo,
 				tt.revision,
-				tt.syncedRevision,
 				tt.refSources,
 				nil,
 				tt.processManifestGeneratePathsEnabled,

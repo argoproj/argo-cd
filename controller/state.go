@@ -247,22 +247,13 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			return nil, nil, false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 		}
 
-		syncedRevision := app.Status.Sync.Revision
-		if app.Spec.HasMultipleSources() {
-			if i < len(app.Status.Sync.Revisions) {
-				syncedRevision = app.Status.Sync.Revisions[i]
-			} else {
-				syncedRevision = ""
-			}
-		}
-
 		revision := revisions[i]
 
 		appNamespace := app.Spec.Destination.Namespace
 		apiVersions := argo.APIResourcesToStrings(apiResources, true)
 
 		// Evaluate if the revision has changes
-		resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(ctx, repoClient, app, &source, repo, revision, syncedRevision, refSources, syncedRefSources, processManifestGeneratePathsEnabled, noRevisionCache, appLabelKey, serverVersion, apiVersions, trackingMethod, installationID, keyManifestGenerateAnnotationExists, keyManifestGenerateAnnotationVal)
+		resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(ctx, repoClient, app, &source, i, repo, revision, refSources, syncedRefSources, processManifestGeneratePathsEnabled, noRevisionCache, appLabelKey, serverVersion, apiVersions, trackingMethod, installationID, keyManifestGenerateAnnotationExists, keyManifestGenerateAnnotationVal)
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
 		}
@@ -339,9 +330,9 @@ func (m *appStateManager) evaluateRevisionChanges(
 	repoClient apiclient.RepoServerServiceClient,
 	app *v1alpha1.Application,
 	source *v1alpha1.ApplicationSource,
+	sourceIndex int,
 	repo *v1alpha1.Repository,
 	revision string,
-	syncedRevision string,
 	refSources map[string]*v1alpha1.RefTarget,
 	syncedRefSources v1alpha1.RefTargetRevisionMapping,
 	processManifestGeneratePathsEnabled bool,
@@ -360,13 +351,28 @@ func (m *appStateManager) evaluateRevisionChanges(
 		return revision, false, nil
 	}
 
+	// Determine the synced revision and source type for this specific source
+	var syncedRevision string
+	var sourceType v1alpha1.ApplicationSourceType
+	if app.Spec.HasMultipleSources() {
+		if sourceIndex < len(app.Status.Sync.Revisions) {
+			syncedRevision = app.Status.Sync.Revisions[sourceIndex]
+		}
+		if sourceIndex < len(app.Status.SourceTypes) {
+			sourceType = app.Status.SourceTypes[sourceIndex]
+		}
+	} else {
+		syncedRevision = app.Status.Sync.Revision
+		sourceType = app.Status.SourceType
+	}
+
 	// if revisions are the same (and we are not using reference sources), we know there is no changes
 	if syncedRevision == revision && revision != "" && len(refSources) == 0 {
 		return revision, false, nil
 	}
 
 	skipUpdateRevisions := !processManifestGeneratePathsEnabled ||
-		(app.Status.SourceType == v1alpha1.ApplicationSourceTypeDirectory && (app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.IsAutomatedSyncEnabled()))
+		(sourceType == v1alpha1.ApplicationSourceTypeDirectory && (app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.IsAutomatedSyncEnabled()))
 
 	appNamespace := app.Spec.Destination.Namespace
 
