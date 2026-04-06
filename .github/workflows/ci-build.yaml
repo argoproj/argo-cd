@@ -432,7 +432,7 @@ jobs:
           codecov_secret: ${{ secrets.CODECOV_TOKEN }}
           # when upgrading action version please update both this line and the
           # `uses:` key in the next step
-          sonarqube_scan_action_commit: "a31c9398be7ace6bbfaf30c0bd5d415f843d45e9"
+          sonarqube_scan_action_commit: "299e4b793aaa83bf2aba7c9c14bedbb485688ec4" # v7.1.0
         run: |
           set -e
           set -o pipefail
