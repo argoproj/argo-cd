@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -23,6 +25,25 @@ import (
 	"github.com/argoproj/argo-cd/v3/test"
 )
 
+func processApplicationListField(t *testing.T, v any, fields map[string]any, exclude bool) (any, error) {
+	t.Helper()
+	if appList, ok := v.(*v1alpha1.ApplicationList); ok {
+		var items []map[string]any
+		for i := range appList.Items {
+			converted, err := processAppFields(&appList.Items[i], fields, exclude)
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, converted)
+		}
+		return map[string]any{
+			"items":    items,
+			"metadata": appList.ListMeta,
+		}, nil
+	}
+	return nil, errors.New("not an application list")
+}
+
 func TestProcessApplicationListField_SyncOperation(t *testing.T) {
 	list := v1alpha1.ApplicationList{
 		Items: []v1alpha1.Application{{Operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{
@@ -30,7 +51,7 @@ func TestProcessApplicationListField_SyncOperation(t *testing.T) {
 		}}}},
 	}
 
-	res, err := processApplicationListField(&list, map[string]any{"items.operation.sync": true}, false)
+	res, err := processApplicationListField(t, &list, map[string]any{"items.operation.sync": true}, false)
 	require.NoError(t, err)
 	resMap, ok := res.(map[string]any)
 	require.True(t, ok)
@@ -51,7 +72,7 @@ func TestProcessApplicationListField_SyncOperationMissing(t *testing.T) {
 		Items: []v1alpha1.Application{{Operation: nil}},
 	}
 
-	res, err := processApplicationListField(&list, map[string]any{"items.operation.sync": true}, false)
+	res, err := processApplicationListField(t, &list, map[string]any{"items.operation.sync": true}, false)
 	require.NoError(t, err)
 	resMap, ok := res.(map[string]any)
 	require.True(t, ok)
@@ -150,6 +171,56 @@ func TestStreamApplicationListJSON_EmptyList(t *testing.T) {
 	assert.Empty(t, items)
 }
 
+func TestStreamApplicationListJSON_NilItems(t *testing.T) {
+	list := &v1alpha1.ApplicationList{
+		ListMeta: metav1.ListMeta{ResourceVersion: "1"},
+		Items:    nil,
+	}
+
+	var buf bytes.Buffer
+	err := streamApplicationListJSON(&buf, list, nil, false)
+	require.NoError(t, err)
+
+	var result map[string]any
+	err = json.Unmarshal(buf.Bytes(), &result)
+	require.NoError(t, err)
+
+	// nil items should produce "items":null, not "items":[]
+	assert.Nil(t, result["items"])
+}
+
+// TestStreamApplicationListJSON_NilVsEmptyMatchesJSONMarshal verifies that
+// the streaming output for nil and empty items matches json.Marshal behavior.
+func TestStreamApplicationListJSON_NilVsEmptyMatchesJSONMarshal(t *testing.T) {
+	tests := []struct {
+		name  string
+		items []v1alpha1.Application
+	}{
+		{"nil items", nil},
+		{"empty items", []v1alpha1.Application{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			list := &v1alpha1.ApplicationList{
+				ListMeta: metav1.ListMeta{ResourceVersion: "1"},
+				Items:    tt.items,
+			}
+
+			oldJSON, err := json.Marshal(list)
+			require.NoError(t, err)
+
+			var buf bytes.Buffer
+			err = streamApplicationListJSON(&buf, list, nil, false)
+			require.NoError(t, err)
+
+			var oldParsed, newParsed map[string]any
+			require.NoError(t, json.Unmarshal(oldJSON, &oldParsed))
+			require.NoError(t, json.Unmarshal(buf.Bytes(), &newParsed))
+			assert.Equal(t, oldParsed, newParsed)
+		})
+	}
+}
+
 func TestStreamApplicationListJSON_MatchesProcessApplicationListField(t *testing.T) {
 	list := &v1alpha1.ApplicationList{
 		ListMeta: metav1.ListMeta{ResourceVersion: "99"},
@@ -172,7 +243,7 @@ func TestStreamApplicationListJSON_MatchesProcessApplicationListField(t *testing
 	}
 
 	// Get result from the batch processApplicationListField
-	batchResult, err := processApplicationListField(list, fields, false)
+	batchResult, err := processApplicationListField(t, list, fields, false)
 	require.NoError(t, err)
 	batchJSON, err := json.Marshal(batchResult)
 	require.NoError(t, err)
@@ -304,7 +375,7 @@ func TestStreamApplicationListJSON_MatchesFieldFilter_AllFields(t *testing.T) {
 	}
 
 	// Batch (old path)
-	batchResult, err := processApplicationListField(list, fields, false)
+	batchResult, err := processApplicationListField(t, list, fields, false)
 	require.NoError(t, err)
 	batchJSON, err := json.Marshal(batchResult)
 	require.NoError(t, err)
@@ -339,7 +410,7 @@ func TestStreamApplicationListJSON_MatchesFieldFilter_Exclude(t *testing.T) {
 	// Exclude spec
 	fields := map[string]any{"items.spec": true}
 
-	batchResult, err := processApplicationListField(list, fields, true)
+	batchResult, err := processApplicationListField(t, list, fields, true)
 	require.NoError(t, err)
 	batchJSON, err := json.Marshal(batchResult)
 	require.NoError(t, err)
@@ -387,7 +458,9 @@ func TestForwarder_HeadersMatchForwardResponseMessage(t *testing.T) {
 	}
 
 	// --- Old path: UnaryForwarderWithFieldProcessor via ForwardResponseMessage ---
-	oldForwarder := argohttp.UnaryForwarderWithFieldProcessor(processApplicationListField)
+	oldForwarder := argohttp.UnaryForwarderWithFieldProcessor(func(val any, fields map[string]any, exclude bool) (any, error) {
+		return processApplicationListField(t, val, fields, exclude)
+	})
 	oldRec := httptest.NewRecorder()
 	oldReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/applications?fields=items.metadata.name", http.NoBody)
 	oldForwarder(ctx, mux, nil, oldRec, oldReq, list, testOpt)
@@ -428,4 +501,61 @@ func TestForwarder_HeadersMatchForwardResponseMessage(t *testing.T) {
 	require.NoError(t, json.Unmarshal(oldRec.Body.Bytes(), &oldParsed))
 	require.NoError(t, json.Unmarshal(newRec.Body.Bytes(), &newParsed))
 	assert.Equal(t, oldParsed, newParsed)
+}
+
+// failAfterNWriter wraps a writer and returns an error after n bytes have been written.
+type failAfterNWriter struct {
+	w       io.Writer
+	limit   int
+	written int
+}
+
+func (f *failAfterNWriter) Write(p []byte) (int, error) {
+	if f.written+len(p) > f.limit {
+		return 0, errors.New("simulated write failure")
+	}
+	n, err := f.w.Write(p)
+	f.written += n
+	return n, err
+}
+
+func TestForwarder_StreamErrorPanicsWithErrAbortHandler(t *testing.T) {
+	list := &v1alpha1.ApplicationList{
+		ListMeta: metav1.ListMeta{ResourceVersion: "1"},
+		Items: []v1alpha1.Application{
+			{ObjectMeta: metav1.ObjectMeta{Name: "app1"}},
+		},
+	}
+
+	ctx := runtime.NewServerMetadataContext(context.Background(), runtime.ServerMetadata{})
+	mux := runtime.NewServeMux()
+
+	// Use an httptest.Server so the panic(http.ErrAbortHandler) is handled
+	// the same way a real net/http server handles it: the connection is aborted.
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Wrap the ResponseWriter so writes fail mid-stream after headers are sent.
+		failing := &failAfterNWriter{w: w, limit: 1}
+		fw := &failingResponseWriter{ResponseWriter: w, Writer: failing}
+		forward_ApplicationService_List_0(ctx, mux, nil, fw, r, list)
+	}))
+	defer ts.Close()
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, ts.URL+"/api/v1/applications", http.NoBody)
+	require.NoError(t, err)
+	resp, err := http.DefaultClient.Do(req)
+	if err == nil {
+		resp.Body.Close()
+	}
+	require.ErrorIs(t, err, io.EOF)
+}
+
+// failingResponseWriter delegates Header/WriteHeader to the real ResponseWriter
+// but routes Write through a separate writer that can simulate failures.the
+type failingResponseWriter struct {
+	http.ResponseWriter
+	Writer io.Writer
+}
+
+func (f *failingResponseWriter) Write(p []byte) (int, error) {
+	return f.Writer.Write(p)
 }

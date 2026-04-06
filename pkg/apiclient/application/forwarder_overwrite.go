@@ -110,24 +110,6 @@ func processAppFields(app *v1alpha1.Application, fields map[string]any, exclude 
 	return converted, nil
 }
 
-func processApplicationListField(v any, fields map[string]any, exclude bool) (any, error) {
-	if appList, ok := v.(*v1alpha1.ApplicationList); ok {
-		var items []map[string]any
-		for i := range appList.Items {
-			converted, err := processAppFields(&appList.Items[i], fields, exclude)
-			if err != nil {
-				return nil, err
-			}
-			items = append(items, converted)
-		}
-		return map[string]any{
-			"items":    items,
-			"metadata": appList.ListMeta,
-		}, nil
-	}
-	return nil, errors.New("not an application list")
-}
-
 // streamApplicationListJSON writes the ApplicationList as JSON directly to w,
 // streaming one application at a time to avoid buffering the entire response.
 func streamApplicationListJSON(w io.Writer, appList *v1alpha1.ApplicationList, fields map[string]any, exclude bool) error {
@@ -151,6 +133,13 @@ func streamApplicationListJSON(w io.Writer, appList *v1alpha1.ApplicationList, f
 	if err := enc.Encode(appList.ListMeta); err != nil {
 		return err
 	}
+	if appList.Items == nil {
+		if _, err := w.Write([]byte(`,"items":null}`)); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	if _, err := w.Write([]byte(`,"items":[`)); err != nil {
 		return err
 	}
@@ -297,6 +286,7 @@ func init() {
 
 		if err := streamApplicationListJSON(w, appList, fields, exclude); err != nil {
 			log.Errorf("Failed to stream application list response: %v", err)
+			panic(gohttp.ErrAbortHandler)
 		}
 
 		if ok {
