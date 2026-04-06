@@ -661,6 +661,70 @@ func TestGetClusterServersByName(t *testing.T) {
 	})
 }
 
+func TestGetClusterServersByName_IsInClusterEnabledLazyLoad(t *testing.T) {
+	argoCDSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: fakeNamespace,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+		Data: map[string][]byte{
+			"admin.password":   nil,
+			"server.secretkey": nil,
+		},
+	}
+	prodSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cluster-secret",
+			Namespace: fakeNamespace,
+			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("prod"),
+			"server": []byte("https://prod.example.com"),
+			"config": []byte("{}"),
+		},
+	}
+
+	tests := []struct {
+		name        string
+		clusterName string
+		wantErr     bool
+		wantServers []string
+	}{
+		{
+			name:        "non in-cluster name does not call IsInClusterEnabled()",
+			clusterName: "prod",
+			wantErr:     false,
+			wantServers: []string{"https://prod.example.com"},
+		},
+		{
+			name:        "in-cluster name calls IsInClusterEnabled()",
+			clusterName: "in-cluster",
+			wantErr:     true,
+		},
+	}
+
+	// argocd-cm is intentionally absent: IsInClusterEnabled() fails if called.
+	kubeclientset := fake.NewClientset(argoCDSecret, prodSecret)
+	db := NewDB(fakeNamespace, settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace), kubeclientset)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			servers, err := db.GetClusterServersByName(t.Context(), tt.clusterName)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.ElementsMatch(t, tt.wantServers, servers)
+			}
+		})
+	}
+}
+
 func TestCreateCluster_MissingServerSecretKey(t *testing.T) {
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{

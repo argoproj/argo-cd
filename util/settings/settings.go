@@ -663,10 +663,11 @@ func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, err
 }
 
 // GetClusterInformer returns the cluster cache for optimized cluster lookups.
-func (mgr *SettingsManager) GetClusterInformer() *ClusterInformer {
-	// Ensure the settings manager is initialized
-	_ = mgr.ensureSynced(false)
-	return mgr.clusterInformer
+func (mgr *SettingsManager) GetClusterInformer() (*ClusterInformer, error) {
+	if err := mgr.ensureSynced(false); err != nil {
+		return nil, fmt.Errorf("error ensuring that the settings manager is synced: %w", err)
+	}
+	return mgr.clusterInformer, nil
 }
 
 func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) error {
