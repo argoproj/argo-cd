@@ -1348,6 +1348,7 @@ func Test_newRevisionHasChanges(t *testing.T) {
 		setupMocks          func(*mocks.Dependencies, *v1alpha1.Application)
 		expectedResult      bool
 		expectedResolvedRev string
+		expectedError       bool
 	}{
 		{
 			name: "empty last compared dry revision",
@@ -1358,6 +1359,7 @@ func Test_newRevisionHasChanges(t *testing.T) {
 			}(),
 			expectedResult:      true,
 			expectedResolvedRev: "",
+			expectedError:       false,
 		},
 		{
 			name: "get project error",
@@ -1371,6 +1373,7 @@ func Test_newRevisionHasChanges(t *testing.T) {
 			},
 			expectedResult:      false,
 			expectedResolvedRev: "",
+			expectedError:       true,
 		},
 		{
 			name: "evaluate error",
@@ -1387,6 +1390,7 @@ func Test_newRevisionHasChanges(t *testing.T) {
 			},
 			expectedResult:      false,
 			expectedResolvedRev: "",
+			expectedError:       true,
 		},
 		{
 			name: "has changes",
@@ -1403,6 +1407,7 @@ func Test_newRevisionHasChanges(t *testing.T) {
 			},
 			expectedResult:      true,
 			expectedResolvedRev: "new-sha",
+			expectedError:       false,
 		},
 		{
 			name: "no changes",
@@ -1419,6 +1424,7 @@ func Test_newRevisionHasChanges(t *testing.T) {
 			},
 			expectedResult:      false,
 			expectedResolvedRev: "same-sha",
+			expectedError:       false,
 		},
 	}
 
@@ -1431,10 +1437,15 @@ func Test_newRevisionHasChanges(t *testing.T) {
 			}
 			h := &Hydrator{dependencies: d}
 
-			hasChanges, resolvedRev := h.newRevisionHasChanges(tc.app, false)
+			hasChanges, resolvedRev, err := h.newRevisionHasChanges(tc.app, false)
 
 			assert.Equal(t, tc.expectedResult, hasChanges)
 			assert.Equal(t, tc.expectedResolvedRev, resolvedRev)
+			if tc.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }

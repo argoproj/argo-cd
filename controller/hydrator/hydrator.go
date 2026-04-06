@@ -541,32 +541,26 @@ func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, re
 }
 
 // newRevisionHasChanges checks if the dry source has a new revision that differs from the last compared dry revision.
-// Returns true if the new revision may contain changes that would affect the hydrated manifests, and the resolved
-// revision from evaluation (empty if evaluation was skipped or failed).
-func (h *Hydrator) newRevisionHasChanges(app *appv1.Application, noRevisionCache bool) (bool, string) {
+// Returns true if the new revision may contain changes that would affect the hydrated manifests, the resolved
+// revision from evaluation (empty if evaluation was skipped), and any error encountered.
+func (h *Hydrator) newRevisionHasChanges(app *appv1.Application, noRevisionCache bool) (bool, string, error) {
 	if app.Status.SourceHydrator.LastComparedDryRevision == "" {
 		log.WithFields(applog.GetAppLogFields(app)).Debug("No LastComparedDryRevision, hydration needed")
-		return true, ""
+		return true, "", nil
 	}
 
 	project, err := h.dependencies.GetProcessableAppProj(app)
 	if err != nil {
-		log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to get project for revision check")
-		return false, ""
+		return false, "", fmt.Errorf("failed to get project for revision check: %w", err)
 	}
 
 	drySource := app.Spec.SourceHydrator.GetDrySource()
 	hasChanges, resolvedRev, err := h.dependencies.EvaluateAppRevisionsChanges(context.Background(), app, drySource, drySource.TargetRevision, project, noRevisionCache)
 	if err != nil {
-		log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to evaluate app revisions changes")
-		return false, ""
+		return false, "", fmt.Errorf("failed to evaluate app revisions changes: %w", err)
 	}
 
-	if hasChanges {
-		log.WithFields(applog.GetAppLogFields(app)).Debug("New dry source revision detected")
-	}
-
-	return hasChanges, resolvedRev
+	return hasChanges, resolvedRev, nil
 }
 
 // appNeedsHydration answers if application needs manifests hydrated. The third return value is the resolved dry
@@ -591,7 +585,11 @@ func (h *Hydrator) appNeedsHydration(app *appv1.Application) (needsHydration boo
 	}
 
 	// Check for new revision changes
-	hasChanges, resolvedRev := h.newRevisionHasChanges(app, noRevisionCache)
+	hasChanges, resolvedRev, err := h.newRevisionHasChanges(app, noRevisionCache)
+	if err != nil {
+		log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to check for new revision changes")
+		return false, "cannot determine if hydration is needed", resolvedRev
+	}
 	if hasChanges {
 		return true, "new revision may have changes", resolvedRev
 	}

@@ -213,7 +213,15 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 	// Determine the synced revision and source type for comparison
 	syncedRevision := app.Status.Sync.Revision
 	sourceType := app.Status.SourceType
-	if app.Spec.HasMultipleSources() {
+	if app.Spec.SourceHydrator != nil {
+		if drySource := app.Spec.SourceHydrator.GetDrySource(); source.Equals(&drySource) {
+			alwaysResolveRevision = true
+			sourceType = ""  // For the dry source, we don't know the source type. Ignore any optimizations
+			sourceIndex = -1 // Special case allowing GetSourcePtrByIndex() to return the dry source
+			// Use LastComparedDryRevision as the synced revision for cache lookups
+			syncedRevision = app.Status.SourceHydrator.LastComparedDryRevision
+		}
+	} else if app.Spec.HasMultipleSources() {
 		if sourceIndex < len(app.Status.Sync.Revisions) {
 			syncedRevision = app.Status.Sync.Revisions[sourceIndex]
 		} else {
@@ -223,14 +231,6 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 			sourceType = app.Status.SourceTypes[sourceIndex]
 		} else {
 			sourceType = ""
-		}
-	} else if app.Spec.SourceHydrator != nil {
-		if drySource := app.Spec.SourceHydrator.GetDrySource(); source.Equals(&drySource) {
-			alwaysResolveRevision = true
-			sourceType = ""  // For the dry source, we don't know the source type. Ignore any optimizations
-			sourceIndex = -1 // Special case allowing GetSourcePtrByIndex() to return the dry source
-			// Use LastComparedDryRevision as the synced revision for cache lookups
-			syncedRevision = app.Status.SourceHydrator.LastComparedDryRevision
 		}
 	}
 
