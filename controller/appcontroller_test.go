@@ -101,10 +101,6 @@ func newFakeController(ctx context.Context, data *fakeData, repoErr error) *Appl
 }
 
 func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncPeriod time.Duration, repoErr, revisionPathsErr error) *ApplicationController {
-	return newFakeControllerWithResyncAndHydrator(ctx, data, appResyncPeriod, repoErr, revisionPathsErr, false)
-}
-
-func newFakeControllerWithResyncAndHydrator(ctx context.Context, data *fakeData, appResyncPeriod time.Duration, repoErr, revisionPathsErr error, hydratorEnabled bool) *ApplicationController {
 	var clust corev1.Secret
 	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
 	if err != nil {
@@ -220,7 +216,7 @@ func newFakeControllerWithResyncAndHydrator(ctx context.Context, data *fakeData,
 		false,
 		normalizers.IgnoreNormalizerOpts{},
 		testEnableEventList,
-		hydratorEnabled,
+		true,
 	)
 	db := &dbmocks.ArgoDB{}
 	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
