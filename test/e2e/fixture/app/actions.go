@@ -199,7 +199,7 @@ func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 			},
 			SyncPolicy: &v1alpha1.SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
-					SelfHeal: func() *bool { b := true; return &b }(),
+					SelfHeal: new(true),
 				},
 			},
 		},
