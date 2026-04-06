@@ -235,7 +235,7 @@ func Test_appNeedsHydration(t *testing.T) {
 				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, mock.Anything).Return(false, "", errors.New("evaluate error"))
 			},
 			expectedNeedsHydration: false,
-			expectedMessage:        "hydration not needed",
+			expectedMessage:        "cannot determine if hydration is needed",
 			expectedResolvedRev:    "",
 		},
 	}
