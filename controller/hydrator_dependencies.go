@@ -88,10 +88,13 @@ func (ctrl *ApplicationController) RequestAppRefresh(appName string, appNamespac
 	return nil
 }
 
-func (ctrl *ApplicationController) PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
+func (ctrl *ApplicationController) PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
+	newAnnotations := make(map[string]string)
+	maps.Copy(newAnnotations, orig.GetAnnotations())
+	delete(newAnnotations, appv1.AnnotationKeyHydrate)
 	status := orig.Status.DeepCopy()
 	status.SourceHydrator = *newStatus
-	ctrl.persistAppStatus(orig, status)
+	ctrl.persistAppStatus(orig, status, newAnnotations)
 }
 
 func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
