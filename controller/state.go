@@ -371,10 +371,10 @@ func (m *appStateManager) evaluateRevisionChanges(
 		return revision, false, nil
 	}
 
+	appNamespace := app.Spec.Destination.Namespace
+
 	skipUpdateRevisions := !processManifestGeneratePathsEnabled ||
 		(sourceType == v1alpha1.ApplicationSourceTypeDirectory && (app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.IsAutomatedSyncEnabled()))
-
-	appNamespace := app.Spec.Destination.Namespace
 
 	if !skipUpdateRevisions && repo.Depth == 0 && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
 		// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
@@ -383,7 +383,7 @@ func (m *appStateManager) evaluateRevisionChanges(
 			Revision:           revision,
 			SyncedRevision:     syncedRevision,
 			NoRevisionCache:    noRevisionCache,
-			Paths:              path.GetSourceRefreshPaths(app, source),
+			Paths:              path.GetSourceRefreshPaths(app, *source),
 			AppLabelKey:        appLabelKey,
 			AppName:            app.InstanceName(m.namespace),
 			Namespace:          appNamespace,
