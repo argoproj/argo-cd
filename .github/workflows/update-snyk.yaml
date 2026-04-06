@@ -7,20 +7,25 @@ on:
 permissions:
   contents: read
 
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+
 jobs:
   snyk-report:
     permissions:
       contents: write
       pull-requests: write
-    if: github.repository == 'argoproj/argo-cd'
+    #if: github.repository == 'argoproj/argo-cd'
     name: Update Snyk report in the docs directory
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        if: ${{ vars.enable_harden_runner == 'true' }}
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: dudinea/harden-runner@ff030d10d2384947f354e85c5d00ee03aa9640ec # v2.16.0
         with:
           egress-policy: audit
+          agent-enabled: "false"
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
