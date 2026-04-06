@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"strconv"
 	"testing"
 	"time"
@@ -3359,18 +3360,18 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 }
 
 func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
-	app := newFakeApp()
-	app.ObjectMeta.Annotations = map[string]string{
-		v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
-		v1alpha1.AnnotationKeyHydrate: string(v1alpha1.HydrateTypeNormal),
-		"other-annotation":            "other-value",
-	}
-	app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
-	app.Status.Health.Status = health.HealthStatusHealthy
-
-	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
-
 	t.Run("persistReconciliationStatus deletes only refresh annotation", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{
+			v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
+			v1alpha1.AnnotationKeyHydrate: string(v1alpha1.HydrateTypeNormal),
+			"other-annotation":            "other-value",
+		}
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		app.Status.Health.Status = health.HealthStatusHealthy
+
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
 		origApp := app.DeepCopy()
 		newStatus := app.Status.DeepCopy()
 
@@ -3396,14 +3397,23 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 	})
 
 	t.Run("persistAppStatus with explicit annotations", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{
+			v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
+			v1alpha1.AnnotationKeyHydrate: string(v1alpha1.HydrateTypeNormal),
+			"other-annotation":            "other-value",
+		}
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		app.Status.Health.Status = health.HealthStatusHealthy
+
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
 		origApp := app.DeepCopy()
 		newStatus := app.Status.DeepCopy()
 
 		// Create annotations that delete hydrate but keep refresh
 		newAnnotations := make(map[string]string)
-		for k, v := range origApp.Annotations {
-			newAnnotations[k] = v
-		}
+		maps.Copy(newAnnotations, origApp.Annotations)
 		delete(newAnnotations, v1alpha1.AnnotationKeyHydrate)
 
 		ctrl.persistAppStatus(origApp, newStatus, newAnnotations)
