@@ -3055,7 +3055,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 
 // ResolveRevision resolves the revision/ambiguousRevision specified in the ResolveRevisionRequest request into a concrete revision.
 func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevisionRequest) (*apiclient.ResolveRevisionResponse, error) {
-	repo := q.Repo
+	repo := q.Repo.Normalize()
 	app := q.App
 	ambiguousRevision := q.AmbiguousRevision
 	source := app.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
