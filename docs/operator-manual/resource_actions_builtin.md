@@ -6,6 +6,7 @@
 - [apps/StatefulSet/restart](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/apps/StatefulSet/actions/restart/action.lua)
 - [apps/StatefulSet/scale](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/apps/StatefulSet/actions/scale/action.lua)
 - [argoproj.io/AnalysisRun/terminate](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/AnalysisRun/actions/terminate/action.lua)
+- [argoproj.io/Application/toggle-auto-sync](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/Application/actions/toggle-auto-sync/action.lua)
 - [argoproj.io/CronWorkflow/create-workflow](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/CronWorkflow/actions/create-workflow/action.lua)
 - [argoproj.io/Rollout/abort](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/Rollout/actions/abort/action.lua)
 - [argoproj.io/Rollout/pause](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/Rollout/actions/pause/action.lua)
