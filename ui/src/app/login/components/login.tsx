@@ -44,7 +44,6 @@ export function Login(props: RouteComponentProps<{}>) {
                 throw new Error('Session not established after login');
             }
 
-            const basehref = appContext.baseHref === '/' ? '' : appContext.baseHref;
             let redirectPath = '/applications';
 
             if (returnURL) {
@@ -64,7 +63,7 @@ export function Login(props: RouteComponentProps<{}>) {
                 }
             }
 
-            window.location.replace(basehref + redirectPath);
+            appContext.navigation.goto(redirectPath, undefined, {replace: true});
         } catch (e: any) {
             const errorMessage = e?.response?.body?.error || e?.response?.data?.error || e?.message || 'Login failed';
             setLoginError(errorMessage);
