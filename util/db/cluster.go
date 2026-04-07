@@ -223,7 +223,10 @@ func (db *db) getClusterSecret(ctx context.Context, server string) (*corev1.Secr
 	}
 	cluster, err := informer.GetClusterByURL(server)
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+		if apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get cluster %q from informer: %v", server, err)
 	}
 	secretName := cluster.ObjectMeta.Name
 	secret, err := db.kubeclientset.CoreV1().Secrets(db.ns).Get(ctx, secretName, metav1.GetOptions{})
@@ -271,7 +274,7 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 func (db *db) GetProjectClusters(_ context.Context, project string) ([]*appv1.Cluster, error) {
 	informer, err := db.settingsMgr.GetClusterInformer()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get secrets informer: %w", err)
+		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
 	}
 	clusters, err := informer.GetProjectClusters(project)
 	if err != nil {

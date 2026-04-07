@@ -140,7 +140,7 @@ func (cc *ClusterInformer) GetClusterByURL(url string) (*appv1.Cluster, error) {
 func (cc *ClusterInformer) GetProjectClusters(project string) ([]*appv1.Cluster, error) {
 	items, err := cc.GetIndexer().ByIndex(ClusterCacheByProjectIndexer, project)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query cluster cache by name: %w", err)
+		return nil, fmt.Errorf("failed to query cluster cache by project %q: %w", project, err)
 	}
 
 	clusters := make([]*appv1.Cluster, 0, len(items))
