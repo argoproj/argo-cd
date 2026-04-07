@@ -14,10 +14,6 @@ concurrency:
 # Declare default permissions as read only.
 permissions: read-all
 
-env:
-  # a workaround to disable harden runner
-  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
-
 jobs:
   analysis:
     name: Scorecards analysis
