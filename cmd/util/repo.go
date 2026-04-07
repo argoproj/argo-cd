@@ -8,26 +8,27 @@ import (
 )
 
 type RepoOptions struct {
-	Repo                           appsv1.Repository
-	Upsert                         bool
-	SshPrivateKeyPath              string //nolint:revive //FIXME(var-naming)
-	InsecureOCIForceHTTP           bool
-	InsecureIgnoreHostKey          bool
-	InsecureSkipServerVerification bool
-	TlsClientCertPath              string //nolint:revive //FIXME(var-naming)
-	TlsClientCertKeyPath           string //nolint:revive //FIXME(var-naming)
-	EnableLfs                      bool
-	EnableOci                      bool
-	GithubAppId                    int64
-	GithubAppInstallationId        int64
-	GithubAppPrivateKeyPath        string
-	GitHubAppEnterpriseBaseURL     string
-	Proxy                          string
-	NoProxy                        string
-	GCPServiceAccountKeyPath       string
-	ForceHttpBasicAuth             bool //nolint:revive //FIXME(var-naming)
-	UseAzureWorkloadIdentity       bool
-	Depth                          int64
+	Repo                             appsv1.Repository
+	Upsert                           bool
+	SshPrivateKeyPath                string //nolint:revive //FIXME(var-naming)
+	InsecureOCIForceHTTP             bool
+	InsecureIgnoreHostKey            bool
+	InsecureSkipServerVerification   bool
+	TlsClientCertPath                string //nolint:revive //FIXME(var-naming)
+	TlsClientCertKeyPath             string //nolint:revive //FIXME(var-naming)
+	EnableLfs                        bool
+	EnableOci                        bool
+	GithubAppId                      int64
+	GithubAppInstallationId          int64
+	GithubAppPrivateKeyPath          string
+	GitHubAppEnterpriseBaseURL       string
+	Proxy                            string
+	NoProxy                          string
+	GCPServiceAccountKeyPath         string
+	ForceHttpBasicAuth               bool //nolint:revive //FIXME(var-naming)
+	UseAzureWorkloadIdentity         bool
+	Depth                            int64
+	WebhookManifestCacheWarmDisabled bool
 }
 
 func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
@@ -55,4 +56,5 @@ func AddRepoFlags(command *cobra.Command, opts *RepoOptions) {
 	command.Flags().BoolVar(&opts.UseAzureWorkloadIdentity, "use-azure-workload-identity", false, "whether to use azure workload identity for authentication")
 	command.Flags().BoolVar(&opts.InsecureOCIForceHTTP, "insecure-oci-force-http", false, "Use http when accessing an OCI repository")
 	command.Flags().Int64Var(&opts.Depth, "depth", 0, "Specify a custom depth for git clone operations. Unless specified, a full clone is performed using the depth of 0")
+	command.Flags().BoolVar(&opts.WebhookManifestCacheWarmDisabled, "webhook-manifest-cache-warm-disabled", false, "disable manifest cache warming during webhook processing for this repository (recommended for large monorepos with plain YAML manifests)")
 }
