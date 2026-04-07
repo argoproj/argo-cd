@@ -143,6 +143,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 			Proxy:             proxy.GetCallback(proxyURL, noProxy),
 			TLSClientConfig:   tlsConf,
 			DisableKeepAlives: true,
+			ForceAttemptHTTP2: true,
 		},
 		/*
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {

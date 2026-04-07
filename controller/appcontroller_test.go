@@ -662,8 +662,7 @@ func TestAutoSync(t *testing.T) {
 
 func TestAutoSyncEnabledSetToTrue(t *testing.T) {
 	app := newFakeApp()
-	enable := true
-	app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: &enable}
+	app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: new(true)}
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	syncStatus := v1alpha1.SyncStatus{
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -683,7 +682,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 	// So our Sync Revisions and SyncStatus Revisions should deep equal
 	t.Run("ClusterObjectChangeShouldNotTriggerAutoSync", func(t *testing.T) {
 		app := newFakeMultiSourceApp()
-		app.Spec.SyncPolicy.Automated.SelfHeal = false
+		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
 		app.Status.OperationState.SyncResult.Revisions = []string{"z", "x", "v"}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
@@ -698,7 +697,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 	})
 	t.Run("NewRevisionChangeShouldTriggerAutoSync", func(t *testing.T) {
 		app := newFakeMultiSourceApp()
-		app.Spec.SyncPolicy.Automated.SelfHeal = false
+		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
 		app.Status.OperationState.SyncResult.Revisions = []string{"z", "x", "v"}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
@@ -715,7 +714,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 
 func TestAutoSyncNotAllowEmpty(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.SyncPolicy.Automated.Prune = true
+	app.Spec.SyncPolicy.Automated.Prune = new(true)
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	syncStatus := v1alpha1.SyncStatus{
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -727,8 +726,8 @@ func TestAutoSyncNotAllowEmpty(t *testing.T) {
 
 func TestAutoSyncAllowEmpty(t *testing.T) {
 	app := newFakeApp()
-	app.Spec.SyncPolicy.Automated.Prune = true
-	app.Spec.SyncPolicy.Automated.AllowEmpty = true
+	app.Spec.SyncPolicy.Automated.Prune = new(true)
+	app.Spec.SyncPolicy.Automated.AllowEmpty = new(true)
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	syncStatus := v1alpha1.SyncStatus{
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -789,8 +788,7 @@ func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when auto-sync is disabled
 	t.Run("AutoSyncEnableFieldIsSetFalse", func(t *testing.T) {
 		app := newFakeApp()
-		enable := false
-		app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: &enable}
+		app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: new(false)}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 		syncStatus := v1alpha1.SyncStatus{
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
@@ -2984,6 +2982,21 @@ func Test_syncDeleteOption(t *testing.T) {
 		cmObj := kube.MustToUnstructured(&cm)
 		cmObj.SetAnnotations(map[string]string{"helm.sh/resource-policy": "keep"})
 		assert.False(t, ctrl.shouldBeDeleted(app, cmObj))
+	})
+
+	t.Run("delete set on the app level", func(t *testing.T) {
+		newApp := app.DeepCopy()
+		newApp.Spec.SyncPolicy.SyncOptions = []string{"Delete=false"}
+		cmObj := kube.MustToUnstructured(&cm)
+		cmObj.SetAnnotations(map[string]string{})
+		assert.False(t, ctrl.shouldBeDeleted(newApp, cmObj))
+	})
+	t.Run("delete should be overridden on the resource", func(t *testing.T) {
+		newApp := app.DeepCopy()
+		newApp.Spec.SyncPolicy.SyncOptions = []string{"Delete=false"}
+		cmObj := kube.MustToUnstructured(&cm)
+		cmObj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": "Delete=foo"})
+		assert.True(t, ctrl.shouldBeDeleted(newApp, cmObj))
 	})
 }
 

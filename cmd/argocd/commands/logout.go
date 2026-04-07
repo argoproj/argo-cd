@@ -22,7 +22,7 @@ import (
 )
 
 // NewLogoutCommand returns a new instance of `argocd logout` command
-func NewLogoutCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewLogoutCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "logout CONTEXT",
 		Short: "Log out from Argo CD",
@@ -41,42 +41,42 @@ argocd logout cd.argoproj.io
 			}
 			context := args[0]
 
-			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
+			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errutil.CheckError(err)
 			if localCfg == nil {
 				log.Fatalf("Nothing to logout from")
 			}
 
-			promptUtil := utils.NewPrompt(globalClientOpts.PromptsEnabled)
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 
 			canLogout := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to log out from '%s'?", context))
 			if canLogout {
 				if tlsTestResult, err := grpc_util.TestTLS(context, common.BearerTokenTimeout); err != nil {
 					log.Warnf("failed to check the TLS config settings for the server : %v.", err)
-					globalClientOpts.PlainText = true
+					clientOpts.PlainText = true
 				} else {
 					if !tlsTestResult.TLS {
-						if !globalClientOpts.PlainText {
+						if !clientOpts.PlainText {
 							if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
 								os.Exit(1)
 							}
-							globalClientOpts.PlainText = true
+							clientOpts.PlainText = true
 						}
 					} else if tlsTestResult.InsecureErr != nil {
-						if !globalClientOpts.Insecure {
+						if !clientOpts.Insecure {
 							if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
 								os.Exit(1)
 							}
-							globalClientOpts.Insecure = true
+							clientOpts.Insecure = true
 						}
 					}
 				}
 
 				scheme := "https"
-				if globalClientOpts.PlainText {
+				if clientOpts.PlainText {
 					scheme = "http"
 				}
-				if res, err := revokeServerToken(scheme, context, localCfg.GetToken(context), globalClientOpts.Insecure); err != nil {
+				if res, err := revokeServerToken(scheme, context, localCfg.GetToken(context), clientOpts.Insecure); err != nil {
 					log.Warnf("failed to invalidate token on server: %v.", err)
 				} else {
 					_ = res.Body.Close()
@@ -97,7 +97,7 @@ argocd logout cd.argoproj.io
 				if err != nil {
 					log.Fatalf("Error in logging out: %s", err)
 				}
-				err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
+				err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 				errutil.CheckError(err)
 
 				fmt.Printf("Logged out from '%s'\n", context)

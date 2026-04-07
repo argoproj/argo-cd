@@ -327,13 +327,12 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 
 		return &cert, nil
 	}
-	transport := &http.Transport{
-		Proxy: proxyFunc,
-		TLSClientConfig: &tls.Config{
-			GetClientCertificate: clientCertFunc,
-		},
-		DisableKeepAlives: true,
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = proxyFunc
+	transport.TLSClientConfig = &tls.Config{
+		GetClientCertificate: clientCertFunc,
 	}
+	transport.DisableKeepAlives = true
 	customHTTPClient.Transport = transport
 	if insecure {
 		transport.TLSClientConfig.InsecureSkipVerify = true
@@ -1046,7 +1045,7 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 		}
 
 		// Make an empty initial commit.
-		out, err = m.runCmd(ctx, "commit", "--allow-empty", "-m", "Initial commit")
+		out, err = m.runCmd(ctx, "commit", "--allow-empty", "-m", "Initial commit for "+branch)
 		if err != nil {
 			return out, fmt.Errorf("failed to commit initial commit: %w", err)
 		}

@@ -7,14 +7,24 @@ on:
 permissions:
   contents: read
 
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+  
 jobs:
   renovate:
     runs-on: ubuntu-24.04
     if: github.repository == 'argoproj/argo-cd'
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
+        with:
+          egress-policy: audit
+
       - name: Get token
         id: get_token
-        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3
         with:
           app-id: ${{ vars.RENOVATE_APP_ID }}
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
@@ -22,11 +32,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
 
+      # Renovate do not pin their docker image versions to SHA, so
+      # when bumping renovate action version please check if renovate image
+      # has been updated (see it's numeric version in action.yaml)
+      # and update `renovate-version` parameter accordingly
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@0b17c4eb901eca44d018fb25744a50a74b2042df #46.1.4
+        uses: renovatebot/github-action@b67590ea780158ccd13192c22a3655a5231f869d #46.1.8
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'
+          renovate-image: "ghcr.io/renovatebot/renovate@sha256"
+          renovate-version: "5dfeab680f40edd2713b8fcae574824e60d2c831b8d89cc965e51621894c7084" #43
         env:
           LOG_LEVEL: 'debug'
           RENOVATE_REPOSITORIES: '${{ github.repository }}'

@@ -334,8 +334,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
-	ssoClientApp, err := oidc.NewClientApp(settings, opts.DexServerAddr, opts.DexTLSConfig, opts.BaseHRef, cacheutil.NewRedisCache(opts.RedisClient, settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
-	errorsutil.CheckError(err)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
@@ -383,7 +381,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:   opts,
 		ApplicationSetOpts: appsetOpts,
-		ssoClientApp:       ssoClientApp,
 		log:                logger,
 		settings:           settings,
 		sessionMgr:         sessionMgr,
@@ -494,11 +491,11 @@ func (server *ArgoCDServer) logInClusterWarnings() error {
 	}
 	if len(inClusterSecrets) > 0 {
 		// Don't make this call unless we actually have in-cluster secrets, to save time.
-		dbSettings, err := server.settingsMgr.GetSettings()
+		inClusterEnabled, err := server.settingsMgr.IsInClusterEnabled()
 		if err != nil {
-			return fmt.Errorf("could not get DB settings: %w", err)
+			return fmt.Errorf("could not check if in-cluster is enabled: %w", err)
 		}
-		if !dbSettings.InClusterEnabled {
+		if !inClusterEnabled {
 			for _, clusterName := range inClusterSecrets {
 				log.Warnf("cluster %q uses in-cluster server address but it's disabled in Argo CD settings", clusterName)
 			}
@@ -586,6 +583,10 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	if server.RedisClient != nil {
 		cacheutil.CollectMetrics(server.RedisClient, metricsServ, server.userStateStorage.GetLockObject())
 	}
+	// OIDC config needs to be refreshed at each server restart
+	ssoClientApp, err := oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
+	errorsutil.CheckError(err)
+	server.ssoClientApp = ssoClientApp
 
 	// Don't init storage until after CollectMetrics. CollectMetrics adds hooks to the Redis client, and Init
 	// reads those hooks. If this is called first, there may be a data race.
@@ -1583,14 +1584,15 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 	}
 
 	finalClaims := claims
-	if server.settings.IsSSOConfigured() {
+	oidcConfig := server.settings.OIDCConfig()
+	if oidcConfig != nil || server.settings.IsDexConfigured() {
 		updatedClaims, err := server.ssoClientApp.SetGroupsFromUserInfo(ctx, claims, util_session.SessionManagerClaimsIssuer)
 		if err != nil {
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 		}
 		finalClaims = updatedClaims
 		// OIDC tokens are automatically refreshed here prior to expiration
-		refreshedToken, err := server.ssoClientApp.CheckAndRefreshToken(ctx, updatedClaims, server.settings.OIDCRefreshTokenThreshold)
+		refreshedToken, err := server.ssoClientApp.CheckAndRefreshToken(ctx, updatedClaims, server.settings.RefreshTokenThresholdWithConfig(oidcConfig))
 		if err != nil {
 			log.Errorf("error checking and refreshing token: %v", err)
 		}

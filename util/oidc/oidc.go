@@ -216,7 +216,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 		clientCache:              cacheClient,
 		azure:                    azureApp{mtx: &sync.RWMutex{}},
 		domainHint:               domainHint,
-		refreshTokenThreshold:    settings.OIDCRefreshTokenThreshold,
+		refreshTokenThreshold:    settings.RefreshTokenThreshold(),
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -1068,4 +1068,8 @@ func FormatAccessTokenCacheKey(sub string) string {
 // formatRefreshTokenCacheKey returns the key which is used to store the oidc Token for a session in cache
 func formatOidcTokenCacheKey(sub string, sid string) string {
 	return fmt.Sprintf("%s_%s_%s", OidcTokenCachePrefix, sub, sid)
+}
+
+func (a *ClientApp) IssuerURL() string {
+	return a.issuerURL
 }

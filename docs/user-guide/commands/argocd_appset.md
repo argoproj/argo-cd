@@ -22,6 +22,10 @@ argocd appset [flags]
   
   # Delete an ApplicationSet
   argocd appset delete APPSETNAME (APPSETNAME...)
+  
+  # Namespace precedence for --appset-namespace (-N):
+  # - get/delete: if the argument is namespace/name, that namespace wins; -N is ignored.
+  # - create/generate: metadata.namespace in the YAML wins when set; -N applies only when the manifest omits namespace.
 ```
 
 ### Options

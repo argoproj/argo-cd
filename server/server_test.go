@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	jose "github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -486,6 +488,100 @@ func TestGracefulShutdown(t *testing.T) {
 	assert.True(t, shutdown)
 }
 
+func TestOIDCRefresh(t *testing.T) {
+	port, err := test.GetFreePort()
+	require.NoError(t, err)
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	cm := test.NewFakeConfigMap()
+	cm.Data["oidc.config"] = `
+name: Test OIDC
+issuer: $oidc.myoidc.issuer
+clientID: $oidc.myoidc.clientId
+clientSecret: $oidc.myoidc.clientSecret
+`
+	secret := test.NewFakeSecret()
+	issuerURL := "http://oidc.127.0.0.1.nip.io"
+	updatedIssuerURL := "http://newoidc.127.0.0.1.nip.io"
+	secret.Data["oidc.myoidc.issuer"] = []byte(issuerURL)
+	secret.Data["oidc.myoidc.clientId"] = []byte("myClientId")
+	secret.Data["oidc.myoidc.clientSecret"] = []byte("myClientSecret")
+
+	kubeclientset := fake.NewSimpleClientset(cm, secret)
+	redis, redisCloser := test.NewInMemoryRedis()
+	defer redisCloser()
+	s := NewServer(
+		t.Context(),
+		ArgoCDServerOpts{
+			ListenPort:    port,
+			Namespace:     test.FakeArgoCDNamespace,
+			KubeClientset: kubeclientset,
+			AppClientset:  apps.NewSimpleClientset(),
+			RepoClientset: mockRepoClient,
+			RedisClient:   redis,
+		},
+		ApplicationSetOpts{},
+	)
+	projInformerCancel := test.StartInformer(s.projInformer)
+	defer projInformerCancel()
+	appInformerCancel := test.StartInformer(s.appInformer)
+	defer appInformerCancel()
+	appsetInformerCancel := test.StartInformer(s.appsetInformer)
+	defer appsetInformerCancel()
+	clusterInformerCancel := test.StartInformer(s.clusterInformer)
+	defer clusterInformerCancel()
+
+	shutdown := false
+
+	lns, err := s.Listen()
+	require.NoError(t, err)
+	runCtx := t.Context()
+
+	var wg gosync.WaitGroup
+	wg.Add(1)
+	go func(shutdown *bool) {
+		defer wg.Done()
+		s.Run(runCtx, lns)
+		*shutdown = true
+	}(&shutdown)
+
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+	assert.True(t, s.available.Load())
+	assert.Equal(t, issuerURL, s.ssoClientApp.IssuerURL())
+
+	// Update oidc config
+	secret.Data["oidc.myoidc.issuer"] = []byte(updatedIssuerURL)
+	secret.ResourceVersion = "12345"
+	_, err = kubeclientset.CoreV1().Secrets(test.FakeArgoCDNamespace).Update(runCtx, secret, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	// Wait for graceful shutdown
+	wg.Wait()
+	for s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	assert.False(t, s.available.Load())
+
+	shutdown = false
+	wg.Add(1)
+	go func(shutdown *bool) {
+		defer wg.Done()
+		s.Run(runCtx, lns)
+		*shutdown = true
+	}(&shutdown)
+
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+	assert.True(t, s.available.Load())
+	assert.Equal(t, updatedIssuerURL, s.ssoClientApp.IssuerURL())
+
+	s.stopCh <- syscall.SIGINT
+	wg.Wait()
+}
+
 func TestAuthenticate(t *testing.T) {
 	type testData struct {
 		test             string
@@ -604,6 +700,20 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 			if err != nil {
 				t.Fail()
 			}
+		case "/api/dex/keys":
+			pubKey, err := jwt.ParseRSAPublicKeyFromPEM(testutil.Cert)
+			require.NoError(t, err)
+			jwks := jose.JSONWebKeySet{
+				Keys: []jose.JSONWebKey{
+					{
+						Key: pubKey,
+					},
+				},
+			}
+			out, err := json.Marshal(jwks)
+			require.NoError(t, err)
+			_, err = w.Write(out)
+			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -820,15 +930,15 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			test:                  "anonymous disabled, unexpired token, admin claim",
 			anonymousEnabled:      false,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
-			expectedErrorContains: common.TokenVerificationError,
-			expectedClaims:        nil,
+			expectedErrorContains: "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "anonymous enabled, unexpired token, admin claim",
 			anonymousEnabled:      true,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
 			expectedErrorContains: "",
-			expectedClaims:        "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "anonymous disabled, expired token, admin claim",
@@ -851,7 +961,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			expectedErrorContains: common.TokenVerificationError,
 			expectedClaims:        nil,
 		},
-		// External OIDC (not bundled Dex)
+		// External OIDC
 		{
 			test:                  "external OIDC: anonymous disabled, no audience",
 			anonymousEnabled:      false,
@@ -873,8 +983,8 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			anonymousEnabled:      false,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
 			useDex:                true,
-			expectedErrorContains: common.TokenVerificationError,
-			expectedClaims:        nil,
+			expectedErrorContains: "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "external OIDC: anonymous enabled, unexpired token, admin claim",
@@ -882,7 +992,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
 			useDex:                true,
 			expectedErrorContains: "",
-			expectedClaims:        "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "external OIDC: anonymous disabled, expired token, admin claim",
@@ -926,8 +1036,19 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			} else {
 				testDataCopy.claims.Issuer = oidcURL
 			}
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, testDataCopy.claims)
-			tokenString, err := token.SignedString([]byte("key"))
+
+			// go-oidc explicitly requires the use of an asymmetric signature algorithm.
+			// We use the respective signature algorithm based on the mock provider implementation.
+			var signingMethod jwt.SigningMethod
+			if testDataCopy.useDex {
+				signingMethod = jwt.SigningMethodRS256
+			} else {
+				signingMethod = jwt.SigningMethodRS512
+			}
+			key, err := jwt.ParseRSAPrivateKeyFromPEM(testutil.PrivateKey)
+			require.NoError(t, err)
+			token := jwt.NewWithClaims(signingMethod, testDataCopy.claims)
+			tokenString, err := token.SignedString(key)
 			require.NoError(t, err)
 			ctx = metadata.NewIncomingContext(t.Context(), metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
 
@@ -935,6 +1056,12 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			claims := ctx.Value("claims")
 			if testDataCopy.expectedClaims == nil {
 				assert.Nil(t, claims)
+			} else if expectedMap, ok := testDataCopy.expectedClaims.(jwt.MapClaims); ok {
+				actualMap, ok := claims.(jwt.MapClaims)
+				assert.True(t, ok, "expected claims to be jwt.MapClaims, got %T", claims)
+				for k, v := range expectedMap {
+					assert.Equal(t, v, actualMap[k], "claim %q mismatch", k)
+				}
 			} else {
 				assert.Equal(t, testDataCopy.expectedClaims, claims)
 			}
