@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"strconv"
 	"testing"
 	"time"
@@ -3356,4 +3357,83 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 			assertDurationAround(t, tc.expectedDuration, duration)
 		})
 	}
+}
+
+func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
+	t.Run("persistReconciliationStatus deletes only refresh annotation", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{
+			v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
+			v1alpha1.AnnotationKeyHydrate: string(v1alpha1.HydrateTypeNormal),
+			"other-annotation":            "other-value",
+		}
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		app.Status.Health.Status = health.HealthStatusHealthy
+
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		origApp := app.DeepCopy()
+		newStatus := app.Status.DeepCopy()
+
+		ctrl.persistReconciliationStatus(origApp, newStatus)
+
+		// Verify the patch was created correctly
+		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+
+		// Refresh annotation should be deleted
+		_, hasRefresh := patchedApp.Annotations[v1alpha1.AnnotationKeyRefresh]
+		assert.False(t, hasRefresh, "refresh annotation should be deleted")
+
+		// Hydrate annotation should still exist
+		hydrateValue, hasHydrate := patchedApp.Annotations[v1alpha1.AnnotationKeyHydrate]
+		assert.True(t, hasHydrate, "hydrate annotation should still exist")
+		assert.Equal(t, string(v1alpha1.HydrateTypeNormal), hydrateValue)
+
+		// Other annotations should be preserved
+		otherValue, hasOther := patchedApp.Annotations["other-annotation"]
+		assert.True(t, hasOther, "other annotations should be preserved")
+		assert.Equal(t, "other-value", otherValue)
+	})
+
+	t.Run("persistAppStatus with explicit annotations", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{
+			v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
+			v1alpha1.AnnotationKeyHydrate: string(v1alpha1.HydrateTypeNormal),
+			"other-annotation":            "other-value",
+		}
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		app.Status.Health.Status = health.HealthStatusHealthy
+
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		origApp := app.DeepCopy()
+		newStatus := app.Status.DeepCopy()
+
+		// Create annotations that delete hydrate but keep refresh
+		newAnnotations := make(map[string]string)
+		maps.Copy(newAnnotations, origApp.Annotations)
+		delete(newAnnotations, v1alpha1.AnnotationKeyHydrate)
+
+		ctrl.persistAppStatus(origApp, newStatus, newAnnotations)
+
+		// Verify the patch was created correctly
+		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+
+		// Hydrate annotation should be deleted
+		_, hasHydrate := patchedApp.Annotations[v1alpha1.AnnotationKeyHydrate]
+		assert.False(t, hasHydrate, "hydrate annotation should be deleted")
+
+		// Refresh annotation should still exist
+		refreshValue, hasRefresh := patchedApp.Annotations[v1alpha1.AnnotationKeyRefresh]
+		assert.True(t, hasRefresh, "refresh annotation should still exist")
+		assert.Equal(t, string(v1alpha1.RefreshTypeNormal), refreshValue)
+
+		// Other annotations should be preserved
+		otherValue, hasOther := patchedApp.Annotations["other-annotation"]
+		assert.True(t, hasOther, "other annotations should be preserved")
+		assert.Equal(t, "other-value", otherValue)
+	})
 }
