@@ -184,6 +184,31 @@ func TestLazyGVKParser_ReportedErrorDoesNotAffectOtherGVs(t *testing.T) {
 	assert.Nil(t, deploy)
 }
 
+func TestLazyGVKParser_ClearErrorAllowsTypeToSucceed(t *testing.T) {
+	// After ClearError, Type() should succeed for a GVK whose error was cleared.
+	paths := map[string]openapiclient.GroupVersion{
+		"api/v1": &fakeGroupVersion{schemaBytes: validCoreV1Schema},
+	}
+	parser := newLazyGVKParser(paths, textlogger.NewLogger(textlogger.NewConfig()))
+
+	gvk := schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}
+
+	// Report error — Type() should fail.
+	webhookErr := fmt.Errorf("conversion webhook unavailable")
+	parser.ReportError(gvk, webhookErr)
+
+	result, err := parser.Type(gvk)
+	assert.Nil(t, result)
+	assert.ErrorIs(t, err, webhookErr)
+
+	// Clear the error — Type() should now succeed.
+	parser.ClearError(gvk)
+
+	result, err = parser.Type(gvk)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 // countingFakeGroupVersion wraps a fakeGroupVersion and counts Schema calls.
 type countingFakeGroupVersion struct {
 	inner     *fakeGroupVersion

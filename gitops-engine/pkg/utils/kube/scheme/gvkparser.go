@@ -22,4 +22,5 @@ type GVKParser interface {
 // down) so that the error surfaces through Type() to consumers.
 type GVKErrorReporter interface {
 	ReportError(gvk schema.GroupVersionKind, err error)
+	ClearError(gvk schema.GroupVersionKind)
 }

@@ -60,6 +60,14 @@ func (p *lazyGVKParser) ReportError(gvk schema.GroupVersionKind, err error) {
 	p.reportedErrors.Store(path, err)
 }
 
+// ClearError removes a previously reported error for a GVK's GroupVersion.
+// This is called when a skipped GVK is successfully retried, so that
+// subsequent Type() calls can load the schema normally.
+func (p *lazyGVKParser) ClearError(gvk schema.GroupVersionKind) {
+	path := gvPathForGVK(gvk)
+	p.reportedErrors.Delete(path)
+}
+
 // Type resolves a GVK to its ParseableType by lazily loading the schema for
 // the GVK's GroupVersion on first access. Returns an error if the schema
 // could not be loaded (e.g. bad CRD, network failure), or if an external

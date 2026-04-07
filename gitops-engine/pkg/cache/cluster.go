@@ -69,6 +69,16 @@ const (
 	// default duration before restarting individual resource watch
 	defaultWatchResyncTimeout = 10 * time.Minute
 
+	// skippedGVKRetryInterval is how often we retry GVKs that were skipped
+	// due to transient errors (e.g. conversion webhook pod down).
+	skippedGVKRetryInterval = 30 * time.Second
+
+	// skippedGVKRetryMaxDuration is the maximum time to keep retrying skipped
+	// GVKs. After this, we assume the error is structural (e.g. misconfigured
+	// CRD) rather than a transient runtime issue, and let the CRD watch or
+	// the next full resync handle recovery.
+	skippedGVKRetryMaxDuration = 5 * time.Minute
+
 	// Same page size as in k8s.io/client-go/tools/pager/pager.go
 	defaultListPageSize = 500
 	// Prefetch only a single page
@@ -281,6 +291,18 @@ type clusterCache struct {
 	// Using a set eliminates O(k) duplicate checking on insertions
 	// Used for cross-namespace hierarchy traversal; namespaced traversal still builds a graph
 	parentUIDToChildren map[types.UID]map[kube.ResourceKey]struct{}
+
+	// skippedAPIs holds GVKs that were skipped during sync or startMissingWatches
+	// due to transient errors (e.g. conversion webhook pod down). These are retried
+	// periodically until they succeed, the max retry duration is reached, or the
+	// cache is invalidated/re-synced. Protected by c.lock.
+	skippedAPIs []kube.APIResourceInfo
+	// skippedRetryCancel cancels the goroutine that periodically retries skipped
+	// GVKs. Protected by c.lock.
+	skippedRetryCancel context.CancelFunc
+	// skippedSince records when the retry goroutine was started. Used to enforce
+	// skippedGVKRetryMaxDuration. Protected by c.lock.
+	skippedSince time.Time
 }
 
 type clusterCacheSync struct {
@@ -604,6 +626,11 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	for i := range c.apisMeta {
 		c.apisMeta[i].watchCancel()
 	}
+	if c.skippedRetryCancel != nil {
+		c.skippedRetryCancel()
+		c.skippedRetryCancel = nil
+	}
+	c.skippedAPIs = nil
 	for i := range opts {
 		opts[i](c)
 	}
@@ -683,6 +710,7 @@ func (c *clusterCache) startMissingWatches() error {
 					} else if apierrors.IsInternalError(err) || apierrors.IsServiceUnavailable(err) || apierrors.IsServerTimeout(err) {
 						c.reportGVKError(api, err)
 						skip = true
+						c.trackSkippedAPI(api)
 					}
 					if skip {
 						delete(c.apisMeta, api.GroupKind)
@@ -691,6 +719,10 @@ func (c *clusterCache) startMissingWatches() error {
 					}
 				}
 				go c.watchEvents(ctx, api, resClient, ns, resourceVersion)
+				// If this GVK was previously skipped and is now recovered via
+				// a CRD change, clean it up from the skipped list.
+				c.removeFromSkippedAPIs(api.GroupKind)
+				c.clearGVKError(api)
 				return nil
 			})
 			if err != nil {
@@ -962,6 +994,174 @@ func (c *clusterCache) reportGVKError(api kube.APIResourceInfo, err error) {
 	}
 }
 
+// clearGVKError removes a previously reported per-GVK error from the GVKParser
+// so that Type() calls can succeed normally. Called when a skipped GVK is
+// successfully retried or recovered via startMissingWatches.
+func (c *clusterCache) clearGVKError(api kube.APIResourceInfo) {
+	gvr := api.GroupVersionResource
+	gvk := schema.GroupVersionKind{
+		Group:   gvr.Group,
+		Version: gvr.Version,
+		Kind:    api.GroupKind.Kind,
+	}
+	if reporter, ok := c.gvkParser.(scheme.GVKErrorReporter); ok {
+		reporter.ClearError(gvk)
+	}
+}
+
+// trackSkippedAPI adds a GVK to the skipped list and starts the retry
+// goroutine if not already running. Must be called under c.lock.
+func (c *clusterCache) trackSkippedAPI(api kube.APIResourceInfo) {
+	c.skippedAPIs = append(c.skippedAPIs, api)
+	if c.skippedRetryCancel == nil {
+		c.skippedSince = time.Now()
+		retryCtx, retryCancel := context.WithCancel(context.Background())
+		c.skippedRetryCancel = retryCancel
+		go c.retrySkippedAPIs(retryCtx)
+		c.log.Info("Started retry goroutine for skipped GVKs", "groupKind", api.GroupKind)
+	}
+}
+
+// removeFromSkippedAPIs removes a GVK from the skipped list. Must be called
+// under c.lock. This is used when startMissingWatches successfully recovers
+// a GVK that was previously skipped.
+func (c *clusterCache) removeFromSkippedAPIs(gk schema.GroupKind) {
+	for i, api := range c.skippedAPIs {
+		if api.GroupKind == gk {
+			c.skippedAPIs = append(c.skippedAPIs[:i], c.skippedAPIs[i+1:]...)
+			return
+		}
+	}
+}
+
+// retrySkippedAPIs periodically retries GVKs that were skipped during sync()
+// or startMissingWatches() due to transient errors (e.g. conversion webhook
+// pod down). Exits when all GVKs recover, the max retry duration is reached,
+// or the context is cancelled (by Invalidate or a new sync).
+func (c *clusterCache) retrySkippedAPIs(ctx context.Context) {
+	c.log.Info("Starting retry loop for skipped GVKs")
+	defer c.log.Info("Stopped retry loop for skipped GVKs")
+
+	ticker := time.NewTicker(skippedGVKRetryInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			c.lock.RLock()
+			expired := time.Since(c.skippedSince) > skippedGVKRetryMaxDuration
+			remaining := len(c.skippedAPIs)
+			c.lock.RUnlock()
+
+			if remaining == 0 {
+				c.log.Info("All skipped GVKs recovered, stopping retry loop")
+				return
+			}
+			if expired {
+				c.log.Info("Skipped GVK retry max duration reached, stopping retry loop",
+					"remaining", remaining, "maxDuration", skippedGVKRetryMaxDuration)
+				return
+			}
+
+			c.retrySkippedAPIsOnce(ctx)
+		}
+	}
+}
+
+// retrySkippedAPIsOnce performs a single retry pass over all skipped GVKs.
+func (c *clusterCache) retrySkippedAPIsOnce(ctx context.Context) {
+	c.lock.RLock()
+	if len(c.skippedAPIs) == 0 {
+		c.lock.RUnlock()
+		return
+	}
+	toRetry := make([]kube.APIResourceInfo, len(c.skippedAPIs))
+	copy(toRetry, c.skippedAPIs)
+	c.lock.RUnlock()
+
+	client, err := c.kubectl.NewDynamicClient(c.config)
+	if err != nil {
+		c.log.Error(err, "Failed to create dynamic client for GVK retry")
+		return
+	}
+
+	var recovered []kube.APIResourceInfo
+
+	for _, api := range toRetry {
+		if ctx.Err() != nil {
+			return
+		}
+
+		// Skip if already recovered by another path (e.g. startMissingWatches).
+		c.lock.RLock()
+		_, alreadyWatched := c.apisMeta[api.GroupKind]
+		c.lock.RUnlock()
+		if alreadyWatched {
+			recovered = append(recovered, api)
+			continue
+		}
+
+		watchCtx, watchCancel := context.WithCancel(ctx)
+		success := true
+
+		err := c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
+			resourceVersion, listErr := c.loadInitialState(watchCtx, api, resClient, ns, true)
+			if listErr != nil {
+				return listErr
+			}
+			go c.watchEvents(watchCtx, api, resClient, ns, resourceVersion)
+			return nil
+		})
+
+		if err != nil {
+			watchCancel()
+			success = false
+			c.log.V(1).Info("Retry failed for skipped GVK, will retry later",
+				"groupKind", api.GroupKind, "error", err)
+		}
+
+		if success {
+			c.lock.Lock()
+			if _, alreadyWatched := c.apisMeta[api.GroupKind]; alreadyWatched {
+				// Another path (e.g. startMissingWatches) already recovered
+				// this GVK. Cancel our watch to avoid duplicates.
+				c.lock.Unlock()
+				watchCancel()
+			} else {
+				c.log.Info("Successfully recovered skipped GVK", "groupKind", api.GroupKind)
+				c.apisMeta[api.GroupKind] = &apiMeta{
+					namespaced:  api.Meta.Namespaced,
+					watchCancel: watchCancel,
+				}
+				c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
+				c.lock.Unlock()
+				c.clearGVKError(api)
+			}
+			recovered = append(recovered, api)
+		}
+	}
+
+	if len(recovered) > 0 {
+		recoveredSet := make(map[schema.GroupKind]bool, len(recovered))
+		for _, api := range recovered {
+			recoveredSet[api.GroupKind] = true
+		}
+		c.lock.Lock()
+		remaining := make([]kube.APIResourceInfo, 0, len(c.skippedAPIs))
+		for _, api := range c.skippedAPIs {
+			if !recoveredSet[api.GroupKind] {
+				remaining = append(remaining, api)
+			}
+		}
+		c.skippedAPIs = remaining
+		c.lock.Unlock()
+
+		c.log.Info("Recovered skipped GVKs", "count", len(recovered), "remaining", len(remaining))
+	}
+}
+
 // checkPermission runs a self subject access review to check if the controller has permissions to list the resource
 func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface authType1.SelfSubjectAccessReviewInterface, api kube.APIResourceInfo) (keep bool, err error) {
 	sar := &authorizationv1.SelfSubjectAccessReview{
@@ -1024,6 +1224,11 @@ func (c *clusterCache) sync() error {
 	for i := range c.apisMeta {
 		c.apisMeta[i].watchCancel()
 	}
+	if c.skippedRetryCancel != nil {
+		c.skippedRetryCancel()
+		c.skippedRetryCancel = nil
+	}
+	c.skippedAPIs = nil
 
 	if c.batchEventsProcessing {
 		c.invalidateEventMeta()
@@ -1098,6 +1303,7 @@ func (c *clusterCache) sync() error {
 			})
 			if err != nil {
 				skip := false
+				transientErr := false
 				if c.isRestrictedResource(err) {
 					keep := false
 					if c.respectRBAC == RespectRbacStrict {
@@ -1115,11 +1321,15 @@ func (c *clusterCache) sync() error {
 					// that use this resource, rather than failing the entire sync.
 					c.reportGVKError(api, err)
 					skip = true
+					transientErr = true
 				}
 				if skip {
 					lock.Lock()
 					delete(c.apisMeta, api.GroupKind)
 					delete(c.namespacedResources, api.GroupKind)
+					if transientErr {
+						c.skippedAPIs = append(c.skippedAPIs, api)
+					}
 					lock.Unlock()
 					return nil
 				}
@@ -1137,6 +1347,15 @@ func (c *clusterCache) sync() error {
 	}
 
 	c.log.Info("Cluster successfully synced")
+
+	if len(c.skippedAPIs) > 0 {
+		c.skippedSince = time.Now()
+		retryCtx, retryCancel := context.WithCancel(context.Background())
+		c.skippedRetryCancel = retryCancel
+		go c.retrySkippedAPIs(retryCtx)
+		c.log.Info("Started retry goroutine for skipped GVKs", "count", len(c.skippedAPIs))
+	}
+
 	return nil
 }
 
