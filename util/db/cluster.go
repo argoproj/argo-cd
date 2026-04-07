@@ -69,7 +69,7 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
 	}
-	clusters, err := informer.ListClusters()
+	clusters, err := informer.ListAvailableClusters()
 	if err != nil {
 		return nil, err
 	}
