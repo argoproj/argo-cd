@@ -135,6 +135,7 @@
     &__item-value {
         display: flex;
         align-items: baseline;
+        min-width: 0;
         margin-bottom: 0.5em;
         font-weight: 500;
         padding: 2px 0px;
@@ -176,6 +177,11 @@
             font-weight: 500;
             padding-left: 8px;
             margin-bottom: 2px;
+            max-width: $row-width;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            @include responsive-widths();
         }
 
         &__status-button {
