@@ -1011,7 +1011,14 @@ func (c *clusterCache) clearGVKError(api kube.APIResourceInfo) {
 
 // trackSkippedAPI adds a GVK to the skipped list and starts the retry
 // goroutine if not already running. Must be called under c.lock.
+//
+// Only applies when the parser supports per-GVK error reporting (OpenAPI v3
+// lazy parser). For v2, the monolithic schema doesn't benefit from per-GVK
+// retry — recovery happens via the normal full resync.
 func (c *clusterCache) trackSkippedAPI(api kube.APIResourceInfo) {
+	if _, ok := c.gvkParser.(scheme.GVKErrorReporter); !ok {
+		return
+	}
 	c.skippedAPIs = append(c.skippedAPIs, api)
 	if c.skippedRetryCancel == nil {
 		c.skippedSince = time.Now()
@@ -1328,7 +1335,9 @@ func (c *clusterCache) sync() error {
 					delete(c.apisMeta, api.GroupKind)
 					delete(c.namespacedResources, api.GroupKind)
 					if transientErr {
-						c.skippedAPIs = append(c.skippedAPIs, api)
+						if _, ok := c.gvkParser.(scheme.GVKErrorReporter); ok {
+							c.skippedAPIs = append(c.skippedAPIs, api)
+						}
 					}
 					lock.Unlock()
 					return nil
