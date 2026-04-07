@@ -430,9 +430,11 @@ jobs:
         env:
           sonar_secret: ${{ secrets.SONAR_TOKEN }}
           codecov_secret: ${{ secrets.CODECOV_TOKEN }}
-          # when upgrading action version please update both this line and the
-          # `uses:` key in the next step
-          sonarqube_scan_action_commit: "299e4b793aaa83bf2aba7c9c14bedbb485688ec4" # v7.1.0
+          # when upgrading action version please update both this line
+          # and the `uses:` key in the next step. The env variable is
+          # called "uses" to avoid messing with (dependa|renovate)bot
+          # configuration.
+          uses: SonarSource/sonarqube-scan-action@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
         run: |
           set -e
           set -o pipefail
@@ -440,7 +442,7 @@ jobs:
           SONARFLAVOUR="linux-$(uname -m | sed -e 's/x86_64/x64/g')"
           TMPSPEC=$(mktemp "${RUNNER_TEMP}/sonar-scanner-version-XXXXXX")
           # Get file with urls and checksums from the pinned action source
-          wget -O "$TMPSPEC" "https://raw.githubusercontent.com/SonarSource/sonarqube-scan-action/${sonarqube_scan_action_commit}/sonar-scanner-version"
+          wget -O "$TMPSPEC" "https://raw.githubusercontent.com/${uses}/sonar-scanner-version"
           sonarqube_scan_cli_version=$(cat "${TMPSPEC}" | grep ^sonar-scanner-version= | sed -e 's/^.*=//g')
           echo "Sonar scanner CLI version: ${sonarqube_scan_cli_version}"
           sonarqube_scan_cli_url=$(cat "${TMPSPEC}" | grep "^sonar-scanner-url-${SONARFLAVOUR}=" | sed -e 's/^.*=//g')
