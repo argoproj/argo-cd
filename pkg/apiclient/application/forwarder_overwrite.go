@@ -198,15 +198,16 @@ func writeInlineTypeMeta(w io.Writer, tm *metav1.TypeMeta) error {
 // parseFieldSelection parses the "fields" query parameter into a field map and exclude flag.
 func parseFieldSelection(req *gohttp.Request) (fields map[string]any, exclude bool) {
 	fieldsQuery := req.URL.Query().Get("fields")
+	if fieldsQuery == "" {
+		return nil, false
+	}
+	if strings.HasPrefix(fieldsQuery, "-") {
+		fieldsQuery = fieldsQuery[1:]
+		exclude = true
+	}
 	fields = make(map[string]any)
-	if fieldsQuery != "" {
-		if strings.HasPrefix(fieldsQuery, "-") {
-			fieldsQuery = fieldsQuery[1:]
-			exclude = true
-		}
-		for field := range strings.SplitSeq(fieldsQuery, ",") {
-			fields[field] = true
-		}
+	for field := range strings.SplitSeq(fieldsQuery, ",") {
+		fields[field] = true
 	}
 	return fields, exclude
 }

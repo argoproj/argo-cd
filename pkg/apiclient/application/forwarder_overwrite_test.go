@@ -550,7 +550,7 @@ func TestForwarder_StreamErrorPanicsWithErrAbortHandler(t *testing.T) {
 }
 
 // failingResponseWriter delegates Header/WriteHeader to the real ResponseWriter
-// but routes Write through a separate writer that can simulate failures.the
+// but routes Write through a separate writer that can simulate failures. The
 type failingResponseWriter struct {
 	http.ResponseWriter
 	Writer io.Writer
