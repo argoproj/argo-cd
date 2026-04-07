@@ -433,6 +433,7 @@ func TestProcessAppHydrateQueueItem_HydrationPassedTimeout(t *testing.T) {
 		},
 	}
 	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
+	d.EXPECT().PersistHydrationStatus(app, &app.Status.SourceHydrator).Return().Once()
 
 	h := &Hydrator{
 		dependencies:         d,
@@ -442,7 +443,7 @@ func TestProcessAppHydrateQueueItem_HydrationPassedTimeout(t *testing.T) {
 	h.ProcessAppHydrateQueueItem(app)
 
 	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
-	d.AssertNotCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 }
 
 func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
@@ -476,14 +477,15 @@ func TestProcessAppHydrateQueueItem_HydrationNotNeeded(t *testing.T) {
 		},
 	}
 
+	d.EXPECT().PersistHydrationStatus(app, &app.Status.SourceHydrator).Return().Once()
+
 	h := &Hydrator{
 		dependencies:         d,
 		statusRefreshTimeout: time.Minute,
 	}
 	h.ProcessAppHydrateQueueItem(app)
 
-	// Should not call anything
-	d.AssertNotCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
 }
 
