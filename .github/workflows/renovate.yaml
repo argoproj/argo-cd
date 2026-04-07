@@ -7,11 +7,21 @@ on:
 permissions:
   contents: read
 
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+  
 jobs:
   renovate:
     runs-on: ubuntu-24.04
     if: github.repository == 'argoproj/argo-cd'
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
       - name: Get token
         id: get_token
         uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3
