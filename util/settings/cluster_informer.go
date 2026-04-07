@@ -24,6 +24,8 @@ const (
 	ClusterCacheByURLIndexer = "byClusterURL"
 	// ClusterCacheByNameIndexer indexes clusters by name
 	ClusterCacheByNameIndexer = "byClusterName"
+	// ClusterCacheByProjectIndexer indexes clusters by project
+	ClusterCacheByProjectIndexer = "byProjectCluster"
 )
 
 // ClusterInformer provides a cached view of cluster secrets as Cluster objects.
@@ -61,6 +63,16 @@ func NewClusterInformer(clientset kubernetes.Interface, namespace string) (*Clus
 			}
 			if cluster.Name != "" {
 				return []string{cluster.Name}, nil
+			}
+			return nil, nil
+		},
+		ClusterCacheByProjectIndexer: func(obj any) ([]string, error) {
+			cluster, ok := obj.(*appv1.Cluster)
+			if !ok {
+				return nil, nil
+			}
+			if cluster.Project != "" {
+				return []string{cluster.Project}, nil
 			}
 			return nil, nil
 		},
@@ -123,6 +135,25 @@ func (cc *ClusterInformer) GetClusterByURL(url string) (*appv1.Cluster, error) {
 
 	// Return a copy to prevent callers from modifying the cached object
 	return cluster.DeepCopy(), nil
+}
+
+func (cc *ClusterInformer) GetProjectClusters(project string) ([]*appv1.Cluster, error) {
+	items, err := cc.GetIndexer().ByIndex(ClusterCacheByProjectIndexer, project)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query cluster cache by name: %w", err)
+	}
+
+	clusters := make([]*appv1.Cluster, 0, len(items))
+	for _, item := range items {
+		cluster, ok := item.(*appv1.Cluster)
+		if !ok {
+			log.Warnf("Expected *appv1.Cluster in cache, got %T (skipping)", item)
+			continue
+		}
+		clusters = append(clusters, cluster)
+	}
+
+	return clusters, nil
 }
 
 // GetClusterServersByName retrieves all server URLs for clusters with the given name.

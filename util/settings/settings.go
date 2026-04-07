@@ -225,41 +225,6 @@ type AzureOIDCConfig struct {
 }
 
 var (
-	ByClusterURLIndexer     = "byClusterURL"
-	byClusterURLIndexerFunc = func(obj any) ([]string, error) {
-		s, ok := obj.(*corev1.Secret)
-		if !ok {
-			return nil, nil
-		}
-		if s.Labels == nil || s.Labels[common.LabelKeySecretType] != common.LabelValueSecretTypeCluster {
-			return nil, nil
-		}
-		if s.Data == nil {
-			return nil, nil
-		}
-		if url, ok := s.Data["server"]; ok {
-			return []string{strings.TrimRight(string(url), "/")}, nil
-		}
-		return nil, nil
-	}
-	ByClusterNameIndexer     = "byClusterName"
-	byClusterNameIndexerFunc = func(obj any) ([]string, error) {
-		s, ok := obj.(*corev1.Secret)
-		if !ok {
-			return nil, nil
-		}
-		if s.Labels == nil || s.Labels[common.LabelKeySecretType] != common.LabelValueSecretTypeCluster {
-			return nil, nil
-		}
-		if s.Data == nil {
-			return nil, nil
-		}
-		if name, ok := s.Data["name"]; ok {
-			return []string{string(name)}, nil
-		}
-		return nil, nil
-	}
-	ByProjectClusterIndexer   = "byProjectCluster"
 	ByProjectRepoIndexer      = "byProjectRepo"
 	ByProjectRepoWriteIndexer = "byProjectRepoWrite"
 	byProjectIndexerFunc      = func(secretType string) func(obj any) ([]string, error) {
@@ -1365,14 +1330,13 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 	indexers := cache.Indexers{
 		cache.NamespaceIndex:      cache.MetaNamespaceIndexFunc,
-		ByClusterURLIndexer:       byClusterURLIndexerFunc,
-		ByClusterNameIndexer:      byClusterNameIndexerFunc,
-		ByProjectClusterIndexer:   byProjectIndexerFunc(common.LabelValueSecretTypeCluster),
 		ByProjectRepoIndexer:      byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
 		ByProjectRepoWriteIndexer: byProjectIndexerFunc(common.LabelValueSecretTypeRepositoryWrite),
 	}
 	cmInformer := informersv1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
-	secretsInformer := informersv1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
+	secretsInformer := informersv1.NewFilteredSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, func(options *metav1.ListOptions) {
+		options.LabelSelector = common.LabelKeySecretType + "!=" + common.LabelValueSecretTypeCluster
+	})
 	clusterInformer, err := NewClusterInformer(mgr.clientset, mgr.namespace)
 	if err != nil {
 		log.Error(err)
