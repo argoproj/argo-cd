@@ -4,6 +4,7 @@ import {Form, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 import {AuthSettings} from '../../shared/models';
 import {services} from '../../shared/services';
+import {useBodyTheme} from '../../shared/components/layout/layout';
 import {Context} from '../../shared/context';
 
 require('./login.scss');
@@ -23,13 +24,18 @@ export function Login(props: RouteComponentProps<{}>) {
     const [authSettings, setAuthSettings] = useState<AuthSettings | null>(null);
     const [loginError, setLoginError] = useState<string | null>(null);
     const [loginInProgress, setLoginInProgress] = useState<boolean>(false);
+    const [themePref, setThemePref] = useState('light');
 
     useEffect(() => {
         (async () => {
             const authSettings = await services.authService.settings();
             setAuthSettings(authSettings);
         })();
+        const sub = services.viewPreferences.getPreferences().subscribe(prefs => setThemePref(prefs.theme));
+        return () => sub.unsubscribe();
     }, []);
+
+    const theme = useBodyTheme(themePref);
 
     const login = async (username: string, password: string, returnURL: string) => {
         try {
@@ -58,7 +64,7 @@ export function Login(props: RouteComponentProps<{}>) {
     const ssoConfigured = authSettings && ((authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0) || authSettings.oidcConfig);
 
     return (
-        <div className='login'>
+        <div className={`login theme-${theme}`}>
             <div className='login__content show-for-medium'>
                 <div className='login__text'>Let's get stuff deployed!</div>
                 <div className='argo__logo' />
