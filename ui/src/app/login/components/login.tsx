@@ -68,6 +68,7 @@ export function Login(props: RouteComponentProps<{}>) {
         } catch (e: any) {
             const errorMessage = e?.response?.body?.error || e?.response?.data?.error || e?.message || 'Login failed';
             setLoginError(errorMessage);
+        } finally {
             setLoginInProgress(false);
         }
     };
