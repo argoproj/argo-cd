@@ -150,7 +150,7 @@ func TestClusterInformer_TransformErrors_MixedSecrets(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "good-cluster", cluster.Name)
 
-	// But ListClusters should fail because there's a bad secret in the cache
+	// ListClusters should fail because there's a bad secret in the cache
 	_, err = informer.ListClusters()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cluster cache contains unexpected type")

@@ -10,7 +10,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -125,7 +127,7 @@ func (cc *ClusterInformer) GetClusterByURL(url string) (*appv1.Cluster, error) {
 	}
 
 	if len(items) == 0 {
-		return nil, fmt.Errorf("cluster %q not found in cache", url)
+		return nil, apierrors.NewNotFound(schema.GroupResource{Group: "", Resource: "secrets"}, url)
 	}
 
 	cluster, ok := items[0].(*appv1.Cluster)
@@ -142,18 +144,17 @@ func (cc *ClusterInformer) GetProjectClusters(project string) ([]*appv1.Cluster,
 	if err != nil {
 		return nil, fmt.Errorf("failed to query cluster cache by project %q: %w", project, err)
 	}
+	return collectClusters(items, true)
+}
 
-	clusters := make([]*appv1.Cluster, 0, len(items))
-	for _, item := range items {
-		cluster, ok := item.(*appv1.Cluster)
-		if !ok {
-			log.Warnf("Expected *appv1.Cluster in cache, got %T (skipping)", item)
-			continue
-		}
-		clusters = append(clusters, cluster.DeepCopy())
+// GetAvailableProjectClusters is like GetProjectClusters but skips malformed entries
+// instead of returning an error, for callers that prefer partial results.
+func (cc *ClusterInformer) GetAvailableProjectClusters(project string) ([]*appv1.Cluster, error) {
+	items, err := cc.GetIndexer().ByIndex(ClusterCacheByProjectIndexer, project)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query cluster cache by project %q: %w", project, err)
 	}
-
-	return clusters, nil
+	return collectClusters(items, false)
 }
 
 // GetClusterServersByName retrieves all server URLs for clusters with the given name.
@@ -179,14 +180,27 @@ func (cc *ClusterInformer) GetClusterServersByName(name string) ([]string, error
 // ListClusters returns all clusters in the cache.
 // Returns an error if any item in the cache is not a *Cluster (indicates transform failure).
 func (cc *ClusterInformer) ListClusters() ([]*appv1.Cluster, error) {
-	items := cc.GetIndexer().List()
-	clusters := make([]*appv1.Cluster, 0, len(items))
+	return collectClusters(cc.GetIndexer().List(), true)
+}
 
+// ListAvailableClusters is like ListClusters but skips malformed entries
+// instead of returning an error, for callers that prefer partial results.
+func (cc *ClusterInformer) ListAvailableClusters() ([]*appv1.Cluster, error) {
+	return collectClusters(cc.GetIndexer().List(), false)
+}
+
+// collectClusters extracts Cluster objects from cache items. When strict is true,
+// a non-Cluster item causes an error. When false, it is skipped with a warning.
+func collectClusters(items []any, strict bool) ([]*appv1.Cluster, error) {
+	clusters := make([]*appv1.Cluster, 0, len(items))
 	for _, item := range items {
 		cluster, ok := item.(*appv1.Cluster)
 		if !ok {
-			// Return an error to prevent partial data from causing incorrect applicationset deletions
-			return nil, fmt.Errorf("cluster cache contains unexpected type %T instead of *Cluster, secret conversion failure", item)
+			if strict {
+				return nil, fmt.Errorf("cluster cache contains unexpected type %T instead of *Cluster, secret conversion failure", item)
+			}
+			log.Warnf("Expected *appv1.Cluster in cache, got %T (skipping)", item)
+			continue
 		}
 		// Return copies to prevent modification of cached objects
 		clusters = append(clusters, cluster.DeepCopy())

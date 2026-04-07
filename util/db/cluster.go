@@ -231,7 +231,10 @@ func (db *db) getClusterSecret(ctx context.Context, server string) (*corev1.Secr
 	secretName := cluster.ObjectMeta.Name
 	secret, err := db.kubeclientset.CoreV1().Secrets(db.ns).Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get cluster secret %s: %w", secretName, err)
+		if apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get cluster secret %s: %v", secretName, err)
 	}
 	return secret, nil
 }
@@ -257,6 +260,9 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 		if err == nil {
 			return cluster, nil
 		}
+		if !apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.Internal, "failed to get cluster %q: %v", server, err)
+		}
 
 		// Fall back to the hardcoded local cluster if no secret is configured
 		return db.getLocalCluster(), nil
@@ -264,7 +270,10 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 
 	cluster, err := informer.GetClusterByURL(server)
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+		if apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get cluster %q: %v", server, err)
 	}
 
 	return cluster, nil
@@ -276,7 +285,7 @@ func (db *db) GetProjectClusters(_ context.Context, project string) ([]*appv1.Cl
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
 	}
-	clusters, err := informer.GetProjectClusters(project)
+	clusters, err := informer.GetAvailableProjectClusters(project)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get index by project clusters for project %q: %w", project, err)
 	}

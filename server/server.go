@@ -467,7 +467,7 @@ func (server *ArgoCDServer) logInClusterWarnings() error {
 	if err != nil {
 		return fmt.Errorf("failed to get cluster informer: %w", err)
 	}
-	clusters, err := informer.ListClusters()
+	clusters, err := informer.ListAvailableClusters()
 	if err != nil {
 		return fmt.Errorf("failed to list clusters: %w", err)
 	}
