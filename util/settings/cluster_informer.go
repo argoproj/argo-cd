@@ -150,7 +150,7 @@ func (cc *ClusterInformer) GetProjectClusters(project string) ([]*appv1.Cluster,
 			log.Warnf("Expected *appv1.Cluster in cache, got %T (skipping)", item)
 			continue
 		}
-		clusters = append(clusters, cluster)
+		clusters = append(clusters, cluster.DeepCopy())
 	}
 
 	return clusters, nil
