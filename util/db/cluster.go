@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -28,6 +29,22 @@ import (
 const (
 	errCheckingInClusterEnabled = "%s: error checking if in-cluster is enabled: %v"
 )
+
+// sanitizeUnmarshalError extracts safe diagnostic details from a JSON unmarshal
+// error without including the raw error message, which could contain fragments
+// of the secret data being parsed.
+func sanitizeUnmarshalError(err error) string {
+	var syntaxErr *json.SyntaxError
+	var typeErr *json.UnmarshalTypeError
+	switch {
+	case errors.As(err, &syntaxErr):
+		return fmt.Sprintf("json syntax error at byte offset %d", syntaxErr.Offset)
+	case errors.As(err, &typeErr):
+		return fmt.Sprintf("cannot unmarshal into field %q", typeErr.Field)
+	default:
+		return "invalid cluster secret data"
+	}
+}
 
 var (
 	localCluster = appv1.Cluster{
@@ -81,7 +98,7 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 	for _, clusterSecret := range clusterSecrets {
 		cluster, err := SecretToCluster(clusterSecret)
 		if err != nil {
-			log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
+			log.Errorf("could not unmarshal cluster secret %s: %s", clusterSecret.Name, sanitizeUnmarshalError(err))
 			continue
 		}
 		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
@@ -172,7 +189,7 @@ func (db *db) WatchClusters(ctx context.Context,
 		func(secret *corev1.Secret) {
 			cluster, err := SecretToCluster(secret)
 			if err != nil {
-				log.Errorf("could not unmarshal cluster secret %s", secret.Name)
+				log.Errorf("could not unmarshal cluster secret %s: %s", secret.Name, sanitizeUnmarshalError(err))
 				return
 			}
 			if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
@@ -189,12 +206,12 @@ func (db *db) WatchClusters(ctx context.Context,
 		func(oldSecret *corev1.Secret, newSecret *corev1.Secret) {
 			oldCluster, err := SecretToCluster(oldSecret)
 			if err != nil {
-				log.Errorf("could not unmarshal cluster secret %s", oldSecret.Name)
+				log.Errorf("could not unmarshal cluster secret %s: %s", oldSecret.Name, sanitizeUnmarshalError(err))
 				return
 			}
 			newCluster, err := SecretToCluster(newSecret)
 			if err != nil {
-				log.Errorf("could not unmarshal cluster secret %s", newSecret.Name)
+				log.Errorf("could not unmarshal cluster secret %s: %s", newSecret.Name, sanitizeUnmarshalError(err))
 				return
 			}
 			if newCluster.Server == appv1.KubernetesInternalAPIServerAddr {
@@ -345,7 +362,7 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 	}
 	cluster, err := SecretToCluster(clusterSecret)
 	if err != nil {
-		log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
+		log.Errorf("could not unmarshal cluster secret %s: %s", clusterSecret.Name, sanitizeUnmarshalError(err))
 		return nil, err
 	}
 	return cluster, db.settingsMgr.ResyncInformers()

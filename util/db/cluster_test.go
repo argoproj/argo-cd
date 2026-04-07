@@ -2,6 +2,8 @@ package db
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -168,6 +170,79 @@ func Test_secretToCluster_InvalidConfig(t *testing.T) {
 	cluster, err := SecretToCluster(secret)
 	require.Error(t, err)
 	assert.Nil(t, cluster)
+}
+
+func TestSanitizeUnmarshalError(t *testing.T) {
+	t.Run("json syntax error", func(t *testing.T) {
+		err := &json.SyntaxError{Offset: 42}
+		msg := sanitizeUnmarshalError(err)
+		assert.Equal(t, "json syntax error at byte offset 42", msg)
+	})
+
+	t.Run("json type error", func(t *testing.T) {
+		err := &json.UnmarshalTypeError{Field: "tlsClientConfig.insecure"}
+		msg := sanitizeUnmarshalError(err)
+		assert.Equal(t, "cannot unmarshal into field \"tlsClientConfig.insecure\"", msg)
+	})
+
+	t.Run("wrapped json syntax error", func(t *testing.T) {
+		inner := &json.SyntaxError{Offset: 10}
+		err := fmt.Errorf("failed to unmarshal cluster config: %w", inner)
+		msg := sanitizeUnmarshalError(err)
+		assert.Equal(t, "json syntax error at byte offset 10", msg)
+	})
+
+	t.Run("unknown error type", func(t *testing.T) {
+		err := fmt.Errorf("some other error")
+		msg := sanitizeUnmarshalError(err)
+		assert.Equal(t, "invalid cluster secret data", msg)
+	})
+}
+
+func TestListClusters_SkipsInvalidSecrets(t *testing.T) {
+	validSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "valid-cluster",
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("http://valid-cluster"),
+			"name":   []byte("valid"),
+			"config": []byte("{}"),
+		},
+	}
+	invalidSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "invalid-cluster",
+			Namespace: fakeNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("http://invalid-cluster"),
+			"name":   []byte("invalid"),
+			"config": []byte("not-valid-json"),
+		},
+	}
+	kubeclientset := fake.NewClientset(validSecret, invalidSecret)
+	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
+	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
+
+	clusters, err := db.ListClusters(t.Context())
+	require.NoError(t, err)
+
+	// The invalid secret should be skipped, and the valid one should still be returned
+	// along with the in-cluster default.
+	var servers []string
+	for _, c := range clusters.Items {
+		servers = append(servers, c.Server)
+	}
+	assert.Contains(t, servers, "http://valid-cluster")
+	assert.NotContains(t, servers, "http://invalid-cluster")
 }
 
 func TestUpdateCluster(t *testing.T) {
