@@ -431,6 +431,10 @@ func (s SourceHydrator) GetDrySource() ApplicationSource {
 		RepoURL:        s.DrySource.RepoURL,
 		Path:           s.DrySource.Path,
 		TargetRevision: s.DrySource.TargetRevision,
+		Helm:           s.DrySource.Helm,
+		Kustomize:      s.DrySource.Kustomize,
+		Directory:      s.DrySource.Directory,
+		Plugin:         s.DrySource.Plugin,
 	}
 }
 
