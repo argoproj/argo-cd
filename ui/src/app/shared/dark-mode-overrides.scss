@@ -40,6 +40,11 @@ body.dark-theme {
             background-color: $dark-theme-background-2;
         }
     }
+
+    .Toastify__toast-theme--light {
+        background: $dark-theme-background-2;
+        color: $argo-color-gray-3;
+    }
 }
 
 .theme-dark {
