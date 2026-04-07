@@ -1,5 +1,7 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
+$dark-hover-overlay: rgba(255, 255, 255, 0.08);
+
 // Dropdowns, tooltips, and selects may be portaled to document.body,
 // outside the .theme-dark wrapper. body.dark-theme (toggled by Layout)
 // ensures these elements are also styled for dark mode.
@@ -55,7 +57,7 @@ body.dark-theme {
         &:not(.disabled):not([disabled]) {
             &:hover,
             &:focus {
-                background-color: rgba(255, 255, 255, 0.08);
+                background-color: $dark-hover-overlay;
             }
         }
 
@@ -83,7 +85,7 @@ body.dark-theme {
             &:not(.disabled):not([disabled]) {
                 &:hover,
                 &:focus {
-                    background-color: rgba(255, 255, 255, 0.08);
+                    background-color: $dark-hover-overlay;
                 }
             }
         }
@@ -212,7 +214,7 @@ body.dark-theme {
     }
 
     .top-bar__breadcrumbs a:hover {
-        background-color: rgba(255, 255, 255, 0.08);
+        background-color: $dark-hover-overlay;
     }
 
     // Login

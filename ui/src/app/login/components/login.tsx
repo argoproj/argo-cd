@@ -3,6 +3,7 @@ import React, {useContext, useEffect, useState} from 'react';
 import {Form, Text} from 'react-form';
 import {RouteComponentProps} from 'react-router';
 import {AuthSettings} from '../../shared/models';
+import {distinctUntilChanged, map} from 'rxjs/operators';
 import {services} from '../../shared/services';
 import {useBodyTheme} from '../../shared/components/layout/layout';
 import {Context} from '../../shared/context';
@@ -31,7 +32,13 @@ export function Login(props: RouteComponentProps<{}>) {
             const authSettings = await services.authService.settings();
             setAuthSettings(authSettings);
         })();
-        const sub = services.viewPreferences.getPreferences().subscribe(prefs => setThemePref(prefs.theme));
+        const sub = services.viewPreferences
+            .getPreferences()
+            .pipe(
+                map(prefs => prefs.theme),
+                distinctUntilChanged()
+            )
+            .subscribe(setThemePref);
         return () => sub.unsubscribe();
     }, []);
 
