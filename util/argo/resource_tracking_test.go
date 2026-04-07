@@ -118,6 +118,120 @@ func TestSetAppInstanceAnnotationAndLabelOutOfBounds(t *testing.T) {
 	assert.EqualError(t, err, "failed to set app instance label: unable to truncate label to not end with a special character")
 }
 
+func TestRemoveAppInstance_LabelOnly(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	require.NoError(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	require.NoError(t, err)
+
+	rt := NewResourceTracking()
+
+	err = rt.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", v1alpha1.TrackingMethodLabel, "")
+	require.NoError(t, err)
+
+	err = rt.RemoveAppInstance(&obj, string(v1alpha1.TrackingMethodLabel))
+	require.NoError(t, err)
+
+	_, exists := obj.GetLabels()[common.LabelKeyAppInstance]
+	assert.False(t, exists)
+}
+
+func TestRemoveAppInstance_AnnotationOnly(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	require.NoError(t, err)
+
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	require.NoError(t, err)
+
+	rt := NewResourceTracking()
+
+	err = rt.SetAppInstance(&obj, common.AnnotationKeyAppInstance, "my-app", "", v1alpha1.TrackingMethodAnnotation, "")
+	require.NoError(t, err)
+
+	err = rt.RemoveAppInstance(&obj, string(v1alpha1.TrackingMethodAnnotation))
+	require.NoError(t, err)
+
+	annotations := obj.GetAnnotations()
+	assert.NotContains(t, annotations, common.AnnotationKeyAppInstance)
+	assert.NotContains(t, annotations, common.AnnotationInstallationID)
+	assert.NotContains(t, annotations, v1alpha1.TrackingMethodAnnotation)
+}
+
+func TestRemoveAppInstance_AnnotationAndLabel(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	require.NoError(t, err)
+
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	require.NoError(t, err)
+
+	rt := NewResourceTracking()
+
+	err = rt.SetAppInstance(&obj, common.LabelKeyAppInstance, "my-app", "", v1alpha1.TrackingMethodAnnotationAndLabel, "")
+	require.NoError(t, err)
+
+	err = rt.RemoveAppInstance(&obj, string(v1alpha1.TrackingMethodAnnotationAndLabel))
+	require.NoError(t, err)
+
+	assert.NotContains(t, obj.GetAnnotations(), common.AnnotationKeyAppInstance)
+	assert.NotContains(t, obj.GetAnnotations(), common.AnnotationInstallationID)
+	assert.NotContains(t, obj.GetLabels(), common.LabelKeyAppInstance)
+}
+
+func TestRemoveAppInstance_DefaultCase(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	require.NoError(t, err)
+
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	require.NoError(t, err)
+
+	// Add a label manually to verify if this custom label exists at the end
+	obj.SetLabels(map[string]string{
+		"my-custom-label": "keep-me",
+	})
+
+	rt := NewResourceTracking()
+
+	err = rt.SetAppInstance(&obj, common.AnnotationKeyAppInstance, "my-app", "", "", "")
+	require.NoError(t, err)
+
+	err = rt.RemoveAppInstance(&obj, "unknown-method")
+	require.NoError(t, err)
+
+	assert.NotContains(t, obj.GetAnnotations(), common.AnnotationKeyAppInstance)
+	assert.NotContains(t, obj.GetAnnotations(), common.AnnotationInstallationID)
+
+	// Argo CD app-instance label was never added, so it shouldn't exist
+	_, argocdLabelExists := obj.GetLabels()[common.LabelKeyAppInstance]
+	assert.False(t, argocdLabelExists)
+	// Custom label should still exist
+	assert.Equal(t, "keep-me", obj.GetLabels()["my-custom-label"])
+}
+
+func TestRemoveAppInstance_AnnotationAndLabel_LongName(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	require.NoError(t, err)
+
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	require.NoError(t, err)
+
+	rt := NewResourceTracking()
+
+	longName := "my-app-with-an-extremely-long-name-that-is-over-sixty-three-characters"
+	err = rt.SetAppInstance(&obj, common.LabelKeyAppInstance, longName, "", v1alpha1.TrackingMethodAnnotationAndLabel, "")
+	require.NoError(t, err)
+
+	err = rt.RemoveAppInstance(&obj, string(v1alpha1.TrackingMethodAnnotationAndLabel))
+	require.NoError(t, err)
+
+	assert.NotContains(t, obj.GetAnnotations(), common.AnnotationKeyAppInstance)
+	assert.NotContains(t, obj.GetLabels(), common.LabelKeyAppInstance)
+}
+
 func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)

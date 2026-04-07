@@ -52,17 +52,23 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 		State: gitea.StateOpen,
 	}
 	g.client.SetContext(ctx)
-	prs, _, err := g.client.ListRepoPullRequests(g.owner, g.repo, opts)
+	list := []*PullRequest{}
+	prs, resp, err := g.client.ListRepoPullRequests(g.owner, g.repo, opts)
 	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			// return a custom error indicating that the repository is not found,
+			// but also returning the empty result since the decision to continue or not in this case is made by the caller
+			return list, NewRepositoryNotFoundError(err)
+		}
 		return nil, err
 	}
-	list := []*PullRequest{}
+
 	for _, pr := range prs {
 		if !giteaContainLabels(g.labels, pr.Labels) {
 			continue
 		}
 		list = append(list, &PullRequest{
-			Number:       int(pr.Index),
+			Number:       int64(pr.Index),
 			Title:        pr.Title,
 			Branch:       pr.Head.Ref,
 			TargetBranch: pr.Base.Ref,
@@ -77,7 +83,7 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 // containLabels returns true if gotLabels contains expectedLabels
 func giteaContainLabels(expectedLabels []string, gotLabels []*gitea.Label) bool {
 	gotLabelNamesMap := make(map[string]bool)
-	for i := 0; i < len(gotLabels); i++ {
+	for i := range gotLabels {
 		gotLabelNamesMap[gotLabels[i].Name] = true
 	}
 	for _, expected := range expectedLabels {

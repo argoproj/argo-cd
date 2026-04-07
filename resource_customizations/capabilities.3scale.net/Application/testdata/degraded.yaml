@@ -1,0 +1,8 @@
+apiVersion: capabilities.3scale.net/v1beta1
+kind: Application
+status:
+  applicationID: null
+  conditions:
+    - type: Ready
+      status: "False"
+      message: Failed to synchronize application with 3scale API

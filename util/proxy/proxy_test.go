@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"os/exec"
 	"testing"
 
@@ -11,11 +12,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestMain(m *testing.M) {
+	// Ensure tests use non-cached proxy callback
+	UseTestingProxyCallback()
+
+	os.Exit(m.Run())
+}
+
 func TestAddProxyEnvIfAbsent(t *testing.T) {
 	t.Run("Existing proxy env variables", func(t *testing.T) {
 		proxy := "https://proxy:5000"
 		noProxy := ".argoproj.io"
-		cmd := exec.Command("test")
+		cmd := exec.CommandContext(t.Context(), "test")
 		cmd.Env = []string{`http_proxy="https_proxy=https://env-proxy:8888"`, "key=val", "no_proxy=.argoproj.io"}
 		got := UpsertEnv(cmd, proxy, noProxy)
 		assert.Equal(t, []string{"key=val", httpProxy(proxy), httpsProxy(proxy), noProxyVar(noProxy)}, got)
@@ -23,7 +31,7 @@ func TestAddProxyEnvIfAbsent(t *testing.T) {
 	t.Run("proxy env variables not found", func(t *testing.T) {
 		proxy := "http://proxy:5000"
 		noProxy := ".argoproj.io"
-		cmd := exec.Command("test")
+		cmd := exec.CommandContext(t.Context(), "test")
 		cmd.Env = []string{"key=val"}
 		got := UpsertEnv(cmd, proxy, noProxy)
 		assert.Equal(t, []string{"key=val", httpProxy(proxy), httpsProxy(proxy), noProxyVar(noProxy)}, got)
@@ -47,7 +55,7 @@ func TestGetCallBack(t *testing.T) {
 	t.Run("custom proxy absent", func(t *testing.T) {
 		proxyEnv := "http://proxy:8888"
 		t.Setenv("http_proxy", "http://proxy:8888")
-		url, err := GetCallback("", "")(httptest.NewRequest(http.MethodGet, proxyEnv, http.NoBody))
+		url, err := GetCallback("", "")(httptest.NewRequestWithContext(t.Context(), http.MethodGet, proxyEnv, http.NoBody))
 		require.NoError(t, err)
 		assert.Equal(t, proxyEnv, url.String())
 	})

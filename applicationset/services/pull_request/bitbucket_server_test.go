@@ -68,7 +68,7 @@ func TestListPullRequestNoAuth(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
-	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, int64(101), pullRequests[0].Number)
 	assert.Equal(t, "feat(ABC) : 123", pullRequests[0].Title)
 	assert.Equal(t, "feature-ABC-123", pullRequests[0].Branch)
 	assert.Equal(t, "master", pullRequests[0].TargetBranch)
@@ -211,7 +211,7 @@ func TestListPullRequestBasicAuth(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
-	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, int64(101), pullRequests[0].Number)
 	assert.Equal(t, "feature-ABC-123", pullRequests[0].Branch)
 	assert.Equal(t, "cb3cf2e4d1517c83e720d2585b9402dbef71f992", pullRequests[0].HeadSHA)
 }
@@ -228,7 +228,7 @@ func TestListPullRequestBearerAuth(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
-	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, int64(101), pullRequests[0].Number)
 	assert.Equal(t, "feat(ABC) : 123", pullRequests[0].Title)
 	assert.Equal(t, "feature-ABC-123", pullRequests[0].Branch)
 	assert.Equal(t, "cb3cf2e4d1517c83e720d2585b9402dbef71f992", pullRequests[0].HeadSHA)
@@ -268,7 +268,6 @@ func TestListPullRequestTLS(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				defaultHandler(t)(w, r)
@@ -509,4 +508,30 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 		},
 	})
 	require.Error(t, err)
+}
+
+func TestBitbucketServerListReturnsRepositoryNotFoundError(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	path := "/rest/api/1.0/projects/nonexistent/repos/nonexistent/pull-requests?limit=100"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
+		// Return 404 status to simulate repository not found
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
+	})
+
+	svc, err := NewBitbucketServiceNoAuth(t.Context(), server.URL, "nonexistent", "nonexistent", "", false, nil)
+	require.NoError(t, err)
+
+	prs, err := svc.List(t.Context())
+
+	// Should return empty pull requests list
+	assert.Empty(t, prs)
+
+	// Should return RepositoryNotFoundError
+	require.Error(t, err)
+	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }

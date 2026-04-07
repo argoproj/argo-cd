@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Valid ExtensionService"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Waiting for status'
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: 'At least one error present, see Errors for details'
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Waiting for status'
+  inputPath: testdata/generation.yaml

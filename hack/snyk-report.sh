@@ -107,15 +107,15 @@ for version in $versions; do
   images=$(grep 'image: ' manifests/install.yaml manifests/namespace-install.yaml manifests/ha/install.yaml | sed 's/.*image: //' | sort | uniq)
 
   while IFS= read -r image; do
-    extra_args=""
+    extra_args=()
     if echo "$image" | grep "argocd"; then
       # Pass the file arg only for the Argo CD image. The file arg also gives us access to sarif output.
-      extra_args="--file=Dockerfile --sarif-file-output=/tmp/${image//[\/:]/_}.sarif "
+      extra_args+=("--file=Dockerfile" "--sarif-file-output=/tmp/${image//[\/:]/_}.sarif")
     fi
 
     set -x
     # || [ $? == 1 ] ignores errors due to vulnerabilities.
-    snyk container test "$image" --org=argoproj "--json-file-output=/tmp/${image//[\/:]/_}.json" $extra_args || [ $? == 1 ]
+    snyk container test "$image" --org=argoproj "--json-file-output=/tmp/${image//[\/:]/_}.json" "${extra_args[@]}" || [ $? == 1 ]
     set +x
 
     snyk-to-html -i "/tmp/${image//[\/:]/_}.json" -o "$argocd_dir/docs/snyk/$version/${image//[\/:]/_}.html"

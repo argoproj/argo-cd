@@ -169,9 +169,25 @@ func TestUntgz(t *testing.T) {
 		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/readme-symlink")
-		assert.Equal(t, filepath.Join(destDir, "README.md"), names["applicationset/readme-symlink"])
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
 	})
 	t.Run("will protect against symlink exploit", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		tgzFile := createTgz(t, filepath.Join(getTestDataDir(t), "symlink-exploit"), tmpDir)
+
+		defer tgzFile.Close()
+
+		destDir := filepath.Join(tmpDir, "untgz2")
+
+		// when
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
+
+		// then
+		assert.ErrorContains(t, err, "illegal filepath in symlink")
+	})
+	t.Run("will protect against symlink exploit when relativizing symlinks", func(t *testing.T) {
 		// given
 		tmpDir := createTmpDir(t)
 		defer deleteTmpDir(t, tmpDir)
@@ -192,20 +208,41 @@ func TestUntgz(t *testing.T) {
 		// given
 		tmpDir := createTmpDir(t)
 		defer deleteTmpDir(t, tmpDir)
-		tgzFile := createTgz(t, filepath.Join(getTestDataDir(t), "executable"), tmpDir)
+
+		scriptFileName := "script.sh"
+		srcDir := filepath.Join(getTestDataDir(t), "executable")
+		srcScriptFileInfo, err := os.Stat(path.Join(srcDir, scriptFileName))
+		require.NoError(t, err)
+
+		tgzFile := createTgz(t, srcDir, tmpDir)
 		defer tgzFile.Close()
 
 		destDir := filepath.Join(tmpDir, "untgz1")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
+		err = files.Untgz(destDir, tgzFile, math.MaxInt64, true)
 		require.NoError(t, err)
+		// then
+		scriptFileInfo, err := os.Stat(path.Join(destDir, scriptFileName))
+		require.NoError(t, err)
+		assert.Equal(t, srcScriptFileInfo.Mode(), scriptFileInfo.Mode())
+	})
+	t.Run("relativizes symlinks", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		tgzFile := createTgz(t, getTestAppDir(t), tmpDir)
+		defer tgzFile.Close()
+
+		destDir := filepath.Join(tmpDir, "symlink-relativize")
+
+		// when
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
-
-		scriptFileInfo, err := os.Stat(path.Join(destDir, "script.sh"))
 		require.NoError(t, err)
-		assert.Equal(t, os.FileMode(0o644), scriptFileInfo.Mode())
+		names := readFiles(t, destDir)
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
 	})
 }
 

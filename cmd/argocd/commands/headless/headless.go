@@ -22,7 +22,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	cache2 "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/initialize"
@@ -209,11 +208,12 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	log.SetLevel(log.ErrorLevel)
 	os.Setenv(v1alpha1.EnvVarFakeInClusterConfig, "true")
 	if address == nil {
-		address = ptr.To("localhost")
+		address = new("localhost")
 	}
 	if port == nil || *port == 0 {
 		addr := *address + ":0"
-		ln, err := net.Listen("tcp", addr)
+		lc := &net.ListenConfig{}
+		ln, err := lc.Listen(ctx, "tcp", addr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to listen on %q: %w", addr, err)
 		}
@@ -301,7 +301,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	}
 
 	tries := 5
-	for i := 0; i < tries; i++ {
+	for range tries {
 		err = testAPI(ctx, clientOpts)
 		if err == nil {
 			break

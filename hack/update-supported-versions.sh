@@ -33,4 +33,4 @@ done
 
 git checkout "release-$argocd_current_version"
 
-printf "$out" > docs/operator-manual/tested-kubernetes-versions.md
+echo -en "$out" > docs/operator-manual/tested-kubernetes-versions.md

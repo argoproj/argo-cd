@@ -29,6 +29,7 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 	"metadata.creationTimestamp": func(app *v1alpha1.Application) any { return app.CreationTimestamp },
 	"metadata.deletionTimestamp": func(app *v1alpha1.Application) any { return app.DeletionTimestamp },
 	"spec":                       func(app *v1alpha1.Application) any { return app.Spec },
+	"status.sourceHydrator":      func(app *v1alpha1.Application) any { return app.Status.SourceHydrator },
 	"status.sync.status":         func(app *v1alpha1.Application) any { return app.Status.Sync.Status },
 	"status.health":              func(app *v1alpha1.Application) any { return app.Status.Health },
 	"status.summary":             func(app *v1alpha1.Application) any { return app.Status.Summary },
@@ -86,7 +87,7 @@ func processApplicationListField(v any, fields map[string]any, exclude bool) (an
 				}
 				parts := strings.Split(field, ".")
 				item := converted
-				for i := 0; i < len(parts); i++ {
+				for i := range parts {
 					subField := parts[i]
 					if i == len(parts)-1 {
 						item[subField] = value

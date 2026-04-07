@@ -43,10 +43,18 @@ export interface PodLogsProps {
     containerGroups?: any[];
     onClickContainer?: (group: any, i: number, tab: string) => void;
     fullscreen?: boolean;
+    previous?: boolean;
+}
+
+export interface PodLogsQueryProps {
     viewPodNames?: boolean;
     viewTimestamps?: boolean;
     follow?: boolean;
     showPreviousLogs?: boolean;
+    filterText?: string;
+    tail?: number;
+    matchCase?: boolean;
+    sinceSeconds?: number;
 }
 
 // ansi colors, see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
@@ -91,7 +99,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [previous, setPreviousLogs] = useState(queryParams.get('showPreviousLogs') === 'true');
     const [tail, setTail] = useState<number>(parseInt(queryParams.get('tail'), 10) || 1000);
     const [matchCase, setMatchCase] = useState(queryParams.get('matchCase') === 'true');
-    const [sinceSeconds, setSinceSeconds] = useState(0);
+    const [sinceSeconds, setSinceSeconds] = useState(parseInt(queryParams.get('sinceSeconds'), 10) || 0);
     const [filter, setFilter] = useState(queryParams.get('filterText') || '');
     const [highlight, setHighlight] = useState<RegExp>(matchNothing);
     const [scrollToBottom, setScrollToBottom] = useState(true);
@@ -212,12 +220,12 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                 width,
                 height,
                 overflow: 'scroll',
-                minWidth: '100%'
+                minWidth: isWrapped ? 'fit-content' : '100%'
             }}>
             <div
                 style={{
                     width: '100%',
-                    minWidth: 'fit-content'
+                    minWidth: isWrapped ? 'fit-content' : '100%'
                 }}>
                 {logs.map((log, lineNum) => {
                     const {podNameContent, timestampContent, logContent} = renderLog(log, lineNum, prefs.appDetails.darkMode);
@@ -229,7 +237,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 lineHeight: '1.5rem',
                                 backgroundColor: selectedPod === log.podName ? getPodBackgroundColor(log.podName, prefs.appDetails.darkMode) : 'transparent',
                                 padding: '1px 8px',
-                                width: '100vw',
+                                width: '100%',
                                 marginLeft: '-8px',
                                 marginRight: '-8px'
                             }}
@@ -287,8 +295,18 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             <Spacer />
                             <span>
                                 <CopyLogsButton logs={logs} />
-                                <DownloadLogsButton {...props} />
-                                <FullscreenButton {...props} viewPodNames={viewPodNames} viewTimestamps={viewTimestamps} follow={follow} showPreviousLogs={previous} />
+                                <DownloadLogsButton {...props} previous={previous} />
+                                <FullscreenButton
+                                    {...props}
+                                    viewPodNames={viewPodNames}
+                                    viewTimestamps={viewTimestamps}
+                                    follow={follow}
+                                    showPreviousLogs={previous}
+                                    filterText={filter}
+                                    matchCase={matchCase}
+                                    tail={tail}
+                                    sinceSeconds={sinceSeconds}
+                                />
                             </span>
                         </div>
                         <div className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})} onWheel={handleScroll}>

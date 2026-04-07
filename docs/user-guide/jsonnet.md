@@ -22,8 +22,8 @@ Or by declarative syntax:
   directory:
     jsonnet:
       extVars:
-      - name: app
-        value: $ARGOCD_APP_NAME
+        - name: app
+          value: $ARGOCD_APP_NAME
       tlas:
         - name: ns
           value: $ARGOCD_APP_NAMESPACE

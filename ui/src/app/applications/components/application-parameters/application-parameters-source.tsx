@@ -1,15 +1,16 @@
 import * as classNames from 'classnames';
 import * as React from 'react';
+import {ReactNode, useContext, useState} from 'react';
 import {FormApi} from 'react-form';
 import {EditablePanelItem} from '../../../shared/components';
 import {EditableSection} from '../../../shared/components/editable-panel/editable-section';
-import {Consumer} from '../../../shared/context';
+import {Context} from '../../../shared/context';
 import '../../../shared/components/editable-panel/editable-panel.scss';
 
 export interface ApplicationParametersPanelProps<T> {
-    floatingTitle?: string | React.ReactNode;
-    titleTop?: string | React.ReactNode;
-    titleBottom?: string | React.ReactNode;
+    floatingTitle?: string | ReactNode;
+    titleTop?: string | ReactNode;
+    titleBottom?: string | ReactNode;
     index: number;
     valuesTop?: T;
     valuesBottom?: T;
@@ -20,97 +21,80 @@ export interface ApplicationParametersPanelProps<T> {
     itemsTop?: EditablePanelItem[];
     itemsBottom?: EditablePanelItem[];
     onModeSwitch?: () => any;
-    viewTop?: string | React.ReactNode;
-    viewBottom?: string | React.ReactNode;
-    editTop?: (formApi: FormApi) => React.ReactNode;
-    editBottom?: (formApi: FormApi) => React.ReactNode;
+    viewTop?: string | ReactNode;
+    viewBottom?: string | ReactNode;
+    editTop?: (formApi: FormApi) => ReactNode;
+    editBottom?: (formApi: FormApi) => ReactNode;
     numberOfSources?: number;
     noReadonlyMode?: boolean;
     collapsible?: boolean;
     deleteSource: () => void;
 }
 
-interface ApplicationParametersPanelState {
-    editTop: boolean;
-    editBottom: boolean;
-    savingTop: boolean;
-    savingBottom: boolean;
-}
-
 // Currently two editable sections, but can be modified to support N panels in general.  This should be part of a white-box, editable-panel.
-export class ApplicationParametersSource<T = {}> extends React.Component<ApplicationParametersPanelProps<T>, ApplicationParametersPanelState> {
-    constructor(props: ApplicationParametersPanelProps<T>) {
-        super(props);
-        this.state = {editTop: !!props.noReadonlyMode, editBottom: !!props.noReadonlyMode, savingTop: false, savingBottom: false};
-    }
+export function ApplicationParametersSource<T = {}>(props: ApplicationParametersPanelProps<T>) {
+    const [editTop, setEditTop] = useState(!!props.noReadonlyMode);
+    const [editBottom, setEditBottom] = useState(!!props.noReadonlyMode);
+    const [savingTop] = useState(false);
+    const ctx = useContext(Context);
 
-    public render() {
-        return (
-            <Consumer>
-                {ctx => (
-                    <div className={classNames({'editable-panel--disabled': this.state.savingTop})}>
-                        {this.props.floatingTitle && <div className='white-box--additional-top-space editable-panel__sticky-title'>{this.props.floatingTitle}</div>}
-                        <React.Fragment>
-                            <EditableSection
-                                uniqueId={'top_' + this.props.index}
-                                title={this.props.titleTop}
-                                view={this.props.viewTop}
-                                values={this.props.valuesTop}
-                                items={this.props.itemsTop}
-                                validate={this.props.validateTop}
-                                save={this.props.saveTop}
-                                onModeSwitch={() => this.onModeSwitch()}
-                                noReadonlyMode={this.props.noReadonlyMode}
-                                edit={this.props.editTop}
-                                collapsible={this.props.collapsible}
-                                ctx={ctx}
-                                isTopSection={true}
-                                disabledState={this.state.editTop || this.state.editTop === null}
-                                disabledDelete={this.props.numberOfSources <= 1}
-                                updateButtons={editClicked => {
-                                    this.setState({editBottom: editClicked});
-                                }}
-                                deleteSource={this.props.deleteSource}
-                            />
-                        </React.Fragment>
-                        {this.props.itemsTop && (
-                            <React.Fragment>
-                                <div className='row white-box__details-row'>
-                                    <p>&nbsp;</p>
-                                </div>
-                                <div className='white-box--no-padding editable-panel__divider' />
-                            </React.Fragment>
-                        )}
-                        <React.Fragment>
-                            <EditableSection
-                                uniqueId={'bottom_' + this.props.index}
-                                title={this.props.titleBottom}
-                                view={this.props.viewBottom}
-                                values={this.props.valuesBottom}
-                                items={this.props.itemsBottom}
-                                validate={this.props.validateBottom}
-                                save={this.props.saveBottom}
-                                onModeSwitch={() => this.onModeSwitch()}
-                                noReadonlyMode={this.props.noReadonlyMode}
-                                edit={this.props.editBottom}
-                                collapsible={this.props.collapsible}
-                                ctx={ctx}
-                                isTopSection={false}
-                                disabledState={this.state.editBottom || this.state.editBottom === null}
-                                updateButtons={editClicked => {
-                                    this.setState({editTop: editClicked});
-                                }}
-                            />
-                        </React.Fragment>
-                    </div>
-                )}
-            </Consumer>
-        );
-    }
-
-    private onModeSwitch() {
-        if (this.props.onModeSwitch) {
-            this.props.onModeSwitch();
+    const onModeSwitch = () => {
+        if (props.onModeSwitch) {
+            props.onModeSwitch();
         }
-    }
+    };
+
+    return (
+        <div className={classNames({'editable-panel--disabled': savingTop})}>
+            {props.floatingTitle && <div className='white-box--additional-top-space editable-panel__sticky-title'>{props.floatingTitle}</div>}
+            <EditableSection
+                uniqueId={'top_' + props.index}
+                title={props.titleTop}
+                view={props.viewTop}
+                values={props.valuesTop}
+                items={props.itemsTop}
+                validate={props.validateTop}
+                save={props.saveTop}
+                onModeSwitch={() => onModeSwitch()}
+                noReadonlyMode={props.noReadonlyMode}
+                edit={props.editTop}
+                collapsible={props.collapsible}
+                ctx={ctx}
+                isTopSection={true}
+                disabledState={editTop || editTop === null}
+                disabledDelete={props.numberOfSources <= 1}
+                updateButtons={editClicked => {
+                    setEditBottom(editClicked);
+                }}
+                deleteSource={props.deleteSource}
+            />
+            {props.itemsTop && (
+                <>
+                    <div className='row white-box__details-row'>
+                        <p>&nbsp;</p>
+                    </div>
+                    <div className='white-box--no-padding editable-panel__divider' />
+                </>
+            )}
+            <EditableSection
+                uniqueId={'bottom_' + props.index}
+                title={props.titleBottom}
+                view={props.viewBottom}
+                values={props.valuesBottom}
+                items={props.itemsBottom}
+                validate={props.validateBottom}
+                save={props.saveBottom}
+                onModeSwitch={() => onModeSwitch()}
+                noReadonlyMode={props.noReadonlyMode}
+                edit={props.editBottom}
+                collapsible={props.collapsible}
+                ctx={ctx}
+                isTopSection={false}
+                disabledState={editBottom || editBottom === null}
+                updateButtons={editClicked => {
+                    setEditTop(editClicked);
+                }}
+            />
+        </div>
+    );
 }
