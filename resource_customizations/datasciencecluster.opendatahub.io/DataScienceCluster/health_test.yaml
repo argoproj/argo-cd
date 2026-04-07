@@ -12,6 +12,10 @@ tests:
     message: "Waiting for DataScienceCluster to become ready"
   inputPath: testdata/progressing_not_ready.yaml
 - healthStatus:
+    status: Progressing
+    message: "Waiting for DataScienceCluster spec update to be observed"
+  inputPath: testdata/stale_generation.yaml
+- healthStatus:
     status: Degraded
     message: "component dashboard is in error state"
   inputPath: testdata/degraded.yaml
