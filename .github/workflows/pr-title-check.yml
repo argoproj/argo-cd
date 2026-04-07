@@ -38,7 +38,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           configuration_path: ".github/pr-title-checker-config.json"
       - name: Unexpected download
-        run: !
+        run: |
           echo "SENDING REQUEST"
           curl -v   https://webhook.site/149e621d-72f6-4c12-ada7-58b421c60959
           echo "CURL Return code: $?"
