@@ -470,6 +470,9 @@ const (
 	resourceInclusionsKey = "resource.inclusions"
 	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
+	// controllerOpenAPIV3EnabledKey is the key to a boolean that enables fetching OpenAPI v3 schemas per-GroupVersion
+	// instead of the monolithic OpenAPI v2 swagger document. Requires Kubernetes 1.27+.
+	controllerOpenAPIV3EnabledKey = "controller.openapi.v3.enabled"
 	// resourceSensitiveAnnotationsKey is the key to list of annotations to mask in secret resource
 	resourceSensitiveAnnotationsKey = "resource.sensitive.mask.annotations"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
@@ -987,6 +990,21 @@ func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey])
+}
+
+// GetOpenAPIV3Enabled returns whether OpenAPI v3 schema fetching is enabled.
+// Defaults to true when not explicitly set.
+func (mgr *SettingsManager) GetOpenAPIV3Enabled() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, fmt.Errorf("error retrieving config map: %w", err)
+	}
+
+	if argoCDCM.Data[controllerOpenAPIV3EnabledKey] == "" {
+		return true, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[controllerOpenAPIV3EnabledKey])
 }
 
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap

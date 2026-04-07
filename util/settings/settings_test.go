@@ -300,6 +300,31 @@ func TestGetIsIgnoreResourceUpdatesEnabledFalse(t *testing.T) {
 	assert.False(t, ignoreResourceUpdatesEnabled)
 }
 
+func TestGetOpenAPIV3Enabled(t *testing.T) {
+	// defaults to true when not set
+	_, settingsManager := fixtures(t.Context(), nil)
+	enabled, err := settingsManager.GetOpenAPIV3Enabled()
+	require.NoError(t, err)
+	assert.True(t, enabled)
+
+	// explicitly true
+	_, settingsManager = fixtures(t.Context(), map[string]string{
+		"controller.openapi.v3.enabled": "true",
+	})
+	enabled, err = settingsManager.GetOpenAPIV3Enabled()
+	require.NoError(t, err)
+	assert.True(t, enabled)
+}
+
+func TestGetOpenAPIV3EnabledFalse(t *testing.T) {
+	_, settingsManager := fixtures(t.Context(), map[string]string{
+		"controller.openapi.v3.enabled": "false",
+	})
+	enabled, err := settingsManager.GetOpenAPIV3Enabled()
+	require.NoError(t, err)
+	assert.False(t, enabled)
+}
+
 func TestGetResourceOverrides(t *testing.T) {
 	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
 		JSONPointers: []string{"/status"},
