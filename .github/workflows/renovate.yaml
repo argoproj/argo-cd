@@ -14,7 +14,7 @@ jobs:
     steps:
       - name: Get token
         id: get_token
-        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3
         with:
           app-id: ${{ vars.RENOVATE_APP_ID }}
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
@@ -27,7 +27,7 @@ jobs:
       # has been updated (see it's numeric version in action.yaml)
       # and update `renovate-version` parameter accordingly
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@3633cede7d4d4598438e654eac4a695e46004420 #46.1.7
+        uses: renovatebot/github-action@b67590ea780158ccd13192c22a3655a5231f869d #46.1.8
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'

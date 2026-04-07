@@ -132,7 +132,7 @@ export const SourcePanel = (props: SourcePanelProps) => {
                                     (src.repoURL &&
                                         services.repos
                                             .apps(src.repoURL, src.revision, currentApp.metadata.name, currentApp.spec.project)
-                                            .then(apps => Array.from(new Set(apps.map(item => item.path))).sort())
+                                            .then(apps => Array.from(new Set(apps.map(item => item.path))).sort((a, b) => a.localeCompare(b)))
                                             .catch(() => new Array<string>())) ||
                                     new Array<string>()
                                 }>
