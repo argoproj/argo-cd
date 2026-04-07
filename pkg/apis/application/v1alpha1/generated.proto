@@ -1968,6 +1968,11 @@ message Repository {
 
   // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
   optional int64 depth = 27;
+
+  // SparsePaths specifies which paths to checkout when using sparse checkout with partial clone.
+  // Paths can be absolute (e.g., "/charts") or relative to the repository root.
+  // If empty, a full checkout will be used, otherwise a partial clone will be used.
+  repeated string sparsePaths = 28;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

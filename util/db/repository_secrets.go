@@ -407,6 +407,8 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.Depth = depth
 
+	repository.SparsePaths = stringArrayOrEmpty(secret, "sparsePaths")
+
 	return repository, nil
 }
 
@@ -444,6 +446,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretBool(secretCopy, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	updateSecretBool(secretCopy, "useAzureWorkloadIdentity", repository.UseAzureWorkloadIdentity)
 	updateSecretInt(secretCopy, "depth", repository.Depth)
+	updateSecretStringArray(secretCopy, "sparsePaths", repository.SparsePaths)
 	addSecretMetadata(secretCopy, s.getSecretType())
 
 	return secretCopy

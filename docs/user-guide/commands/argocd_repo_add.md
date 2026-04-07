@@ -80,6 +80,7 @@ argocd repo add REPOURL [flags]
       --password string                         password to the repository
       --project string                          project of the repository
       --proxy string                            use proxy to access repository
+      --sparse-paths stringArray                Specify the sparse paths to checkout. Specifying sparse paths implies enabling partial clone for this repository
       --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
       --tls-client-cert-key-path string         path to the TLS client cert's key (must be PEM format)
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)

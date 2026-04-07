@@ -9704,6 +9704,13 @@
           "type": "string",
           "title": "Repo contains the URL to the remote repository"
         },
+        "sparsePaths": {
+          "description": "SparsePaths specifies which paths to checkout when using sparse checkout with partial clone.\nPaths can be absolute (e.g., \"/charts\") or relative to the repository root.\nIf empty, a full checkout will be used, otherwise a partial clone will be used.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "sshPrivateKey": {
           "description": "SSHPrivateKey contains the PEM data for authenticating at the repo server. Only used with Git repos.",
           "type": "string"
