@@ -1,7 +1,8 @@
 # Submitting PRs
 
 ## Prerequisites
-1. [Development Environment](development-environment.md)   
+
+1. [Development Environment](development-environment.md)
 2. [Toolchain Guide](toolchain-guide.md)
 3. [Development Cycle](development-cycle.md)
 
@@ -21,10 +22,10 @@ If you need guidance with submitting a PR, or have any other questions regarding
 
 ## Before Submitting a PR
 
-1. Rebase your branch against upstream main:
+1. Rebase your branch against upstream master:
 ```shell
 git fetch upstream
-git rebase upstream/main
+git rebase upstream/master
 ```
 
 2. Run pre-commit checks:
