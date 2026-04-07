@@ -18,6 +18,7 @@ import {ShowPreviousLogsToggleButton} from './show-previous-logs-toggle-button';
 import {PodHighlightButton} from './pod-logs-highlight-button';
 import {TimestampsToggleButton} from './timestamps-toggle-button';
 import {DarkModeToggleButton} from './dark-mode-toggle-button';
+import {getTheme} from '../../../shared/utils';
 import {FullscreenButton} from './fullscreen-button';
 import {Spacer} from '../../../shared/components/spacer';
 import {LogMessageFilter} from './log-message-filter';
@@ -290,7 +291,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 <WrapLinesButton prefs={prefs} />
                                 <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={onToggleViewPodNames} />
                                 <TimestampsToggleButton setViewTimestamps={setViewTimestampsWithQueryParams} viewTimestamps={viewTimestamps} timestamp={timestamp} />
-                                <DarkModeToggleButton prefs={prefs} />
+                                {getTheme(prefs.theme) !== 'dark' && <DarkModeToggleButton prefs={prefs} />}
                             </span>
                             <Spacer />
                             <span>
