@@ -194,6 +194,11 @@ func (in *AppProjectSpec) DeepCopyInto(out *AppProjectSpec) {
 		*out = make([]ApplicationDestinationServiceAccount, len(*in))
 		copy(*out, *in)
 	}
+	if in.ManifestGeneratePolicy != nil {
+		in, out := &in.ManifestGeneratePolicy, &out.ManifestGeneratePolicy
+		*out = new(ManifestGeneratePolicy)
+		**out = **in
+	}
 	return
 }
 
@@ -1394,6 +1399,11 @@ func (in *ApplicationSpec) DeepCopyInto(out *ApplicationSpec) {
 		in, out := &in.SourceHydrator, &out.SourceHydrator
 		*out = new(SourceHydrator)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.ManifestGeneratePolicy != nil {
+		in, out := &in.ManifestGeneratePolicy, &out.ManifestGeneratePolicy
+		*out = new(ManifestGeneratePolicy)
+		**out = **in
 	}
 	return
 }

@@ -34,6 +34,7 @@ import (
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/manifestgen"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
@@ -45,6 +46,7 @@ type settingsSource interface {
 	GetAppInstanceLabelKey() (string, error)
 	GetTrackingMethod() (string, error)
 	GetInstallationID() (string, error)
+	GetManifestGeneratePolicy() (string, error)
 }
 
 // https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
@@ -351,6 +353,11 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		log.Errorf("Failed to get appInstanceLabelKey: %v", err)
 		return
 	}
+	globalManifestGeneratePolicy, err := a.settingsSrc.GetManifestGeneratePolicy()
+	if err != nil {
+		log.Errorf("Failed to get manifest generate policy: %v", err)
+		return
+	}
 
 	// Skip any application that is neither in the control plane's namespace
 	// nor in the list of enabled namespaces.
@@ -380,7 +387,13 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 			// iterate over all sources and check if any files specified in refresh paths have changed
 			for _, source := range sources {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
-					refreshPaths := path.GetSourceRefreshPaths(&app, source)
+					// Resolve policy using app-level and global settings (project not available in webhook context)
+					resolvedPolicy := manifestgen.ResolveManifestGeneratePolicy(
+						app.Spec.ManifestGeneratePolicy,
+						nil,
+						globalManifestGeneratePolicy,
+					)
+					refreshPaths := path.GetSourceRefreshPaths(&app, source, resolvedPolicy)
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						hydrate := false
 						if app.Spec.SourceHydrator != nil {

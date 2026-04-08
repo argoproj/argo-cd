@@ -110,7 +110,11 @@ func CheckOutOfBoundsSymlinks(basePath string, skipPaths ...string) error {
 //   - if source hydrator configured AND source is syncSource: use sync source path (ignores annotation)
 //   - if source hydrator configured AND source is drySource WITH annotation: use annotation paths with drySource base
 //   - if source hydrator not configured: use annotation paths with source base, or empty if no annotation
-func GetSourceRefreshPaths(app *v1alpha1.Application, source v1alpha1.ApplicationSource) []string {
+func GetSourceRefreshPaths(app *v1alpha1.Application, source v1alpha1.ApplicationSource, manifestGeneratePolicy v1alpha1.ManifestGeneratePolicy) []string {
+	if manifestGeneratePolicy == v1alpha1.ManifestGeneratePolicyStrict {
+		return []string{source.Path}
+	}
+
 	annotationPaths, hasAnnotation := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
 	if app.Spec.SourceHydrator != nil {

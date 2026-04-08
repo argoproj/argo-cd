@@ -54,6 +54,10 @@ func getApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath stri
 
 // getPaths retrieves all absolute paths associated with the generation of application manifests.
 func getPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
+	if q.ManifestGeneratePolicy == "strict" {
+		return []string{appPath}
+	}
+
 	var paths []string
 	for annotationPath := range strings.SplitSeq(q.AnnotationManifestGeneratePaths, ";") {
 		if annotationPath == "" {

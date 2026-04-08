@@ -516,6 +516,8 @@ const (
 	impersonationEnabledKey = "application.sync.impersonation.enabled"
 	// requireOverridePrivilegeForRevisionSyncKey is the key to configure whether giving an external revision during sync is considered an override
 	requireOverridePrivilegeForRevisionSyncKey = "application.sync.requireOverridePrivilegeForRevisionSync"
+	// settingsManifestGeneratePolicyKey is the key to configure the global manifest generation policy
+	settingsManifestGeneratePolicyKey = "manifestGeneratePolicy"
 )
 
 const (
@@ -832,6 +834,15 @@ func (mgr *SettingsManager) GetInstallationID() (string, error) {
 		return "", err
 	}
 	return argoCDCM.Data[settingsInstallationID], nil
+}
+
+// GetManifestGeneratePolicy returns the global manifest generation policy from argocd-cm.
+func (mgr *SettingsManager) GetManifestGeneratePolicy() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	return argoCDCM.Data[settingsManifestGeneratePolicyKey], nil
 }
 
 func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
