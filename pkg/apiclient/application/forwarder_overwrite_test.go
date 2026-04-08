@@ -25,25 +25,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/test"
 )
 
-func processApplicationListField(t *testing.T, v any, fields map[string]any, exclude bool) (any, error) {
-	t.Helper()
-	if appList, ok := v.(*v1alpha1.ApplicationList); ok {
-		var items []map[string]any
-		for i := range appList.Items {
-			converted, err := processAppFields(&appList.Items[i], fields, exclude)
-			if err != nil {
-				return nil, err
-			}
-			items = append(items, converted)
-		}
-		return map[string]any{
-			"items":    items,
-			"metadata": appList.ListMeta,
-		}, nil
-	}
-	return nil, errors.New("not an application list")
-}
-
 func TestProcessApplicationListField_SyncOperation(t *testing.T) {
 	list := v1alpha1.ApplicationList{
 		Items: []v1alpha1.Application{{Operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{
@@ -51,7 +32,7 @@ func TestProcessApplicationListField_SyncOperation(t *testing.T) {
 		}}}},
 	}
 
-	res, err := processApplicationListField(t, &list, map[string]any{"items.operation.sync": true}, false)
+	res, err := processApplicationListField(&list, map[string]any{"items.operation.sync": true}, false)
 	require.NoError(t, err)
 	resMap, ok := res.(map[string]any)
 	require.True(t, ok)
@@ -72,7 +53,7 @@ func TestProcessApplicationListField_SyncOperationMissing(t *testing.T) {
 		Items: []v1alpha1.Application{{Operation: nil}},
 	}
 
-	res, err := processApplicationListField(t, &list, map[string]any{"items.operation.sync": true}, false)
+	res, err := processApplicationListField(&list, map[string]any{"items.operation.sync": true}, false)
 	require.NoError(t, err)
 	resMap, ok := res.(map[string]any)
 	require.True(t, ok)
@@ -243,7 +224,7 @@ func TestStreamApplicationListJSON_MatchesProcessApplicationListField(t *testing
 	}
 
 	// Get result from the batch processApplicationListField
-	batchResult, err := processApplicationListField(t, list, fields, false)
+	batchResult, err := processApplicationListField(list, fields, false)
 	require.NoError(t, err)
 	batchJSON, err := json.Marshal(batchResult)
 	require.NoError(t, err)
@@ -375,7 +356,7 @@ func TestStreamApplicationListJSON_MatchesFieldFilter_AllFields(t *testing.T) {
 	}
 
 	// Batch (old path)
-	batchResult, err := processApplicationListField(t, list, fields, false)
+	batchResult, err := processApplicationListField(list, fields, false)
 	require.NoError(t, err)
 	batchJSON, err := json.Marshal(batchResult)
 	require.NoError(t, err)
@@ -410,7 +391,7 @@ func TestStreamApplicationListJSON_MatchesFieldFilter_Exclude(t *testing.T) {
 	// Exclude spec
 	fields := map[string]any{"items.spec": true}
 
-	batchResult, err := processApplicationListField(t, list, fields, true)
+	batchResult, err := processApplicationListField(list, fields, true)
 	require.NoError(t, err)
 	batchJSON, err := json.Marshal(batchResult)
 	require.NoError(t, err)
@@ -458,9 +439,7 @@ func TestForwarder_HeadersMatchForwardResponseMessage(t *testing.T) {
 	}
 
 	// --- Old path: UnaryForwarderWithFieldProcessor via ForwardResponseMessage ---
-	oldForwarder := argohttp.UnaryForwarderWithFieldProcessor(func(val any, fields map[string]any, exclude bool) (any, error) {
-		return processApplicationListField(t, val, fields, exclude)
-	})
+	oldForwarder := argohttp.UnaryForwarderWithFieldProcessor(processApplicationListField)
 	oldRec := httptest.NewRecorder()
 	oldReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/applications?fields=items.metadata.name", http.NoBody)
 	oldForwarder(ctx, mux, nil, oldRec, oldReq, list, testOpt)

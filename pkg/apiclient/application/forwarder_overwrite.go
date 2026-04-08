@@ -175,20 +175,12 @@ func streamApplicationListJSON(w io.Writer, appList *v1alpha1.ApplicationList, f
 // Respects omitempty: fields are only written when non-empty.
 func writeInlineTypeMeta(w io.Writer, tm *metav1.TypeMeta) error {
 	if tm.Kind != "" {
-		data, err := json.Marshal(tm.Kind)
-		if err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(w, `"kind":%s,`, data); err != nil {
+		if _, err := fmt.Fprintf(w, `"kind":"%s",`, tm.Kind); err != nil {
 			return err
 		}
 	}
 	if tm.APIVersion != "" {
-		data, err := json.Marshal(tm.APIVersion)
-		if err != nil {
-			return err
-		}
-		if _, err := fmt.Fprintf(w, `"apiVersion":%s,`, data); err != nil {
+		if _, err := fmt.Fprintf(w, `"apiVersion":"%s",`, tm.APIVersion); err != nil {
 			return err
 		}
 	}
@@ -210,6 +202,24 @@ func parseFieldSelection(req *gohttp.Request) (fields map[string]any, exclude bo
 		fields[field] = true
 	}
 	return fields, exclude
+}
+
+func processApplicationListField(v any, fields map[string]any, exclude bool) (any, error) {
+	if appList, ok := v.(*v1alpha1.ApplicationList); ok {
+		var items []map[string]any
+		for i := range appList.Items {
+			converted, err := processAppFields(&appList.Items[i], fields, exclude)
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, converted)
+		}
+		return map[string]any{
+			"items":    items,
+			"metadata": appList.ListMeta,
+		}, nil
+	}
+	return nil, errors.New("not an application list")
 }
 
 func init() {
@@ -257,6 +267,12 @@ func init() {
 		appList, ok := resp.(*v1alpha1.ApplicationList)
 		if !ok {
 			runtime.ForwardResponseMessage(ctx, mux, marshaler, w, req, resp, opts...)
+			return
+		}
+
+		if req.Header.Get("Accept") == "text/event-stream" {
+			// Use old non-streaming processor
+			http.UnaryForwarderWithFieldProcessor(processApplicationListField)(ctx, mux, marshaler, w, req, resp, opts...)
 			return
 		}
 
