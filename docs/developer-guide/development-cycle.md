@@ -60,7 +60,7 @@ The Linter might make some automatic changes to your code, such as indentation f
 * Finally, after the Linter reports no errors, run `git status` or `git diff` to check for any changes made automatically by Lint
 * If there were automatic changes, commit them to your local branch
 
-If you touched UI code, you should also run the Yarn linter on it:
+If you touched UI code, you should also run the linter on it:
 
 * Run `make lint-ui` or `make lint-ui-local`
 * Fix any of the errors reported by it
