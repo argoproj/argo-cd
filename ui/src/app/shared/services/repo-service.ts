@@ -19,6 +19,7 @@ export interface HTTPSQuery {
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
     insecureOCIForceHttp: boolean;
+    depth?: number;
 }
 
 export interface SSHQuery {
@@ -31,6 +32,7 @@ export interface SSHQuery {
     proxy: string;
     noProxy: string;
     project?: string;
+    depth?: number;
 }
 
 export interface GitHubAppQuery {
@@ -48,6 +50,7 @@ export interface GitHubAppQuery {
     proxy: string;
     noProxy: string;
     project?: string;
+    depth?: number;
 }
 
 export interface GoogleCloudSourceQuery {
@@ -58,6 +61,7 @@ export interface GoogleCloudSourceQuery {
     proxy: string;
     noProxy: string;
     project?: string;
+    depth?: number;
 }
 
 export class RepositoriesService {
@@ -109,7 +113,8 @@ export class RepositoriesService {
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: q.insecureOCIForceHttp
+                insecureOCIForceHttp: q.insecureOCIForceHttp,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -134,7 +139,8 @@ export class RepositoriesService {
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: q.insecureOCIForceHttp
+                insecureOCIForceHttp: q.insecureOCIForceHttp,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -159,7 +165,8 @@ export class RepositoriesService {
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: q.insecureOCIForceHttp
+                insecureOCIForceHttp: q.insecureOCIForceHttp,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -184,7 +191,8 @@ export class RepositoriesService {
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: q.insecureOCIForceHttp
+                insecureOCIForceHttp: q.insecureOCIForceHttp,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -201,7 +209,8 @@ export class RepositoriesService {
                 enableLfs: q.enableLfs,
                 proxy: q.proxy,
                 noProxy: q.noProxy,
-                project: q.project
+                project: q.project,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -218,7 +227,8 @@ export class RepositoriesService {
                 enableLfs: q.enableLfs,
                 proxy: q.proxy,
                 noProxy: q.noProxy,
-                project: q.project
+                project: q.project,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -240,7 +250,8 @@ export class RepositoriesService {
                 enableLfs: q.enableLfs,
                 proxy: q.proxy,
                 noProxy: q.noProxy,
-                project: q.project
+                project: q.project,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -262,7 +273,8 @@ export class RepositoriesService {
                 enableLfs: q.enableLfs,
                 proxy: q.proxy,
                 noProxy: q.noProxy,
-                project: q.project
+                project: q.project,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -277,7 +289,8 @@ export class RepositoriesService {
                 gcpServiceAccountKey: q.gcpServiceAccountKey,
                 proxy: q.proxy,
                 noProxy: q.noProxy,
-                project: q.project
+                project: q.project,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
@@ -292,7 +305,8 @@ export class RepositoriesService {
                 gcpServiceAccountKey: q.gcpServiceAccountKey,
                 proxy: q.proxy,
                 noProxy: q.noProxy,
-                project: q.project
+                project: q.project,
+                depth: q.depth
             })
             .then(res => res.body as models.Repository);
     }
