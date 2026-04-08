@@ -11,8 +11,10 @@ permissions: {}
 
 env:
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.26.0' # Note: go-version must also be set in job argocd-image.with.go-version
-
+  GOLANG_VERSION: '1.26.1' # Note: go-version must also be set in job argocd-image.with.go-version  
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+  
 jobs:
   argocd-image:
     needs: [setup-variables]
@@ -26,7 +28,7 @@ jobs:
       quay_image_name: ${{ needs.setup-variables.outputs.quay_image_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.26.0
+      go-version: 1.26.1
       platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
       push: true
     secrets:
@@ -47,6 +49,11 @@ jobs:
       provenance_image: ${{ steps.var.outputs.provenance_image }}
       allow_fork_release: ${{ steps.var.outputs.allow_fork_release }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
+        with:
+          egress-policy: audit
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:

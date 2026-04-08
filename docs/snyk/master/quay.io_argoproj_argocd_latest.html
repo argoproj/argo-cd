@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="19 known vulnerabilities found in 76 vulnerable dependency paths.">
+  <meta name="description" content="21 known vulnerabilities found in 78 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">March 29th 2026, 12:34:10 am (UTC+00:00)</p>
+                <p class="timestamp">April 5th 2026, 12:34:42 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -506,8 +506,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>19</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>76 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>21</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>78 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2350</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -517,7 +517,7 @@
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2026-3184</h2>
+            <h2 class="card__title">Authentication Bypass</h2>
             <div class="card__section">
         
                 <div class="card__labels">
@@ -766,12 +766,16 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>util-linux</code> package and not the <code>util-linux</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:25.10</code> relevant fixed versions and status.</em></p>
+        <p>A flaw was found in util-linux. Improper hostname canonicalization in the <code>login(1)</code> utility, when invoked with the <code>-h</code> option, can modify the supplied remote hostname before setting <code>PAM_RHOST</code>. A remote attacker could exploit this by providing a specially crafted hostname, potentially bypassing host-based Pluggable Authentication Modules (PAM) access control rules that rely on fully qualified domain names. This could lead to unauthorized access.</p>
         <h2 id="remediation">Remediation</h2>
         <p>There is no fixed version for <code>Ubuntu:25.10</code> <code>util-linux</code>.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-3184">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-3184</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2026-3184">https://access.redhat.com/security/cve/CVE-2026-3184</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2442570">https://bugzilla.redhat.com/show_bug.cgi?id=2442570</a></li>
         </ul>
         
               <hr/>
@@ -1863,6 +1867,153 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-git/go-git/v5/plumbing/format/index
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/go-git/go-git/v5/plumbing/format/index@v5.14.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/format/index@v5.14.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling through the handling of <code>.idx</code> files. An attacker with write access to the local repository&#39;s <code>.git</code> directory can exhaust system memory by introducing a maliciously crafted <code>.idx</code> file into the <code>.git</code> directory.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-git/go-git/v5/plumbing/format/index</code> to version 5.17.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-git/go-git/security/advisories/GHSA-jhf3-xxhw-2wpp">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/3ec0d70cb687ae1da5f4d18faa4229bd971a8710">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/6b38a326816b80f64c20cc0e6113958b65c05a1c">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBINGFORMATINDEX-15855220">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Validation of Array Index</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-git/go-git/v5/plumbing/format/index
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/go-git/go-git/v5/plumbing/format/index@v5.14.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5/plumbing/format/index@v5.14.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Improper Validation of Array Index through improper validation in the index decoding for version 4 files. An attacker with write access to the <code>.git</code> directory to modify or inject the index file can cause a panic and terminate the process by supplying a maliciously crafted <code>.git/index</code> file that triggers an out-of-bounds slice operation during index parsing.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-git/go-git/v5/plumbing/format/index</code> to version 5.17.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-git/go-git/security/advisories/GHSA-gm2x-2g9h-ccm8">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/e9b65df44cb97faeba148b47523a362beaecddf9">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBINGFORMATINDEX-15855246">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Improper Encoding or Escaping of Output</h2>
             <div class="card__section">
         
@@ -2476,7 +2627,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        tzdata@2025b-3ubuntu1.1
+                                        tzdata@2026a-0ubuntu0.25.10.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils/gnu-coreutils@9.5-1ubuntu4.1
                                         
