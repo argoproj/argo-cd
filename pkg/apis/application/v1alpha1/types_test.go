@@ -5087,3 +5087,149 @@ func TestSyncPolicyAutomatedSerialisation(t *testing.T) {
 		})
 	}
 }
+
+func TestGetDrySource_PreservesAllFields(t *testing.T) {
+	tests := []struct {
+		name       string
+		hydrator   SourceHydrator
+		wantNil    []string
+		wantNotNil []string
+	}{
+		{
+			name: "preserves Helm configuration",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://example.com/repo",
+					Path:           "charts",
+					TargetRevision: "main",
+					Helm: &ApplicationSourceHelm{
+						ValueFiles:  []string{"values.yaml"},
+						ReleaseName: "my-release",
+					},
+				},
+			},
+			wantNotNil: []string{"Helm"},
+			wantNil:    []string{"Kustomize", "Directory", "Plugin"},
+		},
+		{
+			name: "preserves Kustomize configuration",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://example.com/repo",
+					Path:           "overlays/prod",
+					TargetRevision: "main",
+					Kustomize: &ApplicationSourceKustomize{
+						NamePrefix: "prod-",
+						Images:     KustomizeImages{"nginx=nginx:1.21"},
+					},
+				},
+			},
+			wantNotNil: []string{"Kustomize"},
+			wantNil:    []string{"Helm", "Directory", "Plugin"},
+		},
+		{
+			name: "preserves Directory configuration",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://example.com/repo",
+					Path:           "manifests",
+					TargetRevision: "main",
+					Directory: &ApplicationSourceDirectory{
+						Recurse: true,
+						Jsonnet: ApplicationSourceJsonnet{
+							ExtVars: []JsonnetVar{{Name: "env", Value: "prod"}},
+						},
+					},
+				},
+			},
+			wantNotNil: []string{"Directory"},
+			wantNil:    []string{"Helm", "Kustomize", "Plugin"},
+		},
+		{
+			name: "preserves Plugin configuration",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://example.com/repo",
+					Path:           ".",
+					TargetRevision: "main",
+					Plugin: &ApplicationSourcePlugin{
+						Name: "my-plugin",
+						Env:  Env{{Name: "FOO", Value: "bar"}},
+					},
+				},
+			},
+			wantNotNil: []string{"Plugin"},
+			wantNil:    []string{"Helm", "Kustomize", "Directory"},
+		},
+		{
+			name: "preserves multiple source types",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://example.com/repo",
+					Path:           ".",
+					TargetRevision: "main",
+					Helm: &ApplicationSourceHelm{
+						ValueFiles: []string{"values.yaml"},
+					},
+					Kustomize: &ApplicationSourceKustomize{
+						NamePrefix: "test-",
+					},
+				},
+			},
+			wantNotNil: []string{"Helm", "Kustomize"},
+			wantNil:    []string{"Directory", "Plugin"},
+		},
+		{
+			name: "handles nil source types",
+			hydrator: SourceHydrator{
+				DrySource: DrySource{
+					RepoURL:        "https://example.com/repo",
+					Path:           ".",
+					TargetRevision: "main",
+				},
+			},
+			wantNil: []string{"Helm", "Kustomize", "Directory", "Plugin"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			source := tt.hydrator.GetDrySource()
+
+			// Verify basic fields are always copied
+			assert.Equal(t, tt.hydrator.DrySource.RepoURL, source.RepoURL)
+			assert.Equal(t, tt.hydrator.DrySource.Path, source.Path)
+			assert.Equal(t, tt.hydrator.DrySource.TargetRevision, source.TargetRevision)
+
+			// Verify source type fields are preserved
+			fieldMap := map[string]any{
+				"Helm":      source.Helm,
+				"Kustomize": source.Kustomize,
+				"Directory": source.Directory,
+				"Plugin":    source.Plugin,
+			}
+
+			for _, field := range tt.wantNotNil {
+				assert.NotNil(t, fieldMap[field], "expected %s to be preserved", field)
+			}
+
+			for _, field := range tt.wantNil {
+				assert.Nil(t, fieldMap[field], "expected %s to be nil", field)
+			}
+
+			// Verify exact equality for non-nil fields
+			if tt.hydrator.DrySource.Helm != nil {
+				assert.Equal(t, tt.hydrator.DrySource.Helm, source.Helm)
+			}
+			if tt.hydrator.DrySource.Kustomize != nil {
+				assert.Equal(t, tt.hydrator.DrySource.Kustomize, source.Kustomize)
+			}
+			if tt.hydrator.DrySource.Directory != nil {
+				assert.Equal(t, tt.hydrator.DrySource.Directory, source.Directory)
+			}
+			if tt.hydrator.DrySource.Plugin != nil {
+				assert.Equal(t, tt.hydrator.DrySource.Plugin, source.Plugin)
+			}
+		})
+	}
+}
