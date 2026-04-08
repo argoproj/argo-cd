@@ -122,27 +122,29 @@ func GetSourceRefreshPaths(app *v1alpha1.Application, source v1alpha1.Applicatio
 		}
 	}
 
-	var paths []string
-	if hasAnnotation && annotationPaths != "" {
+	// Prefer source-level ManifestGeneratePaths over annotation
+	var rawPaths []string
+	if len(source.ManifestGeneratePaths) > 0 {
+		rawPaths = source.ManifestGeneratePaths
+	} else if hasAnnotation && annotationPaths != "" {
 		for item := range strings.SplitSeq(annotationPaths, ";") {
-			// Trim whitespace because annotation values may contain spaces around
-			// separators (e.g. ".; /path"). Without trimming, paths like " /path"
-			// are not treated as absolute and empty/space-only entries may result
-			// in duplicate or incorrect refresh paths.
 			item = strings.TrimSpace(item)
-			// skip empty paths
-			if item == "" {
-				continue
+			if item != "" {
+				rawPaths = append(rawPaths, item)
 			}
-			// if absolute path, add as is
-			if filepath.IsAbs(item) {
-				paths = append(paths, item[1:])
-				continue
-			}
-
-			// add the path relative to the source path
-			paths = append(paths, filepath.Clean(filepath.Join(source.Path, item)))
 		}
+	}
+
+	var paths []string
+	for _, item := range rawPaths {
+		// if absolute path, add as is (strip leading slash)
+		if filepath.IsAbs(item) {
+			paths = append(paths, item[1:])
+			continue
+		}
+
+		// add the path relative to the source path
+		paths = append(paths, filepath.Clean(filepath.Join(source.Path, item)))
 	}
 
 	return paths

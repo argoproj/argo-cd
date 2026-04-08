@@ -2040,6 +2040,36 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T)
 	require.False(t, revisionsMayHaveChanges)
 }
 
+func TestCompareAppState_CallUpdateRevisionForPaths_WithSourceLevelField(t *testing.T) {
+	app := newFakeApp()
+	// No annotation set — use source-level ManifestGeneratePaths instead
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Revision: "abc123",
+		Status:   v1alpha1.SyncStatusCodeSynced,
+	}
+
+	source := app.Spec.GetSource()
+	source.ManifestGeneratePaths = []string{"."}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: false},
+	}
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Minute, nil, nil)
+
+	sources := []v1alpha1.ApplicationSource{source}
+
+	// Pass a different revision than synced to trigger the UpdateRevisionForPaths path
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"def456"}, false, false, false, &defaultProj, false)
+	require.NoError(t, err)
+	require.False(t, revisionsMayHaveChanges)
+}
+
 func Test_isObjRequiresDeletionConfirmation(t *testing.T) {
 	for _, tt := range []struct {
 		name                string

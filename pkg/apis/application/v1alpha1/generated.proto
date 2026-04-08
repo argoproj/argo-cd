@@ -507,6 +507,11 @@ message ApplicationSource {
 
   // Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.
   optional string name = 14;
+
+  // ManifestGeneratePaths is a list of paths that should trigger manifest regeneration for this source.
+  // Paths are relative to the source path, or absolute (starting with '/') relative to the repository root.
+  // When set, this field takes precedence over the argocd.argoproj.io/manifest-generate-paths annotation.
+  repeated string manifestGeneratePaths = 15;
 }
 
 // ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet

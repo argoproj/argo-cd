@@ -216,6 +216,10 @@ type ApplicationSource struct {
 	Ref string `json:"ref,omitempty" protobuf:"bytes,13,opt,name=ref"`
 	// Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.
 	Name string `json:"name,omitempty" protobuf:"bytes,14,opt,name=name"`
+	// ManifestGeneratePaths is a list of paths that should trigger manifest regeneration for this source.
+	// Paths are relative to the source path, or absolute (starting with '/') relative to the repository root.
+	// When set, this field takes precedence over the argocd.argoproj.io/manifest-generate-paths annotation.
+	ManifestGeneratePaths []string `json:"manifestGeneratePaths,omitempty" protobuf:"bytes,15,rep,name=manifestGeneratePaths"`
 }
 
 // ApplicationSources contains list of required information about the sources of an application
