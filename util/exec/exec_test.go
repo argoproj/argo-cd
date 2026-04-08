@@ -215,8 +215,8 @@ func TestRedact(t *testing.T) {
 
 func TestStripAnsi(t *testing.T) {
 	cases := map[string]string{
-		"":                     "",
-		"plain text":           "plain text",
+		"":                             "",
+		"plain text":                   "plain text",
 		"\x1b[1;31mError\x1b[0m: oops": "Error: oops",
 		"\x1b[KNo newline clear":       "No newline clear",
 	}
