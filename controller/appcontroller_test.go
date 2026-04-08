@@ -1707,7 +1707,7 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 	proj := defaultProj.DeepCopy()
 	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
 
-	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, proj}}, nil)
 
 	simulateUpdateFunc := func(oldApp, newApp *v1alpha1.Application) {
 		if !ctrl.canProcessApp(newApp) {
