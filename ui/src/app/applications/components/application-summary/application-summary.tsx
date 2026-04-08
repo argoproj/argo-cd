@@ -528,6 +528,40 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
           ]
         : [...standardSourceItems, ...sourceItems];
 
+    async function toggleAutoSync(ctx: ContextApis) {
+        const isEnabled = app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false;
+        const confirmationTitle = isEnabled ? 'Disable Auto-Sync?' : 'Enable Auto-Sync?';
+        const confirmationText = isEnabled
+            ? 'Are you sure you want to disable automated application synchronization'
+            : 'If checked, application will automatically sync when changes are detected';
+        const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
+        if (confirmed) {
+            try {
+                setChangeSync(true);
+                await services.applications.runResourceAction(
+                    app.metadata.name,
+                    app.metadata.namespace,
+                    {
+                        name: app.metadata.name,
+                        namespace: app.metadata.namespace,
+                        group: 'argoproj.io',
+                        kind: 'Application',
+                        version: 'v1alpha1'
+                    } as models.ResourceNode,
+                    'toggle-auto-sync',
+                    []
+                );
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}:`} e={e} />,
+                    type: NotificationType.Error
+                });
+            } finally {
+                setChangeSync(false);
+            }
+        }
+    }
+
     async function setAutoSync(ctx: ContextApis, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean, enable: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
@@ -663,18 +697,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                 <div className='columns small-12'>
                                     <div className='checkbox-container'>
                                         <Checkbox
-                                            onChange={async (val: boolean) => {
-                                                const automated = app.spec.syncPolicy?.automated || {prune: false, selfHeal: false};
-                                                setAutoSync(
-                                                    ctx,
-                                                    val ? 'Enable Auto-Sync?' : 'Disable Auto-Sync?',
-                                                    val
-                                                        ? 'If checked, application will automatically sync when changes are detected'
-                                                        : 'Are you sure you want to disable automated application synchronization',
-                                                    automated.prune,
-                                                    automated.selfHeal,
-                                                    val
-                                                );
+                                            onChange={async () => {
+                                                await toggleAutoSync(ctx);
                                             }}
                                             checked={app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false}
                                             id='enable-auto-sync'
