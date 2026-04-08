@@ -163,10 +163,13 @@ spec:
 
         # Filters allow selecting which pull requests to generate for
         # Include any pull request branch ending with "argocd" 
-        # and pull request title starting with "feat:". (optional)
+        # or pull request title starting with "feat:". (optional)
         filters:
         - branchMatch: ".*-argocd"
         - titleMatch: "^feat:"
+        # Filtering by time when PR is created and last updated time
+        - createdWithin: "168h"
+          updatedWithin: "72h"
 
         # Specify the project from which to fetch the GitLab merge requests.
         gitlab:

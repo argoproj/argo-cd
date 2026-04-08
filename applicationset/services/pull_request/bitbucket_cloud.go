@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/ktrysmt/go-bitbucket"
 )
@@ -23,6 +24,8 @@ type BitbucketCloudPullRequest struct {
 	Source      BitbucketCloudPullRequestSource      `json:"source"`
 	Author      BitbucketCloudPullRequestAuthor      `json:"author"`
 	Destination BitbucketCloudPullRequestDestination `json:"destination"`
+	CreatedOn   string                               `json:"created_on"`
+	UpdatedOn   string                               `json:"updated_on"`
 }
 
 type BitbucketCloudPullRequestDestination struct {
@@ -49,6 +52,11 @@ type BitbucketCloudPullRequestSourceCommit struct {
 // Also have display_name and uuid, but don't plan to use them.
 type BitbucketCloudPullRequestAuthor struct {
 	Nickname string `json:"nickname"`
+}
+
+type BitbucketCloudPullRequestTime struct {
+	CreatedAt string `json:"created_at"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 type PullRequestResponse struct {
@@ -155,6 +163,14 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 	}
 
 	for _, pull := range pulls {
+		createdAt, err := time.Parse(time.RFC3339, pull.CreatedOn)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing CreatedOn field for PR %s %w", pull.CreatedOn, err)
+		}
+		updatedAt, err := time.Parse(time.RFC3339, pull.UpdatedOn)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing UpdatedOn field for PR %s %w", pull.UpdatedOn, err)
+		}
 		pullRequests = append(pullRequests, &PullRequest{
 			Number:       int64(pull.ID),
 			Title:        pull.Title,
@@ -162,6 +178,8 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 			TargetBranch: pull.Destination.Branch.Name,
 			HeadSHA:      pull.Source.Commit.Hash,
 			Author:       pull.Author.Nickname,
+			CreatedAt:    createdAt.UTC(),
+			UpdatedAt:    updatedAt.UTC(),
 		})
 	}
 
