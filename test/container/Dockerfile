@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:8.6.2@sha256:009cc37796fbdbe1b631b4cc0582bed167e5e403ed8bcd06f77eb6cb5aeb6f93 AS redis
+FROM docker.io/library/redis:8.6.2@sha256:970b561d234882c50495c69ffae28f94b6ad8d526f91f9b4ccdd8031466e11a2 AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -10,7 +10,7 @@ FROM docker.io/library/node:22.9.0@sha256:8398ea18b8b72817c84af283f72daed9629af2
 
 FROM docker.io/library/golang:1.26.1@sha256:595c7847cff97c9a9e76f015083c481d26078f961c9c8dca3923132f51fe12f1 AS golang
 
-FROM docker.io/library/registry:3.0@sha256:6c5666b861f3505b116bb9aa9b25175e71210414bd010d92035ff64018f9457e AS registry
+FROM docker.io/library/registry:3.1@sha256:afcd13fd045b8859ac4f60fef26fc2d2f9b7b9d9e604c3c4f7c2fb1b94f95a64 AS registry
 
 FROM docker.io/bitnamilegacy/kubectl:1.32@sha256:9524faf8e3cefb47fa28244a5d15f95ec21a73d963273798e593e61f80712333 AS kubectl
 
@@ -102,7 +102,6 @@ COPY --from=registry /etc/distribution/config.yml /etc/docker/registry/config.ym
 # Copy node binaries
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=node /usr/local/bin/node /usr/local/bin
-COPY --from=node /opt/yarn-v1.22.22 /opt/yarn-v1.22.22
 
 # Entrypoint is required for container's user management
 COPY ./test/container/entrypoint.sh /usr/local/bin
@@ -135,8 +134,8 @@ RUN userdel -r ubuntu && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
-    ln -s /opt/yarn-v1.22.22/bin/yarn /usr/local/bin/yarn && \
-    ln -s /opt/yarn-v1.22.22/bin/yarnpkg /usr/local/bin/yarnpkg && \
+    npm install -g corepack@0.34.6 && \
+    corepack enable && \
     mkdir -p /var/lib/registry
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
