@@ -184,25 +184,37 @@ func ReadAndConfirmPassword(username string) (string, error) {
 
 // SetLogFormat sets a logrus log format
 func SetLogFormat(logFormat string) {
-	switch strings.ToLower(logFormat) {
-	case utillog.JsonFormat:
-		os.Setenv(common.EnvLogFormat, utillog.JsonFormat)
-	case utillog.TextFormat, "":
-		os.Setenv(common.EnvLogFormat, utillog.TextFormat)
-	default:
-		log.Fatalf("Unknown log format '%s'", logFormat)
-	}
+    var err error
 
-	log.SetFormatter(utillog.CreateFormatter(logFormat))
+    switch strings.ToLower(logFormat) {
+    case utillog.JsonFormat:
+        err = os.Setenv(common.EnvLogFormat, utillog.JsonFormat)
+    case utillog.TextFormat, "":
+        err = os.Setenv(common.EnvLogFormat, utillog.TextFormat)
+    default:
+        log.Fatalf("Unknown log format '%s'", logFormat)
+    }
+
+    if err != nil {
+        log.Fatalf("failed to set env %s: %v", common.EnvLogFormat, err)
+    }
+
+    log.SetFormatter(utillog.CreateFormatter(logFormat))
 }
+
 
 // SetLogLevel parses and sets a logrus log level
 func SetLogLevel(logLevel string) {
-	level, err := log.ParseLevel(text.FirstNonEmpty(logLevel, log.InfoLevel.String()))
-	errors.CheckError(err)
-	os.Setenv(common.EnvLogLevel, level.String())
-	log.SetLevel(level)
+    level, err := log.ParseLevel(text.FirstNonEmpty(logLevel, log.InfoLevel.String()))
+    errors.CheckError(err)
+
+    if err := os.Setenv(common.EnvLogLevel, level.String()); err != nil {
+        log.Fatalf("failed to set env %s: %v", common.EnvLogLevel, err)
+    }
+
+    log.SetLevel(level)
 }
+
 
 // SetGLogLevel set the glog level for the k8s go-client
 func SetGLogLevel(glogLevel int) {

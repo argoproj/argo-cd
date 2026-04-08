@@ -77,9 +77,14 @@ func TestGetShardByID_NoReplicasUsingHashDistributionFunctionWithClusters(t *tes
 func TestGetClusterFilterDefault(t *testing.T) {
 	// shardIndex := 1 // ensuring that a shard with index 1 will process all the clusters with an "even" id (2,4,6,...)
 	clusterAccessor, _, cluster1, cluster2, cluster3, cluster4, _ := createTestClusters()
-	os.Unsetenv(common.EnvControllerShardingAlgorithm)
+
+	if err := os.Unsetenv(common.EnvControllerShardingAlgorithm); err != nil {
+		t.Fatalf("failed to unset env %s: %v", common.EnvControllerShardingAlgorithm, err)
+	}
+
 	replicasCount := 2
 	distributionFunction := RoundRobinDistributionFunction(clusterAccessor, replicasCount)
+
 	assert.Equal(t, 0, distributionFunction(nil))
 	assert.Equal(t, 0, distributionFunction(&cluster1))
 	assert.Equal(t, 1, distributionFunction(&cluster2))
@@ -102,21 +107,29 @@ func TestGetClusterFilterLegacy(t *testing.T) {
 }
 
 func TestGetClusterFilterUnknown(t *testing.T) {
-	clusterAccessor, db, cluster1, cluster2, cluster3, cluster4, _ := createTestClusters()
-	appAccessor, _, _, _, _, _ := createTestApps()
-	// Test with replicas set to 0
-	t.Setenv(common.EnvControllerReplicas, "2")
-	os.Unsetenv(common.EnvControllerShardingAlgorithm)
-	t.Setenv(common.EnvControllerShardingAlgorithm, "unknown")
-	replicasCount := 2
-	db.EXPECT().GetApplicationControllerReplicas().Return(replicasCount).Maybe()
-	distributionFunction := GetDistributionFunction(clusterAccessor, appAccessor, "unknown", replicasCount)
-	assert.Equal(t, 0, distributionFunction(nil))
-	assert.Equal(t, 0, distributionFunction(&cluster1))
-	assert.Equal(t, 1, distributionFunction(&cluster2))
-	assert.Equal(t, 0, distributionFunction(&cluster3))
-	assert.Equal(t, 1, distributionFunction(&cluster4))
+    clusterAccessor, db, cluster1, cluster2, cluster3, cluster4, _ := createTestClusters()
+    appAccessor, _, _, _, _, _ := createTestApps()
+
+       t.Setenv(common.EnvControllerReplicas, "2")
+
+       if err := os.Unsetenv(common.EnvControllerShardingAlgorithm); err != nil {
+        t.Fatalf("failed to unset env %s: %v", common.EnvControllerShardingAlgorithm, err)
+    }
+
+       t.Setenv(common.EnvControllerShardingAlgorithm, "unknown")
+
+    replicasCount := 2
+    db.EXPECT().GetApplicationControllerReplicas().Return(replicasCount).Maybe()
+
+       distributionFunction := GetDistributionFunction(clusterAccessor, appAccessor, "unknown", replicasCount)
+
+    assert.Equal(t, 0, distributionFunction(nil))
+    assert.Equal(t, 0, distributionFunction(&cluster1))
+    assert.Equal(t, 1, distributionFunction(&cluster2))
+    assert.Equal(t, 0, distributionFunction(&cluster3))
+    assert.Equal(t, 1, distributionFunction(&cluster4))
 }
+
 
 func TestLegacyGetClusterFilterWithFixedShard(t *testing.T) {
 	// shardIndex := 1 // ensuring that a shard with index 1 will process all the clusters with an "even" id (2,4,6,...)
