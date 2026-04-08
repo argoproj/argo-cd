@@ -333,6 +333,41 @@ func TestCanI_GetLogsDeny(t *testing.T) {
 	assert.Equal(t, "no", resp.Value)
 }
 
+func TestCanI_RBACPolicyMatchingWithNormalizedSubresource(t *testing.T) {
+	tests := []struct {
+		name         string
+		policy       string
+		expectedResp string
+	}{
+		{
+			name:         "allow policy without namespace",
+			policy:       "p, role:log-viewer, logs, get, myproject/*, allow",
+			expectedResp: "yes",
+		},
+		{
+			name:         "deny explicit default namespace policy",
+			policy:       "p, role:log-viewer, logs, get, myproject/default/*, allow",
+			expectedResp: "no",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			accountServer, _ := newTestAccountServerExt(t, t.Context(), nil)
+			require.NoError(t, accountServer.enf.SetBuiltinPolicy(tt.policy))
+			accountServer.enf.SetDefaultRole("role:log-viewer")
+
+			resp, err := accountServer.CanI(adminContext(t.Context()), &account.CanIRequest{
+				Resource:    "logs",
+				Action:      "get",
+				Subresource: "myproject/default/myapp",
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedResp, resp.Value)
+		})
+	}
+}
+
 func TestCanI_NormalizeDefaultNamespace(t *testing.T) {
 	// Test: subresource "myproject/default/myapp" with default namespace "default"
 	// Expected: normalized to "myproject/myapp" (matches */* policy)
