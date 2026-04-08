@@ -575,6 +575,17 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 				NoProxy:  ".example.com,127.0.0.1",
 			},
 		},
+		{
+			name: "with_github_app_fields",
+			repoCreds: appsv1.RepoCreds{
+				URL:                        "git@github.com:github-app",
+				Type:                       "git",
+				GithubAppPrivateKey:        "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----",
+				GithubAppId:                123,
+				GithubAppInstallationId:    456,
+				GitHubAppEnterpriseBaseURL: "https://ghe.example.com/api/v3",
+			},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -599,21 +610,42 @@ func TestSecretsRepositoryBackend_CreateRepoCreds(t *testing.T) {
 			assert.Equal(t, testCase.repoCreds.URL, string(secret.Data["url"]))
 			assert.Equal(t, testCase.repoCreds.Username, string(secret.Data["username"]))
 			assert.Equal(t, testCase.repoCreds.Password, string(secret.Data["password"]))
-			if enableOCI, err := strconv.ParseBool(string(secret.Data["githubAppPrivateKey"])); err == nil {
-				assert.Equal(t, strconv.FormatBool(testCase.repoCreds.EnableOCI), enableOCI)
+			if testCase.repoCreds.EnableOCI {
+				enableOCIRaw, ok := secret.Data["enableOCI"]
+				require.True(t, ok, "enableOCI key should be present in secret data when EnableOCI is true")
+				enableOCI, err := strconv.ParseBool(string(enableOCIRaw))
+				require.NoError(t, err)
+				assert.Equal(t, testCase.repoCreds.EnableOCI, enableOCI)
+			} else {
+				_, ok := secret.Data["enableOCI"]
+				assert.False(t, ok, "enableOCI key should be absent in secret data when EnableOCI is false")
 			}
 			assert.Equal(t, testCase.repoCreds.SSHPrivateKey, string(secret.Data["sshPrivateKey"]))
 			assert.Equal(t, testCase.repoCreds.TLSClientCertData, string(secret.Data["tlsClientCertData"]))
 			assert.Equal(t, testCase.repoCreds.TLSClientCertKey, string(secret.Data["tlsClientCertKey"]))
 			assert.Equal(t, testCase.repoCreds.Type, string(secret.Data["type"]))
 			assert.Equal(t, testCase.repoCreds.GithubAppPrivateKey, string(secret.Data["githubAppPrivateKey"]))
-			if githubAppPrivateKey, err := strconv.ParseInt(string(secret.Data["githubAppPrivateKey"]), 10, 64); err == nil {
-				assert.Equal(t, testCase.repoCreds.GithubAppId, githubAppPrivateKey)
+			if testCase.repoCreds.GithubAppId != 0 {
+				githubAppIDRaw, ok := secret.Data["githubAppID"]
+				require.True(t, ok, "githubAppID key should be present in secret data when GithubAppId is non-zero")
+				githubAppID, err := strconv.ParseInt(string(githubAppIDRaw), 10, 64)
+				require.NoError(t, err)
+				assert.Equal(t, testCase.repoCreds.GithubAppId, githubAppID)
+			} else {
+				_, ok := secret.Data["githubAppID"]
+				assert.False(t, ok, "githubAppID key should be absent in secret data when GithubAppId is 0")
 			}
-			if githubAppID, err := strconv.ParseInt(string(secret.Data["githubAppId"]), 10, 64); err == nil {
-				assert.Equal(t, testCase.repoCreds.GithubAppInstallationId, githubAppID)
+			if testCase.repoCreds.GithubAppInstallationId != 0 {
+				githubAppInstallationIDRaw, ok := secret.Data["githubAppInstallationID"]
+				require.True(t, ok, "githubAppInstallationID key should be present in secret data when GithubAppInstallationId is non-zero")
+				githubAppInstallationID, err := strconv.ParseInt(string(githubAppInstallationIDRaw), 10, 64)
+				require.NoError(t, err)
+				assert.Equal(t, testCase.repoCreds.GithubAppInstallationId, githubAppInstallationID)
+			} else {
+				_, ok := secret.Data["githubAppInstallationID"]
+				assert.False(t, ok, "githubAppInstallationID key should be absent in secret data when GithubAppInstallationId is 0")
 			}
-			assert.Equal(t, testCase.repoCreds.GitHubAppEnterpriseBaseURL, string(secret.Data["githubAppEnterpriseUrl"]))
+			assert.Equal(t, testCase.repoCreds.GitHubAppEnterpriseBaseURL, string(secret.Data["githubAppEnterpriseBaseUrl"]))
 			assert.Equal(t, testCase.repoCreds.Proxy, string(secret.Data["proxy"]))
 			assert.Equal(t, testCase.repoCreds.NoProxy, string(secret.Data["noProxy"]))
 		})
