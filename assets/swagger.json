@@ -9727,6 +9727,10 @@
         "username": {
           "type": "string",
           "title": "Username contains the user name used for authenticating at the remote repository"
+        },
+        "webhookManifestCacheWarmDisabled": {
+          "description": "WebhookManifestCacheWarmDisabled disables manifest cache warming during webhook processing for this repository.\nWhen set, webhook handlers will only trigger reconciliation for affected applications and skip Redis cache\noperations for unaffected ones. Recommended for large monorepos with plain YAML manifests.",
+          "type": "boolean"
         }
       }
     },
