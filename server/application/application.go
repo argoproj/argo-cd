@@ -1886,6 +1886,15 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	}
 
 	var streams []chan logEntry
+	var previousStreamErrors []error
+	hasStartedStream := false
+
+	newErrorLogStream := func(err error) chan logEntry {
+		logStream := make(chan logEntry, 1)
+		logStream <- logEntry{line: err.Error()}
+		close(logStream)
+		return logStream
+	}
 
 	for _, pod := range pods {
 		stream, err := kubeClientset.CoreV1().Pods(pod.Namespace).GetLogs(pod.Name, &corev1.PodLogOptions{
@@ -1897,23 +1906,38 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			TailLines:    tailLines,
 			Previous:     q.GetPrevious(),
 		}).Stream(ws.Context())
-		podName := pod.Name
-		logStream := make(chan logEntry)
-		if err == nil {
-			defer utilio.Close(stream)
+		if err != nil {
+			// For previous logs, align with kubectl and return an error when no previous
+			// log stream can be opened at all. For mixed multi-pod results we still expose
+			// per-pod failures inline alongside successful streams.
+			if q.GetPrevious() {
+				previousStreamErrors = append(previousStreamErrors, err)
+				continue
+			}
+
+			streams = append(streams, newErrorLogStream(err))
+			continue
 		}
 
+		hasStartedStream = true
+		defer utilio.Close(stream)
+
+		podName := pod.Name
+		logStream := make(chan logEntry)
 		streams = append(streams, logStream)
 		go func() {
-			// if k8s failed to start steaming logs (typically because Pod is not ready yet)
-			// then the error should be shown in the UI so that user know the reason
-			if err != nil {
-				logStream <- logEntry{line: err.Error()}
-			} else {
-				parseLogsStream(podName, stream, logStream)
-			}
+			parseLogsStream(podName, stream, logStream)
 			close(logStream)
 		}()
+	}
+
+	if q.GetPrevious() {
+		if !hasStartedStream && len(previousStreamErrors) > 0 {
+			return previousStreamErrors[0]
+		}
+		for _, err := range previousStreamErrors {
+			streams = append(streams, newErrorLogStream(err))
+		}
 	}
 
 	logStream := mergeLogStreams(streams, time.Millisecond*100)

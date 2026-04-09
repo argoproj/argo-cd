@@ -2,9 +2,12 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"slices"
 	"strconv"
 	"strings"
@@ -158,6 +161,11 @@ func newTestAppServer(t *testing.T, objects ...runtime.Object) *Server {
 
 func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer), additionalConfig map[string]string, objects ...runtime.Object) *Server {
 	t.Helper()
+	return newTestAppServerWithClusterAndEnforcerConfigure(t, fakeCluster(), f, additionalConfig, objects...)
+}
+
+func newTestAppServerWithClusterAndEnforcerConfigure(t *testing.T, cluster *v1alpha1.Cluster, f func(*rbac.Enforcer), additionalConfig map[string]string, objects ...runtime.Object) *Server {
+	t.Helper()
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -181,7 +189,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 	db := db.NewDB(testNamespace, settings.NewSettingsManager(ctx, kubeclientset, testNamespace), kubeclientset)
 	_, err := db.CreateRepository(ctx, fakeRepo())
 	require.NoError(t, err)
-	_, err = db.CreateCluster(ctx, fakeCluster())
+	_, err = db.CreateCluster(ctx, cluster)
 	require.NoError(t, err)
 
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: fakeRepoServerClient(false)}
@@ -661,10 +669,14 @@ func (t *TestResourceTreeServer) RecvMsg(_ any) error {
 }
 
 type TestPodLogsServer struct {
-	ctx context.Context
+	ctx     context.Context
+	entries []*application.LogEntry
 }
 
-func (t *TestPodLogsServer) Send(_ *application.LogEntry) error {
+func (t *TestPodLogsServer) Send(entry *application.LogEntry) error {
+	if entry != nil {
+		t.entries = append(t.entries, entry)
+	}
 	return nil
 }
 
@@ -3116,8 +3128,73 @@ func TestMaxPodLogsRender(t *testing.T) {
 	})
 }
 
+func TestPodLogsPreviousReturnsErrorWhenNoStreamsCanBeOpened(t *testing.T) {
+	appServer, adminCtx := createAppServerWithMaxLodLogs(t, 1)
+
+	err := appServer.PodLogs(&application.ApplicationPodLogsQuery{
+		Name:     new("test"),
+		Previous: new(true),
+	}, &TestPodLogsServer{ctx: adminCtx})
+
+	require.Error(t, err)
+}
+
+func TestPodLogsPreviousStreamsErrorsAlongsideSuccessfulLogs(t *testing.T) {
+	logServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.Contains(r.URL.Path, "/pods/pod-0/log"):
+			w.Header().Set("Content-Type", "text/plain")
+			_, _ = io.WriteString(w, "2026-03-10T00:00:00Z hello from pod-0\n")
+		case strings.Contains(r.URL.Path, "/pods/pod-1/log"):
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(&metav1.Status{
+				Status:  metav1.StatusFailure,
+				Message: `previous terminated container "guestbook-ui" in pod "pod-1" not found`,
+				Reason:  metav1.StatusReasonBadRequest,
+				Code:    http.StatusBadRequest,
+			})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer logServer.Close()
+
+	cluster := fakeCluster()
+	cluster.Server = logServer.URL
+
+	appServer, adminCtx := createAppServerWithClusterAndMaxLodLogs(t, cluster, 2)
+	ws := &TestPodLogsServer{ctx: adminCtx}
+
+	err := appServer.PodLogs(&application.ApplicationPodLogsQuery{
+		Name:     new("test"),
+		Previous: new(true),
+	}, ws)
+
+	require.NoError(t, err)
+
+	var contents []string
+	for _, entry := range ws.entries {
+		if entry.Content != nil && *entry.Content != "" {
+			contents = append(contents, *entry.Content)
+		}
+	}
+
+	assert.Contains(t, contents, "hello from pod-0")
+	assert.Condition(t, func() bool {
+		return slices.ContainsFunc(contents, func(content string) bool {
+			return strings.Contains(content, "pod-1")
+		})
+	})
+}
+
 // createAppServerWithMaxLodLogs creates a new app server with given number of pods and resources
 func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRender ...int64) (*Server, context.Context) {
+	t.Helper()
+	return createAppServerWithClusterAndMaxLodLogs(t, fakeCluster(), podNumber, maxPodLogsToRender...)
+}
+
+func createAppServerWithClusterAndMaxLodLogs(t *testing.T, cluster *v1alpha1.Cluster, podNumber int, maxPodLogsToRender ...int64) (*Server, context.Context) {
 	t.Helper()
 	runtimeObjects := make([]runtime.Object, podNumber+1)
 	resources := make([]v1alpha1.ResourceStatus, podNumber)
@@ -3146,6 +3223,7 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 
 	testApp := newTestApp(func(app *v1alpha1.Application) {
 		app.Name = "test"
+		app.Spec.Destination.Server = cluster.Server
 		app.Status.Resources = resources
 	})
 	runtimeObjects[podNumber] = testApp
@@ -3160,10 +3238,13 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 			enf.SetDefaultRole("role:admin")
 		}
 		formatInt := strconv.FormatInt(maxPodLogsToRender[0], 10)
-		appServer := newTestAppServerWithEnforcerConfigure(t, f, map[string]string{"server.maxPodLogsToRender": formatInt}, runtimeObjects...)
+		appServer := newTestAppServerWithClusterAndEnforcerConfigure(t, cluster, f, map[string]string{"server.maxPodLogsToRender": formatInt}, runtimeObjects...)
 		return appServer, adminCtx
 	}
-	appServer := newTestAppServer(t, runtimeObjects...)
+	appServer := newTestAppServerWithClusterAndEnforcerConfigure(t, cluster, func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}, map[string]string{}, runtimeObjects...)
 	return appServer, adminCtx
 }
 
