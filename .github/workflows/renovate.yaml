@@ -16,11 +16,23 @@ jobs:
     runs-on: ubuntu-24.04
     if: github.repository == 'argoproj/argo-cd'
     steps:
-      - name: Harden the runner (Audit all outbound calls)
+      - name: Harden the runner (Block unknown outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}
         uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
         with:
-          egress-policy: audit
+          egress-policy: block
+          disable-sudo-and-containers: "false" # renovatebot runs in `docker run`
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            raw.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            ghcr.io:443
+            pkg-containers.githubusercontent.com:443
+            hub.docker.com:443
+            proxy.golang.org:443
+            nodejs.org:443
+            pypi.org:443
 
       - name: Get token
         id: get_token
