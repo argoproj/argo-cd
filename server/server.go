@@ -63,8 +63,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -465,38 +463,28 @@ func (l *Listeners) Close() error {
 
 // logInClusterWarnings checks the in-cluster configuration and prints out any warnings.
 func (server *ArgoCDServer) logInClusterWarnings() error {
-	labelSelector := labels.NewSelector()
-	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
+	informer, err := server.settingsMgr.GetClusterInformer()
 	if err != nil {
-		return fmt.Errorf("failed to construct cluster-type label selector: %w", err)
+		return fmt.Errorf("failed to get cluster informer: %w", err)
 	}
-	labelSelector = labelSelector.Add(*req)
-	secretsLister, err := server.settingsMgr.GetSecretsLister()
+	clusters, err := informer.ListAvailableClusters()
 	if err != nil {
-		return fmt.Errorf("failed to get secrets lister: %w", err)
+		return fmt.Errorf("failed to list clusters: %w", err)
 	}
-	clusterSecrets, err := secretsLister.Secrets(server.ArgoCDServerOpts.Namespace).List(labelSelector)
-	if err != nil {
-		return fmt.Errorf("failed to list cluster secrets: %w", err)
-	}
-	var inClusterSecrets []string
-	for _, clusterSecret := range clusterSecrets {
-		cluster, err := db.SecretToCluster(clusterSecret)
-		if err != nil {
-			return fmt.Errorf("could not unmarshal cluster secret %q: %w", clusterSecret.Name, err)
-		}
+	var inClusterNames []string
+	for _, cluster := range clusters {
 		if cluster.Server == v1alpha1.KubernetesInternalAPIServerAddr {
-			inClusterSecrets = append(inClusterSecrets, clusterSecret.Name)
+			inClusterNames = append(inClusterNames, cluster.ObjectMeta.Name)
 		}
 	}
-	if len(inClusterSecrets) > 0 {
+	if len(inClusterNames) > 0 {
 		// Don't make this call unless we actually have in-cluster secrets, to save time.
 		inClusterEnabled, err := server.settingsMgr.IsInClusterEnabled()
 		if err != nil {
 			return fmt.Errorf("could not check if in-cluster is enabled: %w", err)
 		}
 		if !inClusterEnabled {
-			for _, clusterName := range inClusterSecrets {
+			for _, clusterName := range inClusterNames {
 				log.Warnf("cluster %q uses in-cluster server address but it's disabled in Argo CD settings", clusterName)
 			}
 		}
