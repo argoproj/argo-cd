@@ -34,20 +34,20 @@ These commands run `yarn install --frozen-lockfile` command, which only brings p
 ### Updating UI build dependencies
 
 If you need to add new UI dependencies or update existing ones you need 
-to run a `yarn` command in the ./ui directory to resolve and download new packages. 
+to run a `pnpm` command in the ./ui directory to resolve and download new packages. 
 
-You can run it in the docker container using the `make run-yarn` make target.
+You can run it in the docker container using the `make run-pnpm` make target.
 
 For example, to add new dependency `newpackage` you may run command like
 
 ```shell
-make run-yarn YARN_COMMAND="add newpackage --ignore-scripts"
+make run-pnpm PNPM_COMMAND="add newpackage --ignore-scripts"
 ```
 
 To upgrade an existing package:
 
 ```shell
-make run-yarn YARN_COMMAND="upgrade existingpackage@1.0.2 --ignore-scripts"
+make run-pnpm PNPM_COMMAND="upgrade existingpackage@1.0.2 --ignore-scripts"
 ```
 
 Please consider using best security practices when adding or upgrading
