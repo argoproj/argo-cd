@@ -2908,50 +2908,6 @@ func (s *Service) checkoutRevision(gitClient git.Client, revision string, submod
 	return closer, err
 }
 
-// fetch is a convenience function to fetch revisions
-// We assumed that the caller has already initialized the git repo, i.e. gitClient.Init() has been called
-func (s *Service) fetch(gitClient git.Client, targetRevisions []string) error {
-	err := fetch(gitClient, targetRevisions)
-	if err != nil {
-		for _, revision := range targetRevisions {
-			s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
-		}
-	}
-	return err
-}
-
-func fetch(gitClient git.Client, targetRevisions []string) error {
-	revisionPresent := true
-	for _, revision := range targetRevisions {
-		revisionPresent = gitClient.IsRevisionPresent(revision)
-		if !revisionPresent {
-			break
-		}
-	}
-	// Fetching can be skipped if the revision is already present locally.
-	if revisionPresent {
-		return nil
-	}
-	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-	err := gitClient.Fetch("", 0)
-	if err != nil {
-		return err
-	}
-	for _, revision := range targetRevisions {
-		if !gitClient.IsRevisionPresent(revision) {
-			// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If fetch fails
-			// for the given revision, try explicitly fetching it.
-			log.Infof("Failed to fetch revision %s: %v", revision, err)
-			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
-
-			if err := gitClient.Fetch(revision, 0); err != nil {
-				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
-			}
-		}
-	}
-	return nil
-}
-
 func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool, depth int64, cleanState bool) error {
 	err := gitClient.Init()
 	if err != nil {
@@ -3288,9 +3244,7 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 		return revision, syncedRevision, false, nil
 	}
 
-	getGitFilesChanges := func() ([]string, error) {
-		var files []string
-
+	getPathRelevantRevision := func() (string, error) {
 		s.metricsServer.IncPendingRepoRequest(repo.Repo)
 		defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
@@ -3298,39 +3252,32 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 			return s.checkoutRevision(gitClient, revision, false, 0, clean)
 		})
 		if err != nil {
-			return files, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+			return "", status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 		}
 		defer utilio.Close(closer)
 
-		if err := s.fetch(gitClient, []string{syncedRevision}); err != nil {
-			return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
-		}
-
-		files, err = gitClient.ChangedFiles(syncedRevision, revision)
+		pathRevision, err := gitClient.RevisionForPaths(revision, refreshPaths)
 		if err != nil {
-			return files, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
+			return "", status.Errorf(codes.Internal, "unable to find revision for paths %v in repo %s: %v", refreshPaths, repo.Repo, err)
 		}
-		return files, nil
+		return pathRevision, nil
 	}
 
-	files, err := s.cache.GetGitFilesChanges(repo.Repo, revision, syncedRevision)
+	pathRevision, err := getPathRelevantRevision()
 	if err != nil {
-		files, err = getGitFilesChanges()
-		if err != nil {
-			return revision, syncedRevision, true, err
-		}
+		return revision, syncedRevision, true, err
 	}
 
-	if err := s.cache.SetGitFilesChanges(repo.Repo, revision, syncedRevision, files); err != nil {
-		log.Warnf("Failed to store git files changes for `%s` repo in `%s...%s` with: %v", repo.Repo, revision, syncedRevision, err)
+	if pathRevision == "" || pathRevision != syncedRevision {
+		// Either no commit in the available history touched these paths (empty),
+		// or the last commit that touched them is different from the synced revision.
+		// In both cases, assume changes occurred.
+		return revision, syncedRevision, true, nil
 	}
 
-	changed := false
-	if len(files) != 0 {
-		changed = apppathutil.AppFilesHaveChanged(refreshPaths, files)
-	}
-
-	return revision, syncedRevision, changed, nil
+	// The last commit that modified the declared manifest-generate-paths is exactly
+	// the synced revision. No path-relevant changes since sync.
+	return syncedRevision, syncedRevision, false, nil
 }
 
 // UpdateRevisionForPaths compares git revisions for single and multi-source applications
