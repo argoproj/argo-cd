@@ -541,8 +541,8 @@ func TestValidateRepo_SourceHydrator(t *testing.T) {
 	drySource := app.Spec.SourceHydrator.GetDrySource()
 	assert.Equal(t, &drySource, receivedRequest.ApplicationSource)
 	assert.Equal(t, "HEAD", receivedRequest.Revision)
-	assert.Empty(t, receivedRequest.KubeVersion)
-	assert.Nil(t, receivedRequest.ApiVersions)
+	assert.Empty(t, receivedRequest.KubeVersion, "KubeVersion must be empty for dry sources to match hydrator cache keys")
+	assert.Nil(t, receivedRequest.ApiVersions, "ApiVersions must be nil for dry sources to match hydrator cache keys")
 }
 
 func TestFormatAppConditions(t *testing.T) {
