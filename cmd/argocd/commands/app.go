@@ -24,7 +24,6 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/ignore"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -62,7 +61,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
-	"github.com/argoproj/argo-cd/v3/util/manifeststream"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 	"github.com/argoproj/argo-cd/v3/util/text/label"
 )
@@ -1279,181 +1277,6 @@ type objKeyLiveTarget struct {
 func addServerSideDiffPerfFlags(command *cobra.Command, serverSideDiffConcurrency *int, serverSideDiffMaxBatchKB *int) {
 	command.Flags().IntVar(serverSideDiffConcurrency, "server-side-diff-concurrency", -1, "Max concurrent batches for server-side diff. -1 = unlimited, 1 = sequential, 2+ = concurrent (0 = invalid)")
 	command.Flags().IntVar(serverSideDiffMaxBatchKB, "server-side-diff-max-batch-kb", 250, "Max batch size in KB for server-side diff. Smaller values are safer for proxies")
-}
-
-// NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
-func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		refresh                   bool
-		hardRefresh               bool
-		exitCode                  bool
-		diffExitCode              int
-		local                     string
-		revision                  string
-		localRepoRoot             string
-		serverSideGenerate        bool
-		serverSideDiff            bool
-		serverSideDiffConcurrency int
-		serverSideDiffMaxBatchKB  int
-		localIncludes             []string
-		appNamespace              string
-		revisions                 []string
-		sourcePositions           []int64
-		sourceNames               []string
-		ignoreNormalizerOpts      normalizers.IgnoreNormalizerOpts
-	)
-	shortDesc := "Perform a diff against the target and live state."
-	command := &cobra.Command{
-		Use:   "diff APPNAME",
-		Short: shortDesc,
-		Long:  shortDesc + "\nUses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.\nReturns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found\nKubernetes Secrets are ignored from this diff.",
-		Run: func(c *cobra.Command, args []string) {
-			ctx := c.Context()
-
-			if len(args) != 1 {
-				c.HelpFunc()(c, args)
-				os.Exit(2)
-			}
-
-			if len(sourceNames) > 0 && len(sourcePositions) > 0 {
-				errors.Fatal(errors.ErrorGeneric, "Only one of source-positions and source-names can be specified.")
-			}
-
-			if len(sourcePositions) > 0 && len(revisions) != len(sourcePositions) {
-				errors.Fatal(errors.ErrorGeneric, "While using --revisions and --source-positions, length of values for both flags should be same.")
-			}
-
-			if len(sourceNames) > 0 && len(revisions) != len(sourceNames) {
-				errors.Fatal(errors.ErrorGeneric, "While using --revisions and --source-names, length of values for both flags should be same.")
-			}
-
-			clientset := headless.NewClientOrDie(clientOpts, c)
-			conn, appIf := clientset.NewApplicationClientOrDie()
-			defer utilio.Close(conn)
-			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
-			app, err := appIf.Get(ctx, &application.ApplicationQuery{
-				Name:         &appName,
-				Refresh:      getRefreshType(refresh, hardRefresh),
-				AppNamespace: &appNs,
-			})
-			errors.CheckError(err)
-
-			if len(sourceNames) > 0 {
-				sourceNameToPosition := getSourceNameToPositionMap(app)
-
-				for _, name := range sourceNames {
-					pos, ok := sourceNameToPosition[name]
-					if !ok {
-						log.Fatalf("Unknown source name '%s'", name)
-					}
-					sourcePositions = append(sourcePositions, pos)
-				}
-			}
-
-			resources, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
-			errors.CheckError(err)
-			conn, settingsIf := clientset.NewSettingsClientOrDie()
-			defer utilio.Close(conn)
-			argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
-			errors.CheckError(err)
-			diffOption := &DifferenceOption{}
-
-			hasServerSideDiffAnnotation := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
-
-			// Use annotation if flag not explicitly set
-			if !c.Flags().Changed("server-side-diff") {
-				serverSideDiff = hasServerSideDiffAnnotation
-			} else if serverSideDiff && !hasServerSideDiffAnnotation {
-				// Flag explicitly set to true, but app annotation is not set
-				fmt.Fprintf(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.\n")
-			}
-
-			// Server side diff with local requires server side generate to be set as there will be a mismatch with client-generated manifests.
-			if serverSideDiff && local != "" && !serverSideGenerate {
-				log.Fatal("--server-side-diff with --local requires --server-side-generate.")
-			}
-
-			switch {
-			case app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourcePositions) > 0:
-				numOfSources := int64(len(app.Spec.GetSources()))
-				for _, pos := range sourcePositions {
-					if pos <= 0 || pos > numOfSources {
-						log.Fatal("source-position cannot be less than 1 or more than number of sources in the app. Counting starts at 1.")
-					}
-				}
-
-				q := application.ApplicationManifestQuery{
-					Name:            &appName,
-					AppNamespace:    &appNs,
-					Revisions:       revisions,
-					SourcePositions: sourcePositions,
-					NoCache:         &hardRefresh,
-				}
-				res, err := appIf.GetManifests(ctx, &q)
-				errors.CheckError(err)
-
-				diffOption.res = res
-				diffOption.revisions = revisions
-			case revision != "":
-				q := application.ApplicationManifestQuery{
-					Name:         &appName,
-					Revision:     &revision,
-					AppNamespace: &appNs,
-					NoCache:      &hardRefresh,
-				}
-				res, err := appIf.GetManifests(ctx, &q)
-				errors.CheckError(err)
-				diffOption.res = res
-				diffOption.revision = revision
-			case local != "":
-				if serverSideGenerate {
-					client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
-					errors.CheckError(err)
-
-					err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, local, localIncludes)
-					errors.CheckError(err)
-
-					res, err := client.CloseAndRecv()
-					errors.CheckError(err)
-
-					diffOption.serversideRes = res
-				} else {
-					fmt.Fprintf(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.7.")
-					conn, clusterIf := clientset.NewClusterClientOrDie()
-					defer utilio.Close(conn)
-					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
-					errors.CheckError(err)
-
-					diffOption.local = local
-					diffOption.localRepoRoot = localRepoRoot
-					diffOption.cluster = cluster
-				}
-			}
-			proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-
-			foundDiffs := findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, app.GetName(), app.GetNamespace(), serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
-			if foundDiffs && exitCode {
-				os.Exit(diffExitCode)
-			}
-		},
-	}
-	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
-	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
-	command.Flags().BoolVar(&exitCode, "exit-code", true, "Return non-zero exit code when there is a diff. May also return non-zero exit code if there is an error.")
-	command.Flags().IntVar(&diffExitCode, "diff-exit-code", 1, "Return specified exit code when there is a diff. Typical error code is 20 but use another exit code if you want to differentiate from the generic exit code (20) returned by all CLI commands.")
-	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
-	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
-	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
-	command.Flags().BoolVar(&serverSideGenerate, "server-side-generate", false, "Used with --local, this will send your manifests to the server for diffing")
-	command.Flags().BoolVar(&serverSideDiff, "server-side-diff", false, "Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.")
-	addServerSideDiffPerfFlags(command, &serverSideDiffConcurrency, &serverSideDiffMaxBatchKB)
-	command.Flags().StringArrayVar(&localIncludes, "local-include", []string{"*.yaml", "*.yml", "*.json"}, "Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path.")
-	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only render the difference in namespace")
-	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
-	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
-	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
-	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
-	return command
 }
 
 // printResourceDiff prints the diff header and calls cli.PrintDiff for a resource
