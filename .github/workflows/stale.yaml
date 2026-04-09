@@ -1,7 +1,7 @@
 name: "Label stale issues and PRs"
 on:
   schedule:
-    - cron: "0 * * * *" #Runs midnight 12AM UTC
+    - cron: "0 0 * * *" #Runs midnight 12AM UTC
 
 #Added Recommended permissions
 permissions:
