@@ -17,6 +17,9 @@ jest.mock('../../services', () => ({
         authService: {
             settings: jest.fn(),
         },
+        version: {
+            version: jest.fn(),
+        },
     },
 }));
 
@@ -75,6 +78,8 @@ describe('ProtectedRoute', () => {
         jest.clearAllMocks();
         consoleErrorSpy.mockClear();
         sessionStorage.clear();
+        // Logged out with auth: minimal /api/version (matches server behavior).
+        mockServices.version.version.mockResolvedValue({Version: 'v2.0.0'});
         const base = document.createElement('base');
         base.setAttribute('href', '/');
         document.head.appendChild(base);
@@ -175,6 +180,59 @@ describe('ProtectedRoute', () => {
 
             expect(renderWithLayoutSpy).not.toHaveBeenCalled();
             expect(mockServices.users.get).toHaveBeenCalled();
+        });
+
+        it('should allow layout when api-server has --disable-auth (full version while logged out)', async () => {
+            const userInfo: UserInfo = {
+                loggedIn: false,
+                username: '',
+                iss: 'argocd',
+                groups: [],
+            };
+
+            const authSettings: AuthSettings = {
+                url: '',
+                statusBadgeEnabled: false,
+                statusBadgeRootUrl: '',
+                googleAnalytics: {trackingID: '', anonymizeUsers: true},
+                dexConfig: {connectors: []},
+                oidcConfig: undefined as any,
+                help: {chatUrl: '', chatText: '', binaryUrls: {}},
+                userLoginsDisabled: false,
+                kustomizeVersions: [],
+                uiCssURL: '',
+                uiBannerContent: '',
+                uiBannerURL: '',
+                uiBannerPermanent: false,
+                uiBannerPosition: '',
+                execEnabled: false,
+                appsInAnyNamespaceEnabled: false,
+                hydratorEnabled: false,
+                syncWithReplaceAllowed: false,
+            };
+
+            mockServices.users.get.mockResolvedValue(userInfo);
+            mockServices.authService.settings.mockResolvedValue(authSettings);
+            mockServices.version.version.mockResolvedValue({
+                Version: 'v2.0.0',
+                KustomizeVersion: 'v5.0.0',
+                HelmVersion: '',
+                JsonnetVersion: '',
+            });
+
+            const renderWithLayoutSpy = jest.fn((component: React.ReactElement) => <div className='layout'>{component}</div>);
+
+            renderer.create(
+                wrapWithContext(
+                    <MemoryRouter initialEntries={['/test']}>
+                        <ProtectedRoute component={TestComponent} path='/test' exact renderWithLayout={renderWithLayoutSpy} />
+                    </MemoryRouter>
+                )
+            );
+
+            await new Promise(resolve => setTimeout(resolve, 150));
+
+            expect(renderWithLayoutSpy).toHaveBeenCalled();
         });
 
         it('should redirect to login when SSO is not configured', async () => {

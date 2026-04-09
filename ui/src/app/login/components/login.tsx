@@ -39,11 +39,6 @@ export function Login(props: RouteComponentProps<{}>) {
 
             await services.users.login(username, password);
 
-            const userInfo = await services.users.get();
-            if (!userInfo.loggedIn) {
-                throw new Error('Session not established after login');
-            }
-
             let redirectPath = '/applications';
 
             if (returnURL) {
