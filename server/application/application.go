@@ -1908,17 +1908,23 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			// if k8s failed to start steaming logs (typically because Pod is not ready yet)
 			// then the error should be shown in the UI so that user know the reason
 			if err != nil {
-				logStream <- logEntry{line: err.Error()}
+				select {
+				case logStream <- logEntry{line: err.Error()}:
+				case <-ws.Context().Done():
+				}
 			} else {
-				parseLogsStream(podName, stream, logStream)
+				parseLogsStream(ws.Context(), podName, stream, logStream)
 			}
 			close(logStream)
 		}()
 	}
 
-	logStream := mergeLogStreams(streams, time.Millisecond*100)
+	logStream := mergeLogStreams(ws.Context(), streams, time.Millisecond*100)
 	sentCount := int64(0)
-	done := make(chan error)
+	// Buffered so the goroutine below can always send and exit, even if PodLogs has already
+	// returned due to client disconnect (ws.Context().Done). Without this, the goroutine
+	// would block on "done <- err" forever, leaking memory via bufio and mergeLogStreams buffers.
+	done := make(chan error, 1)
 	go func() {
 		for entry := range logStream {
 			if entry.err != nil {
