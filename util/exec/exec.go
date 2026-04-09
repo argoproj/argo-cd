@@ -32,8 +32,8 @@ var (
 	ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;?]*[a-zA-Z]`)
 )
 
-// StripAnsi removes ANSI escape sequences from s.
-func StripAnsi(s string) string {
+// stripAnsi removes ANSI escape sequences from s.
+func stripAnsi(s string) string {
 	return ansiEscapeRegex.ReplaceAllString(s, "")
 }
 
@@ -273,12 +273,13 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		return strings.TrimSuffix(output, "\n"), err
 	case err := <-done:
 		if err != nil {
-			output := StripAnsi(stdout.String())
+			stderrStr := stripAnsi(stderr.String())
+			output := stripAnsi(stdout.String())
 			if opts.CaptureStderr {
-				output += StripAnsi(stderr.String())
+				output += stderrStr
 			}
 			logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
-			err := newCmdError(redactor(args), errors.New(redactor(err.Error())), strings.TrimSpace(redactor(StripAnsi(stderr.String()))))
+			err := newCmdError(redactor(args), errors.New(redactor(err.Error())), strings.TrimSpace(redactor(stderrStr)))
 			if !opts.SkipErrorLogging {
 				logCtx.Error(err.Error())
 			}

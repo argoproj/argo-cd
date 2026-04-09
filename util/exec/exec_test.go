@@ -221,7 +221,7 @@ func TestStripAnsi(t *testing.T) {
 		"\x1b[KNo newline clear":       "No newline clear",
 	}
 	for in, want := range cases {
-		assert.Equal(t, want, StripAnsi(in))
+		assert.Equal(t, want, stripAnsi(in))
 	}
 }
 
