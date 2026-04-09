@@ -176,6 +176,10 @@
             font-weight: 500;
             padding-left: 8px;
             margin-bottom: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            @include responsive-widths();
         }
 
         &__status-button {
