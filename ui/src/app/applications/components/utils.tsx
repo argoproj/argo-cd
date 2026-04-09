@@ -943,7 +943,7 @@ export function getSyncRevisionLabelSuffix(repoUrl: string, targetRevision: stri
 
     if (revision.length >= 7 && !revision.startsWith(targetRevision)) {
         if (repoUrl.startsWith('oci://')) {
-            // Show "sha256: " plus the first 7 actual characters of the digest.
+            // Show "sha256:" plus the first 7 actual characters of the digest.
             if (revision.startsWith('sha256:')) {
                 return revision.substring(0, 14);
             }

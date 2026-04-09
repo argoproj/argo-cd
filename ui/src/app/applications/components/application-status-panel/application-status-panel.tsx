@@ -101,13 +101,13 @@ const renderSyncStatusRevision = (application: models.Application) => {
             <span className='application-status-panel__item-value__revision-main'>
                 {revisionLink ? (
                     <a href={revisionLink} target='_blank' rel='noopener noreferrer' title={branchName}>
-                        {revisionContent} <i className='fa fa-external-link-alt' />
+                        {revisionContent}<i className='fa fa-external-link-alt' />
                     </a>
                 ) : (
                     <span title={branchName}>{revisionContent}</span>
                 )}
             </span>
-            {extra && <span className='application-status-panel__item-value__revision-extra'>{extra}</span>}
+            {extra && <span className='application-status-panel__item-value__revision-extra'>{extra.trimStart()}</span>}
         </>
     );
 };
