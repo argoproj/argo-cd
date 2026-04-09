@@ -23,16 +23,41 @@ All following commands in this guide assume the namespace is already set.
 kubectl config set-context --current --namespace=argocd
 ```
 
-### Pull in all build dependencies
+### Pull in all UI build dependencies
 
-As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required dependencies, issue:
+As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required UI dependencies (NPM packages), issue:
 
 * `make dep-ui` or `make dep-ui-local`
+
+These commands run `yarn install --frozen-lockfile` command, which only brings package versions that are defined in the `yarn.lock` file without trying to resolve and download new package versions.
 
 Argo CD recently migrated to Go modules. Usually, dependencies will be downloaded at build time, but the Makefile provides two targets to download and vendor all dependencies:
 
 * `make mod-download` or `make mod-download-local` will download all required Go modules and
 * `make mod-vendor` or `make mod-vendor-local` will vendor those dependencies into the Argo CD source tree
+
+### Updating UI build dependencies
+
+If you need to add new UI dependencies or update existing ones you need
+to run a `yarn` command in the ./ui directory to resolve and download new packages.
+
+You can run it in the docker container using the `make run-yarn` make target.
+
+For example, to add new dependency `newpackage` you may run command like
+
+```shell
+make run-yarn YARN_COMMAND="add newpackage --ignore-scripts"
+```
+
+To upgrade an existing package:
+
+```shell
+make run-yarn YARN_COMMAND="upgrade existingpackage@1.0.2 --ignore-scripts"
+```
+
+Please consider using best security practices when adding or upgrading
+NPM dependencies, such as this
+[guide](https://github.com/lirantal/npm-security-best-practices/blob/main/README.md).
 
 ### Generate API glue code and other assets
 
