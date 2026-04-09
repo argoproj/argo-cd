@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -2347,4 +2348,90 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 			assert.Equal(t, tt.output, keys)
 		})
 	}
+}
+
+func TestSecretsInformerExcludesClusterSecrets(t *testing.T) {
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+	}
+	argoSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDSecretName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string][]byte{},
+	}
+	repoSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "repo-secret",
+			Namespace: "default",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+			},
+		},
+		Data: map[string][]byte{
+			"url": []byte("https://github.com/example/repo"),
+		},
+	}
+	clusterSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-secret",
+			Namespace: "default",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("https://cluster.example.com"),
+			"name":   []byte("test-cluster"),
+			"config": []byte("{}"),
+		},
+	}
+
+	kubeClient := fake.NewClientset(cm, argoSecret, repoSecret, clusterSecret)
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+
+	t.Run("secrets lister excludes cluster secrets", func(t *testing.T) {
+		lister, err := settingsManager.GetSecretsLister()
+		require.NoError(t, err)
+
+		secrets, err := lister.Secrets("default").List(labels.Everything())
+		require.NoError(t, err)
+
+		secretNames := make([]string, 0, len(secrets))
+		for _, s := range secrets {
+			secretNames = append(secretNames, s.Name)
+		}
+		assert.Contains(t, secretNames, "repo-secret", "repository secret should be in secrets informer")
+		assert.NotContains(t, secretNames, "cluster-secret", "cluster secret should be excluded from secrets informer")
+	})
+
+	t.Run("cluster informer includes cluster secrets", func(t *testing.T) {
+		informer, err := settingsManager.GetClusterInformer()
+		require.NoError(t, err)
+
+		cluster, err := informer.GetClusterByURL("https://cluster.example.com")
+		require.NoError(t, err)
+		assert.Equal(t, "test-cluster", cluster.Name)
+	})
+
+	t.Run("cluster informer excludes non-cluster secrets", func(t *testing.T) {
+		informer, err := settingsManager.GetClusterInformer()
+		require.NoError(t, err)
+
+		clusters, err := informer.ListClusters()
+		require.NoError(t, err)
+		for _, c := range clusters {
+			assert.NotEqual(t, "repo-secret", c.ObjectMeta.Name, "repository secret should not appear in cluster informer")
+		}
+	})
 }

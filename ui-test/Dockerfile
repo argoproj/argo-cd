@@ -19,7 +19,7 @@ RUN dpkg-divert --add --rename --divert /opt/google/chrome/google-chrome.real /o
 
 WORKDIR /usr/src/app
 COPY package*.json ./
-COPY yarn.lock ./
-RUN yarn install && yarn cache clean
+COPY pnpm-lock.yaml ./
+RUN npm install -g corepack@0.34.6 && corepack enable && pnpm install
 COPY . .
 

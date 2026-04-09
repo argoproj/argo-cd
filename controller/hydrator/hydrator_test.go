@@ -394,7 +394,7 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded(t *testing.T) {
 	app.Status.SourceHydrator.CurrentOperation = nil
 
 	var persistedStatus *v1alpha1.SourceHydratorStatus
-	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
 		persistedStatus = newStatus
 	}).Return().Once()
 	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
@@ -406,7 +406,7 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded(t *testing.T) {
 
 	h.ProcessAppHydrateQueueItem(app)
 
-	d.AssertCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
 
 	require.NotNil(t, persistedStatus)
@@ -433,6 +433,7 @@ func TestProcessAppHydrateQueueItem_HydrationPassedTimeout(t *testing.T) {
 		},
 	}
 	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
+	d.EXPECT().PersistHydrationStatus(app, &app.Status.SourceHydrator).Return().Once()
 
 	h := &Hydrator{
 		dependencies:         d,
@@ -442,7 +443,7 @@ func TestProcessAppHydrateQueueItem_HydrationPassedTimeout(t *testing.T) {
 	h.ProcessAppHydrateQueueItem(app)
 
 	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
-	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 }
 
 func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
@@ -458,7 +459,7 @@ func TestProcessAppHydrateQueueItem_NoSourceHydrator(t *testing.T) {
 	h.ProcessAppHydrateQueueItem(app)
 
 	// Should not call anything
-	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
 }
 
@@ -476,14 +477,15 @@ func TestProcessAppHydrateQueueItem_HydrationNotNeeded(t *testing.T) {
 		},
 	}
 
+	d.EXPECT().PersistHydrationStatus(app, &app.Status.SourceHydrator).Return().Once()
+
 	h := &Hydrator{
 		dependencies:         d,
 		statusRefreshTimeout: time.Minute,
 	}
 	h.ProcessAppHydrateQueueItem(app)
 
-	// Should not call anything
-	d.AssertNotCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
 }
 
@@ -504,7 +506,7 @@ func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
 	// Expect setAppHydratorError to be called
 	var persistedStatus1 *v1alpha1.SourceHydratorStatus
 	var persistedStatus2 *v1alpha1.SourceHydratorStatus
-	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Run(func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
 		switch orig.Name {
 		case app1.Name:
 			persistedStatus1 = newStatus
@@ -524,7 +526,7 @@ func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
 	assert.Contains(t, persistedStatus2.CurrentOperation.Message, "cannot hydrate because application default/test-app has an error")
 	assert.Equal(t, v1alpha1.HydrateOperationPhaseFailed, persistedStatus1.CurrentOperation.Phase)
 
-	d.AssertNumberOfCalls(t, "PersistAppHydratorStatus", 2)
+	d.AssertNumberOfCalls(t, "PersistHydrationStatus", 2)
 	d.AssertNotCalled(t, "RequestAppRefresh", mock.Anything, mock.Anything)
 }
 
@@ -548,7 +550,7 @@ func TestProcessHydrationQueueItem_HydrateFails_AppSpecificError(t *testing.T) {
 	// Expect setAppHydratorError to be called
 	var persistedStatus1 *v1alpha1.SourceHydratorStatus
 	var persistedStatus2 *v1alpha1.SourceHydratorStatus
-	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Run(func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
 		switch orig.Name {
 		case app1.Name:
 			persistedStatus1 = newStatus
@@ -568,7 +570,7 @@ func TestProcessHydrationQueueItem_HydrateFails_AppSpecificError(t *testing.T) {
 	assert.Contains(t, persistedStatus2.CurrentOperation.Message, "cannot hydrate because application default/test-app has an error")
 	assert.Equal(t, v1alpha1.HydrateOperationPhaseFailed, persistedStatus1.CurrentOperation.Phase)
 
-	d.AssertNumberOfCalls(t, "PersistAppHydratorStatus", 2)
+	d.AssertNumberOfCalls(t, "PersistHydrationStatus", 2)
 	d.AssertNotCalled(t, "RequestAppRefresh", mock.Anything, mock.Anything)
 }
 
@@ -593,7 +595,7 @@ func TestProcessHydrationQueueItem_HydrateFails_CommonError(t *testing.T) {
 	// Expect setAppHydratorError to be called
 	var persistedStatus1 *v1alpha1.SourceHydratorStatus
 	var persistedStatus2 *v1alpha1.SourceHydratorStatus
-	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Run(func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
 		switch orig.Name {
 		case app1.Name:
 			persistedStatus1 = newStatus
@@ -615,7 +617,7 @@ func TestProcessHydrationQueueItem_HydrateFails_CommonError(t *testing.T) {
 	assert.Equal(t, v1alpha1.HydrateOperationPhaseFailed, persistedStatus1.CurrentOperation.Phase)
 	assert.Equal(t, "abc123", persistedStatus1.CurrentOperation.DrySHA)
 
-	d.AssertNumberOfCalls(t, "PersistAppHydratorStatus", 2)
+	d.AssertNumberOfCalls(t, "PersistHydrationStatus", 2)
 	d.AssertNotCalled(t, "RequestAppRefresh", mock.Anything, mock.Anything)
 }
 
@@ -633,7 +635,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 
 	// Expect setAppHydratorError to be called
 	var persistedStatus *v1alpha1.SourceHydratorStatus
-	d.EXPECT().PersistAppHydratorStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
 		persistedStatus = newStatus
 	}).Return().Once()
 	d.EXPECT().RequestAppRefresh(app.Name, app.Namespace).Return(nil).Once()
@@ -650,7 +652,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 
 	h.ProcessHydrationQueueItem(hydrationKey)
 
-	d.AssertCalled(t, "PersistAppHydratorStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 	d.AssertCalled(t, "RequestAppRefresh", app.Name, app.Namespace)
 	assert.NotNil(t, persistedStatus)
 	assert.Equal(t, app.Status.SourceHydrator.CurrentOperation.StartedAt, persistedStatus.CurrentOperation.StartedAt)

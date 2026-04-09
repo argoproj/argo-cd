@@ -150,7 +150,7 @@ func TestClusterInformer_TransformErrors_MixedSecrets(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "good-cluster", cluster.Name)
 
-	// But ListClusters should fail because there's a bad secret in the cache
+	// ListClusters should fail because there's a bad secret in the cache
 	_, err = informer.ListClusters()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cluster cache contains unexpected type")
@@ -874,6 +874,102 @@ func BenchmarkClusterInformer_GetClusterByURL(b *testing.B) {
 				b.Fatal("cluster should not be nil")
 			}
 			i++
+		}
+	})
+}
+
+func TestClusterInformer_GetProjectClusters(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	secrets := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "cluster-proj-a-1",
+				Namespace: "argocd",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			},
+			Data: map[string][]byte{
+				"server":  []byte("https://a1.example.com"),
+				"name":    []byte("a1"),
+				"config":  []byte("{}"),
+				"project": []byte("project-a"),
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "cluster-proj-a-2",
+				Namespace: "argocd",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			},
+			Data: map[string][]byte{
+				"server":  []byte("https://a2.example.com"),
+				"name":    []byte("a2"),
+				"config":  []byte("{}"),
+				"project": []byte("project-a"),
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "cluster-proj-b",
+				Namespace: "argocd",
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			},
+			Data: map[string][]byte{
+				"server":  []byte("https://b1.example.com"),
+				"name":    []byte("b1"),
+				"config":  []byte("{}"),
+				"project": []byte("project-b"),
+			},
+		},
+	}
+
+	clientset := fake.NewClientset(secrets...)
+	informer, err := NewClusterInformer(clientset, "argocd")
+	require.NoError(t, err)
+
+	go informer.Run(ctx.Done())
+	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
+
+	t.Run("returns clusters for matching project", func(t *testing.T) {
+		clusters, err := informer.GetProjectClusters("project-a")
+		require.NoError(t, err)
+		assert.Len(t, clusters, 2)
+
+		servers := make([]string, 0, len(clusters))
+		for _, c := range clusters {
+			servers = append(servers, c.Server)
+		}
+		assert.Contains(t, servers, "https://a1.example.com")
+		assert.Contains(t, servers, "https://a2.example.com")
+	})
+
+	t.Run("does not return clusters from other projects", func(t *testing.T) {
+		clusters, err := informer.GetProjectClusters("project-b")
+		require.NoError(t, err)
+		assert.Len(t, clusters, 1)
+		assert.Equal(t, "https://b1.example.com", clusters[0].Server)
+	})
+
+	t.Run("returns empty for non-existent project", func(t *testing.T) {
+		clusters, err := informer.GetProjectClusters("no-such-project")
+		require.NoError(t, err)
+		assert.Empty(t, clusters)
+	})
+
+	t.Run("returned clusters are isolated from cache", func(t *testing.T) {
+		clusters, err := informer.GetProjectClusters("project-a")
+		require.NoError(t, err)
+		require.Len(t, clusters, 2)
+
+		// Mutate the returned cluster
+		clusters[0].Name = "mutated"
+
+		// Fetch again and verify cache is unaffected
+		fresh, err := informer.GetProjectClusters("project-a")
+		require.NoError(t, err)
+		for _, c := range fresh {
+			assert.NotEqual(t, "mutated", c.Name, "cache should not be affected by caller mutation")
 		}
 	})
 }
