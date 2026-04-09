@@ -7,7 +7,7 @@ Web UI for [Argo CD](https://github.com/argoproj/argo-cd).
 ## Getting started
 
   1. Install [NodeJS](https://nodejs.org/en/download/) and [pnpm](https://pnpm.io).  On macOS with [Homebrew](https://brew.sh/), running `brew install node pnpm` will accomplish this.
-  2. Run `pnpm install` to install local prerequisites.
+  2. Run `pnpm install --frozen-lockfile` to install local prerequisites.
   3. Run `pnpm start` to launch the webpack dev UI server.
   4. Run `pnpm build` to bundle static resources into the `./dist` directory.
 
