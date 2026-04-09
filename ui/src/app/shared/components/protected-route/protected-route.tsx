@@ -17,11 +17,7 @@ interface AuthState {
 
 async function checkAuthState(): Promise<AuthState> {
     try {
-        const [userInfo, authSettings, versionInfo] = await Promise.all([
-            services.users.get(),
-            services.authService.settings(),
-            services.version.version()
-        ]);
+        const [userInfo, authSettings, versionInfo] = await Promise.all([services.users.get(), services.authService.settings(), services.version.version()]);
 
         const loggedIn = userInfo?.loggedIn ?? false;
 
@@ -29,8 +25,7 @@ async function checkAuthState(): Promise<AuthState> {
             return {loggedIn: true, isSSO: false};
         }
 
-        const serverAuthDisabled =
-            !loggedIn && !!(versionInfo?.KustomizeVersion?.length || versionInfo?.HelmVersion?.length);
+        const serverAuthDisabled = !loggedIn && !!(versionInfo?.KustomizeVersion?.length || versionInfo?.HelmVersion?.length);
         if (serverAuthDisabled) {
             return {loggedIn: true, isSSO: false};
         }
