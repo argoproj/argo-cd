@@ -9,7 +9,7 @@ overrides:
   '@types/react-dom': ^16.8.2
   normalize-url: 4.5.1
   rxjs: 6.6.7
-  formidable: 2.1.2
+  formidable: 2.1.3
 
 importers:
 
@@ -29,7 +29,7 @@ importers:
         version: 6.1.6(react-dom@16.14.0(react@16.14.0))(react@16.14.0)
       argo-ui:
         specifier: git+https://github.com/argoproj/argo-ui.git
-        version: https://codeload.github.com/argoproj/argo-ui/tar.gz/2bfda77cec418c4123fe61e35f22d09432af15b7(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12)
+        version: https://codeload.github.com/argoproj/argo-ui/tar.gz/a1c32a45e83fdda4baafc7ca3105c3ead383f8ba(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12)
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
@@ -1455,6 +1455,10 @@ packages:
   '@leichtgewicht/ip-codec@2.0.5':
     resolution: {integrity: sha512-Vo+PSpZG2/fmgmiNzYK9qWRh8h/CHrwD0mo1h1DzL4yzHNSfWYujGTYsWGreD000gcgmZ7K4Ys6Tx9TxtsKdDw==}
 
+  '@noble/hashes@1.8.0':
+    resolution: {integrity: sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==}
+    engines: {node: ^14.21.3 || >=16}
+
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
     engines: {node: '>= 8'}
@@ -1474,6 +1478,9 @@ packages:
     resolution: {integrity: sha512-1SUf/Cg2GzGDyaf15aR9St9TWlb+XvbZXWpDx8YKs7MLzMH/BCeopv+y9vzrzgkfykCGuWOlSu3mZhj2+FQcrg==}
     engines: {node: '>=10'}
     deprecated: This functionality has been moved to @npmcli/fs
+
+  '@paralleldrive/cuid2@2.3.1':
+    resolution: {integrity: sha512-XO7cAxhnTZl0Yggq6jOgjiOHhbgcO4NqFqwSmQpjK3b6TEE6Uj/jfSk6wzYyemh3+I0sHirKSetjQwn5cZktFw==}
 
   '@parcel/watcher-android-arm64@2.5.1':
     resolution: {integrity: sha512-KF8+j9nNbUN8vzOFDpRMsaKBHZ/mcjEjMToVMJOhTozkDonQFFrRcfdLWn6yWKCmJKmdVxSgHiYvTCef4/qcBA==}
@@ -2078,8 +2085,8 @@ packages:
   arg@4.1.3:
     resolution: {integrity: sha512-58S9QDqG0Xx27YwPSt9fJxivjYl432YCwfDMfZ+71RAqUrZef7LrKQZ3LHLOwCS4FLNBplP533Zx895SeOCHvA==}
 
-  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/2bfda77cec418c4123fe61e35f22d09432af15b7:
-    resolution: {tarball: https://codeload.github.com/argoproj/argo-ui/tar.gz/2bfda77cec418c4123fe61e35f22d09432af15b7}
+  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/a1c32a45e83fdda4baafc7ca3105c3ead383f8ba:
+    resolution: {tarball: https://codeload.github.com/argoproj/argo-ui/tar.gz/a1c32a45e83fdda4baafc7ca3105c3ead383f8ba}
     version: 1.0.0
     peerDependencies:
       '@types/react': ^16.9.3
@@ -2596,6 +2603,7 @@ packages:
 
   deep-diff@0.3.8:
     resolution: {integrity: sha512-yVn6RZmHiGnxRKR9sJb3iVV2XTF1Ghh2DiWRZ3dMnGc43yUdWWF/kX6lQyk3+P84iprfWKU/8zFTrlkvtFm1ug==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   deep-equal@1.1.2:
     resolution: {integrity: sha512-5tdhKF6DbU7iIzrIOa1AOUt39ZRm13cmL1cGEh//aqR8x9+tNfbywRf0n5FD/18OKMdo7DNEtrX2t22ZAkI+eg==}
@@ -3073,9 +3081,9 @@ packages:
     resolution: {integrity: sha512-KrGhL9Q4zjj0kiUt5OO4Mr/A/jlI2jDYs5eHBpYHPcBEVSiipAvn2Ko2HnPe20rmcuuvMHNdZFp+4IlGTMF0Ow==}
     engines: {node: '>= 6'}
 
-  formidable@2.1.2:
-    resolution: {integrity: sha512-CM3GuJ57US06mlpQ47YcunuUZ9jpm8Vx+P2CGt2j7HpgkKZO/DJYQ0Bobim8G6PFQmK5lOqOOdUXboU+h73A4g==}
-    deprecated: 'ACTION REQUIRED: SWITCH TO v3 - v1 and v2 are VULNERABLE! v1 is DEPRECATED FOR OVER 2 YEARS! Use formidable@latest or try formidable-mini for fresh projects'
+  formidable@2.1.3:
+    resolution: {integrity: sha512-vDI5JjeALeGXpyL8v71ZG2VgHY5zD6qg1IvypU7aJCYvREZyhawrYJxMdsWO+m5DIGLiMiDH71yEN8RO4wQAMQ==}
+    deprecated: 'ATTENTION: please upgrade to v3! The v1 and v2 versions are pretty old and deprecated'
 
   forwarded@0.2.0:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
@@ -3168,7 +3176,7 @@ packages:
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   global@4.4.0:
     resolution: {integrity: sha512-wv/LAoHdRE3BeTGz53FAamhGlPLhlssK45usmGFThIi4XqnBmjKQ16u+RNbP7WvigRZDxUsM0J3gcQ5yicaL0w==}
@@ -3242,10 +3250,6 @@ packages:
   he@1.2.0:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
     hasBin: true
-
-  hexoid@1.0.0:
-    resolution: {integrity: sha512-QFLV0taWQOZtvIRIAdBChesmogZrtuXvVWsFHZTk2SU+anspqZ2vMnoLg7IE1+Uk16N19APic1BuF8bC8c2m5g==}
-    engines: {node: '>=8'}
 
   history@4.10.1:
     resolution: {integrity: sha512-36nwAD620w12kuzPAsyINPWJqlNbij+hpK1k9XRloDtym8mxzGYl2c17LnV6IAGB2Dmg4tEa7G7DlawS0+qjew==}
@@ -5132,6 +5136,7 @@ packages:
   tar@6.2.1:
     resolution: {integrity: sha512-DZ4yORTwrbTj/7MZYq2w+/ZFdI6OZ/f9SFHR+71gIVUZhOQPHzVCLpvRnPgyaMpfWxxk/4ONva3GQSyNIKRv6A==}
     engines: {node: '>=10'}
+    deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   teeny-request@7.1.1:
     resolution: {integrity: sha512-iwY6rkW5DDGq8hE2YgNQlKbptYpY5Nn2xecjQiNjOXWbKzPGUfmeUBCSQbbr306d7Z7U2N0TPl+/SwYRfua1Dg==}
@@ -5526,6 +5531,7 @@ packages:
   whatwg-encoding@2.0.0:
     resolution: {integrity: sha512-p41ogyeMUrw3jWclHWTQg1k05DSVXPLcVxRTYsXUk+ZooOCZLcoYgPZ/HL/D/N+uQPOtcp1me1WhBEaX02mhWg==}
     engines: {node: '>=12'}
+    deprecated: Use @exodus/bytes instead for a more spec-conformant and faster implementation
 
   whatwg-mimetype@3.0.0:
     resolution: {integrity: sha512-nt+N2dzIutVRxARx1nghPKGv1xHikU7HKdfafKkLNLindmPU/ch3U31NOCGGA/dmPcmb1VlofO0vnKAcsm0o/Q==}
@@ -6889,6 +6895,8 @@ snapshots:
 
   '@leichtgewicht/ip-codec@2.0.5': {}
 
+  '@noble/hashes@1.8.0': {}
+
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
       '@nodelib/fs.stat': 2.0.5
@@ -6910,6 +6918,10 @@ snapshots:
     dependencies:
       mkdirp: 1.0.4
       rimraf: 3.0.2
+
+  '@paralleldrive/cuid2@2.3.1':
+    dependencies:
+      '@noble/hashes': 1.8.0
 
   '@parcel/watcher-android-arm64@2.5.1':
     optional: true
@@ -7581,7 +7593,7 @@ snapshots:
 
   arg@4.1.3: {}
 
-  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/2bfda77cec418c4123fe61e35f22d09432af15b7(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12):
+  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/a1c32a45e83fdda4baafc7ca3105c3ead383f8ba(@types/react@16.14.65)(jquery@3.7.1)(react-dom@16.14.0(react@16.14.0))(react@16.14.0)(what-input@5.2.12):
     dependencies:
       '@fortawesome/fontawesome-free': 6.7.2
       '@tippy.js/react': 3.1.1(react-dom@16.14.0(react@16.14.0))(react@16.14.0)
@@ -8846,10 +8858,10 @@ snapshots:
       hasown: 2.0.2
       mime-types: 2.1.35
 
-  formidable@2.1.2:
+  formidable@2.1.3:
     dependencies:
+      '@paralleldrive/cuid2': 2.3.1
       dezalgo: 1.0.4
-      hexoid: 1.0.0
       once: 1.4.0
       qs: 6.15.0
 
@@ -9012,8 +9024,6 @@ snapshots:
       function-bind: 1.1.2
 
   he@1.2.0: {}
-
-  hexoid@1.0.0: {}
 
   history@4.10.1:
     dependencies:
@@ -11224,7 +11234,7 @@ snapshots:
       debug: 4.4.1
       fast-safe-stringify: 2.1.1
       form-data: 4.0.4
-      formidable: 2.1.2
+      formidable: 2.1.3
       methods: 1.1.2
       mime: 2.6.0
       qs: 6.15.0
