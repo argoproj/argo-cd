@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	lua "github.com/yuin/gopher-lua"
@@ -1009,8 +1009,8 @@ func TestExecuteResourceActionWithParams(t *testing.T) {
 
 	params := []*applicationpkg.ResourceActionParameters{
 		{
-			Name:  func() *string { s := "replicas"; return &s }(),
-			Value: func() *string { s := "3"; return &s }(),
+			Name:  new("replicas"),
+			Value: new("3"),
 		},
 	}
 

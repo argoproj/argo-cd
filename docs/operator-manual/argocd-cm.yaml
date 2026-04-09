@@ -445,6 +445,16 @@ data:
   # We highly recommend that this be set to `true`. The next major release will set the default to be `true`.  
   application.sync.requireOverridePrivilegeForRevisionSync: "true"  
 
+  ### SourceHydrator commit author name (optional).
+  # Configures the author name for commits created by the Source Hydrator.
+  # If not specified, defaults to "Argo CD".
+  commit.author.name: "Argo CD"
+
+  ### SourceHydrator commit author email (optional).
+  # Configures the author email for commits created by the Source Hydrator.
+  # If not specified, defaults to "argo-cd@example.com".
+  commit.author.email: "argo-cd@example.com"
+
   ### SourceHydrator commit message template.
   # This template iterates through the fields in the `.metadata` object,
   # and formats them based on their type (map, array, or primitive values).

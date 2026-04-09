@@ -8,6 +8,9 @@ updates:
     ignore:
     - dependency-name: k8s.io/*
     groups:
+      aws-sdk-v2:
+        patterns:
+          - "github.com/aws/aws-sdk-go-v2*"
       otel:
         patterns:
           - "go.opentelemetry.io/*"

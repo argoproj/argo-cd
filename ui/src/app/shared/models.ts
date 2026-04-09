@@ -262,7 +262,11 @@ export interface SourceHydrator {
 export interface DrySource {
     repoURL: string;
     targetRevision: string;
-    path: string;
+    path?: string;
+    helm?: ApplicationSourceHelm;
+    kustomize?: ApplicationSourceKustomize;
+    plugin?: ApplicationSourcePlugin;
+    directory?: ApplicationSourceDirectory;
 }
 
 export interface SyncSource {
@@ -672,6 +676,7 @@ export interface Repository {
     insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
+    depth?: number;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
@@ -1170,5 +1175,6 @@ export interface ApplicationSet extends AbstractApplication {
             targetRevisions?: string[];
         }>;
         resources?: ApplicationSetResource[];
+        resourcesCount?: number;
     };
 }

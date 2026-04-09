@@ -1,4 +1,4 @@
-FROM docker.io/library/golang:1.25.5@sha256:581c059c1d53b96a6db51a2f7a0eb943491ba1da50f1e43700db0cc325618096
+FROM docker.io/library/golang:1.26.2@sha256:2a2b4b5791cea8ae09caecba7bad0bd9631def96e5fe362e4a5e67009fe4ae61
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -11,7 +11,6 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     unzip \
     fcgiwrap \
     git \
-    git-lfs \
     make \
     wget \
     gcc \
@@ -28,7 +27,8 @@ COPY hack/install.sh hack/tool-versions.sh ./
 COPY hack/installers installers
 
 RUN ./install.sh helm && \
-    INSTALL_PATH=/usr/local/bin ./install.sh kustomize
+    INSTALL_PATH=/usr/local/bin ./install.sh kustomize && \
+    ./install.sh git-lfs
 
 COPY hack/gpg-wrapper.sh \
     hack/git-verify-wrapper.sh \

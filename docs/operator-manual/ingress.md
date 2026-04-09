@@ -1,19 +1,21 @@
 # Ingress Configuration
 
-Argo CD API server runs both a gRPC server (used by the CLI), as well as a HTTP/HTTPS server (used by the UI).
+Argo CD API server runs both a gRPC server (used by the CLI), as well as an HTTP/HTTPS server (used by the UI).
 Both protocols are exposed by the argocd-server service object on the following ports:
 
 * 443 - gRPC/HTTPS
 * 80 - HTTP (redirects to HTTPS)
 
-There are several ways how Ingress can be configured.
+There are several ways to configure Ingress.
 
 ## [Ambassador](https://www.getambassador.io/)
 
 The Ambassador Edge Stack can be used as a Kubernetes ingress controller with [automatic TLS termination](https://www.getambassador.io/docs/latest/topics/running/tls/#host) and routing capabilities for both the CLI and the UI.
 
-The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md). Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required.
-Note: Disabling TLS in not required if you are using grpc-web
+The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md). Given the `argocd` CLI includes the port number in the request `host` header, two Mappings are required.
+
+> [!NOTE]
+> Disabling TLS is not required if you are using gRPC-Web.
 
 ### Option 1: Mapping CRD for Host-based Routing
 ```yaml
@@ -375,7 +377,7 @@ Traefik can be used as an edge router and provide [TLS](https://docs.traefik.io/
 
 It currently has an advantage over NGINX in that it can terminate both TCP and HTTP connections _on the same port_ meaning you do not require multiple hosts or paths.
 
-The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command or set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
+Run the API server with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command or set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
 
 ### IngressRoute CRD
 ```yaml
@@ -476,7 +478,7 @@ Also note that we can configure the health check to return the gRPC health statu
 ```
 
 ## [Istio](https://www.istio.io)
-You can put Argo CD behind Istio using following configurations. Here we will achieve both serving Argo CD behind istio and using subpath on Istio
+You can put Argo CD behind Istio using the following configuration. This example serves Argo CD behind Istio and uses a subpath (for example, `/argocd`).
 
 First we need to make sure that we can run Argo CD with subpath (ie /argocd). For this we have used install.yaml from argocd project as is
 
@@ -484,7 +486,7 @@ First we need to make sure that we can run Argo CD with subpath (ie /argocd). Fo
 curl -kLs -o install.yaml https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
 
-save following file as kustomization.yml
+Save the following file as `kustomization.yaml`:
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -528,7 +530,7 @@ spec:
          value: "0"
 ```
 
-After that install Argo CD  (there should be only 3 yml file defined above in current directory )
+Install Argo CD (there should be only the three YAML files defined above in the current directory):
 
 ```bash
 kubectl apply -k ./ -n argocd --wait=true
@@ -598,7 +600,7 @@ spec:
           number: 80
 ```
 
-And now we can browse http://{{ IP }}/argocd (it will be rewritten to https://{{ IP }}/argocd
+You can now browse to `http://<IP>/argocd` (it will be redirected to HTTPS).
 
 
 ## Google Cloud load balancers with Kubernetes Ingress
@@ -648,7 +650,7 @@ spec:
 
 ### Creating a BackendConfig
 
-See that previous service referencing a backend config called `argocd-backend-config`? So lets deploy it using this yaml:
+See that previous service referencing a backend config called `argocd-backend-config`? So let's deploy it using this YAML:
 
 ```yaml
 apiVersion: cloud.google.com/v1
@@ -777,7 +779,7 @@ Argo CD endpoints may be protected by one or more reverse proxies layers, in tha
 $ argocd login <host>:<port> --header 'x-token1:foo' --header 'x-token2:bar' # can be repeated multiple times
 $ argocd login <host>:<port> --header 'x-token1:foo,x-token2:bar' # headers can also be comma separated
 ```
-## ArgoCD Server and UI Root Path (v1.5.3)
+## Argo CD server and UI root path (v1.5.3)
 
 Argo CD server and UI can be configured to be available under a non-root path (e.g. `/argo-cd`).
 To do this, add the `--rootpath` flag into the `argocd-server` deployment command:
@@ -823,7 +825,7 @@ http {
     }
 }
 ```
-Flag ```--grpc-web-root-path ``` is used to provide a non-root path (e.g. /argo-cd)
+The `--grpc-web-root-path` flag is used to provide a non-root path (e.g. /argo-cd)
 
 ```shell
 $ argocd login <host>:<port> --grpc-web-root-path /argo-cd
@@ -881,12 +883,12 @@ http {
 ## Gateway API Example
 
 This section discusses using Gateway API to expose the Argo CD server in various TLS configurations,
-accomodating both HTTP and gRPC traffic, possibly using HTTP/2.
+accommodating both HTTP and gRPC traffic, possibly using HTTP/2.
 
 ### TLS termination at the Gateway
 
 Assume the following cluster-wide `Gateway` resource,
-that terminates the TLS conection with a certificate stored in a `Secret` in the same namespace:
+that terminates the TLS connection with a certificate stored in a `Secret` in the same namespace:
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
@@ -1000,7 +1002,7 @@ server:
     servicePortHttpsAppProtocol: kubernetes.io/h2c
 ```
 
-##### Routing gRPC and HTTP on through the same domain
+##### Routing gRPC and HTTP through the same domain
 
 Although officially [discouraged](https://gateway-api.sigs.k8s.io/api-types/grpcroute/#cross-serving),
 attaching the `HTTPRoute` and `GRPCRoute` to the same domain may be supported by some implementations.
@@ -1033,7 +1035,7 @@ spec:
 
 TLS can also be configured to terminate at the Argo CD API server.
 
-This require attaching a `TLSRoute` to the gateway,
+This requires attaching a `TLSRoute` to the gateway,
 which is part of the [Experimental](https://gateway-api.sigs.k8s.io/reference/1.4/specx/) Gateway API CRDs.
 
 ```yaml

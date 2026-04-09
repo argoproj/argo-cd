@@ -32,6 +32,8 @@ type Routes = {[path: string]: {component: React.ComponentType<RouteComponentPro
 const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
     '/applications': {component: applications.component},
+    // TODO: Uncomment when ApplicationSet details page is fully implemented
+    // '/applicationsets': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
     '/help': {component: help.component}
@@ -166,7 +168,7 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                 <React.Fragment>
                     <p>Something went wrong!</p>
                     <p>
-                        Consider submitting an issue <a href={url}>here</a>.
+                        Consider <a href={url}>submitting an issue</a>.
                     </p>
                     <br />
                     <p>Stacktrace:</p>

@@ -32,7 +32,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
 
-	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
+	enginecache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
 	timeutil "github.com/argoproj/pkg/v2/time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -119,8 +119,6 @@ type ArgoCDSettings struct {
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 	// BinaryUrls contains the URLs for downloading argocd binaries
 	BinaryUrls map[string]string `json:"binaryUrls,omitempty"`
-	// InClusterEnabled indicates whether to allow in-cluster server address
-	InClusterEnabled bool `json:"inClusterEnabled"`
 	// ServerRBACLogEnforceEnable temporary var indicates whether rbac will be enforced on logs
 	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
 	// MaxPodLogsToRender the maximum number of pod logs to render
@@ -136,9 +134,6 @@ type ArgoCDSettings struct {
 	// token verification to pass despite the OIDC provider having an invalid certificate. Only set to `true` if you
 	// understand the risks.
 	OIDCTLSInsecureSkipVerify bool `json:"oidcTLSInsecureSkipVerify"`
-	// OIDCRefreshTokenThreshold sets the threshold for preemptive server-side token refresh.  If set to 0, tokens
-	// will not be refreshed and will expire before client is redirected to login.
-	OIDCRefreshTokenThreshold time.Duration `json:"oidcRefreshTokenThreshold,omitempty"`
 	// AppsInAnyNamespaceEnabled indicates whether applications are allowed to be created in any namespace
 	AppsInAnyNamespaceEnabled bool `json:"appsInAnyNamespaceEnabled"`
 	// ExtensionConfig configurations related to ArgoCD proxy extensions. The keys are the extension name.
@@ -230,41 +225,6 @@ type AzureOIDCConfig struct {
 }
 
 var (
-	ByClusterURLIndexer     = "byClusterURL"
-	byClusterURLIndexerFunc = func(obj any) ([]string, error) {
-		s, ok := obj.(*corev1.Secret)
-		if !ok {
-			return nil, nil
-		}
-		if s.Labels == nil || s.Labels[common.LabelKeySecretType] != common.LabelValueSecretTypeCluster {
-			return nil, nil
-		}
-		if s.Data == nil {
-			return nil, nil
-		}
-		if url, ok := s.Data["server"]; ok {
-			return []string{strings.TrimRight(string(url), "/")}, nil
-		}
-		return nil, nil
-	}
-	ByClusterNameIndexer     = "byClusterName"
-	byClusterNameIndexerFunc = func(obj any) ([]string, error) {
-		s, ok := obj.(*corev1.Secret)
-		if !ok {
-			return nil, nil
-		}
-		if s.Labels == nil || s.Labels[common.LabelKeySecretType] != common.LabelValueSecretTypeCluster {
-			return nil, nil
-		}
-		if s.Data == nil {
-			return nil, nil
-		}
-		if name, ok := s.Data["name"]; ok {
-			return []string{string(name)}, nil
-		}
-		return nil, nil
-	}
-	ByProjectClusterIndexer   = "byProjectCluster"
 	ByProjectRepoIndexer      = "byProjectRepo"
 	ByProjectRepoWriteIndexer = "byProjectRepoWrite"
 	byProjectIndexerFunc      = func(secretType string) func(obj any) ([]string, error) {
@@ -507,8 +467,12 @@ const (
 	settingUIBannerPositionKey = "ui.bannerposition"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
 	settingsBinaryUrlsKey = "help.download"
-	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
+	// settingsSourceHydratorCommitMessageTemplateKey is the key for the hydrator commit message template
 	settingsSourceHydratorCommitMessageTemplateKey = "sourceHydrator.commitMessageTemplate"
+	// settingsCommitAuthorNameKey is the key for the commit author name
+	settingsCommitAuthorNameKey = "commit.author.name"
+	// settingsCommitAuthorEmailKey is the key for the commit author email
+	settingsCommitAuthorEmailKey = "commit.author.email"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -560,6 +524,10 @@ const (
 
 	// application sync with impersonation feature is disabled by default.
 	defaultImpersonationEnabledFlag = false
+
+	// defaultInClusterEnabledFlag is the default value when the in-cluster setting
+	// cannot be read from the configmap or is not explicitly set by the user.
+	defaultInClusterEnabledFlag = true
 )
 
 var sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
@@ -660,10 +628,11 @@ func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, err
 }
 
 // GetClusterInformer returns the cluster cache for optimized cluster lookups.
-func (mgr *SettingsManager) GetClusterInformer() *ClusterInformer {
-	// Ensure the settings manager is initialized
-	_ = mgr.ensureSynced(false)
-	return mgr.clusterInformer
+func (mgr *SettingsManager) GetClusterInformer() (*ClusterInformer, error) {
+	if err := mgr.ensureSynced(false); err != nil {
+		return nil, fmt.Errorf("error ensuring that the settings manager is synced: %w", err)
+	}
+	return mgr.clusterInformer, nil
 }
 
 func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) error {
@@ -1042,6 +1011,22 @@ func (mgr *SettingsManager) GetSourceHydratorCommitMessageTemplate() (string, er
 	return argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey], nil
 }
 
+func (mgr *SettingsManager) GetCommitAuthorName() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	return argoCDCM.Data[settingsCommitAuthorNameKey], nil
+}
+
+func (mgr *SettingsManager) GetCommitAuthorEmail() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	return argoCDCM.Data[settingsCommitAuthorEmailKey], nil
+}
+
 func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind string) {
 	if val, ok := resourceOverrides[groupKind]; ok {
 		val.IgnoreDifferences.JSONPointers = append(val.IgnoreDifferences.JSONPointers, "/status")
@@ -1176,7 +1161,7 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 	}
 	helmOptions := &v1alpha1.HelmOptions{}
 	if value, ok := argoCDCM.Data[helmValuesFileSchemesKey]; ok {
-		for _, item := range strings.Split(value, ",") {
+		for item := range strings.SplitSeq(value, ",") {
 			if item := strings.TrimSpace(item); item != "" {
 				helmOptions.ValuesFileSchemes = append(helmOptions.ValuesFileSchemes, item)
 			}
@@ -1315,10 +1300,10 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 
 	var settings ArgoCDSettings
 	var errs []error
-	updateSettingsFromConfigMap(&settings, argoCDCM)
 	if err := mgr.updateSettingsFromSecret(&settings, argoCDSecret, secrets); err != nil {
 		errs = append(errs, err)
 	}
+	updateSettingsFromConfigMap(&settings, argoCDCM)
 	if len(errs) > 0 {
 		return &settings, errors.Join(errs...)
 	}
@@ -1345,14 +1330,13 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	}
 	indexers := cache.Indexers{
 		cache.NamespaceIndex:      cache.MetaNamespaceIndexFunc,
-		ByClusterURLIndexer:       byClusterURLIndexerFunc,
-		ByClusterNameIndexer:      byClusterNameIndexerFunc,
-		ByProjectClusterIndexer:   byProjectIndexerFunc(common.LabelValueSecretTypeCluster),
 		ByProjectRepoIndexer:      byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
 		ByProjectRepoWriteIndexer: byProjectIndexerFunc(common.LabelValueSecretTypeRepositoryWrite),
 	}
 	cmInformer := informersv1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
-	secretsInformer := informersv1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
+	secretsInformer := informersv1.NewFilteredSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, func(options *metav1.ListOptions) {
+		options.LabelSelector = common.LabelKeySecretType + "!=" + common.LabelValueSecretTypeCluster
+	})
 	clusterInformer, err := NewClusterInformer(mgr.clientset, mgr.namespace)
 	if err != nil {
 		log.Error(err)
@@ -1464,7 +1448,6 @@ func getDownloadBinaryUrlsFromConfigMap(argoCDCM *corev1.ConfigMap) map[string]s
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
-	settings.OIDCRefreshTokenThreshold = settings.RefreshTokenThreshold()
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.StatusBadgeRootUrl = argoCDCM.Data[statusBadgeRootURLKey]
@@ -1511,7 +1494,6 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 			settings.MaxPodLogsToRender = val
 		}
 	}
-	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
 	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
 	execShells := argoCDCM.Data[execShellsKey]
 	if execShells != "" {
@@ -1530,8 +1512,8 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 func getExtensionConfigs(cmData map[string]string) map[string]string {
 	result := make(map[string]string)
 	for k, v := range cmData {
-		if strings.HasPrefix(k, extensionConfig) {
-			extName := strings.TrimPrefix(strings.TrimPrefix(k, extensionConfig), ".")
+		if extName, found := strings.CutPrefix(k, extensionConfig); found {
+			extName = strings.TrimPrefix(extName, ".")
 			result[extName] = v
 		}
 	}
@@ -1917,7 +1899,12 @@ func (a *ArgoCDSettings) UserInfoCacheExpiration() time.Duration {
 
 // RefreshTokenThreshold returns the duration before token expiration that a token should be refreshed by the server
 func (a *ArgoCDSettings) RefreshTokenThreshold() time.Duration {
-	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.RefreshTokenThreshold != "" {
+	return a.RefreshTokenThresholdWithConfig(a.OIDCConfig())
+}
+
+// RefreshTokenThresholdWithConfig takes oidcConfig as param and returns the duration before token expiration that a token should be refreshed by the server
+func (a *ArgoCDSettings) RefreshTokenThresholdWithConfig(oidcConfig *OIDCConfig) time.Duration {
+	if oidcConfig != nil && oidcConfig.RefreshTokenThreshold != "" {
 		refreshTokenThreshold, err := time.ParseDuration(oidcConfig.RefreshTokenThreshold)
 		if err != nil {
 			log.Warnf("Failed to parse 'oidc.config.refreshTokenThreshold' key: %v", err)
@@ -2136,7 +2123,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
 				randBytes := make([]byte, initialPasswordLength)
-				for i := 0; i < initialPasswordLength; i++ {
+				for i := range initialPasswordLength {
 					num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
 					if err != nil {
 						return err
@@ -2350,8 +2337,7 @@ func (mgr *SettingsManager) GetSensitiveAnnotations() map[string]bool {
 	}
 
 	value = strings.ReplaceAll(value, " ", "")
-	keys := strings.Split(value, ",")
-	for _, k := range keys {
+	for k := range strings.SplitSeq(value, ",") {
 		annotationKeys[k] = true
 	}
 	return annotationKeys
@@ -2406,4 +2392,16 @@ func (mgr *SettingsManager) GetAllowedNodeLabels() []string {
 		labelKeys = append(labelKeys, k)
 	}
 	return labelKeys
+}
+
+// IsInClusterEnabled returns false if in-cluster is explicitly disabled in argocd-cm configmap, true otherwise
+func (mgr *SettingsManager) IsInClusterEnabled() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return defaultInClusterEnabledFlag, fmt.Errorf("error checking %s property in configmap: %w", inClusterEnabledKey, err)
+	}
+	if inClusterEnabled, ok := argoCDCM.Data[inClusterEnabledKey]; ok {
+		return inClusterEnabled != "false", nil
+	}
+	return defaultInClusterEnabledFlag, nil
 }

@@ -74,7 +74,7 @@ ARGOCD_E2E_APISERVER_PORT?=8080
 ARGOCD_E2E_REPOSERVER_PORT?=8081
 ARGOCD_E2E_REDIS_PORT?=6379
 ARGOCD_E2E_DEX_PORT?=5556
-ARGOCD_E2E_YARN_HOST?=localhost
+ARGOCD_E2E_JS_HOST?=localhost
 ARGOCD_E2E_DISABLE_AUTH?=
 ARGOCD_E2E_DIR?=/tmp/argo-e2e
 
@@ -113,7 +113,7 @@ define run-in-test-server
 		-e GOCACHE=/tmp/go-build-cache \
 		-e ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
 		-e ARGOCD_E2E_TEST=$(ARGOCD_E2E_TEST) \
-		-e ARGOCD_E2E_YARN_HOST=$(ARGOCD_E2E_YARN_HOST) \
+		-e ARGOCD_E2E_JS_HOST=$(ARGOCD_E2E_JS_HOST) \
 		-e ARGOCD_E2E_DISABLE_AUTH=$(ARGOCD_E2E_DISABLE_AUTH) \
 		-e ARGOCD_TLS_DATA_PATH=${ARGOCD_TLS_DATA_PATH:-/tmp/argocd-local/tls} \
 		-e ARGOCD_SSH_DATA_PATH=${ARGOCD_SSH_DATA_PATH:-/tmp/argocd-local/ssh} \
@@ -353,7 +353,7 @@ controller:
 build-ui:
 	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-ui --platform=$(TARGET_ARCH) --target argocd-ui .
 	find ./ui/dist -type f -not -name gitkeep -delete
-	$(DOCKER) run -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
+	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
 .PHONY: image
 ifeq ($(DEV_IMAGE), true)
@@ -419,7 +419,7 @@ lint-ui: test-tools-image
 
 .PHONY: lint-ui-local
 lint-ui-local:
-	cd ui && yarn lint
+	cd ui && pnpm lint
 
 # Build all Go code
 .PHONY: build
@@ -444,17 +444,23 @@ test: test-tools-image
 # Run all unit tests (local version)
 .PHONY: test-local
 test-local: test-gitops-engine
+# run if TEST_MODULE is empty or does not point to gitops-engine tests
+ifneq ($(if $(TEST_MODULE),,ALL)$(filter-out github.com/argoproj/argo-cd/gitops-engine% ./gitops-engine%,$(TEST_MODULE)),)
 	if test "$(TEST_MODULE)" = ""; then \
 		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -args -test.gocoverdir="$(PWD)/test-results"; \
 	else \
 		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -args -test.gocoverdir="$(PWD)/test-results" "$(TEST_MODULE)"; \
 	fi
+endif
 
 # Run gitops-engine unit tests
 .PHONY: test-gitops-engine
 test-gitops-engine:
+# run if TEST_MODULE is empty or points to gitops-engine tests
+ifneq ($(if $(TEST_MODULE),,ALL)$(filter github.com/argoproj/argo-cd/gitops-engine% ./gitops-engine%,$(TEST_MODULE)),)
 	mkdir -p $(PWD)/test-results
 	cd gitops-engine && go test -race -cover ./... -args -test.gocoverdir="$(PWD)/test-results"
+endif
 
 .PHONY: test-race
 test-race: test-tools-image
@@ -481,7 +487,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	DIST_DIR=${DIST_DIR} RERUN_FAILS=$(ARGOCD_E2E_RERUN_FAILS) PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
+	ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS=$${ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS:-true}  DIST_DIR=${DIST_DIR} RERUN_FAILS=$(ARGOCD_E2E_RERUN_FAILS) PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -657,7 +663,7 @@ dep-ui: test-tools-image
 	$(call run-in-test-client,make dep-ui-local)
 
 dep-ui-local:
-	cd ui && yarn install
+	cd ui && pnpm install
 
 start-test-k8s:
 	go run ./hack/k8s

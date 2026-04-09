@@ -25,20 +25,30 @@ on:
       CHERRYPICK_APP_PRIVATE_KEY:
         required: true
 
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+
 jobs:
   cherry-pick:
     name: Cherry Pick to ${{ inputs.version_number }}
     runs-on: ubuntu-24.04
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
+        with:
+          egress-policy: audit
+
       - name: Generate a token
         id: generate-token
-        uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b # v2.1.1
+        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
         with:
           app-id: ${{ secrets.CHERRYPICK_APP_ID }}
           private-key: ${{ secrets.CHERRYPICK_APP_PRIVATE_KEY }}
 
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 0
           token: ${{ steps.generate-token.outputs.token }}
@@ -66,6 +76,7 @@ jobs:
 
           # Create new branch for cherry-pick
           CHERRY_PICK_BRANCH="cherry-pick-${{ inputs.pr_number }}-to-${TARGET_BRANCH}"
+
           git checkout -b "$CHERRY_PICK_BRANCH" "origin/$TARGET_BRANCH"
 
           # Perform cherry-pick
@@ -75,12 +86,17 @@ jobs:
             # Extract Signed-off-by from the cherry-pick commit
             SIGNOFF=$(git log -1 --pretty=format:"%B" | grep -E '^Signed-off-by:' || echo "")
 
-            # Push the new branch
-            git push origin "$CHERRY_PICK_BRANCH"
+            # Push the new branch. Force push to ensure that in case the original cherry-pick branch is stale, 
+            # that the current state of the $TARGET_BRANCH + cherry-pick gets in $CHERRY_PICK_BRANCH.
+            git push origin -f "$CHERRY_PICK_BRANCH"
 
             # Save data for PR creation
             echo "branch_name=$CHERRY_PICK_BRANCH" >> "$GITHUB_OUTPUT"
-            echo "signoff=$SIGNOFF" >> "$GITHUB_OUTPUT"
+            {
+              echo "signoff<<EOF"
+              echo "$SIGNOFF"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
             echo "target_branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
           else
             echo "❌ Cherry-pick failed due to conflicts"

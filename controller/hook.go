@@ -3,12 +3,13 @@ package controller
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -43,8 +44,12 @@ func isHookOfType(obj *unstructured.Unstructured, hookType HookType) bool {
 	}
 
 	for k, v := range hookTypeAnnotations[hookType] {
-		if val, ok := obj.GetAnnotations()[k]; ok && val == v {
-			return true
+		if val, ok := obj.GetAnnotations()[k]; ok {
+			if slices.ContainsFunc(strings.Split(val, ","), func(item string) bool {
+				return strings.TrimSpace(item) == v
+			}) {
+				return true
+			}
 		}
 	}
 	return false
@@ -69,6 +74,21 @@ func isPreDeleteHook(obj *unstructured.Unstructured) bool {
 
 func isPostDeleteHook(obj *unstructured.Unstructured) bool {
 	return isHookOfType(obj, PostDeleteHookType)
+}
+
+// hasGitOpsEngineSyncPhaseHook is true when gitops-engine would run the resource during a sync
+// phase (PreSync, Sync, PostSync, SyncFail). PreDelete/PostDelete are not sync phases;
+// without this check, state reconciliation drops such resources
+// entirely because isPreDeleteHook/isPostDeleteHook match any comma-separated value.
+// HookTypeSkip is omitted as it is not a sync phase.
+func hasGitOpsEngineSyncPhaseHook(obj *unstructured.Unstructured) bool {
+	for _, t := range hook.Types(obj) {
+		switch t {
+		case common.HookTypePreSync, common.HookTypeSync, common.HookTypePostSync, common.HookTypeSyncFail:
+			return true
+		}
+	}
+	return false
 }
 
 // executeHooks is a generic function to execute hooks of a specified type

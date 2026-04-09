@@ -8,7 +8,7 @@ import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
-import {isValidURL} from '../../shared/utils';
+import {isValidManagedByURL} from '../../shared/utils';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
@@ -17,6 +17,14 @@ import {services} from '../../shared/services';
 import {ApplicationSource} from '../../shared/models';
 
 require('./utils.scss');
+
+export {
+    MANAGED_BY_URL_INVALID_COLOR,
+    MANAGED_BY_URL_INVALID_TEXT,
+    MANAGED_BY_URL_INVALID_TOOLTIP,
+    managedByURLInvalidLabelStyle,
+    managedByURLInvalidLabelStyleCompact
+} from '../../shared/utils';
 
 export interface NodeId {
     kind: string;
@@ -1425,6 +1433,22 @@ export function getConditionCategory(condition: appModels.ApplicationCondition):
     }
 }
 
+export function getAppSetConditionCategory(condition: appModels.ApplicationSetCondition): 'error' | 'warning' | 'info' {
+    const status = condition.status?.toLowerCase();
+    const type = condition.type;
+
+    // ErrorOccurred with status True = error
+    if (type === 'ErrorOccurred' && status === 'true') {
+        return 'error';
+    }
+    // ParametersGenerated or ResourcesUpToDate with status False = error (indicates failure)
+    if ((type === 'ParametersGenerated' || type === 'ResourcesUpToDate') && status === 'false') {
+        return 'error';
+    }
+    // Otherwise it's informational
+    return 'info';
+}
+
 export function isAppNode(node: appModels.ResourceNode) {
     return node.kind === 'Application' && node.group === 'argoproj.io';
 }
@@ -1451,6 +1475,44 @@ export function getAppDefaultSource(app?: appModels.Application) {
         return null;
     }
     return getAppSpecDefaultSource(app.spec);
+}
+
+// getAppDrySource gets the dry source from the source hydrator
+export function getAppDrySource(app?: appModels.Application): appModels.ApplicationSource | null {
+    if (!app) {
+        return null;
+    }
+    const {path, targetRevision, repoURL} = app.spec.sourceHydrator?.drySource || app.spec.source;
+
+    return {repoURL, targetRevision, path};
+}
+
+// getAppAllSources gets all app sources as an array. For single source apps, returns [source].
+// For multi-source apps, returns the sources array. For sourceHydrator apps, returns a single synthesized source.
+export function getAppAllSources(app?: appModels.Application): appModels.ApplicationSource[] {
+    if (!app) {
+        return [];
+    }
+
+    if (app.spec.sourceHydrator) {
+        return [
+            {
+                repoURL: app.spec.sourceHydrator.drySource.repoURL,
+                targetRevision: app.spec.sourceHydrator.syncSource.targetBranch,
+                path: app.spec.sourceHydrator.syncSource.path
+            } as appModels.ApplicationSource
+        ];
+    }
+
+    if (app.spec.sources && app.spec.sources.length > 0) {
+        return app.spec.sources;
+    }
+
+    if (app.spec.source) {
+        return [app.spec.source];
+    }
+
+    return [];
 }
 
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
@@ -1722,6 +1784,35 @@ export function getRootPathByApp(abstractApp: appModels.AbstractApplication) {
     return isApp(abstractApp) ? '/applications' : '/applicationsets';
 }
 
+// Get ApplicationSet health status from its conditions
+// Priority: ErrorOccurred=True → Degraded, RolloutProgressing=True → Progressing, ResourcesUpToDate=True → Healthy, else Unknown
+export function getAppSetHealthStatus(appSet: appModels.ApplicationSet): appModels.HealthStatusCode {
+    const conditions = appSet.status?.conditions;
+    if (!conditions || conditions.length === 0) {
+        return 'Unknown';
+    }
+
+    // Check for errors first (indicates degraded state)
+    const errorCondition = conditions.find(c => c.type === 'ErrorOccurred' && c.status === 'True');
+    if (errorCondition) {
+        return 'Degraded';
+    }
+
+    // Check if rollout is progressing
+    const progressingCondition = conditions.find(c => c.type === 'RolloutProgressing' && c.status === 'True');
+    if (progressingCondition) {
+        return 'Progressing';
+    }
+
+    // Check if resources are up to date (healthy state)
+    const upToDateCondition = conditions.find(c => c.type === 'ResourcesUpToDate' && c.status === 'True');
+    if (upToDateCondition) {
+        return 'Healthy';
+    }
+
+    return 'Unknown';
+}
+
 export function appQualifiedName(app: appModels.AbstractApplication, nsEnabled: boolean): string {
     return (nsEnabled ? app.metadata.namespace + '/' : '') + app.metadata.name;
 }
@@ -1801,6 +1892,14 @@ export function getAppUrl(app: appModels.AbstractApplication): string {
         return `${basePath}/${app.metadata.name}`;
     }
     return `${basePath}/${app.metadata.namespace}/${app.metadata.name}`;
+}
+
+/** RollingSync step for display; backend uses -1 when no step matches the app's labels. */
+export function formatApplicationSetProgressiveSyncStep(step: string | undefined): string {
+    if (step === '-1') {
+        return 'Step: unmatched label';
+    }
+    return `Step: ${step ?? ''}`;
 }
 
 export const getProgressiveSyncStatusIcon = ({status, isButton}: {status: string; isButton?: boolean}) => {
@@ -1899,7 +1998,7 @@ export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {
     let url, isExternal;
     if (managedByURL) {
         // Validate the managed-by URL using the same validation as external links
-        if (!isValidURL(managedByURL)) {
+        if (!isValidManagedByURL(managedByURL)) {
             // If URL is invalid, fall back to local URL for security
             console.warn(`Invalid managed-by URL for application ${app.metadata.name}: ${managedByURL}`);
             url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
@@ -1927,7 +2026,7 @@ export function getApplicationLinkURLFromNode(node: any, baseHref: string): {url
     let url, isExternal;
     if (managedByURL) {
         // Validate the managed-by URL using the same validation as external links
-        if (!isValidURL(managedByURL)) {
+        if (!isValidManagedByURL(managedByURL)) {
             // If URL is invalid, fall back to local URL for security
             console.warn(`Invalid managed-by URL for application ${node.name}: ${managedByURL}`);
             url = baseHref + 'applications/' + node.namespace + '/' + node.name;

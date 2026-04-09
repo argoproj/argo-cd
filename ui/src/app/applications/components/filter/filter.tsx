@@ -145,12 +145,8 @@ export const Filter = (props: FilterProps) => {
         }
     }, [props.selected.length]);
 
-    const totalCount = options.reduce((countSum, option) => {
-        return countSum + option.count;
-    }, 0);
-
     return (
-        <div className='filter' key={totalCount + props.label}>
+        <div className='filter'>
             <div className='filter__header'>
                 <span className='filter__header__label' title={props.label || 'FILTER'}>
                     {props.label || 'FILTER'}
