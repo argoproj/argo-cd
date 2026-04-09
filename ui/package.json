@@ -130,6 +130,6 @@
     "typescript-eslint": "^7.8.0",
     "webpack": "^5.105.4",
     "webpack-cli": "^4.9.2",
-    "webpack-dev-server": "^4.7.4"
+    "webpack-dev-server": "^5.2.3"
   }
 }
