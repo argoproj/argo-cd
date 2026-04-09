@@ -234,6 +234,17 @@ func TestRunCommandErrStripsAnsi(t *testing.T) {
 	assert.Contains(t, err.Error(), "Error: boom")
 }
 
+func TestRunCommandErrCaptureStderrStripsAnsi(t *testing.T) {
+	// Exercises the CaptureStderr error path: both stdout and stderr are
+	// captured, and ANSI escapes on stderr must be stripped before returning.
+	output, err := RunCommand("sh", CmdOpts{CaptureStderr: true}, "-c", `printf 'stdout-line\n'; printf '\033[1;31mError\033[0m: boom\n' >&2; exit 1`)
+	require.Error(t, err)
+	assert.NotContains(t, output, "\x1b")
+	assert.Contains(t, output, "stdout-line")
+	assert.Contains(t, output, "Error: boom")
+	assert.NotContains(t, err.Error(), "\x1b")
+}
+
 func TestRunCaptureStderr(t *testing.T) {
 	output, err := RunCommand("sh", CmdOpts{CaptureStderr: true}, "-c", "echo hello world && echo my-error >&2 && exit 0")
 	assert.Equal(t, "hello world\nmy-error", output)
