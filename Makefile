@@ -672,7 +672,7 @@ run-pnpm: test-tools-image
 
 .PHONY: run-pnpm-local
 run-pnpm-local:
-	cd ui && pnpm $(PNPM_COMMAND)
+	cd ui && pnpm $(PNPM_COMMAND) </dev/null
 
 start-test-k8s:
 	go run ./hack/k8s

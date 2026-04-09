@@ -29,7 +29,7 @@ As build dependencies change over time, you have to synchronize your development
 
 * `make dep-ui` or `make dep-ui-local`
 
-These commands run `yarn install --frozen-lockfile` command, which only brings package versions that are defined in the `yarn.lock` file without trying to resolve and download new package versions.
+These commands run `pnpm install --frozen-lockfile` command, which only brings package versions that are defined in the `pnpm-lock.yaml` file without trying to resolve and download new package versions.
 
 ### Updating UI build dependencies
 
@@ -47,7 +47,7 @@ make run-pnpm PNPM_COMMAND="add newpackage --ignore-scripts"
 To upgrade an existing package:
 
 ```shell
-make run-pnpm PNPM_COMMAND="upgrade existingpackage@1.0.2 --ignore-scripts"
+make run-pnpm PNPM_COMMAND="update existingpackage@1.0.2 --ignore-scripts"
 ```
 
 Please consider using best security practices when adding or upgrading
