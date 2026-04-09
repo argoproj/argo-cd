@@ -176,8 +176,8 @@ importers:
         specifier: ^0.5.1
         version: 0.5.4
       '@types/dagre':
-        specifier: 0.7.42
-        version: 0.7.42
+        specifier: 0.7.54
+        version: 0.7.54
       '@types/deepmerge':
         specifier: ^2.2.0
         version: 2.2.3
@@ -1648,8 +1648,8 @@ packages:
   '@types/cookiejar@2.1.5':
     resolution: {integrity: sha512-he+DHOWReW0nghN24E1WUqM0efK4kI9oTqDm6XmK8ZPe2djZ90BSNdGnIyCLzCPw7/pogPlGbzI2wHGGmi4O/Q==}
 
-  '@types/dagre@0.7.42':
-    resolution: {integrity: sha512-knVdi1Ul8xYgJ0wdhQ+/2YGJFKJFa/5srcPII9zvOs4KhsHfpnFrSTQXATYmjslglxRMif3Lg+wEZ0beag+94A==}
+  '@types/dagre@0.7.54':
+    resolution: {integrity: sha512-QjcRY+adGbYvBFS7cwv5txhVIwX1XXIUswWl+kSQTbI6NjgZydrZkEKX/etzVd7i+bCsCb40Z/xlBY5eoFuvWQ==}
 
   '@types/deepmerge@2.2.3':
     resolution: {integrity: sha512-ct4srnukH/SHdVPyJIFV73YJIt9PTYTaqQbjrCvRrbc9LxHdGcJb132SuWwnDTPyx5UjCVS/I00wj0i5IXfqSA==}
@@ -7085,7 +7085,7 @@ snapshots:
 
   '@types/cookiejar@2.1.5': {}
 
-  '@types/dagre@0.7.42': {}
+  '@types/dagre@0.7.54': {}
 
   '@types/deepmerge@2.2.3':
     dependencies:
