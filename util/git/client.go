@@ -137,6 +137,9 @@ type Client interface {
 	VerifyCommitSignature(string) (string, error)
 	IsAnnotatedTag(string) bool
 	ChangedFiles(revision string, targetRevision string) ([]string, error)
+	// RevisionForPaths returns the SHA of the most recent commit reachable from revision
+	// that modified any of the given paths. Returns empty string if no such commit exists.
+	RevisionForPaths(revision string, paths []string) (string, error)
 	IsRevisionPresent(revision string) bool
 	// SetAuthor sets the author name and email in the git configuration.
 	SetAuthor(name, email string) (string, error)
@@ -1000,6 +1003,21 @@ func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) (
 
 	files := strings.Split(out, "\n")
 	return files, nil
+}
+
+func (m *nativeGitClient) RevisionForPaths(revision string, paths []string) (string, error) {
+	if !IsCommitSHA(revision) {
+		return "", errors.New("invalid revision provided, must be SHA")
+	}
+	if len(paths) == 0 {
+		return "", nil
+	}
+	args := append([]string{"log", "-1", "--format=%H", revision, "--"}, paths...)
+	out, err := m.runCmd(context.Background(), args...)
+	if err != nil {
+		return "", fmt.Errorf("failed to find revision for paths %v: %w", paths, err)
+	}
+	return strings.TrimSpace(out), nil
 }
 
 // config runs a git config command.

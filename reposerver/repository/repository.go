@@ -3244,61 +3244,40 @@ func (s *Service) gitSourceHasChanges(repo *v1alpha1.Repository, revision, synce
 		return revision, syncedRevision, false, nil
 	}
 
-	getGitFilesChanges := func() ([]string, error) {
-		var files []string
-
+	getPathRelevantRevision := func() (string, error) {
 		s.metricsServer.IncPendingRepoRequest(repo.Repo)
 		defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 		closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
-			return s.checkoutRevision(gitClient, revision, false, repo.Depth, clean)
+			return s.checkoutRevision(gitClient, revision, false, 0, clean)
 		})
 		if err != nil {
-			return files, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+			return "", status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 		}
 		defer utilio.Close(closer)
 
-		// Shallow-fetch syncedRevision: we only need the commit tree for diffing
-		if !gitClient.IsRevisionPresent(syncedRevision) {
-			if err := gitClient.Fetch(syncedRevision, 1); err != nil {
-				return files, status.Errorf(codes.Internal, "unable to fetch synced revision %s for repo %s: %v", syncedRevision, repo.Repo, err)
-			}
-		}
-
-		files, err = gitClient.ChangedFiles(syncedRevision, revision)
+		pathRevision, err := gitClient.RevisionForPaths(revision, refreshPaths)
 		if err != nil {
-			return files, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
+			return "", status.Errorf(codes.Internal, "unable to find revision for paths %v in repo %s: %v", refreshPaths, repo.Repo, err)
 		}
-		return files, nil
+		return pathRevision, nil
 	}
 
-	files, err := s.cache.GetGitFilesChanges(repo.Repo, revision, syncedRevision)
+	pathRevision, err := getPathRelevantRevision()
 	if err != nil {
-		files, err = getGitFilesChanges()
-		if err != nil {
-			return revision, syncedRevision, true, err
-		}
+		return revision, syncedRevision, true, err
 	}
 
-	if err := s.cache.SetGitFilesChanges(repo.Repo, revision, syncedRevision, files); err != nil {
-		log.Warnf("Failed to store git files changes for `%s` repo in `%s...%s` with: %v", repo.Repo, revision, syncedRevision, err)
+	if pathRevision == "" || pathRevision != syncedRevision {
+		// Either no commit in the available history touched these paths (empty),
+		// or the last commit that touched them is different from the synced revision.
+		// In both cases, assume changes occurred.
+		return revision, syncedRevision, true, nil
 	}
 
-	changed := false
-	if len(files) != 0 {
-		changed = apppathutil.AppFilesHaveChanged(refreshPaths, files)
-	}
-
-	if !changed {
-		// No files in the declared manifest-generate-paths changed between syncedRevision
-		// and revision. Return syncedRevision as the path-relevant revision: it is the last
-		// point where the app was synced and its manifests are identical to those at HEAD
-		// for the relevant paths. This avoids polluting revision history with commits that
-		// did not affect this application.
-		return syncedRevision, syncedRevision, false, nil
-	}
-
-	return revision, syncedRevision, changed, nil
+	// The last commit that modified the declared manifest-generate-paths is exactly
+	// the synced revision. No path-relevant changes since sync.
+	return syncedRevision, syncedRevision, false, nil
 }
 
 // UpdateRevisionForPaths compares git revisions for single and multi-source applications

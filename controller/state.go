@@ -268,7 +268,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			// just reading pre-generated manifests is comparable to updating revisions time-wise
 			app.Status.SourceType != v1alpha1.ApplicationSourceTypeDirectory
 
-		if updateRevisions && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" && (syncedRevision != revision || app.Spec.HasMultipleSources()) {
+		if updateRevisions && syncedRevision != "" && !source.IsRef() && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" && (syncedRevision != revision || app.Spec.HasMultipleSources()) {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
 			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 				Repo:               repo,

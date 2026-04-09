@@ -1185,6 +1185,72 @@ func (_c *Client_RevisionMetadata_Call) RunAndReturn(run func(revision string) (
 	return _c
 }
 
+// RevisionForPaths provides a mock function for the type Client
+func (_mock *Client) RevisionForPaths(revision string, paths []string) (string, error) {
+	ret := _mock.Called(revision, paths)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RevisionForPaths")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, []string) (string, error)); ok {
+		return returnFunc(revision, paths)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, []string) string); ok {
+		r0 = returnFunc(revision, paths)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, []string) error); ok {
+		r1 = returnFunc(revision, paths)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Client_RevisionForPaths_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RevisionForPaths'
+type Client_RevisionForPaths_Call struct {
+	*mock.Call
+}
+
+// RevisionForPaths is a helper method to define mock.On call
+//   - revision string
+//   - paths []string
+func (_e *Client_Expecter) RevisionForPaths(revision interface{}, paths interface{}) *Client_RevisionForPaths_Call {
+	return &Client_RevisionForPaths_Call{Call: _e.mock.On("RevisionForPaths", revision, paths)}
+}
+
+func (_c *Client_RevisionForPaths_Call) Run(run func(revision string, paths []string)) *Client_RevisionForPaths_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 []string
+		if args[1] != nil {
+			arg1 = args[1].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_RevisionForPaths_Call) Return(s string, err error) *Client_RevisionForPaths_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Client_RevisionForPaths_Call) RunAndReturn(run func(revision string, paths []string) (string, error)) *Client_RevisionForPaths_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Root provides a mock function for the type Client
 func (_mock *Client) Root() string {
 	ret := _mock.Called()
