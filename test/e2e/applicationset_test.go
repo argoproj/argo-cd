@@ -615,26 +615,6 @@ func TestTemplatePatch(t *testing.T) {
 		},
 	}
 
-	templatePatch := `{
-		"metadata": {
-			"annotations": {
-				{{- range $k, $v := .annotations }}
-				"{{ $k }}": "{{ $v }}"
-				{{- end }}
-			}
-		},
-		{{- if .createNamespace }}
-		"spec": {
-			"syncPolicy": {
-				"syncOptions": [
-					"CreateNamespace=true"
-				]
-			}
-		}
-		{{- end }}
-	}
-	`
-
 	var expectedAppNewNamespace *v1alpha1.Application
 	var expectedAppNewMetadata *v1alpha1.Application
 
@@ -658,7 +638,25 @@ func TestTemplatePatch(t *testing.T) {
 					},
 				},
 			},
-			TemplatePatch: &templatePatch,
+			TemplatePatch: new(`{
+		"metadata": {
+			"annotations": {
+				{{- range $k, $v := .annotations }}
+				"{{ $k }}": "{{ $v }}"
+				{{- end }}
+			}
+		},
+		{{- if .createNamespace }}
+		"spec": {
+			"syncPolicy": {
+				"syncOptions": [
+					"CreateNamespace=true"
+				]
+			}
+		}
+		{{- end }}
+	}
+	`),
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
 					List: &v1alpha1.ListGenerator{
@@ -878,9 +876,8 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 			appset.Spec.Template.Labels = map[string]string{
 				"label-key": "label-value",
 			}
-			applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateUpdate
 			appset.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
-				ApplicationsSync: &applicationsSyncPolicy,
+				ApplicationsSync: new(v1alpha1.ApplicationsSyncPolicyCreateUpdate),
 			}
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
 
@@ -976,9 +973,8 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-			applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateDelete
 			appset.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
-				ApplicationsSync: &applicationsSyncPolicy,
+				ApplicationsSync: new(v1alpha1.ApplicationsSyncPolicyCreateDelete),
 			}
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
 
@@ -1075,9 +1071,8 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		Update(func(appset *v1alpha1.ApplicationSet) {
 			appset.Spec.Template.Annotations = map[string]string{"annotation-key": "annotation-value"}
 			appset.Spec.Template.Labels = map[string]string{"label-key": "label-value"}
-			applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateOnly
 			appset.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
-				ApplicationsSync: &applicationsSyncPolicy,
+				ApplicationsSync: new(v1alpha1.ApplicationsSyncPolicyCreateOnly),
 			}
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
 
@@ -1334,9 +1329,6 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 		},
 	}
 
-	// Because you can't &"".
-	repoMatch := "argo-cd"
-
 	Given(t).
 		// Create an SCMProviderGenerator-based ApplicationSet
 		When().Create(v1alpha1.ApplicationSet{
@@ -1365,7 +1357,7 @@ func TestSimpleSCMProviderGenerator(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},
@@ -1406,9 +1398,6 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 		},
 	}
 
-	// Because you can't &"".
-	repoMatch := "argo-cd"
-
 	Given(t).
 		// Create an SCMProviderGenerator-based ApplicationSet
 		When().Create(v1alpha1.ApplicationSet{
@@ -1438,7 +1427,7 @@ func TestSimpleSCMProviderGeneratorGoTemplate(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},
@@ -1473,9 +1462,6 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 		},
 	}
 
-	// Because you can't &"".
-	repoMatch := "argo-cd"
-
 	ctx := Given(t)
 	// Create an SCMProviderGenerator-based ApplicationSet
 	ctx.When().Create(v1alpha1.ApplicationSet{
@@ -1505,7 +1491,7 @@ func TestSCMProviderGeneratorSCMProviderNotAllowed(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},
@@ -1721,9 +1707,6 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 		},
 	}
 
-	// Because you can't &"".
-	repoMatch := "argo-cd"
-
 	Given(t).
 		And(func() {
 			_, err := utils.GetE2EFixtureK8sClient(t).KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(t.Context(), &corev1.Secret{
@@ -1772,7 +1755,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},
@@ -1823,9 +1806,6 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 		},
 	}
 
-	// Because you can't &"".
-	repoMatch := "argo-cd"
-
 	ctx := Given(t)
 	ctx.And(func() {
 		_, err := utils.GetE2EFixtureK8sClient(t).KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(t.Context(), &corev1.Secret{
@@ -1875,7 +1855,7 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
 						},
 						Filters: []v1alpha1.SCMProviderGeneratorFilter{
 							{
-								RepositoryMatch: &repoMatch,
+								RepositoryMatch: new("argo-cd"),
 							},
 						},
 					},

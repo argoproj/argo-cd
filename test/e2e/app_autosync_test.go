@@ -23,8 +23,7 @@ func TestAutoSyncSelfHealDisabled(t *testing.T) {
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
-			selfHeal := false
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: &selfHeal}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{SelfHeal: new(false)}}
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -51,9 +50,8 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		When().
 		// app should be auto-synced once created
 		CreateFromFile(func(app *Application) {
-			selfHeal := true
 			app.Spec.SyncPolicy = &SyncPolicy{
-				Automated: &SyncPolicyAutomated{SelfHeal: &selfHeal},
+				Automated: &SyncPolicyAutomated{SelfHeal: new(true)},
 				Retry:     &RetryStrategy{Limit: 0},
 			}
 		}).
@@ -194,9 +192,8 @@ func TestAutoSyncAllowEmptyCanBeDisabled(t *testing.T) {
 		Path(guestbookPath).
 		When().
 		CreateFromFile(func(app *Application) {
-			allowEmpty := true
 			app.Spec.SyncPolicy = &SyncPolicy{
-				Automated: &SyncPolicyAutomated{AllowEmpty: &allowEmpty},
+				Automated: &SyncPolicyAutomated{AllowEmpty: new(true)},
 			}
 		}).
 		Then().
