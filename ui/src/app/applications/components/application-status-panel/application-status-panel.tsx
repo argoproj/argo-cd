@@ -107,7 +107,9 @@ const renderSyncStatusRevision = (application: models.Application) => {
                     <span title={branchName}>{revisionContent}</span>
                 )}
             </span>
-            {extra && <span className='application-status-panel__item-value__revision-extra'>{extra.trimStart()}</span>}
+            {extra && (
+                <span className='application-status-panel__item-value__revision-extra'>{extra.trimStart()}</span>
+            )}
         </>
     );
 };
