@@ -2114,11 +2114,12 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		source = new(a.Spec.GetSource())
 	}
 
+	prune := syncReq.GetPrune()
 	op := v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{
 			Source:       source,
 			Revision:     revision,
-			Prune:        syncReq.GetPrune(),
+			Prune:        &prune,
 			DryRun:       syncReq.GetDryRun(),
 			SyncOptions:  syncOptions,
 			SyncStrategy: syncReq.Strategy,
@@ -2260,13 +2261,14 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 		syncOptions = a.Spec.SyncPolicy.SyncOptions
 	}
 
+	prune := rollbackReq.GetPrune()
 	// Rollback is just a convenience around Sync
 	op := v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{
 			Revision:     deploymentInfo.Revision,
 			Revisions:    deploymentInfo.Revisions,
 			DryRun:       rollbackReq.GetDryRun(),
-			Prune:        rollbackReq.GetPrune(),
+			Prune:        &prune,
 			SyncOptions:  syncOptions,
 			SyncStrategy: &v1alpha1.SyncStrategy{Apply: &v1alpha1.SyncStrategyApply{}},
 			Source:       &deploymentInfo.Source,

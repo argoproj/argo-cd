@@ -299,6 +299,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		}
 	}
 
+	prune := false
+	if syncOp.Prune != nil {
+		prune = *syncOp.Prune
+	}
+
 	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
@@ -307,7 +312,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 				return m.db.GetProjectClusters(context.TODO(), proj)
 			}, un, res)
 		}),
-		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
+		sync.WithOperationSettings(syncOp.DryRun, prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
 		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
 		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
 			return (len(syncOp.Resources) == 0 ||

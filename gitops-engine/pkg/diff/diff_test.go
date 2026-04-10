@@ -1205,7 +1205,6 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Contains(t, liveData, "key2")
 		assert.Contains(t, liveData, "key3", "key3 should still be in live state")
 	})
-
 }
 
 // testIgnoreDifferencesNormalizer implements a simple normalizer that removes specified fields

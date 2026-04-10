@@ -2252,12 +2252,12 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		source = nil
 		desiredRevisions = syncStatus.Revisions
 	}
-
+	prune := app.Spec.SyncPolicy.Automated.GetPrune()
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
 			Source:      source,
 			Revision:    syncStatus.Revision,
-			Prune:       app.Spec.SyncPolicy.Automated.GetPrune(),
+			Prune:       &prune,
 			SyncOptions: app.Spec.SyncPolicy.SyncOptions,
 			Sources:     app.Spec.Sources,
 			Revisions:   syncStatus.Revisions,

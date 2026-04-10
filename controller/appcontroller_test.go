@@ -659,7 +659,9 @@ func TestAutoSync(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, app.Operation)
 	assert.NotNil(t, app.Operation.Sync)
-	assert.False(t, app.Operation.Sync.Prune)
+	if assert.NotNil(t, app.Operation.Sync.Prune) {
+		assert.False(t, *app.Operation.Sync.Prune)
+	}
 }
 
 func TestAutoSyncEnabledSetToTrue(t *testing.T) {
@@ -676,7 +678,9 @@ func TestAutoSyncEnabledSetToTrue(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, app.Operation)
 	assert.NotNil(t, app.Operation.Sync)
-	assert.False(t, app.Operation.Sync.Prune)
+	if assert.NotNil(t, app.Operation.Sync.Prune) {
+		assert.False(t, *app.Operation.Sync.Prune)
+	}
 }
 
 func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {

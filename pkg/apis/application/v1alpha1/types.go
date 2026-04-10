@@ -1386,7 +1386,7 @@ type SyncOperation struct {
 	// If omitted, will use the revision specified in app spec.
 	Revision string `json:"revision,omitempty" protobuf:"bytes,1,opt,name=revision"`
 	// Prune specifies to delete resources from the cluster that are no longer tracked in git
-	Prune bool `json:"prune,omitempty" protobuf:"bytes,2,opt,name=prune"`
+	Prune *bool `json:"prune,omitempty" protobuf:"bytes,2,opt,name=prune"`
 	// DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync
 	DryRun bool `json:"dryRun,omitempty" protobuf:"bytes,3,opt,name=dryRun"`
 	// SyncStrategy describes how to perform the sync
