@@ -60,8 +60,8 @@ type Dependencies interface {
 	// trigger a refresh after the application has been hydrated and a new commit has been pushed.
 	RequestAppRefresh(appName string, appNamespace string) error
 
-	// PersistAppHydratorStatus persists the application status for the source hydrator.
-	PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
+	// PersistHydrationStatus persists the application status for the source hydrator.
+	PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
 
 	// AddHydrationQueueItem adds a hydration queue item to the queue. This is used to trigger the hydration process for
 	// a group of applications which are hydrating to the same repo and target branch.
@@ -123,8 +123,9 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 			Phase:          appv1.HydrateOperationPhaseHydrating,
 			SourceHydrator: *app.Spec.SourceHydrator,
 		}
-		h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
 	}
+
+	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 
 	needsRefresh := app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.StartedAt.Time) > h.statusRefreshTimeout
 	if needsHydration || needsRefresh {
@@ -252,7 +253,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			HydratedSHA:    hydratedSHA,
 			SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
 		}
-		h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
+		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 
 		// Request a refresh since we pushed a new commit.
 		err := h.dependencies.RequestAppRefresh(app.Name, app.Namespace)
@@ -274,7 +275,7 @@ func (h *Hydrator) setAppHydratorError(app *appv1.Application, err error) {
 	failedAt := metav1.Now()
 	app.Status.SourceHydrator.CurrentOperation.FinishedAt = &failedAt
 	app.Status.SourceHydrator.CurrentOperation.Message = fmt.Sprintf("Failed to hydrate: %v", err.Error())
-	h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
+	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 }
 
 // getAppsForHydrationKey returns the applications matching the hydration key.
