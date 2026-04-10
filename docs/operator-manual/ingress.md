@@ -415,7 +415,6 @@ metadata:
   namespace: argocd
   annotations:
     nginx.org/grpc-services: argocd-server
-    nginx.org/ssl-services: argocd-server #optional, to use grpcs:// when proxying
 spec:
   ingressClassName: f5-nginx
   rules:
