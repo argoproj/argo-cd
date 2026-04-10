@@ -676,6 +676,7 @@ export interface Repository {
     insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
+    depth?: number;
     azureServicePrincipalClientId?: string;
     azureServicePrincipalClientSecret?: string;
     azureServicePrincipalTenantId?: string;

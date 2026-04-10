@@ -411,6 +411,12 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.Depth = depth
 
+	webhookManifestCacheWarmDisabled, err := boolOrFalse(secret, "webhookManifestCacheWarmDisabled")
+	if err != nil {
+		return repository, err
+	}
+	repository.WebhookManifestCacheWarmDisabled = webhookManifestCacheWarmDisabled
+
 	return repository, nil
 }
 
@@ -448,6 +454,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretBool(secretCopy, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	updateSecretBool(secretCopy, "useAzureWorkloadIdentity", repository.UseAzureWorkloadIdentity)
 	updateSecretInt(secretCopy, "depth", repository.Depth)
+	updateSecretBool(secretCopy, "webhookManifestCacheWarmDisabled", repository.WebhookManifestCacheWarmDisabled)
 	updateSecretString(secretCopy, "azureServicePrincipalClientId", repository.AzureServicePrincipalClientId)
 	updateSecretString(secretCopy, "azureServicePrincipalClientSecret", repository.AzureServicePrincipalClientSecret)
 	updateSecretString(secretCopy, "azureServicePrincipalTenantId", repository.AzureServicePrincipalTenantId)

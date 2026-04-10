@@ -1878,16 +1878,16 @@ message RepoCreds {
   optional bool insecureOCIForceHttp = 26;
 
   // AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
-  optional string azureServicePrincipalClientId = 28;
+  optional string azureServicePrincipalClientId = 29;
 
   // AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
-  optional string azureServicePrincipalClientSecret = 29;
+  optional string azureServicePrincipalClientSecret = 30;
 
   // AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo
-  optional string azureServicePrincipalTenantId = 30;
+  optional string azureServicePrincipalTenantId = 31;
 
   // AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
-  optional string azureActiveDirectoryEndpoint = 31;
+  optional string azureActiveDirectoryEndpoint = 32;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1981,17 +1981,22 @@ message Repository {
   // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
   optional int64 depth = 27;
 
+  // WebhookManifestCacheWarmDisabled disables manifest cache warming during webhook processing for this repository.
+  // When set, webhook handlers will only trigger reconciliation for affected applications and skip Redis cache
+  // operations for unaffected ones. Recommended for large monorepos with plain YAML manifests.
+  optional bool webhookManifestCacheWarmDisabled = 28;
+
   // AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
-  optional string azureServicePrincipalClientId = 28;
+  optional string azureServicePrincipalClientId = 29;
 
   // AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
-  optional string azureServicePrincipalClientSecret = 29;
+  optional string azureServicePrincipalClientSecret = 30;
 
   // AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo
-  optional string azureServicePrincipalTenantId = 30;
+  optional string azureServicePrincipalTenantId = 31;
 
   // AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
-  optional string azureActiveDirectoryEndpoint = 31;
+  optional string azureActiveDirectoryEndpoint = 32;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
