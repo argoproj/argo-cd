@@ -186,7 +186,11 @@ func (c *clusterCollector) Collect(ch chan<- prometheus.Metric) {
 			cacheAgeSeconds = int(now.Sub(*info.LastCacheSyncTime).Seconds())
 		}
 		ch <- prometheus.MustNewConstMetric(descClusterCacheAgeSeconds, prometheus.GaugeValue, float64(cacheAgeSeconds), defaultValues...)
-		ch <- prometheus.MustNewConstMetric(descClusterConnectionStatus, prometheus.GaugeValue, boolFloat64(info.SyncError == nil), append(defaultValues, info.K8SVersion)...)
+		var status float64 = 0
+		if info.SyncError == nil {
+			status = 1
+		}
+		ch <- prometheus.MustNewConstMetric(descClusterConnectionStatus, prometheus.GaugeValue, status, append(defaultValues, info.K8SVersion)...)
 
 		if len(c.clusterLabels) > 0 && labels != nil {
 			labelValues := []string{}

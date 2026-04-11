@@ -164,6 +164,13 @@ var (
 		},
 		[]string{"project"},
 	)
+
+	projectsTotal = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "argocd_projects_total",
+			Help: "Total number of projects",
+		},
+	)
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
@@ -398,6 +405,7 @@ func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 	}
 	ch <- descAppInfo
 	ch <- applicationsPerProject.WithLabelValues("").Desc()
+	ch <- projectsTotal.Desc()
 }
 
 // Collect implements the prometheus.Collector interface
@@ -436,13 +444,13 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 			project,
 		)
 	}
-}
 
-func boolFloat64(b bool) float64 {
-	if b {
-		return 1
-	}
-	return 0
+	// Expose total projects count
+	ch <- prometheus.MustNewConstMetric(
+		projectsTotal.Desc(),
+		prometheus.GaugeValue,
+		float64(len(projectCounts)),
+	)
 }
 
 func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.Application, destServer string) {
