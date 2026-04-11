@@ -72,12 +72,13 @@ Argo CD supports hierarchical tag prefixes, allowing you to organize tags by app
 - **Monorepos** - Tag each application separately (e.g., `app1/v1.0.0`, `app2/v2.0.0`)
 - **Multi-cluster deployments** - Organize by application, cluster, and environment for use with ApplicationSet generators
 
-| Tag Format | Constraint | Description |
-|-|-|-|
-| `app1/v1.0.0`, `app1/v1.0.1` | `app1/v1.0.*` | Track patch releases for app1 in a monorepo |
-| `app2/v1.0.0`, `app2/v2.0.0` | `app2/v1.*` | Track minor releases for app2 |
-| `app1/cluster1/prod/v1.0.0` | `app1/cluster1/prod/v1.*` | Nested prefixes for app/cluster/environment |
-| `app1/v1.0.0`, `app1/v1.0.1` | `app1/*` | All versions for an application |
+Set `tagPrefix` to the prefix string. Argo CD will filter tags to only those with that prefix, strip the prefix before evaluating `targetRevision` as a semver constraint, and re-add it to the resolved version.
+
+| Tags in repo | `tagPrefix` | `targetRevision` | Resolves to |
+|-|-|-|-|
+| `app1/v1.0.0`, `app1/v1.0.1` | `app1/` | `v1.0.*` | `app1/v1.0.1` |
+| `app2/v1.0.0`, `app2/v2.0.0` | `app2/` | `v1.*` | `app2/v1.0.0` |
+| `app1/cluster1/prod/v1.0.0` | `app1/cluster1/prod/` | `v1.*` | `app1/cluster1/prod/v1.0.0` |
 
 **Examples:**
 
@@ -85,21 +86,24 @@ Argo CD supports hierarchical tag prefixes, allowing you to organize tags by app
 # Monorepo: Track patch releases for a specific application
 spec:
   source:
-    targetRevision: app1/v1.0.*
+    targetRevision: v1.0.*
+    tagPrefix: app1/
 
 # Multi-cluster: Track versions for a specific app/cluster/environment
 spec:
   source:
-    targetRevision: app1/cluster1/prod/v1.*
+    targetRevision: v1.*
+    tagPrefix: app1/cluster1/prod/
 
-# ApplicationSet generator example - use template variables in prefix
+# ApplicationSet generator example - use template variables in the prefix
 spec:
   source:
-    targetRevision: "{{.app}}/{{.cluster}}/{{.env}}/v1.*"
+    targetRevision: v1.*
+    tagPrefix: "{{.app}}/{{.cluster}}/{{.env}}/"
 ```
 
 > [!NOTE]
-> For prerelease versions, use the `-0` suffix: `>=app1/v1.0.0-0` will match prerelease tags like `app1/v1.0.0-rc.1`.
+> For prerelease versions, use the `-0` suffix: `tagPrefix: app1/` with `targetRevision: ">=v1.0.0-0"` will match prerelease tags like `app1/v1.0.0-rc.1`.
 
 ### Commit Pinning
 

@@ -3,7 +3,6 @@ package versions
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -11,40 +10,6 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 )
-
-// tagTokenRegex matches tag-like tokens with an optional path prefix (group 1) and version (group 2).
-// The prefix must end with "/" and may contain path segments. The version part cannot contain "/",
-// which structurally prevents nested prefix confusion (e.g., "prod/" matching inside "prod/prod/").
-var tagTokenRegex = regexp.MustCompile(`([a-zA-Z0-9-_./]+/)?([a-zA-Z0-9-_.*]+)`)
-
-// extractPrefixes extracts a common path prefix from a semver revision/constraint string.
-// The prefix must end with "/" and be consistent across all version segments in the constraint.
-//
-// Examples:
-//   - "prod/v1.0.*" → ("prod/", "v1.0.*")
-//   - "> prod/v1.0.0 < prod/v2.0.0" → ("prod/", "> v1.0.0 < v2.0.0")
-//   - "> prod/v1.0.0 < dev/v2.0.0" → ("", "> prod/v1.0.0 < dev/v2.0.0") - mixed prefixes, no extraction
-//   - "v1.0.*" → ("", "v1.0.*") - no prefix
-func extractPrefixes(revision string) (prefix string, stripped string) {
-	matches := tagTokenRegex.FindAllStringSubmatch(revision, -1)
-	if len(matches) == 0 {
-		return "", revision
-	}
-
-	// No prefix found in revision.
-	prefix = matches[0][1]
-	if prefix == "" {
-		return "", revision
-	}
-
-	// Verify every tag-like token shares the same prefix.
-	for _, match := range matches {
-		if match[1] != prefix {
-			return "", revision
-		}
-	}
-	return prefix, strings.ReplaceAll(revision, prefix, "")
-}
 
 // filterTagsByPrefix returns only tags that have the specified prefix.
 // If prefix is empty, returns all tags unchanged.
@@ -76,39 +41,31 @@ func stripPrefixFromTags(tags []string, prefix string) []string {
 	return stripped
 }
 
-// MaxVersion takes a revision and a list of tags.
-// If the revision is a version, it returns that version, even if it is not in the list of tags.
-// If the revision is not a version, but is also not a constraint, it returns that revision, even if it is not in the list of tags.
-// If the revision is a constraint, it iterates over the list of tags to find the "maximum" tag which satisfies that
-// constraint.
-// If the revision is a constraint, but no tag satisfies that constraint, then it returns an error.
-//
-// Supports hierarchical tag prefixes (e.g., "prod/v1.0.*" will match tags like "prod/v1.0.0", "prod/v1.0.1").
-// The prefix must be consistent across all version segments in the constraint.
-func MaxVersion(revision string, tags []string) (string, error) {
-	// Extract prefix from revision (e.g., "prod/v1.0.*" -> prefix: "prod/", stripped: "v1.0.*")
-	constraintPrefix, constraintStripped := extractPrefixes(revision)
+// MaxVersion returns the highest version tag satisfying revision, optionally scoped to a tag prefix.
+// If tagPrefix is non-empty, only tags with that prefix are considered; the prefix is stripped before
+// semver comparison and re-added to the returned value.
+// Exact versions and non-constraint strings are returned as-is (with prefix prepended) without consulting the tag list.
+// Returns an error if revision is a constraint and no matching tag is found.
+func MaxVersion(revision string, tags []string, tagPrefix string) (string, error) {
+	filteredTags := filterTagsByPrefix(tags, tagPrefix)
+	strippedTags := stripPrefixFromTags(filteredTags, tagPrefix)
 
-	if v, err := semver.NewVersion(constraintStripped); err == nil {
+	if v, err := semver.NewVersion(revision); err == nil {
 		// If the revision is a valid version, then we know it isn't a constraint; it's just a pin.
 		// In which case, we should use standard tag resolution mechanisms and return the original value.
 		// For example, the following are considered valid versions, and therefore should match an exact tag:
 		// - "v1.0.0"/"1.0.0"
 		// - "v1.0"/"1.0"
-		return constraintPrefix + v.Original(), nil
+		return tagPrefix + v.Original(), nil
 	}
 
-	constraints, err := semver.NewConstraint(constraintStripped)
-
-	// Filter tags to only those matching the prefix, then strip prefix for version comparison
-	filteredTags := filterTagsByPrefix(tags, constraintPrefix)
-	strippedTags := stripPrefixFromTags(filteredTags, constraintPrefix)
+	constraints, err := semver.NewConstraint(revision)
 
 	if err != nil {
 		log.Debugf("Revision '%s' is not a valid semver constraint, resolving via basic string equality.", revision)
 		// If this is also an invalid constraint, we just iterate over available tags to determine if it is valid/invalid.
-		if slices.Contains(strippedTags, constraintStripped) {
-			return constraintPrefix + constraintStripped, nil
+		if slices.Contains(strippedTags, revision) {
+			return tagPrefix + revision, nil
 		}
 		return "", fmt.Errorf("failed to determine semver constraint: %w", err)
 	}
@@ -135,8 +92,8 @@ func MaxVersion(revision string, tags []string) (string, error) {
 		return "", fmt.Errorf("version matching constraint not found in %d tags", len(filteredTags))
 	}
 
-	log.Debugf("Semver constraint '%s' resolved to version '%s'", constraints.String(), constraintPrefix+maxVersion.Original())
-	return constraintPrefix + maxVersion.Original(), nil
+	log.Debugf("Semver constraint '%s' resolved to version '%s'", constraints.String(), tagPrefix+maxVersion.Original())
+	return tagPrefix + maxVersion.Original(), nil
 }
 
 // Returns true if the given revision is not an exact semver and can be parsed as a semver constraint
