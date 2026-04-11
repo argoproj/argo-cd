@@ -132,17 +132,19 @@ type ClientOptions struct {
 }
 
 type client struct {
-	ServerAddr      string
-	PlainText       bool
-	Insecure        bool
-	CertPEMData     []byte
-	ClientCert      *tls.Certificate
-	AuthToken       string
-	RefreshToken    string
-	UserAgent       string
-	GRPCWeb         bool
-	GRPCWebRootPath string
-	Headers         []string
+	ServerAddr           string
+	PlainText            bool
+	Insecure             bool
+	CertPEMData          []byte
+	ClientCert           *tls.Certificate
+	AuthToken            string
+	RefreshToken         string
+	UserAgent            string
+	GRPCWeb              bool
+	GRPCWebRootPath      string
+	PortForward          bool
+	PortForwardNamespace string
+	Headers              []string
 
 	proxyMutex      *sync.Mutex
 	proxyListener   net.Listener
@@ -261,6 +263,12 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	if opts.GRPCWebRootPath != "" {
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
+	}
+	if opts.PortForward {
+		c.PortForward = opts.PortForward
+	}
+	if opts.PortForwardNamespace != "" {
+		c.PortForwardNamespace = opts.PortForwardNamespace
 	}
 
 	if opts.HttpRetryMax > 0 {
