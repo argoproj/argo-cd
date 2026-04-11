@@ -408,81 +408,95 @@ func Test_SemverTagsWithPrefix(t *testing.T) {
 	}
 
 	for _, tc := range []struct {
-		name     string
-		ref      string
-		expected string
-		error    bool
+		name      string
+		ref       string
+		tagPrefix string
+		expected  string
+		error     bool
 	}{{
-		name:     "pinned version with prefix",
-		ref:      "prod/v1.0.0",
-		expected: mapTagRefs["prod/v1.0.0"],
+		name:      "pinned version with prefix",
+		ref:       "v1.0.0",
+		tagPrefix: "prod/",
+		expected:  mapTagRefs["prod/v1.0.0"],
 	}, {
-		name:     "pinned rc version with prefix",
-		ref:      "prod/v1.0.0-rc1",
-		expected: mapTagRefs["prod/v1.0.0-rc1"],
+		name:      "pinned rc version with prefix",
+		ref:       "v1.0.0-rc1",
+		tagPrefix: "prod/",
+		expected:  mapTagRefs["prod/v1.0.0-rc1"],
 	}, {
-		name:     "lt rc constraint with prefix",
-		ref:      "< prod/v1.0.0-rc3",
-		expected: mapTagRefs["prod/v1.0.0-rc2"],
+		name:      "lt rc constraint with prefix",
+		ref:       "< v1.0.0-rc3",
+		tagPrefix: "prod/",
+		expected:  mapTagRefs["prod/v1.0.0-rc2"],
 	}, {
-		name:     "patch wildcard with prefix",
-		ref:      "prod/v1.0.*",
-		expected: mapTagRefs["prod/v1.0.1"],
+		name:      "patch wildcard with prefix",
+		ref:       "v1.0.*",
+		tagPrefix: "prod/",
+		expected:  mapTagRefs["prod/v1.0.1"],
 	}, {
-		name:     "minor wildcard with prefix",
-		ref:      "prod/v1.*",
-		expected: mapTagRefs["prod/v1.1.0"],
+		name:      "minor wildcard with prefix",
+		ref:       "v1.*",
+		tagPrefix: "prod/",
+		expected:  mapTagRefs["prod/v1.1.0"],
 	}, {
-		name:     "patch tilde constraint with prefix",
-		ref:      "~prod/v1.0.0",
-		expected: mapTagRefs["prod/v1.0.1"],
+		name:      "patch tilde constraint with prefix",
+		ref:       "~v1.0.0",
+		tagPrefix: "prod/",
+		expected:  mapTagRefs["prod/v1.0.1"],
 	}, {
-		name:     "gte constraint with prefix",
-		ref:      ">= prod/v1.0.0",
-		expected: mapTagRefs["prod/v1.1.0"],
+		name:      "gte constraint with prefix",
+		ref:       ">= v1.0.0",
+		tagPrefix: "prod/",
+		expected:  mapTagRefs["prod/v1.1.0"],
 	}, {
-		name:     "range constraint with prefix",
-		ref:      "> prod/v1.0.0 < prod/v1.1.0",
-		expected: mapTagRefs["prod/v1.0.1"],
+		name:      "range constraint with prefix",
+		ref:       "> v1.0.0 < v1.1.0",
+		tagPrefix: "prod/",
+		expected:  mapTagRefs["prod/v1.0.1"],
 	}, {
-		name:     "staging gt constraint",
-		ref:      "> staging/v1.0.0",
-		expected: mapTagRefs["staging/v2.0.0"],
+		name:      "staging gt constraint",
+		ref:       "> v1.0.0",
+		tagPrefix: "staging/",
+		expected:  mapTagRefs["staging/v2.0.0"],
 	}, {
-		name:     "staging wildcard",
-		ref:      "staging/v*",
-		expected: mapTagRefs["staging/v2.0.0"],
+		name:      "staging wildcard",
+		ref:       "v*",
+		tagPrefix: "staging/",
+		expected:  mapTagRefs["staging/v2.0.0"],
 	}, {
-		name:     "deep nested prefix patch wildcard",
-		ref:      "foo/bar/v1.0.*",
-		expected: mapTagRefs["foo/bar/v1.0.1"],
+		name:      "deep nested prefix patch wildcard",
+		ref:       "v1.0.*",
+		tagPrefix: "foo/bar/",
+		expected:  mapTagRefs["foo/bar/v1.0.1"],
 	}, {
-		name:     "deep nested prefix exact",
-		ref:      "foo/baz/v1.0.0",
-		expected: mapTagRefs["foo/baz/v1.0.0"],
+		name:      "deep nested prefix exact",
+		ref:       "v1.0.0",
+		tagPrefix: "foo/baz/",
+		expected:  mapTagRefs["foo/baz/v1.0.0"],
 	}, {
-		name:     "non-specific version with prefix",
-		ref:      "prod/v1.0",
-		expected: mapTagRefs["prod/v1.0"],
+		name:      "non-specific version with prefix",
+		ref:       "v1.0",
+		tagPrefix: "prod/",
+		expected:  mapTagRefs["prod/v1.0"],
 	}, {
-		name:  "missing non-specific version with prefix",
-		ref:   "prod/v1.1",
-		error: true,
+		name:      "missing non-specific version with prefix",
+		ref:       "v1.1",
+		tagPrefix: "prod/",
+		error:     true,
 	}, {
-		name:  "non-matching prefix returns error",
-		ref:   "dev/v1.0.*",
-		error: true,
-	}, {
-		name:  "mixed prefixes in constraint returns error",
-		ref:   "> prod/v1.0.0 < staging/v2.0.0",
-		error: true,
+		name:      "non-matching prefix returns error",
+		ref:       "v1.0.*",
+		tagPrefix: "dev/",
+		error:     true,
 	}, {
 		name:     "no prefix still works",
 		ref:      "v2.*",
 		expected: mapTagRefs["v2.0.0"],
 	}} {
 		t.Run(tc.name, func(t *testing.T) {
-			commitSHA, err := client.LsRemote(tc.ref)
+			testClient, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "", WithTagPrefix(tc.tagPrefix))
+			require.NoError(t, err)
+			commitSHA, err := testClient.LsRemote(tc.ref)
 			if tc.error {
 				require.Error(t, err)
 				return

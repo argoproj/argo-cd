@@ -187,6 +187,9 @@ type nativeGitClient struct {
 	noProxy string
 	// git configuration environment variables
 	gitConfigEnv []string
+	// tagPrefix filters git tags to only those with this prefix when resolving semver constraints.
+	// The prefix is stripped before comparison and re-added to the resolved tag name.
+	tagPrefix string
 }
 
 type runOpts struct {
@@ -247,6 +250,14 @@ func WithBuiltinGitConfig(enable bool) ClientOpts {
 func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.EventHandlers = handlers
+	}
+}
+
+// WithTagPrefix sets a tag prefix to filter and strip when resolving semver constraints via LsRemote.
+// Only tags with this prefix are considered; the prefix is stripped before comparison and re-added to the result.
+func WithTagPrefix(prefix string) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.tagPrefix = prefix
 	}
 }
 
@@ -763,7 +774,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		revision = "HEAD"
 	}
 
-	maxV, err := versions.MaxVersion(revision, getGitTags(refs))
+	maxV, err := versions.MaxVersion(revision, getGitTags(refs), m.tagPrefix)
 	if err == nil {
 		revision = maxV
 	}
