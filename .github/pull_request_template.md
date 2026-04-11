@@ -20,5 +20,5 @@ Checklist:
 * [ ] I have added a brief description of why this PR is necessary and/or what this PR solves.
 * [ ] Optional. My organization is added to USERS.md.
 * [ ] Optional. For bug fixes, I've indicated what older releases this fix should be cherry-picked into (this may or may not happen depending on risk/complexity).
-
+- [ ] I have used LLM/AI/Agent tools to assist with this PR, and I take full responsibility for all code and content submitted.
 <!-- Please see [Contribution FAQs](https://argo-cd.readthedocs.io/en/latest/developer-guide/faq/) if you have questions about your pull-request. -->
