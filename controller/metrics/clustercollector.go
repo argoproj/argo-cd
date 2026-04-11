@@ -186,7 +186,7 @@ func (c *clusterCollector) Collect(ch chan<- prometheus.Metric) {
 			cacheAgeSeconds = int(now.Sub(*info.LastCacheSyncTime).Seconds())
 		}
 		ch <- prometheus.MustNewConstMetric(descClusterCacheAgeSeconds, prometheus.GaugeValue, float64(cacheAgeSeconds), defaultValues...)
-		var status float64 = 0
+		var status float64
 		if info.SyncError == nil {
 			status = 1
 		}
