@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var flags map[string]string
+var flags map[string]interface{}
 
 func init() {
 	err := LoadFlags()
@@ -21,7 +21,7 @@ func init() {
 }
 
 func LoadFlags() error {
-	flags = make(map[string]string)
+	flags = make(map[string]interface{})
 
 	opts, err := shellquote.Split(os.Getenv("ARGOCD_OPTS"))
 	if err != nil {
@@ -37,7 +37,17 @@ func LoadFlags() error {
 			}
 			key = strings.TrimPrefix(opt, "--")
 		case key != "":
-			flags[key] = opt
+			existing, exists := flags[key]
+			if !exists {
+				flags[key] = opt
+			} else {
+				switch v := existing.(type) {
+				case string:
+					flags[key] = []string{v, opt}
+				case []string:
+					flags[key] = append(v, opt)
+				}
+			}
 			key = ""
 		default:
 			return errors.New("ARGOCD_OPTS invalid at '" + opt + "'")
@@ -63,7 +73,15 @@ func LoadFlags() error {
 func GetFlag(key, fallback string) string {
 	val, ok := flags[key]
 	if ok {
-		return val
+		switch v := val.(type) {
+		case string:
+			return v
+		case []string:
+			// For backwards compatibility, if someone asks for a single value on multi flag return first
+			return v[0]
+		default:
+			return fallback
+		}
 	}
 	return fallback
 }
@@ -78,11 +96,23 @@ func GetIntFlag(key string, fallback int) int {
 		return fallback
 	}
 
-	v, err := strconv.Atoi(val)
-	if err != nil {
-		log.Fatal(err)
+	switch v := val.(type) {
+	case string:
+		ival, err := strconv.Atoi(v)
+		if err != nil {
+			log.Fatal(err)
+		}
+		return ival
+	case []string:
+		ival, err := strconv.Atoi(v[0])
+		if err != nil {
+			log.Fatal(err)
+		}
+		return ival
+	default:
+		return fallback
 	}
-	return v
+	return fallback
 }
 
 func GetStringSliceFlag(key string, fallback []string) []string {
@@ -91,14 +121,22 @@ func GetStringSliceFlag(key string, fallback []string) []string {
 		return fallback
 	}
 
-	if val == "" {
-		return []string{}
+	switch v := val.(type) {
+	case string:
+		if v == "" {
+			return []string{}
+		}
+		stringReader := strings.NewReader(v)
+		csvReader := csv.NewReader(stringReader)
+		res, err := csvReader.Read()
+		if err != nil {
+			log.Fatal(err)
+		}
+		return res
+	case []string:
+		return v
+	default:
+		return fallback
 	}
-	stringReader := strings.NewReader(val)
-	csvReader := csv.NewReader(stringReader)
-	v, err := csvReader.Read()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return v
+	return fallback
 }
