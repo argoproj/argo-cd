@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -2434,4 +2435,170 @@ func TestSecretsInformerExcludesClusterSecrets(t *testing.T) {
 			assert.NotEqual(t, "repo-secret", c.ObjectMeta.Name, "repository secret should not appear in cluster informer")
 		}
 	})
+}
+
+func TestIsRepositorySecret(t *testing.T) {
+	tests := []struct {
+		name     string
+		obj      any
+		expected bool
+	}{
+		{
+			name: "repository secret matches",
+			obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			}},
+			expected: true,
+		},
+		{
+			name:     "unlabeled secret does not match",
+			obj:      &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
+			expected: false,
+		},
+		{
+			name: "cluster secret does not match",
+			obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeCluster},
+			}},
+			expected: false,
+		},
+		{
+			name: "tombstone wrapping repository secret matches",
+			obj: cache.DeletedFinalStateUnknown{
+				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+				}},
+			},
+			expected: true,
+		},
+		{
+			name: "tombstone wrapping non-repository secret does not match",
+			obj: cache.DeletedFinalStateUnknown{
+				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
+			},
+			expected: false,
+		},
+		{
+			name:     "unknown type does not match",
+			obj:      "unexpected-type",
+			expected: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isRepositorySecret(tt.obj))
+		})
+	}
+}
+
+func TestIsSettingsObject(t *testing.T) {
+	tests := []struct {
+		name     string
+		obj      any
+		expected bool
+	}{
+		{
+			name: "secret with part-of=argocd matches",
+			obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			}},
+			expected: true,
+		},
+		{
+			name:     "unlabeled secret does not match",
+			obj:      &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
+			expected: false,
+		},
+		{
+			name: "secret with different part-of value does not match",
+			obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{"app.kubernetes.io/part-of": "other-app"},
+			}},
+			expected: false,
+		},
+		{
+			name: "configmap with part-of=argocd matches",
+			obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			}},
+			expected: true,
+		},
+		{
+			name: "tombstone wrapping labeled secret matches",
+			obj: cache.DeletedFinalStateUnknown{
+				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
+				}},
+			},
+			expected: true,
+		},
+		{
+			name: "tombstone wrapping unlabeled secret does not match",
+			obj: cache.DeletedFinalStateUnknown{
+				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
+			},
+			expected: false,
+		},
+		{
+			name:     "unknown type does not match",
+			obj:      "unexpected-type",
+			expected: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isSettingsObject(tt.obj))
+		})
+	}
+}
+
+func TestIsArgoCDConfigMap(t *testing.T) {
+	tests := []struct {
+		name     string
+		obj      any
+		expected bool
+	}{
+		{
+			name: "argocd-cm matches",
+			obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+				Name: common.ArgoCDConfigMapName,
+			}},
+			expected: true,
+		},
+		{
+			name: "other configmap does not match",
+			obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+				Name: common.ArgoCDRBACConfigMapName,
+			}},
+			expected: false,
+		},
+		{
+			name: "tombstone wrapping argocd-cm matches",
+			obj: cache.DeletedFinalStateUnknown{
+				Obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+					Name: common.ArgoCDConfigMapName,
+				}},
+			},
+			expected: true,
+		},
+		{
+			name: "tombstone wrapping other configmap does not match",
+			obj: cache.DeletedFinalStateUnknown{
+				Obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+					Name: common.ArgoCDRBACConfigMapName,
+				}},
+			},
+			expected: false,
+		},
+		{
+			name:     "unknown type does not match",
+			obj:      "unexpected-type",
+			expected: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isArgoCDConfigMap(tt.obj))
+		})
+	}
 }
