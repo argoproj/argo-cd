@@ -156,6 +156,14 @@ var (
 		Name: "argocd_resource_events_processed_in_batch",
 		Help: "Number of resource events processed in batch",
 	}, []string{"server"})
+
+	applicationsPerProject = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "argocd_applications_per_project",
+			Help: "Number of applications per project",
+		},
+		[]string{"project"},
+	)
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
@@ -389,6 +397,7 @@ func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- descAppConditions
 	}
 	ch <- descAppInfo
+	ch <- applicationsPerProject.WithLabelValues("").Desc()
 }
 
 // Collect implements the prometheus.Collector interface
@@ -398,10 +407,15 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 		log.Warnf("Failed to collect applications: %v", err)
 		return
 	}
+
+	// Count applications per project
+	projectCounts := make(map[string]int)
 	for _, app := range apps {
 		if !c.appFilter(app) {
 			continue
 		}
+		projectCounts[app.Spec.GetProject()]++
+
 		destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, c.db)
 		if err != nil {
 			log.Warnf("Failed to get destination cluster for application %s: %v", app.Name, err)
@@ -411,6 +425,16 @@ func (c *appCollector) Collect(ch chan<- prometheus.Metric) {
 			destServer = destCluster.Server
 		}
 		c.collectApps(ch, app, destServer)
+	}
+
+	// Expose applications per project metrics
+	for project, count := range projectCounts {
+		ch <- prometheus.MustNewConstMetric(
+			applicationsPerProject.WithLabelValues(project).Desc(),
+			prometheus.GaugeValue,
+			float64(count),
+			project,
+		)
 	}
 }
 
