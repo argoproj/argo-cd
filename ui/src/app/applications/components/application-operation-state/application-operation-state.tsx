@@ -219,6 +219,9 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
 
             return pass;
         });
+
+        // Sort resources by sync wave ascending (lower waves first, matching actual sync execution order)
+        filtered.sort((a, b) => (a.syncWave || 0) - (b.syncWave || 0));
     }
 
     return (
