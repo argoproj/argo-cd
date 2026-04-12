@@ -220,7 +220,7 @@ nav:
     - developer-guide/architecture/authz-authn.md
     - developer-guide/architecture/components.md
   - Code Contribution Guide: developer-guide/code-contributions.md
-  - 'Triage proposal (draft)': developer-guide/triage-proposal.md
+  - Triage proposal (draft): developer-guide/triage-proposal.md
   - Toolchain Guide: developer-guide/toolchain-guide.md
   - developer-guide/mac-users.md
   - developer-guide/release-process-and-cadence.md
