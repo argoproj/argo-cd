@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=\"$CLAUDE_FILE_PATH\"; if [[ \"$file\" == *.go ]]; then gofumpt -w \"$file\" && goimports -local github.com/argoproj/argo-cd/v3 -w \"$file\"; fi"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=\"$CLAUDE_FILE_PATH\"; if [[ \"$file\" == *.pb.go ]] || [[ \"$file\" == *.pb.gw.go ]] || [[ \"$file\" == */generated.proto ]] || [[ \"$file\" == */generated.pb.go ]] || [[ \"$file\" == go.sum ]] || [[ \"$file\" == */yarn.lock ]]; then echo 'BLOCK: Do not edit generated or lock files directly. Use make codegen-local or go mod tidy instead.' && exit 1; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
