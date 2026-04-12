@@ -794,6 +794,16 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	targetObjsForSync, hasPreDeleteHooks, hasPostDeleteHooks := partitionTargetObjsForSync(targetObjs)
 
+	// Remove PostDelete hooks from live objects map before reconciliation. PostDelete hooks are only executed during
+	// application deletion and should not be considered during normal sync status calculation. Any live resource
+	// that matches a PostDelete hook in the manifest should be ignored, as these hooks are never expected to exist
+	// during normal application operation. Fixes #21579.
+	for key, obj := range liveObjByKey {
+		if isPostDeleteHook(obj) {
+			delete(liveObjByKey, key)
+		}
+	}
+
 	reconciliation := sync.Reconcile(targetObjsForSync, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
 
