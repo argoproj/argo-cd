@@ -114,7 +114,7 @@ func (mgr *SettingsManager) AddAccount(name string, account Account) error {
 func (mgr *SettingsManager) GetAccount(name string) (*Account, error) {
 	accounts, err := mgr.GetAccounts()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get accounts: %w", err)
 	}
 	account, ok := accounts[name]
 	if !ok {
@@ -129,11 +129,11 @@ func (mgr *SettingsManager) UpdateAccount(name string, callback func(account *Ac
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		account, err := mgr.GetAccount(name)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get account %q: %w", name, err)
 		}
 		err = callback(account)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to update account %q: %w", name, err)
 		}
 		return mgr.saveAccount(name, *account)
 	})
@@ -143,11 +143,11 @@ func (mgr *SettingsManager) UpdateAccount(name string, callback func(account *Ac
 func (mgr *SettingsManager) GetAccounts() (map[string]Account, error) {
 	cm, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get configmap: %w", err)
 	}
 	secret, err := mgr.getSecret()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get secret: %w", err)
 	}
 	return parseAccounts(secret, cm)
 }
@@ -177,7 +177,7 @@ func updateAccountSecret(secret *corev1.Secret, key string, val string, defVal s
 func saveAccount(secret *corev1.Secret, cm *corev1.ConfigMap, name string, account Account) error {
 	tokens, err := json.Marshal(account.Tokens)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal account tokens for %q: %w", name, err)
 	}
 	if name == common.ArgoCDAdminUsername {
 		updateAccountSecret(secret, settingAdminPasswordHashKey, account.PasswordHash, "")

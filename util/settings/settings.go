@@ -640,7 +640,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) er
 	createSecret := false
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
-			return err
+			return fmt.Errorf("failed to get argocd secret: %w", err)
 		}
 		argoCDSecret = &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -654,7 +654,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) er
 	beforeUpdate := argoCDSecret.DeepCopy()
 	err = callback(argoCDSecret)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to execute secret update callback: %w", err)
 	}
 
 	if !createSecret && reflect.DeepEqual(beforeUpdate.Data, argoCDSecret.Data) {
@@ -667,7 +667,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) er
 		_, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Update(context.Background(), argoCDSecret, metav1.UpdateOptions{})
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create/update argocd secret: %w", err)
 	}
 
 	return mgr.ResyncInformers()
@@ -678,7 +678,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 	createCM := false
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
-			return err
+			return fmt.Errorf("failed to get argocd configmap: %w", err)
 		}
 		argoCDCM = &corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -692,7 +692,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 	beforeUpdate := argoCDCM.DeepCopy()
 	err = callback(argoCDCM)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to execute configmap update callback: %w", err)
 	}
 	if !createCM && reflect.DeepEqual(beforeUpdate.Data, argoCDCM.Data) {
 		return nil
@@ -705,7 +705,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 	}
 
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create/update argocd configmap: %w", err)
 	}
 
 	return mgr.ResyncInformers()
@@ -1063,7 +1063,7 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 
 		overrideKey, err := convertToOverrideKey(parts[3])
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to convert override key %q: %w", parts[3], err)
 		}
 
 		if overrideKey == "all" {
@@ -1082,7 +1082,7 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 		case "useOpenLibs":
 			useOpenLibs, err := strconv.ParseBool(v)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to parse useOpenLibs value %q: %w", v, err)
 			}
 			overrideVal.UseOpenLibs = useOpenLibs
 		case "actions":
@@ -1091,21 +1091,21 @@ func (mgr *SettingsManager) appendResourceOverridesFromSplitKeys(cmData map[stri
 			overrideIgnoreDiff := v1alpha1.OverrideIgnoreDiff{}
 			err := yaml.Unmarshal([]byte(v), &overrideIgnoreDiff)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to unmarshal ignoreDifferences for %q: %w", overrideKey, err)
 			}
 			overrideVal.IgnoreDifferences = overrideIgnoreDiff
 		case "ignoreResourceUpdates":
 			overrideIgnoreUpdate := v1alpha1.OverrideIgnoreDiff{}
 			err := yaml.Unmarshal([]byte(v), &overrideIgnoreUpdate)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to unmarshal ignoreResourceUpdates for %q: %w", overrideKey, err)
 			}
 			overrideVal.IgnoreResourceUpdates = overrideIgnoreUpdate
 		case "knownTypeFields":
 			var knownTypeFields []v1alpha1.KnownTypeField
 			err := yaml.Unmarshal([]byte(v), &knownTypeFields)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to unmarshal knownTypeFields for %q: %w", overrideKey, err)
 			}
 			overrideVal.KnownTypeFields = knownTypeFields
 		default:
@@ -1683,7 +1683,7 @@ func (mgr *SettingsManager) loadTLSCertificate(settings *ArgoCDSettings, externa
 		cert, err := mgr.loadTLSCertificateFromSecret(externalSecret)
 
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to load TLS certificate from external secret: %w", err)
 		} else if cert != nil {
 			settings.Certificate = cert
 			settings.CertificateIsExternal = true
@@ -1694,7 +1694,7 @@ func (mgr *SettingsManager) loadTLSCertificate(settings *ArgoCDSettings, externa
 		cert, err := mgr.loadTLSCertificateFromSecret(argoCDSecret)
 
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to load TLS certificate from argocd secret: %w", err)
 		} else if cert != nil {
 			settings.Certificate = cert
 			settings.CertificateIsExternal = false
@@ -1749,14 +1749,14 @@ func (mgr *SettingsManager) saveSignatureAndCertificate(settings *ArgoCDSettings
 func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHostsList []string) error {
 	certCM, err := mgr.GetConfigMapByName(common.ArgoCDKnownHostsConfigMapName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get SSH known hosts configmap: %w", err)
 	}
 
 	sshKnownHostsData := strings.Join(knownHostsList, "\n") + "\n"
 	certCM.Data["ssh_known_hosts"] = sshKnownHostsData
 	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(ctx, certCM, metav1.UpdateOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update SSH known hosts configmap: %w", err)
 	}
 
 	return mgr.ResyncInformers()
@@ -1765,13 +1765,13 @@ func (mgr *SettingsManager) SaveSSHKnownHostsData(ctx context.Context, knownHost
 func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCertificates map[string]string) error {
 	certCM, err := mgr.GetConfigMapByName(common.ArgoCDTLSCertsConfigMapName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get TLS certificates configmap: %w", err)
 	}
 
 	certCM.Data = tlsCertificates
 	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(ctx, certCM, metav1.UpdateOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update TLS certificates configmap: %w", err)
 	}
 
 	return mgr.ResyncInformers()
@@ -1780,13 +1780,13 @@ func (mgr *SettingsManager) SaveTLSCertificateData(ctx context.Context, tlsCerti
 func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicKeys map[string]string) error {
 	keysCM, err := mgr.GetConfigMapByName(common.ArgoCDGPGKeysConfigMapName)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get GPG public keys configmap: %w", err)
 	}
 
 	keysCM.Data = gpgPublicKeys
 	_, err = mgr.clientset.CoreV1().ConfigMaps(mgr.namespace).Update(ctx, keysCM, metav1.UpdateOptions{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update GPG public keys configmap: %w", err)
 	}
 
 	return mgr.ResyncInformers()
@@ -1932,7 +1932,10 @@ func unmarshalOIDCConfig(configStr string) (oidcConfig, error) {
 
 func ValidateOIDCConfig(configStr string) error {
 	_, err := unmarshalOIDCConfig(configStr)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to validate OIDC config: %w", err)
+	}
+	return nil
 }
 
 // TLSConfig returns a tls.Config with the configured certificates
@@ -2218,7 +2221,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 				for i := range initialPasswordLength {
 					num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
 					if err != nil {
-						return err
+						return fmt.Errorf("failed to generate random number for admin password: %w", err)
 					}
 					randBytes[i] = letters[num.Int64()]
 				}
@@ -2226,12 +2229,12 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 
 				hashedPassword, err := password.HashPassword(initialPassword)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to hash admin password: %w", err)
 				}
 				ku := kube.NewKubeUtil(mgr.ctx, mgr.clientset)
 				err = ku.CreateOrUpdateSecretField(mgr.namespace, initialPasswordSecretName, initialPasswordSecretField, initialPassword)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to store initial admin password in secret: %w", err)
 				}
 				adminAccount.PasswordHash = hashedPassword
 				adminAccount.PasswordMtime = &now
