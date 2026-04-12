@@ -59,6 +59,7 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
       - name: Setup variables
         id: var
         run: |
@@ -70,35 +71,39 @@ jobs:
 
           PRE_RELEASE=false
           # Check if latest tag is a pre-release
-          if echo ${{ github.ref_name }} | grep -E -- '-rc[0-9]+$';then
+          if echo ${GITHUB_REF_NAME} | grep -E -- '-rc[0-9]+$';then
             PRE_RELEASE=true
           fi
 
           IS_LATEST=false
           # Ensure latest release tag matches github.ref_name
-          if [[ $LATEST_RELEASE_TAG == ${{ github.ref_name }} ]];then
+          if [[ $LATEST_RELEASE_TAG == ${GITHUB_REF_NAME} ]];then
             IS_LATEST=true
           fi
           echo "is_pre_release=$PRE_RELEASE" >> $GITHUB_OUTPUT
           echo "is_latest_release=$IS_LATEST" >> $GITHUB_OUTPUT
           
           # Calculate configuration with defaults
-          ENABLE_FORK_RELEASES="${{ vars.ENABLE_FORK_RELEASES || 'false' }}"
-          IMAGE_NAMESPACE="${{ vars.IMAGE_NAMESPACE || 'argoproj' }}"
-          IMAGE_REPOSITORY="${{ vars.IMAGE_REPOSITORY || 'argocd' }}"
+          ENABLE_FORK_RELEASES="${VARS_ENABLE_FORK_RELEASES:-false}"
+          IMAGE_NAMESPACE="${VARS_IMAGE_NAMESPACE:-argoproj}"
+          IMAGE_REPOSITORY="${VARS_IMAGE_REPOSITORY:-argocd}"
           
           echo "enable_fork_releases=$ENABLE_FORK_RELEASES" >> $GITHUB_OUTPUT
           
           echo "image_namespace=$IMAGE_NAMESPACE" >> $GITHUB_OUTPUT
           echo "image_repository=$IMAGE_REPOSITORY" >> $GITHUB_OUTPUT
-          echo "quay_image_name=quay.io/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY:${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          echo "quay_image_name=quay.io/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY:${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
           echo "provenance_image=quay.io/$IMAGE_NAMESPACE/$IMAGE_REPOSITORY" >> $GITHUB_OUTPUT
           
           ALLOW_FORK_RELEASE=false
-          if [[ "${{ github.repository_owner }}" != "argoproj" && "$ENABLE_FORK_RELEASES" == "true" && "$IMAGE_NAMESPACE" != "argoproj" && "${{ github.ref }}" == refs/tags/* ]]; then
+          if [[ "$GITHUB_REPOSITORY_OWNER" != "argoproj" && "$ENABLE_FORK_RELEASES" == "true" && "$IMAGE_NAMESPACE" != "argoproj" && "${GITHUB_REF}" == refs/tags/* ]]; then
             ALLOW_FORK_RELEASE=true
           fi
           echo "allow_fork_release=$ALLOW_FORK_RELEASE" >> $GITHUB_OUTPUT
+        env:
+          VARS_ENABLE_FORK_RELEASES: ${{ vars.ENABLE_FORK_RELEASES }}
+          VARS_IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE }}
+          VARS_IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY }}
 
   argocd-image-provenance:
     needs: [setup-variables, argocd-image]
@@ -117,6 +122,7 @@ jobs:
       registry-password: ${{ secrets.RELEASE_QUAY_TOKEN }}
 
   goreleaser:
+    name: Run GoReleaser
     needs:
       - setup-variables
       - argocd-image
@@ -135,6 +141,7 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - name: Fetch all tags
         run: git fetch --force --tags
@@ -148,7 +155,7 @@ jobs:
       - name: Set GORELEASER_PREVIOUS_TAG # Workaround, GoReleaser uses 'git-describe' to determine a previous tag. Our tags are created in release branches.
         run: |
           set -xue
-          GORELEASER_PREVIOUS_TAG=$(go run hack/get-previous-release/get-previous-version-for-release-notes.go ${{ github.ref_name }}) || exit 1
+          GORELEASER_PREVIOUS_TAG=$(go run hack/get-previous-release/get-previous-version-for-release-notes.go ${GITHUB_REF_NAME}) || exit 1
           echo "GORELEASER_PREVIOUS_TAG=$GORELEASER_PREVIOUS_TAG" >> $GITHUB_ENV
 
       - name: Set environment variables for ldflags
@@ -224,6 +231,7 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - name: Install pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
@@ -276,12 +284,9 @@ jobs:
           echo "hashes=$(sha256sum /tmp/sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
 
       - name: Upload SBOM
-        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
+        run: gh release upload "${GITHUB_REF_NAME}" /tmp/sbom.tar.gz --clobber
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          files: |
-            /tmp/sbom.tar.gz
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   sbom-provenance:
     needs: [generate-sbom, setup-variables]
@@ -298,14 +303,15 @@ jobs:
       upload-assets: true
 
   post-release:
+    name: Post-release tasks
     needs:
       - setup-variables
       - argocd-image
       - goreleaser
       - generate-sbom
     permissions:
-      contents: write # Needed to push commit to update stable tag
-      pull-requests: write # Needed to create PR for VERSION update.
+      contents: write # to push stable tag and version branch
+      pull-requests: write # to create PR for VERSION update
     if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
     runs-on: ubuntu-24.04
     env:
@@ -316,6 +322,7 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - name: Setup Git author information
         run: |
@@ -325,14 +332,14 @@ jobs:
 
       - name: Update stable tag to latest version
         run: |
-          git tag -f stable ${{ github.ref_name }}
+          git tag -f stable ${GITHUB_REF_NAME}
           git push -f origin stable
         if: ${{ env.TAG_STABLE == 'true' }}
 
       - name: Check to see if VERSION should be updated on master branch
         run: |
           set -xue
-          SOURCE_TAG=${{ github.ref_name }}
+          SOURCE_TAG=${GITHUB_REF_NAME}
           VERSION_REF="${SOURCE_TAG#*v}"
           COMMIT_HASH=$(git rev-parse HEAD)
           if echo "$VERSION_REF" | grep -E -- '^[0-9]+\.[0-9]+\.0-rc1';then
@@ -348,21 +355,30 @@ jobs:
 
       - name: Update VERSION on master branch
         run: |
-          echo ${{ env.NEW_VERSION }} > VERSION
+          echo ${NEW_VERSION} > VERSION
           # Replace the 'project-release: vX.X.X-rcX' line in SECURITY-INSIGHTS.yml
-          sed -i "s/project-release: v.*$/project-release: v${{ env.NEW_VERSION }}/" SECURITY-INSIGHTS.yml
+          sed -i "s/project-release: v.*$/project-release: v${NEW_VERSION}/" SECURITY-INSIGHTS.yml
           # Update the 'commit-hash: XXXXXXX' line in SECURITY-INSIGHTS.yml
-          sed -i "s/commit-hash: .*/commit-hash: ${{ env.COMMIT_HASH }}/" SECURITY-INSIGHTS.yml
+          sed -i "s/commit-hash: .*/commit-hash: ${COMMIT_HASH}/" SECURITY-INSIGHTS.yml
         if: ${{ env.UPDATE_VERSION == 'true' }}
 
       - name: Create PR to update VERSION on master branch
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0 # v8.1.0
-        with:
-          commit-message: Bump version in master
-          title: 'chore: Bump version in master'
-          body: All images built from master should indicate which version we are on track for.
-          signoff: true
-          branch: update-version
-          branch-suffix: random
-          base: master
         if: ${{ env.UPDATE_VERSION == 'true' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BRANCH="update-version-$(date +%s)"
+          git checkout -b "$BRANCH"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit --signoff -m "Bump version in master"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
+          gh pr create \
+            --title "chore: Bump version in master" \
+            --body "All images built from master should indicate which version we are on track for." \
+            --base master
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -3,18 +3,19 @@ on:
   schedule:
     - cron: "0 0 * * *" #Runs midnight 12AM UTC
 
-#Added Recommended permissions
-permissions:
-  issues: write
-  pull-requests: write
+permissions: {}
 
 env:
   # a workaround to disable harden runner
   STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
-  
+
 jobs:
   stale:
+    name: Label stale issues and PRs
     runs-on: ubuntu-24.04
+    permissions:
+      issues: write # to label stale issues
+      pull-requests: write # to label stale PRs
     steps:
       - name: Harden the runner (Block unknown outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}

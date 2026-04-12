@@ -34,6 +34,7 @@ env:
   
 jobs:
   CodeQL-Build:
+    name: CodeQL analysis
     permissions:
       actions: read  # for github/codeql-action/init to get workflow details
       contents: read  # for actions/checkout to fetch code
@@ -51,6 +52,8 @@ jobs:
 
     - name: Checkout repository
       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
 
     # Use correct go version. https://github.com/github/codeql-action/issues/1842#issuecomment-1704398087
     - name: Setup Golang

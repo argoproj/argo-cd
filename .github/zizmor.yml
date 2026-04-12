@@ -1,0 +1,19 @@
+rules:
+  cache-poisoning:
+    ignore:
+      - ci-build.yaml
+  concurrency-limits:
+    disable: true
+  # Evaluated and necessary for the cherry-pick automation workflow.
+  dangerous-triggers:
+    ignore:
+      - cherry-pick.yml
+  dependabot-cooldown:
+    disable: true
+  # TODO: transition to environment-scoped secrets and re-enable this check.
+  secrets-outside-env:
+    disable: true
+  unpinned-uses:
+    config:
+      policies:
+        slsa-framework/*: ref-pin

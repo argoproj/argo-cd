@@ -14,8 +14,8 @@ env:
 jobs:
   snyk-report:
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write # to push the updated report branch
+      pull-requests: write # to create the update PR
     if: github.repository == 'argoproj/argo-cd'
     name: Update Snyk report in the docs directory
     runs-on: ubuntu-24.04
@@ -30,6 +30,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
       - name: Build reports
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
