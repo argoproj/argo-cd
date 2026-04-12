@@ -553,7 +553,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 );
             } catch (e) {
                 ctx.notifications.show({
-                    content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}:`} e={e} />,
+                    content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}"`} e={e} />,
                     type: NotificationType.Error
                 });
             } finally {
@@ -576,7 +576,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 await updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({
-                    content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}:`} e={e} />,
+                    content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}"`} e={e} />,
                     type: NotificationType.Error
                 });
             } finally {
