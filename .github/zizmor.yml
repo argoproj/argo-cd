@@ -1,18 +1,34 @@
 rules:
+  # ci-build.yaml is a test-only workflow that never produces release artifacts.
+  # All caches there are purely for CI build speed and don't feed into published
+  # binaries, container images, or releases. The actual release pipeline
+  # (release.yaml, image-reuse.yaml, image.yaml) already disables caching.
   cache-poisoning:
     ignore:
       - ci-build.yaml
+  # Many workflows here are triggered by schedules, tags, or workflow_dispatch,
+  # where concurrent runs are either impossible or intentionally allowed.
+  # Concurrency is managed explicitly where it matters (e.g. ci-build.yaml).
   concurrency-limits:
     disable: true
-  # Evaluated and necessary for the cherry-pick automation workflow.
+  # Evaluated and necessary for the cherry-pick automation workflow, which must
+  # react to pull_request_target events to cherry-pick merged PRs across
+  # release branches using a GitHub App token.
   dangerous-triggers:
     ignore:
       - cherry-pick.yml
+  # Dependabot cooldown is not yet configured for this repository.
   dependabot-cooldown:
     disable: true
   # TODO: transition to environment-scoped secrets and re-enable this check.
+  # Many workflows currently reference secrets without a dedicated GitHub
+  # environment, which is the legacy pattern. Migrating requires creating
+  # environments and updating all workflow references.
   secrets-outside-env:
     disable: true
+  # slsa-framework/slsa-github-generator must be referenced by tag, not by
+  # commit SHA. Hash pinning is not supported per:
+  # https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
   unpinned-uses:
     config:
       policies:
