@@ -1,12 +1,15 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"io"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
@@ -38,7 +41,7 @@ func TestLock_SameRevision(t *testing.T) {
 	initializedTimes := 0
 	init := numberOfInits(&initializedTimes)
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, init)
+		return lock.Lock(context.Background(), "myRepo", "1", true, init)
 	})
 
 	if !assert.True(t, done) {
@@ -46,7 +49,7 @@ func TestLock_SameRevision(t *testing.T) {
 	}
 
 	closer2, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, init)
+		return lock.Lock(context.Background(), "myRepo", "1", true, init)
 	})
 
 	if !assert.True(t, done) {
@@ -66,7 +69,7 @@ func TestLock_DifferentRevisions(t *testing.T) {
 	init := numberOfInits(&initializedTimes)
 
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, init)
+		return lock.Lock(context.Background(), "myRepo", "1", true, init)
 	})
 
 	if !assert.True(t, done) {
@@ -74,7 +77,7 @@ func TestLock_DifferentRevisions(t *testing.T) {
 	}
 
 	_, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "2", true, init)
+		return lock.Lock(context.Background(), "myRepo", "2", true, init)
 	})
 
 	if !assert.False(t, done) {
@@ -84,7 +87,7 @@ func TestLock_DifferentRevisions(t *testing.T) {
 	utilio.Close(closer1)
 
 	_, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "2", true, init)
+		return lock.Lock(context.Background(), "myRepo", "2", true, init)
 	})
 
 	if !assert.True(t, done) {
@@ -98,7 +101,7 @@ func TestLock_NoConcurrentWithSameRevision(t *testing.T) {
 	init := numberOfInits(&initializedTimes)
 
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", false, init)
+		return lock.Lock(context.Background(), "myRepo", "1", false, init)
 	})
 
 	if !assert.True(t, done) {
@@ -106,7 +109,7 @@ func TestLock_NoConcurrentWithSameRevision(t *testing.T) {
 	}
 
 	_, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", false, init)
+		return lock.Lock(context.Background(), "myRepo", "1", false, init)
 	})
 
 	if !assert.False(t, done) {
@@ -120,7 +123,7 @@ func TestLock_FailedInitialization(t *testing.T) {
 	lock := NewRepositoryLock()
 
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, func(_ bool) (io.Closer, error) {
+		return lock.Lock(context.Background(), "myRepo", "1", true, func(_ bool) (io.Closer, error) {
 			return utilio.NopCloser, errors.New("failed")
 		})
 	})
@@ -132,7 +135,7 @@ func TestLock_FailedInitialization(t *testing.T) {
 	assert.Nil(t, closer1)
 
 	closer2, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, func(_ bool) (io.Closer, error) {
+		return lock.Lock(context.Background(), "myRepo", "1", true, func(_ bool) (io.Closer, error) {
 			return utilio.NopCloser, nil
 		})
 	})
@@ -144,12 +147,67 @@ func TestLock_FailedInitialization(t *testing.T) {
 	utilio.Close(closer2)
 }
 
+func TestLock_WaiterForDifferentRevision_CannotBeUnblocked(t *testing.T) {
+	lock := NewRepositoryLock()
+	init := func(_ bool) (io.Closer, error) {
+		return utilio.NopCloser, nil
+	}
+
+	// Acquire lock for revision "1"
+	closer1, err := lock.Lock(context.Background(), "myRepo", "1", true, init)
+	require.NoError(t, err)
+
+	// Try to acquire lock for revision "2" with a short timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	_, err = lock.Lock(ctx, "myRepo", "2", true, init)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+
+	utilio.Close(closer1)
+}
+
+func TestLock_ConvoyFormsUnderSequentialRevisions(t *testing.T) {
+	lock := NewRepositoryLock()
+	init := func(_ bool) (io.Closer, error) {
+		return utilio.NopCloser, nil
+	}
+
+	// Acquire lock for revision "A" — simulates a long-running operation
+	closerA, err := lock.Lock(context.Background(), "myRepo", "A", true, init)
+	require.NoError(t, err)
+
+	// Spawn 100 goroutines all waiting for revision "B" with short deadlines
+	const n = 100
+	var wg sync.WaitGroup
+	errs := make([]error, n)
+
+	for i := range n {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+			_, errs[idx] = lock.Lock(ctx, "myRepo", "B", true, init)
+		}(i)
+	}
+
+	wg.Wait()
+
+	// All goroutines should have exited via context cancellation
+	for i, err := range errs {
+		require.ErrorIs(t, err, context.DeadlineExceeded, "goroutine %d should have been cancelled", i)
+	}
+
+	utilio.Close(closerA)
+}
+
 func TestLock_SameRevisionFirstNotConcurrent(t *testing.T) {
 	lock := NewRepositoryLock()
 	initializedTimes := 0
 	init := numberOfInits(&initializedTimes)
 	closer1, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", false, init)
+		return lock.Lock(context.Background(), "myRepo", "1", false, init)
 	})
 
 	if !assert.True(t, done) {
@@ -157,7 +215,7 @@ func TestLock_SameRevisionFirstNotConcurrent(t *testing.T) {
 	}
 
 	_, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, init)
+		return lock.Lock(context.Background(), "myRepo", "1", true, init)
 	})
 
 	if !assert.False(t, done) {
@@ -177,7 +235,7 @@ func TestLock_CleanForNonConcurrent(t *testing.T) {
 		return utilio.NopCloser, nil
 	}
 	closer, done := lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, init)
+		return lock.Lock(context.Background(), "myRepo", "1", true, init)
 	})
 
 	assert.True(t, done)
@@ -186,7 +244,7 @@ func TestLock_CleanForNonConcurrent(t *testing.T) {
 	utilio.Close(closer)
 
 	closer, done = lockQuickly(func() (io.Closer, error) {
-		return lock.Lock("myRepo", "1", true, init)
+		return lock.Lock(context.Background(), "myRepo", "1", true, init)
 	})
 
 	assert.True(t, done)
