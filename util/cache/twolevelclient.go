@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -55,14 +56,17 @@ func (c *twoLevelClient) Get(key string, obj any) error {
 	if err == nil {
 		_ = c.inMemoryCache.Set(&Item{Key: key, Object: obj})
 	}
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to get key %q from external cache: %w", key, err)
+	}
+	return nil
 }
 
 // Delete deletes cache for given key in both in-memory and external cache.
 func (c *twoLevelClient) Delete(key string) error {
 	err := c.inMemoryCache.Delete(key)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to delete key %q from in-memory cache: %w", key, err)
 	}
 	return c.externalCache.Delete(key)
 }

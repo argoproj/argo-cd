@@ -31,7 +31,7 @@ func (i *InMemoryCache) Set(item *Item) error {
 	var buf bytes.Buffer
 	err := gob.NewEncoder(&buf).Encode(item.Object)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to encode cache item for key %q: %w", item.Key, err)
 	}
 	if item.CacheActionOpts.DisableOverwrite {
 		// go-redis doesn't throw an error on Set with NX, so absorbing here to keep the interface consistent

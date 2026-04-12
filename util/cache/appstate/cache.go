@@ -61,7 +61,10 @@ func appManagedResourcesKey(appName string) string {
 
 func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDiff) error {
 	err := c.GetItem(appManagedResourcesKey(appName), &res)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to get managed resources for app %q: %w", appName, err)
+	}
+	return nil
 }
 
 func (c *Cache) SetAppManagedResources(appName string, managedResources []*appv1.ResourceDiff) error {
@@ -85,17 +88,20 @@ func clusterInfoKey(server string) string {
 
 func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
 	err := c.GetItem(appResourcesTreeKey(appName, 0), &res)
+	if err != nil {
+		return fmt.Errorf("failed to get resources tree for app %q: %w", appName, err)
+	}
 	if res.ShardsCount > 1 {
 		for i := int64(1); i < res.ShardsCount; i++ {
 			var shard appv1.ApplicationTree
 			err = c.GetItem(appResourcesTreeKey(appName, i), &shard)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to get resources tree shard %d for app %q: %w", i, appName, err)
 			}
 			res.Merge(&shard)
 		}
 	}
-	return err
+	return nil
 }
 
 func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appName string, callback func() error) error {
@@ -105,7 +111,7 @@ func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appName string, c
 func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.ApplicationTree) error {
 	if resourcesTree == nil {
 		if err := c.SetItem(appResourcesTreeKey(appName, 0), resourcesTree, c.appStateCacheExpiration, true); err != nil {
-			return err
+			return fmt.Errorf("failed to delete resources tree for app %q: %w", appName, err)
 		}
 	} else {
 		// Splitting resource tree into shards reduces number of Redis SET calls and therefore amount of traffic sent
@@ -113,7 +119,7 @@ func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.Applica
 		// forwards request to Redis only if shard actually changes.
 		for i, shard := range resourcesTree.GetShards(treeShardSize) {
 			if err := c.SetItem(appResourcesTreeKey(appName, int64(i)), shard, c.appStateCacheExpiration, false); err != nil {
-				return err
+				return fmt.Errorf("failed to set resources tree shard %d for app %q: %w", i, appName, err)
 			}
 		}
 	}
@@ -127,5 +133,8 @@ func (c *Cache) SetClusterInfo(server string, info *appv1.ClusterInfo) error {
 
 func (c *Cache) GetClusterInfo(server string, res *appv1.ClusterInfo) error {
 	err := c.GetItem(clusterInfoKey(server), &res)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to get cluster info for server %q: %w", server, err)
+	}
+	return nil
 }

@@ -94,7 +94,7 @@ func (r *redisCache) unmarshal(data []byte, obj any) error {
 	if r.redisCompressionType == RedisCompressionGZip {
 		gzipReader, err := gzip.NewReader(buf)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create gzip reader for cache decompression: %w", err)
 		}
 		reader = gzipReader
 	}
@@ -121,7 +121,7 @@ func (r *redisCache) Set(item *Item) error {
 
 	val, err := r.marshal(item.Object)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal cache item for key %q: %w", item.Key, err)
 	}
 
 	return r.cache.Set(&rediscache.Item{
@@ -139,7 +139,7 @@ func (r *redisCache) Get(key string, obj any) error {
 		err = ErrCacheMiss
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get cache item for key %q: %w", key, err)
 	}
 	return r.unmarshal(data, obj)
 }
@@ -159,7 +159,7 @@ func (r *redisCache) OnUpdated(ctx context.Context, key string, callback func() 
 			return nil
 		case <-ch:
 			if err := callback(); err != nil {
-				return err
+				return fmt.Errorf("failed to execute cache update callback for key %q: %w", key, err)
 			}
 		}
 	}
