@@ -5,5 +5,5 @@ if obj.metadata.annotations ~= nil then
         is_rolling = true
     end
 end
-actions["restart"] = {["disabled"] = is_rolling}
+actions["rolling-update"] = {["disabled"] = is_rolling}
 return actions
