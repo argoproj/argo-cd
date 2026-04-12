@@ -1301,6 +1301,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		sourcePositions           []int64
 		sourceNames               []string
 		ignoreNormalizerOpts      normalizers.IgnoreNormalizerOpts
+		compareDesired            bool
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	command := &cobra.Command{
@@ -1453,6 +1454,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
+	command.Flags().BoolVar(&compareDesired, "compare-desired", false, "Compare against desired state instead of live cluster state")
+
 	return command
 }
 
