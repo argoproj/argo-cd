@@ -92,7 +92,7 @@ jobs:
 
             # Push the new branch. Force push to ensure that in case the original cherry-pick branch is stale, 
             # that the current state of the $TARGET_BRANCH + cherry-pick gets in $CHERRY_PICK_BRANCH.
-            git push origin -f "$CHERRY_PICK_BRANCH"
+            git push "https://x-access-token:${APP_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" -f "$CHERRY_PICK_BRANCH"
 
             # Save data for PR creation
             echo "branch_name=$CHERRY_PICK_BRANCH" >> "$GITHUB_OUTPUT"
@@ -108,6 +108,7 @@ jobs:
             exit 1
           fi
         env:
+          APP_TOKEN: ${{ steps.generate-token.outputs.token }}
           INPUTS_MERGE_COMMIT_SHA: ${{ inputs.merge_commit_sha }}
           INPUTS_VERSION_NUMBER: ${{ inputs.version_number }}
           INPUTS_PR_NUMBER: ${{ inputs.pr_number }}
