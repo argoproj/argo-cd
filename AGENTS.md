@@ -12,10 +12,13 @@ This repository (argoproj/argo-cd) enforces strict contribution guidelines. If y
 Argo CD is a CNCF Graduated project. All code must meet the following standards:
 
 * **Semantic PR Titles:** You must use Semantic Pull Request formatting for your PR title. Valid prefixes are:
+  * `ci:` - Updates or improvements for the Continuous Integration workflows
   * `fix:` - Bug fixes
   * `feat:` - New features
+  * `test:` - Addition of tests to the code base, or improvements of existing ones
   * `docs:` - Documentation improvements
   * `chore:` - Internals, build processes, unit tests, etc.
+  * `refactor:` - Refactoring of the code base, without adding new features or fixing bugs
 * **PR Templates:** You must fully complete the Argo CD Pull Request template. Do not delete the template sections or leave them blank.
 
 ## 3. Tech Stack & Code Rules
