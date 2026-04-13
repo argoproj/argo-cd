@@ -41,7 +41,7 @@ If any of these commands fail, you must fix the errors before proceeding.
 ## 5. Documentation (`docs/`)
 If you are modifying or adding a feature, you must also update the corresponding documentation.
 * Write in clear, direct English.
-* Use admonition blocks (e.g., `!!! note`, `!!! warning`) compatible with MkDocs Material.
+* Use GitHub style admonition blocks (e.g., `> [!NOTE]`, `> [!WARNING]`) compatible with MkDocs Material.
 * Code examples in documentation must be complete, accurate, and include the language identifier for syntax highlighting (e.g., ````yaml`).
 
 ## Summary of Agent Workflow
