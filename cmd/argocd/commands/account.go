@@ -87,6 +87,11 @@ has appropriate RBAC permissions to change other accounts.
 
 	# Update the password for user foobar
 	argocd account update-password --account foobar
+
+	# Non-interactively update a password by piping it to stdin (useful for
+	# scripting). The new password is read once; no confirmation prompt is
+	# shown when stdin is not a terminal.
+	echo "my-new-password" | argocd account update-password --current-password "$OLD"
 `,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()

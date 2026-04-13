@@ -9,6 +9,7 @@ import (
 	stderrors "errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path"
@@ -160,8 +161,21 @@ func AskToProceedS(message string) string {
 	}
 }
 
-// ReadAndConfirmPassword is a helper to read and confirm a password from stdin
+// ReadAndConfirmPassword reads a new password from stdin. When stdin is a
+// terminal it prompts twice and requires the entries to match. When stdin
+// is not a terminal (e.g. piped input for automation) it reads the password
+// once and skips confirmation, matching the behaviour of PromptPassword and
+// enabling scripted use of argocd account update-password.
 func ReadAndConfirmPassword(username string) (string, error) {
+	if !terminal.IsTerminal(int(os.Stdin.Fd())) {
+		reader := bufio.NewReader(os.Stdin)
+		input, err := reader.ReadString('\n')
+		if err != nil && err != io.EOF {
+			return "", err
+		}
+		return strings.TrimSpace(input), nil
+	}
+
 	for {
 		fmt.Printf("*** Enter new password for user %s: ", username)
 		password, err := terminal.ReadPassword(int(os.Stdin.Fd()))

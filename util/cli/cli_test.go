@@ -37,6 +37,25 @@ func TestPromptPassword_Fallback(t *testing.T) {
 	require.Equal(t, pwd, password)
 }
 
+func TestReadAndConfirmPassword_NonInteractiveStdin(t *testing.T) {
+	oldStdin := os.Stdin
+	defer func() {
+		os.Stdin = oldStdin
+	}()
+
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+
+	_, err = w.WriteString(pwd + "\n")
+	require.NoError(t, err)
+	w.Close()
+
+	os.Stdin = r
+	got, err := ReadAndConfirmPassword("alice")
+	require.NoError(t, err)
+	require.Equal(t, pwd, got)
+}
+
 func TestSetLogFormat(t *testing.T) {
 	tests := []struct {
 		name          string
