@@ -11,7 +11,6 @@ This repository (argoproj/argo-cd) enforces strict contribution guidelines. If y
 ## 2. Argo CD Contribution Requirements
 Argo CD is a CNCF Graduated project. All code must meet the following standards:
 
-* **Contributor License Agreement (CLA):** The human operator you are assisting MUST have signed the CNCF CLA. Remind your user of this before generating the PR. If the CLA check fails, the PR cannot be merged.
 * **Semantic PR Titles:** You must use Semantic Pull Request formatting for your PR title. Valid prefixes are:
   * `fix:` - Bug fixes
   * `feat:` - New features
