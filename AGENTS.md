@@ -23,6 +23,7 @@ Argo CD is a CNCF Graduated project. All code must meet the following standards:
 * **Backend (Go):** The backend is written in Go. The minimum supported Go version is strictly enforced. You must use `go modules` for dependency management.
 * **UI (React/TypeScript):** The frontend is written in React and TypeScript.
 * **Kubernetes Manifests:** Argo CD heavily relies on Kubernetes manifests and CRDs. If you modify API structs, you MUST regenerate the manifests and API glue code.
+* **Tests** Argo CD relies on automatic tests. If your PR adds new functionality or in any way modifies program behaviour, please add/change relevant unit and e2e tests. In those cases when it is not feasible or possible please document the reasons in the PR comment.
 
 ## 4. Required Local Checks (Do This Before Committing)
 Do not finalize your code or suggest a commit to your user without ensuring the following `make` targets pass successfully. Argo CD uses a heavy CI pipeline, and failing these basic checks wastes project resources:
