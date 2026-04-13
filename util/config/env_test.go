@@ -146,7 +146,7 @@ func TestStringSliceFlagWithOnlyEmptyValue(t *testing.T) {
 	loadOpts(t, "--header=''")
 	strings := GetStringSliceFlag("header", []string{"fallback"})
 
-	assert.Len(t, strings, 0)
+	assert.Empty(t, strings)
 }
 
 func TestFlagAtStart(t *testing.T) {
