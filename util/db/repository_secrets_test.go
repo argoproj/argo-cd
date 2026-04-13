@@ -937,6 +937,7 @@ func TestRepoCredsToSecret(t *testing.T) {
 		GithubAppId:                123,
 		GithubAppInstallationId:    456,
 		GitHubAppEnterpriseBaseURL: "GitHubAppEnterpriseBaseURL",
+		Depth:                      1,
 	}
 	s = testee.repoCredsToSecret(creds, s)
 	assert.Equal(t, []byte(creds.URL), s.Data["url"])
@@ -953,6 +954,7 @@ func TestRepoCredsToSecret(t *testing.T) {
 	assert.Equal(t, []byte(creds.GitHubAppEnterpriseBaseURL), s.Data["githubAppEnterpriseBaseUrl"])
 	assert.Equal(t, map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD}, s.Annotations)
 	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds}, s.Labels)
+	assert.Equal(t, []byte(strconv.FormatInt(creds.Depth, 10)), s.Data["depth"])
 }
 
 func TestRepoWriteCredsToSecret(t *testing.T) {
@@ -1011,6 +1013,7 @@ func TestRaceConditionInRepoCredsOperations(t *testing.T) {
 			"url":      []byte("git@github.com:argoproj/argo-cd.git"),
 			"username": []byte("test-user"),
 			"password": []byte("test-pass"),
+			"depth":    []byte("1"),
 		},
 	}
 
@@ -1019,6 +1022,7 @@ func TestRaceConditionInRepoCredsOperations(t *testing.T) {
 		URL:      "git@github.com:argoproj/argo-cd.git",
 		Username: "test-user",
 		Password: "test-pass",
+		Depth:    1,
 	}
 
 	backend := &secretsRepositoryBackend{}

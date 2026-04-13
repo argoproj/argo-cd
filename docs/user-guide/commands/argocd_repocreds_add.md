@@ -38,6 +38,7 @@ argocd repocreds add REPOURL [flags]
 
 ```
       --bearer-token string                     bearer token to the Git repository
+      --depth int                               Specify a custom depth for git clone operations. Unless specified, a full clone is performed using the depth of 0
       --enable-oci                              Specifies whether helm-oci support should be enabled for this repo
       --force-http-basic-auth                   whether to force basic auth when connecting via HTTP
       --gcp-service-account-key-path string     service account key for the Google Cloud Platform
