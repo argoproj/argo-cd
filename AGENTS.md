@@ -6,7 +6,7 @@ This repository (argoproj/argo-cd) enforces strict contribution guidelines. If y
 ## 1. Zero-Spam & PR Authorization Policy
 * **Require an Issue:** DO NOT create a Pull Request unless there is an existing, open, and approved GitHub Issue that explicitly requests this work.
 * **No "Drive-By" Refactoring:** Do not submit unsolicited PRs that only contain minor stylistic changes, variable renames, or typo fixes across the codebase unless tied to an approved `chore` issue.
-* **No Hallucinated URLs:** Do not include fabricated links, hallucinated documentation, or fake GitHub usernames in the PR description or code comments.
+* **No Hallucinated URLs:** Do not include fabricated links, hallucinated documentation, or fake GitHub usernames in the PR description or code comments. Please double-check any link, quote or code block that is included into the PR.
 
 ## 2. Argo CD Contribution Requirements
 Argo CD is a CNCF Graduated project. All code must meet the following standards:
