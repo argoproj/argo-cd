@@ -269,6 +269,182 @@ func createServerSideDiffStrategy(
 	}
 }
 
+// Manifest Provider Functions
+
+// newMultiSourceRevisionProvider creates a provider for multi-source apps with specific revisions
+func newMultiSourceRevisionProvider(
+	appIf application.ApplicationServiceClient,
+	appName string,
+	appNs string,
+	revisions []string,
+	sourcePositions []int64,
+	hardRefresh bool,
+) manifestProvider {
+	return func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+		manifestQuery := application.ApplicationManifestQuery{
+			Name:            &appName,
+			AppNamespace:    &appNs,
+			Revisions:       revisions,
+			SourcePositions: sourcePositions,
+			NoCache:         &hardRefresh,
+		}
+		targetManifests, err := appIf.GetManifests(ctx, &manifestQuery)
+		if err != nil {
+			return nil, err
+		}
+		return manifestsToUnstructured(targetManifests.Manifests)
+	}
+}
+
+// newSingleRevisionProvider creates a provider for apps with a single revision
+func newSingleRevisionProvider(
+	appIf application.ApplicationServiceClient,
+	appName string,
+	appNs string,
+	revision string,
+	hardRefresh bool,
+) manifestProvider {
+	return func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+		manifestQuery := application.ApplicationManifestQuery{
+			Name:         &appName,
+			Revision:     &revision,
+			AppNamespace: &appNs,
+			NoCache:      &hardRefresh,
+		}
+		targetManifests, err := appIf.GetManifests(ctx, &manifestQuery)
+		if err != nil {
+			return nil, err
+		}
+		return manifestsToUnstructured(targetManifests.Manifests)
+	}
+}
+
+// newLocalServerSideProvider creates a provider for local manifests with server-side generation
+func newLocalServerSideProvider(
+	appIf application.ApplicationServiceClient,
+	appName string,
+	appNs string,
+	localPath string,
+	localIncludes []string,
+) manifestProvider {
+	return func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+		client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
+		if err != nil {
+			return nil, err
+		}
+
+		err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, localPath, localIncludes)
+		if err != nil {
+			return nil, err
+		}
+
+		targetManifests, err := client.CloseAndRecv()
+		if err != nil {
+			return nil, err
+		}
+
+		return manifestsToUnstructured(targetManifests.Manifests)
+	}
+}
+
+// newLocalClientSideProvider creates a provider for local manifests with client-side generation
+func newLocalClientSideProvider(
+	clusterIf clusterpkg.ClusterServiceClient,
+	argoSettings *settings.Settings,
+	app *argoappv1.Application,
+	proj *argoappv1.AppProject,
+	localPath string,
+	localRepoRoot string,
+) manifestProvider {
+	return func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+		cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{
+			Name:   app.Spec.Destination.Name,
+			Server: app.Spec.Destination.Server,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		return getLocalObjects(
+			ctx,
+			app,
+			proj,
+			localPath,
+			localRepoRoot,
+			argoSettings.AppLabelKey,
+			cluster.Info.ServerVersion,
+			cluster.Info.APIVersions,
+			argoSettings.KustomizeOptions,
+			argoSettings.TrackingMethod,
+		), nil
+	}
+}
+
+// newDefaultTargetProvider creates a provider that extracts targets from ManagedResources
+func newDefaultTargetProvider(liveState *application.ManagedResourcesResponse) manifestProvider {
+	return func(_ context.Context) ([]*unstructured.Unstructured, error) {
+		targetManifests := make([]*unstructured.Unstructured, 0, len(liveState.Items))
+		for i := range liveState.Items {
+			res := liveState.Items[i]
+			target := &unstructured.Unstructured{}
+			err := json.Unmarshal([]byte(res.TargetState), &target)
+			if err != nil {
+				return nil, err
+			}
+			targetManifests = append(targetManifests, target)
+		}
+		return targetManifests, nil
+	}
+}
+
+// newTrackingWrapper wraps a provider to add tracking labels to target manifests
+func newTrackingWrapper(
+	baseProvider manifestProvider,
+	app *argoappv1.Application,
+	argoSettings *settings.Settings,
+) manifestProvider {
+	return func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+		targetManifests, err := baseProvider(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		resourceTracking := argo.NewResourceTracking()
+		appName := app.InstanceName(argoSettings.ControllerNamespace)
+		namespace := app.Spec.Destination.Namespace
+
+		for i := range targetManifests {
+			if targetManifests[i] == nil || kube.IsCRD(targetManifests[i]) {
+				continue
+			}
+
+			err := resourceTracking.SetAppInstance(
+				targetManifests[i],
+				argoSettings.AppLabelKey,
+				appName,
+				namespace,
+				argoappv1.TrackingMethod(argoSettings.GetTrackingMethod()),
+				argoSettings.GetInstallationID(),
+			)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return targetManifests, nil
+	}
+}
+
+// newLiveManifestProvider creates a provider for live manifests from ManagedResources
+func newLiveManifestProvider(liveState *application.ManagedResourcesResponse) manifestProvider {
+	return func(_ context.Context) ([]*unstructured.Unstructured, error) {
+		liveObjects, err := cmdutil.LiveObjects(liveState.Items)
+		if err != nil {
+			return nil, err
+		}
+		return liveObjects, nil
+	}
+}
+
 // computeDiff computes the diff using a target manifest provider
 // Returns a list of comparisonObject containing all resources (added, removed, and modified)
 func computeDiff(
@@ -455,120 +631,30 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						log.Fatal("source-position cannot be less than 1 or more than number of sources in the app. Counting starts at 1.")
 					}
 				}
+				getTargetManifests = newMultiSourceRevisionProvider(appIf, appName, appNs, revisions, sourcePositions, hardRefresh)
 
-				getTargetManifests = func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-					manifestQuery := application.ApplicationManifestQuery{
-						Name:            &appName,
-						AppNamespace:    &appNs,
-						Revisions:       revisions,
-						SourcePositions: sourcePositions,
-						NoCache:         &hardRefresh,
-					}
-					targetManifests, err := appIf.GetManifests(ctx, &manifestQuery)
-					if err != nil {
-						return nil, err
-					}
-					return manifestsToUnstructured(targetManifests.Manifests)
-				}
 			case revision != "":
-				getTargetManifests = func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-					manifestQuery := application.ApplicationManifestQuery{
-						Name:         &appName,
-						Revision:     &revision,
-						AppNamespace: &appNs,
-						NoCache:      &hardRefresh,
-					}
-					targetManifests, err := appIf.GetManifests(ctx, &manifestQuery)
-					if err != nil {
-						return nil, err
-					}
-					return manifestsToUnstructured(targetManifests.Manifests)
-				}
+				getTargetManifests = newSingleRevisionProvider(appIf, appName, appNs, revision, hardRefresh)
+
 			case local != "":
 				if serverSideGenerate {
-					getTargetManifests = func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-						client, err := appIf.GetManifestsWithFiles(ctx, grpc_retry.Disable())
-						if err != nil {
-							return nil, err
-						}
-
-						err = manifeststream.SendApplicationManifestQueryWithFiles(ctx, client, appName, appNs, local, localIncludes)
-						if err != nil {
-							return nil, err
-						}
-
-						targetManifests, err := client.CloseAndRecv()
-						if err != nil {
-							return nil, err
-						}
-
-						return manifestsToUnstructured(targetManifests.Manifests)
-					}
+					getTargetManifests = newLocalServerSideProvider(appIf, appName, appNs, local, localIncludes)
 				} else {
 					fmt.Fprintf(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.7.")
 					conn, clusterIf := clientset.NewClusterClientOrDie()
 					defer io.Close(conn)
-					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
-					errors.CheckError(err)
-
-					getTargetManifests = func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-						return getLocalObjects(ctx, app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), nil
-					}
+					getTargetManifests = newLocalClientSideProvider(clusterIf, argoSettings, app, proj.Project, local, localRepoRoot)
 				}
+
 			default:
-				// Default case: extract from ManagedResources.TargetState
-				getTargetManifests = func(_ context.Context) ([]*unstructured.Unstructured, error) {
-					targetManifests := make([]*unstructured.Unstructured, 0, len(liveState.Items))
-					for i := range liveState.Items {
-						res := liveState.Items[i]
-						target := &unstructured.Unstructured{}
-						err := json.Unmarshal([]byte(res.TargetState), &target)
-						if err != nil {
-							return nil, err
-						}
-						targetManifests = append(targetManifests, target)
-					}
-					return targetManifests, nil
-				}
+				getTargetManifests = newDefaultTargetProvider(liveState)
 			}
 
-			getTargetManifestsWithTracking := func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-				targetManifests, err := getTargetManifests(ctx)
-				if err != nil {
-					return nil, err
-				}
-
-				resourceTracking := argo.NewResourceTracking()
-				appName := app.InstanceName(argoSettings.ControllerNamespace)
-				namespace := app.Spec.Destination.Namespace
-
-				// Process live objects and match with targets
-				for i := range targetManifests {
-					if targetManifests[i] == nil || kube.IsCRD(targetManifests[i]) {
-						continue
-					}
-
-					err := resourceTracking.SetAppInstance(
-						targetManifests[i],
-						argoSettings.AppLabelKey,
-						appName,
-						namespace,
-						argoappv1.TrackingMethod(argoSettings.GetTrackingMethod()),
-						argoSettings.GetInstallationID(),
-					)
-					errors.CheckError(err)
-				}
-				return targetManifests, nil
-			}
+			// Wrap with tracking
+			getTargetManifestsWithTracking := newTrackingWrapper(getTargetManifests, app, argoSettings)
 
 			// Create live manifest provider
-			var getLiveManifests manifestProvider = func(_ context.Context) ([]*unstructured.Unstructured, error) {
-				liveObjects, err := cmdutil.LiveObjects(liveState.Items)
-				if err != nil {
-					return nil, err
-				}
-				return liveObjects, nil
-			}
+			getLiveManifests := newLiveManifestProvider(liveState)
 
 			// Create diff strategy based on --server-side-diff flag
 			var performDiff diffStrategy

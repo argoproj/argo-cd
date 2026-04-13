@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
@@ -14,7 +15,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	applicationmocks "github.com/argoproj/argo-cd/v3/pkg/apiclient/application/mocks"
+	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"k8s.io/utils/ptr"
 )
 
 // Test data helpers
@@ -76,7 +82,7 @@ func mockDiffStrategyAllModified() diffStrategy {
 			liveBytes, _ := json.Marshal(item.live)
 			targetBytes, _ := json.Marshal(item.target)
 			results[i] = &diff.DiffResult{
-				Modified:      true,
+				Modified:       true,
 				NormalizedLive: liveBytes,
 				PredictedLive:  targetBytes,
 			}
@@ -136,7 +142,7 @@ func TestComputeDiff_DefaultCase(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := computeDiff(ctx, app, getLiveManifests, getTargetManifests, performDiff)
+	results, err := computeDiff(ctx, app, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -171,7 +177,7 @@ func TestComputeDiff_AddedResource(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := computeDiff(ctx, app, getLiveManifests, getTargetManifests, performDiff)
+	results, err := computeDiff(ctx, app, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -206,7 +212,7 @@ func TestComputeDiff_RemovedResource(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := computeDiff(ctx, app, getLiveManifests, getTargetManifests, performDiff)
+	results, err := computeDiff(ctx, app, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -275,7 +281,7 @@ func TestComputeDiff_MultipleResources(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment, targetService})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := computeDiff(ctx, app, getLiveManifests, getTargetManifests, performDiff)
+	results, err := computeDiff(ctx, app, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 2)
@@ -311,7 +317,7 @@ func TestComputeDiff_EmptyResources(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := computeDiff(ctx, app, getLiveManifests, getTargetManifests, performDiff)
+	results, err := computeDiff(ctx, app, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	assert.Empty(t, results)
@@ -379,7 +385,7 @@ func TestComputeDiff_MixedAddedRemovedModified(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment, addedConfigMap})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := computeDiff(ctx, app, getLiveManifests, getTargetManifests, performDiff)
+	results, err := computeDiff(ctx, app, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 3)
@@ -446,7 +452,7 @@ func TestComputeDiff_NoModifications(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment})
 	performDiff := mockDiffStrategyNoneModified()
 
-	results, err := computeDiff(ctx, app, getLiveManifests, getTargetManifests, performDiff)
+	results, err := computeDiff(ctx, app, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	// No modifications, so no results
@@ -519,5 +525,308 @@ func TestManifestsToUnstructured(t *testing.T) {
 		result, err := manifestsToUnstructured([]string{"invalid json"})
 		assert.Error(t, err)
 		assert.Nil(t, result)
+	})
+}
+
+func TestNewMultiSourceRevisionProvider(t *testing.T) {
+	ctx := context.Background()
+	deployment := createTestUnstructured(&appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-deployment",
+			Namespace: "default",
+		},
+	})
+	deploymentBytes, _ := json.Marshal(deployment)
+
+	t.Run("Success", func(t *testing.T) {
+		mockClient := applicationmocks.NewApplicationServiceClient(t)
+		mockClient.EXPECT().GetManifests(ctx, &applicationpkg.ApplicationManifestQuery{
+			Name:            ptr.To("test-app"),
+			AppNamespace:    ptr.To("test-ns"),
+			Revisions:       []string{"rev1", "rev2"},
+			SourcePositions: []int64{1, 2},
+			NoCache:         ptr.To(true),
+		}).Return(&repoapiclient.ManifestResponse{
+			Manifests: []string{string(deploymentBytes)},
+		}, nil)
+
+		provider := newMultiSourceRevisionProvider(mockClient, "test-app", "test-ns", []string{"rev1", "rev2"}, []int64{1, 2}, true)
+		result, err := provider(ctx)
+
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, "Deployment", result[0].GetKind())
+	})
+
+	t.Run("GetManifests error", func(t *testing.T) {
+		mockClient := applicationmocks.NewApplicationServiceClient(t)
+		mockClient.EXPECT().GetManifests(ctx, &applicationpkg.ApplicationManifestQuery{
+			Name:            ptr.To("test-app"),
+			AppNamespace:    ptr.To("test-ns"),
+			Revisions:       []string{"rev1"},
+			SourcePositions: []int64{1},
+			NoCache:         ptr.To(false),
+		}).Return(nil, errors.New("test error"))
+
+		provider := newMultiSourceRevisionProvider(mockClient, "test-app", "test-ns", []string{"rev1"}, []int64{1}, false)
+		result, err := provider(ctx)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "test error")
+	})
+}
+
+func TestNewSingleRevisionProvider(t *testing.T) {
+	ctx := context.Background()
+	service := createTestUnstructured(&corev1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-service",
+			Namespace: "default",
+		},
+	})
+	serviceBytes, _ := json.Marshal(service)
+
+	t.Run("Success", func(t *testing.T) {
+		mockClient := applicationmocks.NewApplicationServiceClient(t)
+		mockClient.EXPECT().GetManifests(ctx, &applicationpkg.ApplicationManifestQuery{
+			Name:         ptr.To("my-app"),
+			AppNamespace: ptr.To("my-ns"),
+			Revision:     ptr.To("abc123"),
+			NoCache:      ptr.To(false),
+		}).Return(&repoapiclient.ManifestResponse{
+			Manifests: []string{string(serviceBytes)},
+		}, nil)
+
+		provider := newSingleRevisionProvider(mockClient, "my-app", "my-ns", "abc123", false)
+		result, err := provider(ctx)
+
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, "Service", result[0].GetKind())
+	})
+
+	t.Run("GetManifests error", func(t *testing.T) {
+		mockClient := applicationmocks.NewApplicationServiceClient(t)
+		mockClient.EXPECT().GetManifests(ctx, &applicationpkg.ApplicationManifestQuery{
+			Name:         ptr.To("my-app"),
+			AppNamespace: ptr.To("my-ns"),
+			Revision:     ptr.To("invalid"),
+			NoCache:      ptr.To(false),
+		}).Return(nil, errors.New("revision not found"))
+
+		provider := newSingleRevisionProvider(mockClient, "my-app", "my-ns", "invalid", false)
+		result, err := provider(ctx)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "revision not found")
+	})
+}
+
+func TestNewDefaultTargetProvider(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Success with multiple items", func(t *testing.T) {
+		deployment := createTestUnstructured(&appsv1.Deployment{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-deployment",
+				Namespace: "default",
+			},
+		})
+		deploymentBytes, _ := json.Marshal(deployment)
+
+		service := createTestUnstructured(&corev1.Service{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Service",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-service",
+				Namespace: "default",
+			},
+		})
+		serviceBytes, _ := json.Marshal(service)
+
+		liveState := &applicationpkg.ManagedResourcesResponse{
+			Items: []*v1alpha1.ResourceDiff{
+				{
+					TargetState: string(deploymentBytes),
+				},
+				{
+					TargetState: string(serviceBytes),
+				},
+			},
+		}
+
+		provider := newDefaultTargetProvider(liveState)
+		result, err := provider(ctx)
+
+		require.NoError(t, err)
+		require.Len(t, result, 2)
+		assert.Equal(t, "Deployment", result[0].GetKind())
+		assert.Equal(t, "Service", result[1].GetKind())
+	})
+
+	t.Run("Empty items", func(t *testing.T) {
+		liveState := &applicationpkg.ManagedResourcesResponse{
+			Items: []*v1alpha1.ResourceDiff{},
+		}
+
+		provider := newDefaultTargetProvider(liveState)
+		result, err := provider(ctx)
+
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+
+	t.Run("Invalid JSON in TargetState", func(t *testing.T) {
+		liveState := &applicationpkg.ManagedResourcesResponse{
+			Items: []*v1alpha1.ResourceDiff{
+				{
+					TargetState: "invalid json",
+				},
+			},
+		}
+
+		provider := newDefaultTargetProvider(liveState)
+		result, err := provider(ctx)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
+func TestNewLiveManifestProvider(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		deployment := createTestUnstructured(&appsv1.Deployment{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-deployment",
+				Namespace: "default",
+			},
+		})
+		deploymentBytes, _ := json.Marshal(deployment)
+
+		liveState := &applicationpkg.ManagedResourcesResponse{
+			Items: []*v1alpha1.ResourceDiff{
+				{
+					LiveState: string(deploymentBytes),
+				},
+			},
+		}
+
+		provider := newLiveManifestProvider(liveState)
+		result, err := provider(ctx)
+
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, "Deployment", result[0].GetKind())
+	})
+
+	t.Run("Empty items", func(t *testing.T) {
+		liveState := &applicationpkg.ManagedResourcesResponse{
+			Items: []*v1alpha1.ResourceDiff{},
+		}
+
+		provider := newLiveManifestProvider(liveState)
+		result, err := provider(ctx)
+
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+}
+
+func TestNewTrackingWrapper(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Success with tracking labels", func(t *testing.T) {
+		deployment := createTestUnstructured(&appsv1.Deployment{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-deployment",
+				Namespace: "default",
+			},
+		})
+
+		baseProvider := mockManifestProvider([]*unstructured.Unstructured{deployment})
+		app := createTestApp("test-app", "argocd")
+		settings := &settingspkg.Settings{
+			AppLabelKey:    "app.kubernetes.io/instance",
+			TrackingMethod: "label",
+		}
+
+		provider := newTrackingWrapper(baseProvider, app, settings)
+		result, err := provider(ctx)
+
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, "Deployment", result[0].GetKind())
+		// Verify tracking label was added
+		labels := result[0].GetLabels()
+		assert.Contains(t, labels, "app.kubernetes.io/instance")
+	})
+
+	t.Run("Skips CRDs", func(t *testing.T) {
+		crd := createTestUnstructured(&metav1.TypeMeta{
+			APIVersion: "apiextensions.k8s.io/v1",
+			Kind:       "CustomResourceDefinition",
+		})
+		crd.SetName("test-crd")
+
+		baseProvider := mockManifestProvider([]*unstructured.Unstructured{crd})
+		app := createTestApp("test-app", "argocd")
+		settings := &settingspkg.Settings{
+			AppLabelKey:    "app.kubernetes.io/instance",
+			TrackingMethod: "label",
+		}
+
+		provider := newTrackingWrapper(baseProvider, app, settings)
+		result, err := provider(ctx)
+
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		// CRD should not have tracking label
+		labels := result[0].GetLabels()
+		assert.NotContains(t, labels, "app.kubernetes.io/instance")
+	})
+
+	t.Run("Propagates base provider error", func(t *testing.T) {
+		baseProvider := func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+			return nil, errors.New("base provider error")
+		}
+
+		app := createTestApp("test-app", "argocd")
+		settings := &settingspkg.Settings{
+			AppLabelKey:    "app.kubernetes.io/instance",
+			TrackingMethod: "label",
+		}
+
+		provider := newTrackingWrapper(baseProvider, app, settings)
+		result, err := provider(ctx)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "base provider error")
 	})
 }
