@@ -59,7 +59,7 @@ func LoadFlags() error {
 
 func GetFlag(key, fallback string) string {
 	val, ok := flags[key]
-	if ok && len(val) > 0 {
+	if ok {
 		return val[len(val)-1]
 	}
 	return fallback
@@ -71,7 +71,7 @@ func GetBoolFlag(key string) bool {
 
 func GetIntFlag(key string, fallback int) int {
 	val, ok := flags[key]
-	if !ok || len(val) == 0 {
+	if !ok {
 		return fallback
 	}
 
@@ -101,7 +101,7 @@ func GetStringSliceFlag(key string, fallback []string) []string {
 		}
 		result = append(result, v...)
 	}
-	if len(result) == 0 && len(vals) > 0 && vals[len(vals)-1] == "" {
+	if len(result) == 0 && vals[len(vals)-1] == "" {
 		return []string{}
 	}
 	return result

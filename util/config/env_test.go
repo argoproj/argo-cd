@@ -133,6 +133,22 @@ func TestMultipleStringSliceFlagWithEquals(t *testing.T) {
 	assert.Equal(t, "And-Another: baz", strings[2])
 }
 
+func TestMultipleStringSliceFlagWithEmptyValue(t *testing.T) {
+	loadOpts(t, "--header='foo' --header='' --header='bar'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "foo", strings[0])
+	assert.Equal(t, "bar", strings[1])
+}
+
+func TestStringSliceFlagWithOnlyEmptyValue(t *testing.T) {
+	loadOpts(t, "--header=''")
+	strings := GetStringSliceFlag("header", []string{"fallback"})
+
+	assert.Len(t, strings, 0)
+}
+
 func TestFlagAtStart(t *testing.T) {
 	loadOpts(t, "--foo bar")
 
