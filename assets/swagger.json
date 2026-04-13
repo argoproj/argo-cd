@@ -7151,7 +7151,7 @@
     },
     "v1alpha1ApplicationSet": {
       "type": "object",
-      "title": "ApplicationSet is a set of Application resources.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
+      "title": "ApplicationSet is a set of Application resources.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status\n+kubebuilder:printcolumn:name=\"Project\",type=\"string\",JSONPath=\".spec.template.spec.project\",description=\"Project the ApplicationSet generates Applications in\"\n+kubebuilder:printcolumn:name=\"Age\",type=\"date\",JSONPath=\".metadata.creationTimestamp\"",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
