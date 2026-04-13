@@ -1311,23 +1311,58 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	return &settings, nil
 }
 
+// isRepositorySecret reports whether obj is a repository credential secret
+// (argocd.argoproj.io/secret-type=repository). Only repository credential changes
+// need to invalidate the project cache; cluster changes flow through the cluster
+// informer. Unwraps cache.DeletedFinalStateUnknown tombstones for DeleteFunc handlers.
+// Unknown types return false (fail-closed).
+func isRepositorySecret(obj any) bool {
+	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+		obj = tombstone.Obj
+	}
+	repoSelector := labels.SelectorFromSet(labels.Set{common.LabelKeySecretType: common.LabelValueSecretTypeRepository})
+	if s, ok := obj.(metav1.Object); ok {
+		return repoSelector.Matches(labels.Set(s.GetLabels()))
+	}
+	return false
+}
+
+// isSettingsObject reports whether obj carries app.kubernetes.io/part-of=argocd,
+// the label that identifies secrets and configmaps that participate in ArgoCD's
+// settings system (OIDC config, webhook secrets, $secretName:key template references).
+// Unwraps cache.DeletedFinalStateUnknown tombstones for DeleteFunc handlers.
+// Unknown types return false (fail-closed).
+func isSettingsObject(obj any) bool {
+	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+		obj = tombstone.Obj
+	}
+	settingsSelector := labels.SelectorFromSet(labels.Set{"app.kubernetes.io/part-of": "argocd"})
+	if s, ok := obj.(metav1.Object); ok {
+		return settingsSelector.Matches(labels.Set(s.GetLabels()))
+	}
+	return false
+}
+
+// isArgoCDConfigMap reports whether obj is the argocd-cm ConfigMap. Only argocd-cm
+// carries settings that affect project cache validity (the "globalProjects" key, read
+// by GetGlobalProjectsSettings). Unwraps cache.DeletedFinalStateUnknown tombstones for
+// DeleteFunc handlers. Unknown types return false (fail-closed).
+func isArgoCDConfigMap(obj any) bool {
+	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+		obj = tombstone.Obj
+	}
+	if metaObj, ok := obj.(metav1.Object); ok {
+		return metaObj.GetName() == common.ArgoCDConfigMapName
+	}
+	return false
+}
+
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
 	tweakConfigMap := func(options *metav1.ListOptions) {
 		cmLabelSelector := fields.ParseSelectorOrDie(partOfArgoCDSelector)
 		options.LabelSelector = cmLabelSelector.String()
 	}
 
-	eventHandler := cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(_, _ any) {
-			mgr.onRepoOrClusterChanged()
-		},
-		AddFunc: func(_ any) {
-			mgr.onRepoOrClusterChanged()
-		},
-		DeleteFunc: func(_ any) {
-			mgr.onRepoOrClusterChanged()
-		},
-	}
 	indexers := cache.Indexers{
 		cache.NamespaceIndex:      cache.MetaNamespaceIndexFunc,
 		ByProjectRepoIndexer:      byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
@@ -1342,17 +1377,65 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 		log.Error(err)
 	}
 
-	_, err = cmInformer.AddEventHandler(eventHandler)
+	// ConfigMap informer: filtered to app.kubernetes.io/part-of=argocd (see tweakConfigMap).
+	// Only argocd-cm carries settings that affect project cache validity: the "globalProjects"
+	// key controls which AppProjects are treated as global (merged into virtual projects via
+	// GetGlobalProjectsSettings). Other part-of=argocd configmaps (argocd-rbac-cm, etc.) have
+	// no path into project cache construction and don't need to trigger invalidation.
+	_, err = cmInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(_, obj any) {
+			if isArgoCDConfigMap(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+		AddFunc: func(obj any) {
+			if isArgoCDConfigMap(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+		DeleteFunc: func(obj any) {
+			if isArgoCDConfigMap(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+	})
 	if err != nil {
 		log.Error(err)
 	}
 
-	_, err = secretsInformer.AddEventHandler(eventHandler)
+	// Secrets informer: filtered to argocd.argoproj.io/secret-type != cluster,
+	// so cluster secrets are excluded (handled by the cluster informer below).
+	// Only repository credential changes affect project-repo bindings and need
+	// to invalidate the project cache.
+	_, err = secretsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(_, obj any) {
+			if isRepositorySecret(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+		AddFunc: func(obj any) {
+			if isRepositorySecret(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+		DeleteFunc: func(obj any) {
+			if isRepositorySecret(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+	})
 	if err != nil {
 		log.Error(err)
 	}
 
-	_, err = clusterInformer.AddEventHandler(eventHandler)
+	// Cluster informer: filtered to argocd.argoproj.io/secret-type=cluster,
+	// so every event represents a cluster credential change, which always
+	// warrants a settings reload.
+	_, err = clusterInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(_, _ any) { mgr.onRepoOrClusterChanged() },
+		AddFunc:    func(_ any) { mgr.onRepoOrClusterChanged() },
+		DeleteFunc: func(_ any) { mgr.onRepoOrClusterChanged() },
+	})
 	if err != nil {
 		log.Error(err)
 	}
@@ -1389,19 +1472,28 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 		}
 	}
 	now := time.Now()
+	// handler notifies subscribers of settings changes. Guarded by isSettingsObject
+	// so that only changes to app.kubernetes.io/part-of=argocd objects (the documented
+	// contract for secrets/configmaps that participate in ArgoCD settings) trigger a
+	// full GetSettings() reload. This prevents spurious reloads caused by the informer
+	// resync period delivering synthetic UPDATE events for unrelated objects.
 	handler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
-			if metaObj, ok := obj.(metav1.Object); ok {
-				if metaObj.GetCreationTimestamp().After(now) {
-					tryNotify()
+			if isSettingsObject(obj) {
+				if metaObj, ok := obj.(metav1.Object); ok {
+					if metaObj.GetCreationTimestamp().After(now) {
+						tryNotify()
+					}
 				}
 			}
 		},
 		UpdateFunc: func(oldObj, newObj any) {
-			oldMeta, oldOk := oldObj.(metav1.Common)
-			newMeta, newOk := newObj.(metav1.Common)
-			if oldOk && newOk && oldMeta.GetResourceVersion() != newMeta.GetResourceVersion() {
-				tryNotify()
+			if isSettingsObject(newObj) {
+				oldMeta, oldOk := oldObj.(metav1.Common)
+				newMeta, newOk := newObj.(metav1.Common)
+				if oldOk && newOk && oldMeta.GetResourceVersion() != newMeta.GetResourceVersion() {
+					tryNotify()
+				}
 			}
 		},
 	}
