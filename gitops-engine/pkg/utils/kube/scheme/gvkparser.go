@@ -24,3 +24,15 @@ type GVKErrorReporter interface {
 	ReportError(gvk schema.GroupVersionKind, err error)
 	ClearError(gvk schema.GroupVersionKind)
 }
+
+// GVKParserStats is optionally implemented by GVKParser implementations
+// that can report how many GroupVersions are available vs actually loaded.
+// This is used for metrics to quantify memory savings from lazy loading.
+type GVKParserStats interface {
+	// Stats returns the total number of GroupVersions available, how many
+	// have been loaded into memory, and the total bytes of raw schema data
+	// fetched for the loaded GVs. Note: the byte encoding differs by
+	// implementation (protobuf for v2, JSON for v3) so byte counts are
+	// comparable within the same version but not across versions.
+	Stats() (total, loaded int, schemaBytes int64)
+}

@@ -209,6 +209,38 @@ func TestLazyGVKParser_ClearErrorAllowsTypeToSucceed(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestLazyGVKParser_Stats(t *testing.T) {
+	paths := map[string]openapiclient.GroupVersion{
+		"api/v1":       &fakeGroupVersion{schemaBytes: validCoreV1Schema},
+		"apis/apps/v1": &fakeGroupVersion{schemaBytes: validAppsV1Schema},
+	}
+	parser := newLazyGVKParser(paths, textlogger.NewLogger(textlogger.NewConfig()))
+
+	// Before any access: 2 total, 0 loaded, 0 bytes.
+	total, loaded, bytes := parser.Stats()
+	assert.Equal(t, 2, total)
+	assert.Equal(t, 0, loaded)
+	assert.Equal(t, int64(0), bytes)
+
+	// Access one GV.
+	_, err := parser.Type(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"})
+	require.NoError(t, err)
+
+	total, loaded, bytes = parser.Stats()
+	assert.Equal(t, 2, total)
+	assert.Equal(t, 1, loaded)
+	assert.Equal(t, int64(len(validCoreV1Schema)), bytes)
+
+	// Access the other GV.
+	_, err = parser.Type(schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"})
+	require.NoError(t, err)
+
+	total, loaded, bytes = parser.Stats()
+	assert.Equal(t, 2, total)
+	assert.Equal(t, 2, loaded)
+	assert.Equal(t, int64(len(validCoreV1Schema)+len(validAppsV1Schema)), bytes)
+}
+
 // countingFakeGroupVersion wraps a fakeGroupVersion and counts Schema calls.
 type countingFakeGroupVersion struct {
 	inner     *fakeGroupVersion

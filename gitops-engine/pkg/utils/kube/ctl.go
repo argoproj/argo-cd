@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/errgroup"
+	goproto "google.golang.org/protobuf/proto"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -150,11 +151,21 @@ func (k *KubectlCmd) loadLazyGVKParser(disco *discovery.DiscoveryClient) (scheme
 // eagerGVKParser wraps a managedfields.GvkParser to satisfy scheme.GVKParser.
 // Since the eager (v2) parser loads all schemas upfront, Type() never errors.
 type eagerGVKParser struct {
-	parser *managedfields.GvkParser
+	parser      *managedfields.GvkParser
+	gvCount     int
+	schemaBytes int64
 }
 
 func (e *eagerGVKParser) Type(gvk schema.GroupVersionKind) (*typed.ParseableType, error) {
 	return e.parser.Type(gvk), nil
+}
+
+// Stats returns the schema stats. For v2, all GVs are loaded eagerly so
+// total == loaded. The byte count reflects protobuf wire size since v2
+// schemas are fetched as protobuf from the API server. This differs from
+// v3's JSON byte count — the two are not directly comparable.
+func (e *eagerGVKParser) Stats() (total, loaded int, bytes int64) {
+	return e.gvCount, e.gvCount, e.schemaBytes
 }
 
 func (k *KubectlCmd) loadGVKParserV2(disco discovery.OpenAPISchemaInterface) (*eagerGVKParser, error) {
@@ -162,6 +173,7 @@ func (k *KubectlCmd) loadGVKParserV2(disco discovery.OpenAPISchemaInterface) (*e
 	if err != nil {
 		return nil, fmt.Errorf("error getting openapi v2 schema: %w", err)
 	}
+	schemaBytes := int64(goproto.Size(doc))
 	models, err := proto.NewOpenAPIData(doc)
 	if err != nil {
 		return nil, fmt.Errorf("error getting openapi data: %w", err)
@@ -171,11 +183,44 @@ func (k *KubectlCmd) loadGVKParserV2(disco discovery.OpenAPISchemaInterface) (*e
 	if len(taintedGVKs) > 0 {
 		k.Log.Info("Duplicate GVKs detected in OpenAPI schema. This could cause inaccurate diffs.", "gvks", taintedGVKs)
 	}
+	gvCount := countGVs(models)
 	gvkParser, err := managedfields.NewGVKParser(models, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GVK parser: %w", err)
 	}
-	return &eagerGVKParser{parser: gvkParser}, nil
+	return &eagerGVKParser{parser: gvkParser, gvCount: gvCount, schemaBytes: schemaBytes}, nil
+}
+
+// countGVs returns the number of unique GroupVersions present in the models
+// by extracting x-kubernetes-group-version-kind extensions.
+func countGVs(models proto.Models) int {
+	gvs := make(map[schema.GroupVersion]struct{})
+	for _, name := range models.ListModels() {
+		m := models.LookupModel(name)
+		if m == nil {
+			continue
+		}
+		gvkList, ok := m.GetExtensions()["x-kubernetes-group-version-kind"]
+		if !ok {
+			continue
+		}
+		items, ok := gvkList.([]interface{})
+		if !ok {
+			continue
+		}
+		for _, item := range items {
+			entry, ok := item.(map[interface{}]interface{})
+			if !ok {
+				continue
+			}
+			group, _ := entry["group"].(string)
+			version, _ := entry["version"].(string)
+			if version != "" {
+				gvs[schema.GroupVersion{Group: group, Version: version}] = struct{}{}
+			}
+		}
+	}
+	return len(gvs)
 }
 
 

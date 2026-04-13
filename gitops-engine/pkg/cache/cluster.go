@@ -138,6 +138,16 @@ type ClusterInfo struct {
 	SyncError error
 	// APIResources holds list of API resources supported by the cluster
 	APIResources []kube.APIResourceInfo
+	// OpenAPIGVsTotal is the total number of GroupVersions available in the
+	// cluster's OpenAPI schema. Zero when stats are not available (e.g. v2).
+	OpenAPIGVsTotal int
+	// OpenAPIGVsLoaded is the number of GroupVersions whose schemas have been
+	// loaded into memory. For lazy (v3) parsers this is a subset of the total;
+	// for eager (v2) parsers it equals the total.
+	OpenAPIGVsLoaded int
+	// OpenAPISchemaBytes is the total bytes of raw OpenAPI JSON fetched for
+	// loaded GroupVersions. Only populated for lazy (v3) parsers.
+	OpenAPISchemaBytes int64
 }
 
 // OnEventHandler is a function that handles Kubernetes event
@@ -1912,7 +1922,7 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 	c.syncStatus.lock.Lock()
 	defer c.syncStatus.lock.Unlock()
 
-	return ClusterInfo{
+	info := ClusterInfo{
 		APIsCount:         len(c.apisMeta),
 		K8SVersion:        c.serverVersion,
 		ResourcesCount:    len(c.resources),
@@ -1921,6 +1931,10 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 		SyncError:         c.syncStatus.syncError,
 		APIResources:      c.apiResources,
 	}
+	if stats, ok := c.gvkParser.(scheme.GVKParserStats); ok {
+		info.OpenAPIGVsTotal, info.OpenAPIGVsLoaded, info.OpenAPISchemaBytes = stats.Stats()
+	}
+	return info
 }
 
 // skipAppRequeuing checks if the object is an API type which we want to skip requeuing against.

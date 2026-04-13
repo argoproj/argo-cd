@@ -3,6 +3,7 @@ package kube
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/go-logr/logr"
 	openapi_v3 "github.com/google/gnostic-models/openapiv3"
@@ -39,6 +40,7 @@ type lazyGVKParser struct {
 	sf             singleflight.Group
 	parsers        sync.Map // map[string]*gvResult
 	reportedErrors sync.Map // map[string]error — injected by cluster cache
+	schemaBytes    atomic.Int64
 }
 
 // newLazyGVKParser creates a lazy parser from the already-fetched GV paths.
@@ -131,6 +133,7 @@ func (p *lazyGVKParser) loadGV(path string) (*managedfields.GvkParser, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get schema: %w", err)
 	}
+	p.schemaBytes.Add(int64(len(jsonBytes)))
 
 	doc, err := openapi_v3.ParseDocument(jsonBytes)
 	if err != nil {
@@ -151,6 +154,20 @@ func (p *lazyGVKParser) loadGV(path string) (*managedfields.GvkParser, error) {
 		return nil, fmt.Errorf("failed to create GVK parser: %w", err)
 	}
 	return parser, nil
+}
+
+// Stats returns the total number of GroupVersions available, how many
+// have been loaded into memory, and the total bytes of raw OpenAPI JSON
+// fetched for the loaded GVs. The byte count reflects JSON size since v3
+// schemas are fetched as JSON from the API server. This differs from v2's
+// protobuf byte count — the two are not directly comparable.
+func (p *lazyGVKParser) Stats() (total, loaded int, bytes int64) {
+	total = len(p.paths)
+	p.parsers.Range(func(_, _ interface{}) bool {
+		loaded++
+		return true
+	})
+	return total, loaded, p.schemaBytes.Load()
 }
 
 // gvPathForGVK derives the OpenAPI v3 path for a GroupVersionKind.

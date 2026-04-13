@@ -72,6 +72,16 @@ func TestConvertToVersion(t *testing.T) {
 		_, err := kubectl.loadGVKParserV2(client)
 		require.NoError(t, err)
 	})
+	t.Run("eagerGVKParser reports stats", func(t *testing.T) {
+		client := &fakeOpenAPIClient{}
+		parser, err := kubectl.loadGVKParserV2(client)
+		require.NoError(t, err)
+
+		total, loaded, bytes := parser.Stats()
+		assert.Greater(t, total, 0, "should report at least one GV")
+		assert.Equal(t, total, loaded, "eager parser loads all GVs")
+		assert.Greater(t, bytes, int64(0), "schema bytes should be non-zero")
+	})
 }
 
 func TestGetServerVersion(t *testing.T) {
