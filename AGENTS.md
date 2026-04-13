@@ -49,4 +49,4 @@ If you are modifying or adding a feature, you must also update the corresponding
 2. Write code matching Argo CD's Go/React standards.
 3. Run `make codegen`, `make lint`, and `make test`.
 4. Format the PR title properly (e.g., `fix: resolve OutOfSync bug on PostDelete hook (#12345)`).
-5. Ensure the user is aware of the CLA requirement.
+
