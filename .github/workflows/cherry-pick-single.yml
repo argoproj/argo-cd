@@ -3,6 +3,7 @@ name: Cherry Pick Single
 on:
   workflow_call:
     inputs:
+
       merge_commit_sha:
         required: true
         type: string
@@ -24,6 +25,8 @@ on:
         required: true
       CHERRYPICK_APP_PRIVATE_KEY:
         required: true
+
+permissions: {}
 
 env:
   # a workaround to disable harden runner
@@ -52,6 +55,7 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ steps.generate-token.outputs.token }}
+          persist-credentials: false
 
       - name: Configure Git
         run: |
@@ -63,8 +67,8 @@ jobs:
         run: |
           set -e
 
-          MERGE_COMMIT="${{ inputs.merge_commit_sha }}"
-          TARGET_BRANCH="release-${{ inputs.version_number }}"
+          MERGE_COMMIT="${INPUTS_MERGE_COMMIT_SHA}"
+          TARGET_BRANCH="release-${INPUTS_VERSION_NUMBER}"
 
           echo "🍒 Cherry-picking commit $MERGE_COMMIT to branch $TARGET_BRANCH"
 
@@ -75,7 +79,7 @@ jobs:
           fi
 
           # Create new branch for cherry-pick
-          CHERRY_PICK_BRANCH="cherry-pick-${{ inputs.pr_number }}-to-${TARGET_BRANCH}"
+          CHERRY_PICK_BRANCH="cherry-pick-${INPUTS_PR_NUMBER}-to-${TARGET_BRANCH}"
 
           git checkout -b "$CHERRY_PICK_BRANCH" "origin/$TARGET_BRANCH"
 
@@ -103,35 +107,46 @@ jobs:
             git cherry-pick --abort
             exit 1
           fi
+        env:
+          INPUTS_MERGE_COMMIT_SHA: ${{ inputs.merge_commit_sha }}
+          INPUTS_VERSION_NUMBER: ${{ inputs.version_number }}
+          INPUTS_PR_NUMBER: ${{ inputs.pr_number }}
 
       - name: Create Pull Request
         run: |
           # Create cherry-pick PR
-          TITLE="${PR_TITLE} (cherry-pick #${{ inputs.pr_number }} for ${{ inputs.version_number }})"
+          TITLE="${PR_TITLE} (cherry-pick #${INPUTS_PR_NUMBER} for ${INPUTS_VERSION_NUMBER})"
           BODY=$(cat <<EOF
-          Cherry-picked ${PR_TITLE} (#${{ inputs.pr_number }})
+          Cherry-picked ${PR_TITLE} (#${INPUTS_PR_NUMBER})
 
-          ${{ steps.cherry-pick.outputs.signoff }}
+          ${STEPS_CHERRY_PICK_OUTPUTS_SIGNOFF}
           EOF
           )
 
           gh pr create \
             --title "$TITLE" \
             --body "$BODY" \
-            --base "${{ steps.cherry-pick.outputs.target_branch }}" \
-            --head "${{ steps.cherry-pick.outputs.branch_name }}"
+            --base "${STEPS_CHERRY_PICK_OUTPUTS_TARGET_BRANCH}" \
+            --head "${STEPS_CHERRY_PICK_OUTPUTS_BRANCH_NAME}"
 
           # Comment on original PR
-          gh pr comment ${{ inputs.pr_number }} \
-            --body "🍒 Cherry-pick PR created for ${{ inputs.version_number }}: #$(gh pr list --head ${{ steps.cherry-pick.outputs.branch_name }} --json number --jq '.[0].number')"
+          gh pr comment ${INPUTS_PR_NUMBER} \
+            --body "🍒 Cherry-pick PR created for ${INPUTS_VERSION_NUMBER}: #$(gh pr list --head ${STEPS_CHERRY_PICK_OUTPUTS_BRANCH_NAME} --json number --jq '.[0].number')"
         env:
           PR_TITLE: ${{ inputs.pr_title }}
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          INPUTS_PR_NUMBER: ${{ inputs.pr_number }}
+          INPUTS_VERSION_NUMBER: ${{ inputs.version_number }}
+          STEPS_CHERRY_PICK_OUTPUTS_SIGNOFF: ${{ steps.cherry-pick.outputs.signoff }}
+          STEPS_CHERRY_PICK_OUTPUTS_TARGET_BRANCH: ${{ steps.cherry-pick.outputs.target_branch }}
+          STEPS_CHERRY_PICK_OUTPUTS_BRANCH_NAME: ${{ steps.cherry-pick.outputs.branch_name }}
 
       - name: Comment on failure
         if: failure()
         run: |
-          gh pr comment ${{ inputs.pr_number }} \
-            --body "❌ Cherry-pick failed for ${{ inputs.version_number }}. Please check the [workflow logs](https://github.com/argoproj/argo-cd/actions/runs/${{ github.run_id }}) for details."
+          gh pr comment ${INPUTS_PR_NUMBER} \
+            --body "❌ Cherry-pick failed for ${INPUTS_VERSION_NUMBER}. Please check the [workflow logs](https://github.com/argoproj/argo-cd/actions/runs/${GITHUB_RUN_ID}) for details."
         env:
           GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+          INPUTS_PR_NUMBER: ${{ inputs.pr_number }}
+          INPUTS_VERSION_NUMBER: ${{ inputs.version_number }}

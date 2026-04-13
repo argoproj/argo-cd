@@ -13,6 +13,7 @@ env:
   
 jobs:
   renovate:
+    name: Run Renovate
     runs-on: ubuntu-24.04
     if: github.repository == 'argoproj/argo-cd'
     steps:
@@ -43,6 +44,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        with:
+          persist-credentials: false
 
       # Renovate do not pin their docker image versions to SHA, so
       # when bumping renovate action version please check if renovate image

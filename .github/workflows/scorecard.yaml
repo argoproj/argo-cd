@@ -11,21 +11,17 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Declare default permissions as read only.
-permissions: read-all
+permissions: {}
 
 jobs:
   analysis:
     name: Scorecards analysis
     runs-on: ubuntu-24.04
     permissions:
-      # Needed to upload the results to code-scanning dashboard.
-      security-events: write
-      # Used to receive a badge. (Upcoming feature)
-      id-token: write
-      # Needs for private repositories.
-      contents: read
-      actions: read
+      security-events: write # to upload SARIF results to code-scanning dashboard
+      id-token: write # for scorecard to create OIDC tokens
+      contents: read # to check out the repo
+      actions: read # for upload-sarif to read workflow run info
     if: github.repository == 'argoproj/argo-cd'
 
     steps:

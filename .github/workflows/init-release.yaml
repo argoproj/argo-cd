@@ -21,8 +21,8 @@ env:
 jobs:
   prepare-release:
     permissions:
-      contents: write  # for peter-evans/create-pull-request to create branch
-      pull-requests: write  # for peter-evans/create-pull-request to create a PR
+      contents: write # to push branch
+      pull-requests: write # to create PR
     name: Automatically generate version and manifests on ${{ inputs.TARGET_BRANCH }}
     runs-on: ubuntu-24.04
     env:
@@ -44,21 +44,26 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ inputs.TARGET_BRANCH }}
+          persist-credentials: false
 
       - name: Check if TARGET_VERSION is well formed.
         run: |
           set -xue
           # Target version must not contain 'v' prefix
-          if echo "${{ inputs.TARGET_VERSION }}" | grep -e '^v'; then
-            echo "::error::Target version '${{ inputs.TARGET_VERSION }}' should not begin with a 'v' prefix, refusing to continue." >&2
+          if echo "${INPUTS_TARGET_VERSION}" | grep -e '^v'; then
+            echo "::error::Target version '${INPUTS_TARGET_VERSION}' should not begin with a 'v' prefix, refusing to continue." >&2
             exit 1
           fi
+        env:
+          INPUTS_TARGET_VERSION: ${{ inputs.TARGET_VERSION }}
 
       - name: Create VERSION information
         run: |
           set -ue
-          echo "Bumping version from $(cat VERSION) to ${{ inputs.TARGET_VERSION }}"
-          echo "${{ inputs.TARGET_VERSION }}" > VERSION
+          echo "Bumping version from $(cat VERSION) to ${INPUTS_TARGET_VERSION}"
+          echo "${INPUTS_TARGET_VERSION}" > VERSION
+        env:
+          INPUTS_TARGET_VERSION: ${{ inputs.TARGET_VERSION }}
 
         # We install kustomize in the dist directory
       - name: Add dist to PATH
@@ -69,8 +74,10 @@ jobs:
         run: |
           set -ue
           make install-codegen-tools-local
-          make manifests-local VERSION=${{ inputs.TARGET_VERSION }}
+          make manifests-local VERSION=${INPUTS_TARGET_VERSION}
           git diff
+        env:
+          INPUTS_TARGET_VERSION: ${{ inputs.TARGET_VERSION }}
 
       - name: Generate version compatibility table
         run: |
@@ -80,14 +87,24 @@ jobs:
           git stash pop
 
       - name: Create pull request
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0  # v8.1.0
-        with:
-          commit-message: "Bump version to ${{ inputs.TARGET_VERSION }}"
-          title: "Bump version to ${{ inputs.TARGET_VERSION }} on ${{ inputs.TARGET_BRANCH }} branch"
-          body: Updating VERSION and manifests to ${{ inputs.TARGET_VERSION }}
-          branch: update-version
-          branch-suffix: random
-          signoff: true
-          labels: release
-
-
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BRANCH="update-version-$(date +%s)"
+          git checkout -b "$BRANCH"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit --signoff -m "Bump version to ${TARGET_VERSION}"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
+          gh pr create \
+            --title "Bump version to ${TARGET_VERSION} on ${TARGET_BRANCH} branch" \
+            --body "Updating VERSION and manifests to ${TARGET_VERSION}" \
+            --base "${TARGET_BRANCH}" \
+            --label release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_VERSION: ${{ inputs.TARGET_VERSION }}
+          TARGET_BRANCH: ${{ inputs.TARGET_BRANCH }}
