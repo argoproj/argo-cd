@@ -143,26 +143,10 @@ func getComparisonObjects(
 	return items
 }
 
-// createClientSideDiffStrategy creates a strategy that performs client-side diff using argodiff.StateDiff
-func createClientSideDiffStrategy(diffConfig argodiff.DiffConfig) diffStrategy {
-	return func(_ context.Context, items []comparisonObject) ([]*diff.DiffResult, error) {
-		results := make([]*diff.DiffResult, len(items))
+// Diff Strategy Factory Functions
 
-		for i, item := range items {
-			diffRes, err := argodiff.StateDiff(item.live, item.target, diffConfig)
-			if err != nil {
-				return nil, err
-			}
-
-			results[i] = &diffRes
-		}
-
-		return results, nil
-	}
-}
-
-// createServerSideDiffStrategy creates a strategy that performs server-side diff using the API
-func createServerSideDiffStrategy(
+// newServerSideDiffStrategy creates a server-side diff strategy with all dependencies
+func newServerSideDiffStrategy(
 	app *argoappv1.Application,
 	appIf application.ApplicationServiceClient,
 	appName string,
@@ -267,6 +251,46 @@ func createServerSideDiffStrategy(
 
 		return results, nil
 	}
+}
+
+// newClientSideDiffStrategy creates a client-side diff strategy with all dependencies
+func newClientSideDiffStrategy(
+	app *argoappv1.Application,
+	argoSettings *settings.Settings,
+	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
+) (diffStrategy, error) {
+	// Build resource overrides map
+	overrides := make(map[string]argoappv1.ResourceOverride)
+	for k := range argoSettings.ResourceOverrides {
+		val := argoSettings.ResourceOverrides[k]
+		overrides[k] = *val
+	}
+
+	ignoreAggregatedRoles := false
+	diffConfig, err := argodiff.NewDiffConfigBuilder().
+		WithDiffSettings(app.Spec.IgnoreDifferences, overrides, ignoreAggregatedRoles, ignoreNormalizerOpts).
+		WithTracking(argoSettings.AppLabelKey, argoSettings.TrackingMethod).
+		WithNoCache().
+		WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
+		Build()
+	if err != nil {
+		return nil, err
+	}
+
+	return func(_ context.Context, items []comparisonObject) ([]*diff.DiffResult, error) {
+		results := make([]*diff.DiffResult, len(items))
+
+		for i, item := range items {
+			diffRes, err := argodiff.StateDiff(item.live, item.target, diffConfig)
+			if err != nil {
+				return nil, err
+			}
+
+			results[i] = &diffRes
+		}
+
+		return results, nil
+	}, nil
 }
 
 // Manifest Provider Functions
@@ -445,9 +469,9 @@ func newLiveManifestProvider(liveState *application.ManagedResourcesResponse) ma
 	}
 }
 
-// computeDiff computes the diff using a target manifest provider
+// compareManifests computes the diff using a target manifest provider
 // Returns a list of comparisonObject containing all resources (added, removed, and modified)
-func computeDiff(
+func compareManifests(
 	ctx context.Context,
 	app *argoappv1.Application,
 	getTargetManifests manifestProvider,
@@ -657,31 +681,17 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			getLiveManifests := newLiveManifestProvider(liveState)
 
 			// Create diff strategy based on --server-side-diff flag
-			var performDiff diffStrategy
+			var diffHandler diffStrategy
 			if serverSideDiff {
-				performDiff = createServerSideDiffStrategy(app, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
+				diffHandler = newServerSideDiffStrategy(app, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
 			} else {
-				// Build diff config once for client-side diff
-				overrides := make(map[string]argoappv1.ResourceOverride)
-				for k := range argoSettings.ResourceOverrides {
-					val := argoSettings.ResourceOverrides[k]
-					overrides[k] = *val
-				}
-
-				ignoreAggregatedRoles := false
-				diffConfig, err := argodiff.NewDiffConfigBuilder().
-					WithDiffSettings(app.Spec.IgnoreDifferences, overrides, ignoreAggregatedRoles, ignoreNormalizerOpts).
-					WithTracking(argoSettings.AppLabelKey, argoSettings.TrackingMethod).
-					WithNoCache().
-					WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
-					Build()
+				clientSideDiff, err := newClientSideDiffStrategy(app, argoSettings, ignoreNormalizerOpts)
 				errors.CheckError(err)
-
-				performDiff = createClientSideDiffStrategy(diffConfig)
+				diffHandler = clientSideDiff
 			}
 
 			// Compute diff
-			results, err := computeDiff(ctx, app, getTargetManifestsWithTracking, getLiveManifests, performDiff)
+			results, err := compareManifests(ctx, app, getTargetManifestsWithTracking, getLiveManifests, diffHandler)
 			errors.CheckError(err)
 
 			// Print added resources
