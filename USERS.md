@@ -65,6 +65,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Candis](https://www.candis.io)
 1. [Capital One](https://www.capitalone.com)
 1. [Capptain LTD](https://capptain.co/)
+1. [Car & Classic](https://www.carandclassic.com)
 1. [CARFAX Europe](https://www.carfax.eu)
 1. [CARFAX](https://www.carfax.com)
 1. [Carrefour Group](https://www.carrefour.com)
