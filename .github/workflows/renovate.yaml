@@ -33,6 +33,8 @@ jobs:
             proxy.golang.org:443
             nodejs.org:443
             pypi.org:443
+            get.helm.sh
+            registry.npmjs.org
 
       - name: Get token
         id: get_token
