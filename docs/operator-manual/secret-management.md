@@ -20,6 +20,7 @@ This approach has two main advantages:
 We strongly recommend this style of secret management.
 
 Other examples of this style of secret management include:
+
 * [aws-secret-operator](https://github.com/mumoshu/aws-secret-operator)
 * [Vault Secrets Operator](https://developer.hashicorp.com/vault/docs/platform/k8s/vso)
 
