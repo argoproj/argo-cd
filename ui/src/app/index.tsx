@@ -19,3 +19,4 @@ if (mdl.hot) {
 (window as any).React = React;
 (window as any).ReactDOM = ReactDOM;
 (window as any).Moment = Moment;
+(window as any).ReactJSXRuntime = require('react/jsx-runtime');

@@ -123,11 +123,17 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
         return props.match.params.appnamespace;
     }, [props.match.params.appnamespace]);
 
-    const onExtensionsUpdate = useCallback(() => {
-        setState(prevState => ({...prevState, ...getExtensionsState()}));
-    }, [getExtensionsState]);
+    const getExtensionsStateRef = useRef(getExtensionsState);
+    getExtensionsStateRef.current = getExtensionsState;
+
+    const onExtensionsUpdate = useRef(() => {
+        setState(prevState => ({...prevState, ...getExtensionsStateRef.current()}));
+    }).current;
 
     useEffect(() => {
+        // Capture any extensions that registered before this effect ran
+        setState(prevState => ({...prevState, ...getExtensionsStateRef.current()}));
+
         services.extensions.addEventListener('resource', onExtensionsUpdate);
         services.extensions.addEventListener('appView', onExtensionsUpdate);
         services.extensions.addEventListener('statusPanel', onExtensionsUpdate);
