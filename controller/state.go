@@ -332,7 +332,11 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			InstallationID:                  installationID,
 		})
 		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
+			genErr := fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
+			if app.Spec.SourceHydrator != nil && app.Spec.SourceHydrator.HydrateTo != nil && strings.Contains(err.Error(), path.ErrMessageAppPathDoesNotExist) {
+				genErr = fmt.Errorf("%w - waiting for an external process to update %s from %s", genErr, app.Spec.SourceHydrator.SyncSource.TargetBranch, app.Spec.SourceHydrator.HydrateTo.TargetBranch)
+			}
+			return nil, nil, false, genErr
 		}
 
 		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
