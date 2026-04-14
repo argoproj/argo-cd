@@ -7,6 +7,7 @@ import (
 	"html"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -25,6 +26,8 @@ import (
 	"github.com/go-playground/webhooks/v6/gitlab"
 	"github.com/go-playground/webhooks/v6/gogs"
 	gogsclient "github.com/gogits/go-gogs-client"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -54,6 +57,24 @@ const usernameRegex = `[\w\.][\w\.-]{0,30}[\w\.\$-]?`
 const payloadQueueSize = 50000
 
 const panicMsgServer = "panic while processing api-server webhook event"
+
+var (
+	webhookManifestCacheWarmDisabled = os.Getenv("ARGOCD_WEBHOOK_MANIFEST_CACHE_WARM_DISABLED") == "true"
+	webhookRequestsTotal             = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_webhook_requests_total",
+		Help: "Number of webhook requests received by repo.",
+	}, []string{"repo"})
+
+	webhookStoreCacheAttemptsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_webhook_store_cache_attempts_total",
+		Help: "Number of attempts to store previously cached manifests triggered by a webhook event.",
+	}, []string{"repo", "successful"})
+
+	webhookHandlersInFlight = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "argocd_webhook_handlers_in_flight",
+		Help: "Number of webhook HandleEvent calls currently in progress.",
+	})
+)
 
 var _ settingsSource = &settings.SettingsManager{}
 
@@ -238,14 +259,18 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 				break
 			}
 			log.Debugf("created bitbucket client with base URL '%s'", apiBaseURL)
-			owner := strings.ReplaceAll(payload.Repository.FullName, "/"+payload.Repository.Name, "")
+			owner, repoSlug, ok := strings.Cut(payload.Repository.FullName, "/")
+			if !ok || owner == "" || repoSlug == "" {
+				log.Warnf("error parsing bitbucket repository full name %q", payload.Repository.FullName)
+				break
+			}
 			spec := change.shaBefore + ".." + change.shaAfter
-			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(ctx, bbClient, owner, payload.Repository.Name, spec)
+			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(ctx, bbClient, owner, repoSlug, spec)
 			if err != nil {
 				log.Warnf("error fetching changed files using bitbucket diffstat api: %v", err)
 			}
 			changedFiles = append(changedFiles, diffStatChangedFiles...)
-			touchedHead, err = isHeadTouched(ctx, bbClient, owner, payload.Repository.Name, revision)
+			touchedHead, err = isHeadTouched(ctx, bbClient, owner, repoSlug, revision)
 			if err != nil {
 				log.Warnf("error fetching bitbucket repo details: %v", err)
 				// To be safe, we just return true and let the controller check for himself.
@@ -309,6 +334,15 @@ type changeInfo struct {
 
 // HandleEvent handles webhook events for repo push events
 func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
+	webhookHandlersInFlight.Inc()
+	defer webhookHandlersInFlight.Dec()
+
+	start := time.Now()
+	log.Info("Webhook handler started")
+	defer func() {
+		log.Infof("Webhook handler completed in %v", time.Since(start))
+	}()
+
 	webURLs, revision, change, touchedHead, changedFiles := a.affectedRevisionInfo(payload)
 	// NOTE: the webURL does not include the .git extension
 	if len(webURLs) == 0 {
@@ -317,6 +351,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	}
 	for _, webURL := range webURLs {
 		log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
+		webhookRequestsTotal.WithLabelValues(git.NormalizeGitURL(webURL)).Inc()
 	}
 
 	nsFilter := a.ns
@@ -364,6 +399,16 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 			continue
 		}
 
+		cacheWarmDisabled := webhookManifestCacheWarmDisabled
+		if !cacheWarmDisabled {
+			repo, err := a.lookupRepository(context.Background(), webURL)
+			if err != nil {
+				log.Debugf("Failed to look up repository for %s: %v", webURL, err)
+			} else if repo != nil && repo.WebhookManifestCacheWarmDisabled {
+				cacheWarmDisabled = true
+			}
+		}
+
 		// iterate over apps and check if any files specified in their sources have changed
 		for _, app := range filteredApps {
 			// get all sources, including sync source and dry source if source hydrator is configured
@@ -397,10 +442,13 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 							log.Errorf("Failed to refresh app '%s': %v", app.Name, err)
 						}
 						break // we don't need to check other sources
-					} else if change.shaBefore != "" && change.shaAfter != "" {
+					} else if change.shaBefore != "" && change.shaAfter != "" && !cacheWarmDisabled {
 						// update the cached manifests with the new revision cache key
 						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey, installationID, source); err != nil {
-							log.Errorf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
+							log.Debugf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
+							webhookStoreCacheAttemptsTotal.WithLabelValues(git.NormalizeGitURL(webURL), "false").Inc()
+						} else {
+							webhookStoreCacheAttemptsTotal.WithLabelValues(git.NormalizeGitURL(webURL), "true").Inc()
 						}
 					}
 				}
