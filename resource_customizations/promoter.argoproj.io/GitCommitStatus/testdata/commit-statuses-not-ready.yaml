@@ -1,0 +1,25 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: GitCommitStatus
+metadata:
+  name: git-commit-check
+  generation: 1
+spec:
+  promotionStrategyRef:
+    name: demo
+  key: git-commit-check
+  expression: 'Commit.Subject startsWith "chore:"'
+  target: proposed
+status:
+  conditions:
+    - type: Ready
+      status: "False"
+      reason: CommitStatusesNotReady
+      message: 'CommitStatus "git-commit-check-env-dev-git-commit-check" is not Ready because "ReconciliationError": Failed to sync to SCM'
+      observedGeneration: 1
+  environments:
+    - branch: env/dev
+      proposedHydratedSha: "0123456789abcdef0123456789abcdef01234567"
+      targetedSha: "0123456789abcdef0123456789abcdef01234567"
+      activeHydratedSha: "fedcba0987654321fedcba0987654321fedcba09"
+      phase: success
+      expressionResult: true
