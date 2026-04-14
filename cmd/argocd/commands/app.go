@@ -17,19 +17,14 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/ignore"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -40,7 +35,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	argocommon "github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/controller"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 
@@ -50,17 +44,13 @@ import (
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/reposerver/repository"
 	"github.com/argoproj/argo-cd/v3/util/argo"
-	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
-	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 	"github.com/argoproj/argo-cd/v3/util/text/label"
 )
@@ -1200,323 +1190,67 @@ func targetObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstruc
 	return objs, nil
 }
 
-func getLocalObjects(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
-	trackingMethod string,
-) []*unstructured.Unstructured {
-	manifestStrings := getLocalObjectsString(ctx, app, proj, local, localRepoRoot, appLabelKey, kubeVersion, apiVersions, kustomizeOptions, trackingMethod)
-	objs := make([]*unstructured.Unstructured, len(manifestStrings))
-	for i := range manifestStrings {
-		obj := unstructured.Unstructured{}
-		err := json.Unmarshal([]byte(manifestStrings[i]), &obj)
-		errors.CheckError(err)
-		objs[i] = &obj
-	}
-	return objs
-}
-
-func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
-	trackingMethod string,
-) []string {
-	source := app.Spec.GetSource()
-	res, err := repository.GenerateManifests(ctx, local, localRepoRoot, source.TargetRevision, &repoapiclient.ManifestRequest{
-		Repo:                            &argoappv1.Repository{Repo: source.RepoURL},
-		AppLabelKey:                     appLabelKey,
-		AppName:                         app.Name,
-		Namespace:                       app.Spec.Destination.Namespace,
-		ApplicationSource:               &source,
-		KustomizeOptions:                kustomizeOptions,
-		KubeVersion:                     kubeVersion,
-		ApiVersions:                     apiVersions,
-		TrackingMethod:                  trackingMethod,
-		ProjectName:                     proj.Name,
-		ProjectSourceRepos:              proj.Spec.SourceRepos,
-		AnnotationManifestGeneratePaths: app.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths),
-	}, true, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
-	errors.CheckError(err)
-
-	return res.Manifests
-}
-
-type resourceInfoProvider struct {
-	namespacedByGk map[schema.GroupKind]bool
-}
-
-// Infer if obj is namespaced or not from corresponding live objects list. If corresponding live object has namespace then target object is also namespaced.
-// If live object is missing then it does not matter if target is namespaced or not.
-func (p *resourceInfoProvider) IsNamespaced(gk schema.GroupKind) (bool, error) {
-	return p.namespacedByGk[gk], nil
-}
-
-func groupObjsByKey(localObs []*unstructured.Unstructured, liveObjs []*unstructured.Unstructured, appNamespace string) map[kube.ResourceKey]*unstructured.Unstructured {
-	namespacedByGk := make(map[schema.GroupKind]bool)
-	for i := range liveObjs {
-		if liveObjs[i] != nil {
-			key := kube.GetResourceKey(liveObjs[i])
-			namespacedByGk[schema.GroupKind{Group: key.Group, Kind: key.Kind}] = key.Namespace != ""
-		}
-	}
-	localObs, _, err := controller.DeduplicateTargetObjects(appNamespace, localObs, &resourceInfoProvider{namespacedByGk: namespacedByGk})
-	errors.CheckError(err)
-	objByKey := make(map[kube.ResourceKey]*unstructured.Unstructured)
-	for i := range localObs {
-		obj := localObs[i]
-		if !hook.IsHook(obj) && !ignore.Ignore(obj) {
-			objByKey[kube.GetResourceKey(obj)] = obj
-		}
-	}
-	return objByKey
-}
-
-type objKeyLiveTarget struct {
-	key    kube.ResourceKey
-	live   *unstructured.Unstructured
-	target *unstructured.Unstructured
-}
-
-// addServerSideDiffPerfFlags adds server-side diff performance tuning flags to a command
-func addServerSideDiffPerfFlags(command *cobra.Command, serverSideDiffConcurrency *int, serverSideDiffMaxBatchKB *int) {
-	command.Flags().IntVar(serverSideDiffConcurrency, "server-side-diff-concurrency", -1, "Max concurrent batches for server-side diff. -1 = unlimited, 1 = sequential, 2+ = concurrent (0 = invalid)")
-	command.Flags().IntVar(serverSideDiffMaxBatchKB, "server-side-diff-max-batch-kb", 250, "Max batch size in KB for server-side diff. Smaller values are safer for proxies")
-}
-
-// printResourceDiff prints the diff header and calls cli.PrintDiff for a resource
-func printResourceDiff(group, kind, namespace, name string, live, target *unstructured.Unstructured) {
-	fmt.Printf("\n===== %s/%s %s/%s ======\n", group, kind, namespace, name)
-	_ = cli.PrintDiff(name, live, target)
-}
-
-// findAndPrintServerSideDiff performs a server-side diff by making requests to the api server and prints the response
-func findAndPrintServerSideDiff(ctx context.Context, app *argoappv1.Application, items []objKeyLiveTarget, resources *application.ManagedResourcesResponse, appIf application.ApplicationServiceClient, appName, appNs string, maxConcurrency int, maxBatchSizeKB int) bool {
-	if maxConcurrency == 0 {
-		errors.CheckError(stderrors.New("invalid value for --server-side-diff-concurrency: 0 is not allowed (use -1 for unlimited, or a positive number to limit concurrency)"))
-	}
-
-	liveResources := make([]*argoappv1.ResourceDiff, 0, len(items))
-	targetManifests := make([]string, 0, len(items))
-
-	// Process each item for server-side diff
-	foundDiffs := false
-	for _, item := range items {
-		if item.target != nil && hook.IsHook(item.target) || item.live != nil && hook.IsHook(item.live) {
-			continue
-		}
-
-		// For server-side diff, we need to create aligned arrays for this specific resource
-		var liveResource *argoappv1.ResourceDiff
-		var targetManifest string
-
-		if item.live != nil {
-			for _, res := range resources.Items {
-				if res.Group == item.key.Group && res.Kind == item.key.Kind &&
-					res.Namespace == item.key.Namespace && res.Name == item.key.Name {
-					liveResource = res
-					break
-				}
-			}
-		}
-
-		if liveResource == nil {
-			// Create empty live resource for creation case
-			liveResource = &argoappv1.ResourceDiff{
-				Group:       item.key.Group,
-				Kind:        item.key.Kind,
-				Namespace:   item.key.Namespace,
-				Name:        item.key.Name,
-				LiveState:   "",
-				TargetState: "",
-				Modified:    true,
-			}
-		}
-		liveResources = append(liveResources, liveResource)
-
-		if item.target != nil {
-			jsonBytes, err := json.Marshal(item.target)
-			if err != nil {
-				errors.CheckError(fmt.Errorf("error marshaling target object: %w", err))
-			}
-			targetManifest = string(jsonBytes)
-		}
-		targetManifests = append(targetManifests, targetManifest)
-	}
-
-	if len(liveResources) == 0 {
-		return false
-	}
-
-	// Batch by size to avoid proxy limits
-	maxBatchSize := maxBatchSizeKB * 1024
-	var batches []struct{ start, end int }
-	for i := 0; i < len(liveResources); {
-		start := i
-		size := 0
-		for i < len(liveResources) {
-			resourceSize := len(liveResources[i].LiveState) + len(targetManifests[i])
-			if size+resourceSize > maxBatchSize && i > start {
-				break
-			}
-			size += resourceSize
-			i++
-		}
-		batches = append(batches, struct{ start, end int }{start, i})
-	}
-
-	// Process batches in parallel
-	g, errGroupCtx := errgroup.WithContext(ctx)
-	g.SetLimit(maxConcurrency)
-
-	results := make([][]*argoappv1.ResourceDiff, len(batches))
-
-	for idx, batch := range batches {
-		i := idx
-		b := batch
-		g.Go(func() error {
-			// Call server-side diff for this batch of resources
-			serverSideDiffQuery := &application.ApplicationServerSideDiffQuery{
-				AppName:         &appName,
-				AppNamespace:    &appNs,
-				Project:         &app.Spec.Project,
-				LiveResources:   liveResources[b.start:b.end],
-				TargetManifests: targetManifests[b.start:b.end],
-			}
-			serverSideDiffRes, err := appIf.ServerSideDiff(errGroupCtx, serverSideDiffQuery)
-			if err != nil {
-				return err
-			}
-			results[i] = serverSideDiffRes.Items
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		errors.CheckError(err)
-	}
-
-	for _, items := range results {
-		for _, resultItem := range items {
-			if resultItem.Hook || (!resultItem.Modified && resultItem.TargetState != "" && resultItem.LiveState != "") {
-				continue
-			}
-
-			if resultItem.Modified || resultItem.TargetState == "" || resultItem.LiveState == "" {
-				var live, target *unstructured.Unstructured
-
-				if resultItem.TargetState != "" && resultItem.TargetState != "null" {
-					target = &unstructured.Unstructured{}
-					err := json.Unmarshal([]byte(resultItem.TargetState), target)
-					errors.CheckError(err)
-				}
-				if resultItem.LiveState != "" && resultItem.LiveState != "null" {
-					live = &unstructured.Unstructured{}
-					err := json.Unmarshal([]byte(resultItem.LiveState), live)
-					errors.CheckError(err)
-				}
-
-				// Print resulting diff for this resource
-				foundDiffs = true
-				printResourceDiff(resultItem.Group, resultItem.Kind, resultItem.Namespace, resultItem.Name, live, target)
-			}
-		}
-	}
-
-	return foundDiffs
-}
-
-// DifferenceOption struct to store diff options
-type DifferenceOption struct {
-	local         string
-	localRepoRoot string
-	revision      string
-	cluster       *argoappv1.Cluster
-	res           *repoapiclient.ManifestResponse
-	serversideRes *repoapiclient.ManifestResponse
-	revisions     []string
-}
-
 // findAndPrintDiff ... Prints difference between application current state and state stored in git or locally, returns boolean as true if difference is found else returns false
-func findAndPrintDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts, useServerSideDiff bool, appIf application.ApplicationServiceClient, appName, appNs string, serverSideDiffConcurrency int, serverSideDiffMaxBatchKB int) bool {
-	var foundDiffs bool
+func findAndPrintDiff(
+	ctx context.Context,
+	app *argoappv1.Application,
+	proj *argoappv1.AppProject,
+	resources *application.ManagedResourcesResponse,
+	argoSettings *settings.Settings,
+	clusterIf clusterpkg.ClusterServiceClient,
+	localPath string,
+	localRepoRoot string,
+	revision string,
+	revisions []string,
+	sourcePositions []int64,
+	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
+	useServerSideDiff bool,
+	appIf application.ApplicationServiceClient,
+	appName, appNs string,
+	serverSideDiffConcurrency int,
+	serverSideDiffMaxBatchKB int,
+) bool {
+	// Build target manifest provider based on sync type
+	var baseTargetProvider manifestProvider
+	if localPath != "" {
+		// Local sync: provider fetches and generates local manifests
+		baseTargetProvider = newLocalClientSideProvider(clusterIf, argoSettings, app, proj, localPath, localRepoRoot)
+	} else if len(revisions) > 0 {
+		// Multi-source app with revisions
+		baseTargetProvider = newMultiSourceRevisionProvider(appIf, appName, appNs, revisions, sourcePositions, false)
+	} else if revision != "" {
+		// Single-source app with revision
+		baseTargetProvider = newSingleRevisionProvider(appIf, appName, appNs, revision, false)
+	} else {
+		// Normal sync: provider uses target state from ManagedResources
+		baseTargetProvider = newDefaultTargetProvider(resources)
+	}
 
-	items, err := prepareObjectsForDiff(ctx, app, proj, resources, argoSettings, diffOptions)
+	// Always wrap with tracking to ensure target manifests have tracking labels
+	getTargetManifests := newTrackingWrapper(baseTargetProvider, app, argoSettings)
+	getLiveManifests := newLiveManifestProvider(resources)
+
+	// Choose diff strategy
+	var performDiff diffStrategy
+	if useServerSideDiff {
+		performDiff = newServerSideDiffStrategy(app, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
+	} else {
+		var err error
+		performDiff, err = newClientSideDiffStrategy(app, argoSettings, ignoreNormalizerOpts)
+		errors.CheckError(err)
+	}
+
+	// Call compareManifests (does all the heavy lifting)
+	changedObjects, err := compareManifests(ctx, app, getTargetManifests, getLiveManifests, performDiff)
 	errors.CheckError(err)
 
-	if useServerSideDiff {
-		return findAndPrintServerSideDiff(ctx, app, items, resources, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
+	// Print results
+	foundDiffs := len(changedObjects) > 0
+	for _, obj := range changedObjects {
+		printResourceDiff(obj.key.Group, obj.key.Kind, obj.key.Namespace, obj.key.Name, obj.live, obj.target)
 	}
 
-	for _, item := range items {
-		if item.target != nil && hook.IsHook(item.target) || item.live != nil && hook.IsHook(item.live) {
-			continue
-		}
-		overrides := make(map[string]argoappv1.ResourceOverride)
-		for k := range argoSettings.ResourceOverrides {
-			val := argoSettings.ResourceOverrides[k]
-			overrides[k] = *val
-		}
-
-		// TODO remove hardcoded IgnoreAggregatedRoles and retrieve the
-		// compareOptions in the protobuf
-		ignoreAggregatedRoles := false
-		diffConfig, err := argodiff.NewDiffConfigBuilder().
-			WithDiffSettings(app.Spec.IgnoreDifferences, overrides, ignoreAggregatedRoles, ignoreNormalizerOpts).
-			WithTracking(argoSettings.AppLabelKey, argoSettings.TrackingMethod).
-			WithNoCache().
-			WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
-			Build()
-		errors.CheckError(err)
-		diffRes, err := argodiff.StateDiff(item.live, item.target, diffConfig)
-		errors.CheckError(err)
-
-		if diffRes.Modified || item.target == nil || item.live == nil {
-			var live *unstructured.Unstructured
-			var target *unstructured.Unstructured
-			if item.target != nil && item.live != nil {
-				target = &unstructured.Unstructured{}
-				live = item.live
-				err = json.Unmarshal(diffRes.PredictedLive, target)
-				errors.CheckError(err)
-			} else {
-				live = item.live
-				target = item.target
-			}
-			foundDiffs = true
-			printResourceDiff(item.key.Group, item.key.Kind, item.key.Namespace, item.key.Name, live, target)
-		}
-	}
 	return foundDiffs
-}
-
-func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[kube.ResourceKey]*unstructured.Unstructured, items []objKeyLiveTarget, argoSettings *settings.Settings, appName, namespace string) []objKeyLiveTarget {
-	resourceTracking := argo.NewResourceTracking()
-	for _, res := range resources.Items {
-		live := &unstructured.Unstructured{}
-		err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
-		errors.CheckError(err)
-
-		key := kube.ResourceKey{Name: res.Name, Namespace: res.Namespace, Group: res.Group, Kind: res.Kind}
-		if key.Kind == kube.SecretKind && key.Group == "" {
-			// Don't bother comparing secrets, argo-cd doesn't have access to k8s secret data
-			delete(objs, key)
-			continue
-		}
-		if local, ok := objs[key]; ok || live != nil {
-			if local != nil && !kube.IsCRD(local) {
-				err = resourceTracking.SetAppInstance(local, argoSettings.AppLabelKey, appName, namespace, argoappv1.TrackingMethod(argoSettings.GetTrackingMethod()), argoSettings.GetInstallationID())
-				errors.CheckError(err)
-			}
-
-			items = append(items, objKeyLiveTarget{key, live, local})
-			delete(objs, key)
-		}
-	}
-	for key, local := range objs {
-		if key.Kind == kube.SecretKind && key.Group == "" {
-			// Don't bother comparing secrets, argo-cd doesn't have access to k8s secret data
-			delete(objs, key)
-			continue
-		}
-		items = append(items, objKeyLiveTarget{key, nil, local})
-	}
-	return items
 }
 
 // NewApplicationDeleteCommand returns a new instance of an `argocd app delete` command
@@ -2147,7 +1881,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 
 				var localObjsStrings []string
-				diffOption := &DifferenceOption{}
 
 				app, err := appIf.Get(ctx, &application.ApplicationQuery{
 					Name:         &appName,
@@ -2193,11 +1926,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					utilio.Close(conn)
 
 					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
+
 					localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
 					errors.CheckError(err)
-					diffOption.local = local
-					diffOption.localRepoRoot = localRepoRoot
-					diffOption.cluster = cluster
 				}
 
 				syncOptionsFactory := func() *application.SyncOptions {
@@ -2266,15 +1997,19 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					defer utilio.Close(conn)
 					argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 					errors.CheckError(err)
-					foundDiffs := false
-					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
+
+					conn, clusterIf := acdClient.NewClusterClientOrDie()
+					defer utilio.Close(conn)
 
 					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
+
+					foundDiffs := false
+					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
 
 					// Check if application has ServerSideDiff annotation
 					serverSideDiff := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
 
-					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
+					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, clusterIf, local, localRepoRoot, revision, revisions, sourcePositions, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
 					if !foundDiffs {
 						fmt.Printf("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
@@ -3496,61 +3231,4 @@ func NewApplicationConfirmDeletionCommand(clientOpts *argocdclient.ClientOptions
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the target application where the source will be appended")
 	return command
-}
-
-// prepareObjectsForDiff prepares objects for diffing using the switch statement
-// to handle different diff options and building the objKeyLiveTarget items
-func prepareObjectsForDiff(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, resources *application.ManagedResourcesResponse, argoSettings *settings.Settings, diffOptions *DifferenceOption) ([]objKeyLiveTarget, error) {
-	liveObjs, err := cmdutil.LiveObjects(resources.Items)
-	if err != nil {
-		return nil, err
-	}
-	items := make([]objKeyLiveTarget, 0)
-
-	switch {
-	case diffOptions.local != "":
-		localObjs := groupObjsByKey(getLocalObjects(ctx, app, proj, diffOptions.local, diffOptions.localRepoRoot, argoSettings.AppLabelKey, diffOptions.cluster.Info.ServerVersion, diffOptions.cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod), liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, localObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	case diffOptions.revision != "" || len(diffOptions.revisions) > 0:
-		var unstructureds []*unstructured.Unstructured
-		for _, mfst := range diffOptions.res.Manifests {
-			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
-			if err != nil {
-				return nil, err
-			}
-			unstructureds = append(unstructureds, obj)
-		}
-		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	case diffOptions.serversideRes != nil:
-		var unstructureds []*unstructured.Unstructured
-		for _, mfst := range diffOptions.serversideRes.Manifests {
-			obj, err := argoappv1.UnmarshalToUnstructured(mfst)
-			if err != nil {
-				return nil, err
-			}
-			unstructureds = append(unstructureds, obj)
-		}
-		groupedObjs := groupObjsByKey(unstructureds, liveObjs, app.Spec.Destination.Namespace)
-		items = groupObjsForDiff(resources, groupedObjs, items, argoSettings, app.InstanceName(argoSettings.ControllerNamespace), app.Spec.Destination.Namespace)
-	default:
-		for i := range resources.Items {
-			res := resources.Items[i]
-			live := &unstructured.Unstructured{}
-			err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
-			if err != nil {
-				return nil, err
-			}
-
-			target := &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(res.TargetState), &target)
-			if err != nil {
-				return nil, err
-			}
-
-			items = append(items, objKeyLiveTarget{kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name), live, target})
-		}
-	}
-
-	return items, nil
 }

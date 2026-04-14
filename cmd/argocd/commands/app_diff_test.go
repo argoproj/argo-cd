@@ -1132,7 +1132,7 @@ func TestNewServerSideDiffStrategy(t *testing.T) {
 		largeState := string(largeData)
 
 		// Mock expects 5 separate calls (one per resource)
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			mockClient.On("ServerSideDiff", mock.Anything, mock.MatchedBy(func(query *applicationpkg.ApplicationServerSideDiffQuery) bool {
 				return len(query.LiveResources) == 1
 			})).Return(&applicationpkg.ApplicationServerSideDiffResponse{
@@ -1147,7 +1147,7 @@ func TestNewServerSideDiffStrategy(t *testing.T) {
 		}
 
 		items := make([]comparisonObject, 5)
-		for i := 0; i < 5; i++ {
+		for i := range 5 {
 			deployment := createTestUnstructured(&appsv1.Deployment{
 				TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
 				ObjectMeta: metav1.ObjectMeta{

@@ -15,6 +15,7 @@ import (
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -29,10 +30,14 @@ import (
 	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	repoapiclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/reposerver/repository"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
@@ -51,6 +56,16 @@ type comparisonObject struct {
 // diffStrategy is a function that performs diff on a batch of resources
 // Returns DiffResult from the gitops-engine where NormalizedLive is the live state and PredictedLive is the target state
 type diffStrategy func(ctx context.Context, items []comparisonObject) ([]*diff.DiffResult, error)
+
+type resourceInfoProvider struct {
+	namespacedByGk map[schema.GroupKind]bool
+}
+
+// Infer if obj is namespaced or not from corresponding live objects list. If corresponding live object has namespace then target object is also namespaced.
+// If live object is missing then it does not matter if target is namespaced or not.
+func (p *resourceInfoProvider) IsNamespaced(gk schema.GroupKind) (bool, error) {
+	return p.namespacedByGk[gk], nil
+}
 
 // manifestsToUnstructured converts manifest strings to unstructured objects
 func manifestsToUnstructured(manifests []string) ([]*unstructured.Unstructured, error) {
@@ -92,7 +107,6 @@ func getObjectMap(objects []*unstructured.Unstructured) map[kube.ResourceKey]*un
 }
 
 // getComparisonObjects pairs target and live manifests by resource key
-// This consolidates the logic from groupObjsByKey and groupObjsForDiff
 func getComparisonObjects(
 	targetManifests []*unstructured.Unstructured,
 	liveManifests []*unstructured.Unstructured,
@@ -141,6 +155,45 @@ func getComparisonObjects(
 	}
 
 	return items
+}
+
+// Deprecated: Prefer server-side generation since local side generation does not support plugins
+func getLocalObjects(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
+	trackingMethod string,
+) []*unstructured.Unstructured {
+	manifestStrings := getLocalObjectsString(ctx, app, proj, local, localRepoRoot, appLabelKey, kubeVersion, apiVersions, kustomizeOptions, trackingMethod)
+	objs := make([]*unstructured.Unstructured, len(manifestStrings))
+	for i := range manifestStrings {
+		obj := unstructured.Unstructured{}
+		err := json.Unmarshal([]byte(manifestStrings[i]), &obj)
+		errors.CheckError(err)
+		objs[i] = &obj
+	}
+	return objs
+}
+
+// Deprecated: Prefer server-side generation since local side generation does not support plugins
+func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
+	trackingMethod string,
+) []string {
+	source := app.Spec.GetSource()
+	res, err := repository.GenerateManifests(ctx, local, localRepoRoot, source.TargetRevision, &repoapiclient.ManifestRequest{
+		Repo:                            &argoappv1.Repository{Repo: source.RepoURL},
+		AppLabelKey:                     appLabelKey,
+		AppName:                         app.Name,
+		Namespace:                       app.Spec.Destination.Namespace,
+		ApplicationSource:               &source,
+		KustomizeOptions:                kustomizeOptions,
+		KubeVersion:                     kubeVersion,
+		ApiVersions:                     apiVersions,
+		TrackingMethod:                  trackingMethod,
+		ProjectName:                     proj.Name,
+		ProjectSourceRepos:              proj.Spec.SourceRepos,
+		AnnotationManifestGeneratePaths: app.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths),
+	}, true, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+	errors.CheckError(err)
+
+	return res.Manifests
 }
 
 // Diff Strategy Factory Functions
@@ -343,7 +396,9 @@ func newSingleRevisionProvider(
 	}
 }
 
-// newLocalServerSideProvider creates a provider for local manifests with server-side generation
+// newLocalServerSideProvider creates a provider for local manifests with server-side generation.
+// This is the PREFERRED approach as it delegates manifest generation to the server,
+// ensuring consistency with the server's manifest generation logic and reducing client-side complexity.
 func newLocalServerSideProvider(
 	appIf application.ApplicationServiceClient,
 	appName string,
@@ -371,7 +426,9 @@ func newLocalServerSideProvider(
 	}
 }
 
-// newLocalClientSideProvider creates a provider for local manifests with client-side generation
+// newLocalClientSideProvider creates a provider for local manifests with client-side generation.
+// Deprecated: Prefer newLocalServerSideProvider which performs manifest generation on the server,
+// reducing client-side complexity and improving consistency with the server's manifest generation logic.
 func newLocalClientSideProvider(
 	clusterIf clusterpkg.ClusterServiceClient,
 	argoSettings *settings.Settings,
@@ -694,25 +751,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			results, err := compareManifests(ctx, app, getTargetManifestsWithTracking, getLiveManifests, diffHandler)
 			errors.CheckError(err)
 
-			// Print added resources
 			for _, result := range results {
-				if result.target != nil && result.live == nil {
-					printResourceDiff(result.key.Group, result.key.Kind, result.key.Namespace, result.key.Name, result.live, result.target)
-				}
-			}
-
-			// Print removed resources
-			for _, result := range results {
-				if result.target == nil && result.live != nil {
-					printResourceDiff(result.key.Group, result.key.Kind, result.key.Namespace, result.key.Name, result.live, result.target)
-				}
-			}
-
-			// Print modified resources
-			for _, result := range results {
-				if result.target != nil && result.live != nil {
-					printResourceDiff(result.key.Group, result.key.Kind, result.key.Namespace, result.key.Name, result.live, result.target)
-				}
+				printResourceDiff(result.key.Group, result.key.Kind, result.key.Namespace, result.key.Name, result.live, result.target)
 			}
 
 			foundDiffs := len(results) > 0
@@ -738,4 +778,16 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
 	return command
+}
+
+// addServerSideDiffPerfFlags adds server-side diff performance tuning flags to a command
+func addServerSideDiffPerfFlags(command *cobra.Command, serverSideDiffConcurrency *int, serverSideDiffMaxBatchKB *int) {
+	command.Flags().IntVar(serverSideDiffConcurrency, "server-side-diff-concurrency", -1, "Max concurrent batches for server-side diff. -1 = unlimited, 1 = sequential, 2+ = concurrent (0 = invalid)")
+	command.Flags().IntVar(serverSideDiffMaxBatchKB, "server-side-diff-max-batch-kb", 250, "Max batch size in KB for server-side diff. Smaller values are safer for proxies")
+}
+
+// printResourceDiff prints the diff header and calls cli.PrintDiff for a resource
+func printResourceDiff(group, kind, namespace, name string, live, target *unstructured.Unstructured) {
+	fmt.Printf("\n===== %s/%s %s/%s ======\n", group, kind, namespace, name)
+	_ = cli.PrintDiff(name, live, target)
 }
