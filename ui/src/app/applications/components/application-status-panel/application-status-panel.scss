@@ -138,6 +138,7 @@
         margin-bottom: 0.5em;
         font-weight: 500;
         padding: 2px 0px;
+        min-width: 0;
         .fa {
             font-size: 1em;
         }
@@ -169,13 +170,62 @@
         }
 
         &__revision {
+            display: flex;
+            align-items: baseline;
+            gap: 0.25em;
             font-size: 14px;
-            @include themify($themes) {
-                color: themed('text-1');
-            }
             font-weight: 500;
             padding-left: 8px;
             margin-bottom: 2px;
+            min-width: 0;
+            max-width: $row-width;
+            flex-shrink: 1;
+            overflow: hidden;
+
+            @include responsive-widths();
+        }
+
+        &__revision-prefix,
+        &__revision-sha,
+        &__revision-extra {
+            flex: 0 0 auto;
+            white-space: nowrap;
+        }
+
+        &__revision-sha {
+            margin-left: 0.1em;
+        }
+
+        &__revision-main {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            max-width: 100%;
+        }
+
+        &__revision-main > a,
+        &__revision-main > span {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 0;
+            min-width: 0;
+            max-width: 100%;
+        }
+
+        &__revision-main > span {
+            color: inherit;
+        }
+
+        &__revision-branch {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        &__revision-main .fa-external-link-alt {
+            flex: 0 0 auto;
+            margin-left: 0.25em;
         }
 
         &__status-button {
