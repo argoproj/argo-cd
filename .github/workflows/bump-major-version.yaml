@@ -99,6 +99,7 @@ jobs:
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
           gh pr create \
             --title "Bump major version to ${TARGET_VERSION}" \
+            --head "$BRANCH" \
             --body "$(cat <<'PREOF'
           Congrats! You've just bumped the major version.
 
