@@ -86,6 +86,7 @@ CVEs in Argo CD code will be patched for all supported versions. Read more about
 Dependencies are evaluated before being introduced to ensure they:
 
 1) are actively maintained
+
 2) are maintained by trustworthy maintainers
 
 These evaluations vary from dependency to dependencies.

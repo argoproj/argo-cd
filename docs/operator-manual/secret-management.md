@@ -15,6 +15,7 @@ this style of secret management.
 This approach has two main advantages:
 
 1) Security: Argo CD does not need to have access to the secrets, which reduces the risk of leaking them.
+
 2) User Experience: Secret updates are decoupled from app sync operations, which reduces the risk of unintentionally
    applying Secret updates during an unrelated release.
 
@@ -35,8 +36,10 @@ like [argocd-vault-plugin](https://github.com/argoproj-labs/argocd-vault-plugin)
 
 1) Security: Argo CD needs access to the secrets, which increases the risk of leaking them. Argo CD stores generated
    manifests in plaintext in its Redis cache, so injecting secrets into the manifests increases risk.
+
 2) User Experience: Secret updates are coupled with app sync operations, which increases the risk of unintentionally
    applying Secret updates during an unrelated release.
+
 3) Rendered Manifests Pattern: This approach is incompatible with the "Rendered Manifests" pattern, which is
    increasingly becoming a best practice for GitOps.
 
