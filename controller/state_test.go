@@ -2068,7 +2068,6 @@ func Test_GetRepoObjs_HydrateToAppPathNotExist(t *testing.T) {
 		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, false, &defaultProj, false)
 		require.ErrorContains(t, err, "app path does not exist")
 		require.ErrorContains(t, err, "waiting for an external process to update env/prod from env/prod-next")
-
 	})
 	t.Run("without hydrateTo: no waiting message appended", func(t *testing.T) {
 		t.Parallel()
