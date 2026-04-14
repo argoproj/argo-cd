@@ -54,16 +54,6 @@ func createTestApp(name, namespace string, sources ...v1alpha1.ApplicationSource
 	return app
 }
 
-// createTestProject creates a test project
-func createTestProject(name, namespace string) *v1alpha1.AppProject {
-	return &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-	}
-}
-
 // createTestUnstructured converts a Kubernetes runtime.Object to unstructured
 func createTestUnstructured(obj any) *unstructured.Unstructured {
 	return kube.MustToUnstructured(obj)
@@ -73,14 +63,14 @@ func createTestUnstructured(obj any) *unstructured.Unstructured {
 
 // mockManifestProvider creates a mock manifestProvider that returns the given manifests
 func mockManifestProvider(manifests []*unstructured.Unstructured) manifestProvider {
-	return func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+	return func(_ context.Context) ([]*unstructured.Unstructured, error) {
 		return manifests, nil
 	}
 }
 
 // mockDiffStrategy creates a mock diffStrategy that marks all items as modified
 func mockDiffStrategyAllModified() diffStrategy {
-	return func(ctx context.Context, items []comparisonObject) ([]*diff.DiffResult, error) {
+	return func(_ context.Context, items []comparisonObject) ([]*diff.DiffResult, error) {
 		results := make([]*diff.DiffResult, len(items))
 		for i, item := range items {
 			liveBytes, _ := json.Marshal(item.live)
@@ -97,7 +87,7 @@ func mockDiffStrategyAllModified() diffStrategy {
 
 // mockDiffStrategyNoneModified creates a mock diffStrategy that marks no items as modified
 func mockDiffStrategyNoneModified() diffStrategy {
-	return func(ctx context.Context, items []comparisonObject) ([]*diff.DiffResult, error) {
+	return func(_ context.Context, items []comparisonObject) ([]*diff.DiffResult, error) {
 		results := make([]*diff.DiffResult, len(items))
 		for i := range items {
 			results[i] = &diff.DiffResult{
@@ -579,7 +569,7 @@ func TestNewMultiSourceRevisionProvider(t *testing.T) {
 		provider := newMultiSourceRevisionProvider(mockClient, "test-app", "test-ns", []string{"rev1"}, []int64{1}, false)
 		result, err := provider(ctx)
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "test error")
 	})
@@ -630,7 +620,7 @@ func TestNewSingleRevisionProvider(t *testing.T) {
 		provider := newSingleRevisionProvider(mockClient, "my-app", "my-ns", "invalid", false)
 		result, err := provider(ctx)
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "revision not found")
 	})
@@ -708,7 +698,7 @@ func TestNewDefaultTargetProvider(t *testing.T) {
 		provider := newDefaultTargetProvider(liveState)
 		result, err := provider(ctx)
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 	})
 }
@@ -816,7 +806,7 @@ func TestNewTrackingWrapper(t *testing.T) {
 	})
 
 	t.Run("Propagates base provider error", func(t *testing.T) {
-		baseProvider := func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+		baseProvider := func(_ context.Context) ([]*unstructured.Unstructured, error) {
 			return nil, errors.New("base provider error")
 		}
 
@@ -829,7 +819,7 @@ func TestNewTrackingWrapper(t *testing.T) {
 		provider := newTrackingWrapper(baseProvider, app, settings)
 		result, err := provider(ctx)
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "base provider error")
 	})
@@ -914,7 +904,7 @@ func TestNewServerSideDiffStrategy(t *testing.T) {
 
 		results, err := strategy(ctx, items)
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, results)
 		assert.Contains(t, err.Error(), "API error")
 		mockClient.AssertExpectations(t)

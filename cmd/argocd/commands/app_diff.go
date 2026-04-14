@@ -427,6 +427,7 @@ func newLocalServerSideProvider(
 }
 
 // newLocalClientSideProvider creates a provider for local manifests with client-side generation.
+//
 // Deprecated: Prefer newLocalServerSideProvider which performs manifest generation on the server,
 // reducing client-side complexity and improving consistency with the server's manifest generation logic.
 func newLocalClientSideProvider(

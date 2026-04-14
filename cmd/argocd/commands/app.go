@@ -1212,16 +1212,17 @@ func findAndPrintDiff(
 ) bool {
 	// Build target manifest provider based on sync type
 	var baseTargetProvider manifestProvider
-	if localPath != "" {
+	switch {
+	case localPath != "":
 		// Local sync: provider fetches and generates local manifests
 		baseTargetProvider = newLocalClientSideProvider(clusterIf, argoSettings, app, proj, localPath, localRepoRoot)
-	} else if len(revisions) > 0 {
+	case len(revisions) > 0:
 		// Multi-source app with revisions
 		baseTargetProvider = newMultiSourceRevisionProvider(appIf, appName, appNs, revisions, sourcePositions, false)
-	} else if revision != "" {
+	case revision != "":
 		// Single-source app with revision
 		baseTargetProvider = newSingleRevisionProvider(appIf, appName, appNs, revision, false)
-	} else {
+	default:
 		// Normal sync: provider uses target state from ManagedResources
 		baseTargetProvider = newDefaultTargetProvider(resources)
 	}
