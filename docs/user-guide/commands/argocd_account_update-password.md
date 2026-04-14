@@ -26,6 +26,9 @@ argocd account update-password [flags]
 	# Update the password for user foobar
 	argocd account update-password --account foobar
 
+	# Read the new password from stdin (non-interactive)
+	echo "newpassword" | argocd account update-password --stdin
+
 ```
 
 ### Options
@@ -35,6 +38,7 @@ argocd account update-password [flags]
       --current-password string   Password of the currently logged on user
   -h, --help                      help for update-password
       --new-password string       New password you want to update to
+      --stdin                     Read the new password from stdin
 ```
 
 ### Options inherited from parent commands
