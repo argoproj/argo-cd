@@ -51,7 +51,7 @@ jobs:
       # has been updated (see it's numeric version in action.yaml)
       # and update `renovate-version` parameter accordingly
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@b67590ea780158ccd13192c22a3655a5231f869d #46.1.8
+        uses: renovatebot/github-action@eb932558ad942cccfd8211cf535f17ff183a9f74 #46.1.9
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'
