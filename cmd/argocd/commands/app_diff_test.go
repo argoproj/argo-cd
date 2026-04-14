@@ -626,7 +626,7 @@ func TestNewSingleRevisionProvider(t *testing.T) {
 	})
 }
 
-func TestNewDefaultTargetProvider(t *testing.T) {
+func TestNewTargetManifestProvider(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Success with multiple items", func(t *testing.T) {
@@ -665,7 +665,7 @@ func TestNewDefaultTargetProvider(t *testing.T) {
 			},
 		}
 
-		provider := newDefaultTargetProvider(liveState)
+		provider := newTargetManifestProvider(liveState)
 		result, err := provider(ctx)
 
 		require.NoError(t, err)
@@ -679,7 +679,7 @@ func TestNewDefaultTargetProvider(t *testing.T) {
 			Items: []*v1alpha1.ResourceDiff{},
 		}
 
-		provider := newDefaultTargetProvider(liveState)
+		provider := newTargetManifestProvider(liveState)
 		result, err := provider(ctx)
 
 		require.NoError(t, err)
@@ -695,7 +695,7 @@ func TestNewDefaultTargetProvider(t *testing.T) {
 			},
 		}
 
-		provider := newDefaultTargetProvider(liveState)
+		provider := newTargetManifestProvider(liveState)
 		result, err := provider(ctx)
 
 		require.Error(t, err)

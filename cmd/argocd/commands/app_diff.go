@@ -462,8 +462,8 @@ func newLocalClientSideProvider(
 	}
 }
 
-// newDefaultTargetProvider creates a provider that extracts targets from ManagedResources
-func newDefaultTargetProvider(liveState *application.ManagedResourcesResponse) manifestProvider {
+// newTargetManifestProvider creates a provider that extracts target manifests from ManagedResources
+func newTargetManifestProvider(liveState *application.ManagedResourcesResponse) manifestProvider {
 	return func(_ context.Context) ([]*unstructured.Unstructured, error) {
 		targetManifests := make([]*unstructured.Unstructured, 0, len(liveState.Items))
 		for i := range liveState.Items {
@@ -587,6 +587,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		revisions                 []string
 		sourcePositions           []int64
 		sourceNames               []string
+		compareDesired            bool
 		ignoreNormalizerOpts      normalizers.IgnoreNormalizerOpts
 	)
 	shortDesc := "Perform a diff against the target and live state."
@@ -692,11 +693,21 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 
 			default:
-				getTargetManifests = newDefaultTargetProvider(liveState)
+				if compareDesired {
+					errors.Fatal(errors.ErrorGeneric, "--compare-desired cannot be specified when no target manifests are provided (use --local, --revision, or --revisions)")
+				}
+				getTargetManifests = newTargetManifestProvider(liveState)
 			}
 
-			// Create live manifest provider
-			getLiveManifests := newLiveManifestProvider(liveState)
+			// Create comparison manifest provider (live or target based on flag)
+			var getLiveManifests manifestProvider
+			if compareDesired {
+				// When comparing desired states, use target manifests from ManagedResources
+				getLiveManifests = newTargetManifestProvider(liveState)
+			} else {
+				// Default: compare against live cluster state
+				getLiveManifests = newLiveManifestProvider(liveState)
+			}
 
 			// Create diff strategy based on --server-side-diff flag
 			var diffHandler diffStrategy
@@ -737,6 +748,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
+	command.Flags().BoolVar(&compareDesired, "compare-desired", false, "Compare against the current desired state (target) instead of live state")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
 	return command
 }

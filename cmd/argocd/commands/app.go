@@ -1224,7 +1224,7 @@ func findAndPrintDiff(
 		baseTargetProvider = newSingleRevisionProvider(appIf, appName, appNs, revision, false)
 	default:
 		// Normal sync: provider uses target state from ManagedResources
-		baseTargetProvider = newDefaultTargetProvider(resources)
+		baseTargetProvider = newTargetManifestProvider(resources)
 	}
 
 	getLiveManifests := newLiveManifestProvider(resources)
