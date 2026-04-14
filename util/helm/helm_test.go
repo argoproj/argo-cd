@@ -8,7 +8,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/io/path"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,7 +25,7 @@ func template(h Helm, opts *TemplateOpts) ([]*unstructured.Unstructured, error) 
 }
 
 func TestHelmTemplateParams(t *testing.T) {
-	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", "", false, false)
 	require.NoError(t, err)
 	opts := TemplateOpts{
 		Name: "test",
@@ -58,7 +58,7 @@ func TestHelmTemplateValues(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", "", false)
+	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", "", false, false)
 	require.NoError(t, err)
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
@@ -84,7 +84,7 @@ func TestHelmGetParams(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 	params, err := h.GetParameters(nil, repoRootAbs, repoRootAbs)
 	require.NoError(t, err)
@@ -97,7 +97,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
@@ -112,7 +112,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 	valuesMissingPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-missing.yaml", nil)
 	require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{Name: "my-release"})
@@ -144,7 +144,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseName(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 	objs, err := template(h, &TemplateOpts{Name: "test"})
 	require.NoError(t, err)
@@ -206,7 +206,7 @@ func Test_flatVals(t *testing.T) {
 }
 
 func TestAPIVersions(t *testing.T) {
-	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{})
@@ -221,7 +221,7 @@ func TestAPIVersions(t *testing.T) {
 }
 
 func TestKubeVersionWithSymbol(t *testing.T) {
-	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{KubeVersion: "1.30.11+IKS"})
@@ -244,7 +244,7 @@ func TestKubeVersionWithSymbol(t *testing.T) {
 }
 
 func TestSkipCrds(t *testing.T) {
-	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{SkipCrds: false})
@@ -261,7 +261,7 @@ func TestSkipCrds(t *testing.T) {
 }
 
 func TestSkipTests(t *testing.T) {
-	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false)
+	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false, false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{SkipTests: false})

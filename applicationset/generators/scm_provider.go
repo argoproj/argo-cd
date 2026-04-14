@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -105,10 +106,8 @@ func ScmProviderAllowed(applicationSetInfo *argoprojiov1alpha1.ApplicationSet, g
 		return nil
 	}
 
-	for _, allowedScmProvider := range allowedScmProviders {
-		if url == allowedScmProvider {
-			return nil
-		}
+	if slices.Contains(allowedScmProviders, url) {
+		return nil
 	}
 
 	log.WithFields(log.Fields{
@@ -244,15 +243,9 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	var shortSHALength int
 	var shortSHALength7 int
 	for _, repo := range repos {
-		shortSHALength = 8
-		if len(repo.SHA) < 8 {
-			shortSHALength = len(repo.SHA)
-		}
+		shortSHALength = min(len(repo.SHA), 8)
 
-		shortSHALength7 = 7
-		if len(repo.SHA) < 7 {
-			shortSHALength7 = len(repo.SHA)
-		}
+		shortSHALength7 = min(len(repo.SHA), 7)
 
 		params := map[string]any{
 			"organization":     repo.Organization,
@@ -296,9 +289,9 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 		}
 
 		if g.enableGitHubAPIMetrics {
-			return scm_provider.NewGithubAppProviderFor(*auth, github.Organization, github.API, github.AllBranches, httpClient)
+			return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches, httpClient)
 		}
-		return scm_provider.NewGithubAppProviderFor(*auth, github.Organization, github.API, github.AllBranches)
+		return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches)
 	}
 
 	token, err := utils.GetSecretRef(ctx, g.client, github.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)

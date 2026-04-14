@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"maps"
 
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -88,10 +89,13 @@ func (ctrl *ApplicationController) RequestAppRefresh(appName string, appNamespac
 	return nil
 }
 
-func (ctrl *ApplicationController) PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
+func (ctrl *ApplicationController) PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
+	newAnnotations := make(map[string]string)
+	maps.Copy(newAnnotations, orig.GetAnnotations())
+	delete(newAnnotations, appv1.AnnotationKeyHydrate)
 	status := orig.Status.DeepCopy()
 	status.SourceHydrator = *newStatus
-	ctrl.persistAppStatus(orig, status)
+	ctrl.persistAppStatus(orig, status, newAnnotations)
 }
 
 func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
@@ -105,4 +109,20 @@ func (ctrl *ApplicationController) GetHydratorCommitMessageTemplate() (string, e
 	}
 
 	return sourceHydratorCommitMessageKey, nil
+}
+
+func (ctrl *ApplicationController) GetCommitAuthorName() (string, error) {
+	authorName, err := ctrl.settingsMgr.GetCommitAuthorName()
+	if err != nil {
+		return "", fmt.Errorf("failed to get commit author name: %w", err)
+	}
+	return authorName, nil
+}
+
+func (ctrl *ApplicationController) GetCommitAuthorEmail() (string, error) {
+	authorEmail, err := ctrl.settingsMgr.GetCommitAuthorEmail()
+	if err != nil {
+		return "", fmt.Errorf("failed to get commit author email: %w", err)
+	}
+	return authorEmail, nil
 }

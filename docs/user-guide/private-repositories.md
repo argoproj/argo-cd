@@ -50,6 +50,9 @@ Then, connect the repository using any non-empty string as username and the acce
 > [!NOTE]
 > For some services, you might have to specify your account name as the username instead of any string.
 
+> [!NOTE]
+> For BitBucket Cloud and BitBucket Data Center, you have to specify your username as `x-token-auth`.
+
 ### TLS Client Certificates for HTTPS repositories
 
 If your repository server requires you to use TLS client certificates for authentication, you can configure Argo CD repositories to make use of them. For this purpose, `--tls-client-cert-path` and `--tls-client-cert-key-path` switches to the `argocd repo add` command can be used to specify the files on your local system containing client certificate and the corresponding key, respectively:
@@ -122,13 +125,16 @@ argocd repo add https://github.com/argoproj/argocd-example-apps.git --github-app
 > [!NOTE]
 > To add a private Git repository on GitHub Enterprise using the CLI add `--github-app-enterprise-base-url https://ghe.example.com/api/v3` flag.
 
+> [!NOTE]
+> The `--github-app-installation-id` flag is optional. If omitted, Argo CD will automatically discover the installation ID based on the repository's organization.
+
 Using the UI:
 
 1. Navigate to `Settings/Repositories`
 
     ![connect repo overview](../assets/repo-add-overview.png)
 
-2. Click `Connect Repo using GitHub App` button, choose type: `GitHub` or `GitHub Enterprise`, enter the URL, App Id, Installation Id, and the app's private key.
+2. Click `Connect Repo using GitHub App` button, choose type: `GitHub` or `GitHub Enterprise`, enter the URL, App Id, Installation Id (optional), and the app's private key.
 
 > [!NOTE]
 > Enter the GitHub Enterprise Base URL for type `GitHub Enterprise`.
@@ -174,7 +180,8 @@ Before using this feature, you must perform the following steps to enable worklo
 - **Label the Pods:** Add the `azure.workload.identity/use: "true"` label to the repo-server pods.
 - **Create Federated Identity Credential:** Generate an Azure federated identity credential for the repo-server service account. Refer to the [Federated Identity Credential](https://azure.github.io/azure-workload-identity/docs/topics/federated-identity-credential.html) documentation for detailed instructions.
 - **Add Annotation to Service Account:** Add `azure.workload.identity/client-id: "$CLIENT_ID"` annotation to the repo-server service account, using the `CLIENT_ID` from the workload identity.
-- Setup the permissions for Azure Container Registry/Azure Repos for the workload identity.
+- **Configure ACR Permissions:** Grant the workload identity the necessary permissions on Azure Container Registry or Azure Repos.
+- **Set ACR Token Resource Variable:** Configure the Argo CD repo server env variable `AZURE_ARM_TOKEN_RESOURCE`=https://containerregistry.azure.net so Argo CD can request valid ACR access tokens.
 
 Using CLI for Helm OCI with Azure workload identity:
 
@@ -354,7 +361,7 @@ It is possible to add and remove TLS certificates using the ArgoCD web UI:
 ### Managing TLS certificates using declarative configuration
 
 You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object `argocd-tls-certs-cm`.
-Please refer to the [Operator Manual](../../operator-manual/declarative-setup/#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca) for more information.
+Please refer to the [Operator Manual](../operator-manual/declarative-setup.md#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca) for more information.
 
 ## Unknown SSH Hosts
 
@@ -479,6 +486,29 @@ argocd repo add registry-1.docker.io/bitnamicharts --type=helm --enable-oci=true
 Using the UI:
 
 Select the _Enable OCI_ checkbox when adding a HTTPS based _helm_ repository.
+
+### Custom HTTP User-Agent
+
+Some Helm repository providers (like Wikimedia) require a specific User-Agent header as part of their robot access policies. Argo CD automatically sends a default User-Agent header (`argocd-repo-server/<version> (<platform>)`) for all Helm repository requests.
+
+If you need to customize the User-Agent (for example, to include your organization name or contact information), set the `ARGOCD_HELM_USER_AGENT` environment variable on the `argocd-repo-server` deployment:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-repo-server
+        env:
+        - name: ARGOCD_HELM_USER_AGENT
+          value: "my-org/argocd (team@example.com)"
+```
+
+This environment variable applies globally to all Helm repository requests.
 
 ## Git Submodules
 

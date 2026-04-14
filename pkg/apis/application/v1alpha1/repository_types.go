@@ -116,6 +116,10 @@ type Repository struct {
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
 	// Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
 	Depth int64 `json:"depth,omitempty" protobuf:"bytes,27,opt,name=depth"`
+	// WebhookManifestCacheWarmDisabled disables manifest cache warming during webhook processing for this repository.
+	// When set, webhook handlers will only trigger reconciliation for affected applications and skip Redis cache
+	// operations for unaffected ones. Recommended for large monorepos with plain YAML manifests.
+	WebhookManifestCacheWarmDisabled bool `json:"webhookManifestCacheWarmDisabled,omitempty" protobuf:"varint,28,opt,name=webhookManifestCacheWarmDisabled"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
@@ -239,8 +243,8 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	if repo.SSHPrivateKey != "" {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), repo.Proxy)
 	}
-	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 && repo.GithubAppInstallationId != 0 {
-		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store)
+	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 { // Promoter MVP: remove github-app-installation-id check since it is no longer a required field
+		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store, repo.Repo)
 	}
 	if repo.GCPServiceAccountKey != "" {
 		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
@@ -362,6 +366,7 @@ func (repo *Repository) Sanitized() *Repository {
 		GithubAppInstallationId:    repo.GithubAppInstallationId,
 		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
 		UseAzureWorkloadIdentity:   repo.UseAzureWorkloadIdentity,
+		Depth:                      repo.Depth,
 	}
 }
 
