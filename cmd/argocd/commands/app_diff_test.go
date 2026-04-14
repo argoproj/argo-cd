@@ -517,7 +517,7 @@ func TestManifestsToUnstructured(t *testing.T) {
 
 	t.Run("Invalid manifest", func(t *testing.T) {
 		result, err := manifestsToUnstructured([]string{"invalid json"})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 	})
 }
@@ -745,83 +745,6 @@ func TestNewLiveManifestProvider(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Empty(t, result)
-	})
-}
-
-func TestNewTrackingWrapper(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("Success with tracking labels", func(t *testing.T) {
-		deployment := createTestUnstructured(&appsv1.Deployment{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "apps/v1",
-				Kind:       "Deployment",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-deployment",
-				Namespace: "default",
-			},
-		})
-
-		baseProvider := mockManifestProvider([]*unstructured.Unstructured{deployment})
-		app := createTestApp("test-app", "argocd")
-		settings := &settingspkg.Settings{
-			AppLabelKey:    "app.kubernetes.io/instance",
-			TrackingMethod: "label",
-		}
-
-		provider := newTrackingWrapper(baseProvider, app, settings)
-		result, err := provider(ctx)
-
-		require.NoError(t, err)
-		require.Len(t, result, 1)
-		assert.Equal(t, "Deployment", result[0].GetKind())
-		// Verify tracking label was added
-		labels := result[0].GetLabels()
-		assert.Contains(t, labels, "app.kubernetes.io/instance")
-	})
-
-	t.Run("Skips CRDs", func(t *testing.T) {
-		crd := createTestUnstructured(&metav1.TypeMeta{
-			APIVersion: "apiextensions.k8s.io/v1",
-			Kind:       "CustomResourceDefinition",
-		})
-		crd.SetName("test-crd")
-
-		baseProvider := mockManifestProvider([]*unstructured.Unstructured{crd})
-		app := createTestApp("test-app", "argocd")
-		settings := &settingspkg.Settings{
-			AppLabelKey:    "app.kubernetes.io/instance",
-			TrackingMethod: "label",
-		}
-
-		provider := newTrackingWrapper(baseProvider, app, settings)
-		result, err := provider(ctx)
-
-		require.NoError(t, err)
-		require.Len(t, result, 1)
-		// CRD should not have tracking label
-		labels := result[0].GetLabels()
-		assert.NotContains(t, labels, "app.kubernetes.io/instance")
-	})
-
-	t.Run("Propagates base provider error", func(t *testing.T) {
-		baseProvider := func(_ context.Context) ([]*unstructured.Unstructured, error) {
-			return nil, errors.New("base provider error")
-		}
-
-		app := createTestApp("test-app", "argocd")
-		settings := &settingspkg.Settings{
-			AppLabelKey:    "app.kubernetes.io/instance",
-			TrackingMethod: "label",
-		}
-
-		provider := newTrackingWrapper(baseProvider, app, settings)
-		result, err := provider(ctx)
-
-		require.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "base provider error")
 	})
 }
 

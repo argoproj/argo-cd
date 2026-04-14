@@ -479,43 +479,6 @@ func newDefaultTargetProvider(liveState *application.ManagedResourcesResponse) m
 	}
 }
 
-// newTrackingWrapper wraps a provider to add tracking labels to target manifests
-func newTrackingWrapper(
-	baseProvider manifestProvider,
-	app *argoappv1.Application,
-	argoSettings *settings.Settings,
-) manifestProvider {
-	return func(ctx context.Context) ([]*unstructured.Unstructured, error) {
-		targetManifests, err := baseProvider(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		resourceTracking := argo.NewResourceTracking()
-		appName := app.InstanceName(argoSettings.ControllerNamespace)
-		namespace := app.Spec.Destination.Namespace
-
-		for i := range targetManifests {
-			if targetManifests[i] == nil || kube.IsCRD(targetManifests[i]) {
-				continue
-			}
-
-			err := resourceTracking.SetAppInstance(
-				targetManifests[i],
-				argoSettings.AppLabelKey,
-				appName,
-				namespace,
-				argoappv1.TrackingMethod(argoSettings.GetTrackingMethod()),
-				argoSettings.GetInstallationID(),
-			)
-			if err != nil {
-				return nil, err
-			}
-		}
-		return targetManifests, nil
-	}
-}
-
 // newLiveManifestProvider creates a provider for live manifests from ManagedResources
 func newLiveManifestProvider(liveState *application.ManagedResourcesResponse) manifestProvider {
 	return func(_ context.Context) ([]*unstructured.Unstructured, error) {
@@ -732,9 +695,6 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				getTargetManifests = newDefaultTargetProvider(liveState)
 			}
 
-			// Wrap with tracking
-			getTargetManifestsWithTracking := newTrackingWrapper(getTargetManifests, app, argoSettings)
-
 			// Create live manifest provider
 			getLiveManifests := newLiveManifestProvider(liveState)
 
@@ -749,7 +709,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			// Compute diff
-			results, err := compareManifests(ctx, app, getTargetManifestsWithTracking, getLiveManifests, diffHandler)
+			results, err := compareManifests(ctx, app, getTargetManifests, getLiveManifests, diffHandler)
 			errors.CheckError(err)
 
 			for _, result := range results {

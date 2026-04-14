@@ -1227,8 +1227,6 @@ func findAndPrintDiff(
 		baseTargetProvider = newDefaultTargetProvider(resources)
 	}
 
-	// Always wrap with tracking to ensure target manifests have tracking labels
-	getTargetManifests := newTrackingWrapper(baseTargetProvider, app, argoSettings)
 	getLiveManifests := newLiveManifestProvider(resources)
 
 	// Choose diff strategy
@@ -1242,7 +1240,7 @@ func findAndPrintDiff(
 	}
 
 	// Call compareManifests (does all the heavy lifting)
-	changedObjects, err := compareManifests(ctx, app, getTargetManifests, getLiveManifests, performDiff)
+	changedObjects, err := compareManifests(ctx, app, baseTargetProvider, getLiveManifests, performDiff)
 	errors.CheckError(err)
 
 	// Print results
