@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
@@ -12,8 +13,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-
-	"regexp"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
