@@ -142,6 +142,50 @@ function getParamsEditableItems(
         .map((item, i) => ({...item, before: (i === 0 && <p style={{marginTop: '1em'}}>{title}</p>) || null}));
 }
 
+const YamlObjectField = ReactFormField((props: {fieldApi: FieldApi; className: string}) => {
+    const {
+        fieldApi: {getValue, setValue},
+        className
+    } = props;
+
+    const convertToYamlStr = (val: any) => (typeof val === 'object' ? jsYaml.dump(val) : val || '');
+    const fieldValue = getValue();
+    const [localValue, setLocalValue] = React.useState(() => convertToYamlStr(fieldValue));
+
+    React.useEffect(() => {
+        const newYamlStr = convertToYamlStr(fieldValue);
+        if (newYamlStr !== localValue) {
+            setLocalValue(newYamlStr);
+        }
+    }, [fieldValue]);
+
+    const updateValue = (yamlStr: string) => {
+        try {
+            const parsed = jsYaml.load(yamlStr);
+            setValue(parsed);
+        } catch (e) {
+            console.error('Error parsing YAML:', e);
+            setValue(yamlStr);
+        }
+    };
+    return (
+        <textarea
+            className={className}
+            value={localValue}
+            onChange={e => {
+                setLocalValue(e.target.value);
+            }}
+            onBlur={e => {
+                updateValue(e.target.value);
+            }}
+            onKeyDown={e => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    updateValue(e.currentTarget.value);
+                }
+            }}
+        />
+    );
+});
 export const ApplicationParameters = (props: {
     application: models.Application;
     details?: models.RepoAppDetails;
@@ -378,10 +422,6 @@ export const ApplicationParameters = (props: {
                                 params = params.filter(param => !appParamsDeletedState.includes(param.name));
                                 input.spec.source.plugin.parameters = params;
                             }
-                            if (input.spec.source && input.spec.source.helm?.valuesObject) {
-                                input.spec.source.helm.valuesObject = jsYaml.load(input.spec.source.helm.values); // Deserialize json
-                                input.spec.source.helm.values = '';
-                            }
                             await props.save(input, {});
                             setRemovedOverrides(new Array<boolean>());
                         })
@@ -520,11 +560,6 @@ export const ApplicationParameters = (props: {
                             params = params.filter(param => !appParamsDeletedState.includes(param.name));
                             appSrc.plugin.parameters = params;
                         }
-                        if (appSrc.helm && appSrc.helm.valuesObject) {
-                            appSrc.helm.valuesObject = jsYaml.load(appSrc.helm.values); // Deserialize json
-                            appSrc.helm.values = '';
-                        }
-
                         await props.save(input, {});
                         setRemovedOverrides(new Array<boolean>());
                     })
@@ -552,6 +587,11 @@ export const ApplicationParameters = (props: {
                     if (updatedApp.spec.sources[ind].helm?.values) {
                         const parsedValues = jsYaml.load(updatedApp.spec.sources[ind].helm.values);
                         errors['spec.sources[' + ind + '].helm.values'] = typeof parsedValues === 'object' ? null : 'Values must be a map';
+                    }
+
+                    if (updatedApp.spec.sources[ind].helm?.valuesObject) {
+                        const isObject = typeof updatedApp.spec.sources[ind].helm.valuesObject === 'object';
+                        errors['spec.sources[' + ind + '].helm.valuesObject'] = isObject ? null : 'valuesObject must be a map';
                     }
 
                     return errors;
@@ -762,8 +802,6 @@ function gatherDetails(
             );
         }
     } else if (repoDetails.type === 'Helm' && repoDetails.helm) {
-        const isValuesObject = source?.helm?.valuesObject;
-        const helmValues = isValuesObject ? jsYaml.dump(source.helm.valuesObject) : source?.helm?.values;
         attributes.push({
             title: 'VALUES FILES',
             view: (source.helm && (source.helm.valueFiles || []).join(', ')) || 'No values files selected',
@@ -783,15 +821,10 @@ function gatherDetails(
             title: 'VALUES',
             view: source.helm && (
                 <Expandable>
-                    <pre>{helmValues}</pre>
+                    <pre>{source.helm.values}</pre>
                 </Expandable>
             ),
             edit: (formApi: FormApi) => {
-                // In case source.helm.valuesObject is set, set source.helm.values to its value
-                if (source.helm) {
-                    source.helm.values = helmValues;
-                }
-
                 return (
                     <div>
                         <pre>
@@ -801,6 +834,26 @@ function gatherDetails(
                 );
             }
         });
+
+        attributes.push({
+            title: 'VALUES OBJECT',
+            view: source.helm && (
+                <Expandable>
+                    <pre>{typeof source.helm.valuesObject === 'object' ? jsYaml.dump(source.helm.valuesObject) : source.helm.valuesObject}</pre>
+                </Expandable>
+            ),
+            edit: (formApi: FormApi) => {
+                const valuesObjectField = isMultiSource ? 'spec.sources[' + ind + '].helm.valuesObject' : 'spec.source.helm.valuesObject';
+                return (
+                    <div>
+                        <pre>
+                            <FormField formApi={formApi} field={valuesObjectField} component={YamlObjectField} />
+                        </pre>
+                    </div>
+                );
+            }
+        });
+
         const paramsByName = new Map<string, models.HelmParameter>();
         (repoDetails.helm.parameters || []).forEach(param => paramsByName.set(param.name, param));
         const overridesByName = new Map<string, number>();
