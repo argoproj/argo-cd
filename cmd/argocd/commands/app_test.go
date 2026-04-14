@@ -1919,9 +1919,17 @@ apps   Deployment  default    test           Synced  Healthy
 `
 	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
 	expectationParts := strings.Split(expectation, "\n")
+	// Trim trailing whitespace from each line
+	for i := range expectationParts {
+		expectationParts[i] = strings.TrimRight(expectationParts[i], " \t")
+	}
 	slices.Sort(expectationParts)
 	expectationSorted := strings.Join(expectationParts, "\n")
 	outputParts := strings.Split(output, "\n")
+	// Trim trailing whitespace from each line
+	for i := range outputParts {
+		outputParts[i] = strings.TrimRight(outputParts[i], " \t")
+	}
 	slices.Sort(outputParts)
 	outputSorted := strings.Join(outputParts, "\n")
 	// Need to compare sorted since map entries may not keep a specific order during serialization, leading to flakiness.
@@ -1984,9 +1992,17 @@ apps   Deployment  default    test           Synced  Healthy
 `
 	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
 	expectationParts := strings.Split(expectation, "\n")
+	// Trim trailing whitespace from each line
+	for i := range expectationParts {
+		expectationParts[i] = strings.TrimRight(expectationParts[i], " \t")
+	}
 	slices.Sort(expectationParts)
 	expectationSorted := strings.Join(expectationParts, "\n")
 	outputParts := strings.Split(output, "\n")
+	// Trim trailing whitespace from each line
+	for i := range outputParts {
+		outputParts[i] = strings.TrimRight(outputParts[i], " \t")
+	}
 	slices.Sort(outputParts)
 	outputSorted := strings.Join(outputParts, "\n")
 	// Need to compare sorted since map entries may not keep a specific order during serialization, leading to flakiness.
