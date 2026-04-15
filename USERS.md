@@ -77,6 +77,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Chime](https://www.chime.com)
 1. [Chronicle Labs](https://chroniclelabs.org)
 1. [C.H.Robinson ](https://www.chrobinson.com)
+1. [Circle](https://circle.com/)
 1. [Cisco ET&I](https://eti.cisco.com/)
 1. [Close](https://www.close.com/)
 1. [Cloud Posse](https://www.cloudposse.com/)
