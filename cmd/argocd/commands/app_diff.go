@@ -505,7 +505,6 @@ func newNormalizeTargetManifestsProvider(
 	provider manifestProvider,
 	app *argoappv1.Application,
 	argoSettings *settings.Settings,
-	appNs string,
 	infoProvider kube.ResourceInfoProvider,
 ) manifestProvider {
 	return func(ctx context.Context) ([]*unstructured.Unstructured, error) {
@@ -524,7 +523,7 @@ func newNormalizeTargetManifestsProvider(
 				return resourceTracking.SetAppInstance(
 					u,
 					argoSettings.AppLabelKey,
-					app.InstanceName(appNs),
+					app.InstanceName(argoSettings.ControllerNamespace),
 					app.Spec.Destination.Namespace,
 					argoappv1.TrackingMethod(argoSettings.TrackingMethod),
 					argoSettings.GetInstallationID(),
@@ -756,7 +755,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			// Wrap target manifest provider with normalization since the manifest are have not been applied to kubernetes
-			getTargetManifests = newNormalizeTargetManifestsProvider(getTargetManifests, app, argoSettings, appNs, infoProvider)
+			getTargetManifests = newNormalizeTargetManifestsProvider(getTargetManifests, app, argoSettings, infoProvider)
 
 			// Create live manifest provider
 			getLiveManifests := newLiveManifestProvider(liveState, excludeSecret)

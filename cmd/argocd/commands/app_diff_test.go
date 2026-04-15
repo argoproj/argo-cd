@@ -134,7 +134,7 @@ func TestCompareManifests_DefaultCase(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff, false)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -165,7 +165,7 @@ func TestCompareManifests_AddedResource(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff, false)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -196,7 +196,7 @@ func TestCompareManifests_RemovedResource(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff, false)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -261,7 +261,7 @@ func TestCompareManifests_MultipleResources(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment, targetService})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff, false)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 2)
@@ -293,7 +293,7 @@ func TestCompareManifests_EmptyResources(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff, false)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	assert.Empty(t, results)
@@ -357,7 +357,7 @@ func TestCompareManifests_MixedAddedRemovedModified(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment, addedConfigMap})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff, false)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 3)
@@ -420,7 +420,7 @@ func TestCompareManifests_NoModifications(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment})
 	performDiff := mockDiffStrategyNoneModified()
 
-	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff, false)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	// No modifications, so no results
@@ -1362,7 +1362,7 @@ func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
 			},
 		}
 
-		provider := newNormalizeTargetManifestsProvider(baseProvider, app, settings, "argocd", infoProvider)
+		provider := newNormalizeTargetManifestsProvider(baseProvider, app, settings, infoProvider)
 		result, err := provider(ctx)
 
 		require.NoError(t, err)
@@ -1389,7 +1389,7 @@ func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
 		}
 		infoProvider := &resourceInfoProvider{namespacedByGk: map[schema.GroupKind]bool{}}
 
-		provider := newNormalizeTargetManifestsProvider(baseProvider, app, settings, "argocd", infoProvider)
+		provider := newNormalizeTargetManifestsProvider(baseProvider, app, settings, infoProvider)
 		result, err := provider(ctx)
 
 		require.Error(t, err)
@@ -1427,7 +1427,7 @@ func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
 			},
 		}
 
-		provider := newNormalizeTargetManifestsProvider(baseProvider, app, settings, "argocd", infoProvider)
+		provider := newNormalizeTargetManifestsProvider(baseProvider, app, settings, infoProvider)
 		result, err := provider(ctx)
 
 		require.NoError(t, err)
@@ -1499,7 +1499,7 @@ func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
 			},
 		}
 
-		provider := newNormalizeTargetManifestsProvider(baseProvider, app, settings, "argocd", infoProvider)
+		provider := newNormalizeTargetManifestsProvider(baseProvider, app, settings, infoProvider)
 		result, err := provider(ctx)
 
 		require.NoError(t, err)

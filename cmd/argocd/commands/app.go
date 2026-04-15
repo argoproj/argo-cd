@@ -1229,7 +1229,7 @@ func findAndPrintDiff(
 		baseTargetProvider = newDefaultTargetProvider(resources)
 	}
 
-	getTargetManifests := newNormalizeTargetManifestsProvider(baseTargetProvider, app, argoSettings, appNs, getInfoProviderFromState(resources))
+	getTargetManifests := newNormalizeTargetManifestsProvider(baseTargetProvider, app, argoSettings, getInfoProviderFromState(resources))
 	getLiveManifests := newLiveManifestProvider(resources, excludeSecret)
 
 	// Choose diff strategy
