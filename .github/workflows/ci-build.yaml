@@ -368,6 +368,9 @@ jobs:
           package_json_file: ui/package.json
           # Upon bumping this version, update the corepack version in all the Dockerfiles
           version: 10.28.1
+      - name: echo pnpm version
+        run: |
+          pnpm --version 
       - name: Setup NodeJS
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
