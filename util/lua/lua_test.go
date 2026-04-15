@@ -1078,6 +1078,7 @@ func Test_getHealthScriptPaths(t *testing.T) {
 	assert.Equal(t, []string{
 		"_.cnrm.cloud.google.com/_",
 		"_.crossplane.io/_",
+		"_.services.k8s.aws/_",
 		"_.upbound.io/_",
 		"grafana-org-operator.kubitus-project.gitlab.io/_",
 	}, paths)
