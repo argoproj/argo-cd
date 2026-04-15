@@ -638,8 +638,17 @@ install-go-tools-local:
 dep-ui: test-tools-image
 	$(call run-in-test-client,make dep-ui-local)
 
+.PHONY: dep-ui-local
 dep-ui-local:
-	cd ui && yarn install
+	cd ui && yarn install --frozen-lockfile
+
+.PHONY: run-yarn
+run-yarn: test-tools-image
+	$(call run-in-test-client,make 'YARN_COMMAND=$(YARN_COMMAND)' run-yarn-local)
+
+.PHONY: run-yarn-local
+run-yarn-local:
+	cd ui && yarn $(YARN_COMMAND)
 
 start-test-k8s:
 	go run ./hack/k8s
