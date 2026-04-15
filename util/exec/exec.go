@@ -244,8 +244,6 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 				output := stdout.String()
 				if opts.CaptureStderr {
 					output += stderr.String()
-				} else if stderrString := stderr.String(); stderrString != "" {
-					logCtx.WithFields(logrus.Fields{"stream": "stderr"}).Debug(redactor(stderrString))
 				}
 				logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
 				err = newCmdError(redactor(args), fmt.Errorf("fatal timeout after %v", timeout+fatalTimeout), "")
@@ -257,8 +255,6 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		output := stdout.String()
 		if opts.CaptureStderr {
 			output += stderr.String()
-		} else if stderrString := stderr.String(); stderrString != "" {
-			logCtx.WithFields(logrus.Fields{"stream": "stderr"}).Debug(redactor(stderrString))
 		}
 		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
 		err = newCmdError(redactor(args), fmt.Errorf("timeout after %v", timeout), "")
@@ -269,8 +265,6 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			output := stdout.String()
 			if opts.CaptureStderr {
 				output += stderr.String()
-			} else if stderrString := stderr.String(); stderrString != "" {
-				logCtx.WithFields(logrus.Fields{"stream": "stderr"}).Debug(redactor(stderrString))
 			}
 			logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
 			err := newCmdError(redactor(args), errors.New(redactor(err.Error())), strings.TrimSpace(redactor(stderr.String())))
@@ -283,8 +277,6 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	output := stdout.String()
 	if opts.CaptureStderr {
 		output += stderr.String()
-	} else if stderrString := stderr.String(); stderrString != "" {
-		logCtx.WithFields(logrus.Fields{"stream": "stderr"}).Debug(redactor(stderrString))
 	}
 	logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
 

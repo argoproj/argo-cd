@@ -166,7 +166,7 @@ func TestRunCommandExitErr(t *testing.T) {
 	assert.Equal(t, "hello world", output)
 	require.EqualError(t, err, "`sh -c echo hello ****** && echo my-error >&2 && exit 1` failed exit status 1: my-error")
 
-	assert.Len(t, hook.Entries, 4)
+	assert.Len(t, hook.Entries, 3)
 
 	entry := hook.Entries[0]
 	assert.Equal(t, log.InfoLevel, entry.Level)
@@ -176,16 +176,11 @@ func TestRunCommandExitErr(t *testing.T) {
 
 	entry = hook.Entries[1]
 	assert.Equal(t, log.DebugLevel, entry.Level)
-	assert.Equal(t, "my-error\n", entry.Message)
-	assert.Contains(t, entry.Data, "stream")
-
-	entry = hook.Entries[2]
-	assert.Equal(t, log.DebugLevel, entry.Level)
 	assert.Equal(t, "hello ******\n", entry.Message)
 	assert.Contains(t, entry.Data, "duration")
 	assert.Contains(t, entry.Data, "execID")
 
-	entry = hook.Entries[3]
+	entry = hook.Entries[2]
 	assert.Equal(t, log.ErrorLevel, entry.Level)
 	assert.Equal(t, "`sh -c echo hello ****** && echo my-error >&2 && exit 1` failed exit status 1: my-error", entry.Message)
 	assert.Contains(t, entry.Data, "execID")
