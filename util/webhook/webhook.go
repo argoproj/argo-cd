@@ -719,7 +719,11 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload, err = a.processSCMWebhook(r, w)
+	payload, err = a.processSCMWebhook(r)
+	if err == nil && payload == nil {
+		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
+		return
+	}
 	if err != nil {
 		// If the error is due to a large payload, return a more user-friendly error message
 		if isParsingPayloadError(err) {
@@ -772,7 +776,7 @@ func (a *ArgoCDWebhookHandler) processRegistryWebhook(r *http.Request) (*Registr
 }
 
 // processSCMWebhook processes an SCM webhook
-func (a *ArgoCDWebhookHandler) processSCMWebhook(r *http.Request, w http.ResponseWriter) (any, error) {
+func (a *ArgoCDWebhookHandler) processSCMWebhook(r *http.Request) (any, error) {
 	var payload any
 	var err error
 	switch {
@@ -809,7 +813,6 @@ func (a *ArgoCDWebhookHandler) processSCMWebhook(r *http.Request, w http.Respons
 		}
 	default:
 		log.Debug("Ignoring unknown webhook event")
-		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
 		return nil, nil
 	}
 
