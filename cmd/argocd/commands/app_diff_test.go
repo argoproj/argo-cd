@@ -134,7 +134,7 @@ func TestCompareManifests_DefaultCase(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff, false)
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -165,7 +165,7 @@ func TestCompareManifests_AddedResource(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff, false)
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -196,7 +196,7 @@ func TestCompareManifests_RemovedResource(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff, false)
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -261,7 +261,7 @@ func TestCompareManifests_MultipleResources(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment, targetService})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff, false)
 
 	require.NoError(t, err)
 	require.Len(t, results, 2)
@@ -293,7 +293,7 @@ func TestCompareManifests_EmptyResources(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff, false)
 
 	require.NoError(t, err)
 	assert.Empty(t, results)
@@ -357,7 +357,7 @@ func TestCompareManifests_MixedAddedRemovedModified(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment, addedConfigMap})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff, false)
 
 	require.NoError(t, err)
 	require.Len(t, results, 3)
@@ -420,7 +420,7 @@ func TestCompareManifests_NoModifications(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment})
 	performDiff := mockDiffStrategyNoneModified()
 
-	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff, false)
 
 	require.NoError(t, err)
 	// No modifications, so no results
@@ -693,20 +693,40 @@ func TestNewLiveManifestProvider(t *testing.T) {
 		})
 		deploymentBytes, _ := json.Marshal(deployment)
 
+		secret := createTestUnstructured(&corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Secret",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-secret",
+				Namespace: "default",
+			},
+		})
+		secretBytes, _ := json.Marshal(secret)
+
 		liveState := &applicationpkg.ManagedResourcesResponse{
 			Items: []*v1alpha1.ResourceDiff{
 				{
-					LiveState: string(deploymentBytes),
+					Kind:                "Deployment",
+					Group:               "apps",
+					NormalizedLiveState: string(deploymentBytes),
+				},
+				{
+					Kind:                "Secret",
+					Group:               "",
+					NormalizedLiveState: string(secretBytes),
 				},
 			},
 		}
 
-		provider := newLiveManifestProvider(liveState)
+		provider := newLiveManifestProvider(liveState, false)
 		result, err := provider(ctx)
 
 		require.NoError(t, err)
-		require.Len(t, result, 1)
+		require.Len(t, result, 2)
 		assert.Equal(t, "Deployment", result[0].GetKind())
+		assert.Equal(t, "Secret", result[1].GetKind())
 	})
 
 	t.Run("Empty items", func(t *testing.T) {
@@ -714,11 +734,59 @@ func TestNewLiveManifestProvider(t *testing.T) {
 			Items: []*v1alpha1.ResourceDiff{},
 		}
 
-		provider := newLiveManifestProvider(liveState)
+		provider := newLiveManifestProvider(liveState, false)
 		result, err := provider(ctx)
 
 		require.NoError(t, err)
 		assert.Empty(t, result)
+	})
+
+	t.Run("Secret excluded", func(t *testing.T) {
+		deployment := createTestUnstructured(&appsv1.Deployment{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-deployment",
+				Namespace: "default",
+			},
+		})
+		deploymentBytes, _ := json.Marshal(deployment)
+
+		secret := createTestUnstructured(&corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Secret",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-secret",
+				Namespace: "default",
+			},
+		})
+		secretBytes, _ := json.Marshal(secret)
+
+		liveState := &applicationpkg.ManagedResourcesResponse{
+			Items: []*v1alpha1.ResourceDiff{
+				{
+					Kind:                "Deployment",
+					Group:               "apps",
+					NormalizedLiveState: string(deploymentBytes),
+				},
+				{
+					Kind:                "Secret",
+					Group:               "",
+					NormalizedLiveState: string(secretBytes),
+				},
+			},
+		}
+
+		provider := newLiveManifestProvider(liveState, true)
+		result, err := provider(ctx)
+
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, "Deployment", result[0].GetKind())
 	})
 }
 

@@ -110,12 +110,6 @@ func getObjectMap(objects []*unstructured.Unstructured) map[kube.ResourceKey]*un
 		}
 
 		key := kube.GetResourceKey(obj)
-
-		// Skip secrets - argo-cd doesn't have access to k8s secret data
-		if key.Kind == kube.SecretKind && key.Group == "" {
-			continue
-		}
-
 		objectMap[key] = obj
 	}
 	return objectMap
@@ -161,10 +155,18 @@ func getLocalObjects(ctx context.Context, app *argoappv1.Application, proj *argo
 	manifestStrings := getLocalObjectsString(ctx, app, proj, local, localRepoRoot, appLabelKey, kubeVersion, apiVersions, kustomizeOptions, trackingMethod)
 	objs := make([]*unstructured.Unstructured, len(manifestStrings))
 	for i := range manifestStrings {
-		obj := unstructured.Unstructured{}
-		err := json.Unmarshal([]byte(manifestStrings[i]), &obj)
+		obj := &unstructured.Unstructured{}
+		err := json.Unmarshal([]byte(manifestStrings[i]), obj)
 		errors.CheckError(err)
-		objs[i] = &obj
+
+		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+			// Secrets are not supported in local diff, so we skip them.
+			// diff.HideSecretData is not used here because it requires server-side configurations to be reliable.
+			fmt.Fprintf(os.Stderr, "Warning: Secret %s/%s is not supported in local diff and will be ignored\n", obj.GetNamespace(), obj.GetName())
+			continue
+		}
+
+		objs[i] = obj
 	}
 	return objs
 }
@@ -477,11 +479,15 @@ func newDefaultTargetProvider(liveState *application.ManagedResourcesResponse) m
 }
 
 // newLiveManifestProvider creates a provider for live manifests from ManagedResources
-func newLiveManifestProvider(liveState *application.ManagedResourcesResponse) manifestProvider {
+func newLiveManifestProvider(liveState *application.ManagedResourcesResponse, excludeSecret bool) manifestProvider {
 	return func(_ context.Context) ([]*unstructured.Unstructured, error) {
 		liveManifests := make([]*unstructured.Unstructured, 0, len(liveState.Items))
 		for i := range liveState.Items {
 			res := liveState.Items[i]
+			if excludeSecret && res.Kind == kube.SecretKind && res.Group == "" {
+				continue
+			}
+
 			live := &unstructured.Unstructured{}
 			err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
 			if err != nil {
@@ -717,6 +723,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			// Create target manifest provider based on flags
 			var getTargetManifests manifestProvider
+			excludeSecret := false
 
 			switch {
 			case app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourcePositions) > 0:
@@ -739,6 +746,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					conn, clusterIf := clientset.NewClusterClientOrDie()
 					defer io.Close(conn)
 					getTargetManifests = newLocalClientSideProvider(clusterIf, argoSettings, app, proj.Project, local, localRepoRoot)
+					// Local diff does not support to hide the configurable annotations in the secrets.
+					// To not have constant partial diffs, we exclude secrets from the diff.
+					excludeSecret = true
 				}
 
 			default:
@@ -749,7 +759,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			getTargetManifests = newNormalizeTargetManifestsProvider(getTargetManifests, app, argoSettings, appNs, infoProvider)
 
 			// Create live manifest provider
-			getLiveManifests := newLiveManifestProvider(liveState)
+			getLiveManifests := newLiveManifestProvider(liveState, excludeSecret)
 
 			// Create diff strategy based on --server-side-diff flag
 			var diffHandler diffStrategy

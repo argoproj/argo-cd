@@ -1212,10 +1212,12 @@ func findAndPrintDiff(
 ) bool {
 	// Build target manifest provider based on sync type
 	var baseTargetProvider manifestProvider
+	excludeSecret := false
 	switch {
 	case localPath != "":
 		// Local sync: provider fetches and generates local manifests
 		baseTargetProvider = newLocalClientSideProvider(clusterIf, argoSettings, app, proj, localPath, localRepoRoot)
+		excludeSecret = true
 	case len(revisions) > 0:
 		// Multi-source app with revisions
 		baseTargetProvider = newMultiSourceRevisionProvider(appIf, appName, appNs, revisions, sourcePositions, false)
@@ -1228,7 +1230,7 @@ func findAndPrintDiff(
 	}
 
 	getTargetManifests := newNormalizeTargetManifestsProvider(baseTargetProvider, app, argoSettings, appNs, getInfoProviderFromState(resources))
-	getLiveManifests := newLiveManifestProvider(resources)
+	getLiveManifests := newLiveManifestProvider(resources, excludeSecret)
 
 	// Choose diff strategy
 	var performDiff diffStrategy
