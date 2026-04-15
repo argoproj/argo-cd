@@ -7,14 +7,38 @@ on:
 permissions:
   contents: read
 
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+  
 jobs:
   renovate:
     runs-on: ubuntu-24.04
     if: github.repository == 'argoproj/argo-cd'
     steps:
+      - name: Harden the runner (Block unknown outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@f808768d1510423e83855289c910610ca9b43176 # v2.17.0
+        with:
+          egress-policy: block
+          disable-sudo-and-containers: "false" # renovatebot runs in `docker run`
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            raw.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            ghcr.io:443
+            pkg-containers.githubusercontent.com:443
+            hub.docker.com:443
+            proxy.golang.org:443
+            nodejs.org:443
+            pypi.org:443
+            get.helm.sh
+            registry.npmjs.org
+
       - name: Get token
         id: get_token
-        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3
         with:
           app-id: ${{ vars.RENOVATE_APP_ID }}
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
@@ -27,7 +51,7 @@ jobs:
       # has been updated (see it's numeric version in action.yaml)
       # and update `renovate-version` parameter accordingly
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@3633cede7d4d4598438e654eac4a695e46004420 #46.1.7
+        uses: renovatebot/github-action@eb932558ad942cccfd8211cf535f17ff183a9f74 #46.1.9
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'

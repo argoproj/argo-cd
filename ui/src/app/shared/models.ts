@@ -348,7 +348,7 @@ export interface Info {
 
 export interface ApplicationSpec {
     project: string;
-    source: ApplicationSource;
+    source?: ApplicationSource;
     sources: ApplicationSource[];
     sourceHydrator?: SourceHydrator;
     destination: ApplicationDestination;
@@ -676,6 +676,7 @@ export interface Repository {
     insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
+    depth?: number;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
