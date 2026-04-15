@@ -40,6 +40,11 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
+const (
+	reconciliationTimeoutConfigKey       = "timeout.reconciliation"
+	reconciliationTimeoutJitterConfigKey = "timeout.reconciliation.jitter"
+)
+
 // This empty test is here only for clarity, to conform to logs rbac tests structure in account. This exact usecase is covered in the TestAppLogs test
 func TestNamespacedGetLogsAllow(_ *testing.T) {
 }
@@ -2417,17 +2422,17 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 	ctx := t.Context()
 	namespace := fixture.TestNamespace()
 
-	require.NoError(t, fixture.SetParamInSettingConfigMap("timeout.reconciliation", "0s"))
-	require.NoError(t, fixture.SetParamInSettingConfigMap("timeout.reconciliation.jitter", "0s"))
+	require.NoError(t, fixture.SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, "0s"))
+	require.NoError(t, fixture.SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "0s"))
 	defer func() {
-		_ = fixture.SetParamInSettingConfigMap("timeout.reconciliation", "")
-		_ = fixture.SetParamInSettingConfigMap("timeout.reconciliation.jitter", "")
+		_ = fixture.SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, "")
+		_ = fixture.SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "")
 	}()
 
 	configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
 	require.NoError(t, err)
-	require.Equal(t, "0s", configMap.Data["timeout.reconciliation"])
-	require.Equal(t, "0s", configMap.Data["timeout.reconciliation.jitter"])
+	require.Equal(t, "0s", configMap.Data[reconciliationTimeoutConfigKey])
+	require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
 	configMapResourceVersion := configMap.ResourceVersion
 	configMapUpdateTime := time.Now()
 
@@ -2501,5 +2506,88 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 			}
 
 			assert.LessOrEqual(t, refreshCount, 1, "application refreshed %d times (expected ≤1) with timeout.reconciliation=0s", refreshCount)
+		})
+}
+
+func waitForApplicationControllerToObserveReconciliationConfig(t *testing.T, ctx context.Context, namespace string) {
+	t.Helper()
+	configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+	require.NoError(t, err)
+	configMapResourceVersion := configMap.ResourceVersion
+	configMapUpdateTime := time.Now()
+
+	require.Eventually(t, func() bool {
+		currentConfigMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+		if currentConfigMap.ResourceVersion != configMapResourceVersion {
+			configMapResourceVersion = currentConfigMap.ResourceVersion
+			configMapUpdateTime = time.Now()
+			return false
+		}
+
+		timeSinceUpdate := time.Since(configMapUpdateTime)
+		if timeSinceUpdate < 5*time.Second {
+			return false
+		}
+
+		apps, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.AppNamespace()).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return false
+		}
+
+		now := time.Now()
+		for _, app := range apps.Items {
+			if app.Status.ReconciledAt != nil {
+				reconciledTime := app.Status.ReconciledAt.Time
+				if now.Sub(reconciledTime) < 30*time.Second {
+					return true
+				}
+			}
+		}
+
+		return true
+	}, 30*time.Second, 1*time.Second, "controller did not sync ConfigMap in time")
+}
+
+func TestNamespacedGitCommitEventuallyOutOfSyncWithoutManualRefresh(t *testing.T) {
+	ctx := t.Context()
+	namespace := fixture.TestNamespace()
+	const reconciliationTimeout = "60s"
+
+	require.NoError(t, fixture.SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, reconciliationTimeout))
+	require.NoError(t, fixture.SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "0s"))
+	defer func() {
+		_ = fixture.SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, "")
+		_ = fixture.SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "")
+	}()
+
+	configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.Equal(t, reconciliationTimeout, configMap.Data[reconciliationTimeoutConfigKey])
+	require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
+	waitForApplicationControllerToObserveReconciliationConfig(t, ctx, namespace)
+
+	Given(t).
+		SetAppNamespace(fixture.AppNamespace()).
+		SetTrackingMethod("annotation").
+		Path("config-map").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		PatchFile("config-map.yaml", `[{"op": "replace", "path": "/data/foo", "value": "e2e-out-of-sync-without-refresh"}]`).
+		Then().
+		And(func(a *Application) {
+			require.Eventually(t, func() bool {
+				app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.AppNamespace()).Get(ctx, a.Name, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+				return app.Status.Sync.Status == SyncStatusCodeOutOfSync
+			}, 4*time.Minute, 3*time.Second, "expected OutOfSync without manual refresh")
 		})
 }

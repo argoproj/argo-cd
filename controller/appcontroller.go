@@ -2604,6 +2604,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 							ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 						}
 						ctrl.clusterSharding.UpdateApp(newApp)
+
+						if newApp.Status.Expired(ctrl.statusRefreshTimeout) {
+							ctrl.requestAppRefresh(newApp.QualifiedName(), nil, nil)
+						}
 						return
 					}
 
@@ -2615,7 +2619,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						hydrateAdded := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyHydrate] == "") &&
 							(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyHydrate] != "")
 
-						if !refreshAdded && !hydrateAdded {
+						if !refreshAdded && !hydrateAdded && !newApp.Status.Expired(ctrl.statusRefreshTimeout) {
 							if ctrl.hydrator != nil {
 								ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 							}
