@@ -1489,8 +1489,9 @@ func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
 		app.Spec.Destination.Namespace = "prod"
 
 		settings := &settingspkg.Settings{
-			AppLabelKey:    "app.kubernetes.io/instance",
-			TrackingMethod: "label",
+			AppLabelKey:         "app.kubernetes.io/instance",
+			TrackingMethod:      "label",
+			ControllerNamespace: "argocd",
 		}
 
 		infoProvider := &resourceInfoProvider{

@@ -23,7 +23,7 @@ func TestRunCommandTimeout(t *testing.T) {
 	assert.Equal(t, "hello world", output)
 	require.EqualError(t, err, "`sh -c echo hello world && echo my-error >&2 && sleep 2` failed timeout after 500ms")
 
-	assert.Len(t, hook.Entries, 3)
+	assert.Len(t, hook.Entries, 4)
 
 	entry := hook.Entries[0]
 	assert.Equal(t, log.InfoLevel, entry.Level)
@@ -33,11 +33,16 @@ func TestRunCommandTimeout(t *testing.T) {
 
 	entry = hook.Entries[1]
 	assert.Equal(t, log.DebugLevel, entry.Level)
+	assert.Equal(t, "my-error\n", entry.Message)
+	assert.Contains(t, entry.Data, "stream")
+
+	entry = hook.Entries[2]
+	assert.Equal(t, log.DebugLevel, entry.Level)
 	assert.Equal(t, "hello world\n", entry.Message)
 	assert.Contains(t, entry.Data, "duration")
 	assert.Contains(t, entry.Data, "execID")
 
-	entry = hook.Entries[2]
+	entry = hook.Entries[3]
 	assert.Equal(t, log.ErrorLevel, entry.Level)
 	assert.Equal(t, "`sh -c echo hello world && echo my-error >&2 && sleep 2` failed timeout after 500ms", entry.Message)
 	assert.Contains(t, entry.Data, "execID")
