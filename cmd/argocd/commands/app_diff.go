@@ -149,10 +149,16 @@ func getComparisonObjects(
 }
 
 // Deprecated: Prefer server-side generation since local side generation does not support plugins
-func getLocalObjects(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
-	trackingMethod string,
+func getLocalObjects(
+	ctx context.Context,
+	app *argoappv1.Application,
+	proj *argoappv1.AppProject,
+	local string,
+	localRepoRoot string,
+	argoSettings *settings.Settings,
+	clusterInfo *argoappv1.ClusterInfo,
 ) []*unstructured.Unstructured {
-	manifestStrings := getLocalObjectsString(ctx, app, proj, local, localRepoRoot, appLabelKey, kubeVersion, apiVersions, kustomizeOptions, trackingMethod)
+	manifestStrings := getLocalObjectsString(ctx, app, proj, local, localRepoRoot, argoSettings, clusterInfo)
 	objs := make([]*unstructured.Unstructured, len(manifestStrings))
 	for i := range manifestStrings {
 		obj := &unstructured.Unstructured{}
@@ -172,20 +178,26 @@ func getLocalObjects(ctx context.Context, app *argoappv1.Application, proj *argo
 }
 
 // Deprecated: Prefer server-side generation since local side generation does not support plugins
-func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
-	trackingMethod string,
+func getLocalObjectsString(
+	ctx context.Context,
+	app *argoappv1.Application,
+	proj *argoappv1.AppProject,
+	local string,
+	localRepoRoot string,
+	argoSettings *settings.Settings,
+	clusterInfo *argoappv1.ClusterInfo,
 ) []string {
 	source := app.Spec.GetSource()
 	res, err := repository.GenerateManifests(ctx, local, localRepoRoot, source.TargetRevision, &repoapiclient.ManifestRequest{
 		Repo:                            &argoappv1.Repository{Repo: source.RepoURL},
-		AppLabelKey:                     appLabelKey,
-		AppName:                         app.Name,
+		AppLabelKey:                     argoSettings.AppLabelKey,
+		AppName:                         app.InstanceName(argoSettings.ControllerNamespace),
 		Namespace:                       app.Spec.Destination.Namespace,
 		ApplicationSource:               &source,
-		KustomizeOptions:                kustomizeOptions,
-		KubeVersion:                     kubeVersion,
-		ApiVersions:                     apiVersions,
-		TrackingMethod:                  trackingMethod,
+		KustomizeOptions:                argoSettings.KustomizeOptions,
+		KubeVersion:                     clusterInfo.ServerVersion,
+		ApiVersions:                     clusterInfo.APIVersions,
+		TrackingMethod:                  argoSettings.TrackingMethod,
 		ProjectName:                     proj.Name,
 		ProjectSourceRepos:              proj.Spec.SourceRepos,
 		AnnotationManifestGeneratePaths: app.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths),
@@ -452,11 +464,8 @@ func newLocalClientSideProvider(
 			proj,
 			localPath,
 			localRepoRoot,
-			argoSettings.AppLabelKey,
-			cluster.Info.ServerVersion,
-			cluster.Info.APIVersions,
-			argoSettings.KustomizeOptions,
-			argoSettings.TrackingMethod,
+			argoSettings,
+			&cluster.Info,
 		), nil
 	}
 }

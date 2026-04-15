@@ -1929,7 +1929,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
 
-					localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
+					localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings, &cluster.Info)
 					errors.CheckError(err)
 				}
 
@@ -2841,7 +2841,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					errors.CheckError(err)
 
 					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
+					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings, &cluster.Info)
 				case len(revisions) > 0 && len(sourcePositions) > 0:
 					q := application.ApplicationManifestQuery{
 						Name:            &appName,

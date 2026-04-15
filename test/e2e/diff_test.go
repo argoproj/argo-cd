@@ -181,7 +181,7 @@ func TestHookDiff(t *testing.T) {
 		When().
 		CreateApp().
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			output, err := fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--exit-code=false")
 			require.NoError(t, err)
 			assert.Contains(t, output, "name: pod")
@@ -267,7 +267,7 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 		Expect(OperationPhaseIs(synccommon.OperationSucceeded)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			appPath := "testdata/helm"
 
 			t.Setenv("XDG_CONFIG_HOME", helmTmp)
@@ -358,7 +358,7 @@ func TestServerSideDiffWithLocal(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Test regular diff with --local (add --server-side-generate to avoid deprecation warning)
 			regularOutput, err := fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata", "--server-side-generate", "--exit-code=false")
 			require.NoError(t, err)
@@ -388,7 +388,7 @@ func TestServerSideDiffWithLocalValidation(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(synccommon.OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			// Test that --server-side-diff with --local without --server-side-generate fails with proper error
 			_, err := fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--server-side-diff", "--local", "testdata")
 			require.Error(t, err)
@@ -492,7 +492,7 @@ func TestAppWithSecrets(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(synccommon.OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			diffOutput := errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", ctx.AppQualifiedName())).(string)
 			assert.Empty(t, diffOutput)
 		}).
@@ -506,7 +506,7 @@ metadata:
 stringData:
   username: test-username`).
 		Then().
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			diffOutput := errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata", "--server-side-generate")).(string)
 			assert.Empty(t, diffOutput)
 		})
@@ -530,7 +530,7 @@ func TestResourceDiffing(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			diffOutput, err := fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata", "--server-side-generate")
 			require.Error(t, err)
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", ctx.DeploymentNamespace()))
@@ -543,7 +543,7 @@ func TestResourceDiffing(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
+		And(func(_ *Application) {
 			diffOutput, err := fixture.RunCli("app", "diff", ctx.AppQualifiedName(), "--local", "testdata", "--server-side-generate")
 			require.NoError(t, err)
 			assert.Empty(t, diffOutput)
