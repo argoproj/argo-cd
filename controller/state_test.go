@@ -2001,7 +2001,7 @@ func Test_NormalizeTargetObjects_Deduplication(t *testing.T) {
 		test.FakeDestNamespace,
 		[]*unstructured.Unstructured{obj1, obj2, obj3},
 		&resourceInfoProviderStub{},
-		func(u *unstructured.Unstructured) error {
+		func(_ *unstructured.Unstructured) error {
 			return nil
 		},
 	)
@@ -2052,7 +2052,7 @@ func Test_NormalizeTargetObjects_GenerateName(t *testing.T) {
 		test.FakeDestNamespace,
 		[]*unstructured.Unstructured{obj1, obj2},
 		&resourceInfoProviderStub{},
-		func(u *unstructured.Unstructured) error {
+		func(_ *unstructured.Unstructured) error {
 			return nil
 		},
 	)
