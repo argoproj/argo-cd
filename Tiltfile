@@ -250,7 +250,7 @@ docker_build(
     only=['ui'],
     live_update=[
         sync('ui', '/app/ui'),
-        run('sh -c "cd /app/ui && yarn install"', trigger=['/app/ui/package.json', '/app/ui/yarn.lock']),
+        run('sh -c "cd /app/ui && yarn install --frozen-lockfile"', trigger=['/app/ui/package.json', '/app/ui/yarn.lock']),
     ],
 )
 
