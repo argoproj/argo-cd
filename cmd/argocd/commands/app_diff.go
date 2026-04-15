@@ -22,7 +22,6 @@ import (
 	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
-	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
@@ -65,6 +64,22 @@ type resourceInfoProvider struct {
 // If live object is missing then it does not matter if target is namespaced or not.
 func (p *resourceInfoProvider) IsNamespaced(gk schema.GroupKind) (bool, error) {
 	return p.namespacedByGk[gk], nil
+}
+
+// getInfoProviderFromState builds a resourceInfoProvider from live state items
+// It infers whether resources are namespaced by checking if they have a namespace in live state
+func getInfoProviderFromState(state *application.ManagedResourcesResponse) kube.ResourceInfoProvider {
+	if state == nil {
+		return &resourceInfoProvider{}
+	}
+
+	namespacedByGk := make(map[schema.GroupKind]bool)
+	for _, item := range state.GetItems() {
+		if item != nil {
+			namespacedByGk[schema.GroupKind{Group: item.Group, Kind: item.Kind}] = item.Namespace != ""
+		}
+	}
+	return &resourceInfoProvider{namespacedByGk: namespacedByGk}
 }
 
 // manifestsToUnstructured converts manifest strings to unstructured objects
@@ -110,25 +125,7 @@ func getObjectMap(objects []*unstructured.Unstructured) map[kube.ResourceKey]*un
 func getComparisonObjects(
 	targetManifests []*unstructured.Unstructured,
 	liveManifests []*unstructured.Unstructured,
-	app *argoappv1.Application,
 ) []comparisonObject {
-	// Build map of namespace info from live objects
-	namespacedByGk := make(map[schema.GroupKind]bool)
-	for i := range liveManifests {
-		if liveManifests[i] != nil {
-			key := kube.GetResourceKey(liveManifests[i])
-			namespacedByGk[schema.GroupKind{Group: key.Group, Kind: key.Kind}] = key.Namespace != ""
-		}
-	}
-
-	// Deduplicate target objects
-	targetManifests, _, err := controller.DeduplicateTargetObjects(
-		app.Spec.Destination.Namespace,
-		targetManifests,
-		&resourceInfoProvider{namespacedByGk: namespacedByGk},
-	)
-	errors.CheckError(err)
-
 	// Build map of target objects by key
 	targetByKey := getObjectMap(targetManifests)
 	liveByKey := getObjectMap(liveManifests)
@@ -482,11 +479,62 @@ func newDefaultTargetProvider(liveState *application.ManagedResourcesResponse) m
 // newLiveManifestProvider creates a provider for live manifests from ManagedResources
 func newLiveManifestProvider(liveState *application.ManagedResourcesResponse) manifestProvider {
 	return func(_ context.Context) ([]*unstructured.Unstructured, error) {
-		liveObjects, err := cmdutil.LiveObjects(liveState.Items)
+		liveManifests := make([]*unstructured.Unstructured, 0, len(liveState.Items))
+		for i := range liveState.Items {
+			res := liveState.Items[i]
+			live := &unstructured.Unstructured{}
+			err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
+			if err != nil {
+				return nil, err
+			}
+			liveManifests = append(liveManifests, live)
+		}
+		return liveManifests, nil
+	}
+}
+
+// normalizeTargetManifestsProvider wraps a manifestProvider to normalize target objects
+// This ensures namespace normalization and tracking annotation updates after deduplication
+func newNormalizeTargetManifestsProvider(
+	provider manifestProvider,
+	app *argoappv1.Application,
+	argoSettings *settings.Settings,
+	appNs string,
+	infoProvider kube.ResourceInfoProvider,
+) manifestProvider {
+	return func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+		manifests, err := provider(ctx)
 		if err != nil {
 			return nil, err
 		}
-		return liveObjects, nil
+
+		// Normalize target objects (namespace normalization, deduplication, and tracking re-application)
+		resourceTracking := argo.NewResourceTracking()
+		normalized, conditions, err := controller.NormalizeTargetObjects(
+			app.Spec.Destination.Namespace,
+			manifests,
+			infoProvider,
+			func(u *unstructured.Unstructured) error {
+				return resourceTracking.SetAppInstance(
+					u,
+					argoSettings.AppLabelKey,
+					app.InstanceName(appNs),
+					app.Spec.Destination.Namespace,
+					argoappv1.TrackingMethod(argoSettings.TrackingMethod),
+					argoSettings.GetInstallationID(),
+				)
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Log any conditions (warnings about duplicates)
+		for _, condition := range conditions {
+			log.Warnf("%s: %s", condition.Type, condition.Message)
+		}
+
+		return normalized, nil
 	}
 }
 
@@ -494,7 +542,6 @@ func newLiveManifestProvider(liveState *application.ManagedResourcesResponse) ma
 // Returns a list of comparisonObject containing all resources (added, removed, and modified)
 func compareManifests(
 	ctx context.Context,
-	app *argoappv1.Application,
 	getTargetManifests manifestProvider,
 	getLiveManifests manifestProvider,
 	performDiff diffStrategy,
@@ -512,7 +559,7 @@ func compareManifests(
 	}
 
 	// Build object map pairing live and target
-	items := getComparisonObjects(targetManifests, liveManifests, app)
+	items := getComparisonObjects(targetManifests, liveManifests)
 
 	results := make([]comparisonObject, 0)
 	var potentiallyModified []comparisonObject
@@ -665,6 +712,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			proj := getProject(ctx, c, clientOpts, app.Spec.Project)
 
+			// Build resource info provider from live state to determine if resources are namespaced
+			infoProvider := getInfoProviderFromState(liveState)
+
 			// Create target manifest provider based on flags
 			var getTargetManifests manifestProvider
 
@@ -695,6 +745,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				getTargetManifests = newDefaultTargetProvider(liveState)
 			}
 
+			// Wrap target manifest provider with normalization since the manifest are have not been applied to kubernetes
+			getTargetManifests = newNormalizeTargetManifestsProvider(getTargetManifests, app, argoSettings, appNs, infoProvider)
+
 			// Create live manifest provider
 			getLiveManifests := newLiveManifestProvider(liveState)
 
@@ -709,7 +762,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			// Compute diff
-			results, err := compareManifests(ctx, app, getTargetManifests, getLiveManifests, diffHandler)
+			results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, diffHandler)
 			errors.CheckError(err)
 
 			for _, result := range results {

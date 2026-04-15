@@ -1227,6 +1227,7 @@ func findAndPrintDiff(
 		baseTargetProvider = newDefaultTargetProvider(resources)
 	}
 
+	getTargetManifests := newNormalizeTargetManifestsProvider(baseTargetProvider, app, argoSettings, appNs, getInfoProviderFromState(resources))
 	getLiveManifests := newLiveManifestProvider(resources)
 
 	// Choose diff strategy
@@ -1240,7 +1241,7 @@ func findAndPrintDiff(
 	}
 
 	// Call compareManifests (does all the heavy lifting)
-	changedObjects, err := compareManifests(ctx, app, baseTargetProvider, getLiveManifests, performDiff)
+	changedObjects, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 	errors.CheckError(err)
 
 	// Print results
