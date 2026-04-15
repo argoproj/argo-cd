@@ -17,24 +17,34 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-// WebhookRegistryEvent represents a normalized container registry webhook event.
+// RegistryEvent represents a normalized container registry webhook event.
 //
 // It captures the essential information needed to identify an OCI artifact
 // update, including the registry host, repository name, tag, and optional
 // content digest. This structure is produced by registry-specific parsers
 // and consumed by the registry webhook handler to trigger application refreshes.
-type WebhookRegistryEvent struct {
-	// RegistryURL is the URL of the registry that sent the webhook
-	// eg. ghcr.io
+type RegistryEvent struct {
+	// RegistryURL is the hostname of the registry, without protocol or trailing slash.
+	// e.g. "ghcr.io", "docker.io", "123456789.dkr.ecr.us-east-1.amazonaws.com"
+	// Together with Repository, it forms the OCI repo URL: oci://RegistryURL/Repository.
+	// Parsers must ensure this value is consistent with how users configure repoURL
+	// in their Argo CD Applications (e.g. oci://ghcr.io/owner/repo).
 	RegistryURL string `json:"registryUrl,omitempty"`
-	// Repository is the repository name
-	// eg. user/repo
+	// Repository is the full repository path within the registry, without a leading slash.
+	// e.g. "owner/repo" for ghcr.io, "library/nginx" for docker.io.
+	// Together with RegistryURL, it forms the OCI repo URL: oci://RegistryURL/Repository.
 	Repository string `json:"repository,omitempty"`
 	// Tag is the image tag
 	// eg. 0.3.0
 	Tag string `json:"tag,omitempty"`
 	// Digest is the content digest of the image (optional)
 	Digest string `json:"digest,omitempty"`
+}
+
+// OCIRepoURL returns the full OCI repository URL for use in Argo CD Application
+// source matching, e.g. "oci://ghcr.io/owner/repo".
+func (e *RegistryEvent) OCIRepoURL() string {
+	return fmt.Sprintf("oci://%s/%s", e.RegistryURL, e.Repository)
 }
 
 // ErrHMACVerificationFailed is returned when a registry webhook signature check fails.
@@ -47,15 +57,15 @@ var ErrHMACVerificationFailed = errors.New("HMAC verification failed")
 // This allows the handler to support multiple container registries via pluggable parsers.
 type RegistryParser interface {
 	CanHandle(r *http.Request) bool
-	Parse(r *http.Request, body []byte) (*WebhookRegistryEvent, error)
+	Parse(r *http.Request, body []byte) (*RegistryEvent, error)
 }
 
-// WebhookRegistryHandler processes container registry webhook requests.
+// RegistryHandler processes container registry webhook requests.
 //
 // It selects the appropriate parser based on the request and delegates
 // both signature validation and payload parsing to it.
 // The handler supports multiple registry formats through a list of RegistryParsers.
-type WebhookRegistryHandler struct {
+type RegistryHandler struct {
 	parsers []RegistryParser
 }
 
@@ -65,18 +75,29 @@ type WebhookRegistryHandler struct {
 // responsible for its own signature validation. The handler is initialized
 // with built-in registry parsers (e.g., GHCR) but can be extended to support
 // additional registries.
-func NewWebhookRegistryHandler(secret string) *WebhookRegistryHandler {
-	return &WebhookRegistryHandler{
+func NewWebhookRegistryHandler(secret string) *RegistryHandler {
+	return &RegistryHandler{
 		parsers: []RegistryParser{
 			NewGHCRParser(secret),
 		},
 	}
 }
 
+// CanHandle reports whether any registered parser can handle the request.
+// Used by the top-level handler to route registry webhook requests.
+func (h *RegistryHandler) CanHandle(r *http.Request) bool {
+	for _, p := range h.parsers {
+		if p.CanHandle(r) {
+			return true
+		}
+	}
+	return false
+}
+
 // ProcessWebhook reads the request body and delegates to the first parser
 // that can handle the request. Signature validation is handled by each parser.
-// Returns nil, nil if no parser matches or if the event should be skipped.
-func (h *WebhookRegistryHandler) ProcessWebhook(r *http.Request) (*WebhookRegistryEvent, error) {
+// Returns nil, nil if the event should be skipped.
+func (h *RegistryHandler) ProcessWebhook(r *http.Request) (*RegistryEvent, error) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
@@ -89,22 +110,7 @@ func (h *WebhookRegistryHandler) ProcessWebhook(r *http.Request) (*WebhookRegist
 		}
 	}
 
-	// No parser matched. In practice this is unreachable because ProcessWebhook
-	// is only called after IsRegistryEvent returns true, and IsRegistryEvent
-	// uses the same header checks as each parser's CanHandle. Returning nil, nil
-	// here ensures graceful degradation if the two ever drift apart.
 	return nil, nil
-}
-
-// IsRegistryEvent reports whether the HTTP request corresponds to a supported
-// container registry event.
-//
-// The decision is based on registry-specific headers (e.g., GitHub package).
-// It returns true if the request should be handled
-// by the registry webhook pipeline.
-func IsRegistryEvent(r *http.Request) bool {
-	// TODO: add more supported oci-compliant registry type events
-	return r.Header.Get("X-GitHub-Event") == "package"
 }
 
 // HandleRegistryEvent processes a normalized registry event and refreshes
@@ -114,12 +120,8 @@ func IsRegistryEvent(r *http.Request) bool {
 // whose sources reference that repository and revision, and triggers a refresh
 // for each matching Application. Namespace filters are applied according to the
 // handler configuration.
-func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *WebhookRegistryEvent) {
-	// Construct full OCI repo URL used in Argo CD Applications
-	repoURL := fmt.Sprintf("oci://%s/%s",
-		event.RegistryURL,
-		event.Repository,
-	)
+func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
+	repoURL := event.OCIRepoURL()
 	revision := event.Tag
 
 	log.WithFields(log.Fields{

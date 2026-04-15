@@ -45,7 +45,7 @@ func (p *GHCRParser) CanHandle(r *http.Request) bool {
 // that are intentionally skipped (unsupported actions, non-container packages,
 // or missing tags). Only returns an error for genuinely malformed payloads or
 // signature verification failures.
-func (p *GHCRParser) Parse(r *http.Request, body []byte) (*WebhookRegistryEvent, error) {
+func (p *GHCRParser) Parse(r *http.Request, body []byte) (*RegistryEvent, error) {
 	if err := p.validateSignature(r, body); err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (p *GHCRParser) Parse(r *http.Request, body []byte) (*WebhookRegistryEvent,
 		return nil, nil
 	}
 
-	return &WebhookRegistryEvent{
+	return &RegistryEvent{
 		RegistryURL: "ghcr.io",
 		Repository:  repository,
 		Tag:         tag,

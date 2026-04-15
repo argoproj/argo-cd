@@ -98,7 +98,7 @@ type ArgoCDWebhookHandler struct {
 	settingsSrc            settingsSource
 	queue                  chan any
 	maxWebhookPayloadSizeB int64
-	registryHandler        *WebhookRegistryHandler
+	registryHandler        *RegistryHandler
 }
 
 func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister,
@@ -349,7 +349,8 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		log.Infof("Webhook handler completed in %v", time.Since(start))
 	}()
 
-	if e, ok := payload.(*WebhookRegistryEvent); ok {
+	// TODO: add switch statement in future when supporting other registries
+	if e, ok := payload.(*RegistryEvent); ok {
 		a.HandleRegistryEvent(e)
 		return
 	}
@@ -693,9 +694,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
-	// Check if the event is a registry event based on the header
-	// and process webhook accordingly
-	if IsRegistryEvent(r) {
+	if a.registryHandler.CanHandle(r) {
 		event, err := a.registryHandler.ProcessWebhook(r)
 		if err != nil {
 			if errors.Is(err, ErrHMACVerificationFailed) {
