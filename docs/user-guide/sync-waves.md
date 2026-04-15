@@ -34,7 +34,9 @@ You can use this simple lifecycle method in various scenarios. For example you c
 
 Hooks do not run during a selective sync operation. During the SyncFail phase, hooks can be used for cleanup and other housekeeping tasks. If a SyncFail hook itself fails, Argo CD does not take any additional action beyond marking the overall operation as failed.
 
-Note that during pruning of resources, resources from higher waves are processed first before moving to lower waves. If, for any reason, a resource isn't removed/pruned in a wave, the resources in next waves won't be processed. This is to ensure proper resource cleanup between waves.
+During pruning, the wave order is reversed from the creation order. Resources in higher waves are pruned first.
+If pruning any resource in a wave fails, the operation is marked as failed, and resources in lower waves are not processed.
+This ensures that dependent resources are deleted in the correct order.
 
 ## Hook lifecycle and cleanup
 
