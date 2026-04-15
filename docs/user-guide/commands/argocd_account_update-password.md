@@ -26,8 +26,12 @@ argocd account update-password [flags]
 	# Update the password for user foobar
 	argocd account update-password --account foobar
 
-	# Read the new password from stdin (non-interactive)
-	echo "newpassword" | argocd account update-password --stdin
+	# Non-interactively update a password by piping it to stdin (useful for
+	# scripting). --current-password is required because only the new
+	# password is read from stdin. Avoid 'echo' with a literal password —
+	# it ends up in shell history. Read from a variable or file instead:
+	printf '%s' "$NEW_PASSWORD" | argocd account update-password \
+	    --stdin --current-password "$OLD_PASSWORD"
 
 ```
 
@@ -38,7 +42,7 @@ argocd account update-password [flags]
       --current-password string   Password of the currently logged on user
   -h, --help                      help for update-password
       --new-password string       New password you want to update to
-      --stdin                     Read the new password from stdin
+      --stdin                     Read the new password from stdin (single read, no confirmation). Requires --current-password.
 ```
 
 ### Options inherited from parent commands

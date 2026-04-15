@@ -37,23 +37,78 @@ func TestPromptPassword_Fallback(t *testing.T) {
 	require.Equal(t, pwd, password)
 }
 
-func TestReadAndConfirmPassword_NonInteractiveStdin(t *testing.T) {
-	oldStdin := os.Stdin
-	defer func() {
-		os.Stdin = oldStdin
-	}()
+func TestReadPasswordFromStdin(t *testing.T) {
+	t.Run("reads password from piped stdin", func(t *testing.T) {
+		oldStdin := os.Stdin
+		defer func() {
+			os.Stdin = oldStdin
+		}()
 
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
+		r, w, err := os.Pipe()
+		require.NoError(t, err)
+		_, err = w.WriteString(pwd + "\n")
+		require.NoError(t, err)
+		w.Close()
 
-	_, err = w.WriteString(pwd + "\n")
-	require.NoError(t, err)
-	w.Close()
+		os.Stdin = r
+		got, err := ReadPasswordFromStdin()
+		require.NoError(t, err)
+		require.Equal(t, pwd, got)
+	})
 
-	os.Stdin = r
-	got, err := ReadAndConfirmPassword("alice")
-	require.NoError(t, err)
-	require.Equal(t, pwd, got)
+	t.Run("preserves leading and trailing spaces and tabs", func(t *testing.T) {
+		oldStdin := os.Stdin
+		defer func() {
+			os.Stdin = oldStdin
+		}()
+
+		const padded = "  pa ss\twd  "
+		r, w, err := os.Pipe()
+		require.NoError(t, err)
+		_, err = w.WriteString(padded + "\n")
+		require.NoError(t, err)
+		w.Close()
+
+		os.Stdin = r
+		got, err := ReadPasswordFromStdin()
+		require.NoError(t, err)
+		require.Equal(t, padded, got)
+	})
+
+	t.Run("strips both \\r\\n line terminators", func(t *testing.T) {
+		oldStdin := os.Stdin
+		defer func() {
+			os.Stdin = oldStdin
+		}()
+
+		r, w, err := os.Pipe()
+		require.NoError(t, err)
+		_, err = w.WriteString(pwd + "\r\n")
+		require.NoError(t, err)
+		w.Close()
+
+		os.Stdin = r
+		got, err := ReadPasswordFromStdin()
+		require.NoError(t, err)
+		require.Equal(t, pwd, got)
+	})
+
+	t.Run("rejects empty password", func(t *testing.T) {
+		oldStdin := os.Stdin
+		defer func() {
+			os.Stdin = oldStdin
+		}()
+
+		r, w, err := os.Pipe()
+		require.NoError(t, err)
+		_, err = w.WriteString("\n")
+		require.NoError(t, err)
+		w.Close()
+
+		os.Stdin = r
+		_, err = ReadPasswordFromStdin()
+		require.Error(t, err)
+	})
 }
 
 func TestSetLogFormat(t *testing.T) {

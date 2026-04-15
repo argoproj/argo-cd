@@ -116,7 +116,9 @@ func PromptPassword(password string) string {
 			reader := bufio.NewReader(os.Stdin)
 			input, err := reader.ReadString('\n')
 			errors.CheckError(err)
-			password = strings.TrimSpace(input)
+			// Only strip line terminators — leading/trailing spaces or tabs
+			// can be intentional parts of a password.
+			password = strings.TrimRight(input, "\r\n")
 			return password
 		}
 		password = string(passwordRaw)
@@ -161,21 +163,29 @@ func AskToProceedS(message string) string {
 	}
 }
 
-// ReadAndConfirmPassword reads a new password from stdin. When stdin is a
-// terminal it prompts twice and requires the entries to match. When stdin
-// is not a terminal (e.g. piped input for automation) it reads the password
-// once and skips confirmation, matching the behaviour of PromptPassword and
-// enabling scripted use of argocd account update-password.
-func ReadAndConfirmPassword(username string) (string, error) {
-	if !terminal.IsTerminal(int(os.Stdin.Fd())) {
-		reader := bufio.NewReader(os.Stdin)
-		input, err := reader.ReadString('\n')
-		if err != nil && err != io.EOF {
-			return "", err
-		}
-		return strings.TrimSpace(input), nil
+// ReadPasswordFromStdin reads a single line from stdin and returns it as a
+// password (with trailing line terminator stripped). It is intended for
+// non-interactive use, e.g. when callers pipe the password in. An empty
+// password is rejected.
+func ReadPasswordFromStdin() (string, error) {
+	reader := bufio.NewReader(os.Stdin)
+	input, err := reader.ReadString('\n')
+	if err != nil && err != io.EOF {
+		return "", err
 	}
+	// Only strip line terminators — leading/trailing spaces or tabs can be
+	// intentional parts of a password.
+	password := strings.TrimRight(input, "\r\n")
+	if password == "" {
+		return "", fmt.Errorf("password read from stdin is empty")
+	}
+	return password, nil
+}
 
+// ReadAndConfirmPassword interactively prompts the user for a new password
+// twice and returns it once both entries match. It always reads from a
+// terminal; for non-interactive (piped) input use ReadPasswordFromStdin.
+func ReadAndConfirmPassword(username string) (string, error) {
 	for {
 		fmt.Printf("*** Enter new password for user %s: ", username)
 		password, err := terminal.ReadPassword(int(os.Stdin.Fd()))
@@ -190,6 +200,10 @@ func ReadAndConfirmPassword(username string) (string, error) {
 		}
 		fmt.Print("\n")
 		if bytes.Equal(password, confirmPassword) {
+			if len(password) == 0 {
+				log.Error("Password must not be empty")
+				continue
+			}
 			return string(password), nil
 		}
 		log.Error("Passwords do not match")
