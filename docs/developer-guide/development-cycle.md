@@ -23,7 +23,7 @@ All following commands in this guide assume the namespace is already set.
 kubectl config set-context --current --namespace=argocd
 ```
 
-### Pull in all UI build dependencies
+### Pull in all build dependencies
 
 As build dependencies change over time, you have to synchronize your development environment with the current specification. In order to pull in all required UI dependencies (NPM packages), issue:
 
