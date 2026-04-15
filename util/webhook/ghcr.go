@@ -1,7 +1,6 @@
 package webhook
 
 import (
-	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -40,7 +39,6 @@ func (p *GHCRParser) ProcessWebhook(r *http.Request) (*RegistryEvent, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.Body = io.NopCloser(bytes.NewBuffer(body))
 	return p.Parse(r, body)
 }
 

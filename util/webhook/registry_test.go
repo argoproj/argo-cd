@@ -79,7 +79,7 @@ func TestRegistryPackageEvent(t *testing.T) {
 	h.Wait()
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Contains(t, hook.LastEntry().Message, "Received registry webhook event")
+	assertLogContains(t, hook, "Received registry webhook event")
 }
 
 func TestHandleRegistryEvent_RefreshMatchingApp(t *testing.T) {

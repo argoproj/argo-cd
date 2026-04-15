@@ -34,8 +34,6 @@ type RegistryEvent struct {
 	// Tag is the image tag
 	// eg. 0.3.0
 	Tag string `json:"tag,omitempty"`
-	// Digest is the content digest of the image (optional)
-	Digest string `json:"digest,omitempty"`
 }
 
 // OCIRepoURL returns the full OCI repository URL for use in Argo CD Application
@@ -56,6 +54,7 @@ var ErrHMACVerificationFailed = errors.New("HMAC verification failed")
 // handler configuration.
 func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 	repoURL := event.OCIRepoURL()
+	normalizedRepoURL := normalizeOCI(repoURL)
 	revision := event.Tag
 
 	log.WithFields(log.Fields{
@@ -89,7 +88,7 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 		}
 
 		for _, source := range sources {
-			if normalizeOCI(source.RepoURL) != normalizeOCI(repoURL) {
+			if normalizeOCI(source.RepoURL) != normalizedRepoURL {
 				log.WithFields(log.Fields{
 					"sourceRepoURL": source.RepoURL,
 					"eventRepoURL":  repoURL,

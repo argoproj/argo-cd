@@ -347,7 +347,6 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		log.Infof("Webhook handler completed in %v", time.Since(start))
 	}()
 
-	// TODO: add switch statement in future when supporting other registries
 	if e, ok := payload.(*RegistryEvent); ok {
 		a.HandleRegistryEvent(e)
 		return
@@ -724,19 +723,17 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// If the error is due to a large payload, return a more user-friendly error message
 		if isParsingPayloadError(err) {
-			msg := fmt.Sprintf("Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under %v MB) and ensure it is valid JSON", a.maxWebhookPayloadSizeB/1024/1024)
-			log.WithField(common.SecurityField, common.SecurityHigh).Warn(msg)
-			http.Error(w, msg, http.StatusBadRequest)
+			log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Webhook processing failed: payload too large or corrupted (limit %v MB): %v", a.maxWebhookPayloadSizeB/1024/1024, err)
+			http.Error(w, fmt.Sprintf("Webhook processing failed: payload must be valid JSON under %v MB", a.maxWebhookPayloadSizeB/1024/1024), http.StatusBadRequest)
 			return
 		}
 
-		msg := fmt.Sprintf("Webhook processing failed: %s", err)
-		log.Infof("%s", msg)
 		status := http.StatusBadRequest
 		if r.Method != http.MethodPost {
 			status = http.StatusMethodNotAllowed
 		}
-		http.Error(w, msg, status)
+		log.Infof("Webhook processing failed: %v", err)
+		http.Error(w, "Webhook processing failed", status)
 		return
 	}
 
