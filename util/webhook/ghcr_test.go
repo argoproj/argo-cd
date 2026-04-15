@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -96,13 +98,13 @@ func TestGHCRParser_Parse(t *testing.T) {
 			event, err := parser.Parse([]byte(tt.body))
 
 			if tt.expectErr {
-				assert.Error(t, err)
-				assert.Nil(t, event)
+				require.Error(t, err)
+				require.Nil(t, event)
 				return
 			}
 
-			assert.NoError(t, err)
-			assert.Equal(t, tt.expected, event)
+			require.NoError(t, err)
+			require.Equal(t, tt.expected, event)
 		})
 	}
 }

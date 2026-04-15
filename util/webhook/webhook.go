@@ -349,8 +349,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		log.Infof("Webhook handler completed in %v", time.Since(start))
 	}()
 
-	switch e := payload.(type) {
-	case *WebhookRegistryEvent:
+	if e, ok := payload.(*WebhookRegistryEvent); ok {
 		a.HandleRegistryEvent(e)
 		return
 	}
