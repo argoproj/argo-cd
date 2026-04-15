@@ -177,7 +177,7 @@ func ReadPasswordFromStdin() (string, error) {
 	// intentional parts of a password.
 	password := strings.TrimRight(input, "\r\n")
 	if password == "" {
-		return "", fmt.Errorf("password read from stdin is empty")
+		return "", stderrors.New("password read from stdin is empty")
 	}
 	return password, nil
 }

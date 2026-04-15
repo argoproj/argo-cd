@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -111,7 +112,7 @@ has appropriate RBAC permissions to change other accounts.
 
 			if userInfo.Iss == sessionutil.SessionManagerClaimsIssuer && currentPassword == "" {
 				if stdin {
-					errors.CheckError(fmt.Errorf("--current-password is required when --stdin is used"))
+					errors.CheckError(stderrors.New("--current-password is required when --stdin is used"))
 				}
 				fmt.Printf("*** Enter password of currently logged in user (%s): ", userInfo.Username)
 				password, err := term.ReadPassword(int(os.Stdin.Fd()))
