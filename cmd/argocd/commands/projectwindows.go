@@ -248,7 +248,7 @@ argocd proj windows delete new-project 1`,
 				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 				errors.CheckError(err)
 			} else {
-				fmt.Printf("The command to delete the sync window was cancelled\n")
+				fmt.Print("The command to delete the sync window was cancelled\n")
 			}
 		},
 	}

@@ -24,6 +24,9 @@ node_modules/
 .*.swp
 rerunreport.txt
 
+# AI tools support
+CLAUDE.local.md
+
 # ignore built binaries
 cmd/argocd/argocd
 cmd/argocd-application-controller/argocd-application-controller
