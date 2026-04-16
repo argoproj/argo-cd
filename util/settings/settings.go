@@ -221,7 +221,10 @@ type OIDCConfig struct {
 }
 
 type AzureOIDCConfig struct {
-	UseWorkloadIdentity bool `json:"useWorkloadIdentity,omitempty"`
+	UseWorkloadIdentity                  bool   `json:"useWorkloadIdentity,omitempty"`
+	EnableUserGroupOverageClaim          bool   `json:"enableUserGroupOverageClaim,omitempty"`
+	GraphAPIEndpoint                     string `json:"graphApiEndpoint,omitempty"`
+	UserGroupOverageClaimCacheExpiration string `json:"userGroupOverageClaimCacheExpiration,omitempty"`
 }
 
 var (
@@ -2085,6 +2088,42 @@ func (a *ArgoCDSettings) UseAzureWorkloadIdentity() bool {
 		return oidcConfig.Azure.UseWorkloadIdentity
 	}
 	return false
+}
+
+// AzureUserGroupOverageClaimEnabled returns whether group claims should be fetched from the Microsoft Graph API
+// when Azure AD returns a groups overage claim (user has 200+ group memberships).
+// See https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference#groups-overage-claim
+func (a *ArgoCDSettings) AzureUserGroupOverageClaimEnabled() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
+		return oidcConfig.Azure.EnableUserGroupOverageClaim
+	}
+	return false
+}
+
+// AzureGraphAPIEndpoint returns the Microsoft Graph API endpoint URL.
+// Defaults to https://graph.microsoft.com/v1.0 for public cloud.
+// Can be overridden for sovereign clouds (e.g., https://graph.microsoft.us/v1.0).
+func (a *ArgoCDSettings) AzureGraphAPIEndpoint() string {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
+		if oidcConfig.Azure.GraphAPIEndpoint != "" {
+			return oidcConfig.Azure.GraphAPIEndpoint
+		}
+		return "https://graph.microsoft.com/v1.0"
+	}
+	return ""
+}
+
+// AzureUserGroupOverageClaimCacheExpiration returns the cache duration for Azure groups overage claim results.
+func (a *ArgoCDSettings) AzureUserGroupOverageClaimCacheExpiration() time.Duration {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil && oidcConfig.Azure.UserGroupOverageClaimCacheExpiration != "" {
+		cacheExpiration, err := time.ParseDuration(oidcConfig.Azure.UserGroupOverageClaimCacheExpiration)
+		if err != nil {
+			log.Warnf("Failed to parse 'oidc.config.azure.userGroupOverageClaimCacheExpiration' key: %v", err)
+			return 0
+		}
+		return cacheExpiration
+	}
+	return 0
 }
 
 // OIDCTLSConfig returns the TLS config for the OIDC provider. If an external provider is configured, returns a TLS
