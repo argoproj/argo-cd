@@ -1,12 +1,6 @@
 # ApplicationSet in any namespace
 
 > [!WARNING]
-> **Beta Feature (Since v2.8.0)**
->
-> This feature is in the [Beta](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta) stage. 
-> It is generally considered stable, but there may be unhandled edge cases.
-
-> [!WARNING]
 > Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
 
 ## Introduction

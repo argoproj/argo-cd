@@ -182,7 +182,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 			// Exactly one of --namespace or --policy-file must be given.
 			if (!nsOverride && policyFile == "") || (nsOverride && policyFile != "") {
 				c.HelpFunc()(c, args)
-				log.Fatalf("please provide exactly one of --policy-file or --namespace")
+				log.Fatal("please provide exactly one of --policy-file or --namespace")
 			}
 
 			restConfig, err := clientConfig.ClientConfig()
@@ -264,12 +264,12 @@ argocd admin settings rbac validate --namespace argocd
 
 			if len(args) > 0 {
 				c.HelpFunc()(c, args)
-				log.Fatalf("too many arguments")
+				log.Fatal("too many arguments")
 			}
 
 			if (namespace == "" && policyFile == "") || (namespace != "" && policyFile != "") {
 				c.HelpFunc()(c, args)
-				log.Fatalf("please provide exactly one of --policy-file or --namespace")
+				log.Fatal("please provide exactly one of --policy-file or --namespace")
 			}
 
 			restConfig, err := clientConfig.ClientConfig()
@@ -284,13 +284,13 @@ argocd admin settings rbac validate --namespace argocd
 			userPolicy, _, _ := getPolicy(ctx, policyFile, realClientset, namespace)
 			if userPolicy != "" {
 				if err := rbac.ValidatePolicy(userPolicy); err == nil {
-					fmt.Printf("Policy is valid.\n")
+					fmt.Print("Policy is valid.\n")
 					os.Exit(0)
 				}
 				fmt.Printf("Policy is invalid: %v\n", err)
 				os.Exit(1)
 			}
-			log.Fatalf("Policy is empty or could not be loaded.")
+			log.Fatal("Policy is empty or could not be loaded.")
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
