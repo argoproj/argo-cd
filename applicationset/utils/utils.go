@@ -90,7 +90,7 @@ func ConvertYAMLToJSON(str string) (string, error) {
 
 // This function is in charge of searching all String fields of the object recursively and apply templating
 // thanks to https://gist.github.com/randallmlough/1fd78ec8a1034916ca52281e3b886dc7
-func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap map[string]any, useGoTemplate bool, goTemplateOptions []string) error {
+func (r *Render) deeplyReplaceWithFilter(destination, original reflect.Value, replaceMap map[string]any, useGoTemplate bool, goTemplateOptions []string, filter func(destination, original, parent reflect.Value, field reflect.StructField) (bool, error)) error {
 	switch original.Kind() {
 	// The first cases handle nested structures and translate them recursively
 	// If it is a pointer we need to unwrap and call once again
@@ -110,7 +110,7 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 			copyUnexported(destination, original)
 		}
 		// Unwrap the newly created pointer
-		if err := r.deeplyReplace(destination.Elem(), originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+		if err := r.deeplyReplaceWithFilter(destination.Elem(), originalValue, replaceMap, useGoTemplate, goTemplateOptions, filter); err != nil {
 			// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 			return err
 		}
@@ -131,7 +131,7 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 			reflectValue := reflect.New(reflectType)
 
 			copyValue := reflectValue.Elem()
-			if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+			if err := r.deeplyReplaceWithFilter(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions, filter); err != nil {
 				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
 			}
@@ -142,6 +142,16 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 	case reflect.Struct:
 		for i := 0; i < original.NumField(); i++ {
 			currentType := fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
+			if filter != nil {
+				matched, filterErr := filter(destination.Field(i), original.Field(i), original,
+					original.Type().Field(i))
+				if matched {
+					if filterErr != nil {
+						return filterErr
+					}
+					continue
+				}
+			}
 			// specific case time
 			if currentType == "time.Time" {
 				destination.Field(i).Set(original.Field(i))
@@ -158,7 +168,7 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 				}
 				jsonOriginal := reflect.ValueOf(&unmarshaled)
 				jsonCopy := reflect.New(jsonOriginal.Type()).Elem()
-				err = r.deeplyReplace(jsonCopy, jsonOriginal, replaceMap, useGoTemplate, goTemplateOptions)
+				err = r.deeplyReplaceWithFilter(jsonCopy, jsonOriginal, replaceMap, useGoTemplate, goTemplateOptions, filter)
 				if err != nil {
 					return fmt.Errorf("failed to deeply replace JSON field contents: %w", err)
 				}
@@ -168,7 +178,7 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 					return fmt.Errorf("failed to marshal templated JSON field: %w", err)
 				}
 				destination.Field(i).Set(reflect.ValueOf(data))
-			} else if err := r.deeplyReplace(destination.Field(i), original.Field(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+			} else if err := r.deeplyReplaceWithFilter(destination.Field(i), original.Field(i), replaceMap, useGoTemplate, goTemplateOptions, filter); err != nil {
 				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
 			}
@@ -183,7 +193,7 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 		}
 
 		for i := 0; i < original.Len(); i++ {
-			if err := r.deeplyReplace(destination.Index(i), original.Index(i), replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+			if err := r.deeplyReplaceWithFilter(destination.Index(i), original.Index(i), replaceMap, useGoTemplate, goTemplateOptions, filter); err != nil {
 				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
 			}
@@ -204,7 +214,7 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 			// New gives us a pointer, but again we want the value
 			copyValue := reflect.New(originalValue.Type()).Elem()
 
-			if err := r.deeplyReplace(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions); err != nil {
+			if err := r.deeplyReplaceWithFilter(copyValue, originalValue, replaceMap, useGoTemplate, goTemplateOptions, filter); err != nil {
 				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err
 			}
@@ -249,6 +259,10 @@ func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap m
 	return nil
 }
 
+func (r *Render) deeplyReplace(destination, original reflect.Value, replaceMap map[string]any, useGoTemplate bool, goTemplateOptions []string) error {
+	return r.deeplyReplaceWithFilter(destination, original, replaceMap, useGoTemplate, goTemplateOptions, nil)
+}
+
 // isNillable returns true if the value is something which may be set to nil. This function is meant to guard against a
 // panic from calling IsNil on a non-pointer type.
 func isNillable(v reflect.Value) bool {
@@ -290,6 +304,27 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	return replacedTmpl, nil
 }
 
+// Generator types that have Value field
+var filteredGeneratorTypes = getFilteredGeneratorTypes()
+
+// find generator types that have Values field
+func getFilteredGeneratorTypes() map[string]bool {
+	result := map[string]bool{}
+	t := reflect.TypeFor[argoappsv1.ApplicationSetGenerator]()
+	for field := range t.Fields() {
+		genPtrType := field.Type
+		if genPtrType.Kind() == reflect.Ptr && strings.HasSuffix(genPtrType.String(), "Generator") {
+			genType := genPtrType.Elem()
+			for field := range genType.Fields() {
+				if field.Name == "Values" && field.Type.String() == "map[string]string" {
+					result[genType.Name()] = true
+				}
+			}
+		}
+	}
+	return result
+}
+
 func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, params map[string]any, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.ApplicationSetGenerator, error) {
 	if gen == nil {
 		return nil, errors.New("generator is empty")
@@ -302,7 +337,17 @@ func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, 
 	original := reflect.ValueOf(gen)
 	destination := reflect.New(original.Type()).Elem()
 
-	if err := r.deeplyReplace(destination, original, params, useGoTemplate, goTemplateOptions); err != nil {
+	filter := func(destination, original, parent reflect.Value, field reflect.StructField) (bool, error) {
+		if field.Name == "Values" && field.Type.String() == "map[string]string" && filteredGeneratorTypes[parent.Type().Name()] {
+			if !destination.CanSet() {
+				return false, fmt.Errorf("cannot copy %s.Values, this cannot happen", parent.Type().Name())
+			}
+			destination.Set(original)
+			return true, nil
+		}
+		return false, nil
+	}
+	if err := r.deeplyReplaceWithFilter(destination, original, params, useGoTemplate, goTemplateOptions, filter); err != nil {
 		return nil, fmt.Errorf("failed to replace parameters in generator: %w", err)
 	}
 

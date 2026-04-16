@@ -17,10 +17,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/csaupgrade"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2/textlogger"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
@@ -112,6 +115,13 @@ func WithSkipHooks(skipHooks bool) SyncOpt {
 func WithPrune(prune bool) SyncOpt {
 	return func(ctx *syncContext) {
 		ctx.prune = prune
+	}
+}
+
+// WithDefaultPruneOption specifies the application level Prune option
+func WithDefaultPruneOption(defaultPruneOption *string) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.defaultPruneOption = defaultPruneOption
 	}
 }
 
@@ -311,6 +321,28 @@ func groupDiffResults(diffResultList *diff.DiffResultList) map[kubeutil.Resource
 	return modifiedResources
 }
 
+func objRequiresPruneConfirmation(obj *unstructured.Unstructured, defaultPruneOption *string) bool {
+	var pruneOptionValue *string
+	if obj != nil {
+		pruneOptionValue = resourceutil.GetAnnotationOptionValue(obj, common.AnnotationSyncOptions, common.SyncOptionPrune)
+	}
+	if pruneOptionValue == nil {
+		pruneOptionValue = defaultPruneOption
+	}
+	return pruneOptionValue != nil && *pruneOptionValue == common.SyncValueConfirm
+}
+
+func isPruningDisabled(obj *unstructured.Unstructured, defaultPruneOption *string) bool {
+	var pruneOptionValue *string
+	if obj != nil {
+		pruneOptionValue = resourceutil.GetAnnotationOptionValue(obj, common.AnnotationSyncOptions, common.SyncOptionPrune)
+	}
+	if pruneOptionValue == nil {
+		pruneOptionValue = defaultPruneOption
+	}
+	return pruneOptionValue != nil && *pruneOptionValue == common.SyncValueFalse
+}
+
 const (
 	crdReadinessTimeout = time.Duration(3) * time.Second
 )
@@ -367,6 +399,7 @@ type syncContext struct {
 	pruneLast                       bool
 	prunePropagationPolicy          *metav1.DeletionPropagation
 	pruneConfirmed                  bool
+	defaultPruneOption              *string
 	clientSideApplyMigrationManager string
 	enableClientSideApplyMigration  bool
 
@@ -422,9 +455,22 @@ func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) 
 	} else {
 		firstTask = resources[0]
 	}
+	nbAdditionalTask := tasks.Len() - 1
+
+	if !sc.pruneConfirmed {
+		tasksToPrune := tasks.Filter(func(task *syncTask) bool {
+			return task.isPrune() && objRequiresPruneConfirmation(task.liveObj, sc.defaultPruneOption)
+		})
+
+		if len(tasksToPrune) > 0 {
+			reason = "pruning confirmation of"
+			firstTask = tasksToPrune[0]
+			nbAdditionalTask = len(tasksToPrune) - 1
+		}
+	}
 
 	message := fmt.Sprintf("waiting for %s %s/%s/%s", reason, firstTask.group(), firstTask.kind(), firstTask.name())
-	if nbAdditionalTask := len(tasks) - 1; nbAdditionalTask > 0 {
+	if nbAdditionalTask > 0 {
 		message = fmt.Sprintf("%s and %d more %s", message, nbAdditionalTask, taskType)
 	}
 	sc.setOperationPhase(common.OperationRunning, message)
@@ -515,6 +561,22 @@ func (sc *syncContext) Sync() {
 	multiStep := tasks.multiStep()
 	runningTasks := tasks.Filter(func(t *syncTask) bool { return (multiStep || t.isHook()) && t.running() })
 	if runningTasks.Len() > 0 {
+		// check if any of the running task's resources are missing to prevent infinite loop of waiting for healthy
+		for _, task := range runningTasks {
+			if task.liveObj == nil {
+				liveObj, err := sc.getResource(task)
+				if err != nil && !apierrors.IsNotFound(err) {
+					sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("Failed to get live resource %v", err))
+					continue
+				}
+				if liveObj != nil {
+					continue
+				}
+
+				sc.setResourceResult(task, common.ResultCodeSyncFailed, common.OperationError, fmt.Sprintf("Resource %s/%s/%s is missing, it might have been deleted", task.group(), task.kind(), task.name()))
+			}
+		}
+
 		sc.setRunningPhase(runningTasks, false)
 		return
 	}
@@ -1214,7 +1276,9 @@ func (sc *syncContext) shouldUseServerSideApply(targetObj *unstructured.Unstruct
 }
 
 // needsClientSideApplyMigration checks if a resource has fields managed by the specified manager
-// that need to be migrated to the server-side apply manager
+// with operation "Update" (client-side apply) that need to be migrated to server-side apply.
+// Client-side apply uses operation "Update", while server-side apply uses operation "Apply".
+// We only migrate managers with "Update" operation to avoid re-migrating already-migrated managers.
 func (sc *syncContext) needsClientSideApplyMigration(liveObj *unstructured.Unstructured, fieldManager string) bool {
 	if liveObj == nil || fieldManager == "" {
 		return false
@@ -1226,7 +1290,9 @@ func (sc *syncContext) needsClientSideApplyMigration(liveObj *unstructured.Unstr
 	}
 
 	for _, field := range managedFields {
-		if field.Manager == fieldManager {
+		// Only consider managers with operation "Update" (client-side apply).
+		// Managers with operation "Apply" are already using server-side apply.
+		if field.Manager == fieldManager && field.Operation == metav1.ManagedFieldsOperationUpdate {
 			return true
 		}
 	}
@@ -1234,29 +1300,70 @@ func (sc *syncContext) needsClientSideApplyMigration(liveObj *unstructured.Unstr
 	return false
 }
 
-// performClientSideApplyMigration performs a client-side-apply using the specified field manager.
-// This moves the 'last-applied-configuration' field to be managed by the specified manager.
-// The next time server-side apply is performed, kubernetes automatically migrates all fields from the manager
-// that owns 'last-applied-configuration' to the manager that uses server-side apply. This will remove the
-// specified manager from the resources managed fields. 'kubectl-client-side-apply' is used as the default manager.
-func (sc *syncContext) performClientSideApplyMigration(targetObj *unstructured.Unstructured, fieldManager string) error {
-	sc.log.WithValues("resource", kubeutil.GetResourceKey(targetObj)).V(1).Info("Performing client-side apply migration step")
+// performCSAUpgradeMigration uses the csaupgrade package to migrate managed fields
+// from a client-side apply manager (operation: Update) to the server-side apply manager.
+// This directly patches the managedFields to transfer field ownership, avoiding the need
+// to write the last-applied-configuration annotation (which has a 262KB size limit).
+// This is the primary method for CSA to SSA migration in ArgoCD.
+func (sc *syncContext) performCSAUpgradeMigration(liveObj *unstructured.Unstructured, csaFieldManager string) error {
+	sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).V(1).Info(
+		"Performing csaupgrade-based migration")
 
-	// Apply with the specified manager to set up the migration
-	_, err := sc.resourceOps.ApplyResource(
-		context.TODO(),
-		targetObj,
-		cmdutil.DryRunNone,
-		false,
-		false,
-		false,
-		fieldManager,
-	)
+	// Get the dynamic resource interface for the live object
+	gvk := liveObj.GroupVersionKind()
+	apiResource, err := kubeutil.ServerResourceForGroupVersionKind(sc.disco, gvk, "patch")
 	if err != nil {
-		return fmt.Errorf("failed to perform client-side apply migration on manager %s: %w", fieldManager, err)
+		return fmt.Errorf("failed to get api resource for %s: %w", gvk, err)
 	}
+	res := kubeutil.ToGroupVersionResource(gvk.GroupVersion().String(), apiResource)
+	resIf := kubeutil.ToResourceInterface(sc.dynamicIf, apiResource, res, liveObj.GetNamespace())
 
-	return nil
+	// Use retry to handle conflicts if managed fields changed between reconciliation and now
+	//nolint:wrapcheck // error is wrapped inside the retry function
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Fetch fresh object to get current managed fields state
+		freshObj, getErr := resIf.Get(context.TODO(), liveObj.GetName(), metav1.GetOptions{})
+		if getErr != nil {
+			return fmt.Errorf("failed to get fresh object for CSA migration: %w", getErr)
+		}
+
+		// Check if migration is still needed with fresh state
+		if !sc.needsClientSideApplyMigration(freshObj, csaFieldManager) {
+			sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).V(1).Info(
+				"CSA migration no longer needed")
+			return nil
+		}
+
+		// Generate the migration patch using the csaupgrade package
+		// This unions the CSA manager's fields into the SSA manager and removes the CSA manager entry
+		patchData, patchErr := csaupgrade.UpgradeManagedFieldsPatch(
+			freshObj,
+			sets.New(csaFieldManager),
+			sc.serverSideApplyManager,
+		)
+		if patchErr != nil {
+			return fmt.Errorf("failed to generate csaupgrade migration patch: %w", patchErr)
+		}
+		if patchData == nil {
+			// No migration needed
+			return nil
+		}
+
+		// Apply the migration patch to transfer field ownership.
+		_, patchErr = resIf.Patch(context.TODO(), liveObj.GetName(), types.JSONPatchType, patchData, metav1.PatchOptions{})
+		if patchErr != nil {
+			if apierrors.IsConflict(patchErr) {
+				sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).V(1).Info(
+					"Retrying CSA migration due to conflict")
+			}
+			// Return the error unmodified so RetryOnConflict can identify conflicts correctly.
+			return patchErr
+		}
+
+		sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).V(1).Info(
+			"Successfully migrated managed fields using csaupgrade")
+		return nil
+	})
 }
 
 func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.ResultCode, string) {
@@ -1277,11 +1384,14 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 	serverSideApply := sc.shouldUseServerSideApply(t.targetObj, dryRun)
 
 	// Check if we need to perform client-side apply migration for server-side apply
+	// Perform client-side apply migration for server-side apply
+	// This uses csaupgrade to directly patch managedFields, transferring ownership
+	// from CSA managers (operation: Update) to the SSA manager (argocd-controller)
 	if serverSideApply && !dryRun && sc.enableClientSideApplyMigration {
 		if sc.needsClientSideApplyMigration(t.liveObj, sc.clientSideApplyMigrationManager) {
-			err = sc.performClientSideApplyMigration(t.targetObj, sc.clientSideApplyMigrationManager)
+			err = sc.performCSAUpgradeMigration(t.liveObj, sc.clientSideApplyMigrationManager)
 			if err != nil {
-				return common.ResultCodeSyncFailed, fmt.Sprintf("Failed to perform client-side apply migration: %v", err)
+				return common.ResultCodeSyncFailed, fmt.Sprintf("Failed to perform client-side apply migration for %s: %v", kubeutil.GetResourceKey(t.liveObj), err)
 			}
 		}
 	}
@@ -1325,7 +1435,7 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 func (sc *syncContext) pruneObject(liveObj *unstructured.Unstructured, prune, dryRun bool) (common.ResultCode, string) {
 	if !prune {
 		return common.ResultCodePruneSkipped, "ignored (requires pruning)"
-	} else if resourceutil.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, common.SyncOptionDisablePrune) {
+	} else if isPruningDisabled(liveObj, sc.defaultPruneOption) {
 		return common.ResultCodePruneSkipped, "ignored (no prune)"
 	}
 	if dryRun {
@@ -1487,20 +1597,11 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 	// prune first
 	{
 		if !sc.pruneConfirmed {
-			var resources []string
 			for _, task := range pruneTasks {
-				if resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm) {
-					resources = append(resources, fmt.Sprintf("%s/%s/%s", task.obj().GetAPIVersion(), task.obj().GetKind(), task.name()))
+				if objRequiresPruneConfirmation(task.liveObj, sc.defaultPruneOption) {
+					sc.log.WithValues("task", task).Info("Prune requires confirmation")
+					return pending
 				}
-			}
-			if len(resources) > 0 {
-				sc.log.WithValues("resources", resources).Info("Prune requires confirmation")
-				andMessage := ""
-				if len(resources) > 1 {
-					andMessage = fmt.Sprintf(" and %d more resources", len(resources)-1)
-				}
-				sc.message = fmt.Sprintf("Waiting for pruning confirmation of %s%s", resources[0], andMessage)
-				return pending
 			}
 		}
 

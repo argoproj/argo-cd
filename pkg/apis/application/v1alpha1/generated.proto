@@ -459,6 +459,21 @@ message ApplicationSetTree {
   repeated ResourceNode nodes = 1;
 }
 
+// ApplicationSetWatchEvent contains information about application change.
+message ApplicationSetWatchEvent {
+  // Type represents the Kubernetes watch event type. The protobuf tag uses
+  // casttype to ensure the generated Go code keeps this field as
+  // watch.EventType (a strong Go type) instead of falling back to a plain string
+  optional string type = 1;
+
+  // ApplicationSet is:
+  //  * If Type is Added or Modified: the new state of the object.
+  //  * If Type is Deleted: the state of the object immediately before deletion.
+  //  * If Type is Error: *api.Status is recommended; other types may make sense
+  //    depending on context
+  optional ApplicationSet applicationSet = 2;
+}
+
 // ApplicationSource contains all required information about the source of an application
 message ApplicationSource {
   // RepoURL is the URL to the repository (Git or Helm) that contains the application manifests
@@ -575,10 +590,10 @@ message ApplicationSourceJsonnet {
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 message ApplicationSourceKustomize {
-  // NamePrefix is a prefix appended to resources for Kustomize apps
+  // NamePrefix overrides the namePrefix in the kustomization.yaml for Kustomize apps
   optional string namePrefix = 1;
 
-  // NameSuffix is a suffix appended to resources for Kustomize apps
+  // NameSuffix overrides the nameSuffix in the kustomization.yaml for Kustomize apps
   optional string nameSuffix = 2;
 
   // Images is a list of Kustomize image override specifications
@@ -1953,6 +1968,11 @@ message Repository {
 
   // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
   optional int64 depth = 27;
+
+  // WebhookManifestCacheWarmDisabled disables manifest cache warming during webhook processing for this repository.
+  // When set, webhook handlers will only trigger reconciliation for affected applications and skip Redis cache
+  // operations for unaffected ones. Recommended for large monorepos with plain YAML manifests.
+  optional bool webhookManifestCacheWarmDisabled = 28;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

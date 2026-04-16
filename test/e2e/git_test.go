@@ -129,7 +129,7 @@ func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 		// Create Application targeting annotated-tag, with automatedSync: true
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source.TargetRevision = "annotated-tag"
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: true, SelfHeal: false}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: new(true), SelfHeal: new(false)}}
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -164,10 +164,9 @@ func TestAutomatedSelfHealingAgainstAnnotatedTag(t *testing.T) {
 		// App should be auto-synced once created
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source.TargetRevision = "annotated-tag"
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: true, SelfHeal: false}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: new(true), SelfHeal: new(false)}}
 		}).
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		ExpectConsistently(SyncStatusIs(SyncStatusCodeSynced), WaitDuration, time.Second*10).
 		When().
 		// Update the annotated tag to a new git commit, that has a new revisionHistoryLimit.
@@ -217,10 +216,9 @@ func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
 		// App should be auto-synced once created
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source.TargetRevision = "annotated-tag"
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: true, SelfHeal: false}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: new(true), SelfHeal: new(false)}}
 		}).
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		ExpectConsistently(SyncStatusIs(SyncStatusCodeSynced), WaitDuration, time.Second*10).
 		When().
 		// Update the annotated tag to a new git commit, that has a new revisionHistoryLimit.

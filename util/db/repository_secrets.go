@@ -407,6 +407,12 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.Depth = depth
 
+	webhookManifestCacheWarmDisabled, err := boolOrFalse(secret, "webhookManifestCacheWarmDisabled")
+	if err != nil {
+		return repository, err
+	}
+	repository.WebhookManifestCacheWarmDisabled = webhookManifestCacheWarmDisabled
+
 	return repository, nil
 }
 
@@ -444,6 +450,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretBool(secretCopy, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	updateSecretBool(secretCopy, "useAzureWorkloadIdentity", repository.UseAzureWorkloadIdentity)
 	updateSecretInt(secretCopy, "depth", repository.Depth)
+	updateSecretBool(secretCopy, "webhookManifestCacheWarmDisabled", repository.WebhookManifestCacheWarmDisabled)
 	addSecretMetadata(secretCopy, s.getSecretType())
 
 	return secretCopy
@@ -546,23 +553,25 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, 
 
 	var foundSecret *corev1.Secret
 	for _, secret := range secrets {
-		if git.SameURL(string(secret.Data["url"]), repoURL) {
-			projectSecret := string(secret.Data["project"])
-			if project == projectSecret {
-				if foundSecret != nil {
-					log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
-				}
+		if !git.SameURL(string(secret.Data["url"]), repoURL) {
+			continue
+		}
 
-				return secret, nil
+		projectSecret := string(secret.Data["project"])
+		if project == projectSecret {
+			if foundSecret != nil {
+				log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
 			}
 
-			if projectSecret == "" && allowFallback {
-				if foundSecret != nil {
-					log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
-				}
+			return secret, nil
+		}
 
-				foundSecret = secret
+		if projectSecret == "" && allowFallback {
+			if foundSecret != nil {
+				log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
 			}
+
+			foundSecret = secret
 		}
 	}
 

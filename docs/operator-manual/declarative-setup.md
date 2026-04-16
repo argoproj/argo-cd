@@ -595,6 +595,49 @@ stringData:
     }
 ```
 
+### Skipping Cluster Reconciliation
+
+You can prevent the application controller from reconciling all apps targeting a cluster by annotating its
+secret with `argocd.argoproj.io/skip-reconcile: "true"`. This uses the same annotation as
+[Skip Application Reconcile](../user-guide/skip_reconcile.md), but applied at the cluster level.
+
+The cluster remains visible in API responses (`argocd cluster list`), but the controller treats it as unmanaged.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+type: Opaque
+stringData:
+  name: mycluster.example.com
+  server: https://mycluster.example.com
+  config: |
+    {
+      "bearerToken": "<authentication token>",
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }
+    }
+```
+
+To skip an existing cluster:
+
+```bash
+kubectl -n argocd annotate secret mycluster-secret argocd.argoproj.io/skip-reconcile=true
+```
+
+To resume reconciliation:
+
+```bash
+kubectl -n argocd annotate secret mycluster-secret argocd.argoproj.io/skip-reconcile-
+```
+
 ### EKS
 
 EKS cluster secret example using argocd-k8s-auth and [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) and [Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html):
@@ -1099,7 +1142,8 @@ Azure cluster secret example using argocd-k8s-auth and [kubelogin](https://githu
 |AZURE_AUTHORITY_HOST|Used in the WorkloadIdentityLogin flow|
 |AZURE_FEDERATED_TOKEN_FILE|Used in the WorkloadIdentityLogin flow|
 
-In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [here](https://github.com/azure/kubelogin#exec-plugin-format) for details.
+In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [Exec Plugin
+](https://github.com/Azure/kubelogin/blob/main/docs/book/src/concepts/exec-plugin.md) for details.
 
 |Variable Name|Description|
 |-------------|-----------|

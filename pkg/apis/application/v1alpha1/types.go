@@ -431,6 +431,10 @@ func (s SourceHydrator) GetDrySource() ApplicationSource {
 		RepoURL:        s.DrySource.RepoURL,
 		Path:           s.DrySource.Path,
 		TargetRevision: s.DrySource.TargetRevision,
+		Helm:           s.DrySource.Helm,
+		Kustomize:      s.DrySource.Kustomize,
+		Directory:      s.DrySource.Directory,
+		Plugin:         s.DrySource.Plugin,
 	}
 }
 
@@ -685,9 +689,9 @@ func (images KustomizeImages) Find(image KustomizeImage) int {
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 type ApplicationSourceKustomize struct {
-	// NamePrefix is a prefix appended to resources for Kustomize apps
+	// NamePrefix overrides the namePrefix in the kustomization.yaml for Kustomize apps
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
-	// NameSuffix is a suffix appended to resources for Kustomize apps
+	// NameSuffix overrides the nameSuffix in the kustomization.yaml for Kustomize apps
 	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
 	// Images is a list of Kustomize image override specifications
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
@@ -1461,6 +1465,18 @@ func (o SyncOptions) HasOption(option string) bool {
 	return slices.Contains(o, option)
 }
 
+// GetOptionValue returns true if the list of sync options contains given option
+// This function only support options that are defined as key=value and not standalone.
+func (o SyncOptions) GetOptionValue(optionKey string) *string {
+	prefix := optionKey + "="
+	for _, i := range o {
+		if val, found := strings.CutPrefix(i, prefix); found {
+			return new(val)
+		}
+	}
+	return nil
+}
+
 type ManagedNamespaceMetadata struct {
 	Labels      map[string]string `json:"labels,omitempty" protobuf:"bytes,1,opt,name=labels"`
 	Annotations map[string]string `json:"annotations,omitempty" protobuf:"bytes,2,opt,name=annotations"`
@@ -1559,13 +1575,37 @@ type Backoff struct {
 // SyncPolicyAutomated controls the behavior of an automated sync
 type SyncPolicyAutomated struct {
 	// Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
-	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
+	Prune *bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
 	// SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)
-	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
+	SelfHeal *bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
-	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
+	AllowEmpty *bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 	// Enable allows apps to explicitly control automated sync
 	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enabled"`
+}
+
+// GetPrune returns the value of Prune, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetPrune() bool {
+	if a == nil || a.Prune == nil {
+		return false
+	}
+	return *a.Prune
+}
+
+// GetSelfHeal returns the value of SelfHeal, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetSelfHeal() bool {
+	if a == nil || a.SelfHeal == nil {
+		return false
+	}
+	return *a.SelfHeal
+}
+
+// GetAllowEmpty returns the value of AllowEmpty, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetAllowEmpty() bool {
+	if a == nil || a.AllowEmpty == nil {
+		return false
+	}
+	return *a.AllowEmpty
 }
 
 // SyncStrategy controls the manner in which a sync is performed
@@ -2273,7 +2313,7 @@ type Cluster struct {
 	// The embedded metav1.ObjectMeta field is purely here to please the informer when converting from a v1.Secret to a Cluster.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
-	metav1.ObjectMeta `json:"-,omitempty"`
+	metav1.ObjectMeta `json:"-"`
 }
 
 func (c *Cluster) Sanitized() *Cluster {

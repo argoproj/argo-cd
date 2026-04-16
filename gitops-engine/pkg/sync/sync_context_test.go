@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -111,6 +112,17 @@ func TestSyncNamespaceCreatedBeforeDryRunWithoutFailure(t *testing.T) {
 		Live:   []*unstructured.Unstructured{nil, nil},
 		Target: []*unstructured.Unstructured{pod},
 	})
+
+	ns := &unstructured.Unstructured{}
+	ns.SetGroupVersionKind(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"})
+	ns.SetName(testingutils.FakeArgoCDNamespace)
+
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
+	fakeDynamicClient.PrependReactor("get", "namespaces", func(action testcore.Action) (bool, runtime.Object, error) {
+		return true, ns, nil
+	})
+	syncCtx.dynamicIf = fakeDynamicClient
+
 	syncCtx.Sync()
 	phase, msg, resources := syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationRunning, phase)
@@ -348,6 +360,102 @@ func TestSyncSuccessfully_Multistep(t *testing.T) {
 	assert.Len(t, resources, 2)
 }
 
+func TestSync_MultistepResourceDeletionMidstep(t *testing.T) {
+	pod1 := testingutils.NewPod()
+	pod1.SetName("pod-1")
+	pod1.SetNamespace("fake-argocd-ns")
+	pod1.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "1"})
+	pod2 := testingutils.NewPod()
+	pod2.SetName("pod-2")
+	pod2.SetNamespace("fake-argocd-ns")
+	pod2.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "2"})
+
+	tests := []struct {
+		name              string
+		resourcesStart    map[kube.ResourceKey]reconciledResource
+		resourcesChange   map[kube.ResourceKey]reconciledResource
+		statusExpected    synccommon.ResultCode
+		hookPhaseExpected synccommon.OperationPhase
+		clientGet         bool
+	}{
+		{
+			name: "resource deleted during multistep",
+			resourcesStart: groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{pod1, pod2},
+				Target: []*unstructured.Unstructured{pod1, pod2},
+			}),
+			resourcesChange: groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{nil, pod2},
+				Target: []*unstructured.Unstructured{pod1, pod2},
+			}),
+			statusExpected:    synccommon.ResultCodeSyncFailed,
+			hookPhaseExpected: synccommon.OperationError,
+			clientGet:         false,
+		},
+		{
+			name: "no false positive on resource creation",
+			resourcesStart: groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{nil, pod2},
+				Target: []*unstructured.Unstructured{pod1, pod2},
+			}),
+			resourcesChange: groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{pod1, pod2},
+				Target: []*unstructured.Unstructured{pod1, pod2},
+			}),
+			statusExpected:    synccommon.ResultCodeSynced,
+			hookPhaseExpected: synccommon.OperationRunning,
+			clientGet:         false,
+		},
+		{
+			name: "resource created after task sync started",
+			resourcesStart: groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{nil, pod2},
+				Target: []*unstructured.Unstructured{pod1, pod2},
+			}),
+			resourcesChange: groupResources(ReconciliationResult{
+				Live:   []*unstructured.Unstructured{nil, pod2},
+				Target: []*unstructured.Unstructured{pod1, pod2},
+			}),
+			statusExpected:    synccommon.ResultCodeSynced,
+			hookPhaseExpected: synccommon.OperationRunning,
+			clientGet:         true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			syncCtx := newTestSyncCtx(nil, WithResourceModificationChecker(true, diffResultList()))
+			syncCtx.resources = tt.resourcesStart
+
+			fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
+			if tt.clientGet {
+				fakeDynamicClient.PrependReactor("get", "pods", func(action testcore.Action) (bool, runtime.Object, error) {
+					return true, pod1, nil
+				})
+			}
+			syncCtx.dynamicIf = fakeDynamicClient
+
+			syncCtx.Sync()
+			phase, _, resources := syncCtx.GetState()
+			assert.Len(t, resources, 1)
+			assert.Equal(t, "pod-1", resources[0].ResourceKey.Name)
+			assert.Equal(t, synccommon.OperationRunning, phase)
+			assert.Equal(t, synccommon.ResultCodeSynced, resources[0].Status)
+			assert.Equal(t, synccommon.OperationRunning, resources[0].HookPhase)
+
+			syncCtx.resources = tt.resourcesChange
+
+			syncCtx.Sync()
+			phase, _, resources = syncCtx.GetState()
+			assert.Equal(t, synccommon.OperationRunning, phase)
+			assert.Len(t, resources, 1)
+			assert.Equal(t, "pod-1", resources[0].ResourceKey.Name)
+			assert.Equal(t, tt.statusExpected, resources[0].Status)
+			assert.Equal(t, tt.hookPhaseExpected, resources[0].HookPhase)
+		})
+	}
+}
+
 func TestSyncDeleteSuccessfully(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
 	svc := testingutils.NewService()
@@ -513,6 +621,12 @@ func TestSync_ApplyOutOfSyncOnly(t *testing.T) {
 			Live:   []*unstructured.Unstructured{nil, pod2, pod3},
 			Target: []*unstructured.Unstructured{pod1, nil, pod3},
 		})
+
+		fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
+		fakeDynamicClient.PrependReactor("get", "pods", func(action testcore.Action) (bool, runtime.Object, error) {
+			return true, pod1, nil
+		})
+		syncCtx.dynamicIf = fakeDynamicClient
 
 		syncCtx.Sync()
 		phase, _, resources := syncCtx.GetState()
@@ -825,11 +939,10 @@ func TestDoNotSyncOrPruneHooks(t *testing.T) {
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
 }
 
-// make sure that we do not prune resources with Prune=false
-func TestDoNotPrunePruneFalse(t *testing.T) {
+func TestDoNotPruneAppLevelPruneFalse(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
 	pod := testingutils.NewPod()
-	pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=false"})
+	syncCtx.defaultPruneOption = new("false")
 	pod.SetNamespace(testingutils.FakeArgoCDNamespace)
 	syncCtx.resources = groupResources(ReconciliationResult{
 		Live:   []*unstructured.Unstructured{pod},
@@ -848,6 +961,93 @@ func TestDoNotPrunePruneFalse(t *testing.T) {
 
 	phase, _, _ = syncCtx.GetState()
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
+}
+
+func TestDoNotPruneResourceLevelPruneFalse(t *testing.T) {
+	// Check that the defaultPruneOption does not override the resource level Prune=false annotation
+	for _, defaultPruneOption := range []*string{nil, new("true"), new("false")} {
+		syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
+		pod := testingutils.NewPod()
+
+		pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=false"})
+
+		pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{pod},
+			Target: []*unstructured.Unstructured{nil},
+		})
+		t.Run(fmt.Sprintf("Check resource level override defaultPruneOption=%v", defaultPruneOption), func(t *testing.T) {
+			syncCtx.defaultPruneOption = defaultPruneOption
+			syncCtx.Sync()
+			phase, _, resources := syncCtx.GetState()
+
+			assert.Equal(t, synccommon.OperationSucceeded, phase)
+			assert.Len(t, resources, 1)
+			assert.Equal(t, synccommon.ResultCodePruneSkipped, resources[0].Status)
+			assert.Equal(t, "ignored (no prune)", resources[0].Message)
+		})
+	}
+}
+
+func TestPruneConfirmResourceLevel(t *testing.T) {
+	// Check that the resource level Prune=confirm annotation overrides the defaultPruneOption
+	for _, defaultPruneOption := range []*string{nil, new("true"), new("false"), new("confirm")} {
+		syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
+		pod := testingutils.NewPod()
+		pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=confirm"})
+		pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+		syncCtx.resources = groupResources(ReconciliationResult{
+			Live:   []*unstructured.Unstructured{pod},
+			Target: []*unstructured.Unstructured{nil},
+		})
+
+		t.Run(fmt.Sprintf("Check resource level override defaultPruneOption=%v", defaultPruneOption), func(t *testing.T) {
+			syncCtx.defaultPruneOption = defaultPruneOption
+
+			syncCtx.Sync()
+			phase, msg, resources := syncCtx.GetState()
+
+			assert.Equal(t, synccommon.OperationRunning, phase)
+			assert.Empty(t, resources)
+			assert.Equal(t, "waiting for pruning confirmation of /Pod/my-pod", msg)
+
+			syncCtx.pruneConfirmed = true
+			syncCtx.Sync()
+
+			phase, _, resources = syncCtx.GetState()
+			assert.Equal(t, synccommon.OperationSucceeded, phase)
+			assert.Len(t, resources, 1)
+			assert.Equal(t, synccommon.ResultCodePruned, resources[0].Status)
+			assert.Equal(t, "pruned", resources[0].Message)
+		})
+	}
+}
+
+func TestPruneConfirmAppLevel(t *testing.T) {
+	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false))
+	pod := testingutils.NewPod()
+	syncCtx.defaultPruneOption = new("confirm")
+	pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{pod},
+		Target: []*unstructured.Unstructured{nil},
+	})
+
+	syncCtx.Sync()
+	phase, msg, resources := syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Empty(t, resources)
+	assert.Equal(t, "waiting for pruning confirmation of /Pod/my-pod", msg)
+
+	syncCtx.pruneConfirmed = true
+	syncCtx.Sync()
+
+	phase, _, resources = syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationSucceeded, phase)
+	assert.Len(t, resources, 1)
+	assert.Equal(t, synccommon.ResultCodePruned, resources[0].Status)
+	assert.Equal(t, "pruned", resources[0].Message)
 }
 
 // // make sure Validate=false means we don't validate
@@ -1903,6 +2103,9 @@ func TestSync_SyncWaveHook(t *testing.T) {
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{pod3}
 
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
+	syncCtx.dynamicIf = fakeDynamicClient
+
 	called := false
 	syncCtx.syncWaveHook = func(phase synccommon.SyncPhase, wave int, final bool) error {
 		called = true
@@ -2574,6 +2777,21 @@ func TestNeedsClientSideApplyMigration(t *testing.T) {
 			}(),
 			expected: true,
 		},
+		{
+			name: "CSA manager with Apply operation should not need migration",
+			liveObj: func() *unstructured.Unstructured {
+				obj := testingutils.NewPod()
+				obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+					{
+						Manager:   "kubectl-client-side-apply",
+						Operation: metav1.ManagedFieldsOperationApply,
+						FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:metadata":{"f:labels":{}}}`)},
+					},
+				})
+				return obj
+			}(),
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2582,6 +2800,129 @@ func TestNeedsClientSideApplyMigration(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestPerformCSAUpgradeMigration_NoMigrationNeeded(t *testing.T) {
+	// Create a fake dynamic client with a Pod scheme
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	// Object with only SSA manager (operation: Apply), no CSA manager (operation: Update)
+	obj := testingutils.NewPod()
+	obj.SetNamespace(testingutils.FakeArgoCDNamespace)
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+		{
+			Manager:   "argocd-controller",
+			Operation: metav1.ManagedFieldsOperationApply,
+			FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:spec":{"f:containers":{}}}`)},
+		},
+	})
+
+	// Create fake dynamic client with the object
+	dynamicClient := fake.NewSimpleDynamicClient(scheme, obj)
+
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.serverSideApplyManager = "argocd-controller"
+	syncCtx.dynamicIf = dynamicClient
+	syncCtx.disco = &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources},
+	}
+
+	// Should return nil (no error) because there's no CSA manager to migrate
+	err := syncCtx.performCSAUpgradeMigration(obj, "kubectl-client-side-apply")
+	assert.NoError(t, err)
+}
+
+func TestPerformCSAUpgradeMigration_WithCSAManager(t *testing.T) {
+	// Create a fake dynamic client with a Pod scheme
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	// Create the live object with a CSA manager (operation: Update)
+	obj := testingutils.NewPod()
+	obj.SetNamespace(testingutils.FakeArgoCDNamespace)
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+		{
+			Manager:   "kubectl-client-side-apply",
+			Operation: metav1.ManagedFieldsOperationUpdate,
+			FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:metadata":{"f:labels":{"f:app":{}}}}`)},
+		},
+	})
+
+	// Create fake dynamic client with the object
+	dynamicClient := fake.NewSimpleDynamicClient(scheme, obj)
+
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.serverSideApplyManager = "argocd-controller"
+	syncCtx.dynamicIf = dynamicClient
+	syncCtx.disco = &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources},
+	}
+
+	// Perform the migration
+	err := syncCtx.performCSAUpgradeMigration(obj, "kubectl-client-side-apply")
+	assert.NoError(t, err)
+
+	// Get the updated object from the fake client
+	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
+	updatedObj, err := dynamicClient.Resource(gvr).Namespace(obj.GetNamespace()).Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+	require.NoError(t, err)
+
+	// Verify the CSA manager (operation: Update) no longer exists
+	managedFields := updatedObj.GetManagedFields()
+	for _, mf := range managedFields {
+		if mf.Manager == "kubectl-client-side-apply" && mf.Operation == metav1.ManagedFieldsOperationUpdate {
+			t.Errorf("CSA manager 'kubectl-client-side-apply' with operation Update should have been removed, but still exists")
+		}
+	}
+}
+
+func TestPerformCSAUpgradeMigration_ConflictRetry(t *testing.T) {
+	// This test verifies that when a 409 Conflict occurs on the patch because
+	// another actor modified the object between Get and Patch, changing the resourceVersion,
+	// the retry.RetryOnConflict loop retries and eventually succeeds.
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	obj := testingutils.NewPod()
+	obj.SetNamespace(testingutils.FakeArgoCDNamespace)
+	obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+		{
+			Manager:   "kubectl-client-side-apply",
+			Operation: metav1.ManagedFieldsOperationUpdate,
+			FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:metadata":{"f:labels":{"f:app":{}}}}`)},
+		},
+	})
+
+	dynamicClient := fake.NewSimpleDynamicClient(scheme, obj)
+
+	// Simulate a conflict on the first patch attempt where another
+	// controller modified the object between our Get and Patch, bumping resourceVersion).
+	// The second attempt should succeed.
+	patchAttempt := 0
+	dynamicClient.PrependReactor("patch", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+		patchAttempt++
+		if patchAttempt == 1 {
+			// First attempt: simulate 409 Conflict (resourceVersion mismatch)
+			return true, nil, apierrors.NewConflict(
+				schema.GroupResource{Group: "", Resource: "pods"},
+				obj.GetName(),
+				errors.New("the object has been modified; please apply your changes to the latest version"),
+			)
+		}
+		return false, nil, nil
+	})
+
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.serverSideApplyManager = "argocd-controller"
+	syncCtx.dynamicIf = dynamicClient
+	syncCtx.disco = &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources},
+	}
+
+	err := syncCtx.performCSAUpgradeMigration(obj, "kubectl-client-side-apply")
+	assert.NoError(t, err, "Migration should succeed after retrying on conflict")
+	assert.Equal(t, 2, patchAttempt, "Expected exactly 2 patch attempts (1 conflict + 1 success)")
 }
 
 func diffResultListClusterResource() *diff.DiffResultList {

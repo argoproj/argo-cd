@@ -8,7 +8,7 @@ import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
 import {AppContext, Context, ContextApis} from '../../shared/context';
-import {isValidURL} from '../../shared/utils';
+import {isValidManagedByURL} from '../../shared/utils';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
@@ -17,6 +17,14 @@ import {services} from '../../shared/services';
 import {ApplicationSource} from '../../shared/models';
 
 require('./utils.scss');
+
+export {
+    MANAGED_BY_URL_INVALID_COLOR,
+    MANAGED_BY_URL_INVALID_TEXT,
+    MANAGED_BY_URL_INVALID_TOOLTIP,
+    managedByURLInvalidLabelStyle,
+    managedByURLInvalidLabelStyleCompact
+} from '../../shared/utils';
 
 export interface NodeId {
     kind: string;
@@ -924,27 +932,39 @@ export function renderResourceButtons(
     );
 }
 
+export function getSyncRevisionLabelSuffix(repoUrl: string, targetRevision: string, revision: string, chart?: string) {
+    if (!revision) {
+        return '';
+    }
+
+    if (chart) {
+        return revision;
+    }
+
+    if (revision.length >= 7 && !revision.startsWith(targetRevision)) {
+        if (repoUrl.startsWith('oci://')) {
+            // Show "sha256:" plus the first 7 actual characters of the digest.
+            if (revision.startsWith('sha256:')) {
+                return revision.substring(0, 14);
+            }
+            return revision.substring(0, 7);
+        }
+
+        return revision.substring(0, 7);
+    }
+
+    return '';
+}
+
 export function syncStatusMessage(app: appModels.Application) {
     const source = getAppDefaultSource(app);
     const revision = getAppDefaultSyncRevision(app);
     const rev = app.status.sync.revision || (source ? source.targetRevision || 'HEAD' : 'Unknown');
     let message = source ? source?.targetRevision || 'HEAD' : 'Unknown';
+    const suffix = revision && source ? getSyncRevisionLabelSuffix(source.repoURL, source.targetRevision, revision, source.chart) : '';
 
-    if (revision && source) {
-        if (source.chart) {
-            message += ' (' + revision + ')';
-        } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
-            if (source.repoURL.startsWith('oci://')) {
-                // Show "sha256: " plus the first 7 actual characters of the digest.
-                if (revision.startsWith('sha256:')) {
-                    message += ' (' + revision.substring(0, 14) + ')';
-                } else {
-                    message += ' (' + revision.substring(0, 7) + ')';
-                }
-            } else {
-                message += ' (' + revision.substring(0, 7) + ')';
-            }
-        }
+    if (suffix) {
+        message += ` (${suffix})`;
     }
 
     switch (app.status.sync.status) {
@@ -1479,6 +1499,34 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
     return {repoURL, targetRevision, path};
 }
 
+// getAppAllSources gets all app sources as an array. For single source apps, returns [source].
+// For multi-source apps, returns the sources array. For sourceHydrator apps, returns a single synthesized source.
+export function getAppAllSources(app?: appModels.Application): appModels.ApplicationSource[] {
+    if (!app) {
+        return [];
+    }
+
+    if (app.spec.sourceHydrator) {
+        return [
+            {
+                repoURL: app.spec.sourceHydrator.drySource.repoURL,
+                targetRevision: app.spec.sourceHydrator.syncSource.targetBranch,
+                path: app.spec.sourceHydrator.syncSource.path
+            } as appModels.ApplicationSource
+        ];
+    }
+
+    if (app.spec.sources && app.spec.sources.length > 0) {
+        return app.spec.sources;
+    }
+
+    if (app.spec.source) {
+        return [app.spec.source];
+    }
+
+    return [];
+}
+
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
 // field.
 export function getAppDefaultSyncRevision(app?: appModels.Application) {
@@ -1858,6 +1906,14 @@ export function getAppUrl(app: appModels.AbstractApplication): string {
     return `${basePath}/${app.metadata.namespace}/${app.metadata.name}`;
 }
 
+/** RollingSync step for display; backend uses -1 when no step matches the app's labels. */
+export function formatApplicationSetProgressiveSyncStep(step: string | undefined): string {
+    if (step === '-1') {
+        return 'Step: unmatched label';
+    }
+    return `Step: ${step ?? ''}`;
+}
+
 export const getProgressiveSyncStatusIcon = ({status, isButton}: {status: string; isButton?: boolean}) => {
     const getIconProps = () => {
         switch (status) {
@@ -1954,7 +2010,7 @@ export function getApplicationLinkURL(app: any, baseHref: string, node?: any): {
     let url, isExternal;
     if (managedByURL) {
         // Validate the managed-by URL using the same validation as external links
-        if (!isValidURL(managedByURL)) {
+        if (!isValidManagedByURL(managedByURL)) {
             // If URL is invalid, fall back to local URL for security
             console.warn(`Invalid managed-by URL for application ${app.metadata.name}: ${managedByURL}`);
             url = baseHref + 'applications/' + app.metadata.namespace + '/' + app.metadata.name;
@@ -1982,7 +2038,7 @@ export function getApplicationLinkURLFromNode(node: any, baseHref: string): {url
     let url, isExternal;
     if (managedByURL) {
         // Validate the managed-by URL using the same validation as external links
-        if (!isValidURL(managedByURL)) {
+        if (!isValidManagedByURL(managedByURL)) {
             // If URL is invalid, fall back to local URL for security
             console.warn(`Invalid managed-by URL for application ${node.name}: ${managedByURL}`);
             url = baseHref + 'applications/' + node.namespace + '/' + node.name;

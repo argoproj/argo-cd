@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/discovery"
@@ -65,7 +66,7 @@ type kubectlServerSideDiffDryRunApplier struct {
 	openAPISchema openapi.Resources
 }
 
-type commandExecutor func(ioStreams genericclioptions.IOStreams, fileName string) error
+type commandExecutor func(ioStreams genericiooptions.IOStreams, fileName string) error
 
 func maybeLogManifest(manifestBytes []byte, log logr.Logger) error {
 	// log manifest
@@ -111,7 +112,7 @@ func createManifestFile(obj *unstructured.Unstructured, log logr.Logger) (*os.Fi
 	return manifestFile, nil
 }
 
-func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, executor commandExecutor) (string, error) {
+func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj *unstructured.Unstructured, dryRunStrategy cmdutil.DryRunStrategy, reconcileRBAC bool, executor commandExecutor) (string, error) {
 	manifestFile, err := createManifestFile(obj, k.log)
 	if err != nil {
 		return "", err
@@ -120,7 +121,7 @@ func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj 
 
 	var out []string
 	// rbac resources are first applied with auth reconcile kubectl feature.
-	if obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
+	if reconcileRBAC && obj.GetAPIVersion() == "rbac.authorization.k8s.io/v1" {
 		outReconcile, err := k.rbacReconcile(ctx, obj, manifestFile.Name(), dryRunStrategy)
 		if err != nil {
 			return "", fmt.Errorf("error running rbacReconcile: %w", err)
@@ -131,7 +132,7 @@ func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj 
 	}
 
 	// Run kubectl apply
-	ioStreams := genericclioptions.IOStreams{
+	ioStreams := genericiooptions.IOStreams{
 		In:     &bytes.Buffer{},
 		Out:    &bytes.Buffer{},
 		ErrOut: &bytes.Buffer{},
@@ -160,7 +161,7 @@ func (k *kubectlServerSideDiffDryRunApplier) runResourceCommand(obj *unstructure
 	stderrBuf := &bytes.Buffer{}
 
 	// Run kubectl apply
-	ioStreams := genericclioptions.IOStreams{
+	ioStreams := genericiooptions.IOStreams{
 		In:     &bytes.Buffer{},
 		Out:    stdoutBuf,
 		ErrOut: stderrBuf,
@@ -226,7 +227,7 @@ func (k *kubectlResourceOperations) ReplaceResource(ctx context.Context, obj *un
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
 	k.log.Info(fmt.Sprintf("Replacing resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
-	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(ioStreams genericclioptions.IOStreams, fileName string) error {
+	return k.runResourceCommand(ctx, obj, dryRunStrategy, false, func(ioStreams genericiooptions.IOStreams, fileName string) error {
 		cleanup, err := processKubectlRun(k.onKubectlRun, "replace")
 		if err != nil {
 			return err
@@ -248,7 +249,7 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 	span.SetBaggageItem("kind", gvk.Kind)
 	span.SetBaggageItem("name", obj.GetName())
 	defer span.Finish()
-	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(ioStreams genericclioptions.IOStreams, fileName string) error {
+	return k.runResourceCommand(ctx, obj, dryRunStrategy, false, func(ioStreams genericiooptions.IOStreams, fileName string) error {
 		cleanup, err := processKubectlRun(k.onKubectlRun, "create")
 		if err != nil {
 			return err
@@ -313,7 +314,7 @@ func (k *kubectlServerSideDiffDryRunApplier) ApplyResource(_ context.Context, ob
 		"manager", manager,
 		"serverSideApply", serverSideApply).Info(fmt.Sprintf("Running server-side diff. Dry run applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
 
-	return k.runResourceCommand(obj, func(ioStreams genericclioptions.IOStreams, fileName string) error {
+	return k.runResourceCommand(obj, func(ioStreams genericiooptions.IOStreams, fileName string) error {
 		cleanup, err := processKubectlRun(k.onKubectlRun, "apply")
 		if err != nil {
 			return err
@@ -344,7 +345,7 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 		"serverSideApply", serverSideApply,
 		"serverSideDiff", true).Info(fmt.Sprintf("Applying resource %s/%s in cluster: %s, namespace: %s", obj.GetKind(), obj.GetName(), k.config.Host, obj.GetNamespace()))
 
-	return k.runResourceCommand(ctx, obj, dryRunStrategy, func(ioStreams genericclioptions.IOStreams, fileName string) error {
+	return k.runResourceCommand(ctx, obj, dryRunStrategy, true, func(ioStreams genericiooptions.IOStreams, fileName string) error {
 		cleanup, err := processKubectlRun(k.onKubectlRun, "apply")
 		if err != nil {
 			return err
@@ -359,7 +360,7 @@ func (k *kubectlResourceOperations) ApplyResource(ctx context.Context, obj *unst
 	})
 }
 
-func newApplyOptionsCommon(config *rest.Config, fact cmdutil.Factory, ioStreams genericclioptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
+func newApplyOptionsCommon(config *rest.Config, fact cmdutil.Factory, ioStreams genericiooptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
 	flags := apply.NewApplyFlags(ioStreams)
 	o := &apply.ApplyOptions{
 		IOStreams:         ioStreams,
@@ -407,7 +408,7 @@ func newApplyOptionsCommon(config *rest.Config, fact cmdutil.Factory, ioStreams 
 	return o, nil
 }
 
-func (k *kubectlServerSideDiffDryRunApplier) newApplyOptions(ioStreams genericclioptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
+func (k *kubectlServerSideDiffDryRunApplier) newApplyOptions(ioStreams genericiooptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
 	o, err := newApplyOptionsCommon(k.config, k.fact, ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager)
 	if err != nil {
 		return nil, err
@@ -436,7 +437,7 @@ func (k *kubectlServerSideDiffDryRunApplier) newApplyOptions(ioStreams genericcl
 	return o, nil
 }
 
-func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
+func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.IOStreams, obj *unstructured.Unstructured, fileName string, validate bool, force, serverSideApply bool, dryRunStrategy cmdutil.DryRunStrategy, manager string) (*apply.ApplyOptions, error) {
 	o, err := newApplyOptionsCommon(k.config, k.fact, ioStreams, obj, fileName, validate, force, serverSideApply, dryRunStrategy, manager)
 	if err != nil {
 		return nil, err
@@ -469,7 +470,7 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericclioptions.
 	return o, nil
 }
 
-func (k *kubectlResourceOperations) newCreateOptions(ioStreams genericclioptions.IOStreams, fileName string, dryRunStrategy cmdutil.DryRunStrategy) (*create.CreateOptions, error) {
+func (k *kubectlResourceOperations) newCreateOptions(ioStreams genericiooptions.IOStreams, fileName string, dryRunStrategy cmdutil.DryRunStrategy) (*create.CreateOptions, error) {
 	o := create.NewCreateOptions(ioStreams)
 
 	recorder, err := o.RecordFlags.ToRecorder()
@@ -507,7 +508,7 @@ func (k *kubectlResourceOperations) newCreateOptions(ioStreams genericclioptions
 	return o, nil
 }
 
-func (k *kubectlResourceOperations) newReplaceOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericclioptions.IOStreams, fileName string, namespace string, force bool, dryRunStrategy cmdutil.DryRunStrategy) (*replace.ReplaceOptions, error) {
+func (k *kubectlResourceOperations) newReplaceOptions(config *rest.Config, f cmdutil.Factory, ioStreams genericiooptions.IOStreams, fileName string, namespace string, force bool, dryRunStrategy cmdutil.DryRunStrategy) (*replace.ReplaceOptions, error) {
 	o := replace.NewReplaceOptions(ioStreams)
 
 	recorder, err := o.RecordFlags.ToRecorder()
@@ -565,7 +566,7 @@ func (k *kubectlResourceOperations) newReplaceOptions(config *rest.Config, f cmd
 	return o, nil
 }
 
-func newReconcileOptions(f cmdutil.Factory, kubeClient *kubernetes.Clientset, fileName string, ioStreams genericclioptions.IOStreams, namespace string, dryRunStrategy cmdutil.DryRunStrategy) (*auth.ReconcileOptions, error) {
+func newReconcileOptions(f cmdutil.Factory, kubeClient *kubernetes.Clientset, fileName string, ioStreams genericiooptions.IOStreams, namespace string, dryRunStrategy cmdutil.DryRunStrategy) (*auth.ReconcileOptions, error) {
 	o := auth.NewReconcileOptions(ioStreams)
 	o.RBACClient = kubeClient.RbacV1()
 	o.NamespaceClient = kubeClient.CoreV1()
@@ -603,17 +604,30 @@ func (k *kubectlResourceOperations) authReconcile(ctx context.Context, obj *unst
 	if err != nil {
 		return "", fmt.Errorf("error creating kube client: %w", err)
 	}
+
+	clusterScoped := obj.GetKind() == "ClusterRole" || obj.GetKind() == "ClusterRoleBinding"
+
 	// `kubectl auth reconcile` has a side effect of auto-creating namespaces if it doesn't exist.
 	// See: https://github.com/kubernetes/kubernetes/issues/71185. This is behavior which we do
 	// not want. We need to check if the namespace exists, before know if it is safe to run this
 	// command. Skip this for dryRuns.
-	if dryRunStrategy == cmdutil.DryRunNone && obj.GetNamespace() != "" {
+
+	// When an Argo CD Application specifies destination.namespace, that namespace
+	// may be propagated even for cluster-scoped resources. Passing a namespace in
+	// this case causes `kubectl auth reconcile` to fail with:
+	//   "namespaces <ns> not found"
+	// or may trigger unintended namespace handling behavior.
+	// Therefore, we skip namespace existence checks for cluster-scoped RBAC
+	// resources and allow reconcile to run without a namespace.
+	//
+	// https://github.com/argoproj/argo-cd/issues/24833
+	if dryRunStrategy == cmdutil.DryRunNone && obj.GetNamespace() != "" && !clusterScoped {
 		_, err = kubeClient.CoreV1().Namespaces().Get(ctx, obj.GetNamespace(), metav1.GetOptions{})
 		if err != nil {
 			return "", fmt.Errorf("error getting namespace %s: %w", obj.GetNamespace(), err)
 		}
 	}
-	ioStreams := genericclioptions.IOStreams{
+	ioStreams := genericiooptions.IOStreams{
 		In:     &bytes.Buffer{},
 		Out:    &bytes.Buffer{},
 		ErrOut: &bytes.Buffer{},

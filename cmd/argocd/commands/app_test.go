@@ -1,12 +1,15 @@
 package commands
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"slices"
 	"strings"
 	"testing"
@@ -440,7 +443,7 @@ func TestFormatSyncPolicy(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 			},
@@ -458,7 +461,7 @@ func TestFormatConditionSummary(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 			},
@@ -673,7 +676,7 @@ func TestPrintAppSummaryTable(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 				Project:     "default",
@@ -761,7 +764,7 @@ func TestPrintAppSummaryTable_MultipleSources(t *testing.T) {
 			Spec: v1alpha1.ApplicationSpec{
 				SyncPolicy: &v1alpha1.SyncPolicy{
 					Automated: &v1alpha1.SyncPolicyAutomated{
-						Prune: true,
+						Prune: new(true),
 					},
 				},
 				Project:     "default",
@@ -1045,6 +1048,39 @@ func TestPrintApplicationNames(t *testing.T) {
 	})
 	expectation := "test\ntest\n"
 	require.Equalf(t, output, expectation, "Incorrect print params output %q, should be %q", output, expectation)
+}
+
+func TestNewApplicationUnsetCommand_Validation(t *testing.T) {
+	if os.Getenv("BE_CRASHER") == "1" {
+		cmd := NewApplicationUnsetCommand(nil)
+		cmd.SetArgs([]string{"my-app", "--source-position", "1", "--source-name", "test"})
+		_ = cmd.Execute()
+	}
+
+	cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run=TestNewApplicationUnsetCommand_Validation")
+	cmd.Env = append(os.Environ(), "BE_CRASHER=1")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+
+	if e, ok := errors.AsType[*exec.ExitError](err); ok && !e.Success() {
+		assert.Contains(t, stderr.String(), "Only one of source-position and source-name can be specified.")
+		return
+	}
+	t.Fatalf("process ran with err %v, want exit status 1", err)
+}
+
+func TestNewApplicationUnsetCommand_Flags(t *testing.T) {
+	cmd := NewApplicationUnsetCommand(nil)
+	assert.NotNil(t, cmd)
+
+	flag := cmd.Flags().Lookup("source-name")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "source-name", flag.Name)
+
+	flag = cmd.Flags().Lookup("source-position")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "source-position", flag.Name)
 }
 
 func Test_unset(t *testing.T) {
@@ -2079,7 +2115,7 @@ func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.Applicat
 		Spec: v1alpha1.ApplicationSpec{
 			SyncPolicy: &v1alpha1.SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
-					Prune: true,
+					Prune: new(true),
 				},
 			},
 			Project:     "default",
@@ -2385,4 +2421,23 @@ func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _
 		appEventsCh <- deletedEvent
 	}()
 	return appEventsCh
+}
+
+func (c *fakeAcdClient) WatchApplicationSetWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationSetWatchEvent {
+	appSetEventsCh := make(chan *v1alpha1.ApplicationSetWatchEvent)
+	go func() {
+		defer close(appSetEventsCh)
+		addedEvent := &v1alpha1.ApplicationSetWatchEvent{
+			Type: watch.Added,
+			ApplicationSet: v1alpha1.ApplicationSet{
+				Status: v1alpha1.ApplicationSetStatus{
+					Conditions: []v1alpha1.ApplicationSetCondition{
+						{Type: v1alpha1.ApplicationSetConditionResourcesUpToDate, Status: v1alpha1.ApplicationSetConditionStatusTrue},
+					},
+				},
+			},
+		}
+		appSetEventsCh <- addedEvent
+	}()
+	return appSetEventsCh
 }

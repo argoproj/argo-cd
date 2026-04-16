@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -25,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
@@ -1661,7 +1661,7 @@ func TestUseDiffCache(t *testing.T) {
 				Namespace: namespace,
 			},
 			Spec: v1alpha1.ApplicationSpec{
-				Source: ptr.To(source()),
+				Source: new(source()),
 				Destination: v1alpha1.ApplicationDestination{
 					Server:    "https://kubernetes.default.svc",
 					Namespace: "httpbin",
@@ -2038,4 +2038,128 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T)
 	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "0.0.1", revisions, false, false, false, &defaultProj, false)
 	require.NoError(t, err)
 	require.False(t, revisionsMayHaveChanges)
+}
+
+func Test_GetRepoObjs_HydrateToAppPathNotExist(t *testing.T) {
+	t.Parallel()
+	t.Run("with hydrateTo: appends waiting message", func(t *testing.T) {
+		t.Parallel()
+
+		app := newFakeApp()
+		app.Spec.Source = nil
+		app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://github.com/example/repo",
+				TargetRevision: "main",
+				Path:           "apps/my-app",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "env/prod",
+				Path:         "env/prod/my-app",
+			},
+			HydrateTo: &v1alpha1.HydrateTo{
+				TargetBranch: "env/prod-next",
+			},
+		}
+
+		ctrl := newFakeController(t.Context(), &fakeData{manifestResponse: &apiclient.ManifestResponse{}}, errors.New("env/prod/my-app: app path does not exist"))
+		source := app.Spec.GetSource()
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, false, &defaultProj, false)
+		require.ErrorContains(t, err, "app path does not exist")
+		require.ErrorContains(t, err, "waiting for an external process to update env/prod from env/prod-next")
+	})
+	t.Run("without hydrateTo: no waiting message appended", func(t *testing.T) {
+		t.Parallel()
+
+		app := newFakeApp()
+		app.Spec.Source = nil
+		app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://github.com/example/repo",
+				TargetRevision: "main",
+				Path:           "apps/my-app",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "env/prod",
+				Path:         "env/prod/my-app",
+			},
+		}
+
+		ctrl := newFakeController(t.Context(), &fakeData{manifestResponse: &apiclient.ManifestResponse{}}, errors.New("env/prod/my-app: app path does not exist"))
+		source := app.Spec.GetSource()
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, false, &defaultProj, false)
+		require.ErrorContains(t, err, "app path does not exist")
+		require.NotContains(t, err.Error(), "waiting for an external process")
+	})
+}
+
+func Test_isObjRequiresDeletionConfirmation(t *testing.T) {
+	for _, tt := range []struct {
+		name                string
+		resourceSyncOptions []string
+		appSyncOptions      []string
+		expected            bool
+	}{
+		{
+			name:     "default",
+			expected: false,
+		},
+		{
+			name:                "confirm delete resource",
+			resourceSyncOptions: []string{"Delete=confirm"},
+			expected:            true,
+		},
+		{
+			name:           "confirm delete app",
+			appSyncOptions: []string{"Delete=confirm"},
+			expected:       true,
+		},
+		{
+			name:           "confirm prune resource",
+			appSyncOptions: []string{"Prune=confirm"},
+			expected:       true,
+		},
+		{
+			name:                "confirm app & resource delete",
+			appSyncOptions:      []string{"Delete=confirm"},
+			resourceSyncOptions: []string{"Delete=confirm"},
+			expected:            true,
+		},
+		{
+			name:                "confirm app & resource override",
+			appSyncOptions:      []string{"Delete=confirm"},
+			resourceSyncOptions: []string{"Delete=foo"},
+			expected:            false,
+		},
+		{
+			name:                "confirm app & resource mixed delete and prune",
+			appSyncOptions:      []string{"Prune=confirm"},
+			resourceSyncOptions: []string{"Delete=confirm"},
+			expected:            true,
+		},
+		{
+			name:                "override prune resource",
+			appSyncOptions:      []string{"Prune=confirm"},
+			resourceSyncOptions: []string{"Prune=foo"},
+			expected:            false,
+		},
+		{
+			name:                "override delete resource and additional delete confirm",
+			appSyncOptions:      []string{"Delete=confirm", "Prune=confirm"},
+			resourceSyncOptions: []string{"Delete=foo"},
+			expected:            true,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := NewPod()
+			obj.SetAnnotations(map[string]string{"argocd.argoproj.io/sync-options": strings.Join(tt.resourceSyncOptions, ",")})
+
+			app := newFakeApp()
+			app.Spec.SyncPolicy.SyncOptions = tt.appSyncOptions
+
+			require.Equal(t, tt.expected, isObjRequiresDeletionConfirmation(obj, app))
+		})
+	}
 }

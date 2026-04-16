@@ -4385,6 +4385,69 @@
         }
       }
     },
+    "/api/v1/stream/applicationsets": {
+      "get": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "operationId": "ApplicationSetService_Watch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "projects",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "selector",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appSetNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "when specified with a watch call, shows changes that occur after that particular version of a resource.",
+            "name": "resourceVersion",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "title": "Stream result of v1alpha1ApplicationSetWatchEvent",
+              "properties": {
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                },
+                "result": {
+                  "$ref": "#/definitions/v1alpha1ApplicationSetWatchEvent"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/write-repocreds": {
       "get": {
         "tags": [
@@ -7459,6 +7522,19 @@
         }
       }
     },
+    "v1alpha1ApplicationSetWatchEvent": {
+      "description": "ApplicationSetWatchEvent contains information about application change.",
+      "type": "object",
+      "properties": {
+        "applicationSet": {
+          "$ref": "#/definitions/v1alpha1ApplicationSet"
+        },
+        "type": {
+          "type": "string",
+          "title": "Type represents the Kubernetes watch event type. The protobuf tag uses\ncasttype to ensure the generated Go code keeps this field as\nwatch.EventType (a strong Go type) instead of falling back to a plain string"
+        }
+      }
+    },
     "v1alpha1ApplicationSource": {
       "type": "object",
       "title": "ApplicationSource contains all required information about the source of an application",
@@ -7695,11 +7771,11 @@
         },
         "namePrefix": {
           "type": "string",
-          "title": "NamePrefix is a prefix appended to resources for Kustomize apps"
+          "title": "NamePrefix overrides the namePrefix in the kustomization.yaml for Kustomize apps"
         },
         "nameSuffix": {
           "type": "string",
-          "title": "NameSuffix is a suffix appended to resources for Kustomize apps"
+          "title": "NameSuffix overrides the nameSuffix in the kustomization.yaml for Kustomize apps"
         },
         "namespace": {
           "type": "string",
@@ -9651,6 +9727,10 @@
         "username": {
           "type": "string",
           "title": "Username contains the user name used for authenticating at the remote repository"
+        },
+        "webhookManifestCacheWarmDisabled": {
+          "description": "WebhookManifestCacheWarmDisabled disables manifest cache warming during webhook processing for this repository.\nWhen set, webhook handlers will only trigger reconciliation for affected applications and skip Redis cache\noperations for unaffected ones. Recommended for large monorepos with plain YAML manifests.",
+          "type": "boolean"
         }
       }
     },
@@ -9756,7 +9836,7 @@
       "type": "object",
       "properties": {
         "diff": {
-          "description": "Diff contains the JSON patch representing the difference between the live and target resource.\nDeprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.",
+          "description": "Diff contains the JSON patch representing the difference between the live and target resource.\n\nDeprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.",
           "type": "string"
         },
         "group": {
