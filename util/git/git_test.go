@@ -22,6 +22,10 @@ func TestMain(m *testing.M) {
 	// Ensure tests use non-cached proxy callback
 	proxy.UseTestingProxyCallback()
 
+	cwd, _ := os.Getwd()
+	os.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	os.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(cwd, "testdata", "gitconfig"))
+
 	os.Exit(m.Run())
 }
 
@@ -328,7 +332,7 @@ func TestLFSClient(t *testing.T) {
 	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true, true)
 	require.NoError(t, err)
 
 	largeFiles, err := client.LsLargeFiles()
@@ -360,19 +364,28 @@ func TestVerifyCommitSignature(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	// Use shallow fetch to avoid timeout fetching the entire repo
+	err = client.Fetch("", 1)
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true, true)
+	require.NoError(t, err)
+
+	// Fetch the specific commits needed for signature verification
+	signedCommit := "28027897aad1262662096745f2ce2d4c74d02b7f"
+	unsignedCommit := "85d660f0b967960becce3d49bd51c678ba2a5d24"
+	err = client.Fetch(signedCommit, 1)
+	require.NoError(t, err)
+	err = client.Fetch(unsignedCommit, 1)
 	require.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
 	// It doesn't matter whether we know the key or not at this stage
 	{
-		out, err := client.VerifyCommitSignature("28027897aad1262662096745f2ce2d4c74d02b7f")
+		out, err := client.VerifyCommitSignature(signedCommit)
 		require.NoError(t, err)
 		assert.NotEmpty(t, out)
 		assert.Contains(t, out, "gpg: Signature made")
@@ -380,7 +393,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 
 	// 85d660f0b967960becce3d49bd51c678ba2a5d24 is a commit that is not signed
 	{
-		out, err := client.VerifyCommitSignature("85d660f0b967960becce3d49bd51c678ba2a5d24")
+		out, err := client.VerifyCommitSignature(unsignedCommit)
 		require.NoError(t, err)
 		assert.Empty(t, out)
 	}
@@ -423,7 +436,7 @@ func TestNewFactory(t *testing.T) {
 		err = client.Fetch("", 0)
 		require.NoError(t, err)
 
-		_, err = client.Checkout(commitSHA, true)
+		_, err = client.Checkout(commitSHA, true, true)
 		require.NoError(t, err)
 
 		revisionMetadata, err := client.RevisionMetadata(commitSHA)
@@ -721,4 +734,123 @@ func TestAnnotatedTagHandling(t *testing.T) {
 
 	// Verify tag exists in the list and points to a valid commit SHA
 	assert.Contains(t, refs.Tags, "v1.0.0", "Tag v1.0.0 should exist in refs")
+}
+
+func TestIsShortRef(t *testing.T) {
+	tests := []struct {
+		name     string
+		revision string
+		expected bool
+	}{
+		// Short refs (should return true)
+		{
+			name:     "short branch name",
+			revision: "master",
+			expected: true,
+		},
+		{
+			name:     "short branch name with slashes",
+			revision: "feature/my-feature",
+			expected: true,
+		},
+		{
+			name:     "short branch name with multiple slashes",
+			revision: "release/v1.0/bugfix",
+			expected: true,
+		},
+		{
+			name:     "short tag name",
+			revision: "v1.0.0",
+			expected: true,
+		},
+		{
+			name:     "short tag name without version prefix",
+			revision: "release-1.0",
+			expected: true,
+		},
+		{
+			name:     "simple branch name",
+			revision: "main",
+			expected: true,
+		},
+		{
+			name:     "branch with hyphens",
+			revision: "my-feature-branch",
+			expected: true,
+		},
+		{
+			name:     "branch with underscores",
+			revision: "my_feature_branch",
+			expected: true,
+		},
+		// Full refs (should return false)
+		{
+			name:     "full branch ref",
+			revision: "refs/heads/master",
+			expected: false,
+		},
+		{
+			name:     "full tag ref",
+			revision: "refs/tags/v1.0.0",
+			expected: false,
+		},
+		{
+			name:     "full remote branch ref",
+			revision: "refs/remotes/origin/master",
+			expected: false,
+		},
+		{
+			name:     "full branch ref with slashes in name",
+			revision: "refs/heads/feature/my-feature",
+			expected: false,
+		},
+		{
+			name:     "full tag ref with slashes in name",
+			revision: "refs/tags/release/v1.0.0",
+			expected: false,
+		},
+		{
+			name:     "full remote branch ref with slashes",
+			revision: "refs/remotes/origin/feature/branch",
+			expected: false,
+		},
+		{
+			name:     "full pull request ref",
+			revision: "refs/pull/123/head",
+			expected: false,
+		},
+		{
+			name:     "full notes ref",
+			revision: "refs/notes/commits",
+			expected: false,
+		},
+		// Special cases
+		{
+			name:     "HEAD",
+			revision: "HEAD",
+			expected: true,
+		},
+		{
+			name:     "commit SHA",
+			revision: "9d921f65f3c5373b682e2eb4b37afba6592e8f8b",
+			expected: true,
+		},
+		{
+			name:     "truncated commit SHA",
+			revision: "9d921f6",
+			expected: true,
+		},
+		{
+			name:     "empty string",
+			revision: "",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsShortRef(tt.revision)
+			assert.Equal(t, tt.expected, result, "IsShortRef(%q) = %v, expected %v", tt.revision, result, tt.expected)
+		})
+	}
 }

@@ -1,12 +1,6 @@
 # ApplicationSet in any namespace
 
 > [!WARNING]
-> **Beta Feature (Since v2.8.0)**
->
-> This feature is in the [Beta](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta) stage. 
-> It is generally considered stable, but there may be unhandled edge cases.
-
-> [!WARNING]
 > Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
 
 ## Introduction
@@ -230,7 +224,7 @@ p, somerole, applicationsets, get, foo/bar/*, allow
 
 ### Using the CLI
 
-You can use all existing Argo CD CLI commands for managing applications in other namespaces, exactly as you would use the CLI to manage applications in the control plane's namespace.
+You can use all existing Argo CD CLI commands for managing ApplicationSets in other namespaces, exactly as you would use the CLI to manage ApplicationSets in the control plane's namespace.
 
 For example, to retrieve the `ApplicationSet` named `foo` in the namespace `bar`, you can use the following CLI command:
 

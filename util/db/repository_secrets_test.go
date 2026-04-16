@@ -1205,6 +1205,71 @@ func TestCreateReadAndWriteSecretForSameURL(t *testing.T) {
 	assert.Equal(t, common.LabelValueSecretTypeRepositoryWrite, writeSecret.Labels[common.LabelKeySecretType])
 }
 
+func TestRepositoryToSecret(t *testing.T) {
+	clientset := getClientset()
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            testNamespace,
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+	}}
+	s := &corev1.Secret{}
+	repo := &appsv1.Repository{
+		Name:                             "Name",
+		Repo:                             "git@github.com:argoproj/argo-cd.git",
+		Username:                         "Username",
+		Password:                         "Password",
+		SSHPrivateKey:                    "SSHPrivateKey",
+		InsecureIgnoreHostKey:            true,
+		Insecure:                         true,
+		EnableLFS:                        true,
+		EnableOCI:                        true,
+		InsecureOCIForceHttp:             true,
+		TLSClientCertData:                "TLSClientCertData",
+		TLSClientCertKey:                 "TLSClientCertKey",
+		Type:                             "Type",
+		GithubAppPrivateKey:              "GithubAppPrivateKey",
+		GithubAppId:                      123,
+		GithubAppInstallationId:          456,
+		GitHubAppEnterpriseBaseURL:       "GitHubAppEnterpriseBaseURL",
+		Proxy:                            "Proxy",
+		NoProxy:                          "NoProxy",
+		Project:                          "Project",
+		GCPServiceAccountKey:             "GCPServiceAccountKey",
+		ForceHttpBasicAuth:               true,
+		UseAzureWorkloadIdentity:         true,
+		Depth:                            1,
+		WebhookManifestCacheWarmDisabled: true,
+	}
+	s = testee.repositoryToSecret(repo, s)
+	assert.Equal(t, []byte(repo.Name), s.Data["name"])
+	assert.Equal(t, []byte(repo.Repo), s.Data["url"])
+	assert.Equal(t, []byte(repo.Username), s.Data["username"])
+	assert.Equal(t, []byte(repo.Password), s.Data["password"])
+	assert.Equal(t, []byte(repo.SSHPrivateKey), s.Data["sshPrivateKey"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.InsecureIgnoreHostKey)), s.Data["insecureIgnoreHostKey"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.Insecure)), s.Data["insecure"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.EnableLFS)), s.Data["enableLfs"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.EnableOCI)), s.Data["enableOCI"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.InsecureOCIForceHttp)), s.Data["insecureOCIForceHttp"])
+	assert.Equal(t, []byte(repo.TLSClientCertData), s.Data["tlsClientCertData"])
+	assert.Equal(t, []byte(repo.TLSClientCertKey), s.Data["tlsClientCertKey"])
+	assert.Equal(t, []byte(repo.Type), s.Data["type"])
+	assert.Equal(t, []byte(repo.GithubAppPrivateKey), s.Data["githubAppPrivateKey"])
+	assert.Equal(t, []byte(strconv.FormatInt(repo.GithubAppId, 10)), s.Data["githubAppID"])
+	assert.Equal(t, []byte(strconv.FormatInt(repo.GithubAppInstallationId, 10)), s.Data["githubAppInstallationID"])
+	assert.Equal(t, []byte(repo.GitHubAppEnterpriseBaseURL), s.Data["githubAppEnterpriseBaseUrl"])
+	assert.Equal(t, []byte(repo.Proxy), s.Data["proxy"])
+	assert.Equal(t, []byte(repo.NoProxy), s.Data["noProxy"])
+	assert.Equal(t, []byte(repo.Project), s.Data["project"])
+	assert.Equal(t, []byte(repo.GCPServiceAccountKey), s.Data["gcpServiceAccountKey"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.ForceHttpBasicAuth)), s.Data["forceHttpBasicAuth"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.UseAzureWorkloadIdentity)), s.Data["useAzureWorkloadIdentity"])
+	assert.Equal(t, []byte(strconv.FormatInt(repo.Depth, 10)), s.Data["depth"])
+	assert.Equal(t, []byte(strconv.FormatBool(repo.WebhookManifestCacheWarmDisabled)), s.Data["webhookManifestCacheWarmDisabled"])
+	assert.Equal(t, map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD}, s.Annotations)
+	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository}, s.Labels)
+}
+
 func TestCreateReadAndWriteRepoCredsSecretForSameURL(t *testing.T) {
 	clientset := getClientset()
 	settingsMgr := settings.NewSettingsManager(t.Context(), clientset, testNamespace)

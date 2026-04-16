@@ -241,3 +241,33 @@ data:
             Context 'my-argo-cd-url' updated
 
    You may get an warning if you are not using a correctly signed certs. Refer to [Why Am I Getting x509: certificate signed by unknown authority When Using The CLI?](https://argo-cd.readthedocs.io/en/stable/faq/#why-am-i-getting-x509-certificate-signed-by-unknown-authority-when-using-the-cli).
+
+## Domain hint (optional)
+
+For Microsoft identity platforms, you can set `domainHint` in `oidc.config` to provide a domain hint during sign-in.
+
+When configured, Argo CD adds `domain_hint=<value>` to the authorization request sent to Microsoft.  
+This can reduce account discovery prompts in multi-tenant or federated environments.
+
+- **Field:** `domainHint`
+- **Type:** `string`
+- **Required:** No
+- **Default:** empty (parameter is not sent)
+
+Example:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  oidc.config: |
+    name: Microsoft
+    issuer: https://login.microsoftonline.com/<tenant-id>/v2.0
+    clientID: <client-id>
+    clientSecret: $oidc.microsoft.clientSecret
+    requestedScopes: ["openid", "profile", "email", "groups"]
+    domainHint: contoso.com
+```

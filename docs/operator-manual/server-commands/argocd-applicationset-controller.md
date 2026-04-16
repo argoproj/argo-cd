@@ -17,10 +17,12 @@ argocd-applicationset-controller [flags]
       --as string                               Username to impersonate for the operation
       --as-group stringArray                    Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                           UID to impersonate for the operation
+      --cache-sync-period duration              Period at which the manager client cache is forcefully resynced with the Kubernetes API server. 0 disables periodic resync. (default 10h0m0s)
       --certificate-authority string            Path to a cert file for the certificate authority
       --client-certificate string               Path to a client certificate file for TLS
       --client-key string                       Path to a client key file for TLS
       --cluster string                          The name of the kubeconfig cluster to use
+      --concurrent-application-updates int      Number of concurrent Application create/update/delete operations per ApplicationSet reconcile. (default 1)
       --concurrent-reconciliations int          Max concurrent reconciliations limit for the controller (default 10)
       --context string                          The name of the kubeconfig context to use
       --debug                                   Print debug logs. Takes precedence over loglevel

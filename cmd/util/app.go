@@ -19,7 +19,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -262,7 +261,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 					Backoff: &argoappv1.Backoff{
 						Duration:    appOpts.retryBackoffDuration.String(),
 						MaxDuration: appOpts.retryBackoffMaxDuration.String(),
-						Factor:      ptr.To(appOpts.retryBackoffFactor),
+						Factor:      new(appOpts.retryBackoffFactor),
 					},
 					Refresh: appOpts.retryRefresh,
 				}
@@ -296,13 +295,13 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		}
 
 		if flags.Changed("auto-prune") {
-			spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
+			spec.SyncPolicy.Automated.Prune = &appOpts.autoPrune
 		}
 		if flags.Changed("self-heal") {
-			spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
+			spec.SyncPolicy.Automated.SelfHeal = &appOpts.selfHeal
 		}
 		if flags.Changed("allow-empty") {
-			spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
+			spec.SyncPolicy.Automated.AllowEmpty = &appOpts.allowEmpty
 		}
 	}
 	return visited

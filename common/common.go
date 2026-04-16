@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -15,6 +16,8 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 // Argo CD component names
@@ -369,6 +372,12 @@ const (
 	BearerTokenTimeout = 30 * time.Second
 )
 
+// TokenRevocationTimeout is the maximum time allowed for a server-side token revocation call during logout.
+const TokenRevocationTimeout = 10 * time.Second
+
+// TokenRevocationClientTimeout is the maximum time the CLI waits for the server to complete token revocation.
+const TokenRevocationClientTimeout = 15 * time.Second
+
 const (
 	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
 	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s
@@ -473,6 +482,8 @@ const TokenVerificationError = "failed to verify the token"
 var ErrTokenVerification = errors.New(TokenVerificationError)
 
 var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
+
+var WatchAPIBufferSize = env.ParseNumFromEnv(EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 
 // Redis password consts
 const (

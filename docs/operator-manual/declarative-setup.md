@@ -1144,7 +1144,8 @@ Azure cluster secret example using argocd-k8s-auth and [kubelogin](https://githu
 |AAD_IS_POP_TOKEN_ENABLED|Enable POP token support for SPN login method|
 |AAD_POP_TOKEN_CLAIMS|POP token claims for SPN login method|
 
-In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [here](https://github.com/azure/kubelogin#exec-plugin-format) for details.
+In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [Exec Plugin
+](https://github.com/Azure/kubelogin/blob/main/docs/book/src/concepts/exec-plugin.md) for details.
 
 |Variable Name|Description|
 |-------------|-----------|
