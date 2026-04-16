@@ -1,6 +1,7 @@
 package application
 
 import (
+	"context"
 	"io"
 	"strings"
 	"testing"
@@ -16,7 +17,7 @@ func TestParseLogsStream_Successful(t *testing.T) {
 
 	res := make(chan logEntry)
 	go func() {
-		parseLogsStream("test", r, res)
+		parseLogsStream(context.Background(), "test", r, res)
 		close(res)
 	}()
 
@@ -39,7 +40,7 @@ func TestParseLogsStream_ParsingError(t *testing.T) {
 
 	res := make(chan logEntry)
 	go func() {
-		parseLogsStream("test", r, res)
+		parseLogsStream(context.Background(), "test", r, res)
 		close(res)
 	}()
 
@@ -55,19 +56,19 @@ func TestParseLogsStream_ParsingError(t *testing.T) {
 func TestMergeLogStreams(t *testing.T) {
 	first := make(chan logEntry)
 	go func() {
-		parseLogsStream("first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1
+		parseLogsStream(context.Background(), "first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1
 2021-02-09T00:00:03Z 3`)), first)
 		close(first)
 	}()
 
 	second := make(chan logEntry)
 	go func() {
-		parseLogsStream("second", io.NopCloser(strings.NewReader(`2021-02-09T00:00:02Z 2
+		parseLogsStream(context.Background(), "second", io.NopCloser(strings.NewReader(`2021-02-09T00:00:02Z 2
 2021-02-09T00:00:04Z 4`)), second)
 		close(second)
 	}()
 
-	merged := mergeLogStreams([]chan logEntry{first, second}, time.Second)
+	merged := mergeLogStreams(context.Background(), []chan logEntry{first, second}, time.Second)
 	var lines []string
 	for entry := range merged {
 		lines = append(lines, entry.line)
@@ -83,18 +84,18 @@ func TestMergeLogStreams_RaceCondition(_ *testing.T) {
 		second := make(chan logEntry)
 
 		go func() {
-			parseLogsStream("first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1`)), first)
+			parseLogsStream(context.Background(), "first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1`)), first)
 			time.Sleep(time.Duration(i%3) * time.Millisecond)
 			close(first)
 		}()
 
 		go func() {
-			parseLogsStream("second", io.NopCloser(strings.NewReader(`2021-02-09T00:00:02Z 2`)), second)
+			parseLogsStream(context.Background(), "second", io.NopCloser(strings.NewReader(`2021-02-09T00:00:02Z 2`)), second)
 			time.Sleep(time.Duration((i+1)%3) * time.Millisecond)
 			close(second)
 		}()
 
-		merged := mergeLogStreams([]chan logEntry{first, second}, 1*time.Millisecond)
+		merged := mergeLogStreams(context.Background(), []chan logEntry{first, second}, 1*time.Millisecond)
 
 		// Drain the channel
 		for range merged {
@@ -103,5 +104,41 @@ func TestMergeLogStreams_RaceCondition(_ *testing.T) {
 		// This test intentionally doesn't test the order of the output. Under these intense conditions, the test would
 		// fail often due to out of order entries. This test is only meant to reproduce a race between a channel writer
 		// and channel closer.
+	}
+}
+
+// TestMergeLogStreams_ContextCancellation verifies that cancelling the context causes mergeLogStreams
+// to close the merged channel promptly, allowing all internal goroutines to exit without leaking.
+func TestMergeLogStreams_ContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// unbuffered pipe: write end will block until someone reads
+	pr, pw := io.Pipe()
+
+	ch := make(chan logEntry)
+	go func() {
+		parseLogsStream(ctx, "test", pr, ch)
+		close(ch)
+	}()
+
+	merged := mergeLogStreams(ctx, []chan logEntry{ch}, time.Second)
+
+	// cancel before the pipe produces any data
+	cancel()
+	_ = pw.Close()
+
+	// merged must be closed (context cancelled), not block forever
+	done := make(chan struct{})
+	go func() {
+		for range merged {
+		}
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// merged closed promptly — no leak
+	case <-time.After(5 * time.Second):
+		t.Fatal("mergeLogStreams did not close merged channel after context cancellation")
 	}
 }

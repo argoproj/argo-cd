@@ -29,8 +29,10 @@ async function doTest() {
         UiTestUtilities.log('About to create application');
         await applicationCreatePanel.setAppName(Configuration.APP_NAME);
         await applicationCreatePanel.setProjectName(Configuration.APP_PROJECT);
-        await applicationCreatePanel.setSourceRepoUrl(Configuration.GIT_REPO);
-        await applicationCreatePanel.setSourceRepoPath(Configuration.SOURCE_REPO_PATH);
+        await applicationCreatePanel.setSourceOneRepoUrl(Configuration.GIT_REPO);
+        await applicationCreatePanel.setSourceOneRepoPath(Configuration.SOURCE_REPO_PATH);
+        await applicationCreatePanel.setSourceTwoRepoUrl(Configuration.GIT_REPO);
+        await applicationCreatePanel.setSourceTwoRepoPath(Configuration.SOURCE_REPO_PATH);
         await applicationCreatePanel.selectDestinationClusterNameMenu(Configuration.DESTINATION_CLUSTER_NAME);
         await applicationCreatePanel.setDestinationNamespace(Configuration.DESTINATION_NAMESPACE);
         await applicationCreatePanel.clickCreateButton();

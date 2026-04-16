@@ -932,27 +932,39 @@ export function renderResourceButtons(
     );
 }
 
+export function getSyncRevisionLabelSuffix(repoUrl: string, targetRevision: string, revision: string, chart?: string) {
+    if (!revision) {
+        return '';
+    }
+
+    if (chart) {
+        return revision;
+    }
+
+    if (revision.length >= 7 && !revision.startsWith(targetRevision)) {
+        if (repoUrl.startsWith('oci://')) {
+            // Show "sha256:" plus the first 7 actual characters of the digest.
+            if (revision.startsWith('sha256:')) {
+                return revision.substring(0, 14);
+            }
+            return revision.substring(0, 7);
+        }
+
+        return revision.substring(0, 7);
+    }
+
+    return '';
+}
+
 export function syncStatusMessage(app: appModels.Application) {
     const source = getAppDefaultSource(app);
     const revision = getAppDefaultSyncRevision(app);
     const rev = app.status.sync.revision || (source ? source.targetRevision || 'HEAD' : 'Unknown');
     let message = source ? source?.targetRevision || 'HEAD' : 'Unknown';
+    const suffix = revision && source ? getSyncRevisionLabelSuffix(source.repoURL, source.targetRevision, revision, source.chart) : '';
 
-    if (revision && source) {
-        if (source.chart) {
-            message += ' (' + revision + ')';
-        } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
-            if (source.repoURL.startsWith('oci://')) {
-                // Show "sha256: " plus the first 7 actual characters of the digest.
-                if (revision.startsWith('sha256:')) {
-                    message += ' (' + revision.substring(0, 14) + ')';
-                } else {
-                    message += ' (' + revision.substring(0, 7) + ')';
-                }
-            } else {
-                message += ' (' + revision.substring(0, 7) + ')';
-            }
-        }
+    if (suffix) {
+        message += ` (${suffix})`;
     }
 
     switch (app.status.sync.status) {
