@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 
 	"golang.org/x/sync/errgroup"
 
@@ -303,8 +304,6 @@ func newServerSideDiffStrategy(
 		results := make([]*diff.DiffResult, 0)
 		for _, batchItems := range batchResults {
 			for _, resultItem := range batchItems {
-				// Convert server-side diff result to diff.DiffResult
-				// NormalizedLive = LiveState, PredictedLive = TargetState
 				results = append(results, &diff.DiffResult{
 					Modified:       resultItem.Modified,
 					NormalizedLive: []byte(resultItem.LiveState),
@@ -575,55 +574,46 @@ func compareManifests(
 	// Build object map pairing live and target
 	items := getComparisonObjects(targetManifests, liveManifests)
 
-	results := make([]comparisonObject, 0)
-	var potentiallyModified []comparisonObject
-	for _, item := range items {
-		if item.target != nil && item.live != nil {
-			// Potentially modified, need to compare diffs
-			potentiallyModified = append(potentiallyModified, item)
-		} else {
-			// Either added or removed, we already know it changed
-			results = append(results, item)
-		}
+	// Perform diff on potentially modified resources
+	diffResults, err := performDiff(ctx, items)
+	if err != nil {
+		return nil, err
 	}
 
-	// Perform diff on potentially modified resources
-	if len(potentiallyModified) > 0 {
-		diffResults, err := performDiff(ctx, potentiallyModified)
+	results := make([]comparisonObject, 0)
+	for _, diffRes := range diffResults {
+		liveState := string(diffRes.NormalizedLive)
+		targetState := string(diffRes.PredictedLive)
+
+		hasLiveState := liveState != "null" && liveState != ""
+		hasTargetState := targetState != "null" && targetState != ""
+		if !diffRes.Modified && hasLiveState && hasTargetState {
+			// If the item is not modified and it is neither an added or removed resource, skip it.
+			continue
+		}
+
+		live, err := argoappv1.UnmarshalToUnstructured(liveState)
 		if err != nil {
 			return nil, err
 		}
 
-		for i, diffRes := range diffResults {
-			if !diffRes.Modified {
-				// only include modified resources
-				continue
-			}
-
-			var live, target *unstructured.Unstructured
-
-			if len(diffRes.NormalizedLive) > 0 {
-				live = &unstructured.Unstructured{}
-				err = json.Unmarshal(diffRes.NormalizedLive, live)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			if len(diffRes.PredictedLive) > 0 {
-				target = &unstructured.Unstructured{}
-				err = json.Unmarshal(diffRes.PredictedLive, target)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			results = append(results, comparisonObject{
-				key:    potentiallyModified[i].key,
-				live:   live,
-				target: target,
-			})
+		target, err := argoappv1.UnmarshalToUnstructured(targetState)
+		if err != nil {
+			return nil, err
 		}
+
+		var key kube.ResourceKey
+		if live != nil {
+			key = kube.GetResourceKey(live)
+		} else {
+			key = kube.GetResourceKey(target)
+		}
+
+		results = append(results, comparisonObject{
+			key:    key,
+			live:   live,
+			target: target,
+		})
 	}
 
 	return results, nil
@@ -783,6 +773,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, diffHandler)
 			errors.CheckError(err)
 
+			sort.Slice(results, func(i, j int) bool {
+				return results[i].key.String() < results[j].key.String()
+			})
 			for _, result := range results {
 				printResourceDiff(result.key.Group, result.key.Kind, result.key.Namespace, result.key.Name, result.live, result.target)
 			}
