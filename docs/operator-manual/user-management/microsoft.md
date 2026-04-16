@@ -124,6 +124,85 @@
 
    Refer to [operator-manual/argocd-rbac-cm.yaml](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-rbac-cm.yaml) for all of the available variables.
 
+## Azure AD Groups Overflow Resolution (200+ Groups)
+
+### Overview
+
+Azure AD / Entra ID access tokens can contain a maximum of 200 groups. When a user belongs to more
+than 200 groups, Azure AD sets overflow indicators (`_claim_names` and `_claim_sources`) in the ID
+token instead of including the `groups` claim. This causes users to have no group-based RBAC
+permissions in Argo CD.
+
+Argo CD can automatically detect this overflow and resolve it by calling the Microsoft Graph API to
+fetch the complete list of group memberships.
+
+### Prerequisites
+
+1. The Azure AD app registration must have the **User.Read** delegated permission. This is granted by
+   default when following the [Setup permissions](#setup-permissions-for-entra-id-application) steps
+   above. Azure AD automatically includes approved permissions in the access token's `scp` claim
+   without needing to explicitly request them in `requestedScopes`.
+
+### Configuration
+
+Add the following to your `argocd-cm` ConfigMap under `oidc.config`:
+
+```yaml
+oidc.config: |
+  name: Azure
+  issuer: https://login.microsoftonline.com/{tenant_id}/v2.0
+  clientID: {client_id}
+  clientSecret: $oidc.azure.clientSecret
+  requestedScopes:
+    - openid
+    - profile
+    - email
+  azure:
+    enableUserGroupOverageClaim: true
+```
+
+### Configuration Options
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `enableUserGroupOverageClaim` | `false` | Enable automatic overflow resolution via Graph API |
+| `graphApiEndpoint` | `https://graph.microsoft.com/v1.0` | Graph API base URL (override for sovereign clouds) |
+| `userGroupOverageClaimCacheExpiration` | Token expiry | Cache duration for resolved groups (e.g., `10m`) |
+
+#### Sovereign Clouds
+
+For Azure Government, Azure China, or other sovereign clouds, override the Graph API endpoint:
+
+```yaml
+azure:
+  enableUserGroupOverageClaim: true
+  graphApiEndpoint: https://graph.microsoft.us/v1.0  # Azure Government
+```
+
+### How It Works
+
+1. **Detection**: Argo CD checks the ID token for overflow indicators (`_claim_names` and
+   `_claim_sources`).
+2. **Scope Check**: Verifies the access token contains the `User.Read` scope.
+3. **Graph API Call**: Calls `POST /me/getMemberGroups` to fetch all group IDs (up to 2048).
+4. **Caching**: Encrypts and caches the resolved groups for the duration of the token or a
+   configured expiration.
+5. **RBAC Integration**: The resolved group IDs are added to the user's claims for RBAC evaluation.
+
+### Troubleshooting
+
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| User still has 0 groups despite 200+ memberships | Feature not enabled | Set `enableUserGroupOverageClaim: true` |
+| Logs show "access token missing User.Read scope" | Missing permission | Verify the **User.Read** delegated permission is granted on the app registration in Azure AD |
+| Logs show "insufficient permissions for Graph API" | App permission denied | Verify app permissions in Azure AD |
+| Logs show "no access token cached" | Token expired | User must re-authenticate |
+
+> [!WARNING]
+> Graph API failures (missing scope, permission denied, network errors) will cause authentication
+> to fail with a 401 Unauthorized response. This is consistent with how the UserInfo endpoint
+> behaves. Ensure the prerequisites above are met to avoid authentication issues.
+
 ## Entra ID SAML Enterprise App Auth using Dex
 ### Configure a new Entra ID Enterprise App
 
