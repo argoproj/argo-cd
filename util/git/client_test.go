@@ -702,6 +702,11 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		currentCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 		require.NotEqual(t, baseCommitHash, currentCommitHash)
 
+		gitCurrentCommitMessage, err := outputCmd(ctx, tempDir, "git", "log", "--format=%B", "-n", "1", "HEAD")
+		require.NoError(t, err)
+		currentCommitMessage := strings.TrimSpace(string(gitCurrentCommitMessage))
+		require.Contains(t, currentCommitMessage, expectedBranch)
+
 		// get commit count on current branch, verify 1 -> orphan
 		gitCommitCount, err := outputCmd(ctx, tempDir, "git", "rev-list", "--count", actualBranch)
 		require.NoError(t, err)
