@@ -1247,6 +1247,9 @@ func findAndPrintDiff(
 
 	// Print results
 	foundDiffs := len(changedObjects) > 0
+	sort.Slice(changedObjects, func(i, j int) bool {
+		return changedObjects[i].key.String() < changedObjects[j].key.String()
+	})
 	for _, obj := range changedObjects {
 		printResourceDiff(obj.key.Group, obj.key.Kind, obj.key.Namespace, obj.key.Name, obj.live, obj.target)
 	}
