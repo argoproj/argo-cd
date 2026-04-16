@@ -1,0 +1,20 @@
+apiVersion: capabilities.3scale.net/v1beta1
+kind: Product
+metadata:
+  name: progressing-product
+  namespace: example-ns
+spec:
+  name: Progressing Product
+  systemName: progressing_product
+  description: Progressing product for testing
+  metrics:
+    hits:
+      friendlyName: Hits
+      unit: hit
+      description: Number of API hits
+status:
+  productId: null
+  state: null
+  providerAccountHost: example.3scale.net
+  observedGeneration: 1
+  conditions: [ ]

@@ -1,0 +1,46 @@
+apiVersion: coralogix.com/v1beta1
+kind: Alert
+metadata:
+  name: bitbucketcontainernotrunning-test
+spec:
+  alertType:
+    metricThreshold:
+      metricFilter:
+        promql: >-
+          sum({namespace="bitbucket",pod=~"bitbucket-k8s-.*",condition="false"}) by (pod)
+      missingValues:
+        replaceWithZero: true
+      rules:
+        - condition:
+            conditionType: moreThan
+            forOverPct: 100
+            ofTheLast:
+              specificValue: 5m
+            threshold: 0
+          override:
+            priority: p1
+  description: >-
+    Bitbucket one of the container is not running
+  entityLabels:
+    app: bitbucket
+  name: Bitbucketcontainernotrunning-test
+  notificationGroup:
+    groupByKeys:
+      - pod
+    webhooks:
+      - integration:
+          integrationRef:
+            backendRef:
+              name: opsgenie-example
+        notifyOn: triggeredAndResolved
+        retriggeringPeriod:
+          minutes: 60
+      - integration:
+          integrationRef:
+            backendRef:
+              name: critical-alerts-webhook
+        notifyOn: triggeredAndResolved
+        retriggeringPeriod:
+          minutes: 60
+  priority: p1
+

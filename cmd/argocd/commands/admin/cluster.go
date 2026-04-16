@@ -10,16 +10,16 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/ptr"
 
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -127,19 +127,16 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 
 	batchSize := 10
 	batchesCount := int(math.Ceil(float64(len(clusters)) / float64(batchSize)))
-	for batchNum := 0; batchNum < batchesCount; batchNum++ {
+	for batchNum := range batchesCount {
 		batchStart := batchSize * batchNum
-		batchEnd := batchSize * (batchNum + 1)
-		if batchEnd > len(clustersList.Items) {
-			batchEnd = len(clustersList.Items)
-		}
+		batchEnd := min((batchSize * (batchNum + 1)), len(clustersList.Items))
 		batch := clustersList.Items[batchStart:batchEnd]
 		_ = kube.RunAllAsync(len(batch), func(i int) error {
 			clusterShard := 0
 			cluster := batch[i]
 			if replicas > 0 {
 				clusterShard = clusterShards[cluster.Server]
-				cluster.Shard = ptr.To(int64(clusterShard))
+				cluster.Shard = new(int64(clusterShard))
 				log.Infof("Cluster with uid: %s will be processed by shard %d", cluster.ID, clusterShard)
 			}
 			if shard != -1 && clusterShard != shard {
@@ -608,7 +605,31 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 			clientConfig := clientcmd.NewDefaultClientConfig(*cfgAccess, &overrides)
 			conf, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
-			kubeClientset := fake.NewClientset()
+			// Seed a minimal in-memory Argo CD environment so settings retrieval succeeds
+			argoCDCM := &corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: ArgoCDNamespace,
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+			}
+			argoCDSecret := &corev1.Secret{
+				TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: ArgoCDNamespace,
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{
+					"server.secretkey": []byte("test"),
+				},
+			}
+			kubeClientset := fake.NewClientset(argoCDCM, argoCDSecret)
 
 			var awsAuthConf *v1alpha1.AWSAuthConfig
 			var execProviderConf *v1alpha1.ExecProviderConfig

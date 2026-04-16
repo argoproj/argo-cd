@@ -29,6 +29,11 @@ type Authenticator interface {
 	Authenticate(ctx context.Context) (context.Context, error)
 }
 
+const (
+	success = "success"
+	failure = "failure"
+)
+
 // NewServer returns a new instance of the Session service
 func NewServer(mgr *sessionmgr.SessionManager, settingsMgr *settings.SettingsManager, authenticator Authenticator, policyEnf *rbacpolicy.RBACPolicyEnforcer, rateLimiter func() (utilio.Closer, error)) *Server {
 	return &Server{mgr, settingsMgr, authenticator, policyEnf, rateLimiter}
@@ -40,27 +45,33 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 	if s.limitLoginAttempts != nil {
 		closer, err := s.limitLoginAttempts()
 		if err != nil {
+			s.mgr.IncLoginRequestCounter(failure)
 			return nil, err
 		}
 		defer utilio.Close(closer)
 	}
 
 	if q.Token != "" {
+		s.mgr.IncLoginRequestCounter(failure)
 		return nil, status.Errorf(codes.Unauthenticated, "token-based session creation no longer supported. please upgrade argocd cli to v0.7+")
 	}
 	if q.Username == "" || q.Password == "" {
+		s.mgr.IncLoginRequestCounter(failure)
 		return nil, status.Errorf(codes.Unauthenticated, "no credentials supplied")
 	}
 	err := s.mgr.VerifyUsernamePassword(q.Username, q.Password)
 	if err != nil {
+		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err
 	}
 	uniqueId, err := uuid.NewRandom()
 	if err != nil {
+		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err
 	}
 	argoCDSettings, err := s.settingsMgr.GetSettings()
 	if err != nil {
+		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err
 	}
 	jwtToken, err := s.mgr.Create(
@@ -68,8 +79,10 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 		int64(argoCDSettings.UserSessionDuration.Seconds()),
 		uniqueId.String())
 	if err != nil {
+		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err
 	}
+	s.mgr.IncLoginRequestCounter(success)
 	return &session.SessionResponse{Token: jwtToken}, nil
 }
 

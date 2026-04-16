@@ -20,7 +20,7 @@ import (
 	reposerver "github.com/argoproj/argo-cd/v3/cmd/argocd-repo-server/commands"
 	apiserver "github.com/argoproj/argo-cd/v3/cmd/argocd-server/commands"
 	cli "github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
-	"github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/log"
 )
 
@@ -44,37 +44,37 @@ func main() {
 	isArgocdCLI := false
 
 	switch binaryName {
-	case "argocd", "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe":
+	case common.CommandCLI:
 		command = cli.NewCommand()
 		isArgocdCLI = true
-	case "argocd-server":
+	case common.CommandServer:
 		command = apiserver.NewCommand()
-	case "argocd-application-controller":
+	case common.CommandApplicationController:
 		command = appcontroller.NewCommand()
-	case "argocd-repo-server":
+	case common.CommandRepoServer:
 		command = reposerver.NewCommand()
-	case "argocd-cmp-server":
+	case common.CommandCMPServer:
 		command = cmpserver.NewCommand()
 		isArgocdCLI = true
-	case "argocd-commit-server":
+	case common.CommandCommitServer:
 		command = commitserver.NewCommand()
-	case "argocd-dex":
+	case common.CommandDex:
 		command = dex.NewCommand()
-	case "argocd-notifications":
+	case common.CommandNotifications:
 		command = notification.NewCommand()
-	case "argocd-git-ask-pass":
+	case common.CommandGitAskPass:
 		command = gitaskpass.NewCommand()
 		isArgocdCLI = true
-	case "argocd-applicationset-controller":
+	case common.CommandApplicationSetController:
 		command = applicationset.NewCommand()
-	case "argocd-k8s-auth":
+	case common.CommandK8sAuth:
 		command = k8sauth.NewCommand()
 		isArgocdCLI = true
 	default:
+		// "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe" are also valid binary names
 		command = cli.NewCommand()
 		isArgocdCLI = true
 	}
-	util.SetAutoMaxProcs(isArgocdCLI)
 
 	if isArgocdCLI {
 		// silence errors and usages since we'll be printing them manually.
@@ -85,12 +85,11 @@ func main() {
 	}
 
 	err := command.Execute()
-	// if the err is non-nil, try to look for various scenarios
+	// if an error is present, try to look for various scenarios
 	// such as if the error is from the execution of a normal argocd command,
 	// unknown command error or any other.
 	if err != nil {
-		pluginHandler := cli.NewDefaultPluginHandler([]string{"argocd"})
-		pluginErr := pluginHandler.HandleCommandExecutionError(err, isArgocdCLI, os.Args)
+		pluginErr := cli.NewDefaultPluginHandler().HandleCommandExecutionError(err, isArgocdCLI, os.Args)
 		if pluginErr != nil {
 			var exitErr *exec.ExitError
 			if errors.As(pluginErr, &exitErr) {

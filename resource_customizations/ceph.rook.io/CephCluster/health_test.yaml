@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: 'Ceph health is HEALTH_OK - Ceph cluster state is Created - Cluster created successfully'
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: 'Ceph health is HEALTH_WARN (4 osds down; 2 pools degraded) - Cluster has warnings'
+  inputPath: testdata/degraded_warn.yaml
+- healthStatus:
+    status: Degraded
+    message: 'Ceph health is HEALTH_ERR (8 osds down) - Cluster has critical errors'
+  inputPath: testdata/degraded_error.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Cluster is being created'
+  inputPath: testdata/state_creating.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Waiting for status to be reported'
+  inputPath: testdata/no_status.yaml

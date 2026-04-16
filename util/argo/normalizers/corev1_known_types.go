@@ -91,6 +91,9 @@ func init() {
 	knownTypes["core/v1/Container"] = func() any {
 		return &corev1.Container{}
 	}
+	knownTypes["core/v1/ContainerExtendedResourceRequest"] = func() any {
+		return &corev1.ContainerExtendedResourceRequest{}
+	}
 	knownTypes["core/v1/ContainerImage"] = func() any {
 		return &corev1.ContainerImage{}
 	}
@@ -99,6 +102,12 @@ func init() {
 	}
 	knownTypes["core/v1/ContainerResizePolicy"] = func() any {
 		return &corev1.ContainerResizePolicy{}
+	}
+	knownTypes["core/v1/ContainerRestartRule"] = func() any {
+		return &corev1.ContainerRestartRule{}
+	}
+	knownTypes["core/v1/ContainerRestartRuleOnExitCodes"] = func() any {
+		return &corev1.ContainerRestartRuleOnExitCodes{}
 	}
 	knownTypes["core/v1/ContainerState"] = func() any {
 		return &corev1.ContainerState{}
@@ -183,6 +192,9 @@ func init() {
 	}
 	knownTypes["core/v1/FCVolumeSource"] = func() any {
 		return &corev1.FCVolumeSource{}
+	}
+	knownTypes["core/v1/FileKeySelector"] = func() any {
+		return &corev1.FileKeySelector{}
 	}
 	knownTypes["core/v1/FlexPersistentVolumeSource"] = func() any {
 		return &corev1.FlexPersistentVolumeSource{}
@@ -409,6 +421,9 @@ func init() {
 	knownTypes["core/v1/PodAttachOptions"] = func() any {
 		return &corev1.PodAttachOptions{}
 	}
+	knownTypes["core/v1/PodCertificateProjection"] = func() any {
+		return &corev1.PodCertificateProjection{}
+	}
 	knownTypes["core/v1/PodCondition"] = func() any {
 		return &corev1.PodCondition{}
 	}
@@ -420,6 +435,9 @@ func init() {
 	}
 	knownTypes["core/v1/PodExecOptions"] = func() any {
 		return &corev1.PodExecOptions{}
+	}
+	knownTypes["core/v1/PodExtendedResourceClaimStatus"] = func() any {
+		return &corev1.PodExtendedResourceClaimStatus{}
 	}
 	knownTypes["core/v1/PodIP"] = func() any {
 		return &corev1.PodIP{}

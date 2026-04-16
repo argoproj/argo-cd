@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -42,20 +43,21 @@ type Helm interface {
 }
 
 // NewHelmApp create a new wrapper to run commands on the `helm` command-line tool.
-func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string, proxy string, noProxy string, passCredentials bool) (Helm, error) {
+func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version string, proxy string, noProxy string, passCredentials bool, insecure bool) (Helm, error) {
 	cmd, err := NewCmd(workDir, version, proxy, noProxy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new helm command: %w", err)
 	}
 	cmd.IsLocal = isLocal
 
-	return &helm{repos: repos, cmd: *cmd, passCredentials: passCredentials}, nil
+	return &helm{repos: repos, cmd: *cmd, passCredentials: passCredentials, insecure: insecure}, nil
 }
 
 type helm struct {
 	cmd             Cmd
 	repos           []HelmRepository
 	passCredentials bool
+	insecure        bool
 }
 
 var _ Helm = &helm{}
@@ -107,7 +109,7 @@ func (h *helm) DependencyBuild() error {
 		}
 	}
 	h.repos = nil
-	_, err := h.cmd.dependencyBuild()
+	_, err := h.cmd.dependencyBuild(h.insecure)
 	if err != nil {
 		return fmt.Errorf("failed to build helm dependencies: %w", err)
 	}
@@ -119,8 +121,8 @@ func (h *helm) Dispose() {
 }
 
 func Version() (string, error) {
-	cmd := exec.Command("helm", "version", "--client", "--short")
-	// example version output:
+	cmd := exec.CommandContext(context.Background(), "helm", "version", "--short")
+	// example version output for helm v3 and higher:
 	// short: "v3.3.1+g249e521"
 	version, err := executil.RunWithRedactor(cmd, redactor)
 	if err != nil {

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -47,7 +47,7 @@ func TestLuaHealthScript(t *testing.T) {
 		require.NoError(t, err)
 		for i := range resourceTest.Tests {
 			test := resourceTest.Tests[i]
-			t.Run(test.InputPath, func(t *testing.T) {
+			t.Run(filepath.Join(strings.TrimPrefix(dir, "../../resource_customizations/"), test.InputPath), func(t *testing.T) {
 				vm := VM{
 					UseOpenLibs: true,
 				}

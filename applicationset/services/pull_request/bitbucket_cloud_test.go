@@ -89,7 +89,7 @@ func TestListPullRequestBearerTokenCloud(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
-	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, int64(101), pullRequests[0].Number)
 	assert.Equal(t, "feat(foo-bar)", pullRequests[0].Title)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -107,7 +107,7 @@ func TestListPullRequestNoAuthCloud(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
-	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, int64(101), pullRequests[0].Number)
 	assert.Equal(t, "feat(foo-bar)", pullRequests[0].Title)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -125,7 +125,7 @@ func TestListPullRequestBasicAuthCloud(t *testing.T) {
 	pullRequests, err := ListPullRequests(t.Context(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
-	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, int64(101), pullRequests[0].Number)
 	assert.Equal(t, "feat(foo-bar)", pullRequests[0].Title)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -491,4 +491,30 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 		Author:       "testName",
 		TargetBranch: "branch-200",
 	}, *pullRequests[0])
+}
+
+func TestBitbucketCloudListReturnsRepositoryNotFoundError(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	path := "/repositories/nonexistent/nonexistent/pullrequests/"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
+		// Return 404 status to simulate repository not found
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
+	})
+
+	svc, err := NewBitbucketCloudServiceNoAuth(server.URL, "nonexistent", "nonexistent")
+	require.NoError(t, err)
+
+	prs, err := svc.List(t.Context())
+
+	// Should return empty pull requests list
+	assert.Empty(t, prs)
+
+	// Should return RepositoryNotFoundError
+	require.Error(t, err)
+	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }

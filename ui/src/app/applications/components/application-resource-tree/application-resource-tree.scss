@@ -20,7 +20,7 @@
                     position: absolute;
                     color: #A3A3A3;
                     font-size: 10px;
-                    top: -10px;
+                    top: -9px;
                     transform: rotate(180deg);
                 }
             }
@@ -105,6 +105,14 @@
             @include themify($themes) {
                 background-color: themed('light-argo-gray-2') !important;
             }
+        }
+
+        &--grouped-node {
+            cursor: default;
+        }
+
+        &__top-part {
+            cursor: pointer;
         }
 
         &--load-balancer {
@@ -320,6 +328,7 @@
         top: 0;
         bottom: 0;
         animation: shadow-pulse 1s 1;
+        pointer-events: none;
     }
 
     @keyframes shadow-pulse {

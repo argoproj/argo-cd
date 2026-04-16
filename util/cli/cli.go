@@ -5,6 +5,7 @@ package cli
 import (
 	"bufio"
 	"bytes"
+	"context"
 	stderrors "errors"
 	"flag"
 	"fmt"
@@ -14,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -102,12 +103,21 @@ func PromptMessage(message, value string) string {
 	return value
 }
 
-// PromptPassword prompts the user for a password, without local echo. (unless already supplied)
+// PromptPassword prompts the user for a password, without local echo (unless already supplied).
+// If terminal.ReadPassword fails — often due to stdin not being a terminal (e.g., when input is piped),
+// we fall back to reading from standard input using bufio.Reader.
 func PromptPassword(password string) string {
 	for password == "" {
 		fmt.Print("Password: ")
 		passwordRaw, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		errors.CheckError(err)
+		if err != nil {
+			// Fallback: handle cases where stdin is not a terminal (e.g., piped input)
+			reader := bufio.NewReader(os.Stdin)
+			input, err := reader.ReadString('\n')
+			errors.CheckError(err)
+			password = strings.TrimSpace(input)
+			return password
+		}
 		password = string(passwordRaw)
 		fmt.Print("\n")
 	}
@@ -197,6 +207,9 @@ func SetLogLevel(logLevel string) {
 // SetGLogLevel set the glog level for the k8s go-client
 func SetGLogLevel(glogLevel int) {
 	klog.InitFlags(nil)
+	// Opt into fixed stderrthreshold behavior (kubernetes/klog#212).
+	_ = flag.Set("legacy_stderr_threshold_behavior", "false")
+	_ = flag.Set("stderrthreshold", "INFO")
 	_ = flag.Set("logtostderr", "true")
 	_ = flag.Set("v", strconv.Itoa(glogLevel))
 }
@@ -237,7 +250,7 @@ const (
 func setComments(input []byte, comments string) []byte {
 	input = stripComments(input)
 	var commentLines []string
-	for _, line := range strings.Split(comments, "\n") {
+	for line := range strings.SplitSeq(comments, "\n") {
 		if line != "" {
 			commentLines = append(commentLines, "# "+line)
 		}
@@ -266,7 +279,7 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 	for {
 		data = setComments(data, errorComment)
 		tempFile := writeToTempFile(filePattern, data)
-		cmd := exec.Command(editor, append(editorArgs, tempFile)...)
+		cmd := exec.CommandContext(context.Background(), editor, append(editorArgs, tempFile)...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
@@ -331,7 +344,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 		cmdBinary = parts[0]
 		args = parts[1:]
 	}
-	cmd := exec.Command(cmdBinary, append(args, liveFile, targetFile)...)
+	cmd := exec.CommandContext(context.Background(), cmdBinary, append(args, liveFile, targetFile)...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	return cmd.Run()

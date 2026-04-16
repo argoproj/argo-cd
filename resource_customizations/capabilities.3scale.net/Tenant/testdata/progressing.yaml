@@ -1,0 +1,9 @@
+apiVersion: capabilities.3scale.net/v1alpha1
+kind: Tenant
+metadata:
+  name: progressing-tenant
+  namespace: example-ns
+status:
+  tenantId: 0
+  adminId: 0
+  conditions: [ ]

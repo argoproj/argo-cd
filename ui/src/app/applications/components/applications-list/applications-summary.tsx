@@ -4,7 +4,7 @@ const PieChart = require('react-svg-piechart').default;
 import {COLORS} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {HealthStatusCode, SyncStatusCode} from '../../../shared/models';
-import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, HydrateOperationPhaseIcon} from '../utils';
 
 const healthColors = new Map<models.HealthStatusCode, string>();
 healthColors.set('Unknown', COLORS.health.unknown);
@@ -19,11 +19,22 @@ syncColors.set('Unknown', COLORS.sync.unknown);
 syncColors.set('Synced', COLORS.sync.synced);
 syncColors.set('OutOfSync', COLORS.sync.out_of_sync);
 
+const hydratorColors = new Map<string, string>();
+hydratorColors.set('Hydrating', COLORS.operation.running);
+hydratorColors.set('Hydrated', COLORS.operation.success);
+hydratorColors.set('Failed', COLORS.operation.failed);
+hydratorColors.set('None', COLORS.sync.unknown);
+
 export const ApplicationsSummary = ({applications}: {applications: models.Application[]}) => {
     const sync = new Map<string, number>();
     applications.forEach(app => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
     const health = new Map<string, number>();
     applications.forEach(app => health.set(app.status.health.status, (health.get(app.status.health.status) || 0) + 1));
+    const hydrator = new Map<string, number>();
+    applications.forEach(app => {
+        const phase = app.status.sourceHydrator?.currentOperation?.phase || 'None';
+        hydrator.set(phase, (hydrator.get(phase) || 0) + 1);
+    });
 
     const attributes = [
         {
@@ -37,6 +48,10 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
         {
             title: 'HEALTHY',
             value: applications.filter(app => app.status.health.status === 'Healthy').length
+        },
+        {
+            title: 'HYDRATED',
+            value: applications.filter(app => app.status.sourceHydrator?.currentOperation?.phase === 'Hydrated').length
         },
         {
             title: 'CLUSTERS',
@@ -58,6 +73,11 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
             title: 'Health',
             data: Array.from(health.keys()).map(key => ({title: key, value: health.get(key), color: healthColors.get(key as models.HealthStatusCode)})),
             legend: healthColors as Map<string, string>
+        },
+        {
+            title: 'Hydrator',
+            data: Array.from(hydrator.keys()).map(key => ({title: key, value: hydrator.get(key), color: hydratorColors.get(key)})),
+            legend: hydratorColors as Map<string, string>
         }
     ];
     return (
@@ -97,6 +117,21 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
                                                         <li style={{listStyle: 'none', whiteSpace: 'nowrap'}} key={key}>
                                                             {chart.title === 'Health' && <HealthStatusIcon state={{status: key as HealthStatusCode, message: ''}} noSpin={true} />}
                                                             {chart.title === 'Sync' && <ComparisonStatusIcon status={key as SyncStatusCode} noSpin={true} />}
+                                                            {chart.title === 'Hydrator' && key !== 'None' && (
+                                                                <HydrateOperationPhaseIcon
+                                                                    operationState={{
+                                                                        phase: key as any,
+                                                                        startedAt: '',
+                                                                        message: '',
+                                                                        drySHA: '',
+                                                                        hydratedSHA: '',
+                                                                        sourceHydrator: {} as any
+                                                                    }}
+                                                                />
+                                                            )}
+                                                            {chart.title === 'Hydrator' && key === 'None' && (
+                                                                <i className='fa fa-minus-circle' style={{color: hydratorColors.get(key)}} />
+                                                            )}
                                                             {` ${key} (${getLegendValue(key)})`}
                                                         </li>
                                                     ))}

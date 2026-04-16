@@ -1,11 +1,7 @@
 # ApplicationSet in any namespace
 
-!!! warning "Beta Feature (Since v2.8.0)"
-    This feature is in the [Beta](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta) stage. 
-    It is generally considered stable, but there may be unhandled edge cases.
-
-!!! warning
-    Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
+> [!WARNING]
+> Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
 
 ## Introduction
 
@@ -70,12 +66,12 @@ data:
   applicationsetcontroller.allowed.scm.providers: https://git.mydomain.com/,https://gitlab.mydomain.com/
 ```
 
-!!! note
-    Please note url used in the `api` field of the `ApplicationSet` must match the url declared by the Administrator including the protocol
+> [!NOTE]
+> Please note url used in the `api` field of the `ApplicationSet` must match the url declared by the Administrator including the protocol
 
-!!! warning
-    The allow-list only applies to SCM providers for which the user may configure a custom `api`. Where an SCM or PR
-    generator does not accept a custom API URL, the provider is implicitly allowed.
+> [!WARNING]
+> The allow-list only applies to SCM providers for which the user may configure a custom `api`. Where an SCM or PR
+> generator does not accept a custom API URL, the provider is implicitly allowed.
 
 If you do not intend to allow users to use the SCM or PR generators, you can disable them entirely by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.enable.scm.providers` to `false`.
 
@@ -118,6 +114,23 @@ It can be achieved by setting the environment variable `ARGOCD_APPLICATIONSET_CO
 #### Change workload startup parameters
 
 In order to enable this feature, the Argo CD administrator must reconfigure the `argocd-applicationset-controller` workloads to add the `--applicationset-namespaces` parameter to the container's startup command.
+
+The `--applicationset-namespaces` parameter takes a comma-separated list of namespaces where `ApplicationSet` are to be allowed in. Each entry of the list supports:
+
+- shell-style wildcards such as `*`, so for example the entry `app-team-*` would match `app-team-one` and `app-team-two`. To enable all namespaces on the cluster where Argo CD is running on, you can just specify `*`, i.e. `--application-namespaces=*`.
+- regex, requires wrapping the string in ```/```, example to allow all namespaces except a particular one: ```/^((?!not-allowed).)*$/```.
+
+The startup parameters for the `argocd-applicationset-controller` can also be conveniently set up and kept in sync by specifying the `applicationsetcontroller.namespaces` settings in the `argocd-cmd-params-cm` ConfigMap _instead_ of changing the manifests for the `ApplicationSet`. For example:
+
+```yaml
+data:
+  applicationsetcontroller.namespaces: "app-team-one, app-team-two"
+```
+would allow the `app-team-one` and `app-team-two` namespaces for managing `ApplicationSet` resources. After a change to the `argocd-cmd-params-cm` namespace, the `ApplicationSet` workload need to be restarted:
+
+```bash
+kubectl rollout restart -n argocd deployment argocd-applicationset-controller
+```
 
 ### Safely template project
 
@@ -211,7 +224,7 @@ p, somerole, applicationsets, get, foo/bar/*, allow
 
 ### Using the CLI
 
-You can use all existing Argo CD CLI commands for managing applications in other namespaces, exactly as you would use the CLI to manage applications in the control plane's namespace.
+You can use all existing Argo CD CLI commands for managing ApplicationSets in other namespaces, exactly as you would use the CLI to manage ApplicationSets in the control plane's namespace.
 
 For example, to retrieve the `ApplicationSet` named `foo` in the namespace `bar`, you can use the following CLI command:
 

@@ -78,7 +78,7 @@ func TestList(t *testing.T) {
 	prs, err := svc.List(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, prs, 1)
-	assert.Equal(t, 15442, prs[0].Number)
+	assert.Equal(t, int64(15442), prs[0].Number)
 	assert.Equal(t, "Draft: Use structured logging for DB load balancer", prs[0].Title)
 	assert.Equal(t, "use-structured-logging-for-db-load-balancer", prs[0].Branch)
 	assert.Equal(t, "master", prs[0].TargetBranch)
@@ -158,7 +158,6 @@ func TestListWithStateTLS(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				writeMRListResponse(t, w)
@@ -190,4 +189,30 @@ func TestListWithStateTLS(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGitLabListReturnsRepositoryNotFoundError(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	path := "/api/v4/projects/nonexistent/merge_requests"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
+		// Return 404 status to simulate repository not found
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
+	})
+
+	svc, err := NewGitLabService("", server.URL, "nonexistent", []string{}, "", "", false, nil)
+	require.NoError(t, err)
+
+	prs, err := svc.List(t.Context())
+
+	// Should return empty pull requests list
+	assert.Empty(t, prs)
+
+	// Should return RepositoryNotFoundError
+	require.Error(t, err)
+	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }

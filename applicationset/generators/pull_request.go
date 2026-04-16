@@ -11,14 +11,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/gosimple/slug"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
-
-var _ Generator = (*PullRequestGenerator)(nil)
 
 const (
 	DefaultPullRequestRequeueAfter = 30 * time.Minute
@@ -49,6 +48,10 @@ func (g *PullRequestGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alph
 	return DefaultPullRequestRequeueAfter
 }
 
+func (g *PullRequestGenerator) GetContinueOnRepoNotFoundError(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) bool {
+	return appSetGenerator.PullRequest.ContinueOnRepoNotFoundError
+}
+
 func (g *PullRequestGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
 	return &appSetGenerator.PullRequest.Template
 }
@@ -69,10 +72,15 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	}
 
 	pulls, err := pullrequest.ListPullRequests(ctx, svc, appSetGenerator.PullRequest.Filters)
+	params := make([]map[string]any, 0, len(pulls))
 	if err != nil {
+		if pullrequest.IsRepositoryNotFoundError(err) && g.GetContinueOnRepoNotFoundError(appSetGenerator) {
+			log.WithError(err).WithField("generator", g).
+				Warn("Skipping params generation for this repository since it was not found.")
+			return params, nil
+		}
 		return nil, fmt.Errorf("error listing repos: %w", err)
 	}
-	params := make([]map[string]any, 0, len(pulls))
 
 	// In order to follow the DNS label standard as defined in RFC 1123,
 	// we need to limit the 'branch' to 50 to give room to append/suffix-ing it
@@ -88,18 +96,12 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	var shortSHALength int
 	var shortSHALength7 int
 	for _, pull := range pulls {
-		shortSHALength = 8
-		if len(pull.HeadSHA) < 8 {
-			shortSHALength = len(pull.HeadSHA)
-		}
+		shortSHALength = min(len(pull.HeadSHA), 8)
 
-		shortSHALength7 = 7
-		if len(pull.HeadSHA) < 7 {
-			shortSHALength7 = len(pull.HeadSHA)
-		}
+		shortSHALength7 = min(len(pull.HeadSHA), 7)
 
 		paramMap := map[string]any{
-			"number":             strconv.Itoa(pull.Number),
+			"number":             strconv.FormatInt(pull.Number, 10),
 			"title":              pull.Title,
 			"branch":             pull.Branch,
 			"branch_slug":        slug.Make(pull.Branch),
@@ -111,14 +113,14 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"author":             pull.Author,
 		}
 
-		err := appendTemplatedValues(appSetGenerator.PullRequest.Values, paramMap, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
-		if err != nil {
-			return nil, fmt.Errorf("failed to append templated values: %w", err)
-		}
-
 		// PR lables will only be supported for Go Template appsets, since fasttemplate will be deprecated.
 		if applicationSetInfo != nil && applicationSetInfo.Spec.GoTemplate {
 			paramMap["labels"] = pull.Labels
+		}
+
+		err := appendTemplatedValues(appSetGenerator.PullRequest.Values, paramMap, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to append templated values: %w", err)
 		}
 		params = append(params, paramMap)
 	}
@@ -235,9 +237,9 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 		}
 
 		if g.enableGitHubAPIMetrics {
-			return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
+			return pullrequest.NewGithubAppService(ctx, *auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
 		}
-		return pullrequest.NewGithubAppService(*auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
+		return pullrequest.NewGithubAppService(ctx, *auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
 	}
 
 	// always default to token, even if not set (public access)

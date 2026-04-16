@@ -20,8 +20,12 @@ node_modules/
 .kube/
 ./test/cmp/*.sock
 .envrc.remote
+.mirrord/
 .*.swp
 rerunreport.txt
+
+# AI tools support
+CLAUDE.local.md
 
 # ignore built binaries
 cmd/argocd/argocd

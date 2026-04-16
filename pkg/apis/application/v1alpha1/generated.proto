@@ -83,7 +83,7 @@ message AppProjectSpec {
   repeated ProjectRole roles = 4;
 
   // ClusterResourceWhitelist contains list of whitelisted cluster level resources
-  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceWhitelist = 5;
+  repeated ClusterResourceRestrictionItem clusterResourceWhitelist = 5;
 
   // NamespaceResourceBlacklist contains list of blacklisted namespace level resources
   repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceBlacklist = 6;
@@ -101,7 +101,7 @@ message AppProjectSpec {
   repeated SignatureKey signatureKeys = 10;
 
   // ClusterResourceBlacklist contains list of blacklisted cluster level resources
-  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
+  repeated ClusterResourceRestrictionItem clusterResourceBlacklist = 11;
 
   // SourceNamespaces defines the namespaces application resources are allowed to be created in
   repeated string sourceNamespaces = 12;
@@ -129,12 +129,16 @@ message AppProjectStatus {
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
 // +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
 message Application {
+  // Common: shared with ApplicationSet
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
+  // Common: shared with ApplicationSet
   optional ApplicationSpec spec = 2;
 
+  // Common: shared with ApplicationSet (different type)
   optional ApplicationStatus status = 3;
 
+  // Common: shared with ApplicationSet (different type)
   optional Operation operation = 4;
 }
 
@@ -197,7 +201,7 @@ message ApplicationPreservedFields {
   repeated string labels = 2;
 }
 
-// ApplicationSet is a set of Application resources
+// ApplicationSet is a set of Application resources.
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -206,8 +210,10 @@ message ApplicationPreservedFields {
 message ApplicationSet {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
+  // Common: shared with Application
   optional ApplicationSetSpec spec = 2;
 
+  // Common: shared with Application (different type)
   optional ApplicationSetStatus status = 3;
 }
 
@@ -222,7 +228,7 @@ message ApplicationSetApplicationStatus {
   // Message contains human-readable message indicating details about the status
   optional string message = 3;
 
-  // Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
+  // Status contains the AppSet's perceived status of the managed Application resource
   optional string status = 4;
 
   // Step tracks which step this Application should be updated in
@@ -349,7 +355,8 @@ message ApplicationSetSpec {
 
   repeated string goTemplateOptions = 7;
 
-  // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+  // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators.
+  //
   // Deprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future
   // version of the ApplicationSet CRD.
   optional bool applyNestedSelectors = 8;
@@ -369,6 +376,13 @@ message ApplicationSetStatus {
 
   // Resources is a list of Applications resources managed by this application set.
   repeated ResourceStatus resources = 3;
+
+  // ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when
+  // the number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).
+  optional int64 resourcesCount = 4;
+
+  // Health contains information about the applicationset's current health status based on the applicationset conditions
+  optional HealthStatus health = 5;
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
@@ -376,6 +390,10 @@ message ApplicationSetStrategy {
   optional string type = 1;
 
   optional ApplicationSetRolloutStrategy rollingSync = 2;
+
+  // DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.
+  // accepts values "AllAtOnce" and "Reverse"
+  optional string deletionOrder = 3;
 }
 
 // ApplicationSetSyncPolicy configures how generated Applications will relate to their
@@ -439,6 +457,21 @@ message ApplicationSetTerminalGenerator {
 message ApplicationSetTree {
   // Nodes contains list of nodes which are directly managed by the applicationset
   repeated ResourceNode nodes = 1;
+}
+
+// ApplicationSetWatchEvent contains information about application change.
+message ApplicationSetWatchEvent {
+  // Type represents the Kubernetes watch event type. The protobuf tag uses
+  // casttype to ensure the generated Go code keeps this field as
+  // watch.EventType (a strong Go type) instead of falling back to a plain string
+  optional string type = 1;
+
+  // ApplicationSet is:
+  //  * If Type is Added or Modified: the new state of the object.
+  //  * If Type is Deleted: the state of the object immediately before deletion.
+  //  * If Type is Error: *api.Status is recommended; other types may make sense
+  //    depending on context
+  optional ApplicationSet applicationSet = 2;
 }
 
 // ApplicationSource contains all required information about the source of an application
@@ -557,10 +590,10 @@ message ApplicationSourceJsonnet {
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 message ApplicationSourceKustomize {
-  // NamePrefix is a prefix appended to resources for Kustomize apps
+  // NamePrefix overrides the namePrefix in the kustomization.yaml for Kustomize apps
   optional string namePrefix = 1;
 
-  // NameSuffix is a suffix appended to resources for Kustomize apps
+  // NameSuffix overrides the nameSuffix in the kustomization.yaml for Kustomize apps
   optional string nameSuffix = 2;
 
   // Images is a list of Kustomize image override specifications
@@ -696,6 +729,7 @@ message ApplicationStatus {
   optional OperationState operationState = 7;
 
   // ObservedAt indicates when the application state was updated without querying latest git state
+  //
   // Deprecated: controller no longer updates ObservedAt field
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
@@ -928,6 +962,17 @@ message ClusterList {
   repeated Cluster items = 2;
 }
 
+// ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist
+message ClusterResourceRestrictionItem {
+  optional string group = 1;
+
+  optional string kind = 2;
+
+  // Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.
+  // Unlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.
+  optional string name = 3;
+}
+
 // Command holds binary path and arguments list
 message Command {
   repeated string command = 1;
@@ -1001,7 +1046,7 @@ message ConfigManagementPlugin {
   optional bool lockRepo = 4;
 }
 
-// Utility struct for a reference to a configmap key.
+// ConfigMapKeyRef struct for a reference to a configmap key.
 message ConfigMapKeyRef {
   optional string configMapName = 1;
 
@@ -1030,6 +1075,18 @@ message DrySource {
 
   // Path is a directory path within the Git repository where the manifests are located
   optional string path = 3;
+
+  // Helm specifies helm specific options
+  optional ApplicationSourceHelm helm = 4;
+
+  // Kustomize specifies kustomize specific options
+  optional ApplicationSourceKustomize kustomize = 5;
+
+  // Directory specifies path/directory specific options
+  optional ApplicationSourceDirectory directory = 6;
+
+  // Plugin specifies config management plugin specific options
+  optional ApplicationSourcePlugin plugin = 7;
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.
@@ -1059,9 +1116,6 @@ message EnvEntry {
 
   // Value is the value of the variable
   optional string value = 2;
-}
-
-message ErrApplicationNotAllowedToUseProject {
 }
 
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
@@ -1308,7 +1362,14 @@ message KustomizeOptions {
   optional string buildOptions = 1;
 
   // BinaryPath holds optional path to kustomize binary
+  //
+  // Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.
+  // If this field is set, it will be used as the Kustomize binary path.
+  // Otherwise, Versions is used.
   optional string binaryPath = 2;
+
+  // Versions is a list of Kustomize versions and their corresponding binary paths and build options.
+  repeated KustomizeVersion versions = 3;
 }
 
 message KustomizePatch {
@@ -1343,6 +1404,18 @@ message KustomizeSelector {
   optional string annotationSelector = 2;
 
   optional string labelSelector = 3;
+}
+
+// KustomizeVersion holds information about additional Kustomize versions
+message KustomizeVersion {
+  // Name holds Kustomize version name
+  optional string name = 1;
+
+  // Path holds the corresponding binary path
+  optional string path = 2;
+
+  // BuildOptions that are specific to a Kustomize version
+  optional string buildOptions = 3;
 }
 
 // ListGenerator include items info
@@ -1591,6 +1664,9 @@ message PullRequestGenerator {
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 10;
+
+  // ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
+  optional bool continueOnRepoNotFoundError = 11;
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
@@ -1663,6 +1739,8 @@ message PullRequestGeneratorFilter {
   optional string branchMatch = 1;
 
   optional string targetBranchMatch = 2;
+
+  optional string titleMatch = 3;
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
@@ -1711,7 +1789,7 @@ message PullRequestGeneratorGitea {
   repeated string labels = 6;
 }
 
-// PullRequestGenerator defines connection info specific to GitHub.
+// PullRequestGeneratorGithub defines connection info specific to GitHub.
 message PullRequestGeneratorGithub {
   // GitHub org or user to scan. Required.
   optional string owner = 1;
@@ -1775,7 +1853,7 @@ message RepoCreds {
   // EnableOCI specifies whether helm-oci support should be enabled for this repo
   optional bool enableOCI = 11;
 
-  // Type specifies the type of the repoCreds. Can be either "git" or "helm. "git" is assumed if empty or absent.
+  // Type specifies the type of the repoCreds. Can be either "git", "helm" or "oci". "git" is assumed if empty or absent.
   optional string type = 12;
 
   // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
@@ -1887,6 +1965,14 @@ message Repository {
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
+
+  // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
+  optional int64 depth = 27;
+
+  // WebhookManifestCacheWarmDisabled disables manifest cache warming during webhook processing for this repository.
+  // When set, webhook handlers will only trigger reconciliation for affected applications and skip Redis cache
+  // operations for unaffected ones. Recommended for large monorepos with plain YAML manifests.
+  optional bool webhookManifestCacheWarmDisabled = 28;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -1956,15 +2042,6 @@ message ResourceActionDefinition {
 message ResourceActionParam {
   // Name is the name of the parameter.
   optional string name = 1;
-
-  // Value is the value of the parameter.
-  optional string value = 2;
-
-  // Type is the type of the parameter (e.g., string, integer).
-  optional string type = 3;
-
-  // Default is the default value of the parameter, if any.
-  optional string default = 4;
 }
 
 // ResourceActions holds the set of actions that can be applied to a resource.
@@ -2003,6 +2080,7 @@ message ResourceDiff {
   optional string liveState = 6;
 
   // Diff contains the JSON patch representing the difference between the live and target resource.
+  //
   // Deprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.
   optional string diff = 7;
 
@@ -2209,6 +2287,9 @@ message RetryStrategy {
 
   // Backoff controls how to backoff on subsequent retries of failed syncs
   optional Backoff backoff = 2;
+
+  // Refresh indicates if the latest revision should be used on retry instead of the initial one (default: false)
+  optional bool refresh = 3;
 }
 
 // RevisionHistory contains history information about a previous sync
@@ -2463,7 +2544,7 @@ message SCMProviderGeneratorGitlab {
   optional ConfigMapKeyRef caRef = 9;
 }
 
-// Utility struct for a reference to a secret key.
+// SecretRef struct for a reference to a secret key.
 message SecretRef {
   optional string secretName = 1;
 
@@ -2610,17 +2691,23 @@ message SyncPolicyAutomated {
   optional bool allowEmpty = 3;
 
   // Enable allows apps to explicitly control automated sync
-  optional bool enable = 4;
+  optional bool enabled = 4;
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
 // associated DrySource config in the SourceHydrator.
 message SyncSource {
-  // TargetBranch is the branch to which hydrated manifests should be committed
+  // TargetBranch is the branch from which hydrated manifests will be synced.
+  // If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
   optional string targetBranch = 1;
 
   // Path is a directory path within the git repository where hydrated manifests should be committed to and synced
-  // from. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.
+  // from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
+  // hydrated manifests will be synced.
+  //
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  // +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
   optional string path = 2;
 }
 

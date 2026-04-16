@@ -21,7 +21,7 @@ builds:
       - -X github.com/argoproj/argo-cd/v3/common.gitCommit={{ .FullCommit }}
       - -X github.com/argoproj/argo-cd/v3/common.gitTreeState={{ .Env.GIT_TREE_STATE }}
       - -X github.com/argoproj/argo-cd/v3/common.kubectlVersion={{ .Env.KUBECTL_VERSION }}
-      - '{{ if or (eq .Runtime.Goos "linux") (eq .Runtime.Goos "windows") }}-extldflags="-static"{{ end }}'
+      - -extldflags="-static"
     goos:
       - linux
       - windows
@@ -42,15 +42,6 @@ builds:
         goarch: ppc64le
       - goos: windows
         goarch: arm64
-    overrides:
-      - goos: darwin
-        goarch: amd64
-        env:
-          - CGO_ENABLED=1
-      - goos: darwin
-        goarch: arm64
-        env:
-          - CGO_ENABLED=1
 
 archives:
   - id: argocd-archive
@@ -58,13 +49,14 @@ archives:
       - argocd-cli
     name_template: |-
       {{ .ProjectName }}-{{ .Os }}-{{ .Arch }}
-    formats: [ binary ]
+    formats: [binary]
 
 checksum:
   name_template: 'cli_checksums.txt'
   algorithm: sha256
 
 release:
+  make_latest: '{{ .Env.GORELEASER_MAKE_LATEST }}'
   prerelease: auto
   draft: false
   header: |
@@ -74,14 +66,14 @@ release:
 
     ```shell
     kubectl create namespace argocd
-    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/{{.Tag}}/manifests/install.yaml
+    kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/{{ .Env.GORELEASER_CURRENT_REPOSITORY }}/{{.Tag}}/manifests/install.yaml
     ```
 
     ### HA:
 
     ```shell
     kubectl create namespace argocd
-    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/{{.Tag}}/manifests/ha/install.yaml
+    kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/{{ .Env.GORELEASER_CURRENT_REPOSITORY }}/{{.Tag}}/manifests/ha/install.yaml
     ```
 
     ## Release Signatures and Provenance
@@ -95,7 +87,7 @@ release:
 
     If upgrading from a different minor version, be sure to read the [upgrading](https://argo-cd.readthedocs.io/en/stable/operator-manual/upgrading/overview/) documentation.
   footer: |
-    **Full Changelog**: https://github.com/argoproj/argo-cd/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/{{ .Env.GORELEASER_CURRENT_REPOSITORY }}/compare/{{ .PreviousTag }}...{{ .Tag }}
 
     <a href="https://argoproj.github.io/cd/"><img src="https://raw.githubusercontent.com/argoproj/argo-site/master/content/pages/cd/gitops-cd.png" width="25%" ></a>
 

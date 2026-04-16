@@ -89,6 +89,7 @@ argocd app [flags]
 * [argocd app diff](argocd_app_diff.md)	 - Perform a diff against the target and live state.
 * [argocd app edit](argocd_app_edit.md)	 - Edit application
 * [argocd app get](argocd_app_get.md)	 - Get application details
+* [argocd app get-resource](argocd_app_get-resource.md)	 - Get details about the live Kubernetes manifests of a resource in an application. The filter-fields flag can be used to only display fields you want to see.
 * [argocd app history](argocd_app_history.md)	 - Show application deployment history
 * [argocd app list](argocd_app_list.md)	 - List applications
 * [argocd app logs](argocd_app_logs.md)	 - Get logs of application pods
@@ -96,7 +97,7 @@ argocd app [flags]
 * [argocd app patch](argocd_app_patch.md)	 - Patch application
 * [argocd app patch-resource](argocd_app_patch-resource.md)	 - Patch resource in an application
 * [argocd app remove-source](argocd_app_remove-source.md)	 - Remove a source from multiple sources application.
-* [argocd app resources](argocd_app_resources.md)	 - List resource of application
+* [argocd app resources](argocd_app_resources.md)	 - List resources of application
 * [argocd app rollback](argocd_app_rollback.md)	 - Rollback application to a previous deployed version by History ID, omitted will Rollback to the previous version
 * [argocd app set](argocd_app_set.md)	 - Set application parameters
 * [argocd app sync](argocd_app_sync.md)	 - Sync an application to its target state

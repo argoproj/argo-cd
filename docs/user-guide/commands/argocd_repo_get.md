@@ -8,13 +8,31 @@ Get a configured repository by URL
 argocd repo get REPO [flags]
 ```
 
+### Examples
+
+```
+
+  # Get Git or Helm repository details in wide format (default, '-o wide')
+  argocd repo get https://git.example.com/repos/repo
+
+  # Get repository details in YAML format
+  argocd repo get https://git.example.com/repos/repo -o yaml
+
+  # Get repository details in JSON format
+  argocd repo get https://git.example.com/repos/repo -o json
+
+  # Get repository URL
+  argocd repo get https://git.example.com/repos/repo -o url
+
+```
+
 ### Options
 
 ```
   -h, --help             help for get
   -o, --output string    Output format. One of: json|yaml|wide|url (default "wide")
       --project string   project of the repository
-      --refresh string   Force a cache refresh on connection status , must be one of: 'hard'
+      --refresh string   Force a cache refresh on connection status. Supported values: hard
 ```
 
 ### Options inherited from parent commands

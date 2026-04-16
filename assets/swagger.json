@@ -374,6 +374,56 @@
         }
       }
     },
+    "/api/v1/applications/{appName}/server-side-diff": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "ServerSideDiff performs server-side diff calculation using dry-run apply",
+        "operationId": "ApplicationService_ServerSideDiff",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "appName",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "targetManifests",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationServerSideDiffResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{application.metadata.name}": {
       "put": {
         "tags": [
@@ -999,6 +1049,11 @@
             "collectionFormat": "multi",
             "name": "revisions",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "noCache",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1473,10 +1528,11 @@
         }
       },
       "post": {
+        "description": "Deprecated: use RunResourceActionV2 instead. This version does not support resource action parameters but is\nmaintained for backward compatibility. It will be removed in a future release.",
         "tags": [
           "ApplicationService"
         ],
-        "summary": "RunResourceAction run resource action",
+        "summary": "RunResourceAction runs a resource action",
         "operationId": "ApplicationService_RunResourceAction",
         "parameters": [
           {
@@ -1490,7 +1546,81 @@
             "in": "body",
             "required": true,
             "schema": {
-              "$ref": "#/definitions/applicationResourceActionRunRequest"
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applications/{name}/resource/actions/v2": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "RunResourceActionV2 runs a resource action with parameters",
+        "operationId": "ApplicationService_RunResourceActionV2",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationResourceActionRunRequestV2"
             }
           }
         ],
@@ -2124,6 +2254,44 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/applicationsetApplicationSetResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applicationsets/{name}/events": {
+      "get": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "ListResourceEvents returns a list of event resources",
+        "operationId": "ApplicationSetService_ListResourceEvents",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the applicationsets's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1EventList"
             }
           },
           "default": {
@@ -4217,6 +4385,69 @@
         }
       }
     },
+    "/api/v1/stream/applicationsets": {
+      "get": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "operationId": "ApplicationSetService_Watch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "projects",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "selector",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appSetNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "when specified with a watch call, shows changes that occur after that particular version of a resource.",
+            "name": "resourceVersion",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.(streaming responses)",
+            "schema": {
+              "type": "object",
+              "title": "Stream result of v1alpha1ApplicationSetWatchEvent",
+              "properties": {
+                "error": {
+                  "$ref": "#/definitions/runtimeStreamError"
+                },
+                "result": {
+                  "$ref": "#/definitions/v1alpha1ApplicationSetWatchEvent"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/write-repocreds": {
       "get": {
         "tags": [
@@ -4944,6 +5175,20 @@
         }
       }
     },
+    "applicationApplicationServerSideDiffResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceDiff"
+          }
+        },
+        "modified": {
+          "type": "boolean"
+        }
+      }
+    },
     "applicationApplicationSyncRequest": {
       "type": "object",
       "title": "ApplicationSyncRequest is a request to apply the config state to live state",
@@ -5127,7 +5372,7 @@
         }
       }
     },
-    "applicationResourceActionRunRequest": {
+    "applicationResourceActionRunRequestV2": {
       "type": "object",
       "properties": {
         "action": {
@@ -5474,6 +5719,9 @@
         },
         "statusBadgeRootUrl": {
           "type": "string"
+        },
+        "syncWithReplaceAllowed": {
+          "type": "boolean"
         },
         "trackingMethod": {
           "type": "string"
@@ -6682,14 +6930,14 @@
           "type": "array",
           "title": "ClusterResourceBlacklist contains list of blacklisted cluster level resources",
           "items": {
-            "$ref": "#/definitions/v1GroupKind"
+            "$ref": "#/definitions/v1alpha1ClusterResourceRestrictionItem"
           }
         },
         "clusterResourceWhitelist": {
           "type": "array",
           "title": "ClusterResourceWhitelist contains list of whitelisted cluster level resources",
           "items": {
-            "$ref": "#/definitions/v1GroupKind"
+            "$ref": "#/definitions/v1alpha1ClusterResourceRestrictionItem"
           }
         },
         "description": {
@@ -6903,7 +7151,7 @@
     },
     "v1alpha1ApplicationSet": {
       "type": "object",
-      "title": "ApplicationSet is a set of Application resources\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
+      "title": "ApplicationSet is a set of Application resources.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applicationsets,shortName=appset;appsets\n+kubebuilder:subresource:status",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
@@ -6933,7 +7181,7 @@
         },
         "status": {
           "type": "string",
-          "title": "Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)"
+          "title": "Status contains the AppSet's perceived status of the managed Application resource"
         },
         "step": {
           "type": "string",
@@ -7114,7 +7362,7 @@
       "type": "object",
       "properties": {
         "applyNestedSelectors": {
-          "description": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators\nDeprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future\nversion of the ApplicationSet CRD.",
+          "description": "ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators.\n\nDeprecated: This field is ignored, and the behavior is always enabled. The field will be removed in a future\nversion of the ApplicationSet CRD.",
           "type": "boolean"
         },
         "generators": {
@@ -7172,12 +7420,20 @@
             "$ref": "#/definitions/v1alpha1ApplicationSetCondition"
           }
         },
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus"
+        },
         "resources": {
           "description": "Resources is a list of Applications resources managed by this application set.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/applicationv1alpha1ResourceStatus"
           }
+        },
+        "resourcesCount": {
+          "description": "ResourcesCount is the total number of resources managed by this application set. The count may be higher than actual number of items in the Resources field when\nthe number of managed resources exceeds the limit imposed by the controller (to avoid making the status field too large).",
+          "type": "integer",
+          "format": "int64"
         }
       }
     },
@@ -7185,6 +7441,10 @@
       "description": "ApplicationSetStrategy configures how generated Applications are updated in sequence.",
       "type": "object",
       "properties": {
+        "deletionOrder": {
+          "type": "string",
+          "title": "DeletionOrder allows specifying the order for deleting generated apps when progressive sync is enabled.\naccepts values \"AllAtOnce\" and \"Reverse\""
+        },
         "rollingSync": {
           "$ref": "#/definitions/v1alpha1ApplicationSetRolloutStrategy"
         },
@@ -7259,6 +7519,19 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceNode"
           }
+        }
+      }
+    },
+    "v1alpha1ApplicationSetWatchEvent": {
+      "description": "ApplicationSetWatchEvent contains information about application change.",
+      "type": "object",
+      "properties": {
+        "applicationSet": {
+          "$ref": "#/definitions/v1alpha1ApplicationSet"
+        },
+        "type": {
+          "type": "string",
+          "title": "Type represents the Kubernetes watch event type. The protobuf tag uses\ncasttype to ensure the generated Go code keeps this field as\nwatch.EventType (a strong Go type) instead of falling back to a plain string"
         }
       }
     },
@@ -7498,11 +7771,11 @@
         },
         "namePrefix": {
           "type": "string",
-          "title": "NamePrefix is a prefix appended to resources for Kustomize apps"
+          "title": "NamePrefix overrides the namePrefix in the kustomization.yaml for Kustomize apps"
         },
         "nameSuffix": {
           "type": "string",
-          "title": "NameSuffix is a suffix appended to resources for Kustomize apps"
+          "title": "NameSuffix overrides the nameSuffix in the kustomization.yaml for Kustomize apps"
         },
         "namespace": {
           "type": "string",
@@ -8008,6 +8281,22 @@
         }
       }
     },
+    "v1alpha1ClusterResourceRestrictionItem": {
+      "type": "object",
+      "title": "ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "description": "Name is the name of the restricted resource. Glob patterns using Go's filepath.Match syntax are supported.\nUnlike the group and kind fields, if no name is specified, all resources of the specified group/kind are matched.",
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1Command": {
       "type": "object",
       "title": "Command holds binary path and arguments list",
@@ -8101,7 +8390,7 @@
       }
     },
     "v1alpha1ConfigMapKeyRef": {
-      "description": "Utility struct for a reference to a configmap key.",
+      "description": "ConfigMapKeyRef struct for a reference to a configmap key.",
       "type": "object",
       "properties": {
         "configMapName": {
@@ -8133,9 +8422,21 @@
       "description": "DrySource specifies a location for dry \"don't repeat yourself\" manifest source information.",
       "type": "object",
       "properties": {
+        "directory": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceDirectory"
+        },
+        "helm": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceHelm"
+        },
+        "kustomize": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
+        },
         "path": {
           "type": "string",
           "title": "Path is a directory path within the Git repository where the manifests are located"
+        },
+        "plugin": {
+          "$ref": "#/definitions/v1alpha1ApplicationSourcePlugin"
         },
         "repoURL": {
           "type": "string",
@@ -8560,12 +8861,20 @@
       "title": "KustomizeOptions are options for kustomize to use when building manifests",
       "properties": {
         "binaryPath": {
+          "description": "Deprecated: Use settings.Settings instead. See: settings.Settings.KustomizeVersions.\nIf this field is set, it will be used as the Kustomize binary path.\nOtherwise, Versions is used.",
           "type": "string",
           "title": "BinaryPath holds optional path to kustomize binary"
         },
         "buildOptions": {
           "type": "string",
           "title": "BuildOptions is a string of build parameters to use when calling `kustomize build`"
+        },
+        "versions": {
+          "description": "Versions is a list of Kustomize versions and their corresponding binary paths and build options.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1KustomizeVersion"
+          }
         }
       }
     },
@@ -8626,6 +8935,24 @@
         },
         "resId": {
           "$ref": "#/definitions/v1alpha1KustomizeResId"
+        }
+      }
+    },
+    "v1alpha1KustomizeVersion": {
+      "type": "object",
+      "title": "KustomizeVersion holds information about additional Kustomize versions",
+      "properties": {
+        "buildOptions": {
+          "type": "string",
+          "title": "BuildOptions that are specific to a Kustomize version"
+        },
+        "name": {
+          "type": "string",
+          "title": "Name holds Kustomize version name"
+        },
+        "path": {
+          "type": "string",
+          "title": "Path holds the corresponding binary path"
         }
       }
     },
@@ -8950,6 +9277,10 @@
         "bitbucketServer": {
           "$ref": "#/definitions/v1alpha1PullRequestGeneratorBitbucketServer"
         },
+        "continueOnRepoNotFoundError": {
+          "description": "ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.",
+          "type": "boolean"
+        },
         "filters": {
           "description": "Filters for which pull requests should be considered.",
           "type": "array",
@@ -9079,6 +9410,9 @@
         },
         "targetBranchMatch": {
           "type": "string"
+        },
+        "titleMatch": {
+          "type": "string"
         }
       }
     },
@@ -9150,7 +9484,7 @@
       }
     },
     "v1alpha1PullRequestGeneratorGithub": {
-      "description": "PullRequestGenerator defines connection info specific to GitHub.",
+      "description": "PullRequestGeneratorGithub defines connection info specific to GitHub.",
       "type": "object",
       "properties": {
         "api": {
@@ -9248,7 +9582,7 @@
           "title": "TLSClientCertKey specifies the TLS client cert key for authenticating at the repo server"
         },
         "type": {
-          "description": "Type specifies the type of the repoCreds. Can be either \"git\" or \"helm. \"git\" is assumed if empty or absent.",
+          "description": "Type specifies the type of the repoCreds. Can be either \"git\", \"helm\" or \"oci\". \"git\" is assumed if empty or absent.",
           "type": "string"
         },
         "url": {
@@ -9290,6 +9624,11 @@
         },
         "connectionState": {
           "$ref": "#/definitions/v1alpha1ConnectionState"
+        },
+        "depth": {
+          "description": "Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.",
+          "type": "integer",
+          "format": "int64"
         },
         "enableLfs": {
           "description": "EnableLFS specifies whether git-lfs support should be enabled for this repo. Only valid for Git repositories.",
@@ -9388,6 +9727,10 @@
         "username": {
           "type": "string",
           "title": "Username contains the user name used for authenticating at the remote repository"
+        },
+        "webhookManifestCacheWarmDisabled": {
+          "description": "WebhookManifestCacheWarmDisabled disables manifest cache warming during webhook processing for this repository.\nWhen set, webhook handlers will only trigger reconciliation for affected applications and skip Redis cache\noperations for unaffected ones. Recommended for large monorepos with plain YAML manifests.",
+          "type": "boolean"
         }
       }
     },
@@ -9482,20 +9825,8 @@
       "description": "ResourceActionParam represents a parameter for a resource action.\nIt includes a name, value, type, and an optional default value for the parameter.",
       "type": "object",
       "properties": {
-        "default": {
-          "description": "Default is the default value of the parameter, if any.",
-          "type": "string"
-        },
         "name": {
           "description": "Name is the name of the parameter.",
-          "type": "string"
-        },
-        "type": {
-          "description": "Type is the type of the parameter (e.g., string, integer).",
-          "type": "string"
-        },
-        "value": {
-          "description": "Value is the value of the parameter.",
           "type": "string"
         }
       }
@@ -9505,7 +9836,7 @@
       "type": "object",
       "properties": {
         "diff": {
-          "description": "Diff contains the JSON patch representing the difference between the live and target resource.\nDeprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.",
+          "description": "Diff contains the JSON patch representing the difference between the live and target resource.\n\nDeprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.",
           "type": "string"
         },
         "group": {
@@ -9796,6 +10127,10 @@
           "description": "Limit is the maximum number of attempts for retrying a failed sync. If set to 0, no retries will be performed.",
           "type": "integer",
           "format": "int64"
+        },
+        "refresh": {
+          "type": "boolean",
+          "title": "Refresh indicates if the latest revision should be used on retry instead of the initial one (default: false)"
         }
       }
     },
@@ -10162,7 +10497,7 @@
       }
     },
     "v1alpha1SecretRef": {
-      "description": "Utility struct for a reference to a secret key.",
+      "description": "SecretRef struct for a reference to a secret key.",
       "type": "object",
       "properties": {
         "key": {
@@ -10376,7 +10711,7 @@
           "type": "boolean",
           "title": "AllowEmpty allows apps have zero live resources (default: false)"
         },
-        "enable": {
+        "enabled": {
           "type": "boolean",
           "title": "Enable allows apps to explicitly control automated sync"
         },
@@ -10395,12 +10730,12 @@
       "type": "object",
       "properties": {
         "path": {
-          "description": "Path is a directory path within the git repository where hydrated manifests should be committed to and synced\nfrom. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.",
+          "description": "Path is a directory path within the git repository where hydrated manifests should be committed to and synced\nfrom. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which\nhydrated manifests will be synced.\n\n+kubebuilder:validation:Required\n+kubebuilder:validation:MinLength=1\n+kubebuilder:validation:Pattern=`^.{2,}|[^./]$`",
           "type": "string"
         },
         "targetBranch": {
-          "type": "string",
-          "title": "TargetBranch is the branch to which hydrated manifests should be committed"
+          "description": "TargetBranch is the branch from which hydrated manifests will be synced.\nIf HydrateTo is not set, this is also the branch to which hydrated manifests are committed.",
+          "type": "string"
         }
       }
     },

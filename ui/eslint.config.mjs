@@ -24,7 +24,8 @@ export default [
         ...pluginReactConfig,
         rules: {
             'react/display-name': 'off',
-            'react/no-string-refs': 'off'
+            'react/no-string-refs': 'off',
+            'react/jsx-no-useless-fragment': ['error', {allowExpressions: true}]
         }
     },
     eslintPluginPrettierRecommended,
@@ -32,6 +33,6 @@ export default [
         files: ['./src/**/*.{ts,tsx}']
     },
     {
-        ignores: ['dist', 'assets', '**/*.config.js', '__mocks__', 'coverage', '**/*.test.{ts,tsx}']
+        ignores: ['dist', 'assets', '**/*.config.js', 'jest.setup.js', '__mocks__', 'coverage', '**/*.test.{ts,tsx}']
     }
 ];

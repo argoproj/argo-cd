@@ -62,6 +62,8 @@ The parameters for the PagerDuty configuration in the template generally match w
 * `group` - Logical grouping of components of a service.
 * `class` - The class/type of the event.
 * `url` - The URL that should be used for the link "View in ArgoCD" in PagerDuty.
+* `dedupKey` - A string used by PagerDuty to deduplicate and correlate events. Events with the same `dedupKey` will be grouped into the same incident. If omitted, PagerDuty will create a new incident for each event.
+
 
 The `timestamp` and `custom_details` parameters are not currently supported.
 

@@ -15,8 +15,11 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/go-playground/webhooks/v6/azuredevops"
+
 	bb "github.com/ktrysmt/go-bitbucket"
 	"github.com/stretchr/testify/mock"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/go-playground/webhooks/v6/bitbucket"
@@ -28,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	kubetesting "k8s.io/client-go/testing"
 
+	argov1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -40,6 +44,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/reposerver/cache"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -65,18 +70,40 @@ type reactorDef struct {
 	reaction kubetesting.ReactionFunc
 }
 
+func assertLogContains(t *testing.T, hook *test.Hook, msg string) {
+	t.Helper()
+	for _, entry := range hook.Entries {
+		if entry.Message == msg {
+			return
+		}
+	}
+	t.Errorf("log hook did not contain message: %q", msg)
+}
+
+func assertLogContainsSubstr(t *testing.T, hook *test.Hook, substr string) {
+	t.Helper()
+	for _, entry := range hook.Entries {
+		if strings.Contains(entry.Message, substr) {
+			return
+		}
+	}
+	t.Errorf("log hook did not contain message with substring: %q", substr)
+}
+
 func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	defaultMaxPayloadSize := int64(50) * 1024 * 1024
 	return NewMockHandlerWithPayloadLimit(reactor, applicationNamespaces, defaultMaxPayloadSize, objects...)
 }
 
 func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces []string, maxPayloadSize int64, objects ...runtime.Object) *ArgoCDWebhookHandler {
-	return newMockHandler(reactor, applicationNamespaces, maxPayloadSize, &mocks.ArgoDB{}, &settings.ArgoCDSettings{}, objects...)
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
+	return newMockHandler(reactor, applicationNamespaces, maxPayloadSize, mockDB, &settings.ArgoCDSettings{}, objects...)
 }
 
 func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
-	mockDB := mocks.ArgoDB{}
-	mockDB.On("ListRepositories", mock.Anything).Return(
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return(
 		[]*v1alpha1.Repository{
 			{
 				Repo:     "https://bitbucket.org/test/argocd-examples-pub.git",
@@ -95,7 +122,32 @@ func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespac
 		}, nil)
 	argoSettings := settings.ArgoCDSettings{WebhookBitbucketUUID: "abcd-efgh-ijkl-mnop"}
 	defaultMaxPayloadSize := int64(50) * 1024 * 1024
-	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, &mockDB, &argoSettings, objects...)
+	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
+}
+
+type fakeAppsLister struct {
+	argov1.ApplicationLister
+	argov1.ApplicationNamespaceLister
+	namespace string
+	clientset *appclientset.Clientset
+}
+
+func (f *fakeAppsLister) Applications(namespace string) argov1.ApplicationNamespaceLister {
+	return &fakeAppsLister{namespace: namespace, clientset: f.clientset}
+}
+
+func (f *fakeAppsLister) List(selector labels.Selector) ([]*v1alpha1.Application, error) {
+	res, err := f.clientset.ArgoprojV1alpha1().Applications(f.namespace).List(context.Background(), metav1.ListOptions{
+		LabelSelector: selector.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	var apps []*v1alpha1.Application
+	for i := range res.Items {
+		apps = append(apps, &res.Items[i])
+	}
+	return apps, nil
 }
 
 func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayloadSize int64, argoDB db.ArgoDB, argoSettings *settings.ArgoCDSettings, objects ...runtime.Object) *ArgoCDWebhookHandler {
@@ -109,8 +161,7 @@ func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayl
 		appClientset.AddReactor(reactor.verb, reactor.resource, reactor.reaction)
 	}
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-
-	return NewHandler("argocd", applicationNamespaces, 10, appClientset, argoSettings, &fakeSettingsSrc{}, cache.NewCache(
+	return NewHandler("argocd", applicationNamespaces, 10, appClientset, &fakeAppsLister{clientset: appClientset}, argoSettings, &fakeSettingsSrc{}, cache.NewCache(
 		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
@@ -121,7 +172,7 @@ func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayl
 func TestGitHubCommitEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
 	require.NoError(t, err)
@@ -132,14 +183,14 @@ func TestGitHubCommitEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
 func TestAzureDevOpsCommitEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Vss-Activityid", "abc")
 	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
 	require.NoError(t, err)
@@ -150,65 +201,7 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://dev.azure.com/alexander0053/alex-test/_git/alex-test, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
-	hook.Reset()
-}
-
-// TestGitHubCommitEvent_MultiSource_Refresh makes sure that a webhook will refresh a multi-source app when at least
-// one source matches.
-func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
-	hook := test.NewGlobal()
-	var patched bool
-	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchAction := action.(kubetesting.PatchAction)
-		assert.Equal(t, "app-to-refresh", patchAction.GetName())
-		patched = true
-		return true, nil, nil
-	}
-	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app-to-refresh",
-			Namespace: "argocd",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: v1alpha1.ApplicationSources{
-				{
-					RepoURL: "https://github.com/some/unrelated-repo",
-					Path:    ".",
-				},
-				{
-					RepoURL: "https://github.com/jessesuen/test-repo",
-					Path:    ".",
-				},
-			},
-		},
-	}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "app-to-ignore",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: v1alpha1.ApplicationSources{
-				{
-					RepoURL: "https://github.com/some/unrelated-repo",
-					Path:    ".",
-				},
-			},
-		},
-	},
-	)
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
-	req.Header.Set("X-GitHub-Event", "push")
-	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-	require.NoError(t, err)
-	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-	w := httptest.NewRecorder()
-	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
-	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResult := "Requested app 'app-to-refresh' refresh"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
-	assert.True(t, patched)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -279,7 +272,7 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 			},
 		},
 	)
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
 	require.NoError(t, err)
@@ -310,76 +303,10 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	hook.Reset()
 }
 
-// TestGitHubCommitEvent_Hydrate makes sure that a webhook will hydrate an app when dry source changed.
-func TestGitHubCommitEvent_Hydrate(t *testing.T) {
-	hook := test.NewGlobal()
-	var patched bool
-	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchAction := action.(kubetesting.PatchAction)
-		assert.Equal(t, "app-to-hydrate", patchAction.GetName())
-		patched = true
-		return true, nil, nil
-	}
-	h := NewMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app-to-hydrate",
-			Namespace: "argocd",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			SourceHydrator: &v1alpha1.SourceHydrator{
-				DrySource: v1alpha1.DrySource{
-					RepoURL:        "https://github.com/jessesuen/test-repo",
-					TargetRevision: "HEAD",
-					Path:           ".",
-				},
-				SyncSource: v1alpha1.SyncSource{
-					TargetBranch: "environments/dev",
-					Path:         ".",
-				},
-				HydrateTo: nil,
-			},
-		},
-	}, &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "app-to-ignore",
-		},
-		Spec: v1alpha1.ApplicationSpec{
-			Sources: v1alpha1.ApplicationSources{
-				{
-					RepoURL: "https://github.com/some/unrelated-repo",
-					Path:    ".",
-				},
-			},
-		},
-	},
-	)
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
-	req.Header.Set("X-GitHub-Event", "push")
-	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
-	require.NoError(t, err)
-	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
-	w := httptest.NewRecorder()
-	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.True(t, patched)
-
-	logMessages := make([]string, 0, len(hook.Entries))
-	for _, entry := range hook.Entries {
-		logMessages = append(logMessages, entry.Message)
-	}
-
-	assert.Contains(t, logMessages, "webhook trigger refresh app to hydrate 'app-to-hydrate'")
-	assert.NotContains(t, logMessages, "webhook trigger refresh app to hydrate 'app-to-ignore'")
-
-	hook.Reset()
-}
-
 func TestGitHubTagEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-tag-event.json")
 	require.NoError(t, err)
@@ -390,14 +317,14 @@ func TestGitHubTagEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: v1.0, touchedHead: false"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
 func TestGitHubPingEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "ping")
 	eventJSON, err := os.ReadFile("testdata/github-ping-event.json")
 	require.NoError(t, err)
@@ -408,14 +335,14 @@ func TestGitHubPingEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
 func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Event-Key", "repo:refs_changed")
 	eventJSON, err := os.ReadFile("testdata/bitbucket-server-event.json")
 	require.NoError(t, err)
@@ -426,9 +353,9 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResultSSH := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResultSSH, hook.AllEntries()[len(hook.AllEntries())-2].Message)
+	assertLogContains(t, hook, expectedLogResultSSH)
 	expectedLogResultHTTPS := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResultHTTPS, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResultHTTPS)
 	hook.Reset()
 }
 
@@ -436,7 +363,7 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
 	eventJSON := "{\"test\": true}"
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", bytes.NewBufferString(eventJSON))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewBufferString(eventJSON))
 	req.Header.Set("X-Event-Key", "diagnostics:ping")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -444,14 +371,14 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
 func TestGogsPushEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Gogs-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/gogs-event.json")
 	require.NoError(t, err)
@@ -462,14 +389,14 @@ func TestGogsPushEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: http://gogs-server/john/repo-test, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
 func TestGitLabPushEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Gitlab-Event", "Push Hook")
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
 	require.NoError(t, err)
@@ -480,14 +407,14 @@ func TestGitLabPushEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
 func TestGitLabSystemEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Gitlab-Event", "System Hook")
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
 	require.NoError(t, err)
@@ -498,46 +425,44 @@ func TestGitLabSystemEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
 func TestInvalidMethod(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodGet, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	expectedLogResult := "Webhook processing failed: invalid HTTP Method"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
-	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
+	assertLogContains(t, hook, "Webhook processing failed: invalid HTTP Method")
+	assert.Equal(t, "Webhook processing failed\n", w.Body.String())
 	hook.Reset()
 }
 
 func TestInvalidEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 50 MB) and ensure it is valid JSON"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
-	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
+	assertLogContainsSubstr(t, hook, "Webhook processing failed: payload too large or corrupted (limit 50 MB)")
+	assert.Equal(t, "Webhook processing failed: payload must be valid JSON under 50 MB\n", w.Body.String())
 	hook.Reset()
 }
 
 func TestUnknownEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Unknown-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -618,7 +543,8 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		// The payload's "push.changes[0].new.name" member seems to only have the branch name (based on the example payload).
 		// https://support.atlassian.com/bitbucket-cloud/docs/event-payloads/#EventPayloads-Push
 		var pl bitbucket.RepoPushPayload
-		_ = json.Unmarshal([]byte(fmt.Sprintf(`{"push":{"changes":[{"new":{"name":%q}}]}}`, branchName)), &pl)
+		err := json.Unmarshal(fmt.Appendf(nil, `{"push":{"changes":[{"new":{"name":%q}}]}}`, branchName), &pl)
+		require.NoError(t, err)
 		return pl
 	}
 
@@ -702,6 +628,26 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		{true, "refs/tags/no-slashes", bitbucketPushPayload("no-slashes"), "bitbucket push branch or tag name without slashes, targetRevision tag prefixed"},
 		{true, "refs/tags/no-slashes", bitbucketRefChangedPayload("no-slashes"), "bitbucket ref changed branch or tag name without slashes, targetRevision tag prefixed"},
 		{true, "refs/tags/no-slashes", gogsPushPayload("no-slashes"), "gogs push branch or tag name without slashes, targetRevision tag prefixed"},
+
+		// Tests fix for https://github.com/argoproj/argo-cd/security/advisories/GHSA-wp4p-9pxh-cgx2
+		{true, "test", gogsclient.PushPayload{Ref: "test", Repo: nil}, "gogs push branch with nil repo in payload"},
+
+		// Testing fix for https://github.com/argoproj/argo-cd/security/advisories/GHSA-gpx4-37g2-c8pv
+		{false, "test", azuredevops.GitPushEvent{Resource: azuredevops.Resource{RefUpdates: []azuredevops.RefUpdate{}}}, "Azure DevOps malformed push event with no ref updates"},
+
+		{true, "some-ref", bitbucketserver.RepositoryReferenceChangedPayload{
+			Changes: []bitbucketserver.RepositoryChange{
+				{Reference: bitbucketserver.RepositoryReference{ID: "refs/heads/some-ref"}},
+			},
+			Repository: bitbucketserver.Repository{Links: map[string]any{"clone": "boom"}}, // The string "boom" here is what previously caused a panic.
+		}, "bitbucket push branch or tag name, malformed link"}, // https://github.com/argoproj/argo-cd/security/advisories/GHSA-f9gq-prrc-hrhc
+
+		{true, "some-ref", bitbucketserver.RepositoryReferenceChangedPayload{
+			Changes: []bitbucketserver.RepositoryChange{
+				{Reference: bitbucketserver.RepositoryReference{ID: "refs/heads/some-ref"}},
+			},
+			Repository: bitbucketserver.Repository{Links: map[string]any{"clone": []any{map[string]any{"name": "http", "href": []string{}}}}}, // The href as an empty array is what previously caused a panic.
+		}, "bitbucket push branch or tag name, malformed href"},
 	}
 	for _, testCase := range tests {
 		testCopy := testCase
@@ -815,7 +761,7 @@ func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
 	hook := test.NewGlobal()
 	maxPayloadSize := int64(100)
 	h := NewMockHandlerWithPayloadLimit(nil, []string{}, maxPayloadSize)
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
 	require.NoError(t, err)
@@ -825,9 +771,466 @@ func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 0 MB) and ensure it is valid JSON"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContainsSubstr(t, hook, "Webhook processing failed: payload too large or corrupted (limit 0 MB)")
 	hook.Reset()
+}
+
+func TestHandleEvent(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		app         *v1alpha1.Application
+		changedFile string // file that was changed in the webhook payload
+		hasRefresh  bool   // application has refresh annotation applied
+		hasHydrate  bool   // application has hydrate annotation applied
+		updateCache bool   // cache should be updated with the new revision
+	}{
+		{
+			name: "single source without annotation - always refreshes",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "source/path",
+							TargetRevision: "HEAD",
+						},
+					},
+				},
+			},
+			changedFile: "source/path/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  false,
+			updateCache: false,
+		},
+		{
+			name: "single source with annotation - matching file triggers refresh",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "deploy",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "source/path",
+							TargetRevision: "HEAD",
+						},
+					},
+				},
+			},
+			changedFile: "source/path/deploy/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  false,
+			updateCache: false,
+		},
+		{
+			name: "single source with annotation - non-matching file updates cache",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "manifests",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "source/path",
+							TargetRevision: "HEAD",
+						},
+					},
+				},
+			},
+			changedFile: "source/path/other/app.yaml",
+			hasRefresh:  false,
+			hasHydrate:  false,
+			updateCache: true,
+		},
+		{
+			name: "single source with multiple paths annotation - matching subpath triggers refresh",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "manifests;dev/deploy;other/path",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "source/path",
+							TargetRevision: "HEAD",
+						},
+					},
+				},
+			},
+			changedFile: "source/path/dev/deploy/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  false,
+			updateCache: false,
+		},
+		{
+			name: "multi-source without annotation - always refreshes",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "helm-charts",
+							TargetRevision: "HEAD",
+						},
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "ksapps",
+							TargetRevision: "HEAD",
+						},
+					},
+				},
+			},
+			changedFile: "ksapps/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  false,
+			updateCache: false,
+		},
+		{
+			name: "multi-source with annotation - matching file triggers refresh",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "components",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "helm-charts",
+							TargetRevision: "HEAD",
+						},
+						{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							Path:           "ksapps",
+							TargetRevision: "HEAD",
+						},
+					},
+				},
+			},
+			changedFile: "ksapps/components/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  false,
+			updateCache: false,
+		},
+		{
+			name: "source hydrator sync source without annotation - refreshes when sync path matches",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "HEAD",
+							Path:           "dry/path",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "master",
+							Path:         "sync/path",
+						},
+					},
+				},
+			},
+			changedFile: "sync/path/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  false,
+			updateCache: false,
+		},
+		{
+			name: "source hydrator dry source without annotation - always refreshes and hydrates",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "HEAD",
+							Path:           "dry/path",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "master",
+							Path:         "sync/path",
+						},
+					},
+				},
+			},
+			changedFile: "other/path/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  true,
+			updateCache: false,
+		},
+		{
+			name: "source hydrator sync source with annotation - refresh only",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "deploy",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "HEAD",
+							Path:           "dry/path",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "master",
+							Path:         "sync/path",
+						},
+					},
+				},
+			},
+			changedFile: "sync/path/deploy/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  false,
+			updateCache: false,
+		},
+		{
+			name: "source hydrator dry source with annotation - refresh and hydrate",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "deploy",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "HEAD",
+							Path:           "dry/path",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "master",
+							Path:         "sync/path",
+						},
+					},
+				},
+			},
+			changedFile: "dry/path/deploy/app.yaml",
+			hasRefresh:  true,
+			hasHydrate:  true,
+			updateCache: false,
+		},
+		{
+			name: "source hydrator dry source with annotation - non-matching file updates cache",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "deploy",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					SourceHydrator: &v1alpha1.SourceHydrator{
+						DrySource: v1alpha1.DrySource{
+							RepoURL:        "https://github.com/jessesuen/test-repo",
+							TargetRevision: "HEAD",
+							Path:           "dry/path",
+						},
+						SyncSource: v1alpha1.SyncSource{
+							TargetBranch: "master",
+							Path:         "sync/path",
+						},
+					},
+				},
+			},
+			changedFile: "dry/path/other/app.yaml",
+			hasRefresh:  false,
+			hasHydrate:  false,
+			updateCache: true,
+		},
+	}
+
+	for _, tt := range tests {
+		ttc := tt
+		t.Run(ttc.name, func(t *testing.T) {
+			t.Parallel()
+
+			var patchData []byte
+			var patched bool
+			reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				if action.GetVerb() == "patch" {
+					patchAction := action.(kubetesting.PatchAction)
+					patchData = patchAction.GetPatch()
+					patched = true
+				}
+				return true, nil, nil
+			}
+
+			// Setup cache
+			inMemoryCache := cacheutil.NewInMemoryCache(1 * time.Hour)
+			cacheClient := cacheutil.NewCache(inMemoryCache)
+			repoCache := cache.NewCache(
+				cacheClient,
+				1*time.Minute,
+				1*time.Minute,
+				10*time.Second,
+			)
+
+			// Pre-populate cache with beforeSHA if we're testing cache updates
+			if ttc.updateCache {
+				var source *v1alpha1.ApplicationSource
+				if ttc.app.Spec.SourceHydrator != nil {
+					drySource := ttc.app.Spec.SourceHydrator.GetDrySource()
+					source = &drySource
+				} else if len(ttc.app.Spec.Sources) > 0 {
+					source = &ttc.app.Spec.Sources[0]
+				}
+				if source != nil {
+					setupTestCache(t, repoCache, ttc.app.Name, source, []string{"test-manifest"})
+				}
+			}
+
+			// Setup server cache with cluster info
+			serverCache := servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute)
+			mockDB := &mocks.ArgoDB{}
+
+			// Set destination if not present (required for cache updates)
+			if ttc.app.Spec.Destination.Server == "" {
+				ttc.app.Spec.Destination.Server = testClusterURL
+			}
+
+			mockDB.EXPECT().GetCluster(mock.Anything, testClusterURL).Return(&v1alpha1.Cluster{
+				Server: testClusterURL,
+				Info: v1alpha1.ClusterInfo{
+					ServerVersion:   "1.28.0",
+					ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
+					APIVersions:     []string{},
+				},
+			}, nil).Maybe()
+			mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
+
+			err := serverCache.SetClusterInfo(testClusterURL, &v1alpha1.ClusterInfo{
+				ServerVersion:   "1.28.0",
+				ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
+				APIVersions:     []string{},
+			})
+			require.NoError(t, err)
+
+			// Create handler with reaction
+			appClientset := appclientset.NewSimpleClientset(ttc.app)
+			defaultReactor := appClientset.ReactionChain[0]
+			appClientset.ReactionChain = nil
+			appClientset.AddReactor("list", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return defaultReactor.React(action)
+			})
+			appClientset.AddReactor("patch", "applications", reaction)
+
+			h := NewHandler(
+				"argocd",
+				[]string{},
+				10,
+				appClientset,
+				&fakeAppsLister{clientset: appClientset},
+				&settings.ArgoCDSettings{},
+				&fakeSettingsSrc{},
+				repoCache,
+				serverCache,
+				mockDB,
+				int64(50)*1024*1024,
+			)
+
+			// Create payload with the changed file
+			payload := createTestPayload(ttc.changedFile)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
+			req.Header.Set("X-GitHub-Event", "push")
+			req.Body = io.NopCloser(bytes.NewReader(payload))
+
+			w := httptest.NewRecorder()
+			h.Handler(w, req)
+			close(h.queue)
+			h.Wait()
+			assert.Equal(t, http.StatusOK, w.Code)
+
+			// Verify refresh behavior
+			assert.Equal(t, ttc.hasRefresh, patched, "patch status mismatch for test: %s", ttc.name)
+			if patched && patchData != nil {
+				verifyAnnotations(t, patchData, ttc.hasRefresh, ttc.hasHydrate)
+			}
+
+			// Verify cache update behavior
+			if ttc.updateCache {
+				var source *v1alpha1.ApplicationSource
+				if ttc.app.Spec.SourceHydrator != nil {
+					drySource := ttc.app.Spec.SourceHydrator.GetDrySource()
+					source = &drySource
+				} else if len(ttc.app.Spec.Sources) > 0 {
+					source = &ttc.app.Spec.Sources[0]
+				}
+				if source != nil {
+					// Verify cache was updated with afterSHA
+					clusterInfo := &mockClusterInfo{}
+					var afterManifests cache.CachedManifestResponse
+					err := repoCache.GetManifests(testAfterSHA, source, nil, clusterInfo, "", "", testAppLabelKey, ttc.app.Name, &afterManifests, nil, "")
+					require.NoError(t, err, "cache should be updated with afterSHA")
+					if err == nil {
+						assert.Equal(t, testAfterSHA, afterManifests.ManifestResponse.Revision, "cached revision should match afterSHA")
+					}
+				}
+			}
+		})
+	}
+}
+
+// createTestPayload creates a GitHub push event payload with the specified changed file
+func createTestPayload(changedFile string) []byte {
+	payload := fmt.Sprintf(`{
+		"ref": "refs/heads/master",
+		"before": "%s",
+		"after": "%s",
+		"repository": {
+			"html_url": "https://github.com/jessesuen/test-repo",
+			"default_branch": "master"
+		},
+		"commits": [
+			{
+				"added": [],
+				"modified": ["%s"],
+				"removed": []
+			}
+		]
+	}`, testBeforeSHA, testAfterSHA, changedFile)
+	return []byte(payload)
 }
 
 func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
@@ -849,7 +1252,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
   "repository":{
     "type": "repository", 
     "full_name": "{{.owner}}/{{.repo}}",
-    "name": "{{.repo}}", 
+    "name": "{{.name}}", 
     "scm": "git", 
     "links": {
       "self": {"href": "https://api.bitbucket.org/2.0/repositories/{{.owner}}/{{.repo}}"},
@@ -862,7 +1265,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 		panic(err)
 	}
 
-	bitbucketPushPayload := func(branchName, owner, repo string) bitbucket.RepoPushPayload {
+	bitbucketPushPayload := func(branchName, owner, repo, name string) bitbucket.RepoPushPayload {
 		// The payload's "push.changes[0].new.name" member seems to only have the branch name (based on the example payload).
 		// https://support.atlassian.com/bitbucket-cloud/docs/event-payloads/#EventPayloads-Push
 		var pl bitbucket.RepoPushPayload
@@ -871,13 +1274,13 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 			"branch":  branchName,
 			"owner":   owner,
 			"repo":    repo,
+			"name":    name,
 			"oldHash": "abcdef",
 			"newHash": "ghijkl",
 		})
-		if err != nil {
-			require.NoError(t, err)
-		}
-		_ = json.Unmarshal(doc.Bytes(), &pl)
+		require.NoError(t, err)
+		err = json.Unmarshal(doc.Bytes(), &pl)
+		require.NoError(t, err)
 		return pl
 	}
 
@@ -894,7 +1297,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 			"bitbucket branch name containing 'refs/heads/'",
 			false,
 			"release-0.0",
-			bitbucketPushPayload("release-0.0", "test-owner", "test-repo"),
+			bitbucketPushPayload("release-0.0", "test-owner", "test-repo", "test-repo"),
 			false,
 			[]string{"guestbook/guestbook-ui-deployment.yaml"},
 			changeInfo{
@@ -906,7 +1309,55 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 			"bitbucket branch name containing 'main'",
 			false,
 			"main",
-			bitbucketPushPayload("main", "test-owner", "test-repo"),
+			bitbucketPushPayload("main", "test-owner", "test-repo", "test-repo"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is mixed case, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "Test Repo"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is all uppercase, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "TESTREPO"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is all lowercase, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "testrepo"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is all uppercase with spaces, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "TEST REPO"),
 			true,
 			[]string{"guestbook/guestbook-ui-deployment.yaml"},
 			changeInfo{
@@ -1036,7 +1487,8 @@ func TestFetchDiffStatBitbucketClient(t *testing.T) {
 	httpmock.RegisterResponder("GET",
 		"https://api.bitbucket.org/2.0/repositories/test-owner/test-repo/diffstat/abcdef..ghijkl",
 		getDiffstatResponderFn())
-	client := bb.NewOAuthbearerToken("")
+	client, err := bb.NewOAuthbearerToken("")
+	require.NoError(t, err)
 	tt := []struct {
 		name                string
 		owner               string
@@ -1085,7 +1537,8 @@ func TestIsHeadTouched(t *testing.T) {
 	httpmock.RegisterResponder("GET",
 		"https://api.bitbucket.org/2.0/repositories/test-owner/test-repo",
 		getRepositoryResponderFn())
-	client := bb.NewOAuthbearerToken("")
+	client, err := bb.NewOAuthbearerToken("")
+	require.NoError(t, err)
 	tt := []struct {
 		name              string
 		owner             string
@@ -1189,4 +1642,73 @@ func getDiffstatResponderFn() func(req *http.Request) (*http.Response, error) {
 		}
 		return resp, nil
 	}
+}
+
+// mockClusterInfo implements cache.ClusterRuntimeInfo for testing
+type mockClusterInfo struct{}
+
+func (m *mockClusterInfo) GetApiVersions() []string { return []string{} } //nolint:revive // interface method name
+func (m *mockClusterInfo) GetKubeVersion() string   { return "1.28.0" }
+
+// Common test constants
+const (
+	testBeforeSHA   = "d5c1ffa8e294bc18c639bfb4e0df499251034414"
+	testAfterSHA    = "63738bb582c8b540af7bcfc18f87c575c3ed66e0"
+	testClusterURL  = "https://kubernetes.default.svc"
+	testAppLabelKey = "mycompany.com/appname"
+)
+
+// verifyAnnotations is a helper that checks if the expected annotations are present in patch data
+func verifyAnnotations(t *testing.T, patchData []byte, expectRefresh bool, expectHydrate bool) {
+	t.Helper()
+	if patchData == nil {
+		if expectRefresh {
+			t.Error("expected app to be patched but patchData is nil")
+		}
+		return
+	}
+
+	var patchMap map[string]any
+	err := json.Unmarshal(patchData, &patchMap)
+	require.NoError(t, err)
+
+	metadata, hasMetadata := patchMap["metadata"].(map[string]any)
+	require.True(t, hasMetadata, "patch should have metadata")
+
+	annotations, hasAnnotations := metadata["annotations"].(map[string]any)
+	require.True(t, hasAnnotations, "patch should have annotations")
+
+	// Check refresh annotation
+	refreshValue, hasRefresh := annotations["argocd.argoproj.io/refresh"]
+	if expectRefresh {
+		assert.True(t, hasRefresh, "should have refresh annotation")
+		assert.Equal(t, "normal", refreshValue, "refresh annotation should be 'normal'")
+	} else {
+		assert.False(t, hasRefresh, "should not have refresh annotation")
+	}
+
+	// Check hydrate annotation
+	hydrateValue, hasHydrate := annotations["argocd.argoproj.io/hydrate"]
+	if expectHydrate {
+		assert.True(t, hasHydrate, "should have hydrate annotation")
+		assert.Equal(t, "normal", hydrateValue, "hydrate annotation should be 'normal'")
+	} else {
+		assert.False(t, hasHydrate, "should not have hydrate annotation")
+	}
+}
+
+// setupTestCache is a helper that creates and populates a test cache
+func setupTestCache(t *testing.T, repoCache *cache.Cache, appName string, source *v1alpha1.ApplicationSource, manifests []string) {
+	t.Helper()
+	clusterInfo := &mockClusterInfo{}
+	dummyManifests := &cache.CachedManifestResponse{
+		ManifestResponse: &apiclient.ManifestResponse{
+			Revision:  testBeforeSHA,
+			Manifests: manifests,
+			Namespace: "",
+			Server:    testClusterURL,
+		},
+	}
+	err := repoCache.SetManifests(testBeforeSHA, source, nil, clusterInfo, "", "", testAppLabelKey, appName, dummyManifests, nil, "")
+	require.NoError(t, err)
 }
