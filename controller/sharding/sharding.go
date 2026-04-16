@@ -222,7 +222,10 @@ func createConsistentHashingWithBoundLoads(replicas int, getCluster clusterAcces
 		}
 		shardIndexedByCluster[c.ID], err = strconv.Atoi(clusterIndex)
 		if err != nil {
-			log.Errorf("Consistent Hashing was supposed to return a shard index but it returned %d", err)
+			log.Errorf("Failed to get shard index from consistent hashing, error=%v", err)
+			// No continue here: strconv.Atoi returns 0 on failure, so the cluster falls back to shard 0.
+			// This is intentional since shard 0 always exists (replicas > 0 is enforced by the caller),
+			// so the cluster remains reconciled rather than being silently dropped.
 		}
 		numApps, ok := appDistribution[c.Server]
 		if !ok {

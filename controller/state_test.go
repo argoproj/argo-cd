@@ -2040,6 +2040,61 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T)
 	require.False(t, revisionsMayHaveChanges)
 }
 
+func Test_GetRepoObjs_HydrateToAppPathNotExist(t *testing.T) {
+	t.Parallel()
+	t.Run("with hydrateTo: appends waiting message", func(t *testing.T) {
+		t.Parallel()
+
+		app := newFakeApp()
+		app.Spec.Source = nil
+		app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://github.com/example/repo",
+				TargetRevision: "main",
+				Path:           "apps/my-app",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "env/prod",
+				Path:         "env/prod/my-app",
+			},
+			HydrateTo: &v1alpha1.HydrateTo{
+				TargetBranch: "env/prod-next",
+			},
+		}
+
+		ctrl := newFakeController(t.Context(), &fakeData{manifestResponse: &apiclient.ManifestResponse{}}, errors.New("env/prod/my-app: app path does not exist"))
+		source := app.Spec.GetSource()
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, false, &defaultProj, false)
+		require.ErrorContains(t, err, "app path does not exist")
+		require.ErrorContains(t, err, "waiting for an external process to update env/prod from env/prod-next")
+	})
+	t.Run("without hydrateTo: no waiting message appended", func(t *testing.T) {
+		t.Parallel()
+
+		app := newFakeApp()
+		app.Spec.Source = nil
+		app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+			DrySource: v1alpha1.DrySource{
+				RepoURL:        "https://github.com/example/repo",
+				TargetRevision: "main",
+				Path:           "apps/my-app",
+			},
+			SyncSource: v1alpha1.SyncSource{
+				TargetBranch: "env/prod",
+				Path:         "env/prod/my-app",
+			},
+		}
+
+		ctrl := newFakeController(t.Context(), &fakeData{manifestResponse: &apiclient.ManifestResponse{}}, errors.New("env/prod/my-app: app path does not exist"))
+		source := app.Spec.GetSource()
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{source}, "app", []string{""}, true, false, false, &defaultProj, false)
+		require.ErrorContains(t, err, "app path does not exist")
+		require.NotContains(t, err.Error(), "waiting for an external process")
+	})
+}
+
 func Test_isObjRequiresDeletionConfirmation(t *testing.T) {
 	for _, tt := range []struct {
 		name                string

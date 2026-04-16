@@ -6,6 +6,10 @@ on:
 
 permissions: {}
 
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+
 # PR updates can happen in quick succession leading to this
 # workflow being trigger a number of times. This limits it
 # to one run per PR.
@@ -21,6 +25,12 @@ jobs:
     name: Validate PR Title
     runs-on: ubuntu-24.04
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
+
       - uses: thehanimo/pr-title-checker@7fbfe05602bdd86f926d3fb3bccb6f3aed43bc70 # v1.4.3
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
