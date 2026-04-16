@@ -85,6 +85,7 @@ argocd admin repo generate-spec REPOURL [flags]
       --type string                             type of the repository, "git", "oci" or "helm" (default "git")
       --use-azure-workload-identity             whether to use azure workload identity for authentication
       --username string                         username to the repository
+      --webhook-manifest-cache-warm-disabled    disable manifest cache warming during webhook processing for this repository (recommended for large monorepos with plain YAML manifests)
 ```
 
 ### Options inherited from parent commands
