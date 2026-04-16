@@ -367,7 +367,7 @@ jobs:
         with:
           package_json_file: ui/package.json
           # Upon bumping this version, update the corepack version in all the Dockerfiles
-          version: 10.28.1
+          version: 10
       - name: echo pnpm version
         run: |
           pnpm --version 
