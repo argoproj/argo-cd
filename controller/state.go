@@ -248,7 +248,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		apiVersions := argo.APIResourcesToStrings(apiResources, true)
 
 		// Evaluate if the revision has changes
-		resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(ctx, repoClient, app, &source, i, repo, revision, refSources, syncedRefSources, processManifestGeneratePathsEnabled, noRevisionCache, appLabelKey, serverVersion, apiVersions, trackingMethod, installationID, keyManifestGenerateAnnotationExists, keyManifestGenerateAnnotationVal)
+		resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(ctx, repoClient, app, &source, i, repo, revision, refSources, syncedRefSources, noRevisionCache, appLabelKey, serverVersion, apiVersions, trackingMethod, installationID, keyManifestGenerateAnnotationExists, keyManifestGenerateAnnotationVal)
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
 		}
@@ -334,7 +334,6 @@ func (m *appStateManager) evaluateRevisionChanges(
 	revision string,
 	refSources map[string]*v1alpha1.RefTarget,
 	syncedRefSources v1alpha1.RefTargetRevisionMapping,
-	processManifestGeneratePathsEnabled bool,
 	noRevisionCache bool,
 	appLabelKey string,
 	serverVersion string,
@@ -372,10 +371,7 @@ func (m *appStateManager) evaluateRevisionChanges(
 
 	appNamespace := app.Spec.Destination.Namespace
 
-	skipUpdateRevisions := !processManifestGeneratePathsEnabled ||
-		(sourceType == v1alpha1.ApplicationSourceTypeDirectory && (app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.IsAutomatedSyncEnabled()))
-
-	if !skipUpdateRevisions && repo.Depth == 0 && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
+	if repo.Depth == 0 && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
 		// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
 		updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 			Repo:               repo,

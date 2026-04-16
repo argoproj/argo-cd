@@ -2175,7 +2175,6 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 		revision                            string
 		appSyncedRevision                   string
 		refSources                          map[string]*v1alpha1.RefTarget
-		processManifestGeneratePathsEnabled bool
 		repoDepth                           int64
 		keyManifestGenerateAnnotationExists bool
 		keyManifestGenerateAnnotationVal    string
@@ -2221,7 +2220,6 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			refSources: map[string]*v1alpha1.RefTarget{
 				"ref1": {Repo: v1alpha1.Repository{Repo: "https://github.com/example/ref"}},
 			},
-			processManifestGeneratePathsEnabled: true,
 			repoDepth:                           0,
 			keyManifestGenerateAnnotationExists: true,
 			keyManifestGenerateAnnotationVal:    ".",
@@ -2243,7 +2241,6 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			syncPolicy:                          nil,
 			revision:                            "abc123",
 			appSyncedRevision:                   "def456",
-			processManifestGeneratePathsEnabled: true,
 			repoDepth:                           0,
 			keyManifestGenerateAnnotationExists: true,
 			keyManifestGenerateAnnotationVal:    ".",
@@ -2263,7 +2260,6 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			},
 			revision:                            "abc123",
 			appSyncedRevision:                   "def456",
-			processManifestGeneratePathsEnabled: true,
 			repoDepth:                           0,
 			keyManifestGenerateAnnotationExists: true,
 			keyManifestGenerateAnnotationVal:    ".",
@@ -2285,7 +2281,6 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			syncPolicy:                          nil,
 			revision:                            "abc123",
 			appSyncedRevision:                   "def456",
-			processManifestGeneratePathsEnabled: true,
 			repoDepth:                           0,
 			keyManifestGenerateAnnotationExists: true,
 			keyManifestGenerateAnnotationVal:    ".",
@@ -2309,7 +2304,6 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			},
 			revision:                            "abc123",
 			appSyncedRevision:                   "def456",
-			processManifestGeneratePathsEnabled: false,
 			repoDepth:                           0,
 			keyManifestGenerateAnnotationExists: true,
 			keyManifestGenerateAnnotationVal:    ".",
@@ -2329,7 +2323,6 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			},
 			revision:                            "abc123",
 			appSyncedRevision:                   "def456",
-			processManifestGeneratePathsEnabled: true,
 			repoDepth:                           1,
 			keyManifestGenerateAnnotationExists: true,
 			keyManifestGenerateAnnotationVal:    ".",
@@ -2349,7 +2342,6 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			},
 			revision:                            "abc123",
 			appSyncedRevision:                   "def456",
-			processManifestGeneratePathsEnabled: true,
 			repoDepth:                           0,
 			keyManifestGenerateAnnotationExists: false,
 			keyManifestGenerateAnnotationVal:    "",
@@ -2369,7 +2361,6 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			},
 			revision:                            "HEAD",
 			appSyncedRevision:                   "def456",
-			processManifestGeneratePathsEnabled: true,
 			repoDepth:                           0,
 			keyManifestGenerateAnnotationExists: true,
 			keyManifestGenerateAnnotationVal:    ".",
@@ -2419,7 +2410,6 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 				tt.revision,
 				tt.refSources,
 				nil,
-				tt.processManifestGeneratePathsEnabled,
 				false,
 				"app.kubernetes.io/instance",
 				"v1.28.0",
