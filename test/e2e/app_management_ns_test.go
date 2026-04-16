@@ -2433,42 +2433,7 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "0s", configMap.Data[reconciliationTimeoutConfigKey])
 	require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
-	configMapResourceVersion := configMap.ResourceVersion
-	configMapUpdateTime := time.Now()
-
-	require.Eventually(t, func() bool {
-		currentConfigMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
-		if err != nil {
-			return false
-		}
-		if currentConfigMap.ResourceVersion != configMapResourceVersion {
-			configMapResourceVersion = currentConfigMap.ResourceVersion
-			configMapUpdateTime = time.Now()
-			return false
-		}
-
-		timeSinceUpdate := time.Since(configMapUpdateTime)
-		if timeSinceUpdate < 5*time.Second {
-			return false
-		}
-
-		apps, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.AppNamespace()).List(ctx, metav1.ListOptions{})
-		if err != nil {
-			return false
-		}
-
-		now := time.Now()
-		for _, app := range apps.Items {
-			if app.Status.ReconciledAt != nil {
-				reconciledTime := app.Status.ReconciledAt.Time
-				if now.Sub(reconciledTime) < 30*time.Second {
-					return true
-				}
-			}
-		}
-
-		return true
-	}, 30*time.Second, 1*time.Second, "controller did not sync ConfigMap in time")
+	waitForArgoCDConfigMapToStabilize(t, ctx, namespace)
 
 	Given(t).
 		Path(guestbookPath).
@@ -2509,7 +2474,7 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 		})
 }
 
-func waitForApplicationControllerToObserveReconciliationConfig(t *testing.T, ctx context.Context, namespace string) {
+func waitForArgoCDConfigMapToStabilize(t *testing.T, ctx context.Context, namespace string) {
 	t.Helper()
 	configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
 	require.NoError(t, err)
@@ -2528,29 +2493,12 @@ func waitForApplicationControllerToObserveReconciliationConfig(t *testing.T, ctx
 		}
 
 		timeSinceUpdate := time.Since(configMapUpdateTime)
-		if timeSinceUpdate < 5*time.Second {
-			return false
-		}
-
-		apps, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.AppNamespace()).List(ctx, metav1.ListOptions{})
-		if err != nil {
-			return false
-		}
-
-		now := time.Now()
-		for _, app := range apps.Items {
-			if app.Status.ReconciledAt != nil {
-				reconciledTime := app.Status.ReconciledAt.Time
-				if now.Sub(reconciledTime) < 30*time.Second {
-					return true
-				}
-			}
-		}
-
-		return true
-	}, 30*time.Second, 1*time.Second, "controller did not sync ConfigMap in time")
+		return timeSinceUpdate >= 5*time.Second
+	}, 30*time.Second, 1*time.Second, "argocd-cm resourceVersion did not stabilize in time")
 }
 
+// TestNamespacedGitCommitEventuallyOutOfSyncWithoutManualRefresh checks that a Git-only change is
+// eventually reflected as OutOfSync without a manual refresh.
 func TestNamespacedGitCommitEventuallyOutOfSyncWithoutManualRefresh(t *testing.T) {
 	ctx := t.Context()
 	namespace := fixture.TestNamespace()
@@ -2567,7 +2515,7 @@ func TestNamespacedGitCommitEventuallyOutOfSyncWithoutManualRefresh(t *testing.T
 	require.NoError(t, err)
 	require.Equal(t, reconciliationTimeout, configMap.Data[reconciliationTimeoutConfigKey])
 	require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
-	waitForApplicationControllerToObserveReconciliationConfig(t, ctx, namespace)
+	waitForArgoCDConfigMapToStabilize(t, ctx, namespace)
 
 	Given(t).
 		SetAppNamespace(fixture.AppNamespace()).

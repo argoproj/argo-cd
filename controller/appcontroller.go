@@ -2089,6 +2089,20 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
+// applicationComparisonExpired reports whether the app's last comparison is past the soft timeout,
+// or past the hard timeout when hard reconciliation is configured. This matches the soft/hard
+// expiry used in needRefreshAppStatus and aligns with the application informer's resync period
+// (min of soft and hard when hard is shorter).
+func (ctrl *ApplicationController) applicationComparisonExpired(app *appv1.Application) bool {
+	if app.Status.Expired(ctrl.statusRefreshTimeout) {
+		return true
+	}
+	if ctrl.statusHardRefreshTimeout.Seconds() != 0 && app.Status.Expired(ctrl.statusHardRefreshTimeout) {
+		return true
+	}
+	return false
+}
+
 func (ctrl *ApplicationController) refreshAppConditions(app *appv1.Application) (*appv1.AppProject, bool) {
 	errorConditions := make([]appv1.ApplicationCondition, 0)
 	proj, err := ctrl.getAppProj(app)
@@ -2605,7 +2619,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						}
 						ctrl.clusterSharding.UpdateApp(newApp)
 
-						if newApp.Status.Expired(ctrl.statusRefreshTimeout) {
+						if ctrl.applicationComparisonExpired(newApp) {
 							ctrl.requestAppRefresh(newApp.QualifiedName(), nil, nil)
 						}
 						return
@@ -2619,7 +2633,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						hydrateAdded := (oldAnnotations == nil || oldAnnotations[appv1.AnnotationKeyHydrate] == "") &&
 							(newAnnotations != nil && newAnnotations[appv1.AnnotationKeyHydrate] != "")
 
-						if !refreshAdded && !hydrateAdded && !newApp.Status.Expired(ctrl.statusRefreshTimeout) {
+						if !refreshAdded && !hydrateAdded && !ctrl.applicationComparisonExpired(newApp) {
 							if ctrl.hydrator != nil {
 								ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 							}
