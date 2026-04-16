@@ -351,17 +351,12 @@ func (m *appStateManager) evaluateRevisionChanges(
 
 	// Determine the synced revision and source type for this specific source
 	var syncedRevision string
-	var sourceType v1alpha1.ApplicationSourceType
 	if app.Spec.HasMultipleSources() {
 		if sourceIndex < len(app.Status.Sync.Revisions) {
 			syncedRevision = app.Status.Sync.Revisions[sourceIndex]
 		}
-		if sourceIndex < len(app.Status.SourceTypes) {
-			sourceType = app.Status.SourceTypes[sourceIndex]
-		}
 	} else {
 		syncedRevision = app.Status.Sync.Revision
-		sourceType = app.Status.SourceType
 	}
 
 	// if revisions are the same (and we are not using reference sources), we know there is no changes
