@@ -1194,12 +1194,9 @@ func targetObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstruc
 func findAndPrintDiff(
 	ctx context.Context,
 	app *argoappv1.Application,
-	proj *argoappv1.AppProject,
 	resources *application.ManagedResourcesResponse,
 	argoSettings *settings.Settings,
-	clusterIf clusterpkg.ClusterServiceClient,
-	localPath string,
-	localRepoRoot string,
+	localObjsStrings []string,
 	revision string,
 	revisions []string,
 	sourcePositions []int64,
@@ -1214,9 +1211,11 @@ func findAndPrintDiff(
 	var baseTargetProvider manifestProvider
 	excludeSecret := false
 	switch {
-	case localPath != "":
+	case len(localObjsStrings) > 0:
 		// Local sync: provider fetches and generates local manifests
-		baseTargetProvider = newLocalClientSideProvider(clusterIf, argoSettings, app, proj, localPath, localRepoRoot)
+		baseTargetProvider = func(_ context.Context) ([]*unstructured.Unstructured, error) {
+			return manifestsToUnstructured(localObjsStrings)
+		}
 		excludeSecret = true
 	case len(revisions) > 0:
 		// Multi-source app with revisions
@@ -1837,6 +1836,27 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 
+			var argoSettings *settings.Settings
+			if local != "" || diffChanges {
+				conn, settingsIf := acdClient.NewSettingsClientOrDie()
+				defer utilio.Close(conn)
+				s, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
+				errors.CheckError(err)
+				argoSettings = s
+			}
+
+			var clusterIf clusterpkg.ClusterServiceClient
+			var projIf projectpkg.ProjectServiceClient
+			if local != "" {
+				conn, c := acdClient.NewClusterClientOrDie()
+				defer utilio.Close(conn)
+				clusterIf = c
+
+				conn, p := acdClient.NewProjectClientOrDie()
+				defer utilio.Close(conn)
+				projIf = p
+			}
+
 			for _, appQualifiedName := range appNames {
 				// Construct QualifiedName
 				if appNamespace != "" && !strings.Contains(appQualifiedName, "/") {
@@ -1882,8 +1902,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				selectedResources, err := parseSelectedResources(resources)
 				errors.CheckError(err)
 
-				var localObjsStrings []string
-
 				app, err := appIf.Get(ctx, &application.ApplicationQuery{
 					Name:         &appName,
 					AppNamespace: &appNs,
@@ -1910,27 +1928,19 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					log.Fatalf("No matching app resources found for resource filter: %v", strings.Join(resources, ", "))
 				}
 
+				var localObjsStrings []string
 				if local != "" {
 					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !dryRun {
 						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
 					}
 
-					errors.CheckError(err)
-					conn, settingsIf := acdClient.NewSettingsClientOrDie()
-					argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
-					errors.CheckError(err)
-					utilio.Close(conn)
-
-					conn, clusterIf := acdClient.NewClusterClientOrDie()
-					defer utilio.Close(conn)
 					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
-					utilio.Close(conn)
 
-					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
+					proj, err := projIf.GetDetailedProject(ctx, &projectpkg.ProjectQuery{Name: app.Spec.Project})
+					errors.CheckError(err)
 
 					localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings, &cluster.Info)
-					errors.CheckError(err)
 				}
 
 				syncOptionsFactory := func() *application.SyncOptions {
@@ -1995,15 +2005,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						AppNamespace:    &appNs,
 					})
 					errors.CheckError(err)
-					conn, settingsIf := acdClient.NewSettingsClientOrDie()
-					defer utilio.Close(conn)
-					argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
-					errors.CheckError(err)
-
-					conn, clusterIf := acdClient.NewClusterClientOrDie()
-					defer utilio.Close(conn)
-
-					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
 
 					foundDiffs := false
 					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
@@ -2011,7 +2012,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					// Check if application has ServerSideDiff annotation
 					serverSideDiff := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
 
-					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, clusterIf, local, localRepoRoot, revision, revisions, sourcePositions, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
+					foundDiffs = findAndPrintDiff(ctx, app, resources, argoSettings, localObjsStrings, revision, revisions, sourcePositions, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
 					if !foundDiffs {
 						fmt.Printf("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
