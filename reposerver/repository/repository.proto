@@ -80,6 +80,7 @@ message ResolveRevisionRequest {
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application app = 2;
     string ambiguousRevision = 3;
     int64 sourceIndex = 4;
+    bool noRevisionCache = 5;
 }
 
 // ResolveRevisionResponse

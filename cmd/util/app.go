@@ -541,7 +541,7 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string, inde
 			source.Helm.AddParameter(*newParam)
 		}
 	default:
-		log.Fatalf("Parameters can only be set against Helm applications")
+		log.Fatal("Parameters can only be set against Helm applications")
 	}
 }
 

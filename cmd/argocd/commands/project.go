@@ -496,7 +496,7 @@ func NewProjectAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
 			for _, item := range proj.Spec.SourceRepos {
 				if item == "*" {
-					fmt.Printf("Source repository '*' already allowed in project\n")
+					fmt.Print("Source repository '*' already allowed in project\n")
 					return
 				}
 				if git.SameURL(item, url) {
@@ -538,7 +538,7 @@ func NewProjectAddSourceNamespace(clientOpts *argocdclient.ClientOptions) *cobra
 
 			for _, item := range proj.Spec.SourceNamespaces {
 				if item == "*" || item == srcNamespace {
-					fmt.Printf("Source namespace '*' already allowed in project\n")
+					fmt.Print("Source namespace '*' already allowed in project\n")
 					return
 				}
 			}
@@ -871,7 +871,7 @@ func printProjectNames(projects []v1alpha1.AppProject) {
 // Print table of project info
 func printProjectTable(projects []v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS\n")
+	fmt.Fprint(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS\n")
 	for _, p := range projects {
 		printProjectLine(w, &p)
 	}
