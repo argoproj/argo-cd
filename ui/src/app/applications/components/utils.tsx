@@ -749,7 +749,7 @@ function getActionItems(
 
     const logsAction = isApp(application)
         ? services.accounts
-              .canI('logs', 'get', application.spec.project + '/' + application.metadata.name)
+              .canI('logs', 'get', appRBACName(application))
               .then(async allowed => {
                   if (allowed && (isPod || findChildPod(resource, tree as appModels.ApplicationTree))) {
                       return [
@@ -776,7 +776,7 @@ function getActionItems(
         ? services.authService
               .settings()
               .then(async settings => {
-                  const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+                  const execAllowed = settings.execEnabled && (await services.accounts.canI('exec', 'create', appRBACName(application)));
                   if (isPod && execAllowed) {
                       return [
                           {
@@ -1827,6 +1827,22 @@ export function getAppSetHealthStatus(appSet: appModels.ApplicationSet): appMode
 
 export function appQualifiedName(app: appModels.AbstractApplication, nsEnabled: boolean): string {
     return (nsEnabled ? app.metadata.namespace + '/' : '') + app.metadata.name;
+}
+
+/**
+ * Constructs the RBAC subresource name for canI() checks.
+ **/
+export function appRBACName(app: appModels.Application): string {
+    const project = app.spec.project;
+    const namespace = app.metadata.namespace;
+    const name = app.metadata.name;
+
+    // Always include namespace if available - server will normalize
+    if (namespace) {
+        return `${project}/${namespace}/${name}`;
+    }
+    // Fallback to 2-segment format if namespace is missing
+    return `${project}/${name}`;
 }
 
 export function appInstanceName(app: appModels.AbstractApplication): string {
