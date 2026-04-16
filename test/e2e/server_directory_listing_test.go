@@ -78,7 +78,7 @@ func TestDirectoryListingDisabled(t *testing.T) {
 			bodyMustNotContain: []string{"<pre>", "Index of"},
 		},
 		{
-			name:         "assets directory with Accept:text/html still returns 404",
+			name:         "assets directory with Accept:text/html",
 			path:         "/assets/",
 			acceptHeader: "text/html",
 			// when Accept:text/html, the server serves index.html for HTML clients
