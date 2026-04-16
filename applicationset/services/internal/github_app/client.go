@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	"github.com/google/go-github/v69/github"
@@ -13,6 +14,31 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 )
 
+type githubInstallationClientCacheRegistry struct {
+	storages map[string]*ghinstallation.Transport
+	lock     *sync.RWMutex
+}
+
+var globalInstallationClientCache = &githubInstallationClientCacheRegistry{
+	storages: make(map[string]*ghinstallation.Transport),
+	lock:     &sync.RWMutex{},
+}
+
+func (r *githubInstallationClientCacheRegistry) get(g github_app_auth.Authentication) (*ghinstallation.Transport, bool) {
+	r.lock.RLock()
+	defer r.lock.RUnlock()
+	key := fmt.Sprintf("%d/%d", g.Id, g.InstallationId)
+	client, exists := r.storages[key]
+	return client, exists
+}
+
+func (r *githubInstallationClientCacheRegistry) put(g github_app_auth.Authentication, client *ghinstallation.Transport) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	key := fmt.Sprintf("%d/%d", g.Id, g.InstallationId)
+	r.storages[key] = client
+}
+
 // getInstallationClient creates a new GitHub client with the specified installation ID.
 // It also returns a ghinstallation.Transport, which can be used for git requests.
 func getInstallationClient(g github_app_auth.Authentication, url string, httpClient ...*http.Client) (*github.Client, error) {
@@ -20,31 +46,39 @@ func getInstallationClient(g github_app_auth.Authentication, url string, httpCli
 		return nil, errors.New("installation ID is required for github")
 	}
 
-	// Use provided HTTP client's transport or default
-	var transport http.RoundTripper
-	if len(httpClient) > 0 && httpClient[0] != nil && httpClient[0].Transport != nil {
-		transport = httpClient[0].Transport
+	var itr *ghinstallation.Transport
+	if cachedInstallationClient, exists := globalInstallationClientCache.get(g); exists {
+		itr = cachedInstallationClient
 	} else {
-		transport = http.DefaultTransport
-	}
+		// Use provided HTTP client's transport or default
+		var transport http.RoundTripper
+		if len(httpClient) > 0 && httpClient[0] != nil && httpClient[0].Transport != nil {
+			transport = httpClient[0].Transport
+		} else {
+			transport = http.DefaultTransport
+		}
 
-	itr, err := ghinstallation.New(transport, g.Id, g.InstallationId, []byte(g.PrivateKey))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create GitHub installation transport: %w", err)
+		newInstallationClient, err := ghinstallation.New(transport, g.Id, g.InstallationId, []byte(g.PrivateKey))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create GitHub installation transport: %w", err)
+		}
+
+		// Cache the installation client for future use
+		globalInstallationClientCache.put(g, newInstallationClient)
+		itr = newInstallationClient
 	}
 
 	if url == "" {
 		url = g.EnterpriseBaseURL
 	}
 
-	var client *github.Client
 	if url == "" {
-		client = github.NewClient(&http.Client{Transport: itr})
+		client := github.NewClient(&http.Client{Transport: itr})
 		return client, nil
 	}
 
 	itr.BaseURL = url
-	client, err = github.NewClient(&http.Client{Transport: itr}).WithEnterpriseURLs(url, url)
+	client, err := github.NewClient(&http.Client{Transport: itr}).WithEnterpriseURLs(url, url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GitHub enterprise client: %w", err)
 	}

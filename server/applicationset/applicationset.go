@@ -71,6 +71,8 @@ type Server struct {
 	AllowedScmProviders      []string
 	EnableScmProviders       bool
 	EnableGitHubAPIMetrics   bool
+	EnableGitHubCache        bool
+	GitHubCacheSize          int
 }
 
 func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicationset.ApplicationSetService_WatchServer) error {
@@ -185,6 +187,8 @@ func NewServer(
 	allowedScmProviders []string,
 	enableScmProviders bool,
 	enableGitHubAPIMetrics bool,
+	enableGitHubCache bool,
+	githubCacheSize int,
 	enableK8sEvent []string,
 	clusterInformer *settings.ClusterInformer,
 ) applicationset.ApplicationSetServiceServer {
@@ -224,6 +228,8 @@ func NewServer(
 		AllowedScmProviders:      allowedScmProviders,
 		EnableScmProviders:       enableScmProviders,
 		EnableGitHubAPIMetrics:   enableGitHubAPIMetrics,
+		EnableGitHubCache:        enableGitHubCache,
+		GitHubCacheSize:          githubCacheSize,
 	}
 	return s
 }
@@ -366,7 +372,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet) ([]v1alpha1.Application, error) {
 	argoCDDB := s.db
 
-	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, s.EnableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
+	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, s.EnableGitHubAPIMetrics, s.EnableGitHubCache, s.GitHubCacheSize, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
 	argoCDService := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
 	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, s.ns, argoCDService, s.dynamicClient, scmConfig, s.clusterInformer)
 
