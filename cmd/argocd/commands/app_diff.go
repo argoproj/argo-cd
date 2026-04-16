@@ -587,8 +587,9 @@ func compareManifests(
 
 		hasLiveState := liveState != "null" && liveState != ""
 		hasTargetState := targetState != "null" && targetState != ""
-		if !diffRes.Modified && hasLiveState && hasTargetState {
+		if (!diffRes.Modified && hasLiveState && hasTargetState) || (!hasLiveState && !hasTargetState) {
 			// If the item is not modified and it is neither an added or removed resource, skip it.
+			// If we dont have any live or target state, skip it.
 			continue
 		}
 
