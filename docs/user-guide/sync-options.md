@@ -84,8 +84,7 @@ If you want to exclude a whole class of objects globally, consider setting `reso
 When syncing a custom resource which is not yet known to the cluster, there are generally two options:
 
 1. The CRD manifest is part of the same sync. Then Argo CD will automatically skip the dry run, the CRD will be applied and the resource can be created.
-2. In some cases the CRD is not part of the sync, but it could be created in another way, e.g. by a controller in the cluster. An example is [gatekeeper](https://github.com/open-policy-agent/gatekeeper),
-   which creates CRDs in response to user defined `ConstraintTemplates`. Argo CD cannot find the CRD in the sync and will fail with the error `the server could not find the requested resource`.
+2. In some cases the CRD is not part of the sync, but it could be created in another way, e.g. by a controller in the cluster. An example is [gatekeeper](https://github.com/open-policy-agent/gatekeeper), which creates CRDs in response to user defined `ConstraintTemplates`. Argo CD cannot find the CRD in the sync and will fail with the error `the server could not find the requested resource`.
 
 To skip the dry run for missing resource types, use the following annotation:
 
@@ -162,7 +161,7 @@ spec:
 Note that setting a Delete sync option on the resource will always override a
 Delete sync policy defined in the Application.
 
-## Only Apply Resources in OutOfSync
+## Apply Resources OutOfSync Only
 
 The default behavior when syncing your application is to apply every object in the application.
 For applications containing thousands of objects, this takes quite a long time and puts undue pressure on the Kubernetes API server. It will also significantly increase the size of the `status.operationState.syncResult.resources` field, which may impact the Kubernetes database.
@@ -502,7 +501,7 @@ client-side-applied resources with server-side-applies. If you do not upgrade th
 may remove existing labels/annotations, which may or may not be the desired behavior.
 
 Another thing to keep mind of is that if you have a k8s manifest for the same namespace in your Argo CD application, that
-will take precedence and _overwrite whatever values that have been set in `managedNamespaceMetadata`_. In other words, if
+will take precedence and **overwrite whatever values that have been set in `managedNamespaceMetadata`**. In other words, if
 you have an application that sets `managedNamespaceMetadata`
 
 ```yaml
