@@ -93,7 +93,7 @@ func TestGHCRParser_Parse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 			event, err := parser.Parse(req, []byte(tt.body))
 
 			if tt.expectErr {
@@ -159,7 +159,7 @@ func TestValidateSignature(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			parser := NewGHCRParser(tt.secret)
 
-			req := httptest.NewRequest(http.MethodPost, "/", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 
 			if tt.headerSig != "" {
 				req.Header.Set("X-Hub-Signature-256", tt.headerSig)

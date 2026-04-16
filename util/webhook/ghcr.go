@@ -21,6 +21,26 @@ type GHCRParser struct {
 	secret string
 }
 
+// GHCRPayload represents the webhook payload sent by GitHub for
+// package events.
+type GHCRPayload struct {
+	Action  string `json:"action"`
+	Package struct {
+		Name        string `json:"name"`
+		PackageType string `json:"package_type"`
+		Owner       struct {
+			Login string `json:"login"`
+		} `json:"owner"`
+		PackageVersion struct {
+			ContainerMetadata struct {
+				Tag struct {
+					Name string `json:"name"`
+				} `json:"tag"`
+			} `json:"container_metadata"`
+		} `json:"package_version"`
+	} `json:"package"`
+}
+
 // NewGHCRParser creates a new GHCRParser instance.
 //
 // The parser supports GitHub package webhook events for container images
@@ -63,26 +83,7 @@ func (p *GHCRParser) Parse(r *http.Request, body []byte) (*RegistryEvent, error)
 	if err := p.validateSignature(r, body); err != nil {
 		return nil, err
 	}
-	var payload struct {
-		Action  string `json:"action"`
-		Package struct {
-			Name        string `json:"name"`
-			PackageType string `json:"package_type"`
-
-			Owner struct {
-				Login string `json:"login"`
-			} `json:"owner"`
-
-			PackageVersion struct {
-				ContainerMetadata struct {
-					Tag struct {
-						Name string `json:"name"`
-					} `json:"tag"`
-				} `json:"container_metadata"`
-			} `json:"package_version"`
-		} `json:"package"`
-	}
-
+	var payload GHCRPayload
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal GHCR webhook payload: %w", err)
 	}
