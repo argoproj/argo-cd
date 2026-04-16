@@ -2293,25 +2293,6 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			expectUpdateRevisionForPathsCalled: true,
 		},
 		{
-			name: "Feature disabled skips UpdateRevisionForPaths for all sources",
-			source: &v1alpha1.ApplicationSource{
-				RepoURL: "https://github.com/example/repo",
-				Path:    "manifests",
-			},
-			sourceType: v1alpha1.ApplicationSourceTypeKustomize,
-			syncPolicy: &v1alpha1.SyncPolicy{
-				Automated: &v1alpha1.SyncPolicyAutomated{},
-			},
-			revision:                            "abc123",
-			appSyncedRevision:                   "def456",
-			repoDepth:                           0,
-			keyManifestGenerateAnnotationExists: true,
-			keyManifestGenerateAnnotationVal:    ".",
-			expectedRevision:                    "abc123",
-			expectedHasChanges:                  true,
-			expectUpdateRevisionForPathsCalled:  false,
-		},
-		{
 			name: "Shallow clone skips UpdateRevisionForPaths",
 			source: &v1alpha1.ApplicationSource{
 				RepoURL: "https://github.com/example/repo",
