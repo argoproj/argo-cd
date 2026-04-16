@@ -707,7 +707,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				serverSideDiff = hasServerSideDiffAnnotation
 			} else if serverSideDiff && !hasServerSideDiffAnnotation {
 				// Flag explicitly set to true, but app annotation is not set
-				fmt.Fprintf(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.\n")
+				fmt.Fprint(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.\n")
 			}
 
 			// Server side diff with local requires server side generate to be set as there will be a mismatch with client-generated manifests.
@@ -741,7 +741,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				if serverSideGenerate {
 					getTargetManifests = newLocalServerSideProvider(appIf, appName, appNs, local, localIncludes)
 				} else {
-					fmt.Fprintf(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.7.")
+					fmt.Fprint(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.7.")
 					conn, clusterIf := clientset.NewClusterClientOrDie()
 					defer io.Close(conn)
 					getTargetManifests = newLocalClientSideProvider(clusterIf, argoSettings, app, proj.Project, local, localRepoRoot)
