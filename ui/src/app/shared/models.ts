@@ -348,7 +348,7 @@ export interface Info {
 
 export interface ApplicationSpec {
     project: string;
-    source: ApplicationSource;
+    source?: ApplicationSource;
     sources: ApplicationSource[];
     sourceHydrator?: SourceHydrator;
     destination: ApplicationDestination;
