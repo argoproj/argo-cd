@@ -32,7 +32,6 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
-
 func TestPersistRevisionHistory(t *testing.T) {
 	app := newFakeApp()
 	app.Status.OperationState = nil
