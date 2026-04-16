@@ -3,7 +3,6 @@ package e2e
 import (
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,7 +13,7 @@ import (
 )
 
 // TestDirectoryListingDisabled verifies that the ArgoCD API server never returns
-// an HTML directory listing for any directory path, and that the neuteredFileSystem
+// an HTML directory listing for any directory path, and that the exposedFileSystem
 // wrapper correctly blocks directory enumeration at the HTTP layer.
 func TestDirectoryListingDisabled(t *testing.T) {
 	testCases := []struct {
@@ -100,7 +99,7 @@ func TestDirectoryListingDisabled(t *testing.T) {
 					if tc.acceptHeader != "" {
 						h := make(http.Header)
 						h.Set("Accept", tc.acceptHeader)
-						resp, err = DoHttpRequestWithHeaders(http.MethodGet, tc.path, "", h)
+						resp, err = DoHTTPRequestWithHeaders(http.MethodGet, tc.path, "", h)
 					} else {
 						resp, err = DoHttpRequest(http.MethodGet, tc.path, "")
 					}
@@ -116,7 +115,7 @@ func TestDirectoryListingDisabled(t *testing.T) {
 						require.NoError(t, err)
 						bodyStr := string(body)
 						for _, forbidden := range tc.bodyMustNotContain {
-							assert.False(t, strings.Contains(bodyStr, forbidden),
+							assert.NotContains(t, bodyStr, forbidden,
 								"response body must not contain %q (directory listing must be disabled)", forbidden)
 						}
 					}

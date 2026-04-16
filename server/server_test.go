@@ -1840,8 +1840,8 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
 }
 
-// TestNeuteredFileSystem_HTTPHandler verifies directory-listing is disabled at the HTTP layer.
-func TestNeuteredFileSystem_HTTPHandler(t *testing.T) {
+// TestExposedFileSystem_HTTPHandler verifies directory-listing is disabled at the HTTP layer.
+func TestExposedFileSystem_HTTPHandler(t *testing.T) {
 	t.Run("GET directory without index.html returns 404", func(t *testing.T) {
 		argocd, closer := fakeServer(t)
 		defer closer()

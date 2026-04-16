@@ -1480,30 +1480,31 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 				}
 				w.Header().Set("Cache-Control", cacheControl)
 			}
-			http.FileServer(neuteredFileSystem{server.staticAssets}).ServeHTTP(w, r)
+			http.FileServer(exposedFileSystem{server.staticAssets}).ServeHTTP(w, r)
 		}
 	}
 }
 
-// neuteredFileSystem wraps http.FileSystem to disable directory listing
-type neuteredFileSystem struct {
+// exposedFileSystem wraps http.FileSystem to disable directory listing
+type exposedFileSystem struct {
 	fs http.FileSystem
 }
 
-func (nfs neuteredFileSystem) Open(path string) (http.File, error) {
-	f, err := nfs.fs.Open(path)
+func (efs exposedFileSystem) Open(path string) (http.File, error) {
+	f, err := efs.fs.Open(path)
 	if err != nil {
 		return nil, err
 	}
 
 	s, err := f.Stat()
 	if err != nil {
+		_ = f.Close()
 		return nil, err
 	}
 	if s.IsDir() {
 		// Check if index.html exists inside the directory
 		index := filepath.Join(path, "index.html")
-		indexFile, err := nfs.fs.Open(index)
+		indexFile, err := efs.fs.Open(index)
 		if err != nil {
 			// No index.html → close the dir and return 404
 			_ = f.Close()

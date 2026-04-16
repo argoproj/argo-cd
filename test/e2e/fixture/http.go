@@ -17,8 +17,8 @@ func DoHttpRequest(method string, path string, host string, data ...byte) (*http
 	return doHTTPRequest(method, path, host, nil, data...)
 }
 
-// DoHttpRequestWithHeaders is like DoHttpRequest but merges extra headers (e.g. Accept) into the request.
-func DoHttpRequestWithHeaders(method string, path string, host string, headers http.Header, data ...byte) (*http.Response, error) { //nolint:revive //FIXME(var-naming)
+// DoHTTPRequestWithHeaders is like DoHttpRequest but merges extra headers (e.g. Accept) into the request.
+func DoHTTPRequestWithHeaders(method string, path string, host string, headers http.Header, data ...byte) (*http.Response, error) {
 	return doHTTPRequest(method, path, host, headers, data...)
 }
 
