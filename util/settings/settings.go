@@ -127,6 +127,10 @@ type ArgoCDSettings struct {
 	ExecEnabled bool `json:"execEnabled"`
 	// ExecShells restricts which shells are allowed for `exec` and in which order they are tried
 	ExecShells []string `json:"execShells"`
+	// DebugEnabled indicates whether the UI debug (ephemeral container) feature is enabled
+	DebugEnabled bool `json:"debugEnabled"`
+	// DebugImages is the list of allowed debug container images
+	DebugImages []string `json:"debugImages"`
 	// TrackingMethod defines the resource tracking method to be used
 	TrackingMethod string `json:"application.resourceTrackingMethod,omitempty"`
 	// OIDCTLSInsecureSkipVerify determines whether certificate verification is skipped when verifying tokens with the
@@ -499,6 +503,10 @@ const (
 	execEnabledKey = "exec.enabled"
 	// execShellsKey is the key to configure which shells are allowed for `exec` and in what order they are tried
 	execShellsKey = "exec.shells"
+	// debugEnabledKey is the key to configure whether the UI debug (ephemeral container) feature is enabled
+	debugEnabledKey = "debug.enabled"
+	// debugImagesKey is the key to configure which images are allowed for debug containers
+	debugImagesKey = "debug.images"
 	// oidcTLSInsecureSkipVerifyKey is the key to configure whether TLS cert verification is skipped for OIDC connections
 	oidcTLSInsecureSkipVerifyKey = "oidc.tls.insecure.skip.verify"
 	// ApplicationDeepLinks is the application deep link key
@@ -1593,6 +1601,13 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	} else {
 		// Fall back to default. If you change this list, also change docs/operator-manual/argocd-cm.yaml.
 		settings.ExecShells = []string{"bash", "sh", "powershell", "cmd"}
+	}
+	settings.DebugEnabled = argoCDCM.Data[debugEnabledKey] == "true"
+	debugImages := argoCDCM.Data[debugImagesKey]
+	if debugImages != "" {
+		settings.DebugImages = strings.Split(debugImages, ",")
+	} else {
+		settings.DebugImages = []string{"busybox:latest", "alpine:latest", "nicolaka/netshoot:latest"}
 	}
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"

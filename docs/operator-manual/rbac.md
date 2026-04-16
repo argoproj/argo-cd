@@ -83,6 +83,7 @@ Below is a table that summarizes all possible resources and which actions are va
 | **gpgkeys**         | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
 | **logs**            | ✅  |   ❌   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
 | **exec**            | ❌  |   ✅   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
+| **debug**           | ❌  |   ✅   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
 | **extensions**      | ❌  |   ❌   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ✅   |
 
 ### Application-Specific Policy
@@ -93,6 +94,7 @@ Some policy only have meaning within an application. It is the case with the fol
 - `applicationsets`
 - `logs`
 - `exec`
+- `debug`
 
 While they can be set in the global configuration, they can also be configured in [AppProject's roles](../user-guide/projects.md#project-roles).
 The expected `<object>` value in the policy structure is replaced by `<app-project>/<app-name>`.
@@ -265,6 +267,16 @@ When granted with the `create` action, this policy allows a user to `exec` into 
 the Argo CD UI. The functionality is similar to `kubectl exec`.
 
 See [Web-based Terminal](web_based_terminal.md) for more info.
+
+### The `debug` resource
+
+The `debug` resource is an [Application-Specific Policy](#application-specific-policy).
+
+When granted with the `create` action, this policy allows a user to start ephemeral debug containers
+on Pods of an application via the Argo CD UI. The functionality is similar to `kubectl debug`.
+This is more powerful than `exec` because it creates new containers — use with care.
+
+See [Web-based Debug](web_based_debug.md) for more info.
 
 ### The `extensions` resource
 

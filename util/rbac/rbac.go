@@ -68,6 +68,7 @@ const (
 	ResourceGPGKeys           = "gpgkeys"
 	ResourceLogs              = "logs"
 	ResourceExec              = "exec"
+	ResourceDebug             = "debug"
 	ResourceExtensions        = "extensions"
 
 	// please add new items to Actions
@@ -95,6 +96,7 @@ var (
 		ResourceGPGKeys,
 		ResourceLogs,
 		ResourceExec,
+		ResourceDebug,
 		ResourceExtensions,
 	}
 	Actions = []string{
@@ -114,6 +116,7 @@ var ProjectScoped = map[string]bool{
 	ResourceApplicationSets: true,
 	ResourceLogs:            true,
 	ResourceExec:            true,
+	ResourceDebug:           true,
 	ResourceClusters:        true,
 	ResourceRepositories:    true,
 }
