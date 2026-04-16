@@ -4,15 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"os"
 	"strconv"
 	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/ghodss/yaml"
-	openapi_v2 "github.com/google/gnostic-models/openapiv2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -35,28 +32,6 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
-type fakeDiscovery struct {
-	schema *openapi_v2.Document
-}
-
-func (f *fakeDiscovery) OpenAPISchema() (*openapi_v2.Document, error) {
-	return f.schema, nil
-}
-
-func loadCRDSchema(t *testing.T, path string) *openapi_v2.Document {
-	t.Helper()
-
-	data, err := os.ReadFile(path)
-	require.NoError(t, err)
-
-	jsonData, err := yaml.YAMLToJSON(data)
-	require.NoError(t, err)
-
-	doc, err := openapi_v2.ParseDocument(jsonData)
-	require.NoError(t, err)
-
-	return doc
-}
 
 func TestPersistRevisionHistory(t *testing.T) {
 	app := newFakeApp()
