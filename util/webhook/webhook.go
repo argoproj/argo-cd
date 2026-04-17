@@ -359,7 +359,8 @@ type changeInfo struct {
 }
 
 type adoDiffsResponse struct {
-	Changes []adoDiffChange `json:"changes"`
+	Changes            []adoDiffChange `json:"changes"`
+	AllChangesIncluded bool            `json:"allChangesIncluded"`
 }
 
 type adoDiffChange struct {
@@ -797,13 +798,16 @@ func fetchChangedFilesFromADO(ctx context.Context, repo *v1alpha1.Repository, re
 	if err := json.NewDecoder(resp.Body).Decode(&diffsResp); err != nil {
 		return nil, fmt.Errorf("error decoding Azure DevOps diffs API response: %w", err)
 	}
+	if !diffsResp.AllChangesIncluded {
+		return nil, fmt.Errorf("Azure DevOps diffs API response was truncated (more than 2000 files changed); falling back to full refresh")
+	}
 	changedFiles := make([]string, 0, len(diffsResp.Changes))
 	for _, c := range diffsResp.Changes {
 		if !c.Item.IsFolder && c.Item.Path != "" {
 			changedFiles = append(changedFiles, strings.TrimPrefix(c.Item.Path, "/"))
 		}
 	}
-	log.Debugf("Azure DevOps changed files between %s..%s: %v", shaBefore, shaAfter, changedFiles)
+	log.Debugf("Azure DevOps diffs API returned %d changed files between %s..%s", len(changedFiles), shaBefore, shaAfter)
 	return changedFiles, nil
 }
 

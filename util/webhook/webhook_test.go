@@ -1654,10 +1654,12 @@ func TestFetchChangedFilesFromADO(t *testing.T) {
 	defer httpmock.DeactivateAndReset()
 
 	const (
-		testRepoURL   = "https://dev.azure.com/myorg/myproject/_git/myrepo"
-		testRepoID    = "ba2967cc-02c2-414c-8d10-1b99197cbaa6"
-		testShaBefore = "fa51eeb1e50b98293ce281e6d5492b9decae613b"
-		testShaAfter  = "298a79aa1552799a70718a0ee914d153d5a1a76b"
+		testRepoURL        = "https://dev.azure.com/myorg/myproject/_git/myrepo"
+		testRepoID         = "ba2967cc-02c2-414c-8d10-1b99197cbaa6"
+		testShaBefore      = "fa51eeb1e50b98293ce281e6d5492b9decae613b"
+		testShaAfter       = "298a79aa1552799a70718a0ee914d153d5a1a76b"
+		testShaBeforeLarge = "1111111111111111111111111111111111111111"
+		testShaAfterLarge  = "2222222222222222222222222222222222222222"
 	)
 
 	validAPIURL := fmt.Sprintf(
@@ -1666,6 +1668,16 @@ func TestFetchChangedFilesFromADO(t *testing.T) {
 		testRepoID, testShaBefore, testShaAfter,
 	)
 	httpmock.RegisterResponder("GET", validAPIURL, getADODiffsResponderFn())
+
+	truncatedAPIURL := fmt.Sprintf(
+		"https://dev.azure.com/myorg/myproject/_apis/git/repositories/%s/diffs/commits"+
+			"?baseVersion=%s&baseVersionType=commit&targetVersion=%s&targetVersionType=commit&$top=2000&api-version=7.1",
+		testRepoID, testShaBeforeLarge, testShaAfterLarge,
+	)
+	httpmock.RegisterResponder("GET", truncatedAPIURL, func(_ *http.Request) (*http.Response, error) {
+		resp, _ := httpmock.NewJsonResponse(http.StatusOK, adoDiffsResponse{AllChangesIncluded: false})
+		return resp, nil
+	})
 
 	repo := &v1alpha1.Repository{
 		Repo:     testRepoURL,
@@ -1689,6 +1701,14 @@ func TestFetchChangedFilesFromADO(t *testing.T) {
 			shaBefore:     testShaBefore,
 			shaAfter:      testShaAfter,
 			expectedFiles: []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"},
+		},
+		{
+			name:      "returns error when diff is truncated (allChangesIncluded=false)",
+			repoURL:   testRepoURL,
+			repoID:    testRepoID,
+			shaBefore: testShaBeforeLarge,
+			shaAfter:  testShaAfterLarge,
+			expectErr: true,
 		},
 		{
 			name:      "returns error for unregistered SHA pair",
@@ -1838,6 +1858,7 @@ func getDiffstatResponderFn() func(req *http.Request) (*http.Response, error) {
 func getADODiffsResponderFn() func(req *http.Request) (*http.Response, error) {
 	return func(_ *http.Request) (*http.Response, error) {
 		diffsResp := adoDiffsResponse{
+			AllChangesIncluded: true,
 			Changes: []adoDiffChange{
 				{
 					Item:       adoDiffItem{Path: "/apps/my-app/values.yaml", IsFolder: false},
