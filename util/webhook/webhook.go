@@ -785,7 +785,7 @@ func fetchChangedFilesFromADO(ctx context.Context, repo *v1alpha1.Repository, re
 		"%s/_apis/git/repositories/%s/diffs/commits?baseVersion=%s&baseVersionType=commit&targetVersion=%s&targetVersionType=commit&$top=2000&api-version=7.1",
 		baseURL, url.PathEscape(repoID), url.QueryEscape(shaBefore), url.QueryEscape(shaAfter),
 	)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("error creating Azure DevOps diffs API request: %w", err)
 	}
@@ -801,14 +801,14 @@ func fetchChangedFilesFromADO(ctx context.Context, repo *v1alpha1.Repository, re
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Azure DevOps diffs API returned unexpected status %d", resp.StatusCode)
+		return nil, fmt.Errorf("azure DevOps diffs API returned unexpected status %d", resp.StatusCode)
 	}
 	var diffsResp adoDiffsResponse
 	if err := json.NewDecoder(resp.Body).Decode(&diffsResp); err != nil {
 		return nil, fmt.Errorf("error decoding Azure DevOps diffs API response: %w", err)
 	}
 	if !diffsResp.AllChangesIncluded {
-		return nil, fmt.Errorf("Azure DevOps diffs API response was truncated (more than 2000 files changed); falling back to full refresh")
+		return nil, errors.New("azure DevOps diffs API response was truncated (more than 2000 files changed); falling back to full refresh")
 	}
 	changedFiles := make([]string, 0, len(diffsResp.Changes))
 	for _, c := range diffsResp.Changes {
