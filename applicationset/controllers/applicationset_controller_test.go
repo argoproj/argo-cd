@@ -29,6 +29,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
+	"github.com/argoproj/argo-cd/v3/test"
+
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 
@@ -8484,4 +8486,171 @@ func startAndSyncInformer(t *testing.T, informer cache.SharedIndexInformer) cont
 		t.Fatal("Timed out waiting for caches to sync")
 	}
 	return cancel
+}
+
+func TestResourceOverrides(t *testing.T) {
+	t.Parallel()
+	type args struct {
+		applicationSet v1alpha1.ApplicationSet
+	}
+	for _, cc := range []struct {
+		name          string
+		configMapData map[string]string
+		args          args
+		want          []v1alpha1.ResourceIgnoreDifferences
+	}{
+		{
+			name:          "No overrides",
+			configMapData: map[string]string{},
+			args: args{
+				applicationSet: v1alpha1.ApplicationSet{},
+			},
+			want: nil,
+		},
+		{
+			name:          "ApplicationSet specific override",
+			configMapData: nil,
+			args: args{
+				applicationSet: v1alpha1.ApplicationSet{
+					Spec: v1alpha1.ApplicationSetSpec{
+						IgnoreApplicationDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+							{
+								JSONPointers: []string{"/spec/syncPolicy"},
+							},
+						},
+					},
+				},
+			},
+			want: []v1alpha1.ResourceIgnoreDifferences{
+				{
+					Kind:         v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+					Group:        v1alpha1.ApplicationSchemaGroupVersionKind.Group,
+					JSONPointers: []string{"/spec/syncPolicy"},
+				},
+			},
+		},
+		{
+			name:          "ApplicationSet specific app override",
+			configMapData: nil,
+			args: args{
+				applicationSet: v1alpha1.ApplicationSet{
+					Spec: v1alpha1.ApplicationSetSpec{
+						IgnoreApplicationDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+							{
+								JSONPointers: []string{"/spec/syncPolicy"},
+								Name:         "problem-app",
+							},
+						},
+					},
+				},
+			},
+			want: []v1alpha1.ResourceIgnoreDifferences{
+				{
+					Kind:         v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+					Group:        v1alpha1.ApplicationSchemaGroupVersionKind.Group,
+					JSONPointers: []string{"/spec/syncPolicy"},
+					Name:         "problem-app",
+				},
+			},
+		},
+		{
+			name: "Global override",
+			configMapData: map[string]string{
+				"resource.customizations.ignoreApplicationDifferences.argoproj.io_ApplicationSet": `
+  jsonPointers:
+  - /metadata/annotations/test
+`,
+			},
+			args: args{
+				applicationSet: v1alpha1.ApplicationSet{},
+			},
+			want: []v1alpha1.ResourceIgnoreDifferences{
+				{
+					Kind:         v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+					Group:        v1alpha1.ApplicationSchemaGroupVersionKind.Group,
+					JSONPointers: []string{"/metadata/annotations/test"},
+				},
+			},
+		},
+		{
+			name: "Combined overrides",
+			configMapData: map[string]string{
+				"resource.customizations.ignoreApplicationDifferences.argoproj.io_ApplicationSet": `
+  jsonPointers:
+  - /metadata/annotations/test
+`,
+			},
+			args: args{
+				applicationSet: v1alpha1.ApplicationSet{
+					Spec: v1alpha1.ApplicationSetSpec{
+						IgnoreApplicationDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+							{
+								JSONPointers: []string{"/spec/syncPolicy"},
+							},
+						},
+					},
+				},
+			},
+			want: []v1alpha1.ResourceIgnoreDifferences{
+				{
+					Kind:         v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+					Group:        v1alpha1.ApplicationSchemaGroupVersionKind.Group,
+					JSONPointers: []string{"/spec/syncPolicy"},
+				},
+				{
+					Kind:         v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+					Group:        v1alpha1.ApplicationSchemaGroupVersionKind.Group,
+					JSONPointers: []string{"/metadata/annotations/test"},
+				},
+			},
+		},
+		{
+			name: "All possible global overrides",
+			configMapData: map[string]string{
+				"resource.customizations.ignoreApplicationDifferences.argoproj.io_ApplicationSet": `
+  jsonPointers:
+  - /metadata/annotations/test
+  managedFieldsManagers:
+  - some-other-app
+  jqPathExpressions:
+  - spec.syncPolicy
+`,
+			},
+			args: args{
+				applicationSet: v1alpha1.ApplicationSet{},
+			},
+			want: []v1alpha1.ResourceIgnoreDifferences{
+				{
+					Kind:                  v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+					Group:                 v1alpha1.ApplicationSchemaGroupVersionKind.Group,
+					JSONPointers:          []string{"/metadata/annotations/test"},
+					ManagedFieldsManagers: []string{"some-other-app"},
+					JQPathExpressions:     []string{"spec.syncPolicy"},
+				},
+			},
+		},
+	} {
+		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
+			cm := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-cm",
+					Namespace: test.FakeArgoCDNamespace,
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: cc.configMapData,
+			}
+			runtimeObjs := []runtime.Object{&cm}
+			kubeClient := kubefake.NewClientset(runtimeObjs...)
+			settingsMgr := settings.NewSettingsManager(context.TODO(), kubeClient, test.FakeArgoCDNamespace)
+			r := &ApplicationSetReconciler{
+				SettingsMgr: settingsMgr,
+			}
+			got, err := r.resourceOverrides(cc.args.applicationSet)
+			require.NoError(t, err)
+			assert.Equal(t, cc.want, got)
+		})
+	}
 }

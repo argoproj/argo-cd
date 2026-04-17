@@ -114,6 +114,7 @@ type ApplicationSetReconciler struct {
 	SCMRootCAPath                string
 	GlobalPreservedAnnotations   []string
 	GlobalPreservedLabels        []string
+	SettingsMgr                  *settings.SettingsManager
 	Metrics                      *metrics.ApplicationsetMetrics
 	MaxResourcesStatusCount      int
 	ClusterInformer              *settings.ClusterInformer
@@ -689,14 +690,47 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 		Complete(r)
 }
 
+// resourceOverrides returns the resource overrides for the ApplicationSet
+// Merges applicationSet.Spec.IgnoreApplicationDifferences with the global overrides provided in the configmap
+func (r *ApplicationSetReconciler) resourceOverrides(applicationSet argov1alpha1.ApplicationSet) ([]argov1alpha1.ResourceIgnoreDifferences, error) {
+	var globalOverrides []argov1alpha1.ResourceIgnoreDifferences
+	if r.SettingsMgr != nil {
+		resourceOverrides, err := r.SettingsMgr.GetResourceOverrides()
+		if err != nil {
+			return nil, err
+		}
+		for name, override := range resourceOverrides {
+			// If it's an override for something other than an application set we don't care about it in this context.
+			if name != "argoproj.io/ApplicationSet" {
+				delete(resourceOverrides, name)
+				continue
+			}
+			globalOverrides = append(globalOverrides, argov1alpha1.ResourceIgnoreDifferences{
+				Kind:                  argov1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+				Group:                 argov1alpha1.ApplicationSchemaGroupVersionKind.Group,
+				JSONPointers:          override.IgnoreApplicationDifferences.JSONPointers,
+				JQPathExpressions:     override.IgnoreApplicationDifferences.JQPathExpressions,
+				ManagedFieldsManagers: override.IgnoreApplicationDifferences.ManagedFieldsManagers,
+			})
+		}
+	}
+
+	return slices.Concat(applicationSet.Spec.IgnoreApplicationDifferences.ToApplicationIgnoreDifferences(), globalOverrides), nil
+}
+
 // createOrUpdateInCluster will create / update application resources in the cluster.
 // - For new applications, it will call create
 // - For existing application, it will call update
 // The function also adds owner reference to all applications, and uses it to delete them.
 func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, logCtx *log.Entry, applicationSet argov1alpha1.ApplicationSet, desiredApplications []argov1alpha1.Application) error {
+	resourceOverrides, err := r.resourceOverrides(applicationSet)
+	if err != nil {
+		return fmt.Errorf("failed to get resource overrides: %w", err)
+	}
+
 	// Build the diff config once per reconcile.
 	// Diff config is per applicationset, so generate it once for all applications
-	diffConfig, err := utils.BuildIgnoreDiffConfig(applicationSet.Spec.IgnoreApplicationDifferences, normalizers.IgnoreNormalizerOpts{})
+	diffConfig, err := utils.BuildIgnoreDiffConfig(resourceOverrides, normalizers.IgnoreNormalizerOpts{})
 	if err != nil {
 		return fmt.Errorf("failed to build ignore diff config: %w", err)
 	}

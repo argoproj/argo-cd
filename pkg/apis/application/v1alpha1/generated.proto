@@ -2208,6 +2208,9 @@ message ResourceOverride {
   // IgnoreDifferences contains configuration for which differences should be ignored during the resource diffing.
   optional OverrideIgnoreDiff ignoreDifferences = 2;
 
+  // IgnoreApplicationDifferences contains configuration for which differences should be ignored during the resource diffing for applications created by applicationsets.
+  optional OverrideIgnoreDiff ignoreApplicationDifferences = 7;
+
   // IgnoreResourceUpdates holds configuration for ignoring updates to specific resource fields.
   optional OverrideIgnoreDiff ignoreResourceUpdates = 6;
 

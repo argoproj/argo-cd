@@ -10100,6 +10100,9 @@
           "description": "HealthLua contains a Lua script that defines custom health checks for the resource.",
           "type": "string"
         },
+        "ignoreApplicationDifferences": {
+          "$ref": "#/definitions/v1alpha1OverrideIgnoreDiff"
+        },
         "ignoreDifferences": {
           "$ref": "#/definitions/v1alpha1OverrideIgnoreDiff"
         },

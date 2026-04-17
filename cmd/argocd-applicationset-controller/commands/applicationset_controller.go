@@ -255,6 +255,7 @@ func NewCommand() *cobra.Command {
 				SCMRootCAPath:                scmRootCAPath,
 				GlobalPreservedAnnotations:   globalPreservedAnnotations,
 				GlobalPreservedLabels:        globalPreservedLabels,
+				SettingsMgr:                  argoSettingsMgr,
 				Metrics:                      &metrics,
 				MaxResourcesStatusCount:      maxResourcesStatusCount,
 				ClusterInformer:              clusterInformer,

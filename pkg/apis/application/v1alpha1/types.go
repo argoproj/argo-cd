@@ -2543,6 +2543,8 @@ type ResourceOverride struct {
 	Actions string `protobuf:"bytes,3,opt,name=actions"`
 	// IgnoreDifferences contains configuration for which differences should be ignored during the resource diffing.
 	IgnoreDifferences OverrideIgnoreDiff `protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	// IgnoreApplicationDifferences contains configuration for which differences should be ignored during the resource diffing for applications created by applicationsets.
+	IgnoreApplicationDifferences OverrideIgnoreDiff `protobuf:"bytes,7,opt,name=ignoreApplicationDifferences"`
 	// IgnoreResourceUpdates holds configuration for ignoring updates to specific resource fields.
 	IgnoreResourceUpdates OverrideIgnoreDiff `protobuf:"bytes,6,opt,name=ignoreResourceUpdates"`
 	// KnownTypeFields lists fields for which unit conversions should be applied.

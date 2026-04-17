@@ -51,12 +51,13 @@ var appEquality = conversion.EqualitiesOrDie(
 
 // BuildIgnoreDiffConfig constructs a DiffConfig from the ApplicationSet's ignoreDifferences rules.
 // Returns nil when ignoreDifferences is empty.
-func BuildIgnoreDiffConfig(ignoreDifferences argov1alpha1.ApplicationSetIgnoreDifferences, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) (argodiff.DiffConfig, error) {
+func BuildIgnoreDiffConfig(ignoreDifferences []argov1alpha1.ResourceIgnoreDifferences, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) (argodiff.DiffConfig, error) {
 	if len(ignoreDifferences) == 0 {
 		return nil, nil
 	}
+
 	return argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(ignoreDifferences.ToApplicationIgnoreDifferences(), nil, false, ignoreNormalizerOpts).
+		WithDiffSettings(ignoreDifferences, nil, false, ignoreNormalizerOpts).
 		WithNoCache().
 		Build()
 }
