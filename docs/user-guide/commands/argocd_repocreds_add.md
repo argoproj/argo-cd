@@ -32,6 +32,12 @@ argocd repocreds add REPOURL [flags]
   # Add credentials with GCP credentials for all repositories under https://source.developers.google.com/p/my-google-cloud-project/r/
   argocd repocreds add https://source.developers.google.com/p/my-google-cloud-project/r/ --gcp-service-account-key-path service-account-key.json
 
+  # Add credentials with Azure Service Principal to use for all repositories under https://dev.azure.com/my-devops-organization
+  argocd repocreds add https://dev.azure.com/my-devops-organization --azure-service-principal-client-id 12345678-1234-1234-1234-123456789012 --azure-service-principal-client-secret test --azure-service-principal-tenant-id 12345678-1234-1234-1234-123456789012
+
+  # Add credentials with Azure Service Principal to use for all repositories under https://dev.azure.com/my-devops-organization when not using default Azure public cloud
+  argocd repocreds add https://dev.azure.com/my-devops-organization --azure-service-principal-client-id 12345678-1234-1234-1234-123456789012 --azure-service-principal-client-secret test --azure-service-principal-tenant-id 12345678-1234-1234-1234-123456789012 --azure-active-directory-endpoint https://login.microsoftonline.de
+
 ```
 
 ### Options

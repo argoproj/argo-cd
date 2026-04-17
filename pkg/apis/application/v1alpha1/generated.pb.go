@@ -13208,6 +13208,34 @@ func (m *Repository) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i -= len(m.AzureActiveDirectoryEndpoint)
+	copy(dAtA[i:], m.AzureActiveDirectoryEndpoint)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AzureActiveDirectoryEndpoint)))
+	i--
+	dAtA[i] = 0x2
+	i--
+	dAtA[i] = 0x82
+	i -= len(m.AzureServicePrincipalTenantId)
+	copy(dAtA[i:], m.AzureServicePrincipalTenantId)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AzureServicePrincipalTenantId)))
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0xfa
+	i -= len(m.AzureServicePrincipalClientSecret)
+	copy(dAtA[i:], m.AzureServicePrincipalClientSecret)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AzureServicePrincipalClientSecret)))
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0xf2
+	i -= len(m.AzureServicePrincipalClientId)
+	copy(dAtA[i:], m.AzureServicePrincipalClientId)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AzureServicePrincipalClientId)))
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0xea
 	i--
 	if m.WebhookManifestCacheWarmDisabled {
 		dAtA[i] = 1
@@ -19141,6 +19169,14 @@ func (m *Repository) Size() (n int) {
 	n += 3
 	n += 2 + sovGenerated(uint64(m.Depth))
 	n += 3
+	l = len(m.AzureServicePrincipalClientId)
+	n += 2 + l + sovGenerated(uint64(l))
+	l = len(m.AzureServicePrincipalClientSecret)
+	n += 2 + l + sovGenerated(uint64(l))
+	l = len(m.AzureServicePrincipalTenantId)
+	n += 2 + l + sovGenerated(uint64(l))
+	l = len(m.AzureActiveDirectoryEndpoint)
+	n += 2 + l + sovGenerated(uint64(l))
 	return n
 }
 
@@ -22357,6 +22393,10 @@ func (this *Repository) String() string {
 		`InsecureOCIForceHttp:` + fmt.Sprintf("%v", this.InsecureOCIForceHttp) + `,`,
 		`Depth:` + fmt.Sprintf("%v", this.Depth) + `,`,
 		`WebhookManifestCacheWarmDisabled:` + fmt.Sprintf("%v", this.WebhookManifestCacheWarmDisabled) + `,`,
+		`AzureServicePrincipalClientId:` + fmt.Sprintf("%v", this.AzureServicePrincipalClientId) + `,`,
+		`AzureServicePrincipalClientSecret:` + fmt.Sprintf("%v", this.AzureServicePrincipalClientSecret) + `,`,
+		`AzureServicePrincipalTenantId:` + fmt.Sprintf("%v", this.AzureServicePrincipalTenantId) + `,`,
+		`AzureActiveDirectoryEndpoint:` + fmt.Sprintf("%v", this.AzureActiveDirectoryEndpoint) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -47244,10 +47284,120 @@ func (m *RepoCreds) Unmarshal(dAtA []byte) error {
 				b := dAtA[iNdEx]
 				iNdEx++
 				m.Depth |= int64(b&0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureServicePrincipalClientId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 30:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureServicePrincipalClientSecret", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureServicePrincipalClientSecret = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 31:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureServicePrincipalTenantId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureServicePrincipalTenantId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 32:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureActiveDirectoryEndpoint", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureActiveDirectoryEndpoint = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -48165,6 +48315,134 @@ func (m *Repository) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.WebhookManifestCacheWarmDisabled = bool(v != 0)
+		case 29:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureServicePrincipalClientId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureServicePrincipalClientId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 30:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureServicePrincipalClientSecret", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureServicePrincipalClientSecret = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 31:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureServicePrincipalTenantId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureServicePrincipalTenantId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 32:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureActiveDirectoryEndpoint", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureActiveDirectoryEndpoint = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])

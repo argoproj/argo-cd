@@ -83,6 +83,12 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 
   # Add credentials with GCP credentials for all repositories under https://source.developers.google.com/p/my-google-cloud-project/r/
   argocd repocreds add https://source.developers.google.com/p/my-google-cloud-project/r/ --gcp-service-account-key-path service-account-key.json
+
+  # Add credentials with Azure Service Principal to use for all repositories under https://dev.azure.com/my-devops-organization
+  argocd repocreds add https://dev.azure.com/my-devops-organization --azure-service-principal-client-id 12345678-1234-1234-1234-123456789012 --azure-service-principal-client-secret test --azure-service-principal-tenant-id 12345678-1234-1234-1234-123456789012
+
+  # Add credentials with Azure Service Principal to use for all repositories under https://dev.azure.com/my-devops-organization when not using default Azure public cloud
+  argocd repocreds add https://dev.azure.com/my-devops-organization --azure-service-principal-client-id 12345678-1234-1234-1234-123456789012 --azure-service-principal-client-secret test --azure-service-principal-tenant-id 12345678-1234-1234-1234-123456789012 --azure-active-directory-endpoint https://login.microsoftonline.de
 `
 
 	command := &cobra.Command{
@@ -202,6 +208,10 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	command.Flags().BoolVar(&repo.UseAzureWorkloadIdentity, "use-azure-workload-identity", false, "whether to use azure workload identity for authentication")
 	command.Flags().StringVar(&repo.Proxy, "proxy-url", "", "If provided, this URL will be used to connect via proxy")
 	command.Flags().Int64Var(&repo.Depth, "depth", 0, "Specify a custom depth for git clone operations. Unless specified, a full clone is performed using the depth of 0")
+	command.Flags().StringVar(&repo.AzureServicePrincipalClientId, "azure-service-principal-client-id", "", "client id of the Azure Service Principal")
+	command.Flags().StringVar(&repo.AzureServicePrincipalClientSecret, "azure-service-principal-client-secret", "", "client secret of the Azure Service Principal")
+	command.Flags().StringVar(&repo.AzureServicePrincipalTenantId, "azure-service-principal-tenant-id", "", "tenant id of the Azure Service Principal")
+	command.Flags().StringVar(&repo.AzureActiveDirectoryEndpoint, "azure-active-directory-endpoint", "", "Active Directory endpoint when not using default Azure public cloud (e.g. https://login.microsoftonline.de)")
 	return command
 }
 
@@ -244,7 +254,7 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 // Print the repository credentials as table
 func printRepoCredsTable(repos []appsv1.RepoCreds) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "URL PATTERN\tUSERNAME\tSSH_CREDS\tTLS_CREDS\n")
+	fmt.Fprint(w, "URL PATTERN\tUSERNAME\tSSH_CREDS\tTLS_CREDS\n")
 	for _, r := range repos {
 		if r.Username == "" {
 			r.Username = "-"

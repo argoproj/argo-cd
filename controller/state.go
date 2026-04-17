@@ -332,7 +332,11 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			InstallationID:                  installationID,
 		})
 		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
+			genErr := fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
+			if app.Spec.SourceHydrator != nil && app.Spec.SourceHydrator.HydrateTo != nil && strings.Contains(err.Error(), path.ErrMessageAppPathDoesNotExist) {
+				genErr = fmt.Errorf("%w - waiting for an external process to update %s from %s", genErr, app.Spec.SourceHydrator.SyncSource.TargetBranch, app.Spec.SourceHydrator.HydrateTo.TargetBranch)
+			}
+			return nil, nil, false, genErr
 		}
 
 		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
@@ -352,39 +356,6 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	logCtx.Info("GetRepoObjs stats")
 
 	return targetObjs, manifestInfos, revisionsMayHaveChanges, nil
-}
-
-// ResolveGitRevision will resolve the given revision to a full commit SHA. Only works for git.
-func (m *appStateManager) ResolveGitRevision(repoURL string, revision string) (string, error) {
-	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
-	if err != nil {
-		return "", fmt.Errorf("failed to connect to repo server: %w", err)
-	}
-	defer utilio.Close(conn)
-
-	repo, err := m.db.GetRepository(context.Background(), repoURL, "")
-	if err != nil {
-		return "", fmt.Errorf("failed to get repo %q: %w", repoURL, err)
-	}
-
-	// Mock the app. The repo-server only needs to know whether the "chart" field is populated.
-	app := &v1alpha1.Application{
-		Spec: v1alpha1.ApplicationSpec{
-			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        repoURL,
-				TargetRevision: revision,
-			},
-		},
-	}
-	resp, err := repoClient.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
-		Repo:              repo,
-		App:               app,
-		AmbiguousRevision: revision,
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to determine whether the dry source has changed: %w", err)
-	}
-	return resp.Revision, nil
 }
 
 func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error) {
