@@ -1455,6 +1455,40 @@ func Test_affectedRevisionInfo_azuredevops_changed_files(t *testing.T) {
 	require.Equal(t, []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"}, changedFiles)
 }
 
+func Test_affectedRevisionInfo_azuredevops_multiple_ref_updates(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	// Register mock only for the first refUpdate's SHAs. If the code were to call
+	// the API with any other SHA pair, httpmock would return "no responder found" and
+	// the test would fail, confirming that only RefUpdates[0] is used.
+	const adoDiffsAPIURL = "https://dev.azure.com/alexander0053/alex-test/_apis/git/repositories/" +
+		"ba2967cc-02c2-414c-8d10-1b99197cbaa6/diffs/commits" +
+		"?baseVersion=fa51eeb1e50b98293ce281e6d5492b9decae613b" +
+		"&baseVersionType=commit" +
+		"&targetVersion=298a79aa1552799a70718a0ee914d153d5a1a76b" +
+		"&targetVersionType=commit" +
+		"&$top=2000&api-version=7.1"
+	httpmock.RegisterResponder("GET", adoDiffsAPIURL, getADODiffsResponderFn())
+
+	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
+	require.NoError(t, err)
+	var payload azuredevops.GitPushEvent
+	require.NoError(t, json.Unmarshal(eventJSON, &payload))
+
+	// Append a second refUpdate with different SHAs to simulate a multi-ref push.
+	payload.Resource.RefUpdates = append(payload.Resource.RefUpdates, azuredevops.RefUpdate{
+		Name:        "refs/heads/other-branch",
+		OldObjectID: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		NewObjectID: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	})
+
+	h := NewMockHandlerForADOCallback(nil, []string{})
+	_, _, _, _, changedFiles := h.affectedRevisionInfo(payload)
+	// Only the first refUpdate's SHAs were used; changed files are still resolved correctly.
+	require.Equal(t, []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"}, changedFiles)
+}
+
 func TestLookupRepository(t *testing.T) {
 	mockCtx, cancel := context.WithDeadline(t.Context(), time.Now().Add(10*time.Second))
 	defer cancel()
