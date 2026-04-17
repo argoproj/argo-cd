@@ -22,6 +22,10 @@ func TestMain(m *testing.M) {
 	// Ensure tests use non-cached proxy callback
 	proxy.UseTestingProxyCallback()
 
+	cwd, _ := os.Getwd()
+	os.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	os.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(cwd, "testdata", "gitconfig"))
+
 	os.Exit(m.Run())
 }
 

@@ -461,31 +461,16 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 
 // Test that calling manifest generation on source helm reference helm files that when the revision is cached it does not call ls-remote
 func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
-	dir := t.TempDir()
+	// Use os.MkdirTemp instead of t.TempDir() because the async goroutine in
+	// runManifestGenAsync sets directory permissions to 0o000 (via
+	// directoryPermissionInitializer) after GenerateManifest returns, racing
+	// with t.TempDir()'s implicit RemoveAll cleanup.
+	dir, mkErr := os.MkdirTemp("", "TestGenerateManifestsHelmWithRefs_CachedNoLsRemote")
+	require.NoError(t, mkErr)
 	repopath := dir + "/tmprepo"
 	cacheMocks := newCacheMocks()
 	t.Cleanup(func() {
 		cacheMocks.mockCache.StopRedisCallback()
-		// Best-effort: make all files writable so t.TempDir() can clean up.
-		// Ignore errors (e.g. git object files with restrictive permissions in CI)
-		// to avoid failing the test in the cleanup phase rather than the logic phase.
-		// We chmod *before* descending so that directories with restrictive permissions
-		// (e.g. git object dirs set to 0444) become accessible prior to listing their
-		// entries. filepath.WalkDir cannot be used here because it reads directory
-		// entries before calling the callback, so a dir with 0000/0444 perms would
-		// already fail before we get a chance to fix it.
-		var fixPerms func(string)
-		fixPerms = func(path string) {
-			_ = os.Chmod(path, 0o777)
-			entries, err := os.ReadDir(path)
-			if err != nil {
-				return
-			}
-			for _, e := range entries {
-				fixPerms(filepath.Join(path, e.Name()))
-			}
-		}
-		fixPerms(dir)
 	})
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, repopath)
 	var gitClient git.Client
@@ -3011,7 +2996,12 @@ func Test_getHelmDependencyRepos(t *testing.T) {
 }
 
 func TestResolveRevision(t *testing.T) {
-	service := newService(t, ".")
+	expectedRevision := "03b17e0233e64787ffb5fcf65c740cc2a20822ba"
+	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().LsRemote("v2.2.2").Return(expectedRevision, nil)
+		gitClient.EXPECT().Root().Return(".")
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+	}, ".")
 	repo := &v1alpha1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
 	app := &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}
 	resolveRevisionResponse, err := service.ResolveRevision(t.Context(), &apiclient.ResolveRevisionRequest{
@@ -3021,8 +3011,8 @@ func TestResolveRevision(t *testing.T) {
 	})
 
 	expectedResolveRevisionResponse := &apiclient.ResolveRevisionResponse{
-		Revision:          "03b17e0233e64787ffb5fcf65c740cc2a20822ba",
-		AmbiguousRevision: "v2.2.2 (03b17e0233e64787ffb5fcf65c740cc2a20822ba)",
+		Revision:          expectedRevision,
+		AmbiguousRevision: fmt.Sprintf("v2.2.2 (%s)", expectedRevision),
 	}
 
 	assert.NotNil(t, resolveRevisionResponse.Revision)
@@ -3031,7 +3021,11 @@ func TestResolveRevision(t *testing.T) {
 }
 
 func TestResolveRevisionNegativeScenarios(t *testing.T) {
-	service := newService(t, ".")
+	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().LsRemote("v2.a.2").Return("", fmt.Errorf("unable to resolve '%s' to a commit SHA", "v2.a.2"))
+		gitClient.EXPECT().Root().Return(".")
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+	}, ".")
 	repo := &v1alpha1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
 	app := &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}
 	resolveRevisionResponse, err := service.ResolveRevision(t.Context(), &apiclient.ResolveRevisionRequest{

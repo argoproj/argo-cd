@@ -63,8 +63,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -334,8 +332,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
-	ssoClientApp, err := oidc.NewClientApp(settings, opts.DexServerAddr, opts.DexTLSConfig, opts.BaseHRef, cacheutil.NewRedisCache(opts.RedisClient, settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
-	errorsutil.CheckError(err)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
@@ -383,7 +379,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:   opts,
 		ApplicationSetOpts: appsetOpts,
-		ssoClientApp:       ssoClientApp,
 		log:                logger,
 		settings:           settings,
 		sessionMgr:         sessionMgr,
@@ -468,38 +463,28 @@ func (l *Listeners) Close() error {
 
 // logInClusterWarnings checks the in-cluster configuration and prints out any warnings.
 func (server *ArgoCDServer) logInClusterWarnings() error {
-	labelSelector := labels.NewSelector()
-	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
+	informer, err := server.settingsMgr.GetClusterInformer()
 	if err != nil {
-		return fmt.Errorf("failed to construct cluster-type label selector: %w", err)
+		return fmt.Errorf("failed to get cluster informer: %w", err)
 	}
-	labelSelector = labelSelector.Add(*req)
-	secretsLister, err := server.settingsMgr.GetSecretsLister()
+	clusters, err := informer.ListAvailableClusters()
 	if err != nil {
-		return fmt.Errorf("failed to get secrets lister: %w", err)
+		return fmt.Errorf("failed to list clusters: %w", err)
 	}
-	clusterSecrets, err := secretsLister.Secrets(server.ArgoCDServerOpts.Namespace).List(labelSelector)
-	if err != nil {
-		return fmt.Errorf("failed to list cluster secrets: %w", err)
-	}
-	var inClusterSecrets []string
-	for _, clusterSecret := range clusterSecrets {
-		cluster, err := db.SecretToCluster(clusterSecret)
-		if err != nil {
-			return fmt.Errorf("could not unmarshal cluster secret %q: %w", clusterSecret.Name, err)
-		}
+	var inClusterNames []string
+	for _, cluster := range clusters {
 		if cluster.Server == v1alpha1.KubernetesInternalAPIServerAddr {
-			inClusterSecrets = append(inClusterSecrets, clusterSecret.Name)
+			inClusterNames = append(inClusterNames, cluster.ObjectMeta.Name)
 		}
 	}
-	if len(inClusterSecrets) > 0 {
+	if len(inClusterNames) > 0 {
 		// Don't make this call unless we actually have in-cluster secrets, to save time.
-		dbSettings, err := server.settingsMgr.GetSettings()
+		inClusterEnabled, err := server.settingsMgr.IsInClusterEnabled()
 		if err != nil {
-			return fmt.Errorf("could not get DB settings: %w", err)
+			return fmt.Errorf("could not check if in-cluster is enabled: %w", err)
 		}
-		if !dbSettings.InClusterEnabled {
-			for _, clusterName := range inClusterSecrets {
+		if !inClusterEnabled {
+			for _, clusterName := range inClusterNames {
 				log.Warnf("cluster %q uses in-cluster server address but it's disabled in Argo CD settings", clusterName)
 			}
 		}
@@ -586,6 +571,10 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	if server.RedisClient != nil {
 		cacheutil.CollectMetrics(server.RedisClient, metricsServ, server.userStateStorage.GetLockObject())
 	}
+	// OIDC config needs to be refreshed at each server restart
+	ssoClientApp, err := oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
+	errorsutil.CheckError(err)
+	server.ssoClientApp = ssoClientApp
 
 	// Don't init storage until after CollectMetrics. CollectMetrics adds hooks to the Redis client, and Init
 	// reads those hooks. If this is called first, there may be a data race.
@@ -1078,7 +1067,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.EnableK8sEvent)
 	appsInAnyNamespaceEnabled := len(a.ApplicationNamespaces) > 0
 	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled, a.HydratorEnabled, a.SyncWithReplaceAllowed)
-	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
+	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf, a.Namespace)
 
 	notificationService := notification.NewServer(a.apiFactory)
 	certificateService := certificate.NewServer(a.db, a.enf)

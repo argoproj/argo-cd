@@ -525,25 +525,25 @@ func (_c *Dependencies_GetWriteCredentials_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
-// PersistAppHydratorStatus provides a mock function for the type Dependencies
-func (_mock *Dependencies) PersistAppHydratorStatus(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+// PersistHydrationStatus provides a mock function for the type Dependencies
+func (_mock *Dependencies) PersistHydrationStatus(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
 	_mock.Called(orig, newStatus)
 	return
 }
 
-// Dependencies_PersistAppHydratorStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PersistAppHydratorStatus'
-type Dependencies_PersistAppHydratorStatus_Call struct {
+// Dependencies_PersistHydrationStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PersistHydrationStatus'
+type Dependencies_PersistHydrationStatus_Call struct {
 	*mock.Call
 }
 
-// PersistAppHydratorStatus is a helper method to define mock.On call
+// PersistHydrationStatus is a helper method to define mock.On call
 //   - orig *v1alpha1.Application
 //   - newStatus *v1alpha1.SourceHydratorStatus
-func (_e *Dependencies_Expecter) PersistAppHydratorStatus(orig interface{}, newStatus interface{}) *Dependencies_PersistAppHydratorStatus_Call {
-	return &Dependencies_PersistAppHydratorStatus_Call{Call: _e.mock.On("PersistAppHydratorStatus", orig, newStatus)}
+func (_e *Dependencies_Expecter) PersistHydrationStatus(orig interface{}, newStatus interface{}) *Dependencies_PersistHydrationStatus_Call {
+	return &Dependencies_PersistHydrationStatus_Call{Call: _e.mock.On("PersistHydrationStatus", orig, newStatus)}
 }
 
-func (_c *Dependencies_PersistAppHydratorStatus_Call) Run(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
+func (_c *Dependencies_PersistHydrationStatus_Call) Run(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistHydrationStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 *v1alpha1.Application
 		if args[0] != nil {
@@ -561,12 +561,12 @@ func (_c *Dependencies_PersistAppHydratorStatus_Call) Run(run func(orig *v1alpha
 	return _c
 }
 
-func (_c *Dependencies_PersistAppHydratorStatus_Call) Return() *Dependencies_PersistAppHydratorStatus_Call {
+func (_c *Dependencies_PersistHydrationStatus_Call) Return() *Dependencies_PersistHydrationStatus_Call {
 	_c.Call.Return()
 	return _c
 }
 
-func (_c *Dependencies_PersistAppHydratorStatus_Call) RunAndReturn(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistAppHydratorStatus_Call {
+func (_c *Dependencies_PersistHydrationStatus_Call) RunAndReturn(run func(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus)) *Dependencies_PersistHydrationStatus_Call {
 	_c.Run(run)
 	return _c
 }
