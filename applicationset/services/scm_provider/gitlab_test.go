@@ -1631,7 +1631,7 @@ func TestGitlabListRepos(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			provider, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.includeArchivedRepos, c.insecure, "", c.topic, nil)
-			rawRepos, err := ListRepos(t.Background(), provider, c.filters, c.proto)
+			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
 			} else {

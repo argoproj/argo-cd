@@ -809,7 +809,7 @@ func TestGiteaListRepos(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			provider, _ := NewGiteaProvider("test-argocd", "", ts.URL, c.allBranches, false, c.excludeArchivedRepos)
-			rawRepos, err := ListRepos(t.Background(), provider, c.filters, c.proto)
+			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 
 			if c.hasError {
 				require.Error(t, err)
