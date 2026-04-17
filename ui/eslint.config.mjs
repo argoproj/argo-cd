@@ -31,7 +31,7 @@ export default [
         },
         ...pluginReactConfig,
         rules: {
-            // TODO: Re-enble these rules that were disabled by mistake
+            // TODO: Re-enable these rules that were disabled by mistake
             // ...pluginReactConfig.rules,
             'react/display-name': 'off',
             'react/no-string-refs': 'off',
