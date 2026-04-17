@@ -160,7 +160,7 @@ func getLocalObjects(
 	clusterInfo *argoappv1.ClusterInfo,
 ) []*unstructured.Unstructured {
 	manifestStrings := getLocalObjectsString(ctx, app, proj, local, localRepoRoot, argoSettings, clusterInfo)
-	objs := make([]*unstructured.Unstructured, len(manifestStrings))
+	objs := make([]*unstructured.Unstructured, 0, len(manifestStrings))
 	for i := range manifestStrings {
 		obj := &unstructured.Unstructured{}
 		err := json.Unmarshal([]byte(manifestStrings[i]), obj)
@@ -173,7 +173,7 @@ func getLocalObjects(
 			continue
 		}
 
-		objs[i] = obj
+		objs = append(objs, obj)
 	}
 	return objs
 }
