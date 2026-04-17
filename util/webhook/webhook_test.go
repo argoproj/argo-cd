@@ -98,6 +98,7 @@ func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects
 func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces []string, maxPayloadSize int64, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	mockDB := &mocks.ArgoDB{}
 	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
+	mockDB.EXPECT().ListRepositoryCredentials(mock.Anything).Return([]string{}, nil).Maybe()
 	return newMockHandler(reactor, applicationNamespaces, maxPayloadSize, mockDB, &settings.ArgoCDSettings{}, objects...)
 }
 
@@ -123,6 +124,36 @@ func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespac
 	argoSettings := settings.ArgoCDSettings{WebhookBitbucketUUID: "abcd-efgh-ijkl-mnop"}
 	defaultMaxPayloadSize := int64(50) * 1024 * 1024
 	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
+}
+
+func NewMockHandlerForADOCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return(
+		[]*v1alpha1.Repository{
+			{
+				Repo:     "https://dev.azure.com/alexander0053/alex-test/_git/alex-test",
+				Username: "test-user",
+				Password: "test-pat",
+			},
+		}, nil)
+	mockDB.EXPECT().ListRepositoryCredentials(mock.Anything).Return([]string{}, nil).Maybe()
+	defaultMaxPayloadSize := int64(50) * 1024 * 1024
+	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &settings.ArgoCDSettings{}, objects...)
+}
+
+func NewMockHandlerForADOCredsTemplateCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil)
+	mockDB.EXPECT().ListRepositoryCredentials(mock.Anything).Return(
+		[]string{"https://dev.azure.com/alexander0053"}, nil)
+	mockDB.EXPECT().GetRepositoryCredentials(mock.Anything, "https://dev.azure.com/alexander0053").Return(
+		&v1alpha1.RepoCreds{
+			URL:      "https://dev.azure.com/alexander0053",
+			Username: "test-user",
+			Password: "test-pat",
+		}, nil)
+	defaultMaxPayloadSize := int64(50) * 1024 * 1024
+	return newMockHandler(reactor, applicationNamespaces, defaultMaxPayloadSize, mockDB, &settings.ArgoCDSettings{}, objects...)
 }
 
 type fakeAppsLister struct {
@@ -1378,6 +1409,52 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 	}
 }
 
+func Test_affectedRevisionInfo_azuredevops_changed_files_via_creds_template(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	const adoDiffsAPIURL = "https://dev.azure.com/alexander0053/alex-test/_apis/git/repositories/" +
+		"ba2967cc-02c2-414c-8d10-1b99197cbaa6/diffs/commits" +
+		"?baseVersion=fa51eeb1e50b98293ce281e6d5492b9decae613b" +
+		"&baseVersionType=commit" +
+		"&targetVersion=298a79aa1552799a70718a0ee914d153d5a1a76b" +
+		"&targetVersionType=commit" +
+		"&$top=2000&api-version=7.1"
+	httpmock.RegisterResponder("GET", adoDiffsAPIURL, getADODiffsResponderFn())
+
+	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
+	require.NoError(t, err)
+	var payload azuredevops.GitPushEvent
+	require.NoError(t, json.Unmarshal(eventJSON, &payload))
+
+	h := NewMockHandlerForADOCredsTemplateCallback(nil, []string{})
+	_, _, _, _, changedFiles := h.affectedRevisionInfo(payload)
+	require.Equal(t, []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"}, changedFiles)
+}
+
+func Test_affectedRevisionInfo_azuredevops_changed_files(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	const adoDiffsAPIURL = "https://dev.azure.com/alexander0053/alex-test/_apis/git/repositories/" +
+		"ba2967cc-02c2-414c-8d10-1b99197cbaa6/diffs/commits" +
+		"?baseVersion=fa51eeb1e50b98293ce281e6d5492b9decae613b" +
+		"&baseVersionType=commit" +
+		"&targetVersion=298a79aa1552799a70718a0ee914d153d5a1a76b" +
+		"&targetVersionType=commit" +
+		"&$top=2000&api-version=7.1"
+	httpmock.RegisterResponder("GET", adoDiffsAPIURL, getADODiffsResponderFn())
+
+	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
+	require.NoError(t, err)
+	var payload azuredevops.GitPushEvent
+	require.NoError(t, json.Unmarshal(eventJSON, &payload))
+
+	h := NewMockHandlerForADOCallback(nil, []string{})
+	_, _, _, _, changedFiles := h.affectedRevisionInfo(payload)
+	require.Equal(t, []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"}, changedFiles)
+}
+
 func TestLookupRepository(t *testing.T) {
 	mockCtx, cancel := context.WithDeadline(t.Context(), time.Now().Add(10*time.Second))
 	defer cancel()
@@ -1531,6 +1608,119 @@ func TestFetchDiffStatBitbucketClient(t *testing.T) {
 	}
 }
 
+func TestParseADOBaseURL(t *testing.T) {
+	tests := []struct {
+		name        string
+		repoURL     string
+		expectedURL string
+		expectErr   bool
+	}{
+		{
+			name:        "standard HTTPS URL",
+			repoURL:     "https://dev.azure.com/myorg/myproject/_git/myrepo",
+			expectedURL: "https://dev.azure.com/myorg/myproject",
+		},
+		{
+			name:        "real-world ADO URL",
+			repoURL:     "https://dev.azure.com/alexander0053/alex-test/_git/alex-test",
+			expectedURL: "https://dev.azure.com/alexander0053/alex-test",
+		},
+		{
+			name:      "URL with only org segment",
+			repoURL:   "https://dev.azure.com/myorg",
+			expectErr: true,
+		},
+		{
+			name:      "URL with empty project segment",
+			repoURL:   "https://dev.azure.com/myorg/",
+			expectErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseADOBaseURL(tt.repoURL)
+			if tt.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedURL, result)
+			}
+		})
+	}
+}
+
+func TestFetchChangedFilesFromADO(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	const (
+		testRepoURL   = "https://dev.azure.com/myorg/myproject/_git/myrepo"
+		testRepoID    = "ba2967cc-02c2-414c-8d10-1b99197cbaa6"
+		testShaBefore = "fa51eeb1e50b98293ce281e6d5492b9decae613b"
+		testShaAfter  = "298a79aa1552799a70718a0ee914d153d5a1a76b"
+	)
+
+	validAPIURL := fmt.Sprintf(
+		"https://dev.azure.com/myorg/myproject/_apis/git/repositories/%s/diffs/commits"+
+			"?baseVersion=%s&baseVersionType=commit&targetVersion=%s&targetVersionType=commit&$top=2000&api-version=7.1",
+		testRepoID, testShaBefore, testShaAfter,
+	)
+	httpmock.RegisterResponder("GET", validAPIURL, getADODiffsResponderFn())
+
+	repo := &v1alpha1.Repository{
+		Repo:     testRepoURL,
+		Username: "test-user",
+		Password: "test-pat",
+	}
+
+	tests := []struct {
+		name          string
+		repoURL       string
+		repoID        string
+		shaBefore     string
+		shaAfter      string
+		expectedFiles []string
+		expectErr     bool
+	}{
+		{
+			name:          "returns changed files for valid diff",
+			repoURL:       testRepoURL,
+			repoID:        testRepoID,
+			shaBefore:     testShaBefore,
+			shaAfter:      testShaAfter,
+			expectedFiles: []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"},
+		},
+		{
+			name:      "returns error for unregistered SHA pair",
+			repoURL:   testRepoURL,
+			repoID:    testRepoID,
+			shaBefore: "0000000000000000000000000000000000000000",
+			shaAfter:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			expectErr: true,
+		},
+		{
+			name:      "returns error for URL without org and project",
+			repoURL:   "https://dev.azure.com",
+			repoID:    testRepoID,
+			shaBefore: testShaBefore,
+			shaAfter:  testShaAfter,
+			expectErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			changedFiles, err := fetchChangedFilesFromADO(t.Context(), repo, tt.repoURL, tt.repoID, tt.shaBefore, tt.shaAfter)
+			if tt.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedFiles, changedFiles)
+			}
+		})
+	}
+}
+
 func TestIsHeadTouched(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()
@@ -1639,6 +1829,34 @@ func getDiffstatResponderFn() func(req *http.Request) (*http.Response, error) {
 		resp, err := httpmock.NewJsonResponse(200, diffStatRes)
 		if err != nil {
 			return httpmock.NewStringResponse(500, ""), nil
+		}
+		return resp, nil
+	}
+}
+
+// getADODiffsResponderFn returns a httpmock responder for the Azure DevOps Diffs REST API.
+func getADODiffsResponderFn() func(req *http.Request) (*http.Response, error) {
+	return func(_ *http.Request) (*http.Response, error) {
+		diffsResp := adoDiffsResponse{
+			Changes: []adoDiffChange{
+				{
+					Item:       adoDiffItem{Path: "/apps/my-app/values.yaml", IsFolder: false},
+					ChangeType: "edit",
+				},
+				{
+					Item:       adoDiffItem{Path: "/apps/my-app/deployment.yaml", IsFolder: false},
+					ChangeType: "add",
+				},
+				{
+					// folder entries should be excluded from the changed files list
+					Item:       adoDiffItem{Path: "/apps/my-app", IsFolder: true},
+					ChangeType: "edit",
+				},
+			},
+		}
+		resp, err := httpmock.NewJsonResponse(http.StatusOK, diffsResp)
+		if err != nil {
+			return httpmock.NewStringResponse(http.StatusInternalServerError, ""), nil
 		}
 		return resp, nil
 	}
