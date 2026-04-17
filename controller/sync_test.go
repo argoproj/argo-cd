@@ -1839,12 +1839,12 @@ func TestSecretNormalizingApplier(t *testing.T) {
 
 		result, err := normalizer.ApplyResource(ctx, desired, cmdutil.DryRunServer, false, false, true, "argocd")
 		require.NoError(t, err)
-		assert.Equal(t, nonJSON, result)
+		assert.Equal(t, nonJSON, result) //nolint:testifylint
 	})
 
 	t.Run("non-core group secret is not normalized", func(t *testing.T) {
 		customSecret := desired.DeepCopy()
-		customSecret.SetAPIVersion("custom.io/v1") // Group이 ""이 아님
+		customSecret.SetAPIVersion("custom.io/v1")
 
 		mockApplier.applyResult = func(obj *unstructured.Unstructured) string {
 			bytes, _ := json.Marshal(obj)
@@ -1858,7 +1858,6 @@ func TestSecretNormalizingApplier(t *testing.T) {
 		err = json.Unmarshal([]byte(result), resultObj)
 		require.NoError(t, err)
 
-		// 데이터가 변하지 않았음을 확인
 		assert.Equal(t, customSecret.Object["data"], resultObj.Object["data"])
 		assert.Equal(t, "very-secret-value", resultObj.GetAnnotations()["my-custom-sensitive-field"])
 	})
@@ -1871,7 +1870,6 @@ func TestSecretNormalizingApplier(t *testing.T) {
 		err = json.Unmarshal([]byte(result), resultObj)
 		require.NoError(t, err)
 
-		// DryRun이 아니면 마스킹 되지 않아야 함
 		assert.Equal(t, desired.Object["data"], resultObj.Object["data"])
 	})
 }
