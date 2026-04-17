@@ -240,7 +240,7 @@ func printStatsSummary(clusters []ClusterWithInfo) {
 
 	avgResourcesByShard := totalResourcesCount / int64(len(resourcesCountByShard))
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "SHARD\tRESOURCES COUNT\n")
+	_, _ = fmt.Fprint(w, "SHARD\tRESOURCES COUNT\n")
 	for shard := 0; shard < len(resourcesCountByShard); shard++ {
 		cnt := resourcesCountByShard[shard]
 		percent := (float64(cnt) / float64(avgResourcesByShard)) * 100.0
@@ -318,7 +318,7 @@ func NewClusterNamespacesCommand() *cobra.Command {
 
 			err := runClusterNamespacesCommand(ctx, clientConfig, func(_ *versioned.Clientset, _ db.ArgoDB, clusters map[string][]string) error {
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-				_, _ = fmt.Fprintf(w, "CLUSTER\tNAMESPACES\n")
+				_, _ = fmt.Fprint(w, "CLUSTER\tNAMESPACES\n")
 
 				for cluster, namespaces := range clusters {
 					// print shortest namespace names first
@@ -495,7 +495,7 @@ argocd admin cluster stats target-cluster`,
 			errors.CheckError(err)
 
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			_, _ = fmt.Fprintf(w, "SERVER\tSHARD\tCONNECTION\tNAMESPACES COUNT\tAPPS COUNT\tRESOURCES COUNT\n")
+			_, _ = fmt.Fprint(w, "SERVER\tSHARD\tCONNECTION\tNAMESPACES COUNT\tAPPS COUNT\tRESOURCES COUNT\n")
 			for _, cluster := range clusters {
 				_, _ = fmt.Fprintf(w, "%s\t%d\t%s\t%d\t%d\t%d\n", cluster.Server, cluster.Shard, cluster.Info.ConnectionState.Status, len(cluster.Namespaces), cluster.Info.ApplicationsCount, cluster.Info.CacheInfo.ResourcesCount)
 			}
