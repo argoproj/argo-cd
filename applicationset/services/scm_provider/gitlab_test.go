@@ -1421,7 +1421,7 @@ func TestGitlabListRepos(t *testing.T) {
 					Branch:       "master",
 					URL:          "git@gitlab.com:test-argocd-proton/argocd.git",
 					SHA:          "8898d7999fc99dd0fd578650b58b244fc63f6b53",
-					RepositoryId: 27084533,
+					RepositoryId: int64(27084533),
 					Labels:       []string{"test-topic"},
 				},
 			},
@@ -1441,7 +1441,7 @@ func TestGitlabListRepos(t *testing.T) {
 					Branch:       "master",
 					URL:          "git@gitlab.com:test-argocd-proton/argocd.git",
 					SHA:          "8898d7999fc99dd0fd578650b58b244fc63f6b53",
-					RepositoryId: 27084533,
+					RepositoryId: int64(27084533),
 					Labels:       []string{"test-topic"},
 				},
 			},
@@ -1461,7 +1461,7 @@ func TestGitlabListRepos(t *testing.T) {
 					Branch:       "master",
 					URL:          "https://gitlab.com/test-argocd-proton/argocd.git",
 					SHA:          "8898d7999fc99dd0fd578650b58b244fc63f6b53",
-					RepositoryId: 27084533,
+					RepositoryId: int64(27084533),
 					Labels:       []string{"test-topic"},
 				},
 			},
@@ -1485,7 +1485,7 @@ func TestGitlabListRepos(t *testing.T) {
 					Branch:       "master",
 					URL:          "git@gitlab.com:test-argocd-proton/argocd.git",
 					SHA:          "8898d7999fc99dd0fd578650b58b244fc63f6b53",
-					RepositoryId: 27084533,
+					RepositoryId: int64(27084533),
 					Labels:       []string{"test-topic"},
 				},
 			},
@@ -1509,7 +1509,7 @@ func TestGitlabListRepos(t *testing.T) {
 					Branch:       "master",
 					URL:          "git@gitlab.com:test-argocd-proton/argocd.git",
 					SHA:          "8898d7999fc99dd0fd578650b58b244fc63f6b53",
-					RepositoryId: 27084533,
+					RepositoryId: int64(27084533),
 					Labels:       []string{"test-topic"},
 				},
 			},
@@ -1530,7 +1530,7 @@ func TestGitlabListRepos(t *testing.T) {
 					Branch:       "master",
 					URL:          "git@gitlab.com:test-argocd-proton/argocd.git",
 					SHA:          "8898d7999fc99dd0fd578650b58b244fc63f6b53",
-					RepositoryId: 27084533,
+					RepositoryId: int64(27084533),
 					Labels:       []string{"test-topic", "specific-topic"},
 				},
 				{
@@ -1539,7 +1539,7 @@ func TestGitlabListRepos(t *testing.T) {
 					Branch:       "master",
 					URL:          "git@gitlab.com:test-argocd-proton/subgroup/argocd-subgroup.git",
 					SHA:          "8898d7999fc99dd0fd578650b58b244fc63f6b58",
-					RepositoryId: 27084538,
+					RepositoryId: int64(27084538),
 					Labels:       []string{"test-topic"},
 				},
 			},
@@ -1560,7 +1560,7 @@ func TestGitlabListRepos(t *testing.T) {
 					Branch:       "master",
 					URL:          "git@gitlab.com:test-argocd-proton/argocd.git",
 					SHA:          "8898d7999fc99dd0fd578650b58b244fc63f6b53",
-					RepositoryId: 27084533,
+					RepositoryId: int64(27084533),
 					Labels:       []string{"test-topic"},
 				},
 				{
@@ -1569,7 +1569,7 @@ func TestGitlabListRepos(t *testing.T) {
 					Branch:       "master",
 					URL:          "git@gitlab.com:test-shared-argocd-proton/shared-argocd.git",
 					SHA:          "8898d7999fc99dd0fd578650b58b244fc63f6b53",
-					RepositoryId: 27084534,
+					RepositoryId: int64(27084534),
 					Labels:       []string{"test-topic"},
 				},
 			},
@@ -1590,7 +1590,7 @@ func TestGitlabListRepos(t *testing.T) {
 					Branch:       "master",
 					URL:          "git@gitlab.com:test-argocd-proton/argocd.git",
 					SHA:          "8898d7999fc99dd0fd578650b58b244fc63f6b53",
-					RepositoryId: 27084533,
+					RepositoryId: int64(27084533),
 					Labels:       []string{"test-topic", "specific-topic"},
 				},
 			},
@@ -1610,7 +1610,7 @@ func TestGitlabListRepos(t *testing.T) {
 					Branch:       "master",
 					URL:          "git@gitlab.com:test-argocd-proton/argocd.git",
 					SHA:          "8898d7999fc99dd0fd578650b58b244fc63f6b53",
-					RepositoryId: 27084533,
+					RepositoryId: int64(27084533),
 					Labels:       []string{},
 				},
 				{
@@ -1619,7 +1619,7 @@ func TestGitlabListRepos(t *testing.T) {
 					Branch:       "master",
 					URL:          "git@gitlab.com:test-argocd-proton/another-repo.git",
 					SHA:          "8898d8889fc99dd0fd578650b58b244fc63f6b58",
-					RepositoryId: 56522142,
+					RepositoryId: int64(56522142),
 					Labels:       []string{"test-topic"},
 				},
 			},
@@ -1726,7 +1726,7 @@ func TestGitlabGetBranches(t *testing.T) {
 	host, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, false, "", "", nil)
 
 	repo := &Repository{
-		RepositoryId: 27084533,
+		RepositoryId: int64(27084533),
 		Branch:       "master",
 	}
 	t.Run("branch exists", func(t *testing.T) {
@@ -1736,7 +1736,7 @@ func TestGitlabGetBranches(t *testing.T) {
 	})
 
 	repo2 := &Repository{
-		RepositoryId: 27084533,
+		RepositoryId: int64(27084533),
 		Branch:       "foo",
 	}
 	t.Run("unknown branch", func(t *testing.T) {
@@ -1799,12 +1799,12 @@ func TestGetBranchesTLS(t *testing.T) {
 				}
 			}
 
-			host, err := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, test.tlsInsecure, "", "", certs)
-			require.NoError(t, err)
-			repo := &Repository{
-				RepositoryId: 27084533,
-				Branch:       "master",
-			}
+		host, err := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, test.tlsInsecure, "", "", certs)
+		require.NoError(t, err)
+		repo := &Repository{
+			RepositoryId: int64(27084533),
+			Branch:       "master",
+		}
 			_, err = host.GetBranches(t.Context(), repo)
 			if test.requireErr {
 				require.Error(t, err)
