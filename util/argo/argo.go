@@ -478,10 +478,16 @@ func validateRepo(ctx context.Context,
 		}
 	}
 
+	kubeServerVersion := cluster.Info.ServerVersion
+	apiVersions := APIResourcesToStrings(apiGroups, true)
+
 	// If using the source hydrator, check the dry source instead of the sync source, since the sync source branch may
 	// not exist yet.
 	if app.Spec.SourceHydrator != nil {
 		sources = []argoappv1.ApplicationSource{app.Spec.SourceHydrator.GetDrySource()}
+		// For the dry source, we dont want to sendRuntimeState during the generation
+		kubeServerVersion = ""
+		apiVersions = nil
 	}
 
 	refSources, err := GetRefSources(ctx, sources, app.Spec.Project, db.GetRepository, []string{})
@@ -498,8 +504,8 @@ func validateRepo(ctx context.Context,
 		proj,
 		sources,
 		repoClient,
-		cluster.Info.ServerVersion,
-		APIResourcesToStrings(apiGroups, true),
+		kubeServerVersion,
+		apiVersions,
 		permittedHelmCredentials,
 		permittedOCICredentials,
 		enabledSourceTypes,
