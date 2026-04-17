@@ -15,3 +15,7 @@ tests:
     status: Progressing
     message: "Waiting for BackendTLSPolicy status"
   inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Ancestor example-gateway to update BackendTLSPolicy status"
+  inputPath: testdata/progressing_observed_generation.yaml

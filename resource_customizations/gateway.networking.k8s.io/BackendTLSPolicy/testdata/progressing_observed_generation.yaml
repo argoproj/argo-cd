@@ -21,7 +21,7 @@ status:
   - ancestorRef:
       group: gateway.networking.k8s.io
       kind: Gateway
-      name: example-gateway
+      name: other-gateway
     conditions:
     - lastTransitionTime: '2026-04-16T12:30:30Z'
       message: All references are resolved
@@ -32,6 +32,24 @@ status:
     - lastTransitionTime: '2026-04-16T12:20:11Z'
       message: BackendTLSPolicy is accepted
       observedGeneration: 3
+      reason: Accepted
+      status: 'True'
+      type: Accepted
+    controllerName: other.com/gatewayclass-controller
+  - ancestorRef:
+      group: gateway.networking.k8s.io
+      kind: Gateway
+      name: example-gateway
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:30:30Z'
+      message: All references are resolved
+      observedGeneration: 1
+      reason: ResolvedRefs
+      status: 'True'
+      type: ResolvedRefs
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
+      message: BackendTLSPolicy is accepted
+      observedGeneration: 1
       reason: Accepted
       status: 'True'
       type: Accepted
