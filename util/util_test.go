@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -15,9 +16,7 @@ import (
 func TestMakeSignature(t *testing.T) {
 	for size := 1; size <= 64; size++ {
 		s, err := util.MakeSignature(size)
-		if err != nil {
-			t.Errorf("Could not generate signature of size %d: %v", size, err)
-		}
+		require.NoError(t, err, "Could not generate signature of size %d: %v", size, err)
 		t.Logf("Generated token: %v", s)
 	}
 }
@@ -43,7 +42,7 @@ func TestParseRevision(t *testing.T) {
 	}
 }
 
-func TestSecretCopy(t *testing.T) {
+func TestSliceCopy(t *testing.T) {
 	type args struct {
 		secrets []*corev1.Secret
 	}
@@ -73,8 +72,8 @@ func TestSecretCopy(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			secretsCopy := util.SecretCopy(tt.args.secrets)
-			assert.Equalf(t, tt.want, secretsCopy, "SecretCopy(%v)", tt.args.secrets)
+			secretsCopy := util.SliceCopy(tt.args.secrets)
+			assert.Equalf(t, tt.want, secretsCopy, "SliceCopy(%v)", tt.args.secrets)
 			for i := range tt.args.secrets {
 				assert.NotSame(t, secretsCopy[i], tt.args.secrets[i])
 			}
@@ -116,17 +115,11 @@ func TestGenerateCacheKey(t *testing.T) {
 		t.Run(fmt.Sprintf("format=%s args=%v", tc.format, tc.args), func(t *testing.T) {
 			key, err := util.GenerateCacheKey(tc.format, tc.args...)
 			if tc.shouldErr {
-				if err == nil {
-					t.Fatalf("expected error but got none")
-				}
+				require.Errorf(t, err, "expected error but got none")
 				return
 			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if key != tc.expected {
-				t.Fatalf("expected %s but got %s", tc.expected, key)
-			}
+			require.NoErrorf(t, err, "unexpected error: %v", err)
+			require.Equalf(t, tc.expected, key, "expected %s but got %s", tc.expected, key)
 		})
 	}
 }

@@ -1,7 +1,6 @@
 package scm_provider
 
 import (
-	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"io"
@@ -1474,7 +1473,7 @@ func TestGitlabListRepos(t *testing.T) {
 			includeArchivedRepos: false,
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
 				{
-					LabelMatch: strp("test-topic"),
+					LabelMatch: new("test-topic"),
 				},
 			},
 
@@ -1632,7 +1631,7 @@ func TestGitlabListRepos(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			provider, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.includeArchivedRepos, c.insecure, "", c.topic, nil)
-			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
+			rawRepos, err := ListRepos(t.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
 			} else {
@@ -1713,7 +1712,7 @@ func TestGitlabHasPath(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ok, err := host.RepoHasPath(context.Background(), repo, c.path)
+			ok, err := host.RepoHasPath(t.Context(), repo, c.path)
 			require.NoError(t, err)
 			assert.Equal(t, c.exists, ok)
 		})
@@ -1731,7 +1730,7 @@ func TestGitlabGetBranches(t *testing.T) {
 		Branch:       "master",
 	}
 	t.Run("branch exists", func(t *testing.T) {
-		repos, err := host.GetBranches(context.Background(), repo)
+		repos, err := host.GetBranches(t.Context(), repo)
 		require.NoError(t, err)
 		assert.Equal(t, "master", repos[0].Branch)
 	})
@@ -1741,7 +1740,7 @@ func TestGitlabGetBranches(t *testing.T) {
 		Branch:       "foo",
 	}
 	t.Run("unknown branch", func(t *testing.T) {
-		_, err := host.GetBranches(context.Background(), repo2)
+		_, err := host.GetBranches(t.Context(), repo2)
 		require.NoError(t, err)
 	})
 }
@@ -1780,7 +1779,6 @@ func TestGetBranchesTLS(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
 		t.Run(test.name, func(t *testing.T) {
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				gitlabMockHandler(t)(w, r)
@@ -1788,7 +1786,7 @@ func TestGetBranchesTLS(t *testing.T) {
 			defer ts.Close()
 
 			var certs []byte
-			if test.passCerts == true {
+			if test.passCerts {
 				for _, cert := range ts.TLS.Certificates {
 					for _, c := range cert.Certificate {
 						parsedCert, err := x509.ParseCertificate(c)
@@ -1807,7 +1805,7 @@ func TestGetBranchesTLS(t *testing.T) {
 				RepositoryId: 27084533,
 				Branch:       "master",
 			}
-			_, err = host.GetBranches(context.Background(), repo)
+			_, err = host.GetBranches(t.Context(), repo)
 			if test.requireErr {
 				require.Error(t, err)
 			} else {

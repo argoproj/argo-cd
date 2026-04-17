@@ -12,6 +12,10 @@ tests:
     message: "Subresources are unhealthy"
   inputPath: testdata/degraded.yaml
 - healthStatus:
-    status: Suspended
+    status: Healthy
     message: "Pipeline is paused"
-  inputPath: testdata/suspended.yaml
+  inputPath: testdata/paused.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed progressive upgrade"
+  inputPath: testdata/degraded-progressive.yaml

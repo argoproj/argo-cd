@@ -48,6 +48,23 @@ otherwise very intrusive, and there's a workaround available, we may decide to
 provide a forward-fix only, e.g. to be released the next minor release, instead
 of releasing it within a patch branch for the currently supported releases.
 
+## Dependency Upgrade Policy
+
+Argo CD relies on certain binaries and libraries that might appear in security scanners.
+
+Upgrading certain dependencies, such as Helm, Kustomize, and git, may have negative impacts
+on users, as they may include breaking changes or changes in behavior. For this reason,
+we will only upgrade to new patch versions within the same minor version series within
+a supported Argo CD version. For example, if we are currently on Helm 3.12.0 and Argo CD
+3.4.0, we will only upgrade to Helm 3.12.x within Argo CD 3.4.x, and not to Helm 3.13.0 
+or later.
+
+If there is a critical, _exploitable_ vulnerability in a dependency that will not be fixed
+in a patch release, we will evaluate the impact of the vulnerability and the risk of not
+upgrading the dependency. We ask that, if you believe a version bump is justified, please
+open an issue _describing how the vulnerability is exploitable in the context of Argo CD_,
+and we will evaluate it and decide whether or not to upgrade the dependency.
+
 ## Reporting a Vulnerability
 
 If you find a security related bug in Argo CD, we kindly ask you for responsible
@@ -63,24 +80,7 @@ We will publish security advisories using the
 feature to keep our community well-informed, and will credit you for your
 findings (unless you prefer to stay anonymous, of course).
 
-There are two ways to report a vulnerability to the Argo CD team:
-
-* By opening a draft GitHub security advisory: https://github.com/argoproj/argo-cd/security/advisories/new
-* By e-mail to the following address: cncf-argo-security@lists.cncf.io
-
-## Internet Bug Bounty collaboration
-
-We're happy to announce that the Argo project is collaborating with the great
-folks over at
-[Hacker One](https://hackerone.com/) and their
-[Internet Bug Bounty program](https://hackerone.com/ibb)
-to reward the awesome people who find security vulnerabilities in the four
-main Argo projects (CD, Events, Rollouts and Workflows) and then work with
-us to fix and disclose them in a responsible manner.
-
-If you report a vulnerability to us as outlined in this security policy, we
-will work together with you to find out whether your finding is eligible for
-claiming a bounty, and also on how to claim it.
+To report a vulnerability to the Argo CD team a draft GitHub security advisory: https://github.com/argoproj/argo-cd/security/advisories/new
 
 ## Securing your Argo CD Instance
 

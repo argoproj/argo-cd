@@ -22,17 +22,33 @@ $slate: #191826;
         display: flex;
         align-items: center;
 
+        &__label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         .argo-button {
+            flex: none;
             margin-left: auto;
             background: $slate;
             font-size: 10px;
             font-weight: bold;
+
+            width: 35px;
+            overflow: hidden;
+            height: 25px;
+            line-height: 25px;
+            padding: 0 2px;
+            min-width: unset;
 
             i {
                 margin-right: 2px;
             }
 
             &:hover {
+                padding: 0 14px;
+                width: unset;
                 background: $sidebar-color !important;
             }
         }
@@ -93,12 +109,23 @@ $slate: #191826;
             font-weight: 500;
         }
     }
+
+    &__tooltip {
+        max-width: 300px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
+        @media screen and (max-width: 590px) {
+            max-width: 250px;
+        }
+    }
 }
 
 .filters-group {
     display: flex;
     flex-wrap: wrap;
     margin-top: 2em;
+    
     &__toggle {
         display: none;
         cursor: pointer;
@@ -132,7 +159,7 @@ $slate: #191826;
         align-items: center;
         height: 1.5em;
         margin-bottom: 0em;
-        margin-top: -1.5em;
+        margin-top: -3.5em;
 
         .argo-button {
             margin-left: auto;

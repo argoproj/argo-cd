@@ -1,9 +1,12 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/argoproj/argo-cd/v3/common"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,6 +52,101 @@ func TestSplitCookie(t *testing.T) {
 	assert.Equal(t, cookieValue, token)
 }
 
+// mockResponseWriter is a mock implementation of http.ResponseWriter.
+// It captures added headers for verification in tests.
+type mockResponseWriter struct {
+	header http.Header
+}
+
+func (m *mockResponseWriter) Header() http.Header {
+	if m.header == nil {
+		m.header = make(http.Header)
+	}
+	return m.header
+}
+func (m *mockResponseWriter) Write([]byte) (int, error) { return 0, nil }
+func (m *mockResponseWriter) WriteHeader(_ int)         {}
+
+func TestSetTokenCookie(t *testing.T) {
+	tests := []struct {
+		name            string
+		token           string
+		baseHRef        string
+		isSecure        bool
+		expectedCookies []string // Expected Set-Cookie header values
+	}{
+		{
+			name:     "Insecure cookie",
+			token:    "insecure-token",
+			baseHRef: "",
+			isSecure: false,
+			expectedCookies: []string{
+				fmt.Sprintf("%s=%s; path=/; SameSite=lax; httpOnly", common.AuthCookieName, "insecure-token"),
+			},
+		},
+		{
+			name:     "Secure cookie",
+			token:    "secure-token",
+			baseHRef: "",
+			isSecure: true,
+			expectedCookies: []string{
+				fmt.Sprintf("%s=%s; path=/; SameSite=lax; httpOnly; Secure", common.AuthCookieName, "secure-token"),
+			},
+		},
+		{
+			name:     "Insecure cookie with baseHRef",
+			token:    "token-with-path",
+			baseHRef: "/app",
+			isSecure: false,
+			expectedCookies: []string{
+				fmt.Sprintf("%s=%s; path=/app; SameSite=lax; httpOnly", common.AuthCookieName, "token-with-path"),
+			},
+		},
+		{
+			name:     "Secure cookie with baseHRef",
+			token:    "secure-token-with-path",
+			baseHRef: "app/",
+			isSecure: true,
+			expectedCookies: []string{
+				fmt.Sprintf("%s=%s; path=/app; SameSite=lax; httpOnly; Secure", common.AuthCookieName, "secure-token-with-path"),
+			},
+		},
+		{
+			name:     "Unsecured cookie, baseHRef with multiple segments and mixed slashes",
+			token:    "complex-path-token",
+			baseHRef: "///api/v1/auth///",
+			isSecure: false,
+			expectedCookies: []string{
+				fmt.Sprintf("%s=%s; path=/api/v1/auth; SameSite=lax; httpOnly", common.AuthCookieName, "complex-path-token"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			w := &mockResponseWriter{}
+
+			err := SetTokenCookie(tt.token, tt.baseHRef, tt.isSecure, w)
+			if err != nil {
+				t.Fatalf("%s: Unexpected error: %v", tt.name, err)
+			}
+
+			setCookieHeaders := w.Header()["Set-Cookie"]
+
+			if len(setCookieHeaders) != len(tt.expectedCookies) {
+				t.Errorf("Mistmatch in Set-Cookie header length: %s\nExpected: %d\nGot: %d",
+					tt.name, len(tt.expectedCookies), len(setCookieHeaders))
+				return
+			}
+
+			if len(tt.expectedCookies) > 0 && setCookieHeaders[0] != tt.expectedCookies[0] {
+				t.Errorf("Mismatch in Set-Cookie header: %s\nExpected: %s\nGot:      %s",
+					tt.name, tt.expectedCookies[0], setCookieHeaders[0])
+			}
+		})
+	}
+}
+
 // TestRoundTripper just copy request headers to the resposne.
 type TestRoundTripper struct{}
 
@@ -65,7 +163,7 @@ func (rt TestRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 
 func TestTransportWithHeader(t *testing.T) {
 	client := &http.Client{}
-	req, _ := http.NewRequest(http.MethodGet, "/foo", nil)
+	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "/foo", http.NoBody)
 	req.Header.Set("Bar", "req_1")
 	req.Header.Set("Foo", "req_1")
 

@@ -20,15 +20,16 @@ import (
 
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 
-	"github.com/argoproj/pkg/sync"
+	"github.com/argoproj/pkg/v2/sync"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/cache"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
@@ -37,8 +38,20 @@ var (
 	globalLock = sync.NewKeyLock()
 	indexLock  = sync.NewKeyLock()
 
-	OCINotEnabledErr = errors.New("could not perform the action when oci is not enabled")
+	ErrOCINotEnabled = errors.New("could not perform the action when oci is not enabled")
 )
+
+// userAgentTransport wraps an http.RoundTripper to add User-Agent header to all requests
+type userAgentTransport struct {
+	Transport http.RoundTripper
+	UserAgent string
+}
+
+// RoundTrip implements the http.RoundTripper interface
+func (t *userAgentTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.Header.Set("User-Agent", t.UserAgent)
+	return t.Transport.RoundTrip(req)
+}
 
 type indexCache interface {
 	SetHelmIndex(repo string, indexData []byte) error
@@ -46,10 +59,10 @@ type indexCache interface {
 }
 
 type Client interface {
-	CleanChartCache(chart string, version string, project string) error
-	ExtractChart(chart string, version string, project string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
+	CleanChartCache(chart string, version string) error
+	ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error)
 	GetIndex(noCache bool, maxIndexSize int64) (*Index, error)
-	GetTags(chart string, noCache bool) (*TagsList, error)
+	GetTags(chart string, noCache bool) ([]string, error)
 	TestHelmOCI() (bool, error)
 }
 
@@ -61,9 +74,17 @@ func WithIndexCache(indexCache indexCache) ClientOpts {
 	}
 }
 
-func WithChartPaths(chartPaths argoio.TempPaths) ClientOpts {
+func WithChartPaths(chartPaths utilio.TempPaths) ClientOpts {
 	return func(c *nativeHelmChart) {
 		c.chartCachePaths = chartPaths
+	}
+}
+
+// WithUserAgent sets a custom User-Agent string for HTTP requests.
+// If not set, a default User-Agent will be generated automatically.
+func WithUserAgent(userAgent string) ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.customUserAgent = userAgent
 	}
 }
 
@@ -79,7 +100,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 		enableOci:       enableOci,
 		proxy:           proxy,
 		noProxy:         noProxy,
-		chartCachePaths: argoio.NewRandomizedTempPaths(os.TempDir()),
+		chartCachePaths: utilio.NewRandomizedTempPaths(os.TempDir()),
 	}
 	for i := range opts {
 		opts[i](c)
@@ -90,7 +111,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 var _ Client = &nativeHelmChart{}
 
 type nativeHelmChart struct {
-	chartCachePaths argoio.TempPaths
+	chartCachePaths utilio.TempPaths
 	repoURL         string
 	creds           Creds
 	repoLock        sync.KeyLock
@@ -98,6 +119,19 @@ type nativeHelmChart struct {
 	indexCache      indexCache
 	proxy           string
 	noProxy         string
+	customUserAgent string // Custom User-Agent string (optional)
+}
+
+// getUserAgent returns the User-Agent string to use for HTTP requests.
+// If a custom User-Agent is set, it will be used; otherwise, a default will be generated.
+func (c *nativeHelmChart) getUserAgent() string {
+	if c.customUserAgent != "" {
+		return c.customUserAgent
+	}
+
+	// Default User-Agent with version and platform info
+	version := common.GetVersion()
+	return fmt.Sprintf("argocd-repo-server/%s (%s)", version.Version, version.Platform)
 }
 
 func fileExist(filePath string) (bool, error) {
@@ -110,8 +144,8 @@ func fileExist(filePath string) (bool, error) {
 	return true, nil
 }
 
-func (c *nativeHelmChart) CleanChartCache(chart string, version string, project string) error {
-	cachePath, err := c.getCachedChartPath(chart, version, project)
+func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
+	cachePath, err := c.getCachedChartPath(chart, version)
 	if err != nil {
 		return fmt.Errorf("error getting cached chart path: %w", err)
 	}
@@ -121,9 +155,9 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version string, project 
 	return nil
 }
 
-func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) error {
+func untarChart(ctx context.Context, tempDir string, cachedChartPath string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) error {
 	if disableManifestMaxExtractedSize {
-		cmd := exec.Command("tar", "-zxvf", cachedChartPath)
+		cmd := exec.CommandContext(ctx, "tar", "-zxvf", cachedChartPath)
 		cmd.Dir = tempDir
 		_, err := executil.Run(cmd)
 		if err != nil {
@@ -138,7 +172,7 @@ func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize
 	return files.Untgz(tempDir, reader, manifestMaxExtractedSize, false)
 }
 
-func (c *nativeHelmChart) ExtractChart(chart string, version string, project string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
+func (c *nativeHelmChart) ExtractChart(chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
 	helmCmd, err := NewCmdWithVersion("", c.enableOci, c.proxy, c.noProxy)
 	if err != nil {
@@ -152,7 +186,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, project str
 		return "", nil, fmt.Errorf("error creating temporary directory: %w", err)
 	}
 
-	cachedChartPath, err := c.getCachedChartPath(chart, version, project)
+	cachedChartPath, err := c.getCachedChartPath(chart, version)
 	if err != nil {
 		_ = os.RemoveAll(tempDir)
 		return "", nil, fmt.Errorf("error getting cached chart path: %w", err)
@@ -225,12 +259,12 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, project str
 		}
 	}
 
-	err = untarChart(tempDir, cachedChartPath, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
+	err = untarChart(context.Background(), tempDir, cachedChartPath, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	if err != nil {
 		_ = os.RemoveAll(tempDir)
 		return "", nil, fmt.Errorf("error untarring chart: %w", err)
 	}
-	return path.Join(tempDir, normalizeChartName(chart)), argoio.NewCloser(func() error {
+	return path.Join(tempDir, normalizeChartName(chart)), utilio.NewCloser(func() error {
 		return os.RemoveAll(tempDir)
 	}), nil
 }
@@ -248,8 +282,9 @@ func (c *nativeHelmChart) GetIndex(noCache bool, maxIndexSize int64) (*Index, er
 
 	if len(data) == 0 {
 		start := time.Now()
+		ctx := context.Background()
 		var err error
-		data, err = c.loadRepoIndex(maxIndexSize)
+		data, err = c.loadRepoIndex(ctx, maxIndexSize)
 		if err != nil {
 			return nil, fmt.Errorf("error loading repo index: %w", err)
 		}
@@ -306,16 +341,20 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	return true, nil
 }
 
-func (c *nativeHelmChart) loadRepoIndex(maxIndexSize int64) ([]byte, error) {
+func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64) ([]byte, error) {
 	indexURL, err := getIndexURL(c.repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("error getting index URL: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodGet, indexURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, indexURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("error creating HTTP request: %w", err)
 	}
+
+	// Set User-Agent header to comply with robot policies
+	req.Header.Set("User-Agent", c.getUserAgent())
+
 	helmPassword, err := c.creds.GetPassword()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get password for helm registry: %w", err)
@@ -334,6 +373,7 @@ func (c *nativeHelmChart) loadRepoIndex(maxIndexSize int64) ([]byte, error) {
 		Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
 		TLSClientConfig:   tlsConf,
 		DisableKeepAlives: true,
+		ForceAttemptHTTP2: true,
 	}
 	client := http.Client{Transport: tr}
 	resp, err := client.Do(req)
@@ -387,8 +427,8 @@ func normalizeChartName(chart string) string {
 	return nc
 }
 
-func (c *nativeHelmChart) getCachedChartPath(chart string, version string, project string) (string, error) {
-	keyData, err := json.Marshal(map[string]string{"url": c.repoURL, "chart": chart, "version": version, "project": project})
+func (c *nativeHelmChart) getCachedChartPath(chart string, version string) (string, error) {
+	keyData, err := json.Marshal(map[string]string{"url": c.repoURL, "chart": chart, "version": version})
 	if err != nil {
 		return "", fmt.Errorf("error marshaling cache key data: %w", err)
 	}
@@ -416,9 +456,9 @@ func getIndexURL(rawURL string) (string, error) {
 	return repoURL.String(), nil
 }
 
-func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error) {
+func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) {
 	if !c.enableOci {
-		return nil, OCINotEnabledErr
+		return nil, ErrOCINotEnabled
 	}
 
 	tagsURL := strings.Replace(fmt.Sprintf("%s/%s", c.repoURL, chart), "https://", "", 1)
@@ -432,7 +472,11 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 		}
 	}
 
-	tags := &TagsList{}
+	type entriesStruct struct {
+		Tags []string
+	}
+
+	entries := &entriesStruct{}
 	if len(data) == 0 {
 		start := time.Now()
 		repo, err := remote.NewRepository(tagsURL)
@@ -443,11 +487,22 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 		if err != nil {
 			return nil, fmt.Errorf("failed setup tlsConfig: %w", err)
 		}
-		client := &http.Client{Transport: &http.Transport{
+
+		// Create base transport with TLS config and proxy
+		baseTransport := &http.Transport{
 			Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
 			TLSClientConfig:   tlsConf,
 			DisableKeepAlives: true,
-		}}
+			ForceAttemptHTTP2: true,
+		}
+
+		// Wrap transport to add User-Agent header to all requests
+		client := &http.Client{
+			Transport: &userAgentTransport{
+				Transport: baseTransport,
+				UserAgent: c.getUserAgent(),
+			},
+		}
 
 		repoHost, _, _ := strings.Cut(tagsURL, "/")
 
@@ -479,7 +534,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 			for _, tag := range tagsResult {
 				// By convention: Change underscore (_) back to plus (+) to get valid SemVer
 				convertedTag := strings.ReplaceAll(tag, "_", "+")
-				tags.Tags = append(tags.Tags, convertedTag)
+				entries.Tags = append(entries.Tags, convertedTag)
 			}
 
 			return nil
@@ -492,16 +547,20 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 		).Info("took to get tags")
 
 		if c.indexCache != nil {
-			if err := c.indexCache.SetHelmIndex(tagsURL, data); err != nil {
+			cacheData, err := json.Marshal(entries)
+			if err != nil {
+				return nil, fmt.Errorf("failed to encode tags: %w", err)
+			}
+			if err := c.indexCache.SetHelmIndex(tagsURL, cacheData); err != nil {
 				log.Warnf("Failed to store tags list cache for repo: %s: %v", tagsURL, err)
 			}
 		}
 	} else {
-		err := json.Unmarshal(data, tags)
+		err := json.Unmarshal(data, entries)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode tags: %w", err)
 		}
 	}
 
-	return tags, nil
+	return entries.Tags, nil
 }

@@ -1,7 +1,6 @@
 package generators
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -12,15 +11,17 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	dynfake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/dynamic/fake"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
-	resourceApiVersion = "mallard.io/v1"
+	resourceAPIVersion = "mallard.io/v1"
 	resourceKind       = "ducks"
 	resourceName       = "quak"
 )
@@ -79,7 +80,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 
 	duckType := &unstructured.Unstructured{
 		Object: map[string]any{
-			"apiVersion": resourceApiVersion,
+			"apiVersion": resourceAPIVersion,
 			"kind":       "Duck",
 			"metadata": map[string]any{
 				"name":      resourceName,
@@ -101,7 +102,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 
 	duckTypeProdOnly := &unstructured.Unstructured{
 		Object: map[string]any{
-			"apiVersion": resourceApiVersion,
+			"apiVersion": resourceAPIVersion,
 			"kind":       "Duck",
 			"metadata": map[string]any{
 				"name":      resourceName,
@@ -120,7 +121,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 
 	duckTypeEmpty := &unstructured.Unstructured{
 		Object: map[string]any{
-			"apiVersion": resourceApiVersion,
+			"apiVersion": resourceAPIVersion,
 			"kind":       "Duck",
 			"metadata": map[string]any{
 				"name":      resourceName,
@@ -137,7 +138,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			Namespace: "namespace",
 		},
 		Data: map[string]string{
-			"apiVersion":    resourceApiVersion,
+			"apiVersion":    resourceAPIVersion,
 			"kind":          resourceKind,
 			"statusListKey": "decisions",
 			"matchKey":      "clusterName",
@@ -160,7 +161,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      []map[string]any{},
-			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("there is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 		/*** This does not work with the FAKE runtime client, fieldSelectors are broken.
 		{
@@ -271,7 +272,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      nil,
-			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("there is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 	}
 
@@ -291,9 +292,14 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 				Resource: "ducks",
 			}: "DuckList"}
 
-			fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
+			fakeDynClient := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
 
-			duckTypeGenerator := NewDuckTypeGenerator(context.Background(), fakeDynClient, appClientset, "namespace")
+			clusterInformer, err := settings.NewClusterInformer(appClientset, "namespace")
+			require.NoError(t, err)
+
+			defer test.StartInformer(clusterInformer)()
+
+			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeDynClient, appClientset, "namespace", clusterInformer)
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -375,7 +381,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 
 	duckType := &unstructured.Unstructured{
 		Object: map[string]any{
-			"apiVersion": resourceApiVersion,
+			"apiVersion": resourceAPIVersion,
 			"kind":       "Duck",
 			"metadata": map[string]any{
 				"name":      resourceName,
@@ -397,7 +403,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 
 	duckTypeProdOnly := &unstructured.Unstructured{
 		Object: map[string]any{
-			"apiVersion": resourceApiVersion,
+			"apiVersion": resourceAPIVersion,
 			"kind":       "Duck",
 			"metadata": map[string]any{
 				"name":      resourceName,
@@ -416,7 +422,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 
 	duckTypeEmpty := &unstructured.Unstructured{
 		Object: map[string]any{
-			"apiVersion": resourceApiVersion,
+			"apiVersion": resourceAPIVersion,
 			"kind":       "Duck",
 			"metadata": map[string]any{
 				"name":      resourceName,
@@ -433,7 +439,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			Namespace: "namespace",
 		},
 		Data: map[string]string{
-			"apiVersion":    resourceApiVersion,
+			"apiVersion":    resourceAPIVersion,
 			"kind":          resourceKind,
 			"statusListKey": "decisions",
 			"matchKey":      "clusterName",
@@ -456,7 +462,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      []map[string]any{},
-			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("there is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 		/*** This does not work with the FAKE runtime client, fieldSelectors are broken.
 		{
@@ -567,7 +573,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			resource:      duckType,
 			values:        nil,
 			expected:      nil,
-			expectedError: errors.New("There is a problem with the definition of the ClusterDecisionResource generator"),
+			expectedError: errors.New("there is a problem with the definition of the ClusterDecisionResource generator"),
 		},
 	}
 
@@ -587,9 +593,14 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 				Resource: "ducks",
 			}: "DuckList"}
 
-			fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
+			fakeDynClient := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
 
-			duckTypeGenerator := NewDuckTypeGenerator(context.Background(), fakeDynClient, appClientset, "namespace")
+			clusterInformer, err := settings.NewClusterInformer(appClientset, "namespace")
+			require.NoError(t, err)
+
+			defer test.StartInformer(clusterInformer)()
+
+			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeDynClient, appClientset, "namespace", clusterInformer)
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{

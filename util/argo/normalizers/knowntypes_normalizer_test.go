@@ -8,8 +8,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/errors"
 
-	"github.com/argoproj/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -275,7 +275,7 @@ func TestOverrideKeyWithoutGroup(t *testing.T) {
 func TestKnownTypes(t *testing.T) {
 	typesData, err := os.ReadFile("./diffing_known_types.txt")
 	require.NoError(t, err)
-	for _, typeName := range strings.Split(string(typesData), "\n") {
+	for typeName := range strings.SplitSeq(string(typesData), "\n") {
 		if typeName = strings.TrimSpace(typeName); typeName == "" {
 			continue
 		}

@@ -11,6 +11,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
+	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	repocredspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repocreds"
@@ -18,7 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/git"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 )
 
@@ -34,7 +35,7 @@ func NewRepoCredsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 			# List all the configured repository credentials
 			argocd repocreds list
 
-			# Remove credentials for the repositories with speficied URL
+			# Remove credentials for the repositories with specified URL
 			argocd repocreds rm URL
 		`),
 		Run: func(c *cobra.Command, args []string) {
@@ -65,13 +66,16 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	repocredsAddExamples := `  # Add credentials with user/pass authentication to use for all repositories under https://git.example.com/repos
   argocd repocreds add https://git.example.com/repos/ --username git --password secret
 
+  # Add credentials with bearer token authentication to use for all BitBucket Data Center repositories under https://bitbucket.example.com/scm
+  argocd repocreds add https://bitbucket.example.com/scm/ --bearer-token secret-token
+
   # Add credentials with SSH private key authentication to use for all repositories under ssh://git@git.example.com/repos
   argocd repocreds add ssh://git@git.example.com/repos/ --ssh-private-key-path ~/.ssh/id_rsa
 
-  # Add credentials with GitHub App authentication to use for all repositories under https://github.com/repos
+  # Add credentials with GitHub App authentication to use for all repositories under https://github.com/repos. github-app-installation-id is optional, if not provided, the installation id will be fetched from the GitHub API.
   argocd repocreds add https://github.com/repos/ --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem
 
-  # Add credentials with GitHub App authentication to use for all repositories under https://ghe.example.com/repos
+  # Add credentials with GitHub App authentication to use for all repositories under https://ghe.example.com/repos. github-app-installation-id is optional, if not provided, the installation id will be fetched from the GitHub API.
   argocd repocreds add https://ghe.example.com/repos/ --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem --github-app-enterprise-base-url https://ghe.example.com/api/v3
 
   # Add credentials with helm oci registry so that these oci registry urls do not need to be added as repos individually.
@@ -79,6 +83,12 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 
   # Add credentials with GCP credentials for all repositories under https://source.developers.google.com/p/my-google-cloud-project/r/
   argocd repocreds add https://source.developers.google.com/p/my-google-cloud-project/r/ --gcp-service-account-key-path service-account-key.json
+
+  # Add credentials with Azure Service Principal to use for all repositories under https://dev.azure.com/my-devops-organization
+  argocd repocreds add https://dev.azure.com/my-devops-organization --azure-service-principal-client-id 12345678-1234-1234-1234-123456789012 --azure-service-principal-client-secret test --azure-service-principal-tenant-id 12345678-1234-1234-1234-123456789012
+
+  # Add credentials with Azure Service Principal to use for all repositories under https://dev.azure.com/my-devops-organization when not using default Azure public cloud
+  argocd repocreds add https://dev.azure.com/my-devops-organization --azure-service-principal-client-id 12345678-1234-1234-1234-123456789012 --azure-service-principal-client-secret test --azure-service-principal-tenant-id 12345678-1234-1234-1234-123456789012 --azure-active-directory-endpoint https://login.microsoftonline.de
 `
 
 	command := &cobra.Command{
@@ -105,16 +115,14 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 					}
 					repo.SSHPrivateKey = string(keyData)
 				} else {
-					err := stderrors.New("--ssh-private-key-path is only supported for SSH repositories.")
-					errors.CheckError(err)
+					errors.Fatal(errors.ErrorGeneric, "--ssh-private-key-path is only supported for SSH repositories.")
 				}
 			}
 
 			// tls-client-cert-path and tls-client-cert-key-key-path must always be
 			// specified together
 			if (tlsClientCertPath != "" && tlsClientCertKeyPath == "") || (tlsClientCertPath == "" && tlsClientCertKeyPath != "") {
-				err := stderrors.New("--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
-				errors.CheckError(err)
+				errors.Fatal(errors.ErrorGeneric, "--tls-client-cert-path and --tls-client-cert-key-path must be specified together")
 			}
 
 			// Specifying tls-client-cert-path is only valid for HTTPS repositories
@@ -157,13 +165,20 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			}
 
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			// If the user set a username, but didn't supply password via --password,
 			// then we prompt for it
 			if repo.Username != "" && repo.Password == "" {
 				repo.Password = cli.PromptPassword(repo.Password)
 			}
+
+			err := cmdutil.ValidateBearerTokenAndPasswordCombo(repo.BearerToken, repo.Password)
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForGitOnly(repo.BearerToken, repo.Type)
+			errors.CheckError(err)
+			err = cmdutil.ValidateBearerTokenForHTTPSRepoOnly(repo.BearerToken, git.IsHTTPSURL(repo.URL))
+			errors.CheckError(err)
 
 			repoCreateReq := repocredspkg.RepoCredsCreateRequest{
 				Creds:  &repo,
@@ -177,11 +192,12 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	}
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
+	command.Flags().StringVar(&repo.BearerToken, "bearer-token", "", "bearer token to the Git repository")
 	command.Flags().StringVar(&sshPrivateKeyPath, "ssh-private-key-path", "", "path to the private ssh key (e.g. ~/.ssh/id_rsa)")
 	command.Flags().StringVar(&tlsClientCertPath, "tls-client-cert-path", "", "path to the TLS client cert (must be PEM format)")
-	command.Flags().StringVar(&tlsClientCertKeyPath, "tls-client-cert-key-path", "", "path to the TLS client cert's key path (must be PEM format)")
+	command.Flags().StringVar(&tlsClientCertKeyPath, "tls-client-cert-key-path", "", "path to the TLS client cert's key (must be PEM format)")
 	command.Flags().Int64Var(&repo.GithubAppId, "github-app-id", 0, "id of the GitHub Application")
-	command.Flags().Int64Var(&repo.GithubAppInstallationId, "github-app-installation-id", 0, "installation id of the GitHub Application")
+	command.Flags().Int64Var(&repo.GithubAppInstallationId, "github-app-installation-id", 0, "installation id of the GitHub Application (optional, will be auto-discovered if not provided)")
 	command.Flags().StringVar(&githubAppPrivateKeyPath, "github-app-private-key-path", "", "private key of the GitHub Application")
 	command.Flags().StringVar(&repo.GitHubAppEnterpriseBaseURL, "github-app-enterprise-base-url", "", "base url to use when using GitHub Enterprise (e.g. https://ghe.example.com/api/v3")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
@@ -191,6 +207,10 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	command.Flags().BoolVar(&repo.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force basic auth when connecting via HTTP")
 	command.Flags().BoolVar(&repo.UseAzureWorkloadIdentity, "use-azure-workload-identity", false, "whether to use azure workload identity for authentication")
 	command.Flags().StringVar(&repo.Proxy, "proxy-url", "", "If provided, this URL will be used to connect via proxy")
+	command.Flags().StringVar(&repo.AzureServicePrincipalClientId, "azure-service-principal-client-id", "", "client id of the Azure Service Principal")
+	command.Flags().StringVar(&repo.AzureServicePrincipalClientSecret, "azure-service-principal-client-secret", "", "client secret of the Azure Service Principal")
+	command.Flags().StringVar(&repo.AzureServicePrincipalTenantId, "azure-service-principal-tenant-id", "", "tenant id of the Azure Service Principal")
+	command.Flags().StringVar(&repo.AzureActiveDirectoryEndpoint, "azure-active-directory-endpoint", "", "Active Directory endpoint when not using default Azure public cloud (e.g. https://login.microsoftonline.de)")
 	return command
 }
 
@@ -211,7 +231,7 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				os.Exit(1)
 			}
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 
@@ -233,7 +253,7 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 // Print the repository credentials as table
 func printRepoCredsTable(repos []appsv1.RepoCreds) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "URL PATTERN\tUSERNAME\tSSH_CREDS\tTLS_CREDS\n")
+	fmt.Fprint(w, "URL PATTERN\tUSERNAME\tSSH_CREDS\tTLS_CREDS\n")
 	for _, r := range repos {
 		if r.Username == "" {
 			r.Username = "-"
@@ -273,7 +293,7 @@ func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			ctx := c.Context()
 
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 			repos, err := repoIf.ListRepositoryCredentials(ctx, &repocredspkg.RepoCredsQuery{})
 			errors.CheckError(err)
 			switch output {

@@ -5,10 +5,10 @@ tests:
   inputPath: testdata/PipelineRollout/progressing-observedGen.yaml
 - healthStatus:
     status: Healthy
-    message: "Successful"
+    message: "Healthy"
   inputPath: testdata/PipelineRollout/healthy.yaml
 - healthStatus:
-    status: Suspended
+    status: Healthy
     message: "Pipeline paused"
   inputPath: testdata/PipelineRollout/paused.yaml
 - healthStatus:
@@ -17,9 +17,13 @@ tests:
   inputPath: testdata/PipelineRollout/degraded.yaml
 - healthStatus:
     status: Progressing
-    message: "Progressing"
+    message: "Child Progressing"
   inputPath: testdata/PipelineRollout/progressing-reason.yaml
 - healthStatus:
     status: Progressing
-    message: "Phase=Pending"
+    message: "Update in progress"
   inputPath: testdata/PipelineRollout/pending-upgrade-in-progress.yaml
+- healthStatus:
+    status: Degraded
+    message: "Progressive upgrade failed"
+  inputPath: testdata/PipelineRollout/progressive-failed.yaml

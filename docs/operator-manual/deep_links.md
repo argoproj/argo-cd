@@ -28,11 +28,11 @@ Each link in the list has five subfields:
    data as the `url` field. If the condition resolves to `true` the deep link will be displayed - else it will be hidden. If
    the field is omitted, by default the deep links will be displayed. This uses [expr-lang/expr](https://github.com/expr-lang/expr/tree/master/docs) for evaluating conditions
 
-!!!note
-    For resources of kind Secret the data fields are redacted but other fields are accessible for templating the deep links.
+> [!NOTE]
+> For resources of kind Secret the data fields are redacted but other fields are accessible for templating the deep links.
 
-!!!warning
-    Make sure to validate the url templates and inputs to prevent data leaks or possible generation of any malicious links.
+> [!WARNING]
+> Make sure to validate the url templates and inputs to prevent data leaks or possible generation of any malicious links.
 
 As mentioned earlier the links and conditions can be templated to use data from the resource, each category of links can access different types of data linked to that resource.
 Overall we have these 4 resources available for templating in the system:

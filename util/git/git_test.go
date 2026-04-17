@@ -10,11 +10,24 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v3/util/proxy"
+
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/test/fixture/log"
 	"github.com/argoproj/argo-cd/v3/test/fixture/path"
 	"github.com/argoproj/argo-cd/v3/test/fixture/test"
 )
+
+func TestMain(m *testing.M) {
+	// Ensure tests use non-cached proxy callback
+	proxy.UseTestingProxyCallback()
+
+	cwd, _ := os.Getwd()
+	os.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	os.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(cwd, "testdata", "gitconfig"))
+
+	os.Exit(m.Run())
+}
 
 func TestIsCommitSHA(t *testing.T) {
 	assert.True(t, IsCommitSHA("9d921f65f3c5373b682e2eb4b37afba6592e8f8b"))
@@ -106,7 +119,7 @@ func TestSameURL(t *testing.T) {
 		"ssh://git@GITHUB.com/argoproj/test.git":           "git@github.com:argoproj/test.git",
 		"ssh://git@GITHUB.com/test.git":                    "git@github.com:test.git",
 		"ssh://git@github.com/test":                        "git@github.com:test.git",
-		" https://github.com/argoproj/test ":               "https://github.com/argoproj/test.git",
+		" https://github.com/argoproj/test ":               "https://github.com/argoproj/test.git", //nolint:gocritic // This includes whitespaces for testing
 		"\thttps://github.com/argoproj/test\n":             "https://github.com/argoproj/test.git",
 		"https://1234.visualstudio.com/myproj/_git/myrepo": "https://1234.visualstudio.com/myproj/_git/myrepo",
 		"https://dev.azure.com/1234/myproj/_git/myrepo":    "https://dev.azure.com/1234/myproj/_git/myrepo",
@@ -119,22 +132,22 @@ func TestSameURL(t *testing.T) {
 func TestCustomHTTPClient(t *testing.T) {
 	certFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.crt")
 	require.NoError(t, err)
-	assert.NotEqual(t, "", certFile)
+	assert.NotEmpty(t, certFile)
 
 	keyFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.key")
 	require.NoError(t, err)
-	assert.NotEqual(t, "", keyFile)
+	assert.NotEmpty(t, keyFile)
 
 	certData, err := os.ReadFile(certFile)
 	require.NoError(t, err)
-	assert.NotEqual(t, "", string(certData))
+	assert.NotEmpty(t, string(certData))
 
 	keyData, err := os.ReadFile(keyFile)
 	require.NoError(t, err)
-	assert.NotEqual(t, "", string(keyData))
+	assert.NotEmpty(t, string(keyData))
 
 	// Get HTTPSCreds with client cert creds specified, and insecure connection
-	creds := NewHTTPSCreds("test", "test", string(certData), string(keyData), false, "http://proxy:5000", "", &NoopCredsStore{}, false)
+	creds := NewHTTPSCreds("test", "test", "", string(certData), string(keyData), false, &NoopCredsStore{}, false)
 	client := GetRepoHTTPClient("https://localhost:9443/foo/bar", false, creds, "http://proxy:5000", "")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
@@ -163,7 +176,7 @@ func TestCustomHTTPClient(t *testing.T) {
 	t.Setenv("http_proxy", "http://proxy-from-env:7878")
 
 	// Get HTTPSCreds without client cert creds, but insecure connection
-	creds = NewHTTPSCreds("test", "test", "", "", true, "", "", &NoopCredsStore{}, false)
+	creds = NewHTTPSCreds("test", "test", "", "", "", true, &NoopCredsStore{}, false)
 	client = GetRepoHTTPClient("https://localhost:9443/foo/bar", true, creds, "", "")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
@@ -183,7 +196,7 @@ func TestCustomHTTPClient(t *testing.T) {
 				assert.Nil(t, cert.PrivateKey)
 			}
 		}
-		req, err := http.NewRequest(http.MethodGet, "http://proxy-from-env:7878", nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://proxy-from-env:7878", http.NoBody)
 		require.NoError(t, err)
 		proxy, err := transport.Proxy(req)
 		require.NoError(t, err)
@@ -311,15 +324,15 @@ func TestLFSClient(t *testing.T) {
 
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
-	assert.NotEqual(t, "", commitSHA)
+	assert.NotEmpty(t, commitSHA)
 
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	err = client.Fetch("", 0)
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true, true)
 	require.NoError(t, err)
 
 	largeFiles, err := client.LsLargeFiles()
@@ -351,19 +364,28 @@ func TestVerifyCommitSignature(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("")
+	// Use shallow fetch to avoid timeout fetching the entire repo
+	err = client.Fetch("", 1)
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true, true)
+	require.NoError(t, err)
+
+	// Fetch the specific commits needed for signature verification
+	signedCommit := "28027897aad1262662096745f2ce2d4c74d02b7f"
+	unsignedCommit := "85d660f0b967960becce3d49bd51c678ba2a5d24"
+	err = client.Fetch(signedCommit, 1)
+	require.NoError(t, err)
+	err = client.Fetch(unsignedCommit, 1)
 	require.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
 	// It doesn't matter whether we know the key or not at this stage
 	{
-		out, err := client.VerifyCommitSignature("28027897aad1262662096745f2ce2d4c74d02b7f")
+		out, err := client.VerifyCommitSignature(signedCommit)
 		require.NoError(t, err)
 		assert.NotEmpty(t, out)
 		assert.Contains(t, out, "gpg: Signature made")
@@ -371,14 +393,14 @@ func TestVerifyCommitSignature(t *testing.T) {
 
 	// 85d660f0b967960becce3d49bd51c678ba2a5d24 is a commit that is not signed
 	{
-		out, err := client.VerifyCommitSignature("85d660f0b967960becce3d49bd51c678ba2a5d24")
+		out, err := client.VerifyCommitSignature(unsignedCommit)
 		require.NoError(t, err)
 		assert.Empty(t, out)
 	}
 }
 
 func TestNewFactory(t *testing.T) {
-	addBinDirToPath := path.NewBinDirToPath()
+	addBinDirToPath := path.NewBinDirToPath(t)
 	defer addBinDirToPath.Close()
 	closer := log.Debug()
 	defer closer()
@@ -407,14 +429,14 @@ func TestNewFactory(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
-		err = client.Fetch("")
+		err = client.Fetch("", 0)
 		require.NoError(t, err)
 
 		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-		err = client.Fetch("")
+		err = client.Fetch("", 0)
 		require.NoError(t, err)
 
-		_, err = client.Checkout(commitSHA, true)
+		_, err = client.Checkout(commitSHA, true, true)
 		require.NoError(t, err)
 
 		revisionMetadata, err := client.RevisionMetadata(commitSHA)
@@ -454,50 +476,381 @@ func TestListRevisions(t *testing.T) {
 func TestLsFiles(t *testing.T) {
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
+	ctx := t.Context()
 
 	client, err := NewClientExt("", tmpDir1, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
-	err = runCmd(tmpDir1, "git", "init")
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "init"))
+
+	// Setup files
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir1, "a.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir1, "subdir"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir1, "subdir", "b.yaml"), []byte{}, 0o644))
+
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir2, "subdir"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir2, "c.yaml"), []byte{}, 0o644))
+
+	require.NoError(t, os.Symlink(filepath.Join(tmpDir2, "c.yaml"), filepath.Join(tmpDir1, "link.yaml")))
+
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir1, "git", "commit", "-m", "Initial commit"))
+
+	tests := []struct {
+		name           string
+		pattern        string
+		safeGlobbing   bool
+		expectedResult []string
+	}{
+		{
+			name:           "Old globbing with symlinks and subdir",
+			pattern:        "*.yaml",
+			safeGlobbing:   false,
+			expectedResult: []string{"a.yaml", "link.yaml", "subdir/b.yaml"},
+		},
+		{
+			name:           "Safe globbing excludes symlinks",
+			pattern:        "*.yaml",
+			safeGlobbing:   true,
+			expectedResult: []string{"a.yaml"},
+		},
+		{
+			name:           "Safe globbing excludes external paths",
+			pattern:        filepath.Join(tmpDir2, "*.yaml"),
+			safeGlobbing:   true,
+			expectedResult: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lsResult, err := client.LsFiles(tt.pattern, tt.safeGlobbing)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedResult, lsResult)
+		})
+	}
+}
+
+func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := t.Context()
+
+	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
-	// Prepare files
-	a, err := os.Create(filepath.Join(tmpDir1, "a.yaml"))
-	require.NoError(t, err)
-	a.Close()
-	err = os.MkdirAll(filepath.Join(tmpDir1, "subdir"), 0o755)
-	require.NoError(t, err)
-	b, err := os.Create(filepath.Join(tmpDir1, "subdir", "b.yaml"))
-	require.NoError(t, err)
-	b.Close()
-	err = os.MkdirAll(filepath.Join(tmpDir2, "subdir"), 0o755)
-	require.NoError(t, err)
-	c, err := os.Create(filepath.Join(tmpDir2, "c.yaml"))
-	require.NoError(t, err)
-	c.Close()
-	err = os.Symlink(filepath.Join(tmpDir2, "c.yaml"), filepath.Join(tmpDir1, "link.yaml"))
+	err = runCmd(ctx, tmpDir, "git", "init")
 	require.NoError(t, err)
 
-	err = runCmd(tmpDir1, "git", "add", ".")
-	require.NoError(t, err)
-	err = runCmd(tmpDir1, "git", "commit", "-m", "Initial commit")
+	// Setup directory structure and files
+	files := []string{
+		"cluster-charts/cluster1/mychart/charts/mysubchart/values.yaml",
+		"cluster-charts/cluster1/mychart/values.yaml",
+		"cluster-charts/cluster1/myotherchart/values.yaml",
+		"cluster-charts/cluster2/values.yaml",
+		"some-path/values.yaml",
+		"some-path/staging/values.yaml",
+		"cluster-config/engineering/production/config.json",
+		"cluster-config/engineering/dev/config.json",
+		"p1/p2/config.json",
+		"p1/app2/config.json",
+		"p1/app3/config.json",
+		"p1/config.json",
+	}
+	for _, file := range files {
+		dir := filepath.Dir(file)
+		require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, dir), 0o755))
+		_, err := os.Create(filepath.Join(tmpDir, file))
+		require.NoError(t, err)
+	}
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "commit", "-m", "Initial commit"))
+
+	tests := []struct {
+		name                 string
+		pattern              string
+		isNewGlobbingEnabled bool
+		expected             []string
+	}{
+		{
+			name:                 "**/config.json (isNewGlobbingEnabled)",
+			pattern:              "**/config.json",
+			isNewGlobbingEnabled: true,
+			expected: []string{
+				"cluster-config/engineering/production/config.json",
+				"cluster-config/engineering/dev/config.json",
+				"p1/config.json",
+				"p1/p2/config.json",
+				"p1/app2/config.json",
+				"p1/app3/config.json",
+			},
+		},
+		{
+			name:                 "**/config.json (non-isNewGlobbingEnabled)",
+			pattern:              "**/config.json",
+			isNewGlobbingEnabled: false,
+			expected: []string{
+				"cluster-config/engineering/production/config.json",
+				"cluster-config/engineering/dev/config.json",
+				"p1/config.json",
+				"p1/p2/config.json",
+				"p1/app2/config.json",
+				"p1/app3/config.json",
+			},
+		},
+		{
+			name:                 "some-path/*.yaml (isNewGlobbingEnabled)",
+			pattern:              "some-path/*.yaml",
+			isNewGlobbingEnabled: true,
+			expected:             []string{"some-path/values.yaml"},
+		},
+		{
+			name:                 "some-path/*.yaml (non-isNewGlobbingEnabled)",
+			pattern:              "some-path/*.yaml",
+			isNewGlobbingEnabled: false,
+			expected: []string{
+				"some-path/values.yaml",
+				"some-path/staging/values.yaml",
+			},
+		},
+		{
+			name:                 "p1/**/config.json (isNewGlobbingEnabled)",
+			pattern:              "p1/**/config.json",
+			isNewGlobbingEnabled: true,
+			expected: []string{
+				"p1/config.json",
+				"p1/p2/config.json",
+				"p1/app2/config.json",
+				"p1/app3/config.json",
+			},
+		},
+		{
+			name:                 "p1/**/config.json (non-isNewGlobbingEnabled)",
+			pattern:              "p1/**/config.json",
+			isNewGlobbingEnabled: false,
+			expected: []string{
+				"p1/p2/config.json",
+				"p1/app2/config.json",
+				"p1/app3/config.json",
+			},
+		},
+		{
+			name:                 "cluster-config/**/config.json (isNewGlobbingEnabled)",
+			pattern:              "cluster-config/**/config.json",
+			isNewGlobbingEnabled: true,
+			expected: []string{
+				"cluster-config/engineering/production/config.json",
+				"cluster-config/engineering/dev/config.json",
+			},
+		},
+		{
+			name:                 "cluster-config/**/config.json (isNewGlobbingEnabled=false)",
+			pattern:              "cluster-config/**/config.json",
+			isNewGlobbingEnabled: false,
+			expected: []string{
+				"cluster-config/engineering/dev/config.json",
+				"cluster-config/engineering/production/config.json",
+			},
+		},
+		{
+			name:                 "cluster-config/*/dev/config.json (isNewGlobbingEnabled)",
+			pattern:              "cluster-config/*/dev/config.json",
+			isNewGlobbingEnabled: true,
+			expected:             []string{"cluster-config/engineering/dev/config.json"},
+		},
+		{
+			name:                 "cluster-config/*/dev/config.json (isNewGlobbingEnabled=false)",
+			pattern:              "cluster-config/*/dev/config.json",
+			isNewGlobbingEnabled: false,
+			expected:             []string{"cluster-config/engineering/dev/config.json"},
+		},
+		{
+			name:                 "cluster-charts/*/*/values.yaml (isNewGlobbingEnabled)",
+			pattern:              "cluster-charts/*/*/values.yaml",
+			isNewGlobbingEnabled: true,
+			expected: []string{
+				"cluster-charts/cluster1/mychart/values.yaml",
+				"cluster-charts/cluster1/myotherchart/values.yaml",
+			},
+		},
+		{
+			name:                 "cluster-charts/*/*/values.yaml (isNewGlobbingEnabled=false)",
+			pattern:              "cluster-charts/*/*/values.yaml",
+			isNewGlobbingEnabled: false,
+			expected: []string{
+				"cluster-charts/cluster1/mychart/values.yaml",
+				"cluster-charts/cluster1/myotherchart/values.yaml",
+				"cluster-charts/cluster1/mychart/charts/mysubchart/values.yaml",
+			},
+		},
+		{
+			name:                 "cluster-charts/*/values.yaml (isNewGlobbingEnabled)",
+			pattern:              "cluster-charts/*/values.yaml",
+			isNewGlobbingEnabled: true,
+			expected: []string{
+				"cluster-charts/cluster2/values.yaml",
+			},
+		},
+		{
+			name:                 "cluster-charts/*/values.yaml (non-isNewGlobbingEnabled)",
+			pattern:              "cluster-charts/*/values.yaml",
+			isNewGlobbingEnabled: false,
+			expected: []string{
+				"cluster-charts/cluster2/values.yaml",
+				"cluster-charts/cluster1/mychart/values.yaml",
+				"cluster-charts/cluster1/myotherchart/values.yaml",
+				"cluster-charts/cluster1/mychart/charts/mysubchart/values.yaml",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lsResult, err := client.LsFiles(tt.pattern, tt.isNewGlobbingEnabled)
+			require.NoError(t, err)
+			assert.ElementsMatch(t, tt.expected, lsResult)
+		})
+	}
+}
+
+func TestAnnotatedTagHandling(t *testing.T) {
+	dir := t.TempDir()
+
+	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", dir, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
-	// Old and default globbing
-	expectedResult := []string{"a.yaml", "link.yaml", "subdir/b.yaml"}
-	lsResult, err := client.LsFiles("*.yaml", false)
+	err = client.Init()
 	require.NoError(t, err)
-	assert.Equal(t, expectedResult, lsResult)
 
-	// New and safer globbing, do not return symlinks resolving outside of the repo
-	expectedResult = []string{"a.yaml"}
-	lsResult, err = client.LsFiles("*.yaml", true)
+	// Test annotated tag resolution
+	commitSHA, err := client.LsRemote("v1.0.0") // Known annotated tag
 	require.NoError(t, err)
-	assert.Equal(t, expectedResult, lsResult)
 
-	// New globbing, do not return files outside of the repo
-	var nilResult []string
-	lsResult, err = client.LsFiles(filepath.Join(tmpDir2, "*.yaml"), true)
+	// Verify we get commit SHA, not tag SHA
+	assert.True(t, IsCommitSHA(commitSHA))
+
+	// Test tag reference handling
+	refs, err := client.LsRefs()
 	require.NoError(t, err)
-	assert.Equal(t, nilResult, lsResult)
+
+	// Verify tag exists in the list and points to a valid commit SHA
+	assert.Contains(t, refs.Tags, "v1.0.0", "Tag v1.0.0 should exist in refs")
+}
+
+func TestIsShortRef(t *testing.T) {
+	tests := []struct {
+		name     string
+		revision string
+		expected bool
+	}{
+		// Short refs (should return true)
+		{
+			name:     "short branch name",
+			revision: "master",
+			expected: true,
+		},
+		{
+			name:     "short branch name with slashes",
+			revision: "feature/my-feature",
+			expected: true,
+		},
+		{
+			name:     "short branch name with multiple slashes",
+			revision: "release/v1.0/bugfix",
+			expected: true,
+		},
+		{
+			name:     "short tag name",
+			revision: "v1.0.0",
+			expected: true,
+		},
+		{
+			name:     "short tag name without version prefix",
+			revision: "release-1.0",
+			expected: true,
+		},
+		{
+			name:     "simple branch name",
+			revision: "main",
+			expected: true,
+		},
+		{
+			name:     "branch with hyphens",
+			revision: "my-feature-branch",
+			expected: true,
+		},
+		{
+			name:     "branch with underscores",
+			revision: "my_feature_branch",
+			expected: true,
+		},
+		// Full refs (should return false)
+		{
+			name:     "full branch ref",
+			revision: "refs/heads/master",
+			expected: false,
+		},
+		{
+			name:     "full tag ref",
+			revision: "refs/tags/v1.0.0",
+			expected: false,
+		},
+		{
+			name:     "full remote branch ref",
+			revision: "refs/remotes/origin/master",
+			expected: false,
+		},
+		{
+			name:     "full branch ref with slashes in name",
+			revision: "refs/heads/feature/my-feature",
+			expected: false,
+		},
+		{
+			name:     "full tag ref with slashes in name",
+			revision: "refs/tags/release/v1.0.0",
+			expected: false,
+		},
+		{
+			name:     "full remote branch ref with slashes",
+			revision: "refs/remotes/origin/feature/branch",
+			expected: false,
+		},
+		{
+			name:     "full pull request ref",
+			revision: "refs/pull/123/head",
+			expected: false,
+		},
+		{
+			name:     "full notes ref",
+			revision: "refs/notes/commits",
+			expected: false,
+		},
+		// Special cases
+		{
+			name:     "HEAD",
+			revision: "HEAD",
+			expected: true,
+		},
+		{
+			name:     "commit SHA",
+			revision: "9d921f65f3c5373b682e2eb4b37afba6592e8f8b",
+			expected: true,
+		},
+		{
+			name:     "truncated commit SHA",
+			revision: "9d921f6",
+			expected: true,
+		},
+		{
+			name:     "empty string",
+			revision: "",
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsShortRef(tt.revision)
+			assert.Equal(t, tt.expected, result, "IsShortRef(%q) = %v, expected %v", tt.revision, result, tt.expected)
+		})
+	}
 }

@@ -52,6 +52,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                 <div className='paginate__size-menu'>
                                     {sortOptions && (
                                         <DropDownMenu
+                                            qeId={`paginate-sort-${preferencesKey}`}
                                             anchor={() => (
                                                 <>
                                                     <a>
@@ -74,6 +75,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                         />
                                     )}
                                     <DropDownMenu
+                                        qeId={`paginate-items-per-page-${preferencesKey}`}
                                         anchor={() => (
                                             <a>
                                                 Items per page: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />

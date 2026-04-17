@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	JsonFormat = "json"
+	JsonFormat = "json" //nolint:revive //FIXME(var-naming)
 	TextFormat = "text"
 )
 
@@ -46,8 +46,7 @@ func CreateFormatter(logFormat string) logrus.Formatter {
 			TimestampFormat: checkTimestampFormat(),
 		}
 	default:
-		formatType = &logrus.TextFormatter{
-			FullTimestamp:   checkEnableFullTimestamp(),
+		formatType = &logrus.JSONFormatter{
 			TimestampFormat: checkTimestampFormat(),
 		}
 	}

@@ -12,7 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
-	"github.com/argoproj/pkg/stats"
+	"github.com/argoproj/pkg/v2/stats"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/dynamic"
@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	utilglob "github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/kube"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 	"github.com/argoproj/argo-cd/v3/util/tls"
@@ -87,19 +88,22 @@ func NewCommand() *cobra.Command {
 		applicationNamespaces    []string
 		enableProxyExtension     bool
 		webhookParallelism       int
+		globCacheSize            int
 		hydratorEnabled          bool
+		syncWithReplaceAllowed   bool
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
 		scmRootCAPath            string
 		allowedScmProviders      []string
 		enableScmProviders       bool
+		enableGitHubAPIMetrics   bool
 
 		// argocd k8s event logging flag
 		enableK8sEvent []string
 	)
 	command := &cobra.Command{
-		Use:               cliName,
+		Use:               common.CommandServer,
 		Short:             "Run the ArgoCD API server",
 		Long:              "The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
@@ -120,6 +124,7 @@ func NewCommand() *cobra.Command {
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 			cli.SetGLogLevel(glogLevel)
+			utilglob.SetCacheSize(globCacheSize)
 
 			// Recover from panic and log the error using the configured logger instead of the default.
 			defer func() {
@@ -179,7 +184,7 @@ func NewCommand() *cobra.Command {
 				tlsConfig.Certificates = pool
 			}
 
-			dexTlsConfig := &dex.DexTLSConfig{
+			dexTLSConfig := &dex.DexTLSConfig{
 				DisableTLS:       dexServerPlaintext,
 				StrictValidation: dexServerStrictTLS,
 			}
@@ -191,14 +196,14 @@ func NewCommand() *cobra.Command {
 				if err != nil {
 					log.Fatalf("%v", err)
 				}
-				dexTlsConfig.RootCAs = pool
+				dexTLSConfig.RootCAs = pool
 				cert, err := tls.LoadX509Cert(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath) + "/dex/tls/tls.crt",
 				)
 				if err != nil {
 					log.Fatalf("%v", err)
 				}
-				dexTlsConfig.Certificate = cert.Raw
+				dexTLSConfig.Certificate = cert.Raw
 			}
 
 			repoclientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
@@ -229,7 +234,7 @@ func NewCommand() *cobra.Command {
 				AppClientset:            appClientSet,
 				RepoClientset:           repoclientset,
 				DexServerAddr:           dexServerAddress,
-				DexTLSConfig:            dexTlsConfig,
+				DexTLSConfig:            dexTLSConfig,
 				DisableAuth:             disableAuth,
 				ContentTypes:            contentTypesList,
 				EnableGZip:              enableGZip,
@@ -245,6 +250,7 @@ func NewCommand() *cobra.Command {
 				WebhookParallelism:      webhookParallelism,
 				EnableK8sEvent:          enableK8sEvent,
 				HydratorEnabled:         hydratorEnabled,
+				SyncWithReplaceAllowed:  syncWithReplaceAllowed,
 			}
 
 			appsetOpts := server.ApplicationSetOpts{
@@ -253,6 +259,7 @@ func NewCommand() *cobra.Command {
 				ScmRootCAPath:            scmRootCAPath,
 				AllowedScmProviders:      allowedScmProviders,
 				EnableScmProviders:       enableScmProviders,
+				EnableGitHubAPIMetrics:   enableGitHubAPIMetrics,
 			}
 
 			stats.RegisterStackDumper()
@@ -295,7 +302,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&staticAssetsDir, "staticassets", env.StringFromEnv("ARGOCD_SERVER_STATIC_ASSETS", "/shared/app"), "Directory path that contains additional static assets")
 	command.Flags().StringVar(&baseHRef, "basehref", env.StringFromEnv("ARGOCD_SERVER_BASEHREF", "/"), "Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from /")
 	command.Flags().StringVar(&rootPath, "rootpath", env.StringFromEnv("ARGOCD_SERVER_ROOTPATH", ""), "Used if Argo CD is running behind reverse proxy under subpath different from /")
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_SERVER_LOG_LEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_SERVER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address")
@@ -303,7 +310,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&disableAuth, "disable-auth", env.ParseBoolFromEnv("ARGOCD_SERVER_DISABLE_AUTH", false), "Disable client authentication")
 	command.Flags().StringVar(&contentTypes, "api-content-types", env.StringFromEnv("ARGOCD_API_CONTENT_TYPES", "application/json", env.StringFromEnvOpts{AllowEmpty: true}), "Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty.")
 	command.Flags().BoolVar(&enableGZip, "enable-gzip", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_GZIP", true), "Enable GZIP compression")
-	command.AddCommand(cli.NewVersionCmd(cliName))
+	command.AddCommand(cli.NewVersionCmd(common.CommandServer))
 	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_SERVER_LISTEN_ADDRESS", common.DefaultAddressAPIServer), "Listen on given address")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortAPIServer, "Listen on given port")
 	command.Flags().StringVar(&metricsHost, env.StringFromEnv("ARGOCD_SERVER_METRICS_LISTEN_ADDRESS", "metrics-address"), common.DefaultAddressAPIServerMetrics, "Listen for metrics on given address")
@@ -322,14 +329,17 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
+	command.Flags().IntVar(&globCacheSize, "glob-cache-size", env.ParseNumFromEnv("ARGOCD_SERVER_GLOB_CACHE_SIZE", utilglob.DefaultGlobCacheSize, 1, math.MaxInt32), "Maximum number of compiled glob patterns to cache for RBAC evaluation")
 	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
 	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
+	command.Flags().BoolVar(&syncWithReplaceAllowed, "sync-with-replace-allowed", env.ParseBoolFromEnv("ARGOCD_SYNC_WITH_REPLACE_ALLOWED", true), "Whether to allow users to select replace for syncs from UI/CLI")
 
 	// Flags related to the applicationSet component.
 	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
 	command.Flags().BoolVar(&enableScmProviders, "appset-enable-scm-providers", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS", true), "Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true)")
 	command.Flags().StringSliceVar(&allowedScmProviders, "appset-allowed-scm-providers", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS", []string{}, ","), "The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)")
 	command.Flags().BoolVar(&enableNewGitFileGlobbing, "appset-enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
+	command.Flags().BoolVar(&enableGitHubAPIMetrics, "appset-enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
 
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{

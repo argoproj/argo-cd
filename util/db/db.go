@@ -3,9 +3,7 @@ package db
 import (
 	"context"
 	"math"
-	"strings"
 
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -106,9 +104,14 @@ type ArgoDB interface {
 	RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// GetAllHelmRepositoryCredentials gets all repo credentials
 	GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appv1.RepoCreds, error)
+	// GetAllOCIRepositoryCredentials gets all repo credentials
+	GetAllOCIRepositoryCredentials(ctx context.Context) ([]*appv1.RepoCreds, error)
 
 	// ListHelmRepositories lists repositories
 	ListHelmRepositories(ctx context.Context) ([]*appv1.Repository, error)
+
+	// ListOCIRepositories lists repositories
+	ListOCIRepositories(ctx context.Context) ([]*appv1.Repository, error)
 
 	// ListConfiguredGPGPublicKeys returns all GPG public key IDs that are configured
 	ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appv1.GnuPGPublicKey, error)
@@ -134,39 +137,6 @@ func NewDB(namespace string, settingsMgr *settings.SettingsManager, kubeclientse
 		ns:            namespace,
 		kubeclientset: kubeclientset,
 	}
-}
-
-func (db *db) getSecret(name string, cache map[string]*corev1.Secret) (*corev1.Secret, error) {
-	if _, ok := cache[name]; !ok {
-		secret, err := db.settingsMgr.GetSecretByName(name)
-		if err != nil {
-			return nil, err
-		}
-		cache[name] = secret
-	}
-	return cache[name], nil
-}
-
-func (db *db) unmarshalFromSecretsStr(secrets map[*SecretMaperValidation]*corev1.SecretKeySelector, cache map[string]*corev1.Secret) error {
-	for dst, src := range secrets {
-		if src != nil {
-			secret, err := db.getSecret(src.Name, cache)
-			if err != nil {
-				return err
-			}
-			if dst.Transform != nil {
-				*dst.Dest = dst.Transform(string(secret.Data[src.Key]))
-			} else {
-				*dst.Dest = string(secret.Data[src.Key])
-			}
-		}
-	}
-	return nil
-}
-
-// StripCRLFCharacter strips the trailing CRLF characters
-func StripCRLFCharacter(input string) string {
-	return strings.TrimSpace(input)
 }
 
 // GetApplicationControllerReplicas gets the replicas of application controller

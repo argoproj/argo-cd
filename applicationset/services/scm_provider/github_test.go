@@ -1,7 +1,6 @@
 package scm_provider
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -227,7 +226,7 @@ func githubMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 					"pull": true
 				  },
 				  "template_repository": null
-				}	
+				}
 			  ]`)
 			if err != nil {
 				t.Fail()
@@ -674,7 +673,7 @@ func TestGithubListRepos(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			provider, _ := NewGithubProvider("argoproj", "", ts.URL, c.allBranches, c.excludeArchivedRepos)
-			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
+			rawRepos, err := ListRepos(t.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
 			} else {
@@ -690,6 +689,14 @@ func TestGithubListRepos(t *testing.T) {
 	}
 }
 
+/*
+	metricsCtx := &services.MetricsContext{
+		AppSetNamespace: "test-ns",
+		AppSetName:      "test-appset",
+	}
+
+httpClient := services.NewGitHubMetricsClient(metricsCtx)
+*/
 func TestGithubHasPath(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubMockHandler(t)(w, r)
@@ -701,11 +708,11 @@ func TestGithubHasPath(t *testing.T) {
 		Repository:   "argo-cd",
 		Branch:       "master",
 	}
-	ok, err := host.RepoHasPath(context.Background(), repo, "pkg/")
+	ok, err := host.RepoHasPath(t.Context(), repo, "pkg/")
 	require.NoError(t, err)
 	assert.True(t, ok)
 
-	ok, err = host.RepoHasPath(context.Background(), repo, "notathing/")
+	ok, err = host.RepoHasPath(t.Context(), repo, "notathing/")
 	require.NoError(t, err)
 	assert.False(t, ok)
 }
@@ -721,7 +728,7 @@ func TestGithubGetBranches(t *testing.T) {
 		Repository:   "argo-cd",
 		Branch:       "master",
 	}
-	repos, err := host.GetBranches(context.Background(), repo)
+	repos, err := host.GetBranches(t.Context(), repo)
 	if err != nil {
 		require.NoError(t, err)
 	} else {
@@ -733,12 +740,12 @@ func TestGithubGetBranches(t *testing.T) {
 		Repository:   "applicationset",
 		Branch:       "main",
 	}
-	_, err = host.GetBranches(context.Background(), repo2)
+	_, err = host.GetBranches(t.Context(), repo2)
 	require.NoError(t, err)
 
 	// Get all branches
 	host.allBranches = true
-	repos, err = host.GetBranches(context.Background(), repo)
+	repos, err = host.GetBranches(t.Context(), repo)
 	if err != nil {
 		require.NoError(t, err)
 	} else {

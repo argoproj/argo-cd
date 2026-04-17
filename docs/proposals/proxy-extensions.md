@@ -29,7 +29,7 @@ Enable UI extensions to use a backend service.
     * [Use cases](#use-cases)
     * [Security Considerations](#security-considerations)
     * [Risks and Mitigations](#risks-and-mitigations)
-    * [Upgrade / Downgrade](#upgrade--downgrade)
+    * [Upgrade / Downgrade](#upgrade-downgrade)
 * [Drawbacks](#drawbacks)
 * [Open Questions](#open-questions)
 
@@ -63,7 +63,7 @@ implemented in a given Argo CD release:
 #### [G-1] Argo CD (API Server) must have low performance impact when running extensions
 
 Argo CD API server is a critical component as it serves all APIs used by
-the CLI as well as the UI. The Argo CD team has no controll over what is
+the CLI as well as the UI. The Argo CD team has no control over what is
 going to be executed in extension's backend service. Thus it is important
 that the reverse proxy implementation to cause the lowest possible impact
 in the API server while processing high latency requests.
@@ -301,7 +301,7 @@ cluster:
   received by the API server to the backend service.
 - Headers will be filtered and not forwarded as it is received in Argo CD
   API server. Sensitive headers will be removed (e.g. `Cookie`).
-- A new header is added in the forwared request (`X-Forwarded-Host`) to
+- A new header is added in the forwarded request (`X-Forwarded-Host`) to
   allow ssl redirection.
 - This proposal doesn't specify how backends should implement authz or
   authn. This topic could be discussed as a future enhancement to the
@@ -369,7 +369,7 @@ permissions per project, per namespace and per extension.
 
 There are 3 main approaches to achieve this type of RBAC configuration:
 
-1. `<object>` has addional section for namespace:
+1. `<object>` has additional section for namespace:
 ```
 p, dev, extensions, *, some-project/some-namespace/some-extension, allow
 ```

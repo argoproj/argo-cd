@@ -11,11 +11,11 @@ import (
 )
 
 func TestNewReloginCommand(t *testing.T) {
-	globalClientOpts := argocdclient.ClientOptions{
+	clientOpts := argocdclient.ClientOptions{
 		ConfigPath: "/path/to/config",
 	}
 
-	cmd := NewReloginCommand(&globalClientOpts)
+	cmd := NewReloginCommand(&clientOpts)
 
 	assert.Equal(t, "relogin", cmd.Use, "Unexpected command Use")
 	assert.Equal(t, "Refresh an expired authenticate token", cmd.Short, "Unexpected command Short")
@@ -24,7 +24,7 @@ func TestNewReloginCommand(t *testing.T) {
 	// Assert command flags
 	passwordFlag := cmd.Flags().Lookup("password")
 	assert.NotNil(t, passwordFlag, "Expected flag --password to be defined")
-	assert.Equal(t, "", passwordFlag.Value.String(), "Unexpected default value for --password flag")
+	assert.Empty(t, passwordFlag.Value.String(), "Unexpected default value for --password flag")
 
 	ssoPortFlag := cmd.Flags().Lookup("sso-port")
 	port, err := strconv.Atoi(ssoPortFlag.Value.String())
@@ -33,8 +33,8 @@ func TestNewReloginCommand(t *testing.T) {
 	assert.Equal(t, 8085, port, "Unexpected default value for --sso-port flag")
 }
 
-func TestNewReloginCommandWithGlobalClientOptions(t *testing.T) {
-	globalClientOpts := argocdclient.ClientOptions{
+func TestNewReloginCommandWithClientOptions(t *testing.T) {
+	clientOpts := argocdclient.ClientOptions{
 		ConfigPath:        "/path/to/config",
 		ServerAddr:        "https://argocd-server.example.com",
 		Insecure:          true,
@@ -46,7 +46,7 @@ func TestNewReloginCommandWithGlobalClientOptions(t *testing.T) {
 		Headers:           []string{"header1", "header2"},
 	}
 
-	cmd := NewReloginCommand(&globalClientOpts)
+	cmd := NewReloginCommand(&clientOpts)
 
 	assert.Equal(t, "relogin", cmd.Use, "Unexpected command Use")
 	assert.Equal(t, "Refresh an expired authenticate token", cmd.Short, "Unexpected command Short")
@@ -55,7 +55,7 @@ func TestNewReloginCommandWithGlobalClientOptions(t *testing.T) {
 	// Assert command flags
 	passwordFlag := cmd.Flags().Lookup("password")
 	assert.NotNil(t, passwordFlag, "Expected flag --password to be defined")
-	assert.Equal(t, "", passwordFlag.Value.String(), "Unexpected default value for --password flag")
+	assert.Empty(t, passwordFlag.Value.String(), "Unexpected default value for --password flag")
 
 	ssoPortFlag := cmd.Flags().Lookup("sso-port")
 	port, err := strconv.Atoi(ssoPortFlag.Value.String())

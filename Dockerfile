@@ -1,10 +1,12 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:24.04@sha256:80dd3c3b9c6cecb9f1667e9290b3bc61b78c2678c02cbdae5f0fea92cc6734ab
+ARG BASE_IMAGE=docker.io/library/ubuntu:25.10@sha256:4a9232cc47bf99defcc8860ef6222c99773330367fcecbf21ba2edb0b810a31e
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.23.3@sha256:d56c3e08fe5b27729ee3834854ae8f7015af48fd651cd25d1e3bcf3c19830174 AS builder
+FROM docker.io/library/golang:1.26.2@sha256:5f3787b7f902c07c7ec4f3aa91a301a3eda8133aa32661a3b3a3a86ab3a68a36 AS builder
+
+WORKDIR /tmp
 
 RUN echo 'deb http://archive.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
@@ -14,7 +16,6 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     unzip \
     fcgiwrap \
     git \
-    git-lfs \
     make \
     wget \
     gcc \
@@ -23,13 +24,12 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-WORKDIR /tmp
-
 COPY hack/install.sh hack/tool-versions.sh ./
 COPY hack/installers installers
 
 RUN ./install.sh helm && \
-    INSTALL_PATH=/usr/local/bin ./install.sh kustomize
+    INSTALL_PATH=/usr/local/bin ./install.sh kustomize && \
+    ./install.sh git-lfs
 
 ####################################################################################################
 # Argo CD Base - used as the base for both the release and dev argocd images
@@ -40,8 +40,8 @@ LABEL org.opencontainers.image.source="https://github.com/argoproj/argo-cd"
 
 USER root
 
-ENV ARGOCD_USER_ID=999
-ENV DEBIAN_FRONTEND=noninteractive
+ENV ARGOCD_USER_ID=999 \
+    DEBIAN_FRONTEND=noninteractive
 
 RUN groupadd -g $ARGOCD_USER_ID argocd && \
     useradd -r -u $ARGOCD_USER_ID -g argocd argocd && \
@@ -50,16 +50,19 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     chmod g=u /home/argocd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
-    apt-get install -y \
-    git git-lfs tini gpg tzdata connect-proxy && \
+    apt-get install --no-install-recommends -y \
+    git tini ca-certificates gpg gpg-agent tzdata connect-proxy openssh-client && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
-COPY hack/gpg-wrapper.sh /usr/local/bin/gpg-wrapper.sh
-COPY hack/git-verify-wrapper.sh /usr/local/bin/git-verify-wrapper.sh
+COPY hack/gpg-wrapper.sh \
+    hack/git-verify-wrapper.sh \
+    entrypoint.sh \
+    /usr/local/bin/
 COPY --from=builder /usr/local/bin/helm /usr/local/bin/helm
 COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --from=builder /usr/local/bin/git-lfs /usr/local/bin/git-lfs
+
 # keep uid_entrypoint.sh for backward compatibility
 RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
 
@@ -77,47 +80,54 @@ RUN mkdir -p tls && \
 
 ENV USER=argocd
 
+# Disable gRPC service config lookups via DNS TXT records to prevent excessive
+# DNS queries for _grpc_config.<hostname> which can cause timeouts in dual-stack
+# environments. This can be overridden via argocd-cmd-params-cm ConfigMap.
+# See https://github.com/argoproj/argo-cd/issues/24991
+ENV GRPC_ENABLE_TXT_SERVICE_CONFIG=false
+
 USER $ARGOCD_USER_ID
 WORKDIR /home/argocd
 
 ####################################################################################################
 # Argo CD UI stage
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/node:23.0.0@sha256:e643c0b70dca9704dff42e12b17f5b719dbe4f95e6392fc2dfa0c5f02ea8044d AS argocd-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:24.14.1@sha256:80fc934952c8f1b2b4d39907af7211f8a9fff1a4c2cf673fb49099292c251cec AS argocd-ui
 
 WORKDIR /src
-COPY ["ui/package.json", "ui/yarn.lock", "./"]
+COPY ["ui/package.json", "ui/pnpm-lock.yaml", "./"]
 
-RUN yarn install --network-timeout 200000 && \
-    yarn cache clean
+RUN npm install -g corepack@0.34.6 && corepack enable && pnpm install --frozen-lockfile
 
 COPY ["ui/", "."]
 
 ARG ARGO_VERSION=latest
 ENV ARGO_VERSION=$ARGO_VERSION
 ARG TARGETARCH
-RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 yarn build
+RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OPTIONS=--max_old_space_size=8192 pnpm build
 
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.23.3@sha256:d56c3e08fe5b27729ee3834854ae8f7015af48fd651cd25d1e3bcf3c19830174 AS argocd-build
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.26.2@sha256:5f3787b7f902c07c7ec4f3aa91a301a3eda8133aa32661a3b3a3a86ab3a68a36 AS argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 
 COPY go.* ./
+RUN mkdir -p gitops-engine
+COPY gitops-engine/go.* ./gitops-engine
 RUN go mod download
 
 # Perform the build
 COPY . .
 COPY --from=argocd-ui /src/dist/app /go/src/github.com/argoproj/argo-cd/ui/dist/app
-ARG TARGETOS
-ARG TARGETARCH
+ARG TARGETOS \
+    TARGETARCH
 # These build args are optional; if not specified the defaults will be taken from the Makefile
-ARG GIT_TAG
-ARG BUILD_DATE
-ARG GIT_TREE_STATE
-ARG GIT_COMMIT
+ARG GIT_TAG \
+    BUILD_DATE \
+    GIT_TREE_STATE \
+    GIT_COMMIT
 RUN GIT_COMMIT=$GIT_COMMIT \
     GIT_TREE_STATE=$GIT_TREE_STATE \
     GIT_TAG=$GIT_TAG \
@@ -130,6 +140,7 @@ RUN GIT_COMMIT=$GIT_COMMIT \
 # Final image
 ####################################################################################################
 FROM argocd-base
+ENTRYPOINT ["/usr/bin/tini", "--"]
 COPY --from=argocd-build /go/src/github.com/argoproj/argo-cd/dist/argocd* /usr/local/bin/
 
 USER root
@@ -144,4 +155,3 @@ RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-commit-server
 
 USER $ARGOCD_USER_ID
-ENTRYPOINT ["/usr/bin/tini", "--"]

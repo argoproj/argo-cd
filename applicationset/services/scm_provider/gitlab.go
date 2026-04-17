@@ -85,8 +85,13 @@ func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 }
 
 func (g *GitlabProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
+	snippetsListOptions := gitlab.ExploreSnippetsOptions{
+		ListOptions: gitlab.ListOptions{
+			PerPage: 100,
+		},
+	}
 	opt := &gitlab.ListGroupProjectsOptions{
-		ListOptions:      gitlab.ListOptions{PerPage: 100},
+		ListOptions:      snippetsListOptions.ListOptions,
 		IncludeSubGroups: &g.includeSubgroups,
 		WithShared:       &g.includeSharedProjects,
 		Topic:            &g.topic,
@@ -118,6 +123,7 @@ func (g *GitlabProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*
 			var repoLabels []string
 			if len(gitlabRepo.Topics) == 0 {
 				// fallback to for gitlab prior to 14.5
+				//nolint:staticcheck
 				repoLabels = gitlabRepo.TagList
 			} else {
 				repoLabels = gitlabRepo.Topics
@@ -186,8 +192,13 @@ func (g *GitlabProvider) listBranches(_ context.Context, repo *Repository) ([]gi
 		return branches, nil
 	}
 	// Otherwise, scrape the ListBranches API.
+	snippetsListOptions := gitlab.ExploreSnippetsOptions{
+		ListOptions: gitlab.ListOptions{
+			PerPage: 100,
+		},
+	}
 	opt := &gitlab.ListBranchesOptions{
-		ListOptions: gitlab.ListOptions{PerPage: 100},
+		ListOptions: snippetsListOptions.ListOptions,
 	}
 	for {
 		gitlabBranches, resp, err := g.client.Branches.ListBranches(repo.RepositoryId, opt)

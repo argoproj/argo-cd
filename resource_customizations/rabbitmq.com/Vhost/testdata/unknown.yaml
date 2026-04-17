@@ -1,0 +1,13 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: Vhost
+metadata:
+  generation: 1
+  name: example-rabbit
+  namespace: example-rabbit
+spec:
+  defaultQueueType: quorum
+  name: example-rabbit
+  rabbitmqClusterReference:
+    name: example-rabbit
+    namespace: example-rabbit
+status: {}

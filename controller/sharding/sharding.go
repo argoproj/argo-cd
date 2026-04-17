@@ -209,7 +209,7 @@ func createConsistentHashingWithBoundLoads(replicas int, getCluster clusterAcces
 	// Adding a shard with id "-1" as a reserved value for clusters that does not have an assigned shard
 	// this happens for clusters that are removed for the clusters list
 	// consistentHashing.Add("-1")
-	for i := 0; i < replicas; i++ {
+	for i := range replicas {
 		shard := strconv.Itoa(i)
 		consistentHashing.Add(shard)
 		appsIndexedByShard[shard] = 0
@@ -222,7 +222,10 @@ func createConsistentHashingWithBoundLoads(replicas int, getCluster clusterAcces
 		}
 		shardIndexedByCluster[c.ID], err = strconv.Atoi(clusterIndex)
 		if err != nil {
-			log.Errorf("Consistent Hashing was supposed to return a shard index but it returned %d", err)
+			log.Errorf("Failed to get shard index from consistent hashing, error=%v", err)
+			// No continue here: strconv.Atoi returns 0 on failure, so the cluster falls back to shard 0.
+			// This is intentional since shard 0 always exists (replicas > 0 is enforced by the caller),
+			// so the cluster remains reconciled rather than being silently dropped.
 		}
 		numApps, ok := appDistribution[c.Server]
 		if !ok {
@@ -445,7 +448,7 @@ func generateDefaultShardMappingCM(namespace, hostname string, replicas, shard i
 func getDefaultShardMappingData(replicas int) []shardApplicationControllerMapping {
 	shardMappingData := make([]shardApplicationControllerMapping, 0)
 
-	for i := 0; i < replicas; i++ {
+	for i := range replicas {
 		mapping := shardApplicationControllerMapping{
 			ShardNumber: i,
 		}
@@ -485,7 +488,10 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 					err = fmt.Errorf("unable to get shard due to error updating the sharding config map: %w", err)
 					break
 				}
-				log.Warnf("conflict when getting shard from shard mapping configMap. Retrying (%d/3)", i)
+				// if `err == nil`, should not log the following warning message
+				if err != nil {
+					log.Warnf("conflict when getting shard from shard mapping configMap. Retrying (%d/3)", i)
+				}
 			}
 			errors.CheckError(err)
 		} else {

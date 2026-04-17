@@ -59,10 +59,10 @@ func TestReceiveApplicationStream(t *testing.T) {
 			close(streamMock.messages)
 			os.RemoveAll(workdir)
 		}()
-		go streamMock.sendFile(context.Background(), t, appDir, streamMock, []string{"env1", "env2"}, []string{"DUMMY.md", "dum*"})
+		go streamMock.sendFile(t.Context(), t, appDir, streamMock, []string{"env1", "env2"}, []string{"DUMMY.md", "dum*"})
 
 		// when
-		env, err := cmp.ReceiveRepoStream(context.Background(), streamMock, workdir, false)
+		env, err := cmp.ReceiveRepoStream(t.Context(), streamMock, workdir, false)
 
 		// then
 		require.NoError(t, err)

@@ -11,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/session"
@@ -19,26 +18,22 @@ import (
 )
 
 // NewHandler creates handler serving to do api/logout endpoint
-func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, sessionMgr *session.SessionManager, rootPath, baseHRef, namespace string) *Handler {
+func NewHandler(settingsMrg *settings.SettingsManager, sessionMgr *session.SessionManager, rootPath, baseHRef string) *Handler {
 	return &Handler{
-		appClientset: appClientset,
-		namespace:    namespace,
-		settingsMgr:  settingsMrg,
-		rootPath:     rootPath,
-		baseHRef:     baseHRef,
-		verifyToken:  sessionMgr.VerifyToken,
-		revokeToken:  sessionMgr.RevokeToken,
+		settingsMgr: settingsMrg,
+		rootPath:    rootPath,
+		baseHRef:    baseHRef,
+		verifyToken: sessionMgr.VerifyToken,
+		revokeToken: sessionMgr.RevokeToken,
 	}
 }
 
 type Handler struct {
-	namespace    string
-	appClientset versioned.Interface
-	settingsMgr  *settings.SettingsManager
-	rootPath     string
-	verifyToken  func(tokenString string) (jwt.Claims, string, error)
-	revokeToken  func(ctx context.Context, id string, expiringAt time.Duration) error
-	baseHRef     string
+	settingsMgr *settings.SettingsManager
+	rootPath    string
+	verifyToken func(ctx context.Context, tokenString string) (jwt.Claims, string, error)
+	revokeToken func(ctx context.Context, id string, expiringAt time.Duration) error
+	baseHRef    string
 }
 
 var (
@@ -59,7 +54,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	argoCDSettings, err := h.settingsMgr.GetSettings()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, "Failed to retrieve argoCD settings: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -79,9 +73,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	cookies := r.Cookies()
 	tokenString, err = httputil.JoinCookies(common.AuthCookieName, cookies)
-	if tokenString == "" || err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	// Build message safely: only include err when non-nil
+	if err != nil {
 		http.Error(w, "Failed to retrieve ArgoCD auth token: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if tokenString == "" {
+		http.Error(w, "Failed to retrieve ArgoCD auth token", http.StatusBadRequest)
 		return
 	}
 
@@ -99,7 +97,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Set-Cookie", argocdCookie.String())
 	}
 
-	claims, _, err := h.verifyToken(tokenString)
+	claims, _, err := h.verifyToken(r.Context(), tokenString)
 	if err != nil {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
 		return
@@ -113,9 +111,22 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	issuer := jwtutil.StringField(mapClaims, "iss")
 	id := jwtutil.StringField(mapClaims, "jti")
+	// Workaround for Dex token, because does not have jti.
+	if id == "" {
+		id = jwtutil.StringField(mapClaims, "at_hash")
+	}
+
 	if exp, err := jwtutil.ExpirationTime(mapClaims); err == nil && id != "" {
-		if err := h.revokeToken(context.Background(), id, time.Until(exp)); err != nil {
-			log.Warnf("failed to invalidate token '%s': %v", id, err)
+		ttl := time.Until(exp)
+		if ttl <= 0 {
+			// Token already expired; no need to persist revocation
+			log.Infof("token '%s' already expired, skipping revocation", id)
+		} else {
+			revokeCtx, cancel := context.WithTimeout(r.Context(), common.TokenRevocationTimeout)
+			defer cancel()
+			if err := h.revokeToken(revokeCtx, id, ttl); err != nil {
+				log.Warnf("failed to invalidate token '%s': %v", id, err)
+			}
 		}
 	}
 

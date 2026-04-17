@@ -58,7 +58,7 @@ Example:
 ```
 export ARGOCD_VERSION=<desired argo cd release version (e.g. v2.7.0)>
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/$ARGOCD_VERSION/manifests/core-install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/$ARGOCD_VERSION/manifests/core-install.yaml
 ```
 
 ## Using
@@ -78,8 +78,9 @@ the process) invoking the CLI needs to have access to the Argo CD
 namespace with the proper permission in the `Application` and
 `ApplicationSet` resources for executing a given command.
 
-To use Argo CD CLI in core mode, it is required to pass the `--core`
-flag with the `login` subcommand.
+To use [Argo CD CLI](https://argo-cd.readthedocs.io/en/stable/cli_installation) in core mode, it is required to pass the `--core`
+flag with the `login` subcommand. The `--core` flag is responsible for spawning a local Argo CD API server
+process that handles CLI and Web UI requests.
 
 Example:
 
@@ -97,4 +98,3 @@ argocd admin dashboard -n argocd
 ```
 
 Argo CD Web UI will be available at `http://localhost:8080`
-

@@ -2,6 +2,7 @@ package project
 
 import (
 	"context"
+	"time"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 
@@ -19,7 +20,7 @@ func (c *Consequences) Expect() *Consequences {
 }
 
 func (c *Consequences) And(block func(app *project.DetailedProjectsResponse, err error)) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block(c.detailedProject())
 	return c
 }
@@ -32,7 +33,7 @@ func (c *Consequences) detailedProject() (*project.DetailedProjectsResponse, err
 func (c *Consequences) get() (*project.DetailedProjectsResponse, error) {
 	_, projectClient, _ := fixture.ArgoCDClientset.NewProjectClient()
 	prj, err := projectClient.GetDetailedProject(context.Background(), &project.ProjectQuery{
-		Name: c.context.name,
+		Name: c.context.GetName(),
 	})
 
 	return prj, err
@@ -43,5 +44,6 @@ func (c *Consequences) Given() *Context {
 }
 
 func (c *Consequences) When() *Actions {
+	time.Sleep(fixture.WhenThenSleepInterval)
 	return c.actions
 }

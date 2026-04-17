@@ -23,7 +23,7 @@ func generateRandomPassword() (string, error) {
 	const initialPasswordLength = 16
 	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
 	randBytes := make([]byte, initialPasswordLength)
-	for i := 0; i < initialPasswordLength; i++ {
+	for i := range initialPasswordLength {
 		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
 		if err != nil {
 			return "", err
@@ -85,8 +85,7 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 			if _, ok := secret.Data[redisInitialCredentialsKey]; ok {
 				fmt.Println("Password secret is configured properly.")
 			} else {
-				err := fmt.Errorf("key %s doesn't exist in secret %s. \n", redisInitialCredentialsKey, redisInitialCredentials)
-				errors.CheckError(err)
+				errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("key %s doesn't exist in secret %s. \n", redisInitialCredentialsKey, redisInitialCredentials))
 			}
 		},
 	}

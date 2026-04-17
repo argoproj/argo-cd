@@ -15,7 +15,7 @@ import (
 	gpgkeypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/templates"
 )
 
@@ -58,7 +58,7 @@ func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			ctx := c.Context()
 
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
-			defer argoio.Close(conn)
+			defer utilio.Close(conn)
 			keys, err := gpgIf.List(ctx, &gpgkeypkg.GnuPGPublicKeyQuery{})
 			errors.CheckError(err)
 			switch output {
@@ -97,10 +97,10 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			ctx := c.Context()
 
 			if len(args) != 1 {
-				errors.CheckError(stderrors.New("Missing KEYID argument"))
+				errors.Fatal(errors.ErrorGeneric, "Missing KEYID argument")
 			}
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
-			defer argoio.Close(conn)
+			defer utilio.Close(conn)
 			key, err := gpgIf.Get(ctx, &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
 			errors.CheckError(err)
 			switch output {
@@ -144,14 +144,14 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				errors.CheckError(err)
 			}
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
-			defer argoio.Close(conn)
+			defer utilio.Close(conn)
 			resp, err := gpgIf.Create(ctx, &gpgkeypkg.GnuPGPublicKeyCreateRequest{Publickey: &appsv1.GnuPGPublicKey{KeyData: string(keyData)}})
 			errors.CheckError(err)
 			fmt.Printf("Created %d key(s) from input file", len(resp.Created.Items))
 			if len(resp.Skipped) > 0 {
 				fmt.Printf(", and %d key(s) were skipped because they exist already", len(resp.Skipped))
 			}
-			fmt.Printf(".\n")
+			fmt.Print(".\n")
 		},
 	}
 	command.Flags().StringVarP(&fromFile, "from", "f", "", "Path to the file that contains the GPG public key to import")
@@ -167,13 +167,13 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 			ctx := c.Context()
 
 			if len(args) != 1 {
-				errors.CheckError(stderrors.New("Missing KEYID argument"))
+				errors.Fatal(errors.ErrorGeneric, "Missing KEYID argument")
 			}
 
 			keyId := args[0]
 
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
-			defer argoio.Close(conn)
+			defer utilio.Close(conn)
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to remove '%s'? [y/n] ", keyId))
@@ -192,7 +192,7 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 // Print table of certificate info
 func printKeyTable(keys []appsv1.GnuPGPublicKey) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "KEYID\tTYPE\tIDENTITY\n")
+	fmt.Fprint(w, "KEYID\tTYPE\tIDENTITY\n")
 
 	for _, k := range keys {
 		fmt.Fprintf(w, "%s\t%s\t%s\n", k.KeyID, strings.ToUpper(k.SubType), k.Owner)

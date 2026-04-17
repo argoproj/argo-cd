@@ -35,7 +35,7 @@ func Test_newCluster(t *testing.T) {
 
 	assert.Equal(t, "test-cert-data", string(clusterWithData.Config.CertData))
 	assert.Equal(t, "test-key-data", string(clusterWithData.Config.KeyData))
-	assert.Equal(t, "", clusterWithData.Config.BearerToken)
+	assert.Empty(t, clusterWithData.Config.BearerToken)
 	assert.Equal(t, labels, clusterWithData.Labels)
 	assert.Equal(t, annotations, clusterWithData.Annotations)
 	assert.False(t, clusterWithData.Config.DisableCompression)
@@ -56,7 +56,7 @@ func Test_newCluster(t *testing.T) {
 
 	assert.Contains(t, string(clusterWithFiles.Config.CertData), "test-cert-data")
 	assert.Contains(t, string(clusterWithFiles.Config.KeyData), "test-key-data")
-	assert.Equal(t, "", clusterWithFiles.Config.BearerToken)
+	assert.Empty(t, clusterWithFiles.Config.BearerToken)
 	assert.Equal(t, labels, clusterWithFiles.Labels)
 	assert.Nil(t, clusterWithFiles.Annotations)
 
@@ -193,7 +193,7 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 
 func kubeconfigFixture(endpoint string, certificateAuthorityData []byte) string {
 	kubeconfig := &clientcmdapiv1.Config{}
-	if len(endpoint) > 0 {
+	if endpoint != "" {
 		kubeconfig.Clusters = []clientcmdapiv1.NamedCluster{
 			{
 				Name: "test-kube",

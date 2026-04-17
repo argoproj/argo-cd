@@ -18,10 +18,10 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/golang/protobuf/ptypes/empty"
-	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	"github.com/hashicorp/go-retryablehttp"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -49,7 +49,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	http_util "github.com/argoproj/argo-cd/v3/util/http"
-	argoio "github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/kube"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
@@ -99,6 +99,7 @@ type Client interface {
 	NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error)
 	NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient)
 	WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent
+	WatchApplicationSetWithRetry(ctx context.Context, appSetName, revision string) chan *v1alpha1.ApplicationSetWatchEvent
 }
 
 // ClientOptions hold address, security, and other settings for the API client.
@@ -119,12 +120,13 @@ type ClientOptions struct {
 	PortForward          bool
 	PortForwardNamespace string
 	Headers              []string
-	HttpRetryMax         int
+	HttpRetryMax         int //nolint:revive //FIXME(var-naming)
 	KubeOverrides        *clientcmd.ConfigOverrides
 	AppControllerName    string
 	ServerName           string
 	RedisHaProxyName     string
 	RedisName            string
+	RedisCompression     string
 	RepoServerName       string
 	PromptsEnabled       bool
 }
@@ -221,6 +223,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	// Make sure we got the server address and auth token from somewhere
 	if c.ServerAddr == "" {
+		//nolint:staticcheck // First letter of error is intentionally capitalized.
 		return nil, errors.New("Argo CD server address unspecified")
 	}
 	// Override auth-token if specified in env variable or CLI flag
@@ -286,13 +289,13 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		// if a call to grpc failed, then try again with GRPCWeb
 		conn, versionIf, err := c.NewVersionClient()
 		if err == nil {
-			defer argoio.Close(conn)
+			defer utilio.Close(conn)
 			_, err = versionIf.Version(context.Background(), &empty.Empty{})
 		}
 		if err != nil {
 			c.GRPCWeb = true
 			conn, versionIf := c.NewVersionClientOrDie()
-			defer argoio.Close(conn)
+			defer utilio.Close(conn)
 
 			_, err := versionIf.Version(context.Background(), &empty.Empty{})
 			if err == nil {
@@ -319,29 +322,30 @@ func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oa
 	var clientID string
 	var issuerURL string
 	var scopes []string
-	if set.OIDCConfig != nil && set.OIDCConfig.Issuer != "" {
+	switch {
+	case set.OIDCConfig != nil && set.OIDCConfig.Issuer != "":
 		if set.OIDCConfig.CLIClientID != "" {
 			clientID = set.OIDCConfig.CLIClientID
 		} else {
 			clientID = set.OIDCConfig.ClientID
 		}
 		issuerURL = set.OIDCConfig.Issuer
-		scopes = set.OIDCConfig.Scopes
-	} else if set.DexConfig != nil && len(set.DexConfig.Connectors) > 0 {
+		scopes = oidcutil.GetScopesOrDefault(set.OIDCConfig.Scopes)
+	case set.DexConfig != nil && len(set.DexConfig.Connectors) > 0:
 		clientID = common.ArgoCDCLIClientAppID
+		scopes = append(oidcutil.GetScopesOrDefault(nil), common.DexFederatedScope)
 		issuerURL = fmt.Sprintf("%s%s", set.URL, common.DexAPIEndpoint)
-	} else {
+	default:
 		return nil, nil, fmt.Errorf("%s is not configured with SSO", c.ServerAddr)
 	}
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to query provider %q: %w", issuerURL, err)
+		return nil, nil, fmt.Errorf("failed to query provider %q: %w", issuerURL, err)
 	}
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to parse provider config: %w", err)
+		return nil, nil, fmt.Errorf("failed to parse provider config: %w", err)
 	}
-	scopes = oidcutil.GetScopesOrDefault(scopes)
 	if oidcutil.OfflineAccess(oidcConf.ScopesSupported) {
 		scopes = append(scopes, oidc.ScopeOfflineAccess)
 	}
@@ -414,7 +418,11 @@ func (c *client) refreshAuthToken(localCfg *localconfig.LocalConfig, ctxName, co
 		return err
 	}
 	c.AuthToken = rawIDToken
-	c.RefreshToken = refreshToken
+	// When the oidc provider returns an empty refresh token, use the existing refresh token
+	if refreshToken != "" {
+		c.RefreshToken = refreshToken
+	}
+
 	localCfg.UpsertUser(localconfig.User{
 		Name:         ctxName,
 		AuthToken:    c.AuthToken,
@@ -487,13 +495,13 @@ func (c jwtCredentials) GetRequestMetadata(context.Context, ...string) (map[stri
 	}, nil
 }
 
-func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
+func (c *client) newConn(ctx context.Context) (*grpc.ClientConn, io.Closer, error) {
 	closers := make([]io.Closer, 0)
 	serverAddr := c.ServerAddr
 	network := "tcp"
 	if c.GRPCWeb || c.GRPCWebRootPath != "" {
 		// start local grpc server which proxies requests using grpc-web protocol
-		addr, closer, err := c.useGRPCProxy()
+		addr, closer, err := c.useGRPCProxy(ctx)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -520,12 +528,9 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	var dialOpts []grpc.DialOption
 	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(endpointCredentials))
 	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)))
-	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)))
-	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(grpc_retry.UnaryClientInterceptor(retryOpts...))))
-	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()))
-	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()))
-
-	ctx := context.Background()
+	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_util.RetryOnlyForServerStreamInterceptor(retryOpts...)))
+	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_retry.UnaryClientInterceptor(retryOpts...)))
+	dialOpts = append(dialOpts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
 
 	headers, err := parseHeaders(c.Headers)
 	if err != nil {
@@ -540,9 +545,9 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	if c.UserAgent != "" {
 		dialOpts = append(dialOpts, grpc.WithUserAgent(c.UserAgent))
 	}
-	conn, e := grpc_util.BlockingDial(ctx, network, serverAddr, creds, dialOpts...)
+	conn, e := grpc_util.BlockingNewClient(ctx, network, serverAddr, creds, dialOpts...)
 	closers = append(closers, conn)
-	return conn, argoio.NewCloser(func() error {
+	return conn, utilio.NewCloser(func() error {
 		var firstErr error
 		for i := range closers {
 			err := closers[i].Close()
@@ -582,7 +587,7 @@ func (c *client) ClientOptions() ClientOptions {
 }
 
 func (c *client) NewRepoClient() (io.Closer, repositorypkg.RepositoryServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -599,7 +604,7 @@ func (c *client) NewRepoClientOrDie() (io.Closer, repositorypkg.RepositoryServic
 }
 
 func (c *client) NewRepoCredsClient() (io.Closer, repocredspkg.RepoCredsServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -616,7 +621,7 @@ func (c *client) NewRepoCredsClientOrDie() (io.Closer, repocredspkg.RepoCredsSer
 }
 
 func (c *client) NewCertClient() (io.Closer, certificatepkg.CertificateServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -633,7 +638,7 @@ func (c *client) NewCertClientOrDie() (io.Closer, certificatepkg.CertificateServ
 }
 
 func (c *client) NewClusterClient() (io.Closer, clusterpkg.ClusterServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -650,7 +655,7 @@ func (c *client) NewClusterClientOrDie() (io.Closer, clusterpkg.ClusterServiceCl
 }
 
 func (c *client) NewGPGKeyClient() (io.Closer, gpgkeypkg.GPGKeyServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -667,7 +672,7 @@ func (c *client) NewGPGKeyClientOrDie() (io.Closer, gpgkeypkg.GPGKeyServiceClien
 }
 
 func (c *client) NewApplicationClient() (io.Closer, applicationpkg.ApplicationServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -676,7 +681,7 @@ func (c *client) NewApplicationClient() (io.Closer, applicationpkg.ApplicationSe
 }
 
 func (c *client) NewApplicationSetClient() (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -693,7 +698,7 @@ func (c *client) NewApplicationClientOrDie() (io.Closer, applicationpkg.Applicat
 }
 
 func (c *client) NewNotificationClient() (io.Closer, notificationpkg.NotificationServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -718,7 +723,7 @@ func (c *client) NewApplicationSetClientOrDie() (io.Closer, applicationsetpkg.Ap
 }
 
 func (c *client) NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -735,7 +740,7 @@ func (c *client) NewSessionClientOrDie() (io.Closer, sessionpkg.SessionServiceCl
 }
 
 func (c *client) NewSettingsClient() (io.Closer, settingspkg.SettingsServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -752,7 +757,7 @@ func (c *client) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServic
 }
 
 func (c *client) NewVersionClient() (io.Closer, versionpkg.VersionServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -769,7 +774,7 @@ func (c *client) NewVersionClientOrDie() (io.Closer, versionpkg.VersionServiceCl
 }
 
 func (c *client) NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -786,7 +791,7 @@ func (c *client) NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceCl
 }
 
 func (c *client) NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error) {
-	conn, closer, err := c.newConn()
+	conn, closer, err := c.newConn(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -800,6 +805,47 @@ func (c *client) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceCl
 		log.Fatalf("Failed to establish connection to %s: %v", c.ServerAddr, err)
 	}
 	return conn, usrIf
+}
+
+func (c *client) WatchApplicationSetWithRetry(ctx context.Context, appSetName, _ string) chan *v1alpha1.ApplicationSetWatchEvent {
+	appSetEventCh := make(chan *v1alpha1.ApplicationSetWatchEvent)
+	cancelled := false
+	appSetName, appSetNs := argo.ParseFromQualifiedName(appSetName, "")
+	go func() {
+		defer close(appSetEventCh)
+		for !cancelled {
+			conn, appsetIf, err := c.NewApplicationSetClient()
+			if err == nil {
+				var wc applicationsetpkg.ApplicationSetService_WatchClient
+				wc, err = appsetIf.Watch(ctx, &applicationsetpkg.ApplicationSetWatchQuery{
+					Name:            appSetName,
+					AppSetNamespace: appSetNs,
+				})
+				if err == nil {
+					for {
+						var appSetEvent *v1alpha1.ApplicationSetWatchEvent
+						appSetEvent, err = wc.Recv()
+						if err != nil {
+							break
+						}
+						appSetEventCh <- appSetEvent
+					}
+				}
+			}
+			if err != nil {
+				if isCanceledContextErr(err) {
+					cancelled = true
+				} else {
+					time.Sleep(1 * time.Second)
+				}
+			}
+			if conn != nil {
+				_ = conn.Close()
+			}
+		}
+	}()
+
+	return appSetEventCh
 }
 
 // WatchApplicationWithRetry returns a channel of watch events for an application, retrying the
@@ -847,7 +893,7 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, 
 }
 
 func isCanceledContextErr(err error) bool {
-	if err != nil && errors.Is(err, context.Canceled) {
+	if err != nil && errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return true
 	}
 	if stat, ok := status.FromError(err); ok {

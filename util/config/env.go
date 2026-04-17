@@ -30,15 +30,16 @@ func LoadFlags() error {
 
 	var key string
 	for _, opt := range opts {
-		if strings.HasPrefix(opt, "--") {
+		switch {
+		case strings.HasPrefix(opt, "--"):
 			if key != "" {
 				flags[key] = "true"
 			}
 			key = strings.TrimPrefix(opt, "--")
-		} else if key != "" {
+		case key != "":
 			flags[key] = opt
 			key = ""
-		} else {
+		default:
 			return errors.New("ARGOCD_OPTS invalid at '" + opt + "'")
 		}
 	}

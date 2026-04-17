@@ -8,6 +8,7 @@ import (
 	"fmt"
 	goio "io"
 	"io/fs"
+	"net/mail"
 	"os"
 	"os/exec"
 	"path"
@@ -23,6 +24,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
+
+	"github.com/argoproj/argo-cd/v3/util/oci"
 
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 
@@ -46,8 +49,10 @@ import (
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	helmmocks "github.com/argoproj/argo-cd/v3/util/helm/mocks"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	iomocks "github.com/argoproj/argo-cd/v3/util/io/mocks"
+	ocimocks "github.com/argoproj/argo-cd/v3/util/oci/mocks"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const testSignature = `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
@@ -55,7 +60,7 @@ gpg:                using RSA key 4AEE18F83AFDEB23
 gpg: Good signature from "GitHub (web-flow commit signing) <noreply@github.com>" [ultimate]
 `
 
-type clientFunc func(*gitmocks.Client, *helmmocks.Client, *iomocks.TempPaths)
+type clientFunc func(*gitmocks.Client, *helmmocks.Client, *ocimocks.Client, *iomocks.TempPaths)
 
 type repoCacheMocks struct {
 	mock.Mock
@@ -65,8 +70,7 @@ type repoCacheMocks struct {
 }
 
 type newGitRepoHelmChartOptions struct {
-	chartName    string
-	chartVersion string
+	chartName string
 	// valuesFiles is a map of the values file name to the key/value pairs to be written to the file
 	valuesFiles map[string]map[string]string
 }
@@ -104,38 +108,42 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 	if err != nil {
 		panic(err)
 	}
-	return newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
-		gitClient.On("Init").Return(nil)
-		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
-		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-		gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
-		gitClient.On("CommitSHA").Return(mock.Anything, nil)
-		gitClient.On("Root").Return(root)
-		gitClient.On("IsAnnotatedTag").Return(false)
+	return newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
+		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().LsRemote(mock.Anything).Return(mock.Anything, nil)
+		gitClient.EXPECT().CommitSHA().Return(mock.Anything, nil)
+		gitClient.EXPECT().Root().Return(root)
+		gitClient.EXPECT().IsAnnotatedTag(mock.Anything).Return(false)
 		if signed {
-			gitClient.On("VerifyCommitSignature", mock.Anything).Return(testSignature, nil)
+			gitClient.EXPECT().VerifyCommitSignature(mock.Anything).Return(testSignature, nil)
 		} else {
-			gitClient.On("VerifyCommitSignature", mock.Anything).Return("", nil)
+			gitClient.EXPECT().VerifyCommitSignature(mock.Anything).Return("", nil)
 		}
 
 		chart := "my-chart"
 		oobChart := "out-of-bounds-chart"
 		version := "1.1.0"
-		helmClient.On("GetIndex", mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
+		helmClient.EXPECT().GetIndex(mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
 			chart:    {{Version: "1.0.0"}, {Version: version}},
 			oobChart: {{Version: "1.0.0"}, {Version: version}},
 		}}, nil)
-		helmClient.On("ExtractChart", chart, version, "", false, int64(0), false).Return("./testdata/my-chart", io.NopCloser, nil)
-		helmClient.On("ExtractChart", oobChart, version, "", false, int64(0), false).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
-		helmClient.On("CleanChartCache", chart, version, "").Return(nil)
-		helmClient.On("CleanChartCache", oobChart, version, "").Return(nil)
-		helmClient.On("DependencyBuild").Return(nil)
+		helmClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
+		helmClient.EXPECT().ExtractChart(chart, version, false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
+		helmClient.EXPECT().ExtractChart(oobChart, version, false, int64(0), false).Return("./testdata2/out-of-bounds-chart", utilio.NopCloser, nil)
+		helmClient.EXPECT().CleanChartCache(chart, version).Return(nil)
+		helmClient.EXPECT().CleanChartCache(oobChart, version).Return(nil)
 
-		paths.On("Add", mock.Anything, mock.Anything).Return(root, nil)
-		paths.On("GetPath", mock.Anything).Return(root, nil)
-		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
-		paths.On("GetPaths").Return(map[string]string{"fake-nonce": root})
+		ociClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
+		ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return("./testdata/my-chart", utilio.NopCloser, nil)
+
+		paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
+		paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": root})
 	}, root)
 }
 
@@ -143,11 +151,12 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 	t.Helper()
 	helmClient := &helmmocks.Client{}
 	gitClient := &gitmocks.Client{}
+	ociClient := &ocimocks.Client{}
 	paths := &iomocks.TempPaths{}
-	cf(gitClient, helmClient, paths)
+	cf(gitClient, helmClient, ociClient, paths)
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, root)
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, root)
 
 	service.newGitClient = func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
@@ -155,8 +164,11 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 	service.newHelmClient = func(_ string, _ helm.Creds, _ bool, _ string, _ string, _ ...helm.ClientOpts) helm.Client {
 		return helmClient
 	}
+	service.newOCIClient = func(_ string, _ oci.Creds, _ string, _ string, _ []string, _ ...oci.ClientOpts) (oci.Client, error) {
+		return ociClient, nil
+	}
 	service.gitRepoInitializer = func(_ string) goio.Closer {
-		return io.NopCloser
+		return utilio.NopCloser
 	}
 	service.gitRepoPaths = paths
 	return service, gitClient, cacheMocks
@@ -183,16 +195,16 @@ func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 		revisionErr = errors.New("not a commit SHA")
 	}
 
-	service, gitClient, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
-		gitClient.On("Init").Return(nil)
-		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
-		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-		gitClient.On("LsRemote", revision).Return(revision, revisionErr)
-		gitClient.On("CommitSHA").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-		gitClient.On("Root").Return(root)
-		paths.On("GetPath", mock.Anything).Return(root, nil)
-		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
+	service, gitClient, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
+		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().LsRemote(revision).Return(revision, revisionErr)
+		gitClient.EXPECT().CommitSHA().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.EXPECT().Root().Return(root)
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
 	}, root)
 
 	service.newGitClient = func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (client git.Client, e error) {
@@ -216,18 +228,51 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	// update this value if we add/remove manifests
 	const countOfManifests = 50
 
-	res1, err := service.GenerateManifest(context.Background(), &q)
+	res1, err := service.GenerateManifest(t.Context(), &q)
 
 	require.NoError(t, err)
 	assert.Len(t, res1.Manifests, countOfManifests)
 
 	// this will test concatenated manifests to verify we split YAMLs correctly
-	res2, err := GenerateManifests(context.Background(), "./testdata/concatenated", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+	res2, err := GenerateManifests(t.Context(), "./testdata/concatenated", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	require.NoError(t, err)
 	assert.Len(t, res2.Manifests, 3)
 }
 
+func Test_GenerateManifest_KustomizeWithVersionOverride(t *testing.T) {
+	t.Parallel()
+
+	service := newService(t, "../../util/kustomize/testdata/kustomize-with-version-override")
+
+	src := v1alpha1.ApplicationSource{Path: "."}
+	q := apiclient.ManifestRequest{
+		Repo:               &v1alpha1.Repository{},
+		ApplicationSource:  &src,
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+		KustomizeOptions: &v1alpha1.KustomizeOptions{
+			Versions: []v1alpha1.KustomizeVersion{},
+		},
+	}
+
+	_, err := service.GenerateManifest(t.Context(), &q)
+	require.ErrorAs(t, err, &settings.KustomizeVersionNotRegisteredError{Version: "v1.2.3"})
+
+	q.KustomizeOptions.Versions = []v1alpha1.KustomizeVersion{
+		{
+			Name: "v1.2.3",
+			Path: "kustomize",
+		},
+	}
+
+	res, err := service.GenerateManifest(t.Context(), &q)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
+}
+
 func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name                    string
 		outOfBoundsFilename     string
@@ -281,7 +326,7 @@ func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 				Repo: &v1alpha1.Repository{}, ApplicationSource: &v1alpha1.ApplicationSource{}, ProjectName: "something",
 				ProjectSourceRepos: []string{"*"},
 			}
-			res, err := GenerateManifests(context.Background(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+			res, err := GenerateManifests(t.Context(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 			require.Error(t, err)
 			assert.NotContains(t, err.Error(), mustNotContain)
 			require.ErrorContains(t, err, "illegal filepath")
@@ -299,7 +344,7 @@ func TestGenerateManifests_MissingSymlinkDestination(t *testing.T) {
 		Repo: &v1alpha1.Repository{}, ApplicationSource: &v1alpha1.ApplicationSource{}, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	_, err = GenerateManifests(context.Background(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+	_, err = GenerateManifests(t.Context(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	require.NoError(t, err)
 }
 
@@ -320,12 +365,12 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse}, nil, "")
 	require.NoError(t, err)
 
-	res, err := service.GenerateManifest(context.Background(), &q)
+	res, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.Equal(t, cachedFakeResponse, res)
 
 	q.KubeVersion = "v1.17.0"
-	res, err = service.GenerateManifest(context.Background(), &q)
+	res, err = service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.NotEqual(t, cachedFakeResponse, res)
 	assert.Greater(t, len(res.Manifests), 1)
@@ -345,7 +390,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil}, nil, "")
 	require.NoError(t, err)
 
-	res, err := service.GenerateManifest(context.Background(), &q)
+	res, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.NotEmpty(t, res.Manifests)
 	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
@@ -354,7 +399,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 		ExternalDeletes: 1,
 	})
 	gitMocks.AssertCalled(t, "LsRemote", mock.Anything)
-	gitMocks.AssertCalled(t, "Fetch", mock.Anything)
+	gitMocks.AssertCalled(t, "Fetch", mock.Anything, mock.Anything)
 }
 
 // Test that when Generate manifest is called with a source that is ref only it does not try to generate manifests or hit the manifest cache
@@ -366,7 +411,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 	repoRemote := "file://" + repopath
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, repopath)
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, repopath)
 	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		opts = append(opts, git.WithEventHandlers(git.EventHandlers{
 			// Primary check, we want to make sure ls-remote is not called when the item is in cache
@@ -402,7 +447,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 		ProjectName:        "default",
 		ProjectSourceRepos: []string{"*"},
 	}
-	_, err := service.GenerateManifest(context.Background(), &q)
+	_, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 2,
@@ -416,21 +461,18 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 
 // Test that calling manifest generation on source helm reference helm files that when the revision is cached it does not call ls-remote
 func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
-	dir := t.TempDir()
+	// Use os.MkdirTemp instead of t.TempDir() because the async goroutine in
+	// runManifestGenAsync sets directory permissions to 0o000 (via
+	// directoryPermissionInitializer) after GenerateManifest returns, racing
+	// with t.TempDir()'s implicit RemoveAll cleanup.
+	dir, mkErr := os.MkdirTemp("", "TestGenerateManifestsHelmWithRefs_CachedNoLsRemote")
+	require.NoError(t, mkErr)
 	repopath := dir + "/tmprepo"
 	cacheMocks := newCacheMocks()
 	t.Cleanup(func() {
 		cacheMocks.mockCache.StopRedisCallback()
-		err := filepath.WalkDir(dir,
-			func(path string, _ fs.DirEntry, err error) error {
-				if err == nil {
-					return os.Chmod(path, 0o777)
-				}
-				return err
-			})
-		require.NoError(t, err)
 	})
-	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, repopath)
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, repopath)
 	var gitClient git.Client
 	var err error
 	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
@@ -451,9 +493,8 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 		createPath: true,
 		remote:     repoRemote,
 		helmChartOptions: newGitRepoHelmChartOptions{
-			chartName:    "my-chart",
-			chartVersion: "v1.0.0",
-			valuesFiles:  map[string]map[string]string{"test.yaml": {"testval": "test"}},
+			chartName:   "my-chart",
+			valuesFiles: map[string]map[string]string{"test.yaml": {"testval": "test"}},
 		},
 	})
 	src := v1alpha1.ApplicationSource{RepoURL: repoRemote, Path: ".", TargetRevision: "HEAD", Helm: &v1alpha1.ApplicationSourceHelm{
@@ -473,11 +514,11 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	}
 	err = cacheMocks.cacheutilCache.SetItem("git-refs|"+repoRemote, [][2]string{{"HEAD", revision}}, nil)
 	require.NoError(t, err)
-	_, err = service.GenerateManifest(context.Background(), &q)
+	_, err = service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 2,
-		ExternalGets: 5,
+		ExternalGets: 4,
 	})
 }
 
@@ -490,7 +531,7 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 		Repo: &v1alpha1.Repository{}, ApplicationSource: source, NoCache: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	response, err := service.GenerateManifest(context.Background(), request)
+	response, err := service.GenerateManifest(t.Context(), request)
 	require.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.Equal(t, &apiclient.ManifestResponse{
@@ -518,17 +559,17 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
 		},
 	}
-	refSources, err := argo.GetRefSources(context.Background(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
 		return &v1alpha1.Repository{
 			Repo: "https://git.example.com/test/repo",
 		}, nil
-	}, []string{}, false)
+	}, []string{})
 	require.NoError(t, err)
 	request := &apiclient.ManifestRequest{
 		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	response, err := service.GenerateManifest(context.Background(), request)
+	response, err := service.GenerateManifest(t.Context(), request)
 	require.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.Equal(t, &apiclient.ManifestResponse{
@@ -560,14 +601,14 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 		}, nil
 	}
 
-	refSources, err := argo.GetRefSources(context.Background(), spec.Sources, spec.Project, getRepository, []string{}, false)
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{})
 	require.NoError(t, err)
 
 	request := &apiclient.ManifestRequest{
 		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	response, err := service.GenerateManifest(context.Background(), request)
+	response, err := service.GenerateManifest(t.Context(), request)
 	require.Error(t, err)
 	assert.Nil(t, response)
 
@@ -575,14 +616,14 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 	service = newService(t, ".")
 
 	spec.Sources[1].Ref = "Invalid"
-	refSources, err = argo.GetRefSources(context.Background(), spec.Sources, spec.Project, getRepository, []string{}, false)
+	refSources, err = argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{})
 	require.NoError(t, err)
 
 	request = &apiclient.ManifestRequest{
 		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	response, err = service.GenerateManifest(context.Background(), request)
+	response, err = service.GenerateManifest(t.Context(), request)
 	require.Error(t, err)
 	assert.Nil(t, response)
 
@@ -591,14 +632,14 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 
 	spec.Sources[1].Ref = "ref"
 	spec.Sources[1].Chart = "helm-chart"
-	refSources, err = argo.GetRefSources(context.Background(), spec.Sources, spec.Project, getRepository, []string{}, false)
+	refSources, err = argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{})
 	require.NoError(t, err)
 
 	request = &apiclient.ManifestRequest{
 		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	response, err = service.GenerateManifest(context.Background(), request)
+	response, err = service.GenerateManifest(t.Context(), request)
 	require.Error(t, err)
 	assert.Nil(t, response)
 }
@@ -627,14 +668,14 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
 		},
 	}
-	refSources, err := argo.GetRefSources(context.Background(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
 		return &v1alpha1.Repository{
 			Repo: "https://git.example.com/test/repo",
 		}, nil
-	}, []string{}, false)
+	}, []string{})
 	require.NoError(t, err)
 	request := &apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true}
-	_, err = service.GenerateManifest(context.Background(), request)
+	_, err = service.GenerateManifest(t.Context(), request)
 	require.Error(t, err)
 }
 
@@ -648,7 +689,7 @@ func TestGenerateManifestsUseExactRevision(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	res1, err := service.GenerateManifest(context.Background(), &q)
+	res1, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 	assert.Equal(t, "abc", gitClient.Calls[0].Arguments[0])
@@ -664,7 +705,7 @@ func TestRecurseManifestsInDir(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	res1, err := service.GenerateManifest(context.Background(), &q)
+	res1, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 }
@@ -676,8 +717,19 @@ func TestInvalidManifestsInDir(t *testing.T) {
 
 	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src}
 
-	_, err := service.GenerateManifest(context.Background(), &q)
+	_, err := service.GenerateManifest(t.Context(), &q)
 	require.Error(t, err)
+}
+
+func TestSkippedInvalidManifestsInDir(t *testing.T) {
+	service := newService(t, ".")
+
+	src := v1alpha1.ApplicationSource{Path: "./testdata/invalid-manifests-skipped", Directory: &v1alpha1.ApplicationSourceDirectory{Recurse: true}}
+
+	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src}
+
+	_, err := service.GenerateManifest(t.Context(), &q)
+	require.NoError(t, err)
 }
 
 func TestInvalidMetadata(t *testing.T) {
@@ -685,7 +737,7 @@ func TestInvalidMetadata(t *testing.T) {
 
 	src := v1alpha1.ApplicationSource{Path: "./testdata/invalid-metadata", Directory: &v1alpha1.ApplicationSourceDirectory{Recurse: true}}
 	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "invalid-metadata", TrackingMethod: "annotation+label"}
-	_, err := service.GenerateManifest(context.Background(), &q)
+	_, err := service.GenerateManifest(t.Context(), &q)
 	assert.ErrorContains(t, err, "contains non-string value in the map under key \"invalid\"")
 }
 
@@ -695,7 +747,7 @@ func TestNilMetadataAccessors(t *testing.T) {
 
 	src := v1alpha1.ApplicationSource{Path: "./testdata/nil-metadata-accessors", Directory: &v1alpha1.ApplicationSourceDirectory{Recurse: true}}
 	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "nil-metadata-accessors", TrackingMethod: "annotation+label"}
-	res, err := service.GenerateManifest(context.Background(), &q)
+	res, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.Len(t, res.Manifests, 1)
 	assert.Equal(t, expected, res.Manifests[0])
@@ -719,7 +771,7 @@ func TestGenerateJsonnetManifestInDir(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	res1, err := service.GenerateManifest(context.Background(), &q)
+	res1, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 }
@@ -742,7 +794,7 @@ func TestGenerateJsonnetManifestInRootDir(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	res1, err := service.GenerateManifest(context.Background(), &q)
+	res1, err := service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 }
@@ -763,7 +815,7 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	_, err := service.GenerateManifest(context.Background(), &q)
+	_, err := service.GenerateManifest(t.Context(), &q)
 	require.ErrorContains(t, err, "file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
 }
 
@@ -841,7 +893,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 					},
 				}
 
-				res, err := service.GenerateManifest(context.Background(), manifestRequest)
+				res, err := service.GenerateManifest(t.Context(), manifestRequest)
 
 				// Verify invariant: res != nil xor err != nil
 				if err != nil {
@@ -894,7 +946,7 @@ func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 		PauseGenerationOnFailureForRequests:          4,
 	}
 
-	for step := 0; step < 3; step++ {
+	for step := range 3 {
 		// step 1) Attempt to generate manifests against invalid helm chart (should return uncached error)
 		// step 2) Attempt to generate manifest against valid helm chart (should succeed and return valid response)
 		// step 3) Attempt to generate manifest against invalid helm chart (should return cached value from step 2)
@@ -916,7 +968,7 @@ func TestManifestGenErrorCacheFileContentsChange(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -973,8 +1025,8 @@ func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
 			}
 
 			// 1) Put the cache into the failure state
-			for x := 0; x < 2; x++ {
-				res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			for x := range 2 {
+				res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 					Repo:    &v1alpha1.Repository{},
 					AppName: "test",
 					ApplicationSource: &v1alpha1.ApplicationSource{
@@ -992,7 +1044,7 @@ func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
 
 			// 2) Jump forward X-1 minutes in time, where X is the expiration boundary
 			currentTime = currentTime.Add(time.Duration(tt.PauseGenerationOnFailureForMinutes-1) * time.Minute)
-			res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo:    &v1alpha1.Repository{},
 				AppName: "test",
 				ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1007,7 +1059,7 @@ func TestManifestGenErrorCacheByMinutesElapsed(t *testing.T) {
 			// 4) Jump forward 2 minutes in time, such that the pause generation time has elapsed and we should return to normal state
 			currentTime = currentTime.Add(2 * time.Minute)
 
-			res, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			res, err = service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo:    &v1alpha1.Repository{},
 				AppName: "test",
 				ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1033,8 +1085,8 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 	}
 
 	// 1) Put the cache into the failure state
-	for x := 0; x < 2; x++ {
-		res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	for x := range 2 {
+		res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1051,7 +1103,7 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 	}
 
 	// 2) Call generateManifest with NoCache enabled
-	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1065,7 +1117,7 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 	assert.False(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
 
 	// 4) Call generateManifest
-	res, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	res, err = service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1078,10 +1130,31 @@ func TestManifestGenErrorCacheRespectsNoCache(t *testing.T) {
 	assert.True(t, strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix))
 }
 
+func TestGenerateHelmKubeVersion(t *testing.T) {
+	service := newService(t, "../../util/helm/testdata/redis")
+
+	res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
+		Repo:    &v1alpha1.Repository{},
+		AppName: "test",
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path: ".",
+			Helm: &v1alpha1.ApplicationSourceHelm{
+				KubeVersion: "1.30.11+IKS",
+			},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	})
+
+	require.NoError(t, err)
+	assert.Len(t, res.Commands, 1)
+	assert.Contains(t, res.Commands[0], "--kube-version 1.30.11")
+}
+
 func TestGenerateHelmWithValues(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/redis")
 
-	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1132,19 +1205,19 @@ func TestHelmWithMissingValueFiles(t *testing.T) {
 	}
 
 	// Should fail since we're passing a non-existent values file, and error should indicate that
-	_, err := service.GenerateManifest(context.Background(), req)
+	_, err := service.GenerateManifest(t.Context(), req)
 	require.ErrorContains(t, err, missingValuesFile+": no such file or directory")
 
 	// Should template without error even if defining a non-existent values file
 	req.ApplicationSource.Helm.IgnoreMissingValueFiles = true
-	_, err = service.GenerateManifest(context.Background(), req)
+	_, err = service.GenerateManifest(t.Context(), req)
 	require.NoError(t, err)
 }
 
 func TestGenerateHelmWithEnvVars(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/redis")
 
-	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "production",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1180,7 +1253,7 @@ func TestGenerateHelmWithEnvVars(t *testing.T) {
 // since the requested value is still under the repo directory (`~/go/src/github.com/argoproj/argo-cd`), it is allowed
 func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata")
-	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1197,7 +1270,7 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 
 	// Test the case where the path is "."
 	service = newService(t, "./testdata")
-	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	_, err = service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1213,7 +1286,7 @@ func TestChartRepoWithOutOfBoundsSymlink(t *testing.T) {
 	service := newService(t, ".")
 	source := &v1alpha1.ApplicationSource{Chart: "out-of-bounds-chart", TargetRevision: ">= 1.0.0"}
 	request := &apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: source, NoCache: true}
-	_, err := service.GenerateManifest(context.Background(), request)
+	_, err := service.GenerateManifest(t.Context(), request)
 	assert.ErrorContains(t, err, "chart contains out-of-bounds symlinks")
 }
 
@@ -1235,7 +1308,7 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	response, err := service.GenerateManifest(context.Background(), request)
+	response, err := service.GenerateManifest(t.Context(), request)
 	require.NoError(t, err)
 	assert.NotNil(t, response)
 	assert.Equal(t, &apiclient.ManifestResponse{
@@ -1260,7 +1333,7 @@ func TestHelmManifestFromChartRepoWithValueFileOutsideRepo(t *testing.T) {
 		},
 	}
 	request := &apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: source, NoCache: true}
-	_, err := service.GenerateManifest(context.Background(), request)
+	_, err := service.GenerateManifest(t.Context(), request)
 	require.Error(t, err)
 }
 
@@ -1278,7 +1351,7 @@ func TestHelmManifestFromChartRepoWithValueFileLinks(t *testing.T) {
 			Repo: &v1alpha1.Repository{}, ApplicationSource: source, NoCache: true, ProjectName: "something",
 			ProjectSourceRepos: []string{"*"},
 		}
-		_, err := service.GenerateManifest(context.Background(), request)
+		_, err := service.GenerateManifest(t.Context(), request)
 		require.NoError(t, err)
 	})
 }
@@ -1286,7 +1359,7 @@ func TestHelmManifestFromChartRepoWithValueFileLinks(t *testing.T) {
 func TestGenerateHelmWithURL(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/redis")
 
-	_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1308,7 +1381,7 @@ func TestGenerateHelmWithURL(t *testing.T) {
 func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 	t.Run("Values file with relative path pointing outside repo root", func(t *testing.T) {
 		service := newService(t, "../../util/helm/testdata/redis")
-		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1326,7 +1399,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 
 	t.Run("Values file with relative path pointing inside repo root", func(t *testing.T) {
 		service := newService(t, "./testdata")
-		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1344,7 +1417,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 
 	t.Run("Values file with absolute path stays within repo root", func(t *testing.T) {
 		service := newService(t, "./testdata")
-		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1362,7 +1435,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 
 	t.Run("Values file with absolute path using back-references outside repo root", func(t *testing.T) {
 		service := newService(t, "./testdata")
-		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1380,7 +1453,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 
 	t.Run("Remote values file from forbidden protocol", func(t *testing.T) {
 		service := newService(t, "./testdata")
-		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1398,7 +1471,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 
 	t.Run("Remote values file from custom allowed protocol", func(t *testing.T) {
 		service := newService(t, "./testdata")
-		_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:    &v1alpha1.Repository{},
 			AppName: "test",
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1419,7 +1492,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 	service := newService(t, "../..")
 
-	file, err := os.CreateTemp("", "external-secret.txt")
+	file, err := os.CreateTemp(t.TempDir(), "external-secret.txt")
 	require.NoError(t, err)
 	externalSecretPath := file.Name()
 	defer func() { _ = os.RemoveAll(externalSecretPath) }()
@@ -1433,7 +1506,7 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 		}
 	}()
 
-	_, err = service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	_, err = service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1460,7 +1533,7 @@ func TestGenerateHelmWithAbsoluteFileParameter(t *testing.T) {
 func TestGenerateHelmWithFileParameter(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata")
 
-	res, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+	res, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 		Repo:    &v1alpha1.Repository{},
 		AppName: "test",
 		ApplicationSource: &v1alpha1.ApplicationSource{
@@ -1486,7 +1559,7 @@ func TestGenerateNullList(t *testing.T) {
 	service := newService(t, ".")
 
 	t.Run("null list", func(t *testing.T) {
-		res1, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		res1, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:               &v1alpha1.Repository{},
 			ApplicationSource:  &v1alpha1.ApplicationSource{Path: "./testdata/null-list"},
 			NoCache:            true,
@@ -1499,7 +1572,7 @@ func TestGenerateNullList(t *testing.T) {
 	})
 
 	t.Run("empty list", func(t *testing.T) {
-		res1, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		res1, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:               &v1alpha1.Repository{},
 			ApplicationSource:  &v1alpha1.ApplicationSource{Path: "./testdata/empty-list"},
 			NoCache:            true,
@@ -1512,7 +1585,7 @@ func TestGenerateNullList(t *testing.T) {
 	})
 
 	t.Run("weird list", func(t *testing.T) {
-		res1, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+		res1, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 			Repo:               &v1alpha1.Repository{},
 			ApplicationSource:  &v1alpha1.ApplicationSource{Path: "./testdata/weird-list"},
 			NoCache:            true,
@@ -1525,15 +1598,15 @@ func TestGenerateNullList(t *testing.T) {
 }
 
 func TestIdentifyAppSourceTypeByAppDirWithKustomizations(t *testing.T) {
-	sourceType, err := GetAppSourceType(context.Background(), &v1alpha1.ApplicationSource{}, "./testdata/kustomization_yaml", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
+	sourceType, err := GetAppSourceType(t.Context(), &v1alpha1.ApplicationSource{}, "./testdata/kustomization_yaml", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
 	require.NoError(t, err)
 	assert.Equal(t, v1alpha1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(context.Background(), &v1alpha1.ApplicationSource{}, "./testdata/kustomization_yml", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
+	sourceType, err = GetAppSourceType(t.Context(), &v1alpha1.ApplicationSource{}, "./testdata/kustomization_yml", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
 	require.NoError(t, err)
 	assert.Equal(t, v1alpha1.ApplicationSourceTypeKustomize, sourceType)
 
-	sourceType, err = GetAppSourceType(context.Background(), &v1alpha1.ApplicationSource{}, "./testdata/Kustomization", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
+	sourceType, err = GetAppSourceType(t.Context(), &v1alpha1.ApplicationSource{}, "./testdata/Kustomization", "./testdata", "testapp", map[string]bool{}, []string{}, []string{})
 	require.NoError(t, err)
 	assert.Equal(t, v1alpha1.ApplicationSourceTypeKustomize, sourceType)
 }
@@ -1545,7 +1618,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	res1, err := GenerateManifests(context.Background(), "./testdata/utf-16", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
+	res1, err := GenerateManifests(t.Context(), "./testdata/utf-16", "/", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	require.NoError(t, err)
 	assert.Len(t, res1.Manifests, 2)
 }
@@ -1553,7 +1626,7 @@ func TestGenerateFromUTF16(t *testing.T) {
 func TestListApps(t *testing.T) {
 	service := newService(t, "./testdata")
 
-	res, err := service.ListApps(context.Background(), &apiclient.ListAppsRequest{Repo: &v1alpha1.Repository{}})
+	res, err := service.ListApps(t.Context(), &apiclient.ListAppsRequest{Repo: &v1alpha1.Repository{}})
 	require.NoError(t, err)
 
 	expectedApps := map[string]string{
@@ -1584,7 +1657,7 @@ func TestListApps(t *testing.T) {
 func TestGetAppDetailsHelm(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/dependency")
 
-	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+	res, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 		Repo: &v1alpha1.Repository{},
 		Source: &v1alpha1.ApplicationSource{
 			Path: ".",
@@ -1595,13 +1668,13 @@ func TestGetAppDetailsHelm(t *testing.T) {
 	assert.NotNil(t, res.Helm)
 
 	assert.Equal(t, "Helm", res.Type)
-	assert.EqualValues(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
+	assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
 
 func TestGetAppDetailsHelmUsesCache(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/dependency")
 
-	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+	res, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 		Repo: &v1alpha1.Repository{},
 		Source: &v1alpha1.ApplicationSource{
 			Path: ".",
@@ -1612,13 +1685,13 @@ func TestGetAppDetailsHelmUsesCache(t *testing.T) {
 	assert.NotNil(t, res.Helm)
 
 	assert.Equal(t, "Helm", res.Type)
-	assert.EqualValues(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
+	assert.Equal(t, []string{"values-production.yaml", "values.yaml"}, res.Helm.ValueFiles)
 }
 
 func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/api-versions")
 
-	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+	res, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 		Repo: &v1alpha1.Repository{},
 		Source: &v1alpha1.ApplicationSource{
 			Path: ".",
@@ -1630,13 +1703,13 @@ func TestGetAppDetailsHelm_WithNoValuesFile(t *testing.T) {
 
 	assert.Equal(t, "Helm", res.Type)
 	assert.Empty(t, res.Helm.ValueFiles)
-	assert.Equal(t, "", res.Helm.Values)
+	assert.Empty(t, res.Helm.Values)
 }
 
 func TestGetAppDetailsKustomize(t *testing.T) {
 	service := newService(t, "../../util/kustomize/testdata/kustomization_yaml")
 
-	res, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+	res, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 		Repo: &v1alpha1.Repository{},
 		Source: &v1alpha1.ApplicationSource{
 			Path: ".",
@@ -1647,12 +1720,38 @@ func TestGetAppDetailsKustomize(t *testing.T) {
 
 	assert.Equal(t, "Kustomize", res.Type)
 	assert.NotNil(t, res.Kustomize)
-	assert.EqualValues(t, []string{"nginx:1.15.4", "registry.k8s.io/nginx-slim:0.8"}, res.Kustomize.Images)
+	assert.Equal(t, []string{"nginx:1.15.4", "registry.k8s.io/nginx-slim:0.8"}, res.Kustomize.Images)
+}
+
+func TestGetAppDetailsKustomize_CustomVersion(t *testing.T) {
+	service := newService(t, "../../util/kustomize/testdata/kustomize-with-version-override")
+
+	q := &apiclient.RepoServerAppDetailsQuery{
+		Repo: &v1alpha1.Repository{},
+		Source: &v1alpha1.ApplicationSource{
+			Path: ".",
+		},
+		KustomizeOptions: &v1alpha1.KustomizeOptions{},
+	}
+
+	_, err := service.GetAppDetails(t.Context(), q)
+	require.ErrorAs(t, err, &settings.KustomizeVersionNotRegisteredError{Version: "v1.2.3"})
+
+	q.KustomizeOptions.Versions = []v1alpha1.KustomizeVersion{
+		{
+			Name: "v1.2.3",
+			Path: "kustomize",
+		},
+	}
+
+	res, err := service.GetAppDetails(t.Context(), q)
+	require.NoError(t, err)
+	assert.Equal(t, "Kustomize", res.Type)
 }
 
 func TestGetHelmCharts(t *testing.T) {
 	service := newService(t, "../..")
-	res, err := service.GetHelmCharts(context.Background(), &apiclient.HelmChartsRequest{Repo: &v1alpha1.Repository{}})
+	res, err := service.GetHelmCharts(t.Context(), &apiclient.HelmChartsRequest{Repo: &v1alpha1.Repository{}})
 
 	// fix flakiness
 	sort.Slice(res.Items, func(i, j int) bool {
@@ -1664,25 +1763,39 @@ func TestGetHelmCharts(t *testing.T) {
 
 	item := res.Items[0]
 	assert.Equal(t, "my-chart", item.Name)
-	assert.EqualValues(t, []string{"1.0.0", "1.1.0"}, item.Versions)
+	assert.Equal(t, []string{"1.0.0", "1.1.0"}, item.Versions)
 
 	item2 := res.Items[1]
 	assert.Equal(t, "out-of-bounds-chart", item2.Name)
-	assert.EqualValues(t, []string{"1.0.0", "1.1.0"}, item2.Versions)
+	assert.Equal(t, []string{"1.0.0", "1.1.0"}, item2.Versions)
 }
 
 func TestGetRevisionMetadata(t *testing.T) {
 	service, gitClient, _ := newServiceWithMocks(t, "../..", false)
 	now := time.Now()
 
-	gitClient.On("RevisionMetadata", mock.Anything).Return(&git.RevisionMetadata{
+	gitClient.EXPECT().RevisionMetadata(mock.Anything).Return(&git.RevisionMetadata{
 		Message: "test",
 		Author:  "author",
 		Date:    now,
 		Tags:    []string{"tag1", "tag2"},
+		References: []git.RevisionReference{
+			{
+				Commit: &git.CommitMetadata{
+					Author: mail.Address{
+						Name:    "test-name",
+						Address: "test-email@example.com",
+					},
+					Date:    now.Format(time.RFC3339),
+					Subject: "test-subject",
+					SHA:     "test-sha",
+					RepoURL: "test-repo-url",
+				},
+			},
+		},
 	}, nil)
 
-	res, err := service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+	res, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &v1alpha1.Repository{},
 		Revision:       "c0b400fc458875d925171398f9ba9eabd5529923",
 		CheckSignature: true,
@@ -1692,11 +1805,14 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, "test", res.Message)
 	assert.Equal(t, now, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
-	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
+	assert.Equal(t, []string{"tag1", "tag2"}, res.Tags)
 	assert.NotEmpty(t, res.SignatureInfo)
+	require.Len(t, res.References, 1)
+	require.NotNil(t, res.References[0].Commit)
+	assert.Equal(t, "test-sha", res.References[0].Commit.SHA)
 
 	// Check for truncated revision value
-	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &v1alpha1.Repository{},
 		Revision:       "c0b400f",
 		CheckSignature: true,
@@ -1706,11 +1822,11 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Equal(t, "test", res.Message)
 	assert.Equal(t, now, res.Date.Time)
 	assert.Equal(t, "author", res.Author)
-	assert.EqualValues(t, []string{"tag1", "tag2"}, res.Tags)
+	assert.Equal(t, []string{"tag1", "tag2"}, res.Tags)
 	assert.NotEmpty(t, res.SignatureInfo)
 
 	// Cache hit - signature info should not be in result
-	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &v1alpha1.Repository{},
 		Revision:       "c0b400fc458875d925171398f9ba9eabd5529923",
 		CheckSignature: false,
@@ -1719,7 +1835,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Empty(t, res.SignatureInfo)
 
 	// Enforce cache miss - signature info should not be in result
-	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &v1alpha1.Repository{},
 		Revision:       "da52afd3b2df1ec49470603d8bbb46954dab1091",
 		CheckSignature: false,
@@ -1728,7 +1844,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.Empty(t, res.SignatureInfo)
 
 	// Cache hit on previous entry that did not have signature info
-	res, err = service.GetRevisionMetadata(context.Background(), &apiclient.RepoServerRevisionMetadataRequest{
+	res, err = service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
 		Repo:           &v1alpha1.Repository{},
 		Revision:       "da52afd3b2df1ec49470603d8bbb46954dab1091",
 		CheckSignature: true,
@@ -1751,7 +1867,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 			ProjectSourceRepos: []string{"*"},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
 		assert.Equal(t, testSignature, res.VerifyResult)
 	}
@@ -1765,7 +1881,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 			ProjectSourceRepos: []string{"*"},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
 		assert.Empty(t, res.VerifyResult)
 	}
@@ -1779,7 +1895,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 			ProjectSourceRepos: []string{"*"},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
 		assert.Empty(t, res.VerifyResult)
 	}
@@ -1793,7 +1909,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 			ProjectSourceRepos: []string{"*"},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
 		assert.Empty(t, res.VerifyResult)
 	}
@@ -1826,12 +1942,12 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 	service := newService(t, ".")
 
 	t.Run("EmptyRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "", "", true)
-		assert.EqualError(t, err, "invalid revision '': improper constraint: ")
+		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "", "my-chart", true)
+		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ")
 	})
 	t.Run("InvalidRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "???", "", true)
-		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???", true)
+		_, _, err := service.newHelmClientResolveRevision(&v1alpha1.Repository{}, "???", "my-chart", true)
+		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ???")
 	})
 }
 
@@ -1840,21 +1956,21 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
 			t.Helper()
-			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			details, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &v1alpha1.Repository{},
 				Source: &v1alpha1.ApplicationSource{
 					Path: path,
 				},
 			})
 			require.NoError(t, err)
-			assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("No app specific override", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-global", func(t *testing.T, path string) {
 			t.Helper()
-			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			details, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &v1alpha1.Repository{},
 				Source: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -1862,14 +1978,14 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "testapp",
 			})
 			require.NoError(t, err)
-			assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.2"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("Only app specific override", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
 			t.Helper()
-			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			details, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &v1alpha1.Repository{},
 				Source: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -1877,14 +1993,14 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "testapp",
 			})
 			require.NoError(t, err)
-			assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.3"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("App specific override", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
 			t.Helper()
-			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			details, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &v1alpha1.Repository{},
 				Source: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -1892,14 +2008,14 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "testapp",
 			})
 			require.NoError(t, err)
-			assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.3"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("App specific overrides containing non-mergeable field", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
 			t.Helper()
-			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			details, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &v1alpha1.Repository{},
 				Source: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -1907,14 +2023,14 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 				AppName: "unmergeable",
 			})
 			require.NoError(t, err)
-			assert.EqualValues(t, []string{"gcr.io/heptio-images/ks-guestbook-demo:0.3"}, details.Kustomize.Images)
+			assert.Equal(t, []string{"quay.io/argoprojlabs/argocd-e2e-container:0.3"}, details.Kustomize.Images)
 		})
 	})
 	t.Run("Broken app-specific overrides", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
 			t.Helper()
-			_, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
+			_, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &v1alpha1.Repository{},
 				Source: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -1929,12 +2045,12 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 // There are unit test that will use kustomize set and by that modify the
 // kustomization.yaml. For proper testing, we need to copy the testdata to a
 // temporary path, run the tests, and then throw the copy away again.
-func mkTempParameters(source string) string {
+func mkTempParameters(ctx context.Context, source string) string {
 	tempDir, err := os.MkdirTemp("./testdata", "app-parameters")
 	if err != nil {
 		panic(err)
 	}
-	cmd := exec.Command("cp", "-R", source, tempDir)
+	cmd := exec.CommandContext(ctx, "cp", "-R", source, tempDir)
 	err = cmd.Run()
 	if err != nil {
 		os.RemoveAll(tempDir)
@@ -1947,7 +2063,7 @@ func mkTempParameters(source string) string {
 // the test would modify the data when run.
 func runWithTempTestdata(t *testing.T, path string, runner func(t *testing.T, path string)) {
 	t.Helper()
-	tempDir := mkTempParameters("./testdata/app-parameters")
+	tempDir := mkTempParameters(t.Context(), "./testdata/app-parameters")
 	runner(t, filepath.Join(tempDir, "app-parameters", path))
 	os.RemoveAll(tempDir)
 }
@@ -1957,7 +2073,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		runWithTempTestdata(t, "single-global", func(t *testing.T, path string) {
 			t.Helper()
 			service := newService(t, ".")
-			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			manifests, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -1979,7 +2095,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.2", image)
 		})
 	})
 
@@ -1987,7 +2103,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		runWithTempTestdata(t, "single-global-helm", func(t *testing.T, path string) {
 			t.Helper()
 			service := newService(t, ".")
-			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			manifests, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -2009,7 +2125,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.2", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.2", image)
 		})
 	})
 
@@ -2017,7 +2133,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
 			t.Helper()
-			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			manifests, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -2040,7 +2156,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.3", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.3", image)
 		})
 	})
 
@@ -2048,7 +2164,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, _ string) {
 			t.Helper()
-			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			manifests, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
 					Path:  "",
@@ -2070,7 +2186,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
 			t.Helper()
-			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			manifests, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
 					Path: path,
@@ -2093,7 +2209,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			require.True(t, ok)
 			image, ok, _ := unstructured.NestedString(containers[0].(map[string]any), "image")
 			require.True(t, ok)
-			assert.Equal(t, "gcr.io/heptio-images/ks-guestbook-demo:0.1", image)
+			assert.Equal(t, "quay.io/argoprojlabs/argocd-e2e-container:0.1", image)
 		})
 	})
 
@@ -2105,7 +2221,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 				Path: path,
 			}
 			sourceCopy := source.DeepCopy() // make a copy in case GenerateManifest mutates it.
-			_, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
+			_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
 				Repo:               &v1alpha1.Repository{},
 				ApplicationSource:  sourceCopy,
 				AppName:            "test",
@@ -2138,7 +2254,7 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 	}{
 		{
 			name: "Case: Git tag hash matches latest commit SHA (regular tag)",
-			ctx:  context.Background(),
+			ctx:  t.Context(),
 			manifestRequest: &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
@@ -2154,7 +2270,7 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 
 		{
 			name: "Case: Git tag hash does not match latest commit SHA (annotated tag)",
-			ctx:  context.Background(),
+			ctx:  t.Context(),
 			manifestRequest: &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
@@ -2170,7 +2286,7 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 
 		{
 			name: "Case: Git tag hash is invalid",
-			ctx:  context.Background(),
+			ctx:  t.Context(),
 			manifestRequest: &apiclient.ManifestRequest{
 				Repo: &v1alpha1.Repository{},
 				ApplicationSource: &v1alpha1.ApplicationSource{
@@ -2225,7 +2341,7 @@ func TestGenerateManifestWithAnnotatedTagsAndMultiSourceApp(t *testing.T) {
 		RefSources:         refSources,
 	}
 
-	response, err := service.GenerateManifest(context.Background(), manifestRequest)
+	response, err := service.GenerateManifest(t.Context(), manifestRequest)
 	require.NoError(t, err)
 	assert.Equalf(t, response.Revision, annotatedGitTaghash, "returned SHA %s is different from expected annotated tag %s", response.Revision, annotatedGitTaghash)
 }
@@ -2279,7 +2395,7 @@ func TestGenerateMultiSourceHelmWithFileParameter(t *testing.T) {
 				RefSources:         tc.refSources,
 			}
 
-			res, err := service.GenerateManifest(context.Background(), manifestRequest)
+			res, err := service.GenerateManifest(t.Context(), manifestRequest)
 
 			if !tc.expectedErr {
 				require.NoError(t, err)
@@ -2631,10 +2747,13 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 	t.Run("circular link should throw an error", func(t *testing.T) {
 		const testDir = "./testdata/circular-link"
 		require.DirExists(t, testDir)
-		require.NoError(t, fileutil.CreateSymlink(t, testDir, "a.json", "b.json"))
-		defer os.Remove(path.Join(testDir, "a.json"))
-		require.NoError(t, fileutil.CreateSymlink(t, testDir, "b.json", "a.json"))
-		defer os.Remove(path.Join(testDir, "b.json"))
+		t.Cleanup(func() {
+			os.Remove(path.Join(testDir, "a.json"))
+			os.Remove(path.Join(testDir, "b.json"))
+		})
+		t.Chdir(testDir)
+		require.NoError(t, fileutil.CreateSymlink(t, "a.json", "b.json"))
+		require.NoError(t, fileutil.CreateSymlink(t, "b.json", "a.json"))
 		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", false, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.Error(t, err)
@@ -2731,10 +2850,13 @@ func Test_findManifests(t *testing.T) {
 	t.Run("circular link should throw an error", func(t *testing.T) {
 		const testDir = "./testdata/circular-link"
 		require.DirExists(t, testDir)
-		require.NoError(t, fileutil.CreateSymlink(t, testDir, "a.json", "b.json"))
-		defer os.Remove(path.Join(testDir, "a.json"))
-		require.NoError(t, fileutil.CreateSymlink(t, testDir, "b.json", "a.json"))
-		defer os.Remove(path.Join(testDir, "b.json"))
+		t.Cleanup(func() {
+			os.Remove(path.Join(testDir, "a.json"))
+			os.Remove(path.Join(testDir, "b.json"))
+		})
+		t.Chdir(testDir)
+		require.NoError(t, fileutil.CreateSymlink(t, "a.json", "b.json"))
+		require.NoError(t, fileutil.CreateSymlink(t, "b.json", "a.json"))
 		manifests, err := findManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", nil, noRecurse, nil, resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.Error(t, err)
@@ -2810,6 +2932,13 @@ func Test_findManifests(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("invalid manifest containing '+argocd:skip-file-rendering' doesn't throw an error", func(t *testing.T) {
+		require.DirExists(t, "./testdata/invalid-manifests-skipped")
+		manifests, err := findManifests(logCtx, "./testdata/invalid-manifests-skipped", "./testdata/invalid-manifests-skipped", nil, noRecurse, nil, resource.MustParse("0"))
+		assert.Empty(t, manifests)
+		require.NoError(t, err)
+	})
+
 	t.Run("irrelevant YAML gets skipped, relevant YAML gets parsed", func(t *testing.T) {
 		manifests, err := findManifests(logCtx, "./testdata/irrelevant-yaml", "./testdata/irrelevant-yaml", nil, noRecurse, nil, resource.MustParse("0"))
 		assert.Len(t, manifests, 1)
@@ -2843,9 +2972,9 @@ func Test_findManifests(t *testing.T) {
 	})
 }
 
-func TestTestRepoOCI(t *testing.T) {
+func TestTestRepoHelmOCI(t *testing.T) {
 	service := newService(t, ".")
-	_, err := service.TestRepository(context.Background(), &apiclient.TestRepositoryRequest{
+	_, err := service.TestRepository(t.Context(), &apiclient.TestRepositoryRequest{
 		Repo: &v1alpha1.Repository{
 			Repo:      "https://demo.goharbor.io",
 			Type:      "helm",
@@ -2867,18 +2996,23 @@ func Test_getHelmDependencyRepos(t *testing.T) {
 }
 
 func TestResolveRevision(t *testing.T) {
-	service := newService(t, ".")
+	expectedRevision := "03b17e0233e64787ffb5fcf65c740cc2a20822ba"
+	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().LsRemote("v2.2.2").Return(expectedRevision, nil)
+		gitClient.EXPECT().Root().Return(".")
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+	}, ".")
 	repo := &v1alpha1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
 	app := &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}
-	resolveRevisionResponse, err := service.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
+	resolveRevisionResponse, err := service.ResolveRevision(t.Context(), &apiclient.ResolveRevisionRequest{
 		Repo:              repo,
 		App:               app,
 		AmbiguousRevision: "v2.2.2",
 	})
 
 	expectedResolveRevisionResponse := &apiclient.ResolveRevisionResponse{
-		Revision:          "03b17e0233e64787ffb5fcf65c740cc2a20822ba",
-		AmbiguousRevision: "v2.2.2 (03b17e0233e64787ffb5fcf65c740cc2a20822ba)",
+		Revision:          expectedRevision,
+		AmbiguousRevision: fmt.Sprintf("v2.2.2 (%s)", expectedRevision),
 	}
 
 	assert.NotNil(t, resolveRevisionResponse.Revision)
@@ -2887,10 +3021,14 @@ func TestResolveRevision(t *testing.T) {
 }
 
 func TestResolveRevisionNegativeScenarios(t *testing.T) {
-	service := newService(t, ".")
+	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().LsRemote("v2.a.2").Return("", fmt.Errorf("unable to resolve '%s' to a commit SHA", "v2.a.2"))
+		gitClient.EXPECT().Root().Return(".")
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+	}, ".")
 	repo := &v1alpha1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
 	app := &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}
-	resolveRevisionResponse, err := service.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
+	resolveRevisionResponse, err := service.ResolveRevision(t.Context(), &apiclient.ResolveRevisionRequest{
 		Repo:              repo,
 		App:               app,
 		AmbiguousRevision: "v2.a.2",
@@ -2911,7 +3049,7 @@ func TestDirectoryPermissionInitializer(t *testing.T) {
 
 	file, err := os.CreateTemp(dir, "")
 	require.NoError(t, err)
-	io.Close(file)
+	utilio.Close(file)
 
 	// remove read permissions
 	require.NoError(t, os.Chmod(dir, 0o000))
@@ -2928,13 +3066,14 @@ func TestDirectoryPermissionInitializer(t *testing.T) {
 	require.NoError(t, err)
 
 	// make sure permission are removed by closer
-	io.Close(closer)
+	utilio.Close(closer)
 	_, err = os.ReadFile(file.Name())
 	require.Error(t, err)
 }
 
 func addHelmToGitRepo(t *testing.T, options newGitRepoOptions) {
 	t.Helper()
+	ctx := t.Context()
 	err := os.WriteFile(filepath.Join(options.path, "Chart.yaml"), []byte("name: test\nversion: v1.0.0"), 0o777)
 	require.NoError(t, err)
 	for valuesFileName, values := range options.helmChartOptions.valuesFiles {
@@ -2944,10 +3083,10 @@ func addHelmToGitRepo(t *testing.T, options newGitRepoOptions) {
 		require.NoError(t, err)
 	}
 	require.NoError(t, err)
-	cmd := exec.Command("git", "add", "-A")
+	cmd := exec.CommandContext(ctx, "git", "add", "-A")
 	cmd.Dir = options.path
 	require.NoError(t, cmd.Run())
-	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd = exec.CommandContext(ctx, "git", "commit", "-m", "Initial commit")
 	cmd.Dir = options.path
 	require.NoError(t, cmd.Run())
 }
@@ -2957,20 +3096,21 @@ func initGitRepo(t *testing.T, options newGitRepoOptions) (revision string) {
 	if options.createPath {
 		require.NoError(t, os.Mkdir(options.path, 0o755))
 	}
+	ctx := t.Context()
 
-	cmd := exec.Command("git", "init", "-b", "main", options.path)
+	cmd := exec.CommandContext(ctx, "git", "init", "-b", "main", options.path)
 	cmd.Dir = options.path
 	require.NoError(t, cmd.Run())
 
 	if options.remote != "" {
-		cmd = exec.Command("git", "remote", "add", "origin", options.path)
+		cmd = exec.CommandContext(ctx, "git", "remote", "add", "origin", options.path)
 		cmd.Dir = options.path
 		require.NoError(t, cmd.Run())
 	}
 
 	commitAdded := options.addEmptyCommit || options.helmChartOptions.chartName != ""
 	if options.addEmptyCommit {
-		cmd = exec.Command("git", "commit", "-m", "Initial commit", "--allow-empty")
+		cmd = exec.CommandContext(ctx, "git", "commit", "-m", "Initial commit", "--allow-empty")
 		cmd.Dir = options.path
 		require.NoError(t, cmd.Run())
 	} else if options.helmChartOptions.chartName != "" {
@@ -2979,7 +3119,7 @@ func initGitRepo(t *testing.T, options newGitRepoOptions) (revision string) {
 
 	if commitAdded {
 		var revB bytes.Buffer
-		cmd = exec.Command("git", "rev-parse", "HEAD", options.path)
+		cmd = exec.CommandContext(ctx, "git", "rev-parse", "HEAD", options.path)
 		cmd.Dir = options.path
 		cmd.Stdout = &revB
 		require.NoError(t, cmd.Run())
@@ -3039,10 +3179,10 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
 	require.NoError(t, err)
 
-	err = checkoutRevision(gitClient, "does-not-exist", false)
+	err = checkoutRevision(gitClient, "does-not-exist", false, 0, true)
 	require.Error(t, err)
 
-	err = checkoutRevision(gitClient, pullSha, false)
+	err = checkoutRevision(gitClient, pullSha, false, 0, true)
 	require.NoError(t, err)
 }
 
@@ -3050,11 +3190,11 @@ func TestCheckoutRevisionPresentSkipFetch(t *testing.T) {
 	revision := "0123456789012345678901234567890123456789"
 
 	gitClient := &gitmocks.Client{}
-	gitClient.On("Init").Return(nil)
-	gitClient.On("IsRevisionPresent", revision).Return(true)
-	gitClient.On("Checkout", revision, mock.Anything).Return("", nil)
+	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().IsRevisionPresent(revision).Return(true)
+	gitClient.EXPECT().Checkout(revision, mock.Anything, mock.Anything).Return("", nil)
 
-	err := checkoutRevision(gitClient, revision, false)
+	err := checkoutRevision(gitClient, revision, false, 0, true)
 	require.NoError(t, err)
 }
 
@@ -3062,12 +3202,67 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 	revision := "0123456789012345678901234567890123456789"
 
 	gitClient := &gitmocks.Client{}
-	gitClient.On("Init").Return(nil)
-	gitClient.On("IsRevisionPresent", revision).Return(false)
-	gitClient.On("Fetch", "").Return(nil)
-	gitClient.On("Checkout", revision, mock.Anything).Return("", nil)
+	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().IsRevisionPresent(revision).Return(false)
+	gitClient.EXPECT().Fetch("", mock.Anything).Return(nil)
+	gitClient.EXPECT().Checkout(revision, mock.Anything, mock.Anything).Return("", nil)
 
-	err := checkoutRevision(gitClient, revision, false)
+	err := checkoutRevision(gitClient, revision, false, 0, true)
+	require.NoError(t, err)
+}
+
+func TestFetch(t *testing.T) {
+	revision1 := "0123456789012345678901234567890123456789"
+	revision2 := "abcdefabcdefabcdefabcdefabcdefabcdefabcd"
+
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
+	gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(false)
+	gitClient.EXPECT().Fetch("", mock.Anything).Return(nil)
+	gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
+	gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(true)
+
+	err := fetch(gitClient, []string{revision1, revision2})
+	require.NoError(t, err)
+}
+
+// TestFetchRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
+func TestFetchRevisionCanGetNonstandardRefs(t *testing.T) {
+	rootPath := t.TempDir()
+
+	sourceRepoPath, err := os.MkdirTemp(rootPath, "")
+	require.NoError(t, err)
+
+	// Create a repo such that one commit is on a non-standard ref _and nowhere else_. This is meant to simulate, for
+	// example, a GitHub ref for a pull into one repo from a fork of that repo.
+	runGit(t, sourceRepoPath, "init")
+	runGit(t, sourceRepoPath, "checkout", "-b", "main") // make sure there's a main branch to switch back to
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	runGit(t, sourceRepoPath, "checkout", "-b", "branch")
+	runGit(t, sourceRepoPath, "commit", "-m", "empty", "--allow-empty")
+	sha := runGit(t, sourceRepoPath, "rev-parse", "HEAD")
+	runGit(t, sourceRepoPath, "update-ref", "refs/pull/123/head", strings.TrimSuffix(sha, "\n"))
+	runGit(t, sourceRepoPath, "checkout", "main")
+	runGit(t, sourceRepoPath, "branch", "-D", "branch")
+
+	destRepoPath, err := os.MkdirTemp(rootPath, "")
+	require.NoError(t, err)
+
+	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	// We should initialize repository
+	err = gitClient.Init()
+	require.NoError(t, err)
+
+	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
+	require.NoError(t, err)
+
+	err = fetch(gitClient, []string{"does-not-exist"})
+	require.Error(t, err)
+
+	err = fetch(gitClient, []string{pullSha})
 	require.NoError(t, err)
 }
 
@@ -3075,7 +3270,7 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 // and error output. If it fails, it stops the test with a failure message.
 func runGit(t *testing.T, workDir string, args ...string) string {
 	t.Helper()
-	cmd := exec.Command("git", args...)
+	cmd := exec.CommandContext(t.Context(), "git", args...)
 	cmd.Dir = workDir
 	out, err := cmd.CombinedOutput()
 	stringOut := string(out)
@@ -3101,14 +3296,16 @@ func Test_walkHelmValueFilesInPath(t *testing.T) {
 	t.Run("unrelated root", func(t *testing.T) {
 		var files []string
 		root := "./testdata/values-files"
-		unrelated_root := "/different/root/path"
-		err := filepath.Walk(root, walkHelmValueFilesInPath(unrelated_root, &files))
+		unrelatedRoot := "/different/root/path"
+		err := filepath.Walk(root, walkHelmValueFilesInPath(unrelatedRoot, &files))
 		require.Error(t, err)
 	})
 }
 
 func Test_populateHelmAppDetails(t *testing.T) {
-	emptyTempPaths := io.NewRandomizedTempPaths(t.TempDir())
+	sha := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+	service := newService(t, ".")
+	emptyTempPaths := utilio.NewRandomizedTempPaths(t.TempDir())
 	res := apiclient.RepoAppDetailsResponse{}
 	q := apiclient.RepoServerAppDetailsQuery{
 		Repo: &v1alpha1.Repository{},
@@ -3118,18 +3315,320 @@ func Test_populateHelmAppDetails(t *testing.T) {
 	}
 	appPath, err := filepath.Abs("./testdata/values-files/")
 	require.NoError(t, err)
-	err = populateHelmAppDetails(&res, appPath, appPath, &q, emptyTempPaths)
+	err = service.populateHelmAppDetails(&res, appPath, appPath, sha, "main", &q, emptyTempPaths)
 	require.NoError(t, err)
 	assert.Len(t, res.Helm.Parameters, 3)
 	assert.Len(t, res.Helm.ValueFiles, 5)
 }
 
+func Test_populateHelmAppDetailsWithRef(t *testing.T) {
+	dummyErrMsg := "dummy error"
+	repoURL := "https://github.com/foo/bar"
+	refRepoURL := "https://github.com/foo/baz"
+	unusedRefRepoURL := "https://github.com/unused/baz"
+	ociRepoURL := "oci://foocr.io"
+	repoRoot := "./testdata/my-chart/"
+	refRoot := "./testdata/values-files/"
+	refName := "$values"
+	refNameA := "$valuesA"
+	refNameB := "$valuesB"
+	refNameUnused := "$valuesU"
+	targetRevision := "main"
+	sha := "888839659e542ed7de0c170a4fcc1c571b288888"
+	refTargetRevision := targetRevision
+	refTargetRevision2 := "dev"
+	refSha := "999932039659e542ed7de0c170a4fcc1c5799999"
+	refSha2 := "777732039659e542ed7de0c170a4fcc1c5777777"
+	queryTemplate := apiclient.RepoServerAppDetailsQuery{
+		Repo: &v1alpha1.Repository{
+			Repo: repoURL,
+			Type: "git",
+		},
+		Source: &v1alpha1.ApplicationSource{
+			Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/dir/values.yaml"}},
+		},
+		RefSources: map[string]*v1alpha1.RefTarget{
+			refName: {
+				Repo: v1alpha1.Repository{
+					Type: "git",
+					Repo: refRepoURL,
+				},
+				TargetRevision: refTargetRevision,
+			},
+		},
+	}
+	var err error
+	var appPath string
+	var res apiclient.RepoAppDetailsResponse
+
+	testCases := []struct {
+		name        string
+		makeQuery   func() apiclient.RepoServerAppDetailsQuery
+		testResults func(t *testing.T)
+		mockOpts    func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths)
+		// make new client for accessing the referenced repository
+		newGitClient func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (client git.Client, e error)
+	}{
+		{
+			name: "success",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				return queryTemplate
+			},
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPathIfExists(refRepoURL).Return(refRoot)
+			},
+			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
+				client := gitmocks.Client{}
+				client.EXPECT().LsRemote(refTargetRevision).Return(refSha, nil)
+				client.EXPECT().Root().Return(refRoot)
+				client.EXPECT().Init().Return(nil)
+				client.EXPECT().IsRevisionPresent(refSha).Return(true)
+				client.EXPECT().Checkout(refSha, false, true).Return("", nil)
+				return &client, nil
+			},
+
+			testResults: func(t *testing.T) {
+				t.Helper()
+				require.NoError(t, err)
+				assert.Len(t, res.Helm.Parameters, 1)
+				// The values must come from the referenced values file ./testdata/values-files/dir/values.yaml
+				for _, v := range res.Helm.Parameters {
+					require.NotNil(t, v)
+					assert.Equal(t, v1alpha1.HelmParameter{Name: "values", Value: "yaml", ForceString: false}, *v)
+				}
+			},
+		},
+		{
+			name: "ref_checkout_error",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				return queryTemplate
+			},
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+			},
+			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
+				client := gitmocks.Client{}
+				client.EXPECT().LsRemote("main").Return(refSha, nil)
+				client.EXPECT().Root().Return(refRoot)
+				client.EXPECT().Init().Return(nil)
+				client.EXPECT().IsRevisionPresent(refSha).Return(true)
+				client.EXPECT().Checkout(refSha, false, true).Return("", fmt.Errorf("%s", dummyErrMsg))
+				// one error is not enough: checkout falls back to fetch specific revision
+				client.EXPECT().Fetch(refSha, int64(0)).Return(fmt.Errorf("%s", dummyErrMsg))
+				return &client, nil
+			},
+
+			testResults: func(t *testing.T) {
+				t.Helper()
+				require.Error(t, err)
+				require.ErrorContains(t, err, fmt.Sprintf("failed to acquire lock for referenced repo %q:", refRepoURL))
+				assert.ErrorContains(t, err, dummyErrMsg)
+			},
+		},
+		{
+			name: "same_repo_diff_revision_error",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				query := queryTemplate
+				query.RefSources = map[string]*v1alpha1.RefTarget{
+					refName: {
+						Repo: v1alpha1.Repository{
+							Type: "git",
+							Repo: repoURL,
+						},
+						TargetRevision: refTargetRevision2,
+					},
+				}
+				return query
+			},
+
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(repoURL).Return(repoRoot, nil)
+			},
+			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
+				client := gitmocks.Client{}
+				client.EXPECT().LsRemote(refTargetRevision2).Return(refSha, nil)
+				return &client, nil
+			},
+
+			testResults: func(t *testing.T) {
+				t.Helper()
+				expMsg := fmt.Sprintf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q", refName, refTargetRevision2, refSha, targetRevision, sha)
+				require.Error(t, err)
+				require.ErrorContains(t, err, expMsg)
+			},
+		},
+		{
+			name: "same_ref_repo_diff_revision_error",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				query := queryTemplate
+				delete(query.RefSources, "$values")
+				query.RefSources["$valuesA"] = &v1alpha1.RefTarget{
+					Repo: v1alpha1.Repository{
+						Type: "git",
+						Repo: refRepoURL,
+					},
+					TargetRevision: refTargetRevision,
+				}
+				query.RefSources["$valuesB"] = &v1alpha1.RefTarget{
+					Repo: v1alpha1.Repository{
+						Type: "git",
+						Repo: refRepoURL,
+					},
+					TargetRevision: refTargetRevision2,
+				}
+				query.Source.Helm.ValueFiles = []string{"$valuesA/dir/values.yaml", "$valuesB/dir/values.yaml"}
+				return query
+			},
+
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(repoURL).Return(repoRoot, nil)
+				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+			},
+			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
+				client := gitmocks.Client{}
+				client.EXPECT().LsRemote("main").Return(refSha, nil)
+				client.EXPECT().LsRemote("dev").Return(refSha2, nil)
+				client.EXPECT().Root().Return(refRoot)
+				client.EXPECT().Init().Return(nil)
+				client.EXPECT().IsRevisionPresent(refSha).Return(true)
+				client.EXPECT().IsRevisionPresent(refSha2).Return(true)
+				client.EXPECT().Checkout(refSha, false, true).Return("", nil)
+				client.EXPECT().Checkout(refSha2, false, true).Return("", nil)
+				return &client, nil
+			},
+
+			testResults: func(t *testing.T) {
+				t.Helper()
+				expMsg := fmt.Sprintf("cannot reference multiple revisions for the same repository (%s references %q which resolves to %q while %s references %q which resolves to %q", refNameB, refTargetRevision2, refSha2, refNameA, refTargetRevision, refSha)
+				require.Error(t, err)
+				require.ErrorContains(t, err, expMsg)
+			},
+		},
+		{
+			name: "ref_revision_resolution_error",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				return queryTemplate
+			},
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				// paths.EXPECT().GetPath(repoURL).Return(repoRoot, nil)
+				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+			},
+			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
+				client := gitmocks.Client{}
+				client.EXPECT().LsRemote("main").Return("", fmt.Errorf("%s", dummyErrMsg))
+				client.EXPECT().Root().Return(refRoot)
+				return &client, nil
+			},
+			testResults: func(t *testing.T) {
+				t.Helper()
+				expMsg := fmt.Sprintf("error setting up git client for %s and resolving revision %s: %s", refRepoURL, "main", dummyErrMsg)
+				require.Error(t, err)
+				require.ErrorContains(t, err, expMsg)
+			},
+		},
+		{
+			name: "not_a_git_referenced_repo",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				query := queryTemplate
+				query.RefSources = map[string]*v1alpha1.RefTarget{
+					refName: {
+						Repo: v1alpha1.Repository{
+							Type: "oci",
+							Repo: ociRepoURL,
+						},
+						TargetRevision: refTargetRevision2,
+					},
+				}
+				return query
+			},
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(repoURL).Return(repoRoot, nil)
+				paths.EXPECT().GetPathIfExists(ociRepoURL).Return("")
+			},
+			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
+				client := gitmocks.Client{}
+				return &client, nil
+			},
+			testResults: func(t *testing.T) {
+				t.Helper()
+				require.Error(t, fmt.Errorf("failed to find repo %q", ociRepoURL))
+			},
+		},
+		{
+			name: "unused_refsource_is_not_checked_out",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				q := queryTemplate
+				// Add a second ref source but do NOT reference it in ValueFiles.
+				q.RefSources = map[string]*v1alpha1.RefTarget{
+					refName: {
+						Repo: v1alpha1.Repository{
+							Type: "git",
+							Repo: refRepoURL,
+						},
+						TargetRevision: refTargetRevision,
+					},
+					refNameUnused: {
+						Repo: v1alpha1.Repository{
+							Type: "git",
+							Repo: unusedRefRepoURL,
+						},
+						TargetRevision: "main",
+					},
+				}
+				// Keep ValueFiles referencing only $values
+				q.Source.Helm.ValueFiles = []string{"$values/dir/values.yaml"}
+				return q
+			},
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPathIfExists(refRepoURL).Return(refRoot)
+				// No expectations for "https://github.com/foo/unused" on purpose: it should not be used.
+			},
+			newGitClient: func(repo string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (git.Client, error) {
+				if repo == unusedRefRepoURL {
+					return nil, fmt.Errorf("newGitClient should not be called for unused ref source: %s", repo)
+				}
+
+				client := gitmocks.Client{}
+				client.EXPECT().LsRemote(refTargetRevision).Return(refSha, nil)
+				client.EXPECT().Root().Return(refRoot)
+				client.EXPECT().Init().Return(nil)
+				client.EXPECT().IsRevisionPresent(refSha).Return(true)
+				client.EXPECT().Checkout(refSha, false, true).Return("", nil)
+				return &client, nil
+			},
+			testResults: func(t *testing.T) {
+				t.Helper()
+				require.NoError(t, err)
+				assert.Len(t, res.Helm.Parameters, 1)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			query := tc.makeQuery()
+			service, _, _ := newServiceWithOpt(t, tc.mockOpts, ".")
+			service.newGitClient = tc.newGitClient
+			appPath, err = filepath.Abs(repoRoot)
+			require.NoError(t, err)
+			res = apiclient.RepoAppDetailsResponse{}
+			err = service.populateHelmAppDetails(&res, appPath, appPath, sha, "main", &query, service.gitRepoPaths)
+			tc.testResults(t)
+		})
+	}
+}
+
 func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
-	emptyTempPaths := io.NewRandomizedTempPaths(t.TempDir())
+	service := newService(t, ".")
+	sha := "632039659e542ed7de0c170a4fcc1c571b288fc0"
+	emptyTempPaths := utilio.NewRandomizedTempPaths(t.TempDir())
 	t.Run("inbound", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
-		err := populateHelmAppDetails(&res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", &q, emptyTempPaths)
+		err := service.populateHelmAppDetails(&res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", "dummy_sha", "main", &q, emptyTempPaths)
 		require.NoError(t, err)
 		assert.NotEmpty(t, res.Helm.Values)
 		assert.NotEmpty(t, res.Helm.Parameters)
@@ -3138,16 +3637,15 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	t.Run("out of bounds", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
-		err := populateHelmAppDetails(&res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", &q, emptyTempPaths)
+		err := service.populateHelmAppDetails(&res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", sha, "main", &q, emptyTempPaths)
 		require.NoError(t, err)
 		assert.Empty(t, res.Helm.Values)
 		assert.Empty(t, res.Helm.Parameters)
 	})
 }
 
-func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
-	src := v1alpha1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, ApplicationSource: &src, HelmRepoCreds: []*v1alpha1.RepoCreds{
+func TestGetHelmRepos_OCIHelmDependenciesWithHelmRepo(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, HelmRepoCreds: []*v1alpha1.RepoCreds{
 		{URL: "example.com", Username: "test", Password: "test", EnableOCI: true},
 	}}
 
@@ -3160,9 +3658,34 @@ func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
 
+func TestGetHelmRepos_OCIHelmDependenciesWithRepo(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true}}, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	assert.Len(t, helmRepos, 1)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
+}
+
+func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, HelmRepoCreds: []*v1alpha1.RepoCreds{
+		{URL: "oci://example.com", Username: "test", Password: "test", Type: "oci"},
+	}}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	assert.Len(t, helmRepos, 1)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
+}
+
 func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
-	src := v1alpha1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true}}, ApplicationSource: &src, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "oci://example.com", Username: "test", Password: "test", Type: "oci"}}, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
 
 	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
 	require.NoError(t, err)
@@ -3174,12 +3697,13 @@ func TestGetHelmRepos_OCIDependenciesWithRepo(t *testing.T) {
 }
 
 func TestGetHelmRepo_NamedRepos(t *testing.T) {
-	src := v1alpha1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src, Repos: []*v1alpha1.Repository{{
-		Name:     "custom-repo",
-		Repo:     "https://example.com",
-		Username: "test",
-	}}}
+	q := apiclient.ManifestRequest{
+		Repos: []*v1alpha1.Repository{{
+			Name:     "custom-repo",
+			Repo:     "https://example.com",
+			Username: "test",
+		}},
+	}
 
 	helmRepos, err := getHelmRepos("./testdata/helm-with-dependencies", q.Repos, q.HelmRepoCreds)
 	require.NoError(t, err)
@@ -3190,12 +3714,13 @@ func TestGetHelmRepo_NamedRepos(t *testing.T) {
 }
 
 func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
-	src := v1alpha1.ApplicationSource{Path: "."}
-	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src, Repos: []*v1alpha1.Repository{{
-		Name:     "custom-repo-alias",
-		Repo:     "https://example.com",
-		Username: "test-alias",
-	}}}
+	q := apiclient.ManifestRequest{
+		Repos: []*v1alpha1.Repository{{
+			Name:     "custom-repo-alias",
+			Repo:     "https://example.com",
+			Username: "test-alias",
+		}},
+	}
 
 	helmRepos, err := getHelmRepos("./testdata/helm-with-dependencies-alias", q.Repos, q.HelmRepoCreds)
 	require.NoError(t, err)
@@ -3206,11 +3731,12 @@ func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
 }
 
 func Test_getResolvedValueFiles(t *testing.T) {
-	tempDir := t.TempDir()
-	paths := io.NewRandomizedTempPaths(tempDir)
+	t.Parallel()
 
-	key, _ := json.Marshal(map[string]string{"url": git.NormalizeGitURL("https://github.com/org/repo1"), "project": ""})
-	paths.Add(string(key), path.Join(tempDir, "repo1"))
+	tempDir := t.TempDir()
+	paths := utilio.NewRandomizedTempPaths(tempDir)
+
+	paths.Add(git.NormalizeGitURL("https://github.com/org/repo1"), path.Join(tempDir, "repo1"))
 
 	testCases := []struct {
 		name         string
@@ -3363,6 +3889,567 @@ func Test_getResolvedValueFiles(t *testing.T) {
 	}
 }
 
+func Test_getResolvedValueFiles_glob(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	paths := utilio.NewRandomizedTempPaths(tempDir)
+	paths.Add(git.NormalizeGitURL("https://github.com/org/repo1"), path.Join(tempDir, "repo1"))
+
+	// main-repo files
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "main-repo", "prod", "nested"), 0o755))
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "main-repo", "staging"), 0o755))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "prod", "a.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "prod", "b.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "prod", "nested", "c.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "prod", "nested", "d.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "staging", "e.yaml"), []byte{}, 0o644))
+
+	// main-repo envs: used to verify depth-order with ** (z.yaml sorts after nested/ alphabetically
+	// but is still returned before nested/c.yaml because doublestar matches depth-0 files first).
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "main-repo", "envs", "nested"), 0o755))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "envs", "a.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "envs", "z.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "envs", "nested", "c.yaml"), []byte{}, 0o644))
+
+	// repo1 files
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "repo1", "prod", "nested"), 0o755))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "repo1", "prod", "x.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "repo1", "prod", "y.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "repo1", "prod", "nested", "z.yaml"), []byte{}, 0o644))
+
+	tests := []struct {
+		name                    string
+		rawPath                 string
+		env                     *v1alpha1.Env
+		refSources              map[string]*v1alpha1.RefTarget
+		expectedPaths           []string
+		ignoreMissingValueFiles bool
+		expectedErr             bool
+	}{
+		{
+			name:       "local glob matches multiple files",
+			rawPath:    "prod/*.yaml",
+			env:        &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{},
+			expectedPaths: []string{
+				// the order is a.yaml before b.yaml
+				// since doublestar.FilepathGlob returns lexical order
+				path.Join(tempDir, "main-repo", "prod", "a.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "b.yaml"),
+			},
+		},
+		{
+			name:          "local glob matches no files returns error",
+			rawPath:       "dev/*.yaml",
+			env:           &v1alpha1.Env{},
+			refSources:    map[string]*v1alpha1.RefTarget{},
+			expectedPaths: nil,
+			expectedErr:   true,
+		},
+		{
+			name:                    "local glob matches no files with ignoreMissingValueFiles set to true",
+			rawPath:                 "dev/*.yaml",
+			env:                     &v1alpha1.Env{},
+			refSources:              map[string]*v1alpha1.RefTarget{},
+			ignoreMissingValueFiles: true,
+			expectedPaths:           nil,
+		},
+		{
+			name:    "referenced glob matches multiple files in external repo",
+			rawPath: "$ref/prod/*.yaml",
+			env:     &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/repo1",
+					},
+				},
+			},
+			expectedPaths: []string{
+				path.Join(tempDir, "repo1", "prod", "x.yaml"),
+				path.Join(tempDir, "repo1", "prod", "y.yaml"),
+			},
+		},
+		{
+			name:    "ref glob with env var in path",
+			rawPath: "$ref/$ENV/*.yaml",
+			env: &v1alpha1.Env{
+				&v1alpha1.EnvEntry{
+					Name:  "ENV",
+					Value: "prod",
+				},
+			},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/repo1",
+					},
+				},
+			},
+			expectedPaths: []string{
+				path.Join(tempDir, "repo1", "prod", "x.yaml"),
+				path.Join(tempDir, "repo1", "prod", "y.yaml"),
+			},
+		},
+		{
+			name:          "local glob single match",
+			rawPath:       "prod/a*.yaml",
+			env:           &v1alpha1.Env{},
+			refSources:    map[string]*v1alpha1.RefTarget{},
+			expectedPaths: []string{path.Join(tempDir, "main-repo", "prod", "a.yaml")},
+		},
+		{
+			name: "recursive glob matches files at all depths under a subdirectory",
+			// ** matches zero or more path segments, so prod/**/*.yaml covers both
+			// prod/*.yaml (zero intermediate segments) and prod/nested/*.yaml (one segment), etc.
+			rawPath:    "prod/**/*.yaml",
+			env:        &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{},
+			// lexical order: prod/a.yaml, prod/b.yaml, prod/nested/c.yaml, prod/nested/d.yaml
+			expectedPaths: []string{
+				path.Join(tempDir, "main-repo", "prod", "a.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "b.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "nested", "c.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "nested", "d.yaml"),
+			},
+		},
+		{
+			name:       "recursive glob from repo root matches yaml files across all directories",
+			rawPath:    "**/*.yaml",
+			env:        &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{},
+			// doublestar traverses directories in lexical order, processing each directory's
+			// own files before its subdirectories. So the order is:
+			// envs/ flat files → envs/nested/ files → prod/ flat files → prod/nested/ files → staging/ files
+			expectedPaths: []string{
+				path.Join(tempDir, "main-repo", "envs", "a.yaml"),
+				path.Join(tempDir, "main-repo", "envs", "z.yaml"),
+				path.Join(tempDir, "main-repo", "envs", "nested", "c.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "a.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "b.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "nested", "c.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "nested", "d.yaml"),
+				path.Join(tempDir, "main-repo", "staging", "e.yaml"),
+			},
+		},
+		{
+			name:       "recursive glob anchored to a named subdirectory matches at any depth",
+			rawPath:    "**/nested/*.yaml",
+			env:        &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{},
+			expectedPaths: []string{
+				path.Join(tempDir, "main-repo", "envs", "nested", "c.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "nested", "c.yaml"),
+				path.Join(tempDir, "main-repo", "prod", "nested", "d.yaml"),
+			},
+		},
+		{
+			name:                    "recursive glob with no matches and ignoreMissingValueFiles skips silently",
+			rawPath:                 "**/nonexistent/*.yaml",
+			env:                     &v1alpha1.Env{},
+			refSources:              map[string]*v1alpha1.RefTarget{},
+			ignoreMissingValueFiles: true,
+			expectedPaths:           nil,
+		},
+		{
+			name:          "recursive glob with no matches returns error",
+			rawPath:       "**/nonexistent/*.yaml",
+			env:           &v1alpha1.Env{},
+			refSources:    map[string]*v1alpha1.RefTarget{},
+			expectedPaths: nil,
+			expectedErr:   true,
+		},
+		{
+			// z.yaml sorts after "nested/" alphabetically by full path, but doublestar processes
+			// each directory's own files before descending into subdirectories. So for envs/**/*.yaml:
+			// envs/ flat files (a, z) come before envs/nested/ files (c), giving:
+			// a.yaml, z.yaml, nested/c.yaml — not a.yaml, nested/c.yaml, z.yaml.
+			name:       "** depth-order: flat files before nested even when flat file sorts after nested/ alphabetically",
+			rawPath:    "envs/**/*.yaml",
+			env:        &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{},
+			expectedPaths: []string{
+				path.Join(tempDir, "main-repo", "envs", "a.yaml"),
+				path.Join(tempDir, "main-repo", "envs", "z.yaml"),
+				path.Join(tempDir, "main-repo", "envs", "nested", "c.yaml"),
+			},
+		},
+		{
+			name:    "recursive glob in external ref repo",
+			rawPath: "$ref/prod/**/*.yaml",
+			env:     &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": {
+					Repo: v1alpha1.Repository{
+						Repo: "https://github.com/org/repo1",
+					},
+				},
+			},
+			expectedPaths: []string{
+				// doublestar matches zero path segments before recursing into subdirectories,
+				// so flat files (x, y) come before nested ones (nested/z).
+				path.Join(tempDir, "repo1", "prod", "x.yaml"),
+				path.Join(tempDir, "repo1", "prod", "y.yaml"),
+				path.Join(tempDir, "repo1", "prod", "nested", "z.yaml"),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			repoPath := path.Join(tempDir, "main-repo")
+			resolvedPaths, err := getResolvedValueFiles(repoPath, repoPath, tt.env, []string{}, []string{tt.rawPath}, tt.refSources, paths, tt.ignoreMissingValueFiles)
+			if tt.expectedErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, resolvedPaths, len(tt.expectedPaths))
+
+			for i, p := range tt.expectedPaths {
+				assert.Equal(t, p, string(resolvedPaths[i]))
+			}
+		})
+	}
+
+	// Deduplication: first occurrence of a resolved path wins. Subsequent references to the
+	// same file, whether explicit or via glob are silently dropped. This preserves the
+	// merge-precedence position set by the first mention of each file.
+	t.Run("glob then explicit: explicit entry placed at end, giving it highest Helm precedence", func(t *testing.T) {
+		t.Parallel()
+		repoPath := path.Join(tempDir, "main-repo")
+		resolvedPaths, err := getResolvedValueFiles(
+			repoPath, repoPath,
+			&v1alpha1.Env{}, []string{},
+			[]string{
+				"envs/*.yaml", // glob - z.yaml is explicit so skipped; only a.yaml added
+				"envs/z.yaml", // explicit - placed last, highest precedence
+			},
+			map[string]*v1alpha1.RefTarget{}, paths, false,
+		)
+		require.NoError(t, err)
+		require.Len(t, resolvedPaths, 2)
+		assert.Equal(t, path.Join(tempDir, "main-repo", "envs", "a.yaml"), string(resolvedPaths[0]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "envs", "z.yaml"), string(resolvedPaths[1]))
+	})
+
+	t.Run("explicit path before glob: explicit position is kept, glob re-match is dropped", func(t *testing.T) {
+		t.Parallel()
+		repoPath := path.Join(tempDir, "main-repo")
+		resolvedPaths, err := getResolvedValueFiles(
+			repoPath, repoPath,
+			&v1alpha1.Env{}, []string{},
+			[]string{
+				"prod/a.yaml", // explicit locks in position 0
+				"prod/*.yaml", // glob - a.yaml already seen, only b.yaml is new
+			},
+			map[string]*v1alpha1.RefTarget{}, paths, false,
+		)
+		require.NoError(t, err)
+		require.Len(t, resolvedPaths, 2)
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "a.yaml"), string(resolvedPaths[0]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "b.yaml"), string(resolvedPaths[1]))
+	})
+
+	t.Run("glob before explicit path: explicit position wins, glob skips the explicitly listed file", func(t *testing.T) {
+		t.Parallel()
+		repoPath := path.Join(tempDir, "main-repo")
+		resolvedPaths, err := getResolvedValueFiles(
+			repoPath, repoPath,
+			&v1alpha1.Env{}, []string{},
+			[]string{
+				"prod/*.yaml", // glob - a.yaml is explicit so skipped; only b.yaml added (pos 0)
+				"prod/a.yaml", // explicit - placed here at pos 1 (highest precedence)
+			},
+			map[string]*v1alpha1.RefTarget{}, paths, false,
+		)
+		require.NoError(t, err)
+		require.Len(t, resolvedPaths, 2)
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "b.yaml"), string(resolvedPaths[0]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "a.yaml"), string(resolvedPaths[1]))
+	})
+
+	t.Run("two overlapping globs: second glob only adds files not matched by first", func(t *testing.T) {
+		t.Parallel()
+		repoPath := path.Join(tempDir, "main-repo")
+		resolvedPaths, err := getResolvedValueFiles(
+			repoPath, repoPath,
+			&v1alpha1.Env{}, []string{},
+			[]string{
+				"prod/*.yaml",    // adds a.yaml, b.yaml
+				"prod/**/*.yaml", // a.yaml, b.yaml already seen; adds nested/c.yaml, nested/d.yaml
+			},
+			map[string]*v1alpha1.RefTarget{}, paths, false,
+		)
+		require.NoError(t, err)
+		require.Len(t, resolvedPaths, 4)
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "a.yaml"), string(resolvedPaths[0]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "b.yaml"), string(resolvedPaths[1]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "nested", "c.yaml"), string(resolvedPaths[2]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "nested", "d.yaml"), string(resolvedPaths[3]))
+	})
+
+	t.Run("explicit paths take priority: globs skip explicitly listed files, which are placed at their explicit positions", func(t *testing.T) {
+		t.Parallel()
+		repoPath := path.Join(tempDir, "main-repo")
+		resolvedPaths, err := getResolvedValueFiles(
+			repoPath, repoPath,
+			&v1alpha1.Env{}, []string{},
+			[]string{
+				"prod/a.yaml",        // explicit - pos 0
+				"prod/*.yaml",        // a.yaml and b.yaml are both explicit, skipped entirely
+				"prod/b.yaml",        // explicit - pos 1
+				"prod/**/*.yaml",     // a.yaml, b.yaml, nested/c.yaml all explicit and skipped; nested/d.yaml added - pos 2
+				"prod/nested/c.yaml", // explicit - pos 3
+			},
+			map[string]*v1alpha1.RefTarget{}, paths, false,
+		)
+		require.NoError(t, err)
+		require.Len(t, resolvedPaths, 4)
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "a.yaml"), string(resolvedPaths[0]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "b.yaml"), string(resolvedPaths[1]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "nested", "d.yaml"), string(resolvedPaths[2]))
+		assert.Equal(t, path.Join(tempDir, "main-repo", "prod", "nested", "c.yaml"), string(resolvedPaths[3]))
+	})
+}
+
+func Test_verifyGlobMatchesWithinRoot(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	repoDir := filepath.Join(tempDir, "repo")
+	outsideDir := filepath.Join(tempDir, "outside")
+
+	require.NoError(t, os.MkdirAll(filepath.Join(repoDir, "values", "sub"), 0o755))
+	require.NoError(t, os.MkdirAll(outsideDir, 0o755))
+
+	// Files used as symlink targets
+	inRepoFile := filepath.Join(repoDir, "values", "real.yaml")
+	outsideFile := filepath.Join(outsideDir, "secret.yaml")
+	require.NoError(t, os.WriteFile(inRepoFile, []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(outsideFile, []byte("password: hunter2"), 0o644))
+
+	// Symlink inside repo → file inside repo (safe)
+	inRepoLink := filepath.Join(repoDir, "values", "inrepo-link.yaml")
+	require.NoError(t, os.Symlink(inRepoFile, inRepoLink))
+
+	// Symlink inside repo → file outside repo (escape)
+	escapeLink := filepath.Join(repoDir, "values", "escape-link.yaml")
+	require.NoError(t, os.Symlink(outsideFile, escapeLink))
+
+	// Two-hop symlink: inside repo → another symlink (still inside) → file inside repo
+	hop1 := filepath.Join(repoDir, "values", "hop1.yaml")
+	require.NoError(t, os.Symlink(inRepoLink, hop1)) // hop1 → inRepoLink → real.yaml
+
+	// Two-hop symlink: inside repo → another symlink (inside repo) → file outside repo
+	hop2 := filepath.Join(repoDir, "values", "hop2.yaml")
+	require.NoError(t, os.Symlink(escapeLink, hop2)) // hop2 → escape-link → secret.yaml
+
+	tests := []struct {
+		name        string
+		matches     []string
+		expectErr   bool
+		errContains string
+	}{
+		{
+			name:    "regular file inside root passes",
+			matches: []string{inRepoFile},
+		},
+		{
+			name:    "symlink inside root pointing to file inside root passes",
+			matches: []string{inRepoLink},
+		},
+		{
+			name:    "two-hop chain that stays within root passes",
+			matches: []string{hop1},
+		},
+		{
+			name:        "symlink pointing directly outside root is rejected",
+			matches:     []string{escapeLink},
+			expectErr:   true,
+			errContains: "resolved to outside repository root",
+		},
+		{
+			name:        "two-hop chain that escapes root is rejected",
+			matches:     []string{hop2},
+			expectErr:   true,
+			errContains: "resolved to outside repository root",
+		},
+		{
+			name:    "multiple matches all inside root pass",
+			matches: []string{inRepoFile, inRepoLink, hop1},
+		},
+		{
+			name:        "one bad match in a list fails the whole call",
+			matches:     []string{inRepoFile, escapeLink},
+			expectErr:   true,
+			errContains: "resolved to outside repository root",
+		},
+		{
+			name:    "empty matches list is a no-op",
+			matches: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := verifyGlobMatchesWithinRoot(tt.matches, repoDir)
+			if tt.expectErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// Test_getResolvedValueFiles_glob_symlink_escape is an integration-level check
+// that verifyGlobMatchesWithinRoot is wired into glob expansion correctly: a
+// symlink inside the repo pointing outside must cause getResolvedValueFiles to
+// return an error rather than silently including the external file.
+func Test_getResolvedValueFiles_glob_symlink_escape(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	paths := utilio.NewRandomizedTempPaths(tempDir)
+
+	repoDir := filepath.Join(tempDir, "repo")
+	outsideDir := filepath.Join(tempDir, "outside")
+
+	require.NoError(t, os.MkdirAll(filepath.Join(repoDir, "values"), 0o755))
+	require.NoError(t, os.MkdirAll(outsideDir, 0o755))
+
+	require.NoError(t, os.WriteFile(filepath.Join(repoDir, "values", "base.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(outsideDir, "secret.yaml"), []byte("password: hunter2"), 0o644))
+	require.NoError(t, os.Symlink(filepath.Join(outsideDir, "secret.yaml"), filepath.Join(repoDir, "values", "escape.yaml")))
+
+	_, err := getResolvedValueFiles(repoDir, repoDir, &v1alpha1.Env{}, []string{}, []string{"values/*.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, false)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "resolved to outside repository root")
+}
+
+func Test_isGlobPath(t *testing.T) {
+	tests := []struct {
+		path     string
+		expected bool
+	}{
+		{
+			path:     "prod/*.yaml",
+			expected: true,
+		},
+		{
+			path:     "prod/?.yaml",
+			expected: true,
+		},
+		{
+			path:     "prod[ab].yaml",
+			expected: true,
+		},
+		{
+			path:     "prod/**/*.yaml",
+			expected: true,
+		},
+		{
+			path: "prod/values.yaml",
+		},
+		{
+			path: "values.yaml",
+		},
+		{
+			path: "",
+		},
+		{
+			path:     "/absolute/path/to/*.yaml",
+			expected: true,
+		},
+		{
+			path: "/absolute/path/to/values.yaml",
+		},
+		{
+			path:     "*",
+			expected: true,
+		},
+		{
+			path:     "?",
+			expected: true,
+		},
+		{
+			path:     "[",
+			expected: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isGlobPath(tt.path))
+		})
+	}
+}
+
+func Test_getReferencedSource(t *testing.T) {
+	t.Parallel()
+
+	refTarget := &v1alpha1.RefTarget{
+		Repo: v1alpha1.Repository{
+			Repo: "https://github.com/org/repo1",
+		},
+	}
+	tests := []struct {
+		name         string
+		rawValueFile string
+		refSources   map[string]*v1alpha1.RefTarget
+		expected     *v1alpha1.RefTarget
+	}{
+		{
+			name:         "ref with file path found in map",
+			rawValueFile: "$ref/values.yaml",
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": refTarget,
+			},
+			expected: refTarget,
+		},
+		{
+			name:         "ref with file path not in map",
+			rawValueFile: "$ref/values.yaml",
+			refSources:   map[string]*v1alpha1.RefTarget{},
+			expected:     nil,
+		},
+		{
+			name:         "bare ref without file path found in map",
+			rawValueFile: "$ref",
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": refTarget,
+			},
+			expected: refTarget,
+		},
+		{
+			name:         "empty string returns nil",
+			rawValueFile: "",
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": refTarget,
+			},
+			expected: nil,
+		},
+		{
+			name:         "no $ prefix returns nil",
+			rawValueFile: "values.yaml",
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$ref": refTarget,
+			},
+			expected: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := getReferencedSource(tt.rawValueFile, tt.refSources)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestErrorGetGitDirectories(t *testing.T) {
 	// test not using the cache
 	root := "./testdata/git-files-dirs"
@@ -3382,7 +4469,7 @@ func TestErrorGetGitDirectories(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "InvalidRepo", fields: fields{service: newService(t, ".")}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.GitDirectoriesRequest{
 				Repo:             nil,
 				SubmoduleEnabled: false,
@@ -3390,16 +4477,16 @@ func TestErrorGetGitDirectories(t *testing.T) {
 			},
 		}, want: nil, wantErr: assert.Error},
 		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
-			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", mock.Anything).Return("", errors.New("ah error"))
-				gitClient.On("Root").Return(root)
-				paths.On("GetPath", mock.Anything).Return(".", nil)
-				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("ah error"))
+				gitClient.EXPECT().Root().Return(root)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
 			}, ".")
 			return s
 		}()}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.GitDirectoriesRequest{
 				Repo:             &v1alpha1.Repository{Repo: "not-a-valid-url"},
 				SubmoduleEnabled: false,
@@ -3407,17 +4494,17 @@ func TestErrorGetGitDirectories(t *testing.T) {
 			},
 		}, want: nil, wantErr: assert.Error},
 		{name: "ErrorVerifyCommit", fields: fields{service: func() *Service {
-			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", mock.Anything).Return("", errors.New("ah error"))
-				gitClient.On("VerifyCommitSignature", mock.Anything).Return("", fmt.Errorf("revision %s is not signed", "sadfsadf"))
-				gitClient.On("Root").Return(root)
-				paths.On("GetPath", mock.Anything).Return(".", nil)
-				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("ah error"))
+				gitClient.EXPECT().VerifyCommitSignature(mock.Anything).Return("", fmt.Errorf("revision %s is not signed", "sadfsadf"))
+				gitClient.EXPECT().Root().Return(root)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
 			}, ".")
 			return s
 		}()}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.GitDirectoriesRequest{
 				Repo:             &v1alpha1.Repository{Repo: "not-a-valid-url"},
 				SubmoduleEnabled: false,
@@ -3441,28 +4528,28 @@ func TestErrorGetGitDirectories(t *testing.T) {
 func TestGetGitDirectories(t *testing.T) {
 	// test not using the cache
 	root := "./testdata/git-files-dirs"
-	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
-		gitClient.On("Init").Return(nil)
-		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
-		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return("", nil)
-		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-		gitClient.On("Root").Return(root)
-		paths.On("GetPath", mock.Anything).Return(root, nil)
-		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
+	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
+		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Once().Return("", nil)
+		gitClient.EXPECT().LsRemote("HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.EXPECT().Root().Return(root)
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
 	}, root)
 	dirRequest := &apiclient.GitDirectoriesRequest{
 		Repo:             &v1alpha1.Repository{Repo: "a-url.com"},
 		SubmoduleEnabled: false,
 		Revision:         "HEAD",
 	}
-	directories, err := s.GetGitDirectories(context.TODO(), dirRequest)
+	directories, err := s.GetGitDirectories(t.Context(), dirRequest)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, directories.GetPaths(), []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo"})
 
 	// do the same request again to use the cache
 	// we only allow CheckOut to be called once in the mock
-	directories, err = s.GetGitDirectories(context.TODO(), dirRequest)
+	directories, err = s.GetGitDirectories(t.Context(), dirRequest)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo"}, directories.GetPaths())
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
@@ -3474,15 +4561,15 @@ func TestGetGitDirectories(t *testing.T) {
 func TestGetGitDirectoriesWithHiddenDirSupported(t *testing.T) {
 	// test not using the cache
 	root := "./testdata/git-files-dirs"
-	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
-		gitClient.On("Init").Return(nil)
-		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
-		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return("", nil)
-		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-		gitClient.On("Root").Return(root)
-		paths.On("GetPath", mock.Anything).Return(root, nil)
-		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
+	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
+		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Once().Return("", nil)
+		gitClient.EXPECT().LsRemote("HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.EXPECT().Root().Return(root)
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
 	}, root)
 	s.initConstants.IncludeHiddenDirectories = true
 	dirRequest := &apiclient.GitDirectoriesRequest{
@@ -3490,13 +4577,13 @@ func TestGetGitDirectoriesWithHiddenDirSupported(t *testing.T) {
 		SubmoduleEnabled: false,
 		Revision:         "HEAD",
 	}
-	directories, err := s.GetGitDirectories(context.TODO(), dirRequest)
+	directories, err := s.GetGitDirectories(t.Context(), dirRequest)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, directories.GetPaths(), []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo", "app/bar/.hidden"})
 
 	// do the same request again to use the cache
 	// we only allow CheckOut to be called once in the mock
-	directories, err = s.GetGitDirectories(context.TODO(), dirRequest)
+	directories, err = s.GetGitDirectories(t.Context(), dirRequest)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"app", "app/bar", "app/foo/bar", "somedir", "app/foo", "app/bar/.hidden"}, directories.GetPaths())
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
@@ -3524,7 +4611,7 @@ func TestErrorGetGitFiles(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "InvalidRepo", fields: fields{service: newService(t, ".")}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.GitFilesRequest{
 				Repo:             nil,
 				SubmoduleEnabled: false,
@@ -3532,16 +4619,16 @@ func TestErrorGetGitFiles(t *testing.T) {
 			},
 		}, want: nil, wantErr: assert.Error},
 		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
-			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", mock.Anything).Return("", errors.New("ah error"))
-				gitClient.On("Root").Return(root)
-				paths.On("GetPath", mock.Anything).Return(".", nil)
-				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("ah error"))
+				gitClient.EXPECT().Root().Return(root)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
 			}, ".")
 			return s
 		}()}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.GitFilesRequest{
 				Repo:             &v1alpha1.Repository{Repo: "not-a-valid-url"},
 				SubmoduleEnabled: false,
@@ -3568,16 +4655,16 @@ func TestGetGitFiles(t *testing.T) {
 		"./testdata/git-files-dirs/config.yaml", "./testdata/git-files-dirs/config.yaml", "./testdata/git-files-dirs/app/foo/bar/config.yaml",
 	}
 	root := ""
-	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
-		gitClient.On("Init").Return(nil)
-		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
-		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return("", nil)
-		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-		gitClient.On("Root").Return(root)
-		gitClient.On("LsFiles", mock.Anything, mock.Anything).Once().Return(files, nil)
-		paths.On("GetPath", mock.Anything).Return(root, nil)
-		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
+	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
+		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Once().Return("", nil)
+		gitClient.EXPECT().LsRemote("HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+		gitClient.EXPECT().Root().Return(root)
+		gitClient.EXPECT().LsFiles(mock.Anything, mock.Anything).Once().Return(files, nil)
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
 	}, root)
 	filesRequest := &apiclient.GitFilesRequest{
 		Repo:             &v1alpha1.Repository{Repo: "a-url.com"},
@@ -3593,13 +4680,13 @@ func TestGetGitFiles(t *testing.T) {
 		expected[filePath] = fileContents
 	}
 
-	fileResponse, err := s.GetGitFiles(context.TODO(), filesRequest)
+	fileResponse, err := s.GetGitFiles(t.Context(), filesRequest)
 	require.NoError(t, err)
 	assert.Equal(t, expected, fileResponse.GetMap())
 
 	// do the same request again to use the cache
 	// we only allow LsFiles to be called once in the mock
-	fileResponse, err = s.GetGitFiles(context.TODO(), filesRequest)
+	fileResponse, err = s.GetGitFiles(t.Context(), filesRequest)
 	require.NoError(t, err)
 	assert.Equal(t, expected, fileResponse.GetMap())
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
@@ -3627,45 +4714,46 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{name: "InvalidRepo", fields: fields{service: newService(t, ".")}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
 				Repo:           nil,
 				Revision:       "HEAD",
 				SyncedRevision: "sadfsadf",
+				Paths:          []string{"."},
 			},
 		}, want: nil, wantErr: assert.Error},
 		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
-			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", mock.Anything).Return("", errors.New("ah error"))
-				gitClient.On("Root").Return(root)
-				paths.On("GetPath", mock.Anything).Return(".", nil)
-				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("ah error"))
+				gitClient.EXPECT().Root().Return(root)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
 			}, ".")
 			return s
 		}()}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				Repo:           &v1alpha1.Repository{Repo: "not-a-valid-url"},
+				Repo:           &v1alpha1.Repository{Repo: "not-a-valid-url", Type: "git"},
 				Revision:       "sadfsadf",
 				SyncedRevision: "HEAD",
 				Paths:          []string{"."},
 			},
 		}, want: nil, wantErr: assert.Error},
 		{name: "InvalidResolveSyncedRevision", fields: fields{service: func() *Service {
-			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-				gitClient.On("LsRemote", mock.Anything).Return("", errors.New("ah error"))
-				gitClient.On("Root").Return(root)
-				paths.On("GetPath", mock.Anything).Return(".", nil)
-				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("ah error"))
+				gitClient.EXPECT().Root().Return(root)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
 			}, ".")
 			return s
 		}()}, args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				Repo:           &v1alpha1.Repository{Repo: "not-a-valid-url"},
+				Repo:           &v1alpha1.Repository{Repo: "not-a-valid-url", Type: "git"},
 				Revision:       "HEAD",
 				SyncedRevision: "sadfsadf",
 				Paths:          []string{"."},
@@ -3698,72 +4786,83 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		previousRevision string
 	}
 	tests := []struct {
-		name     string
-		fields   fields
-		args     args
-		want     *apiclient.UpdateRevisionForPathsResponse
-		wantErr  assert.ErrorAssertionFunc
-		cacheHit *cacheHit
+		name           string
+		fields         fields
+		args           args
+		want           *apiclient.UpdateRevisionForPathsResponse
+		wantErr        assert.ErrorAssertionFunc
+		cacheHit       *cacheHit
+		cacheCallCount *repositorymocks.CacheCallCounts
 	}{
 		{name: "NoPathAbort", fields: func() fields {
-			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *iomocks.TempPaths) {
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, _ *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 			}, ".")
 			return fields{
 				service: s,
 				cache:   c,
 			}
 		}(), args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				Repo:  &v1alpha1.Repository{Repo: "a-url.com"},
-				Paths: []string{},
+				Repo:           &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+				Revision:       "",
+				SyncedRevision: "",
+				Paths:          []string{},
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{Changes: true}, wantErr: assert.NoError},
 		{name: "SameResolvedRevisionAbort", fields: func() fields {
-			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-				paths.On("GetPath", mock.Anything).Return(".", nil)
-				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
 			}, ".")
 			return fields{
 				service: s,
 				cache:   c,
 			}
 		}(), args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
+				Repo:           &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
 				Revision:       "HEAD",
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
 			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
-		}, wantErr: assert.NoError},
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
+			ExternalGets:    0,
+			ExternalSets:    0,
+		}},
 		{name: "ChangedFilesDoNothing", fields: func() fields {
-			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Init").Return(nil)
-				gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
-				gitClient.On("Fetch", mock.Anything).Return(nil)
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
-				paths.On("GetPath", mock.Anything).Return(".", nil)
-				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
-				gitClient.On("Root").Return("")
-				gitClient.On("ChangedFiles", mock.Anything, mock.Anything).Return([]string{"app.yaml"}, nil)
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
+				gitClient.EXPECT().Checkout("632039659e542ed7de0c170a4fcc1c571b288fc0", mock.Anything, mock.Anything).Once().Return("", nil)
+				// fetch
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(false)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				gitClient.EXPECT().Root().Return("")
+				gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{"app.yaml"}, nil)
 			}, ".")
 			return fields{
 				service: s,
 				cache:   c,
 			}
 		}(), args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
+				Repo:           &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
 				Revision:       "HEAD",
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
@@ -3771,32 +4870,39 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
 			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
 			Changes:  true,
-		}, wantErr: assert.NoError},
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
+			ExternalGets:    1,
+			ExternalSets:    1,
+		}},
 		{name: "NoChangesUpdateCache", fields: func() fields {
-			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Init").Return(nil)
-				gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
-				gitClient.On("Fetch", mock.Anything).Return(nil)
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
-				paths.On("GetPath", mock.Anything).Return(".", nil)
-				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
-				gitClient.On("Root").Return("")
-				gitClient.On("ChangedFiles", mock.Anything, mock.Anything).Return([]string{}, nil)
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(false)
+				// fetch
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				gitClient.EXPECT().Root().Return("")
+				gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{}, nil)
 			}, ".")
 			return fields{
 				service: s,
 				cache:   c,
 			}
 		}(), args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
-				Revision:       "HEAD",
-				SyncedRevision: "SYNCEDHEAD",
-				Paths:          []string{"."},
-
+				Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+				Revision:          "HEAD",
+				SyncedRevision:    "SYNCEDHEAD",
+				Paths:             []string{"."},
 				AppLabelKey:       "app.kubernetes.io/name",
 				AppName:           "no-change-update-cache",
 				Namespace:         "default",
@@ -3805,36 +4911,43 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				KubeVersion:       "v1.16.0",
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
+		}, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 1,
+			ExternalGets:    1,
+			ExternalSets:    1,
 		}},
 		{name: "NoChangesHelmMultiSourceUpdateCache", fields: func() fields {
-			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Init").Return(nil)
-				gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
-				gitClient.On("Fetch", mock.Anything).Return(nil)
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("", nil)
-				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
-				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
-				paths.On("GetPath", mock.Anything).Return(".", nil)
-				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
-				gitClient.On("Root").Return("")
-				gitClient.On("ChangedFiles", mock.Anything, mock.Anything).Return([]string{}, nil)
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				// fetch
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				gitClient.EXPECT().Root().Return("")
+				gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{}, nil)
 			}, ".")
 			return fields{
 				service: s,
 				cache:   c,
 			}
 		}(), args: args{
-			ctx: context.TODO(),
+			ctx: t.Context(),
 			request: &apiclient.UpdateRevisionForPathsRequest{
-				Repo:           &v1alpha1.Repository{Repo: "a-url.com"},
-				Revision:       "HEAD",
-				SyncedRevision: "SYNCEDHEAD",
-				Paths:          []string{"."},
-
+				Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+				Revision:          "HEAD",
+				SyncedRevision:    "SYNCEDHEAD",
+				Paths:             []string{"."},
 				AppLabelKey:       "app.kubernetes.io/name",
 				AppName:           "no-change-update-cache",
 				Namespace:         "default",
@@ -3845,10 +4958,232 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
+		}, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 1,
+			ExternalGets:    1,
+			ExternalSets:    1,
+		}},
+		{name: "NoChangesHelmWithRefMultiSourceUpdateCache", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				// fetch
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
+				gitClient.EXPECT().IsRevisionPresent("732039659e542ed7de0c170a4fcc1c571b288fc1").Once().Return(true)
+				gitClient.EXPECT().IsRevisionPresent("2e67a504d03def3a6a1125d934cb511680f72554").Once().Return(true)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				gitClient.EXPECT().LsRemote("HEAD-1").Once().Return("732039659e542ed7de0c170a4fcc1c571b288fc1", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD-1").Once().Return("2e67a504d03def3a6a1125d934cb511680f72554", nil)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				gitClient.EXPECT().Root().Return("")
+				gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{}, nil)
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo: &v1alpha1.Repository{Repo: "url.com", Type: "helm"},
+				RefSources: v1alpha1.RefTargetRevisionMapping{
+					"$values":   {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "HEAD"},
+					"$values_2": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "HEAD-1"},
+				},
+				SyncedRefSources: v1alpha1.RefTargetRevisionMapping{
+					"$values":   {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "SYNCEDHEAD"},
+					"$values_2": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "SYNCEDHEAD-1"},
+				},
+				Revision:           "0.0.1",
+				SyncedRevision:     "0.0.1",
+				Paths:              []string{"."},
+				AppLabelKey:        "app.kubernetes.io/name",
+				AppName:            "no-change-update-cache",
+				Namespace:          "default",
+				TrackingMethod:     "annotation+label",
+				ApplicationSource:  &v1alpha1.ApplicationSource{Path: ".", Helm: &v1alpha1.ApplicationSourceHelm{ReleaseName: "test", ValueFiles: []string{"$values/path", "$values_2/path"}}},
+				KubeVersion:        "v1.16.0",
+				HasMultipleSources: true,
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "0.0.1", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+		}, wantErr: assert.NoError, cacheHit: &cacheHit{
+			previousRevision: "0.0.1",
+			revision:         "0.0.1",
+		}, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 1,
+			ExternalGets:    2,
+			ExternalSets:    2,
+		}},
+		{name: "NoChangesHelmWithRefMultiSource_IgnoreUnusedRef", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				// fetch
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
+				gitClient.EXPECT().IsRevisionPresent("732039659e542ed7de0c170a4fcc1c571b288fc1").Once().Return(true)
+				gitClient.EXPECT().IsRevisionPresent("2e67a504d03def3a6a1125d934cb511680f72554").Once().Return(true)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				gitClient.EXPECT().Root().Return("")
+				gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{}, nil)
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo: &v1alpha1.Repository{Repo: "url.com", Type: "helm"},
+				RefSources: v1alpha1.RefTargetRevisionMapping{
+					"$values":   {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "HEAD"},
+					"$values_2": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "HEAD-1"},
+				},
+				SyncedRefSources: v1alpha1.RefTargetRevisionMapping{
+					"$values":   {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "SYNCEDHEAD"},
+					"$values_2": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "SYNCEDHEAD-1"},
+				},
+				Revision:           "0.0.1",
+				SyncedRevision:     "0.0.1",
+				Paths:              []string{"."},
+				AppLabelKey:        "app.kubernetes.io/name",
+				AppName:            "no-change-update-cache",
+				Namespace:          "default",
+				TrackingMethod:     "annotation+label",
+				ApplicationSource:  &v1alpha1.ApplicationSource{Path: ".", Helm: &v1alpha1.ApplicationSourceHelm{ReleaseName: "test", ValueFiles: []string{"$values/path"}}},
+				KubeVersion:        "v1.16.0",
+				HasMultipleSources: true,
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "0.0.1", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+		}, wantErr: assert.NoError, cacheHit: &cacheHit{
+			previousRevision: "0.0.1",
+			revision:         "0.0.1",
+		}, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 1,
+			ExternalGets:    1,
+			ExternalSets:    1,
+		}},
+		{name: "NoChangesHelmWithRefMultiSource_UndefinedRef", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				// fetch
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
+				gitClient.EXPECT().IsRevisionPresent("732039659e542ed7de0c170a4fcc1c571b288fc1").Once().Return(true)
+				gitClient.EXPECT().IsRevisionPresent("2e67a504d03def3a6a1125d934cb511680f72554").Once().Return(true)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				gitClient.EXPECT().Root().Return("")
+				gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{}, nil)
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo: &v1alpha1.Repository{Repo: "url.com", Type: "helm"},
+				RefSources: v1alpha1.RefTargetRevisionMapping{
+					"$values":   {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "HEAD"},
+					"$values_2": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "HEAD-1"},
+				},
+				SyncedRefSources: v1alpha1.RefTargetRevisionMapping{
+					"$values":   {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "SYNCEDHEAD"},
+					"$values_2": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "SYNCEDHEAD-1"},
+				},
+				Revision:           "0.0.1",
+				SyncedRevision:     "0.0.1",
+				Paths:              []string{"."},
+				AppLabelKey:        "app.kubernetes.io/name",
+				AppName:            "no-change-update-cache",
+				Namespace:          "default",
+				TrackingMethod:     "annotation+label",
+				ApplicationSource:  &v1alpha1.ApplicationSource{Path: ".", Helm: &v1alpha1.ApplicationSourceHelm{ReleaseName: "test", ValueFiles: []string{"$values_3/path"}}},
+				KubeVersion:        "v1.16.0",
+				HasMultipleSources: true,
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "0.0.1", Changes: true,
+		}, wantErr: assert.Error, cacheHit: nil},
+		{name: "IgnoreRefSourcesForGitSource", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				// fetch
+				gitClient.EXPECT().IsRevisionPresent("1e67a504d03def3a6a1125d934cb511680f72555").Once().Return(true)
+				gitClient.EXPECT().IsRevisionPresent("732039659e542ed7de0c170a4fcc1c571b288fc1").Once().Return(true)
+				gitClient.EXPECT().IsRevisionPresent("2e67a504d03def3a6a1125d934cb511680f72554").Once().Return(true)
+				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything).Once().Return(nil)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+				gitClient.EXPECT().Root().Return("")
+				gitClient.EXPECT().ChangedFiles(mock.Anything, mock.Anything).Return([]string{}, nil)
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo: &v1alpha1.Repository{Repo: "https://github.com", Type: "git"},
+				RefSources: v1alpha1.RefTargetRevisionMapping{
+					"$values_2": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "HEAD-1"},
+				},
+				SyncedRefSources: v1alpha1.RefTargetRevisionMapping{
+					"$values_2": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, Chart: "test", TargetRevision: "SYNCEDHEAD-1"},
+				},
+				Revision:       "HEAD",
+				SyncedRevision: "SYNCEDHEAD",
+				Paths:          []string{"."},
+				AppLabelKey:    "app.kubernetes.io/name",
+				AppName:        "no-change-update-cache",
+				Namespace:      "default",
+				TrackingMethod: "annotation+label",
+				ApplicationSource: &v1alpha1.ApplicationSource{
+					Path:           ".",
+					Helm:           &v1alpha1.ApplicationSourceHelm{ReleaseName: "test", ValueFiles: []string{"path"}},
+					RepoURL:        "https://github.com",
+					TargetRevision: "HEAD",
+				},
+				KubeVersion:        "v1.16.0",
+				HasMultipleSources: true,
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+		}, wantErr: assert.NoError, cacheHit: &cacheHit{
+			previousRevision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+			revision:         "1e67a504d03def3a6a1125d934cb511680f72555",
+		}, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 1,
+			ExternalGets:    1,
+			ExternalSets:    1,
 		}},
 	}
 	for _, tt := range tests {
@@ -3866,14 +5201,8 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			}
 			assert.Equalf(t, tt.want, got, "UpdateRevisionForPaths(%v, %v)", tt.args.ctx, tt.args.request)
 
-			if tt.cacheHit != nil {
-				cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-					ExternalRenames: 1,
-				})
-			} else {
-				cache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
-					ExternalRenames: 0,
-				})
+			if tt.cacheCallCount != nil {
+				cache.mockCache.AssertCacheCalledTimes(t, tt.cacheCallCount)
 			}
 		})
 	}
@@ -3902,10 +5231,8 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	var wg sync.WaitGroup
 	numberOfCallers := 10
-	for i := 0; i < numberOfCallers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range numberOfCallers {
+		wg.Go(func() {
 			client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
@@ -3913,7 +5240,7 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 			assert.NotNil(t, refs)
 			assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 			assert.NotEmpty(t, refs.Branches[0])
-		}()
+		})
 	}
 	wg.Wait()
 	// Unlock should not have been called
@@ -3958,10 +5285,8 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	var wg sync.WaitGroup
 	numberOfCallers := 10
-	for i := 0; i < numberOfCallers; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range numberOfCallers {
+		wg.Go(func() {
 			client, err := git.NewClient("file://"+dir, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
@@ -3969,7 +5294,7 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 			assert.NotNil(t, refs)
 			assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 			assert.NotEmpty(t, refs.Branches[0])
-		}()
+		})
 	}
 	wg.Wait()
 	// Unlock should not have been called
@@ -3990,8 +5315,8 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 	})
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	repoUrl := "file://" + dir
-	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+	repoURL := "file://" + dir
+	client, err := git.NewClient(repoURL, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -3999,7 +5324,7 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 	assert.NotEmpty(t, refs.Branches, "Expected branches to be populated")
 	assert.NotEmpty(t, refs.Branches[0])
 	var output [][2]string
-	err = cacheMocks.cacheutilCache.GetItem(fmt.Sprintf("git-refs|%s|%s", repoUrl, common.CacheVersion), &output)
+	err = cacheMocks.cacheutilCache.GetItem(fmt.Sprintf("git-refs|%s|%s", repoURL, common.CacheVersion), &output)
 	require.Error(t, err, "Should be a cache miss")
 	assert.Empty(t, output, "Expected cache to be empty for key")
 	cacheMocks.mockCache.AssertNumberOfCalls(t, "UnlockGitReferences", 0)
@@ -4019,10 +5344,10 @@ func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
 	})
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	repoUrl := "file://" + dir
+	repoURL := "file://" + dir
 	// buf := bytes.Buffer{}
 	// log.SetOutput(&buf)
-	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+	client, err := git.NewClient(repoURL, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -4030,10 +5355,10 @@ func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
 }
 
 func TestGetRevisionChartDetails(t *testing.T) {
-	t.Run("Test revision semvar", func(t *testing.T) {
+	t.Run("Test revision semver", func(t *testing.T) {
 		root := t.TempDir()
 		service := newService(t, root)
-		_, err := service.GetRevisionChartDetails(context.Background(), &apiclient.RepoServerRevisionChartDetailsRequest{
+		_, err := service.GetRevisionChartDetails(t.Context(), &apiclient.RepoServerRevisionChartDetailsRequest{
 			Repo: &v1alpha1.Repository{
 				Repo: "file://" + root,
 				Name: "test-repo-name",
@@ -4048,14 +5373,14 @@ func TestGetRevisionChartDetails(t *testing.T) {
 	t.Run("Test GetRevisionChartDetails", func(t *testing.T) {
 		root := t.TempDir()
 		service := newService(t, root)
-		repoUrl := "file://" + root
-		err := service.cache.SetRevisionChartDetails(repoUrl, "my-chart", "1.1.0", &v1alpha1.ChartDetails{
+		repoURL := "file://" + root
+		err := service.cache.SetRevisionChartDetails(repoURL, "my-chart", "1.1.0", &v1alpha1.ChartDetails{
 			Description: "test-description",
 			Home:        "test-home",
 			Maintainers: []string{"test-maintainer"},
 		})
 		require.NoError(t, err)
-		chartDetails, err := service.GetRevisionChartDetails(context.Background(), &apiclient.RepoServerRevisionChartDetailsRequest{
+		chartDetails, err := service.GetRevisionChartDetails(t.Context(), &apiclient.RepoServerRevisionChartDetailsRequest{
 			Repo: &v1alpha1.Repository{
 				Repo: "file://" + root,
 				Name: "test-repo-name",
@@ -4079,7 +5404,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	t.Run("VerifyCommitSignature with valid signature", func(t *testing.T) {
 		t.Setenv("ARGOCD_GPG_ENABLED", "true")
 		mockGitClient := &gitmocks.Client{}
-		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		mockGitClient.EXPECT().VerifyCommitSignature(mock.Anything).
 			Return(testSignature, nil)
 		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
 		require.NoError(t, err)
@@ -4088,7 +5413,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	t.Run("VerifyCommitSignature with invalid signature", func(t *testing.T) {
 		t.Setenv("ARGOCD_GPG_ENABLED", "true")
 		mockGitClient := &gitmocks.Client{}
-		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		mockGitClient.EXPECT().VerifyCommitSignature(mock.Anything).
 			Return("", nil)
 		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
 		assert.EqualError(t, err, "revision abcd1234 is not signed")
@@ -4097,7 +5422,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	t.Run("VerifyCommitSignature with unknown signature", func(t *testing.T) {
 		t.Setenv("ARGOCD_GPG_ENABLED", "true")
 		mockGitClient := &gitmocks.Client{}
-		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		mockGitClient.EXPECT().VerifyCommitSignature(mock.Anything).
 			Return("", errors.New("UNKNOWN signature: gpg: Unknown signature from ABCDEFGH"))
 		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
 		assert.EqualError(t, err, "UNKNOWN signature: gpg: Unknown signature from ABCDEFGH")
@@ -4106,7 +5431,7 @@ func TestVerifyCommitSignature(t *testing.T) {
 	t.Run("VerifyCommitSignature with error verifying signature", func(t *testing.T) {
 		t.Setenv("ARGOCD_GPG_ENABLED", "true")
 		mockGitClient := &gitmocks.Client{}
-		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		mockGitClient.EXPECT().VerifyCommitSignature(mock.Anything).
 			Return("", errors.New("error verifying signature of commit 'abcd1234' in repo 'https://github.com/example/repo.git': failed to verify signature"))
 		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
 		assert.EqualError(t, err, "error verifying signature of commit 'abcd1234' in repo 'https://github.com/example/repo.git': failed to verify signature")
@@ -4128,7 +5453,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 		q := apiclient.ManifestRequest{
 			AppName:     "test-app",
 			Namespace:   "test-namespace",
-			KubeVersion: "1.2.3",
+			KubeVersion: "1.2.3+something",
 			ApiVersions: []string{"v1/Test", "v2/Test"},
 			Repo:        &v1alpha1.Repository{},
 			ApplicationSource: &v1alpha1.ApplicationSource{
@@ -4166,7 +5491,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 			ProjectSourceRepos: []string{"*"},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 
 		require.NoError(t, err)
 		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --kube-version 1.2.3 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v1/Test --api-versions v2/Test"}, res.Commands)
@@ -4174,11 +5499,11 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 		t.Run("with overrides", func(t *testing.T) {
 			// These can be set explicitly instead of using inferred values. Make sure the overrides apply.
 			q.ApplicationSource.Helm.APIVersions = []string{"v3", "v4"}
-			q.ApplicationSource.Helm.KubeVersion = "5.6.7"
+			q.ApplicationSource.Helm.KubeVersion = "5.6.7+something"
 			q.ApplicationSource.Helm.Namespace = "different-namespace"
 			q.ApplicationSource.Helm.ReleaseName = "different-release-name"
 
-			res, err = service.GenerateManifest(context.Background(), &q)
+			res, err = service.GenerateManifest(t.Context(), &q)
 
 			require.NoError(t, err)
 			assert.Equal(t, []string{"helm template . --name-template different-release-name --namespace different-namespace --kube-version 5.6.7 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v3 --api-versions v4"}, res.Commands)
@@ -4193,6 +5518,8 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 			err := os.Remove("testdata/helm-with-local-dependency/Chart.lock")
 			require.NoError(t, err)
 			err = os.RemoveAll("testdata/helm-with-local-dependency/charts")
+			require.NoError(t, err)
+			err = os.Remove(path.Join("testdata/helm-with-local-dependency", helmDepUpMarkerFile))
 			require.NoError(t, err)
 		})
 
@@ -4209,7 +5536,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 			ProjectSourceRepos: []string{"*"},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 
 		require.NoError(t, err)
 		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --include-crds"}, res.Commands)
@@ -4243,13 +5570,16 @@ images:
 
 		service := newService(t, tempDir)
 
-		// Fill the manifest request with as many parameters affecting Helm commands as possible.
+		// Fill the manifest request with as many parameters affecting Kustomize commands as possible.
 		q := apiclient.ManifestRequest{
 			AppName:     "test-app",
 			Namespace:   "test-namespace",
-			KubeVersion: "1.2.3",
+			KubeVersion: "1.2.3+something",
 			ApiVersions: []string{"v1/Test", "v2/Test"},
 			Repo:        &v1alpha1.Repository{},
+			KustomizeOptions: &v1alpha1.KustomizeOptions{
+				BuildOptions: "--enable-helm",
+			},
 			ApplicationSource: &v1alpha1.ApplicationSource{
 				Path: ".",
 				Kustomize: &v1alpha1.ApplicationSourceKustomize{
@@ -4268,11 +5598,12 @@ images:
 					Images: v1alpha1.KustomizeImages{
 						"image=override",
 					},
-					KubeVersion:          "5.6.7",
-					LabelWithoutSelector: true,
-					NamePrefix:           "test-prefix",
-					NameSuffix:           "test-suffix",
-					Namespace:            "override-namespace",
+					KubeVersion:           "5.6.7+something",
+					LabelWithoutSelector:  true,
+					LabelIncludeTemplates: true,
+					NamePrefix:            "test-prefix",
+					NameSuffix:            "test-suffix",
+					Namespace:             "override-namespace",
 					Replicas: v1alpha1.KustomizeReplicas{
 						{
 							Name:  "guestbook-ui",
@@ -4285,19 +5616,18 @@ images:
 			ProjectSourceRepos: []string{"*"},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
-
+		res, err := service.GenerateManifest(t.Context(), &q)
 		require.NoError(t, err)
 		assert.Equal(t, []string{
 			"kustomize edit set nameprefix -- test-prefix",
 			"kustomize edit set namesuffix -- test-suffix",
 			"kustomize edit set image image=override",
 			"kustomize edit set replicas guestbook-ui=1337",
-			"kustomize edit add label --force --without-selector test:label",
+			"kustomize edit add label --force --without-selector --include-templates test:label",
 			"kustomize edit add annotation --force test:annotation-test-app",
 			"kustomize edit set namespace -- override-namespace",
 			"kustomize edit add component component",
-			"kustomize build .",
+			"kustomize build . --enable-helm --helm-kube-version 5.6.7 --helm-api-versions v1 --helm-api-versions v2",
 		}, res.Commands)
 	})
 }
@@ -4317,7 +5647,7 @@ func Test_SkipSchemaValidation(t *testing.T) {
 			},
 		}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
+		res, err := service.GenerateManifest(t.Context(), &q)
 
 		require.NoError(t, err)
 		assert.Equal(t, []string{"helm template . --name-template test-app --include-crds --skip-schema-validation"}, res.Commands)
@@ -4336,8 +5666,39 @@ func Test_SkipSchemaValidation(t *testing.T) {
 			},
 		}
 
-		_, err := service.GenerateManifest(context.Background(), &q)
+		_, err := service.GenerateManifest(t.Context(), &q)
 
 		require.ErrorContains(t, err, "values don't meet the specifications of the schema(s)")
 	})
+}
+
+func TestGenerateManifest_OCISourceSkipsGitClient(t *testing.T) {
+	svc := newService(t, t.TempDir())
+
+	gitCalled := false
+	svc.newGitClient = func(_, _ string, _ git.Creds, _, _ bool, _, _ string, _ ...git.ClientOpts) (git.Client, error) {
+		gitCalled = true
+		return nil, errors.New("git should not be called for OCI")
+	}
+
+	req := &apiclient.ManifestRequest{
+		HasMultipleSources: true,
+		Repo: &v1alpha1.Repository{
+			Repo: "oci://example.com/foo",
+		},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:           "",
+			TargetRevision: "v1",
+			Ref:            "foo",
+			RepoURL:        "oci://example.com/foo",
+		},
+		ProjectName:        "foo-project",
+		ProjectSourceRepos: []string{"*"},
+	}
+
+	_, err := svc.GenerateManifest(t.Context(), req)
+	require.NoError(t, err)
+
+	// verify that newGitClient was never invoked
+	assert.False(t, gitCalled, "GenerateManifest should not invoke Git for OCI sources")
 }

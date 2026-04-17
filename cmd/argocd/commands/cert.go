@@ -1,7 +1,9 @@
 package commands
 
 import (
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	stderrors "errors"
 	"fmt"
 	"os"
@@ -18,7 +20,7 @@ import (
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	certutil "github.com/argoproj/argo-cd/v3/util/cert"
 	"github.com/argoproj/argo-cd/v3/util/errors"
-	"github.com/argoproj/argo-cd/v3/util/io"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
 // NewCertCommand returns a new instance of an `argocd repo` command
@@ -62,6 +64,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		fromFile string
 		upsert   bool
 	)
+
 	command := &cobra.Command{
 		Use:   "add-tls SERVERNAME",
 		Short: "Add TLS certificate data for connecting to repository server SERVERNAME",
@@ -69,15 +72,17 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			ctx := c.Context()
 
 			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
 
-			var certificateArray []string
-			var err error
+			var (
+				certificateArray []string
+				err              error
+			)
 
 			if fromFile != "" {
 				fmt.Printf("Reading TLS certificate data in PEM format from '%s'\n", fromFile)
@@ -86,54 +91,86 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				fmt.Println("Enter TLS certificate data in PEM format. Press CTRL-D when finished.")
 				certificateArray, err = certutil.ParseTLSCertificatesFromStream(os.Stdin)
 			}
-
 			errors.CheckError(err)
 
-			certificateList := make([]appsv1.RepositoryCertificate, 0)
+			uniqueCerts, err := deduplicatePEMCertificates(certificateArray)
+			errors.CheckError(err)
 
-			subjectMap := make(map[string]*x509.Certificate)
-
-			for _, entry := range certificateArray {
-				// We want to make sure to only send valid certificate data to the
-				// server, so we decode the certificate into X509 structure before
-				// further processing it.
-				x509cert, err := certutil.DecodePEMCertificateToX509(entry)
-				errors.CheckError(err)
-
-				// TODO: We need a better way to detect duplicates sent in the stream,
-				// maybe by using fingerprints? For now, no two certs with the same
-				// subject may be sent.
-				if subjectMap[x509cert.Subject.String()] != nil {
-					fmt.Printf("ERROR: Cert with subject '%s' already seen in the input stream.\n", x509cert.Subject.String())
-					continue
-				}
-				subjectMap[x509cert.Subject.String()] = x509cert
+			if len(uniqueCerts) == 0 {
+				fmt.Println("No valid certificates have been detected in the stream.")
+				return
 			}
 
 			serverName := args[0]
 
-			if len(certificateArray) > 0 {
-				certificateList = append(certificateList, appsv1.RepositoryCertificate{
+			certificateList := []appsv1.RepositoryCertificate{
+				{
 					ServerName: serverName,
 					CertType:   "https",
-					CertData:   []byte(strings.Join(certificateArray, "\n")),
-				})
-				certificates, err := certIf.CreateCertificate(ctx, &certificatepkg.RepositoryCertificateCreateRequest{
+					CertData:   []byte(strings.Join(uniqueCerts, "\n")),
+				},
+			}
+
+			_, err = certIf.CreateCertificate(
+				ctx,
+				&certificatepkg.RepositoryCertificateCreateRequest{
 					Certificates: &appsv1.RepositoryCertificateList{
 						Items: certificateList,
 					},
 					Upsert: upsert,
-				})
-				errors.CheckError(err)
-				fmt.Printf("Created entry with %d PEM certificates for repository server %s\n", len(certificates.Items), serverName)
-			} else {
-				fmt.Printf("No valid certificates have been detected in the stream.\n")
-			}
+				},
+			)
+			errors.CheckError(err)
+
+			fmt.Printf(
+				"Created/updated TLS certificate entry for repository server %s with %d unique PEM certificates\n",
+				serverName,
+				len(uniqueCerts),
+			)
 		},
 	}
 	command.Flags().StringVar(&fromFile, "from", "", "Read TLS certificate data from file (default is to read from stdin)")
 	command.Flags().BoolVar(&upsert, "upsert", false, "Replace existing TLS certificate if certificate is different in input")
 	return command
+}
+
+// certFingerprintSHA256 returns the SHA256 fingerprint of the given X.509 certificate.
+// The fingerprint is returned as a lowercase hexadecimal string.
+func certFingerprintSHA256(cert *x509.Certificate) string {
+	sum := sha256.Sum256(cert.Raw)
+	return hex.EncodeToString(sum[:])
+}
+
+// deduplicatePEMCertificates removes duplicate PEM certificates from the input slice.
+// Two certificates are considered duplicates if their SHA256 fingerprints match.
+// The function returns a slice of unique certificates in the original order.
+// If any certificate cannot be decoded into X.509 format, an error is returned.
+func deduplicatePEMCertificates(pems []string) ([]string, error) {
+	fingerprintMap := make(map[string]struct{})
+	uniqueCerts := make([]string, 0)
+
+	for _, entry := range pems {
+		x509cert, err := certutil.DecodePEMCertificateToX509(entry)
+		if err != nil {
+			return nil, err
+		}
+
+		fingerprint := certFingerprintSHA256(x509cert)
+
+		if _, exists := fingerprintMap[fingerprint]; exists {
+			fmt.Printf(
+				"WARNING: Duplicate certificate detected (SHA256 fingerprint %s, subject '%s'), skipping.\n",
+				fingerprint,
+				x509cert.Subject.String(),
+			)
+			continue
+		}
+
+		fingerprintMap[fingerprint] = struct{}{}
+		uniqueCerts = append(uniqueCerts, entry)
+	}
+
+	return uniqueCerts, nil
 }
 
 // NewCertAddSSHCommand returns a new instance of an `argocd cert add` command
@@ -152,7 +189,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			ctx := c.Context()
 
 			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 
 			var sshKnownHostsLists []string
 			var err error
@@ -167,13 +204,13 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					sshKnownHostsLists, err = certutil.ParseSSHKnownHostsFromStream(os.Stdin)
 				}
 			} else {
-				err = stderrors.New("You need to specify --batch or specify --help for usage instructions")
+				err = stderrors.New("you need to specify --batch or specify --help for usage instructions")
 			}
 
 			errors.CheckError(err)
 
 			if len(sshKnownHostsLists) == 0 {
-				errors.CheckError(stderrors.New("No valid SSH known hosts data found."))
+				errors.Fatal(errors.ErrorGeneric, "No valid SSH known hosts data found.")
 			}
 
 			for _, knownHostsEntry := range sshKnownHostsLists {
@@ -226,7 +263,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				os.Exit(1)
 			}
 			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 			hostNamePattern := args[0]
 
 			// Prevent the user from specifying a wildcard as hostname as precaution
@@ -234,8 +271,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			// remove all certificates, but it's less likely that it happens by
 			// accident.
 			if hostNamePattern == "*" {
-				err := stderrors.New("A single wildcard is not allowed as REPOSERVER name.")
-				errors.CheckError(err)
+				errors.Fatal(errors.ErrorGeneric, "A single wildcard is not allowed as REPOSERVER name.")
 			}
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
@@ -290,7 +326,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 
 			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDie()
-			defer io.Close(conn)
+			defer utilio.Close(conn)
 			certificates, err := certIf.ListCertificates(ctx, &certificatepkg.RepositoryCertificateQuery{HostNamePattern: hostNamePattern, CertType: certType})
 			errors.CheckError(err)
 
@@ -316,13 +352,14 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 // Print table of certificate info
 func printCertTable(certs []appsv1.RepositoryCertificate, sortOrder string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "HOSTNAME\tTYPE\tSUBTYPE\tINFO\n")
+	fmt.Fprint(w, "HOSTNAME\tTYPE\tSUBTYPE\tINFO\n")
 
-	if sortOrder == "hostname" || sortOrder == "" {
+	switch sortOrder {
+	case "hostname", "":
 		sort.Slice(certs, func(i, j int) bool {
 			return certs[i].ServerName < certs[j].ServerName
 		})
-	} else if sortOrder == "type" {
+	case "type":
 		sort.Slice(certs, func(i, j int) bool {
 			return certs[i].CertType < certs[j].CertType
 		})

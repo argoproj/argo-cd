@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -34,7 +33,7 @@ func TestPlugin(t *testing.T) {
 	client, err := NewPluginService("plugin-test", ts.URL, token, 0)
 	require.NoError(t, err)
 
-	data, err := client.List(context.Background(), nil)
+	data, err := client.List(t.Context(), nil)
 	require.NoError(t, err)
 
 	var expectedData ServiceResponse

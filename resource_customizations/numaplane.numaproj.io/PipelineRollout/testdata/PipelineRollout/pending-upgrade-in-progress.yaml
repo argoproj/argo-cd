@@ -56,5 +56,6 @@ status:
       reason: Successful
       status: 'True'
       type: ChildResourcesHealthy
+    
   observedGeneration: 1
   phase: Pending

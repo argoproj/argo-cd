@@ -12,6 +12,7 @@ import {
 } from '../../shared/models';
 import * as jsYaml from 'js-yaml';
 import {
+    appRBACName,
     ComparisonStatusIcon,
     getAppOperationState,
     getOperationType,
@@ -317,6 +318,72 @@ describe('getPodStateReason', () => {
           reason: "Completed"
     phase: "Running"
 `;
+        const pod = jsYaml.load(podYaml);
+
+        const {reason} = getPodStateReason(pod as State);
+            expect(reason).toBe('Running');
+    });
+
+    it('TestGetPodWithInitialContainerInfoWithResources', () => {
+      const podYaml = `
+        apiVersion: "v1"
+        kind: "Pod"
+        metadata:
+            labels:
+                app: "app-with-initial-container"
+            name: "app-with-initial-container-5f46976fdb-vd6rv"
+            namespace: "default"
+            ownerReferences:
+            - apiVersion: "apps/v1"
+              kind: "ReplicaSet"
+              name: "app-with-initial-container-5f46976fdb"
+        spec:
+            containers:
+            - image: "alpine:latest"
+              imagePullPolicy: "Always"
+              name: "app-with-initial-container"
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "128Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"
+            initContainers:
+            - image: "alpine:latest"
+              imagePullPolicy: "Always"
+              name: "app-with-initial-container-logshipper"
+              resources:
+                requests:
+                  cpu: "50m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "250m"
+                  memory: "256Mi"
+            nodeName: "minikube"
+        status:
+            containerStatuses:
+            - image: "alpine:latest"
+              name: "app-with-initial-container"
+              ready: true
+              restartCount: 0
+              started: true
+              state:
+                running:
+                  startedAt: "2024-10-08T08:44:25Z"
+            initContainerStatuses:
+            - image: "alpine:latest"
+              name: "app-with-initial-container-logshipper"
+              ready: true
+              restartCount: 0
+              started: false
+              state:
+                terminated:
+                  exitCode: 0
+                  reason: "Completed"
+            phase: "Running"
+`;
+
         const pod = jsYaml.load(podYaml);
 
         const {reason} = getPodStateReason(pod as State);
@@ -631,6 +698,40 @@ status:
             expect(reason).toBe('Completed');
     });
 
+    it('TestPodConditionSucceededWithResources', () => {
+        const podYaml = `
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test8
+  spec:
+    nodeName: minikube
+    containers:
+      - name: container
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+  status:
+    phase: Succeeded
+    containerStatuses:
+      - ready: false
+        restartCount: 0
+        state:
+          terminated:
+            reason: Completed
+            exitCode: 0
+`;
+        const pod = jsYaml.load(podYaml);
+
+        const {reason} = getPodStateReason(pod as State);
+
+            expect(reason).toBe('Completed');
+    });
+
     it('TestPodConditionFailed', () => {
         const podYaml = `
   apiVersion: v1
@@ -657,6 +758,40 @@ status:
 
             expect(reason).toBe('Error');
     });
+
+    it('TestPodConditionFailedWithResources', () => {
+      const podYaml = `
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test9
+spec:
+  nodeName: minikube
+  containers:
+    - name: container
+      resources:
+        requests:
+          cpu: "50m"
+          memory: "64Mi"
+        limits:
+          cpu: "250m"
+          memory: "256Mi"
+status:
+  phase: Failed
+  containerStatuses:
+    - ready: false
+      restartCount: 0
+      state:
+        terminated:
+          reason: Error
+          exitCode: 1
+`;
+      const pod = jsYaml.load(podYaml);
+
+      const {reason} = getPodStateReason(pod as State);
+
+          expect(reason).toBe('Error');
+  });
 
     it('TestPodConditionSucceededWithDeletion', () => {
         const podYaml = `
@@ -757,5 +892,55 @@ status:
         const {reason} = getPodStateReason(pod as State);
 
         expect(reason).toBe('SchedulingGated');
+    });
+});
+
+describe('appRBACName', () => {
+    it('returns project/namespace/name when namespace is defined', () => {
+        const app = {
+            metadata: {
+                name: 'my-app',
+                namespace: 'my-namespace'
+            },
+            spec: {
+                project: 'my-project'
+            }
+        } as Application;
+
+        const result = appRBACName(app);
+
+        expect(result).toBe('my-project/my-namespace/my-app');
+    });
+
+    it('returns project/name when namespace is undefined', () => {
+        const app = {
+            metadata: {
+                name: 'my-app'
+            },
+            spec: {
+                project: 'my-project'
+            }
+        } as Application;
+
+        const result = appRBACName(app);
+
+        expect(result).toBe('my-project/my-app');
+    });
+
+    it('handles empty namespace string as undefined', () => {
+        const app = {
+            metadata: {
+                name: 'test-app',
+                namespace: ''
+            },
+            spec: {
+                project: 'test-project'
+            }
+        } as Application;
+
+        // Note: The function uses a falsy check on namespace, so empty string is treated the same as undefined
+        const result = appRBACName(app);
+
+        expect(result).toBe('test-project/test-app');
     });
 });

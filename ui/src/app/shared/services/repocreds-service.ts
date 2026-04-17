@@ -5,10 +5,14 @@ export interface HTTPSCreds {
     url: string;
     username: string;
     password: string;
+    bearerToken: string;
     tlsClientCertData: string;
     tlsClientCertKey: string;
+    type: string;
     proxy: string;
     noProxy: string;
+    enableOCI: boolean;
+    insecureOCIForceHttp: boolean;
 }
 
 export interface SSHCreds {
@@ -31,6 +35,16 @@ export interface GitHubAppCreds {
 export interface GoogleCloudSourceCreds {
     url: string;
     gcpServiceAccountKey: string;
+}
+
+export interface AzureServicePrincipalCreds {
+    url: string;
+    azureActiveDirectoryEndpoint: string;
+    azureServicePrincipalClientId: string;
+    azureServicePrincipalClientSecret: string;
+    azureServicePrincipalTenantId: string;
+    proxy: string;
+    noProxy: string;
 }
 
 export class RepoCredsService {
@@ -98,6 +112,20 @@ export class RepoCredsService {
     }
 
     public createGoogleCloudSourceWrite(creds: GoogleCloudSourceCreds): Promise<models.RepoCreds> {
+        return requests
+            .post('/write-repocreds')
+            .send(creds)
+            .then(res => res.body as models.RepoCreds);
+    }
+
+    public createAzureServicePrincipal(creds: AzureServicePrincipalCreds): Promise<models.RepoCreds> {
+        return requests
+            .post('/repocreds')
+            .send(creds)
+            .then(res => res.body as models.RepoCreds);
+    }
+
+    public createAzureServicePrincipalWrite(creds: AzureServicePrincipalCreds): Promise<models.RepoCreds> {
         return requests
             .post('/write-repocreds')
             .send(creds)

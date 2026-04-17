@@ -9,8 +9,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/cespare/xxhash/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -67,6 +67,10 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 			populateIstioVirtualServiceInfo(un, res)
 		case "ServiceEntry":
 			populateIstioServiceEntryInfo(un, res)
+		}
+	case "argoproj.io":
+		if gvk.Kind == "Application" {
+			populateApplicationInfo(un, res)
 		}
 	}
 }
@@ -221,9 +225,19 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if res.NetworkingInfo != nil {
 		urls = res.NetworkingInfo.ExternalURLs
 	}
-	for url := range urlsSet {
-		urls = append(urls, url)
+
+	enableDefaultExternalURLs := true
+	if ignoreVal, ok := un.GetAnnotations()[common.AnnotationKeyIgnoreDefaultLinks]; ok {
+		if ignoreDefaultLinks, err := strconv.ParseBool(ignoreVal); err == nil {
+			enableDefaultExternalURLs = !ignoreDefaultLinks
+		}
 	}
+	if enableDefaultExternalURLs {
+		for url := range urlsSet {
+			urls = append(urls, url)
+		}
+	}
+
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, Ingress: ingress, ExternalURLs: urls}
 }
 
@@ -380,7 +394,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 			continue
 		case container.State.Terminated != nil:
 			// initialization is failed
-			if len(container.State.Terminated.Reason) == 0 {
+			if container.State.Terminated.Reason == "" {
 				if container.State.Terminated.Signal != 0 {
 					reason = fmt.Sprintf("Init:Signal:%d", container.State.Terminated.Signal)
 				} else {
@@ -390,7 +404,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 				reason = "Init:" + container.State.Terminated.Reason
 			}
 			initializing = true
-		case container.State.Waiting != nil && len(container.State.Waiting.Reason) > 0 && container.State.Waiting.Reason != "PodInitializing":
+		case container.State.Waiting != nil && container.State.Waiting.Reason != "" && container.State.Waiting.Reason != "PodInitializing":
 			reason = "Init:" + container.State.Waiting.Reason
 			initializing = true
 		default:
@@ -405,17 +419,18 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 			container := pod.Status.ContainerStatuses[i]
 
 			restarts += int(container.RestartCount)
-			if container.State.Waiting != nil && container.State.Waiting.Reason != "" {
+			switch {
+			case container.State.Waiting != nil && container.State.Waiting.Reason != "":
 				reason = container.State.Waiting.Reason
-			} else if container.State.Terminated != nil && container.State.Terminated.Reason != "" {
+			case container.State.Terminated != nil && container.State.Terminated.Reason != "":
 				reason = container.State.Terminated.Reason
-			} else if container.State.Terminated != nil && container.State.Terminated.Reason == "" {
+			case container.State.Terminated != nil && container.State.Terminated.Reason == "":
 				if container.State.Terminated.Signal != 0 {
 					reason = fmt.Sprintf("Signal:%d", container.State.Terminated.Signal)
 				} else {
 					reason = fmt.Sprintf("ExitCode:%d", container.State.Terminated.ExitCode)
 				}
-			} else if container.Ready && container.State.Running != nil {
+			case container.Ready && container.State.Running != nil:
 				hasRunning = true
 				readyContainers++
 			}
@@ -445,12 +460,24 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 
 	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
+
 	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req, Phase: pod.Status.Phase}
 
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 	if restarts > 0 {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: strconv.Itoa(restarts)})
+	}
+
+	// Requests are relevant even for pods in the init phase or pending state (e.g., due to insufficient resources),
+	// as they help with diagnosing scheduling and startup issues.
+	// requests will be released for terminated pods either with success or failed state termination.
+	if !isPodPhaseTerminal(pod.Status.Phase) {
+		CPUReq := req[corev1.ResourceCPU]
+		MemoryReq := req[corev1.ResourceMemory]
+
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: common.PodRequestsCPU, Value: strconv.FormatInt(CPUReq.MilliValue(), 10)})
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: common.PodRequestsMEM, Value: strconv.FormatInt(MemoryReq.MilliValue(), 10)})
 	}
 
 	var urls []string
@@ -471,6 +498,14 @@ func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		Name:       node.Name,
 		Capacity:   node.Status.Capacity,
 		SystemInfo: node.Status.NodeInfo,
+		Labels:     node.Labels,
+	}
+}
+
+func populateApplicationInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	// Add managed-by-url annotation to info if present
+	if managedByURL, ok := un.GetAnnotations()[v1alpha1.AnnotationKeyManagedByURL]; ok {
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "managed-by-url", Value: managedByURL})
 	}
 }
 

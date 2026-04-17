@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
@@ -180,14 +181,14 @@ func TestRenderTemplateParams(t *testing.T) {
 				// the target field has been templated into the expected value
 				actualValue := *getPtrFunc(newApplication)
 				assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-				assert.Equal(t, "annotation-value", newApplication.ObjectMeta.Annotations["annotation-key"])
-				assert.Equal(t, "annotation-value2", newApplication.ObjectMeta.Annotations["annotation-key2"])
-				assert.Equal(t, "label-value", newApplication.ObjectMeta.Labels["label-key"])
-				assert.Equal(t, "label-value2", newApplication.ObjectMeta.Labels["label-key2"])
-				assert.Equal(t, "application-one", newApplication.ObjectMeta.Name)
-				assert.Equal(t, "default", newApplication.ObjectMeta.Namespace)
-				assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
-				assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
+				assert.Equal(t, "annotation-value", newApplication.Annotations["annotation-key"])
+				assert.Equal(t, "annotation-value2", newApplication.Annotations["annotation-key2"])
+				assert.Equal(t, "label-value", newApplication.Labels["label-key"])
+				assert.Equal(t, "label-value2", newApplication.Labels["label-key2"])
+				assert.Equal(t, "application-one", newApplication.Name)
+				assert.Equal(t, "default", newApplication.Namespace)
+				assert.Equal(t, newApplication.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
+				assert.Equal(t, newApplication.CreationTimestamp, application.CreationTimestamp)
 				require.NoError(t, err)
 			}
 		})
@@ -514,7 +515,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			params: map[string]any{
 				"data": `a data string`,
 			},
-			errorMessage: `failed to parse template {{functiondoesnotexist}}: template: :1: function "functiondoesnotexist" not defined`,
+			errorMessage: `failed to parse template {{functiondoesnotexist}}: template: base:1: function "functiondoesnotexist" not defined`,
 		},
 		{
 			name:        "Test template error",
@@ -523,7 +524,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			params: map[string]any{
 				"data": `a data string`,
 			},
-			errorMessage: `failed to execute go template {{.data.test}}: template: :1:7: executing "" at <.data.test>: can't evaluate field test in type interface {}`,
+			errorMessage: `failed to execute go template {{.data.test}}: template: base:1:7: executing "base" at <.data.test>: can't evaluate field test in type interface {}`,
 		},
 		{
 			name:        "lookup missing value with missingkey=default",
@@ -543,7 +544,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 				"unused": "this is not used",
 			},
 			templateOptions: []string{"missingkey=error"},
-			errorMessage:    `failed to execute go template --> {{.doesnotexist}} <--: template: :1:6: executing "" at <.doesnotexist>: map has no entry for key "doesnotexist"`,
+			errorMessage:    `failed to execute go template --> {{.doesnotexist}} <--: template: base:1:6: executing "base" at <.doesnotexist>: map has no entry for key "doesnotexist"`,
 		},
 		{
 			name:        "toYaml",
@@ -563,7 +564,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:         "toYaml Error",
 			fieldVal:     `{{ toYaml . | indent 2 }}`,
 			expectedVal:  "  foo:\n    bar:\n      bool: true\n      number: 2\n      str: Hello world",
-			errorMessage: "failed to execute go template {{ toYaml . | indent 2 }}: template: :1:3: executing \"\" at <toYaml .>: error calling toYaml: error marshaling into JSON: json: unsupported type: func(*string)",
+			errorMessage: "failed to execute go template {{ toYaml . | indent 2 }}: template: base:1:3: executing \"base\" at <toYaml .>: error calling toYaml: error marshaling into JSON: json: unsupported type: func(*string)",
 			params: map[string]any{
 				"foo": func(_ *string) {
 				},
@@ -581,7 +582,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:         "fromYaml error",
 			fieldVal:     `{{ get (fromYaml .value) "hello" }}`,
 			expectedVal:  "world",
-			errorMessage: "failed to execute go template {{ get (fromYaml .value) \"hello\" }}: template: :1:8: executing \"\" at <fromYaml .value>: error calling fromYaml: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}",
+			errorMessage: "failed to execute go template {{ get (fromYaml .value) \"hello\" }}: template: base:1:8: executing \"base\" at <fromYaml .value>: error calling fromYaml: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}",
 			params: map[string]any{
 				"value": "non\n compliant\n yaml",
 			},
@@ -598,7 +599,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			name:         "fromYamlArray error",
 			fieldVal:     `{{ fromYamlArray .value | last }}`,
 			expectedVal:  "bonjour tout le monde",
-			errorMessage: "failed to execute go template {{ fromYamlArray .value | last }}: template: :1:3: executing \"\" at <fromYamlArray .value>: error calling fromYamlArray: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []interface {}",
+			errorMessage: "failed to execute go template {{ fromYamlArray .value | last }}: template: base:1:3: executing \"base\" at <fromYamlArray .value>: error calling fromYamlArray: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []interface {}",
 			params: map[string]any{
 				"value": "non\n compliant\n yaml",
 			},
@@ -627,14 +628,14 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 					require.NoError(t, err)
 					actualValue := *getPtrFunc(newApplication)
 					assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-					assert.Equal(t, "annotation-value", newApplication.ObjectMeta.Annotations["annotation-key"])
-					assert.Equal(t, "annotation-value2", newApplication.ObjectMeta.Annotations["annotation-key2"])
-					assert.Equal(t, "label-value", newApplication.ObjectMeta.Labels["label-key"])
-					assert.Equal(t, "label-value2", newApplication.ObjectMeta.Labels["label-key2"])
-					assert.Equal(t, "application-one", newApplication.ObjectMeta.Name)
-					assert.Equal(t, "default", newApplication.ObjectMeta.Namespace)
-					assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
-					assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
+					assert.Equal(t, "annotation-value", newApplication.Annotations["annotation-key"])
+					assert.Equal(t, "annotation-value2", newApplication.Annotations["annotation-key2"])
+					assert.Equal(t, "label-value", newApplication.Labels["label-key"])
+					assert.Equal(t, "label-value2", newApplication.Labels["label-key2"])
+					assert.Equal(t, "application-one", newApplication.Name)
+					assert.Equal(t, "default", newApplication.Namespace)
+					assert.Equal(t, newApplication.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
+					assert.Equal(t, newApplication.CreationTimestamp, application.CreationTimestamp)
 				}
 			}
 		})
@@ -687,8 +688,8 @@ func TestRenderTemplateKeys(t *testing.T) {
 		render := Render{}
 		newApplication, err := render.RenderTemplateParams(application, nil, params, false, nil)
 		require.NoError(t, err)
-		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
-		assert.Equal(t, "annotation-some-value", newApplication.ObjectMeta.Annotations["annotation-some-key"])
+		require.Contains(t, newApplication.Annotations, "annotation-some-key")
+		assert.Equal(t, "annotation-some-value", newApplication.Annotations["annotation-some-key"])
 	})
 	t.Run("gotemplate", func(t *testing.T) {
 		application := &argoappsv1.Application{
@@ -707,8 +708,8 @@ func TestRenderTemplateKeys(t *testing.T) {
 		render := Render{}
 		newApplication, err := render.RenderTemplateParams(application, nil, params, true, nil)
 		require.NoError(t, err)
-		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
-		assert.Equal(t, "annotation-some-value", newApplication.ObjectMeta.Annotations["annotation-some-key"])
+		require.Contains(t, newApplication.Annotations, "annotation-some-key")
+		assert.Equal(t, "annotation-some-value", newApplication.Annotations["annotation-some-key"])
 	})
 }
 
@@ -752,35 +753,35 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 		},
 		{
 			testName:           "background finalizer should be preserved",
-			existingFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			existingFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
 			syncPolicy:         nil,
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			expectedFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
 		},
 
 		{
 			testName:           "empty finalizer and empty sync should use standard finalizer",
 			existingFinalizers: nil,
 			syncPolicy:         nil,
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 		},
 
 		{
 			testName:           "standard finalizer should be preserved",
-			existingFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			existingFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 			syncPolicy:         nil,
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 		},
 		{
 			testName:           "empty array finalizers should use standard finalizer",
 			existingFinalizers: []string{},
 			syncPolicy:         nil,
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 		},
 		{
 			testName:           "non-nil sync policy should use standard finalizer",
 			existingFinalizers: nil,
 			syncPolicy:         &argoappsv1.ApplicationSetSyncPolicy{},
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			expectedFinalizers: []string{argoappsv1.ResourcesFinalizerName},
 		},
 		{
 			testName:           "preserveResourcesOnDeletion should not have a finalizer",
@@ -792,11 +793,11 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 		},
 		{
 			testName:           "user-specified finalizer should overwrite preserveResourcesOnDeletion",
-			existingFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			existingFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
 			syncPolicy: &argoappsv1.ApplicationSetSyncPolicy{
 				PreserveResourcesOnDeletion: true,
 			},
-			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
+			expectedFinalizers: []string{argoappsv1.BackgroundPropagationPolicyFinalizer},
 		},
 	} {
 		t.Run(c.testName, func(t *testing.T) {
@@ -1331,42 +1332,42 @@ WkBKOclmOV2xlTVuPw==
 		scmRootCAPath           string
 		insecure                bool
 		caCerts                 []byte
-		validateCertInTlsConfig bool
+		validateCertInTLSConfig bool
 	}{
 		{
 			name:                    "Insecure mode configured, SCM Root CA Path not set",
 			scmRootCAPath:           "",
 			insecure:                true,
 			caCerts:                 nil,
-			validateCertInTlsConfig: false,
+			validateCertInTLSConfig: false,
 		},
 		{
 			name:                    "SCM Root CA Path set, Insecure mode set to false",
 			scmRootCAPath:           rootCAPath,
 			insecure:                false,
 			caCerts:                 nil,
-			validateCertInTlsConfig: true,
+			validateCertInTLSConfig: true,
 		},
 		{
 			name:                    "SCM Root CA Path set, Insecure mode set to true",
 			scmRootCAPath:           rootCAPath,
 			insecure:                true,
 			caCerts:                 nil,
-			validateCertInTlsConfig: true,
+			validateCertInTLSConfig: true,
 		},
 		{
 			name:                    "Cert passed, Insecure mode set to false",
 			scmRootCAPath:           "",
 			insecure:                false,
 			caCerts:                 []byte(certFromCM),
-			validateCertInTlsConfig: true,
+			validateCertInTLSConfig: true,
 		},
 		{
 			name:                    "SCM Root CA Path set, cert passed, Insecure mode set to false",
 			scmRootCAPath:           rootCAPath,
 			insecure:                false,
 			caCerts:                 []byte(certFromCM),
-			validateCertInTlsConfig: true,
+			validateCertInTLSConfig: true,
 		},
 	}
 
@@ -1384,9 +1385,18 @@ WkBKOclmOV2xlTVuPw==
 				assert.True(t, ok)
 			}
 			assert.NotNil(t, tlsConfig)
-			if testCase.validateCertInTlsConfig {
+			if testCase.validateCertInTLSConfig {
 				assert.True(t, tlsConfig.RootCAs.Equal(certPool))
 			}
 		})
+	}
+}
+
+func Test_getFilteredGeneratorTypes(t *testing.T) {
+	generators := getFilteredGeneratorTypes()
+	assert.Less(t, 1, len(generators))
+	for name, val := range generators {
+		assert.True(t, val)
+		assert.True(t, strings.HasSuffix(name, "Generator"))
 	}
 }
