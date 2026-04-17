@@ -1713,6 +1713,14 @@ func TestFetchChangedFilesFromADO(t *testing.T) {
 	)
 	httpmock.RegisterResponder("GET", validAPIURL, getADODiffsResponderFn())
 
+	// Legacy visualstudio.com format: base URL is scheme://host/{project} (no org in path).
+	legacyAPIURL := fmt.Sprintf(
+		"https://myorg.visualstudio.com/myproject/_apis/git/repositories/%s/diffs/commits"+
+			"?baseVersion=%s&baseVersionType=commit&targetVersion=%s&targetVersionType=commit&$top=2000&api-version=7.1",
+		testRepoID, testShaBefore, testShaAfter,
+	)
+	httpmock.RegisterResponder("GET", legacyAPIURL, getADODiffsResponderFn())
+
 	truncatedAPIURL := fmt.Sprintf(
 		"https://dev.azure.com/myorg/myproject/_apis/git/repositories/%s/diffs/commits"+
 			"?baseVersion=%s&baseVersionType=commit&targetVersion=%s&targetVersionType=commit&$top=2000&api-version=7.1",
@@ -1761,6 +1769,14 @@ func TestFetchChangedFilesFromADO(t *testing.T) {
 			shaBefore: "0000000000000000000000000000000000000000",
 			shaAfter:  "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			expectErr: true,
+		},
+		{
+			name:          "returns changed files for legacy visualstudio.com URL",
+			repoURL:       "https://myorg.visualstudio.com/myproject/_git/myrepo",
+			repoID:        testRepoID,
+			shaBefore:     testShaBefore,
+			shaAfter:      testShaAfter,
+			expectedFiles: []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"},
 		},
 		{
 			name:      "returns error for URL without org and project",
