@@ -747,15 +747,24 @@ func fetchDiffStatFromBitbucket(_ context.Context, bbClient *bb.Client, owner, r
 	return changedFiles, nil
 }
 
-// parseADOBaseURL extracts the base URL (scheme://host/{org}/{project}) from an Azure DevOps
-// Git repository remote URL (https://dev.azure.com/{org}/{project}/_git/{repo}).
+// parseADOBaseURL extracts the base URL used to construct Azure DevOps REST API requests.
+// It supports both the modern format (https://dev.azure.com/{org}/{project}/_git/{repo})
+// and the legacy format (https://{org}.visualstudio.com/{project}/_git/{repo}).
 func parseADOBaseURL(repoURL string) (string, error) {
 	u, err := url.Parse(repoURL)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse Azure DevOps URL %q: %w", repoURL, err)
 	}
-	// path is "/{org}/{project}/_git/{repo}" — we need scheme://host/{org}/{project}
 	parts := strings.SplitN(strings.TrimPrefix(u.Path, "/"), "/", 3)
+	// Legacy format: https://{org}.visualstudio.com/{project}/_git/{repo}
+	// The org is in the host; the first path segment is the project.
+	if strings.HasSuffix(u.Host, ".visualstudio.com") {
+		if len(parts) < 1 || parts[0] == "" {
+			return "", fmt.Errorf("cannot extract project from Azure DevOps URL %q", repoURL)
+		}
+		return fmt.Sprintf("%s://%s/%s", u.Scheme, u.Host, parts[0]), nil
+	}
+	// Modern format: https://dev.azure.com/{org}/{project}/_git/{repo}
 	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
 		return "", fmt.Errorf("cannot extract organization and project from Azure DevOps URL %q", repoURL)
 	}

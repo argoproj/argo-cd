@@ -1660,6 +1660,16 @@ func TestParseADOBaseURL(t *testing.T) {
 			expectedURL: "https://dev.azure.com/alexander0053/alex-test",
 		},
 		{
+			name:        "legacy visualstudio.com URL",
+			repoURL:     "https://myorg.visualstudio.com/myproject/_git/myrepo",
+			expectedURL: "https://myorg.visualstudio.com/myproject",
+		},
+		{
+			name:      "legacy visualstudio.com URL missing project",
+			repoURL:   "https://myorg.visualstudio.com/",
+			expectErr: true,
+		},
+		{
 			name:      "URL with only org segment",
 			repoURL:   "https://dev.azure.com/myorg",
 			expectErr: true,
