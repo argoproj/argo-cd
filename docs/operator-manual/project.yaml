@@ -111,7 +111,7 @@ spec:
   sourceNamespaces:
   - "argocd-apps-*"
 
-  # Source Integrity declares criteria for an application source to meet, such as cryptographic signing, etc.
+  # Source Integrity declares criteria for application source repositories, such as cryptographic signing, etc.
   # https://argo-cd.readthedocs.io/en/latest/user-guide/source-integrity/
   sourceIntegrity:
     git:

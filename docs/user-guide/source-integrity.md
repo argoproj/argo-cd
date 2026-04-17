@@ -1,7 +1,7 @@
 # Overview
 
 Argo CD permits declaring criteria for application sources integrity that, when not met, will prevent an application from syncing with a `ResourceComparison` error.
-This is useful to verify the sources have not been tempered with by an unauthorized contributor.
+This is useful to verify the sources have not been tampered with by an unauthorized contributor.
 
 Each Application Project can have its criteria configured in `AppProject`'s `.spec.sourceIntegrity`.
 The criteria distinguish a type of verification they perform, and to which sources they apply.
