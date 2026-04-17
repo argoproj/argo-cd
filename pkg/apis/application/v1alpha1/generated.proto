@@ -1876,6 +1876,18 @@ message RepoCreds {
 
   // InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
   optional bool insecureOCIForceHttp = 26;
+
+  // AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalClientId = 29;
+
+  // AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalClientSecret = 30;
+
+  // AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalTenantId = 31;
+
+  // AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
+  optional string azureActiveDirectoryEndpoint = 32;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1973,6 +1985,18 @@ message Repository {
   // When set, webhook handlers will only trigger reconciliation for affected applications and skip Redis cache
   // operations for unaffected ones. Recommended for large monorepos with plain YAML manifests.
   optional bool webhookManifestCacheWarmDisabled = 28;
+
+  // AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalClientId = 29;
+
+  // AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalClientSecret = 30;
+
+  // AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalTenantId = 31;
+
+  // AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
+  optional string azureActiveDirectoryEndpoint = 32;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
