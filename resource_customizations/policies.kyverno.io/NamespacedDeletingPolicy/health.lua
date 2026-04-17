@@ -20,6 +20,16 @@ local hs = {}
 if obj.status ~= nil and obj.status.conditionStatus ~= nil then
   local cs = obj.status.conditionStatus
 
+  if obj.metadata.generation ~= nil and cs.conditions ~= nil then
+    for _, condition in ipairs(cs.conditions) do
+      if condition.observedGeneration ~= nil and condition.observedGeneration < obj.metadata.generation then
+        hs.status = "Progressing"
+        hs.message = "Waiting for NamespacedDeletingPolicy status to reflect latest generation"
+        return hs
+      end
+    end
+  end
+
   if cs.ready == true then
     hs.status = "Healthy"
     if cs.conditions ~= nil then
