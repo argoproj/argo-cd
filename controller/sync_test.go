@@ -27,8 +27,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	kubefake "k8s.io/client-go/kubernetes/fake"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
@@ -1777,23 +1775,11 @@ func TestValidateSyncPermissions(t *testing.T) {
 }
 
 func TestSecretNormalizingApplier(t *testing.T) {
-	kubeclientset := kubefake.NewSimpleClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "argocd",
-			Name:      "argocd-cm",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
-		},
-	}, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: "argocd",
-		},
-	})
-
 	ctx := t.Context()
-	settingsMgr := settings.NewSettingsManager(ctx, kubeclientset, "argocd")
+
+	sensitiveAnnots := map[string]bool{
+		"my-custom-sensitive-field": true,
+	}
 
 	desired := &unstructured.Unstructured{
 		Object: map[string]any{
@@ -1802,44 +1788,27 @@ func TestSecretNormalizingApplier(t *testing.T) {
 			"metadata": map[string]any{
 				"name":      "test-secret",
 				"namespace": "default",
+				"annotations": map[string]any{
+					"my-custom-sensitive-field": "very-secret-value",
+				},
 			},
 			"type": "Opaque",
 			"data": map[string]any{
-				"password": base64.StdEncoding.EncodeToString([]byte("vault:test/data/test#TEST")),
-			},
-		},
-	}
-
-	live := &unstructured.Unstructured{
-		Object: map[string]any{
-			"apiVersion": "v1",
-			"kind":       "Secret",
-			"metadata": map[string]any{
-				"name":      "test-secret",
-				"namespace": "default",
-			},
-			"type": "Opaque",
-			"data": map[string]any{
-				"password": base64.StdEncoding.EncodeToString([]byte("actual-password-from-vault")),
+				"password": base64.StdEncoding.EncodeToString([]byte("actual-password")),
 			},
 		},
 	}
 
 	mockApplier := &simpleKubeApplier{
 		applyResult: func(obj *unstructured.Unstructured) string {
-			if obj.GetKind() == "Secret" {
-				result := live.DeepCopy()
-				bytes, _ := json.Marshal(result)
-				return string(bytes)
-			}
 			bytes, _ := json.Marshal(obj)
 			return string(bytes)
 		},
 	}
 
 	normalizer := &secretNormalizingApplier{
-		inner:       mockApplier,
-		settingsMgr: settingsMgr,
+		inner:                mockApplier,
+		sensitiveAnnotations: sensitiveAnnots,
 	}
 
 	t.Run("core v1 secret is normalized during dry run", func(t *testing.T) {
@@ -1850,52 +1819,16 @@ func TestSecretNormalizingApplier(t *testing.T) {
 			false, false, true, "argocd",
 		)
 		require.NoError(t, err)
-		assert.Contains(t, result, "Secret")
 
-		// verify that the result is normalized
 		resultObj := &unstructured.Unstructured{}
 		err = json.Unmarshal([]byte(result), resultObj)
 		require.NoError(t, err)
 
-		assert.Equal(t, "Secret", resultObj.GetKind())
-		assert.Equal(t, "test-secret", resultObj.GetName())
+		data, _, _ := unstructured.NestedMap(resultObj.Object, "data")
+		assert.Equal(t, "++++++++", data["password"], "Secret data should be masked with asterisks")
 
-		// verify that HideSecretData was applied
-		data, found, err := unstructured.NestedMap(resultObj.Object, "data")
-		require.NoError(t, err)
-		assert.True(t, found, "data field should exist")
-
-		// password should exist, but may be normalized
-		_, passwordExists := data["password"]
-		assert.True(t, passwordExists, "password should exist after normalization")
-		assert.NotEqual(t, live.Object["data"], data, "secret data should be normalized/masked")
-
-		// normalize both using HideSecretData
-		_, normalizedGit, err := gitopsDiff.HideSecretData(nil, desired, settingsMgr.GetSensitiveAnnotations())
-		require.NoError(t, err)
-
-		_, normalizedResult, err := gitopsDiff.HideSecretData(nil, resultObj, settingsMgr.GetSensitiveAnnotations())
-		require.NoError(t, err)
-
-		// diff between normalized secrets
-		diffResult, _ := gitopsDiff.Diff(normalizedGit, normalizedResult)
-
-		// verify that there is NO diff after normalization (mutation webhook changes don't cause OutOfSync)
-		assert.False(t, diffResult.Modified, "normalized secrets should not show as modified")
-		if diffResult.Modified {
-			t.Logf("NormalizedLive: %s", string(diffResult.NormalizedLive))
-			t.Logf("PredictedLive: %s", string(diffResult.PredictedLive))
-		}
-
-		// both have the same structure
-		gitData, _, _ := unstructured.NestedMap(normalizedGit.Object, "data")
-		resultData, _, _ := unstructured.NestedMap(normalizedResult.Object, "data")
-
-		// should have password after normalization
-		_, gitHasPassword := gitData["password"]
-		_, resultHasPassword := resultData["password"]
-		assert.True(t, gitHasPassword, "git secret should have password field after normalization")
-		assert.True(t, resultHasPassword, "result secret should have password field after normalization")
+		annotations := resultObj.GetAnnotations()
+		assert.Equal(t, "++++++++", annotations["my-custom-sensitive-field"], "Sensitive annotations should be masked")
 	})
 
 	t.Run("non-json result is returned unchanged", func(t *testing.T) {
@@ -1906,12 +1839,12 @@ func TestSecretNormalizingApplier(t *testing.T) {
 
 		result, err := normalizer.ApplyResource(ctx, desired, cmdutil.DryRunServer, false, false, true, "argocd")
 		require.NoError(t, err)
-		assert.Equal(t, nonJSON, result, "wrapper should return non-json result without error") //nolint:testifylint
+		assert.Equal(t, nonJSON, result)
 	})
 
 	t.Run("non-core group secret is not normalized", func(t *testing.T) {
 		customSecret := desired.DeepCopy()
-		customSecret.SetAPIVersion("custom.io/v1")
+		customSecret.SetAPIVersion("custom.io/v1") // Group이 ""이 아님
 
 		mockApplier.applyResult = func(obj *unstructured.Unstructured) string {
 			bytes, _ := json.Marshal(obj)
@@ -1925,15 +1858,12 @@ func TestSecretNormalizingApplier(t *testing.T) {
 		err = json.Unmarshal([]byte(result), resultObj)
 		require.NoError(t, err)
 
-		assert.Equal(t, customSecret.Object["data"], resultObj.Object["data"], "non-core secret should not be modified")
+		// 데이터가 변하지 않았음을 확인
+		assert.Equal(t, customSecret.Object["data"], resultObj.Object["data"])
+		assert.Equal(t, "very-secret-value", resultObj.GetAnnotations()["my-custom-sensitive-field"])
 	})
 
 	t.Run("normalization is skipped for non-dry run server", func(t *testing.T) {
-		mockApplier.applyResult = func(_ *unstructured.Unstructured) string {
-			bytes, _ := json.Marshal(live)
-			return string(bytes)
-		}
-
 		result, err := normalizer.ApplyResource(ctx, desired, cmdutil.DryRunNone, false, false, true, "argocd")
 		require.NoError(t, err)
 
@@ -1941,7 +1871,8 @@ func TestSecretNormalizingApplier(t *testing.T) {
 		err = json.Unmarshal([]byte(result), resultObj)
 		require.NoError(t, err)
 
-		assert.Equal(t, live.Object["data"], resultObj.Object["data"])
+		// DryRun이 아니면 마스킹 되지 않아야 함
+		assert.Equal(t, desired.Object["data"], resultObj.Object["data"])
 	})
 }
 
