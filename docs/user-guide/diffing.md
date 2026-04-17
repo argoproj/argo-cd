@@ -132,6 +132,17 @@ If you rely on the status field being part of your desired state, although this 
 > [!NOTE]
 > Since it is common for `CustomResourceDefinitions` to have their `status` committed to Git, consider using `crd` over `none`.
 
+Resource customization can also be specified for ApplicationSet's with `ignoreApplicationDifferences`. The example below shows how to ignore sync policy changes for all ApplicationSets.
+
+```yaml
+data:
+  resources.customizations.ignoreApplicationDifferences.argoproj.io_ApplicationSet: |
+    jsonPointers:
+      - /spec/syncPolicy/automated/enabled
+```
+
+The application differences supports all the same options as the `resource.customizations.ignoreDifferences` settings, including `jsonPointers`, `jqPathExpressions`, and `managedFieldsManagers`.
+
 ### Ignoring RBAC changes made by AggregateRoles
 
 If you are using [Aggregated ClusterRoles](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#aggregated-clusterroles) and don't want Argo CD to detect the `rules` changes as drift, you can set `resource.compareoptions.ignoreAggregatedRoles: true`. Then Argo CD will no longer detect these changes as an event that requires syncing.
