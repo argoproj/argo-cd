@@ -874,17 +874,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
 
-	resState := v1alpha1.ResourceStatus{
-		Namespace:                    obj.GetNamespace(),
-		Name:                         obj.GetName(),
-		Kind:                         gvk.Kind,
-		Version:                      gvk.Version,
-		Group:                        gvk.Group,
-		Hook:                         isHook(obj),
-		RequiresPruning:              targetObj == nil && liveObj != nil && isSelfReferencedObj,
-		PruneRequested:               targetObj == nil && isSelfReferencedObj && liveObj != nil && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionEnablePrune),
-		RequiresDeletionConfirmation: isObjRequiresDeletionConfirmation(targetObj, app) || isObjRequiresDeletionConfirmation(liveObj, app),
-	}
+		resState := v1alpha1.ResourceStatus{
+			Namespace:                    obj.GetNamespace(),
+			Name:                         obj.GetName(),
+			Kind:                         gvk.Kind,
+			Version:                      gvk.Version,
+			Group:                        gvk.Group,
+			Hook:                         isHook(obj),
+			RequiresPruning:              targetObj == nil && liveObj != nil && isSelfReferencedObj,
+			PruneRequested:               targetObj == nil && isSelfReferencedObj && liveObj != nil && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionEnablePrune),
+			RequiresDeletionConfirmation: isObjRequiresDeletionConfirmation(targetObj, app) || isObjRequiresDeletionConfirmation(liveObj, app),
+		}
 		if targetObj != nil {
 			resState.SyncWave = int64(syncwaves.Wave(targetObj))
 		} else if resState.Hook {
