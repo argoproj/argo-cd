@@ -1879,6 +1879,18 @@ message RepoCreds {
 
   // Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
   optional int64 depth = 27;
+
+  // AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalClientId = 29;
+
+  // AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalClientSecret = 30;
+
+  // AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo
+  optional string azureServicePrincipalTenantId = 31;
+
+  // AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
+  optional string azureActiveDirectoryEndpoint = 32;
 }
 
 // RepositoryList is a collection of Repositories.
