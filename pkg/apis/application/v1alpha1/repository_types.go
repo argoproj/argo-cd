@@ -226,7 +226,9 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.Type == "" {
 			repo.Type = source.Type
 		}
-		repo.Depth = source.Depth
+		if repo.Depth == 0 {
+			repo.Depth = source.Depth
+		}
 		repo.EnableOCI = source.EnableOCI
 		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth

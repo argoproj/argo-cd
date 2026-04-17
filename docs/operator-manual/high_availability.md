@@ -667,6 +667,7 @@ type: Opaque
 ```
 
 > [!NOTE]
-> You can use the `argocd repocreds add <repo-url> --depth` command to add a repository with shallow cloning enabled.
+> You can use the `argocd repocreds add <repo-url> --depth <N>` command to add a repository with shallow cloning enabled.
+> The depth specified in the repository takes precedence over the one in the repo credentials.
 
 When shallow cloning, the repository is cloned with a depth of 1, which means only the required commit is cloned as opposed to the full history. This approach makes sense when the repository has a large history.
