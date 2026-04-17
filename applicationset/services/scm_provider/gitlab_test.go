@@ -1799,12 +1799,12 @@ func TestGetBranchesTLS(t *testing.T) {
 				}
 			}
 
-		host, err := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, test.tlsInsecure, "", "", certs)
-		require.NoError(t, err)
-		repo := &Repository{
-			RepositoryId: int64(27084533),
-			Branch:       "master",
-		}
+			host, err := NewGitlabProvider("test-argocd-proton", "", ts.URL, false, true, true, false, test.tlsInsecure, "", "", certs)
+			require.NoError(t, err)
+			repo := &Repository{
+				RepositoryId: int64(27084533),
+				Branch:       "master",
+			}
 			_, err = host.GetBranches(t.Context(), repo)
 			if test.requireErr {
 				require.Error(t, err)
