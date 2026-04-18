@@ -56,6 +56,10 @@ type Server struct {
 	PlainText bool `json:"plain-text,omitempty"`
 	// Core indicates to talk to Kubernetes API without using Argo CD API server
 	Core bool `json:"core,omitempty"`
+	// PortForward indicates to connect to a random argocd-server port using port forwarding
+	PortForward bool `json:"port-forward,omitempty"`
+	// PortForwardNamespace is the namespace name which should be used for port forwarding
+	PortForwardNamespace string `json:"port-forward-namespace,omitempty"`
 }
 
 // User contains user authentication information
