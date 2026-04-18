@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -186,8 +187,33 @@ func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Applica
 	}
 	items := []argoappv1.Application{}
 	for i := range apps {
-		if apps[i].Spec.GetSource().Path == path {
-			items = append(items, apps[i])
+		for _, source := range apps[i].Spec.GetSources() {
+			if source.Path == path {
+				items = append(items, apps[i])
+				break
+			}
+		}
+	}
+	return items
+}
+
+// FilterByFiles returns applications that are affected by the given files,
+// evaluating each source's path and the manifest-generate-paths annotation.
+func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
+	if len(files) == 0 {
+		return apps
+	}
+	items := []argoappv1.Application{}
+	for i := range apps {
+		for _, source := range apps[i].Spec.GetSources() {
+			refreshPaths := path.GetSourceRefreshPaths(&apps[i], source)
+			if len(refreshPaths) == 0 {
+				refreshPaths = []string{source.Path}
+			}
+			if path.AppFilesHaveChanged(refreshPaths, files) {
+				items = append(items, apps[i])
+				break
+			}
 		}
 	}
 	return items
