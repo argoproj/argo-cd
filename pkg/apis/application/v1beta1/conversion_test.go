@@ -146,8 +146,8 @@ func TestConvertFromV1alpha1_SyncPolicy(t *testing.T) {
 			},
 			SyncPolicy: &v1alpha1.SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
-					Prune:    true,
-					SelfHeal: true,
+					Prune:    new(true),
+					SelfHeal: new(true),
 				},
 				SyncOptions: v1alpha1.SyncOptions{
 					"CreateNamespace=true",
@@ -164,8 +164,8 @@ func TestConvertFromV1alpha1_SyncPolicy(t *testing.T) {
 
 	require.NotNil(t, dst.Spec.SyncPolicy)
 	require.NotNil(t, dst.Spec.SyncPolicy.Automated)
-	assert.True(t, dst.Spec.SyncPolicy.Automated.Prune)
-	assert.True(t, dst.Spec.SyncPolicy.Automated.SelfHeal)
+	assert.True(t, *dst.Spec.SyncPolicy.Automated.Prune)
+	assert.True(t, *dst.Spec.SyncPolicy.Automated.SelfHeal)
 	// SyncOptions is now a struct, not a slice
 	require.NotNil(t, dst.Spec.SyncPolicy.SyncOptions)
 	assert.True(t, *dst.Spec.SyncPolicy.SyncOptions.CreateNamespace)
@@ -384,8 +384,8 @@ func TestConvertRoundTrip_V1alpha1ToV1beta1ToV1alpha1(t *testing.T) {
 			},
 			SyncPolicy: &v1alpha1.SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
-					Prune:    true,
-					SelfHeal: true,
+					Prune:    new(true),
+					SelfHeal: new(true),
 				},
 				SyncOptions: v1alpha1.SyncOptions{
 					"CreateNamespace=true",
@@ -466,8 +466,8 @@ func TestConvertRoundTrip_V1beta1ToV1alpha1ToV1beta1(t *testing.T) {
 			},
 			SyncPolicy: &SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
-					Prune:    true,
-					SelfHeal: true,
+					Prune:    new(true),
+					SelfHeal: new(true),
 				},
 				SyncOptions: &SyncOptions{
 					CreateNamespace: ptr(true),
