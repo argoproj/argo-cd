@@ -162,6 +162,15 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                 iconClassName: 'fa fa-fw fa-sync',
                                 action: () => syncApplication(app.metadata.name, app.metadata.namespace)
                             },
+                            ...(app.status.sync.status !== models.SyncStatuses.Synced
+                                ? [
+                                      {
+                                          title: 'Diff',
+                                          iconClassName: 'fa fa-fw fa-file-medical',
+                                          action: () => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {tab: 'diff'})
+                                      }
+                                  ]
+                                : []),
                             {
                                 title: 'Refresh',
                                 iconClassName: 'fa fa-fw fa-redo',
