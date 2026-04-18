@@ -6,6 +6,10 @@ on:
       - master
     types: ["labeled", "closed"]
 
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+    
 jobs:
   find-labels:
     name: Find Cherry Pick Labels
@@ -18,6 +22,12 @@ jobs:
     outputs:
       labels: ${{ steps.extract-labels.outputs.labels }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
+
       - name: Extract cherry-pick labels
         id: extract-labels
         run: |

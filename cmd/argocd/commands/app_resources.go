@@ -8,7 +8,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/argoproj/argo-cd/v3/util/templates"
 
@@ -20,7 +20,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
@@ -218,9 +217,9 @@ func reconstructObject(extracted []any, fields []string, depth int) map[string]a
 func printManifests(objs *[]unstructured.Unstructured, filteredFields bool, showName bool, output string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	if showName {
-		fmt.Fprintf(w, "FIELD\tRESOURCE NAME\tVALUE\n")
+		fmt.Fprint(w, "FIELD\tRESOURCE NAME\tVALUE\n")
 	} else {
-		fmt.Fprintf(w, "FIELD\tVALUE\n")
+		fmt.Fprint(w, "FIELD\tVALUE\n")
 	}
 
 	for i, o := range *objs {
@@ -337,14 +336,14 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			_, err = appIf.PatchResource(ctx, &applicationpkg.ApplicationResourcePatchRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(obj.GetName()),
-				Version:      ptr.To(gvk.Version),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Patch:        ptr.To(patch),
-				PatchType:    ptr.To(patchType),
-				Project:      ptr.To(project),
+				Namespace:    new(obj.GetNamespace()),
+				ResourceName: new(obj.GetName()),
+				Version:      new(gvk.Version),
+				Group:        new(gvk.Group),
+				Kind:         new(gvk.Kind),
+				Patch:        new(patch),
+				PatchType:    new(patchType),
+				Project:      new(project),
 			})
 			errors.CheckError(err)
 			log.Infof("Resource '%s' patched", obj.GetName())
@@ -410,14 +409,14 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 				_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
 					Name:         &appName,
 					AppNamespace: &appNs,
-					Namespace:    ptr.To(obj.GetNamespace()),
-					ResourceName: ptr.To(obj.GetName()),
-					Version:      ptr.To(gvk.Version),
-					Group:        ptr.To(gvk.Group),
-					Kind:         ptr.To(gvk.Kind),
+					Namespace:    new(obj.GetNamespace()),
+					ResourceName: new(obj.GetName()),
+					Version:      new(gvk.Version),
+					Group:        new(gvk.Group),
+					Kind:         new(gvk.Kind),
 					Force:        &force,
 					Orphan:       &orphan,
-					Project:      ptr.To(project),
+					Project:      new(project),
 				})
 				errors.CheckError(err)
 				log.Infof("Resource '%s' deleted", obj.GetName())
@@ -480,7 +479,7 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	switch output {
 	case "tree=detailed":
-		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\tAGE\tHEALTH\tREASON\n")
+		fmt.Fprint(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\tAGE\tHEALTH\tREASON\n")
 
 		if !orphaned || listAll {
 			mapUIDToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)
@@ -492,7 +491,7 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 			printDetailedTreeViewAppResourcesOrphaned(mapUIDToNode, mapParentToChild, parentNode, w)
 		}
 	case "tree":
-		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\n")
+		fmt.Fprint(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\n")
 
 		if !orphaned || listAll {
 			mapUIDToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.Nodes)

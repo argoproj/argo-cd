@@ -7,7 +7,6 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 )
 
 func testAppSetCond(t ApplicationSetConditionType, msg string, lastTransitionTime *metav1.Time, status ApplicationSetConditionStatus, reason string) ApplicationSetCondition {
@@ -314,9 +313,9 @@ func TestSCMProviderGeneratorGitlab_WillIncludeSharedProjects(t *testing.T) {
 	settings := SCMProviderGeneratorGitlab{}
 	assert.True(t, settings.WillIncludeSharedProjects())
 
-	settings.IncludeSharedProjects = ptr.To(false)
+	settings.IncludeSharedProjects = new(false)
 	assert.False(t, settings.WillIncludeSharedProjects())
 
-	settings.IncludeSharedProjects = ptr.To(true)
+	settings.IncludeSharedProjects = new(true)
 	assert.True(t, settings.WillIncludeSharedProjects())
 }

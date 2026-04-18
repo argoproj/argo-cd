@@ -6,6 +6,7 @@ import Moment from 'react-moment';
 import * as moment from 'moment';
 
 import * as models from '../../../shared/models';
+import {isValidManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_COLOR} from '../../../shared/utils';
 
 import {EmptyState} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
@@ -111,7 +112,7 @@ function getGraphSize(nodes: dagre.Node[]): {width: number; height: number} {
     return {width, height};
 }
 
-function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph) {
+function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph<{[key: string]: any}>) {
     function getNodeGroupingInfo(nodeId: string) {
         const node = graph.node(nodeId);
         return {
@@ -279,7 +280,7 @@ function renderFilteredNode(node: {count: number} & dagre.Node, onClearFilter: (
     );
 }
 
-function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: number} & dagre.Node & ResourceTreeNode) {
+function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: number; groupedNodeIds: string[]} & dagre.Node & ResourceTreeNode) {
     const indicators = new Array<number>();
     let count = Math.min(node.count - 1, 3);
     while (count > 0) {
@@ -332,7 +333,7 @@ function renderTrafficNode(node: dagre.Node) {
     );
 }
 
-function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string}) {
+function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string; kind: string}) {
     return (
         <div
             className='application-resource-tree__node application-resource-tree__node--load-balancer'
@@ -399,7 +400,12 @@ function processPodGroup(targetPodGroup: ResourceTreeNode, child: ResourceTreeNo
     }
 }
 
-function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node, childMap: Map<string, ResourceTreeNode[]>) {
+function renderPodGroup(
+    props: ApplicationResourceTreeProps,
+    id: string,
+    node: ResourceTreeNode & dagre.Node & {groupedNodeIds?: string[]},
+    childMap: Map<string, ResourceTreeNode[]>
+) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
     let healthState: models.HealthStatus = null;
@@ -496,6 +502,20 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                                 {ctx => {
                                     // For nested applications, use the node's data to construct the URL
                                     const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
+                                    const managedByURL = getManagedByURLFromNode(node);
+                                    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
+                                    if (managedByURLInvalid) {
+                                        return (
+                                            <span
+                                                role='link'
+                                                aria-disabled={true}
+                                                style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
+                                                onClick={e => e.stopPropagation()}
+                                                title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
+                                                <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                            </span>
+                                        );
+                                    }
                                     return (
                                         <a
                                             href={linkInfo.url}
@@ -504,7 +524,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                                             onClick={e => {
                                                 e.stopPropagation();
                                             }}
-                                            title={getManagedByURLFromNode(node) ? `Open application\nmanaged-by-url: ${getManagedByURLFromNode(node)}` : 'Open application'}>
+                                            title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
                                             <i className='fa fa-external-link-alt' />
                                         </a>
                                     );
@@ -806,6 +826,20 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                             {ctx => {
                                 // For nested applications, use the node's data to construct the URL
                                 const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
+                                const managedByURL = getManagedByURLFromNode(node);
+                                const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
+                                if (managedByURLInvalid) {
+                                    return (
+                                        <span
+                                            role='link'
+                                            aria-disabled={true}
+                                            style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
+                                            onClick={e => e.stopPropagation()}
+                                            title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
+                                            <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                        </span>
+                                    );
+                                }
                                 return (
                                     <a
                                         href={linkInfo.url}
@@ -814,7 +848,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                                         onClick={e => {
                                             e.stopPropagation();
                                         }}
-                                        title={getManagedByURLFromNode(node) ? `Open application\nmanaged-by-url: ${getManagedByURLFromNode(node)}` : 'Open application'}>
+                                        title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
                                         <i className='fa fa-external-link-alt' />
                                     </a>
                                 );
@@ -908,7 +942,7 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
     return result;
 }
 export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => {
-    const graph = new dagre.graphlib.Graph();
+    const graph = new dagre.graphlib.Graph<{[key: string]: any}>();
     graph.setGraph({nodesep: 25, rankdir: 'LR', marginy: 45, marginx: -100, ranksep: 80});
     graph.setDefaultEdgeLabel(() => ({}));
     const overridesCount = getAppOverridesCount(props.app);
@@ -996,7 +1030,12 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
     }, [podCount]);
 
-    function filterGraph(app: models.AbstractApplication, filteredIndicatorParent: string, graphNodesFilter: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
+    function filterGraph(
+        app: models.AbstractApplication,
+        filteredIndicatorParent: string,
+        graphNodesFilter: dagre.graphlib.Graph<{[key: string]: any}>,
+        predicate: (node: ResourceTreeNode) => boolean
+    ) {
         const appKey = appNodeKey(app);
         let filtered = 0;
         graphNodesFilter.nodes().forEach(nodeId => {
