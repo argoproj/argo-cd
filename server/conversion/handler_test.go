@@ -17,7 +17,7 @@ import (
 func TestHandler_MethodNotAllowed(t *testing.T) {
 	handler := NewHandler()
 
-	req := httptest.NewRequest(http.MethodGet, "/convert", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/convert", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)
@@ -28,7 +28,7 @@ func TestHandler_MethodNotAllowed(t *testing.T) {
 func TestHandler_InvalidJSON(t *testing.T) {
 	handler := NewHandler()
 
-	req := httptest.NewRequest(http.MethodPost, "/convert", bytes.NewBufferString("not json"))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/convert", bytes.NewBufferString("not json"))
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)
@@ -44,7 +44,7 @@ func TestHandler_NilRequest(t *testing.T) {
 	}
 	body, _ := json.Marshal(review)
 
-	req := httptest.NewRequest(http.MethodPost, "/convert", bytes.NewBuffer(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/convert", bytes.NewBuffer(body))
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)
@@ -92,7 +92,7 @@ func TestHandler_ConvertV1alpha1ToV1beta1(t *testing.T) {
 	}
 	body, _ := json.Marshal(review)
 
-	req := httptest.NewRequest(http.MethodPost, "/convert", bytes.NewBuffer(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/convert", bytes.NewBuffer(body))
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)
@@ -164,7 +164,7 @@ func TestHandler_ConvertV1beta1ToV1alpha1(t *testing.T) {
 	}
 	body, _ := json.Marshal(review)
 
-	req := httptest.NewRequest(http.MethodPost, "/convert", bytes.NewBuffer(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/convert", bytes.NewBuffer(body))
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)
@@ -222,7 +222,7 @@ func TestHandler_SameVersion(t *testing.T) {
 	}
 	body, _ := json.Marshal(review)
 
-	req := httptest.NewRequest(http.MethodPost, "/convert", bytes.NewBuffer(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/convert", bytes.NewBuffer(body))
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)
@@ -261,7 +261,7 @@ func TestHandler_UnsupportedKind(t *testing.T) {
 	}
 	body, _ := json.Marshal(review)
 
-	req := httptest.NewRequest(http.MethodPost, "/convert", bytes.NewBuffer(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/convert", bytes.NewBuffer(body))
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)
@@ -314,7 +314,7 @@ func TestHandler_MultipleObjects(t *testing.T) {
 	}
 	body, _ := json.Marshal(review)
 
-	req := httptest.NewRequest(http.MethodPost, "/convert", bytes.NewBuffer(body))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/convert", bytes.NewBuffer(body))
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)

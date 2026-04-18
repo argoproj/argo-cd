@@ -1667,12 +1667,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		assert.Len(t, managedResources, 1)
 
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
-		fakeAppCs.ReactionChain = nil
-		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
-		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.PrependReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return true, &v1alpha1.Application{}, nil
 		})
 
