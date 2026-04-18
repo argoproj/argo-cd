@@ -97,8 +97,8 @@ importers:
         specifier: 2.16.3
         version: 2.16.3(react-dom@16.14.0(react@16.14.0))(react@16.14.0)
       react-ga:
-        specifier: ^2.7.0
-        version: 2.7.0(prop-types@15.8.1)(react@16.14.0)
+        specifier: ^3.3.1
+        version: 3.3.1(prop-types@15.8.1)(react@16.14.0)
       react-helmet:
         specifier: ^6.1.0
         version: 6.1.0(react@16.14.0)
@@ -4510,11 +4510,11 @@ packages:
       react: ^15.6.1 || 16
       react-dom: ^15.6.1 || 16
 
-  react-ga@2.7.0:
-    resolution: {integrity: sha512-AjC7UOZMvygrWTc2hKxTDvlMXEtbmA0IgJjmkhgmQQ3RkXrWR11xEagLGFGaNyaPnmg24oaIiaNPnEoftUhfXA==}
+  react-ga@3.3.1:
+    resolution: {integrity: sha512-4Vc0W5EvXAXUN/wWyxvsAKDLLgtJ3oLmhYYssx+YzphJpejtOst6cbIHCIyF50Fdxuf5DDKqRYny24yJ2y7GFQ==}
     peerDependencies:
       prop-types: ^15.6.0
-      react: ^15.6.2 || ^16.0
+      react: ^15.6.2 || ^16.0 || ^17 || ^18
 
   react-helmet@6.1.0:
     resolution: {integrity: sha512-4uMzEY9nlDlgxr61NL3XbKRy1hEkXmKNXhjbAIOVw5vcFrsdYbH2FEwcNyWvWinl103nXgzYNlns9ca+8kFiWw==}
@@ -10491,7 +10491,7 @@ snapshots:
       redux-logger: 3.0.6
       redux-thunk: 2.4.2(redux@3.7.2)
 
-  react-ga@2.7.0(prop-types@15.8.1)(react@16.14.0):
+  react-ga@3.3.1(prop-types@15.8.1)(react@16.14.0):
     dependencies:
       prop-types: 15.8.1
       react: 16.14.0
