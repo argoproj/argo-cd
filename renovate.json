@@ -1,3 +1,14 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json"
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "kubernetes": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "description": "Ignore Argo CD's own image updates in manifests — these are managed by the release process",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["quay.io/argoproj/argocd"],
+      "enabled": false
+    }
+  ]
 }
