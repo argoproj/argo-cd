@@ -314,6 +314,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                 type={revisionType}
                                 revision={revision}
                                 versionId={utils.getAppCurrentVersion(application)}
+                                hideAuthorComment={true}
                             />
                         </div>
                     )}
@@ -355,6 +356,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             type={revisionType}
                             revision={operationStateRevision}
                             versionId={utils.getAppCurrentVersion(application)}
+                            hideAuthorComment={true}
                         />
                     )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
                 </div>
