@@ -31043,6 +31043,7 @@ rules:
   verbs:
   - delete
   - get
+  - list
   - patch
 - apiGroups:
   - ""
