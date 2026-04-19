@@ -37,7 +37,11 @@ func LoadFlags() error {
 			}
 			key = strings.TrimPrefix(opt, "--")
 		case key != "":
-			flags[key] = opt
+			if existing, ok := flags[key]; ok {
+				flags[key] = existing + "," + opt
+			} else {
+				flags[key] = opt
+			}
 			key = ""
 		default:
 			return errors.New("ARGOCD_OPTS invalid at '" + opt + "'")
