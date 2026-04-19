@@ -473,6 +473,23 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 		replicasCount = int(*appControllerDeployment.Spec.Replicas)
 	} else {
 		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+		// Warn if ARGOCD_CONTROLLER_REPLICAS exceeds the actual configured replicas
+		if replicasCount > 0 {
+			applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+			var actualReplicas int
+			appControllerStatefulSet, err := kubeClient.AppsV1().StatefulSets(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+			if err == nil && appControllerStatefulSet != nil && appControllerStatefulSet.Spec.Replicas != nil {
+				actualReplicas = int(*appControllerStatefulSet.Spec.Replicas)
+			} else {
+				appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+				if err == nil && appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
+					actualReplicas = int(*appControllerDeployment.Spec.Replicas)
+				}
+			}
+			if actualReplicas > 0 && replicasCount > actualReplicas {
+				log.Warnf("ARGOCD_CONTROLLER_REPLICAS (%d) exceeds the configured number of replicas in the Application Controller (%d). Sharding may not work as intended.", replicasCount, actualReplicas)
+			}
+		}
 	}
 	shardNumber := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
 	if replicasCount > 1 {
