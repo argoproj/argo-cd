@@ -90,6 +90,18 @@ export interface OperationState {
     finishedAt: models.Time;
 }
 
+export type OperationStateTitle = 'Deleting' | 'Syncing' | 'Sync error' | 'Sync failed' | 'Sync OK' | 'Terminated' | 'Unknown';
+
+export const OperationStateTitles = {
+    Deleting: 'Deleting',
+    Syncing: 'Syncing',
+    SyncError: 'Sync error',
+    SyncFailed: 'Sync failed',
+    SyncOK: 'Sync OK',
+    Terminated: 'Terminated',
+    Unknown: 'Unknown'
+} satisfies Record<string, OperationStateTitle>;
+
 export type HookType = 'PreSync' | 'Sync' | 'PostSync' | 'SyncFail' | 'Skip';
 
 export interface RevisionMetadata {
@@ -250,7 +262,11 @@ export interface SourceHydrator {
 export interface DrySource {
     repoURL: string;
     targetRevision: string;
-    path: string;
+    path?: string;
+    helm?: ApplicationSourceHelm;
+    kustomize?: ApplicationSourceKustomize;
+    plugin?: ApplicationSourcePlugin;
+    directory?: ApplicationSourceDirectory;
 }
 
 export interface SyncSource {
@@ -332,7 +348,7 @@ export interface Info {
 
 export interface ApplicationSpec {
     project: string;
-    source: ApplicationSource;
+    source?: ApplicationSource;
     sources: ApplicationSource[];
     sourceHydrator?: SourceHydrator;
     destination: ApplicationDestination;
@@ -531,7 +547,9 @@ export interface HydrateOperation {
     finishedAt?: models.Time;
     phase: HydrateOperationPhase;
     message: string;
+    // drySHA is the sha of the DRY commit being hydrated. This will be empty if the operation is not successful.
     drySHA: string;
+    // hydratedSHA is the sha of the hydrated commit. This will be empty if the operation is not successful.
     hydratedSHA: string;
     sourceHydrator: SourceHydrator;
 }
@@ -653,11 +671,16 @@ export interface Repository {
     noProxy?: string;
     insecure?: boolean;
     enableLfs?: boolean;
-    githubAppId?: string;
+    githubAppID?: string;
     forceHttpBasicAuth?: boolean;
     insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
+    depth?: number;
+    azureServicePrincipalClientId?: string;
+    azureServicePrincipalClientSecret?: string;
+    azureServicePrincipalTenantId?: string;
+    azureActiveDirectoryEndpoint?: string;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
@@ -1156,5 +1179,6 @@ export interface ApplicationSet extends AbstractApplication {
             targetRevisions?: string[];
         }>;
         resources?: ApplicationSetResource[];
+        resourcesCount?: number;
     };
 }

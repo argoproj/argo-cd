@@ -6,6 +6,7 @@ import Moment from 'react-moment';
 import * as moment from 'moment';
 
 import * as models from '../../../shared/models';
+import {isValidManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_COLOR} from '../../../shared/utils';
 
 import {EmptyState} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
@@ -16,7 +17,9 @@ import {
     BASE_COLORS,
     ComparisonStatusIcon,
     getAppOverridesCount,
+    getAppSetHealthStatus,
     HealthStatusIcon,
+    isApp,
     isAppNode,
     isYoungerThanXMinutes,
     NodeId,
@@ -50,7 +53,7 @@ export interface ResourceTreeNode extends models.ResourceNode {
 }
 
 export interface ApplicationResourceTreeProps {
-    app: models.Application;
+    app: models.AbstractApplication;
     tree: models.ApplicationTree;
     useNetworkingHierarchy: boolean;
     nodeFilter: (node: ResourceTreeNode) => boolean;
@@ -109,7 +112,7 @@ function getGraphSize(nodes: dagre.Node[]): {width: number; height: number} {
     return {width, height};
 }
 
-function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph) {
+function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph<{[key: string]: any}>) {
     function getNodeGroupingInfo(nodeId: string) {
         const node = graph.node(nodeId);
         return {
@@ -244,7 +247,7 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
     );
 }
 
-function appNodeKey(app: models.Application) {
+function appNodeKey(app: models.AbstractApplication) {
     return nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
 }
 
@@ -277,7 +280,7 @@ function renderFilteredNode(node: {count: number} & dagre.Node, onClearFilter: (
     );
 }
 
-function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: number} & dagre.Node & ResourceTreeNode) {
+function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: number; groupedNodeIds: string[]} & dagre.Node & ResourceTreeNode) {
     const indicators = new Array<number>();
     let count = Math.min(node.count - 1, 3);
     while (count > 0) {
@@ -330,7 +333,7 @@ function renderTrafficNode(node: dagre.Node) {
     );
 }
 
-function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string}) {
+function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string; kind: string}) {
     return (
         <div
             className='application-resource-tree__node application-resource-tree__node--load-balancer'
@@ -397,7 +400,12 @@ function processPodGroup(targetPodGroup: ResourceTreeNode, child: ResourceTreeNo
     }
 }
 
-function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node, childMap: Map<string, ResourceTreeNode[]>) {
+function renderPodGroup(
+    props: ApplicationResourceTreeProps,
+    id: string,
+    node: ResourceTreeNode & dagre.Node & {groupedNodeIds?: string[]},
+    childMap: Map<string, ResourceTreeNode[]>
+) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
     let healthState: models.HealthStatus = null;
@@ -407,7 +415,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
-    const extLinks: string[] = props.app.status.summary.externalURLs;
+    const extLinks: string[] = isApp(props.app) ? (props.app as models.Application).status.summary.externalURLs : [];
     const podGroupChildren = childMap.get(treeNodeKey(node));
     const nonPodChildren = podGroupChildren?.reduce((acc, child) => {
         if (child.kind !== 'Pod') {
@@ -494,6 +502,20 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                                 {ctx => {
                                     // For nested applications, use the node's data to construct the URL
                                     const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
+                                    const managedByURL = getManagedByURLFromNode(node);
+                                    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
+                                    if (managedByURLInvalid) {
+                                        return (
+                                            <span
+                                                role='link'
+                                                aria-disabled={true}
+                                                style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
+                                                onClick={e => e.stopPropagation()}
+                                                title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
+                                                <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                            </span>
+                                        );
+                                    }
                                     return (
                                         <a
                                             href={linkInfo.url}
@@ -502,7 +524,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                                             onClick={e => {
                                                 e.stopPropagation();
                                             }}
-                                            title={getManagedByURLFromNode(node) ? `Open application\nmanaged-by-url: ${getManagedByURLFromNode(node)}` : 'Open application'}>
+                                            title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
                                             <i className='fa fa-external-link-alt' />
                                         </a>
                                     );
@@ -755,7 +777,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
     }
     const appNode = isAppNode(node);
     const rootNode = !node.root;
-    const extLinks: string[] = props.app.status.summary.externalURLs;
+    const extLinks: string[] = isApp(props.app) ? (props.app as models.Application).status.summary.externalURLs : [];
     const childCount = nodesHavingChildren.get(node.uid);
     return (
         <div
@@ -804,6 +826,20 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                             {ctx => {
                                 // For nested applications, use the node's data to construct the URL
                                 const linkInfo = getApplicationLinkURLFromNode(node, ctx.baseHref);
+                                const managedByURL = getManagedByURLFromNode(node);
+                                const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
+                                if (managedByURLInvalid) {
+                                    return (
+                                        <span
+                                            role='link'
+                                            aria-disabled={true}
+                                            style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
+                                            onClick={e => e.stopPropagation()}
+                                            title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
+                                            <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                        </span>
+                                    );
+                                }
                                 return (
                                     <a
                                         href={linkInfo.url}
@@ -812,7 +848,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                                         onClick={e => {
                                             e.stopPropagation();
                                         }}
-                                        title={getManagedByURLFromNode(node) ? `Open application\nmanaged-by-url: ${getManagedByURLFromNode(node)}` : 'Open application'}>
+                                        title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
                                         <i className='fa fa-external-link-alt' />
                                     </a>
                                 );
@@ -906,7 +942,7 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
     return result;
 }
 export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => {
-    const graph = new dagre.graphlib.Graph();
+    const graph = new dagre.graphlib.Graph<{[key: string]: any}>();
     graph.setGraph({nodesep: 25, rankdir: 'LR', marginy: 45, marginx: -100, ranksep: 80});
     graph.setDefaultEdgeLabel(() => ({}));
     const overridesCount = getAppOverridesCount(props.app);
@@ -919,8 +955,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         version: '',
         // @ts-expect-error its not any
         children: [],
-        status: props.app.status.sync.status,
-        health: props.app.status.health,
+        status: isApp(props.app) ? (props.app as models.Application).status.sync.status : null,
+        health: isApp(props.app) ? (props.app as models.Application).status.health : {status: getAppSetHealthStatus(props.app as models.ApplicationSet), message: ''},
         uid: props.app.kind + '-' + props.app.metadata.namespace + '-' + props.app.metadata.name,
         info:
             overridesCount > 0
@@ -934,19 +970,34 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     };
 
     const statusByKey = new Map<string, models.ResourceStatus>();
-    props.app.status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
+    const appSetStatusByKey = new Map<string, models.ApplicationSetResource>();
+    if (isApp(props.app)) {
+        (props.app as models.Application).status.resources.forEach(res => statusByKey.set(nodeKey(res), res));
+    } else if ((props.app as models.ApplicationSet).status?.resources) {
+        (props.app as models.ApplicationSet).status.resources.forEach(res => appSetStatusByKey.set(nodeKey(res), res));
+    }
     const nodeByKey = new Map<string, ResourceTreeNode>();
     props.tree.nodes
         .map(node => ({...node, orphaned: false}))
         .concat(((props.showOrphanedResources && props.tree.orphanedNodes) || []).map(node => ({...node, orphaned: true})))
         .forEach(node => {
-            const status = statusByKey.get(nodeKey(node));
             const resourceNode: ResourceTreeNode = {...node};
-            if (status) {
-                resourceNode.health = status.health;
-                resourceNode.status = status.status;
-                resourceNode.hook = status.hook;
-                resourceNode.requiresPruning = status.requiresPruning;
+            if (isApp(props.app)) {
+                const status = statusByKey.get(nodeKey(node));
+                if (status) {
+                    resourceNode.health = status.health;
+                    resourceNode.status = status.status;
+                    resourceNode.hook = status.hook;
+                    resourceNode.requiresPruning = status.requiresPruning;
+                }
+            } else {
+                const status = appSetStatusByKey.get(nodeKey(node));
+                if (status && status.health) {
+                    resourceNode.health = {
+                        status: status.health.status as models.HealthStatusCode,
+                        message: ''
+                    };
+                }
             }
             nodeByKey.set(treeNodeKey(node), resourceNode);
         });
@@ -979,7 +1030,12 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
     }, [podCount]);
 
-    function filterGraph(app: models.Application, filteredIndicatorParent: string, graphNodesFilter: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
+    function filterGraph(
+        app: models.AbstractApplication,
+        filteredIndicatorParent: string,
+        graphNodesFilter: dagre.graphlib.Graph<{[key: string]: any}>,
+        predicate: (node: ResourceTreeNode) => boolean
+    ) {
         const appKey = appNodeKey(app);
         let filtered = 0;
         graphNodesFilter.nodes().forEach(nodeId => {
@@ -1085,7 +1141,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     graph.setNode(treeNodeKey(root), {...root, width: NODE_WIDTH, height: NODE_HEIGHT, root});
                 }
                 (childrenByParentKey.get(treeNodeKey(root)) || []).forEach(child => {
-                    if (root.namespace === child.namespace) {
+                    // Draw edge if nodes are in same namespace OR if parent is cluster-scoped (no namespace)
+                    if (root.namespace === child.namespace || !root.namespace) {
                         graph.setEdge(treeNodeKey(root), treeNodeKey(child), {colors: [colorByService.get(treeNodeKey(child))]});
                     }
                 });
@@ -1117,8 +1174,12 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
     } else {
         // Tree view
-        const managedKeys = new Set(props.app.status.resources.map(nodeKey));
-        const orphanedKeys = new Set(props.tree.orphanedNodes?.map(nodeKey));
+        const managedKeys = isApp(props.app)
+            ? new Set((props.app as models.Application).status.resources.map(nodeKey))
+            : (props.app as models.ApplicationSet).status?.resources
+              ? new Set((props.app as models.ApplicationSet).status.resources.map(nodeKey))
+              : new Set<string>();
+        const orphanedKeys = isApp(props.app) ? new Set(props.tree.orphanedNodes?.map(nodeKey)) : new Set<string>();
         const orphans: ResourceTreeNode[] = [];
         let allChildNodes: ResourceTreeNode[] = [];
         nodesHavingChildren.set(appNode.uid, 1);
@@ -1191,7 +1252,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             if (treeNodeKey(child) === treeNodeKey(root)) {
                 return;
             }
-            if (node.namespace === child.namespace) {
+            // Draw edge if nodes are in same namespace OR if parent is cluster-scoped (empty/undefined namespace)
+            const isParentClusterScoped = !node.namespace || node.namespace === '';
+            if (node.namespace === child.namespace || isParentClusterScoped) {
                 graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
             }
             processNode(child, root, colors);

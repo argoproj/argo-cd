@@ -54,7 +54,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	argoCDSettings, err := h.settingsMgr.GetSettings()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
 		http.Error(w, "Failed to retrieve argoCD settings: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -74,9 +73,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	cookies := r.Cookies()
 	tokenString, err = httputil.JoinCookies(common.AuthCookieName, cookies)
-	if tokenString == "" || err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+	// Build message safely: only include err when non-nil
+	if err != nil {
 		http.Error(w, "Failed to retrieve ArgoCD auth token: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if tokenString == "" {
+		http.Error(w, "Failed to retrieve ArgoCD auth token", http.StatusBadRequest)
 		return
 	}
 
@@ -108,9 +111,22 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	issuer := jwtutil.StringField(mapClaims, "iss")
 	id := jwtutil.StringField(mapClaims, "jti")
+	// Workaround for Dex token, because does not have jti.
+	if id == "" {
+		id = jwtutil.StringField(mapClaims, "at_hash")
+	}
+
 	if exp, err := jwtutil.ExpirationTime(mapClaims); err == nil && id != "" {
-		if err := h.revokeToken(context.Background(), id, time.Until(exp)); err != nil {
-			log.Warnf("failed to invalidate token '%s': %v", id, err)
+		ttl := time.Until(exp)
+		if ttl <= 0 {
+			// Token already expired; no need to persist revocation
+			log.Infof("token '%s' already expired, skipping revocation", id)
+		} else {
+			revokeCtx, cancel := context.WithTimeout(r.Context(), common.TokenRevocationTimeout)
+			defer cancel()
+			if err := h.revokeToken(revokeCtx, id, ttl); err != nil {
+				log.Warnf("failed to invalidate token '%s': %v", id, err)
+			}
 		}
 	}
 

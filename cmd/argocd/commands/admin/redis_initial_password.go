@@ -23,7 +23,7 @@ func generateRandomPassword() (string, error) {
 	const initialPasswordLength = 16
 	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
 	randBytes := make([]byte, initialPasswordLength)
-	for i := 0; i < initialPasswordLength; i++ {
+	for i := range initialPasswordLength {
 		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
 		if err != nil {
 			return "", err

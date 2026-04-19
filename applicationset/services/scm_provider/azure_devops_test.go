@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
 	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
@@ -17,10 +16,6 @@ import (
 	azureMock "github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/azure_devops/git/mocks"
 	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/mocks"
 )
-
-func s(input string) *string {
-	return ptr.To(input)
-}
 
 func TestAzureDevopsRepoHasPath(t *testing.T) {
 	organization := "myorg"
@@ -51,12 +46,12 @@ func TestAzureDevopsRepoHasPath(t *testing.T) {
 		{
 			name:             "RepoHasPath when no path found returns false",
 			pathFound:        false,
-			azureDevopsError: azuredevops.WrappedError{TypeKey: s(AzureDevOpsErrorsTypeKeyValues.GitItemNotFound)},
+			azureDevopsError: azuredevops.WrappedError{TypeKey: new(AzureDevOpsErrorsTypeKeyValues.GitItemNotFound)},
 		},
 		{
 			name:             "RepoHasPath when unknown Azure DevOps WrappedError occurs returns error",
 			pathFound:        false,
-			azureDevopsError: azuredevops.WrappedError{TypeKey: s("OtherAzureDevopsException")},
+			azureDevopsError: azuredevops.WrappedError{TypeKey: new("OtherAzureDevopsException")},
 			returnError:      true,
 			errorMessage:     "failed to check for path existence",
 		},
@@ -124,12 +119,12 @@ func TestGetDefaultBranchOnDisabledRepo(t *testing.T) {
 	}{
 		{
 			name:              "azure devops error when disabled repo causes empty return value",
-			azureDevOpsError:  azuredevops.WrappedError{TypeKey: s(AzureDevOpsErrorsTypeKeyValues.GitRepositoryNotFound)},
+			azureDevOpsError:  azuredevops.WrappedError{TypeKey: new(AzureDevOpsErrorsTypeKeyValues.GitRepositoryNotFound)},
 			shouldReturnError: false,
 		},
 		{
 			name:              "azure devops error with unknown error type returns error",
-			azureDevOpsError:  azuredevops.WrappedError{TypeKey: s("OtherError")},
+			azureDevOpsError:  azuredevops.WrappedError{TypeKey: new("OtherError")},
 			shouldReturnError: true,
 		},
 		{
@@ -181,12 +176,12 @@ func TestGetAllBranchesOnDisabledRepo(t *testing.T) {
 	}{
 		{
 			name:              "azure devops error when disabled repo causes empty return value",
-			azureDevOpsError:  azuredevops.WrappedError{TypeKey: s(AzureDevOpsErrorsTypeKeyValues.GitRepositoryNotFound)},
+			azureDevOpsError:  azuredevops.WrappedError{TypeKey: new(AzureDevOpsErrorsTypeKeyValues.GitRepositoryNotFound)},
 			shouldReturnError: false,
 		},
 		{
 			name:              "azure devops error with unknown error type returns error",
-			azureDevOpsError:  azuredevops.WrappedError{TypeKey: s("OtherError")},
+			azureDevOpsError:  azuredevops.WrappedError{TypeKey: new("OtherError")},
 			shouldReturnError: true,
 		},
 		{
@@ -234,7 +229,7 @@ func TestAzureDevOpsGetDefaultBranchStripsRefsName(t *testing.T) {
 		strippedBranchName := "somebranch"
 		defaultBranch := fmt.Sprintf("refs/heads/%v", strippedBranchName)
 
-		branchReturn := &azureGit.GitBranchStats{Name: &strippedBranchName, Commit: &azureGit.GitCommitRef{CommitId: s("abc123233223")}}
+		branchReturn := &azureGit.GitBranchStats{Name: &strippedBranchName, Commit: &azureGit.GitCommitRef{CommitId: new("abc123233223")}}
 		repo := &Repository{Organization: organization, Repository: repoName, RepositoryId: uuid, Branch: defaultBranch}
 
 		gitClientMock := &azureMock.Client{}
@@ -273,7 +268,7 @@ func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
 	}{
 		{
 			name:           "GetBranches AllBranches false when single branch returned returns branch",
-			expectedBranch: &azureGit.GitBranchStats{Name: &defaultBranch, Commit: &azureGit.GitCommitRef{CommitId: s("abc123233223")}},
+			expectedBranch: &azureGit.GitBranchStats{Name: &defaultBranch, Commit: &azureGit.GitCommitRef{CommitId: new("abc123233223")}},
 		},
 		{
 			name:                "GetBranches AllBranches false when request fails returns error and empty result",
@@ -285,7 +280,7 @@ func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
 		},
 		{
 			name:           "GetBranches AllBranches false when branch returned with long commit SHA",
-			expectedBranch: &azureGit.GitBranchStats{Name: &defaultBranch, Commit: &azureGit.GitCommitRef{CommitId: s("53863052ADF24229AB72154B4D83DAB7")}},
+			expectedBranch: &azureGit.GitBranchStats{Name: &defaultBranch, Commit: &azureGit.GitCommitRef{CommitId: new("53863052ADF24229AB72154B4D83DAB7")}},
 		},
 	}
 
@@ -344,7 +339,7 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 	}{
 		{
 			name:             "GetBranches when single branch returned returns this branch info",
-			expectedBranches: &[]azureGit.GitBranchStats{{Name: s("feature-feat1"), Commit: &azureGit.GitCommitRef{CommitId: s("abc123233223")}}},
+			expectedBranches: &[]azureGit.GitBranchStats{{Name: new("feature-feat1"), Commit: &azureGit.GitCommitRef{CommitId: new("abc123233223")}}},
 			allBranches:      true,
 		},
 		{
@@ -365,9 +360,9 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 		{
 			name: "GetBranches when multiple branches returned returns branch info for all branches",
 			expectedBranches: &[]azureGit.GitBranchStats{
-				{Name: s("feature-feat1"), Commit: &azureGit.GitCommitRef{CommitId: s("abc123233223")}},
-				{Name: s("feature/feat2"), Commit: &azureGit.GitCommitRef{CommitId: s("4334")}},
-				{Name: s("feature/feat2"), Commit: &azureGit.GitCommitRef{CommitId: s("53863052ADF24229AB72154B4D83DAB7")}},
+				{Name: new("feature-feat1"), Commit: &azureGit.GitCommitRef{CommitId: new("abc123233223")}},
+				{Name: new("feature/feat2"), Commit: &azureGit.GitCommitRef{CommitId: new("4334")}},
+				{Name: new("feature/feat2"), Commit: &azureGit.GitCommitRef{CommitId: new("53863052ADF24229AB72154B4D83DAB7")}},
 			},
 			allBranches: true,
 		},
@@ -434,12 +429,12 @@ func TestGetAzureDevopsRepositories(t *testing.T) {
 	}{
 		{
 			name:                  "ListRepos when single repo found returns repo info",
-			repositories:          []azureGit.GitRepository{{Name: s("repo1"), DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u"), Id: repoId}},
+			repositories:          []azureGit.GitRepository{{Name: new("repo1"), DefaultBranch: new("main"), RemoteUrl: new("https://remoteurl.u"), Id: repoId}},
 			expectedNumberOfRepos: 1,
 		},
 		{
 			name:         "ListRepos when repo has no default branch returns empty list",
-			repositories: []azureGit.GitRepository{{Name: s("repo2"), RemoteUrl: s("https://remoteurl.u"), Id: repoId}},
+			repositories: []azureGit.GitRepository{{Name: new("repo2"), RemoteUrl: new("https://remoteurl.u"), Id: repoId}},
 		},
 		{
 			name:                 "ListRepos when Azure DevOps request fails returns error",
@@ -447,24 +442,24 @@ func TestGetAzureDevopsRepositories(t *testing.T) {
 		},
 		{
 			name:         "ListRepos when repo has no name returns empty list",
-			repositories: []azureGit.GitRepository{{DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u"), Id: repoId}},
+			repositories: []azureGit.GitRepository{{DefaultBranch: new("main"), RemoteUrl: new("https://remoteurl.u"), Id: repoId}},
 		},
 		{
 			name:         "ListRepos when repo has no remote URL returns empty list",
-			repositories: []azureGit.GitRepository{{DefaultBranch: s("main"), Name: s("repo_name"), Id: repoId}},
+			repositories: []azureGit.GitRepository{{DefaultBranch: new("main"), Name: new("repo_name"), Id: repoId}},
 		},
 		{
 			name:         "ListRepos when repo has no ID returns empty list",
-			repositories: []azureGit.GitRepository{{DefaultBranch: s("main"), Name: s("repo_name"), RemoteUrl: s("https://remoteurl.u")}},
+			repositories: []azureGit.GitRepository{{DefaultBranch: new("main"), Name: new("repo_name"), RemoteUrl: new("https://remoteurl.u")}},
 		},
 		{
 			name: "ListRepos when multiple repos returned returns list of eligible repos only",
 			repositories: []azureGit.GitRepository{
-				{Name: s("returned1"), DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u"), Id: repoId},
-				{Name: s("missing_default_branch"), RemoteUrl: s("https://remoteurl.u"), Id: repoId},
-				{DefaultBranch: s("missing_name"), RemoteUrl: s("https://remoteurl.u"), Id: repoId},
-				{Name: s("missing_remote_url"), DefaultBranch: s("main"), Id: repoId},
-				{Name: s("missing_id"), DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u")},
+				{Name: new("returned1"), DefaultBranch: new("main"), RemoteUrl: new("https://remoteurl.u"), Id: repoId},
+				{Name: new("missing_default_branch"), RemoteUrl: new("https://remoteurl.u"), Id: repoId},
+				{DefaultBranch: new("missing_name"), RemoteUrl: new("https://remoteurl.u"), Id: repoId},
+				{Name: new("missing_remote_url"), DefaultBranch: new("main"), Id: repoId},
+				{Name: new("missing_id"), DefaultBranch: new("main"), RemoteUrl: new("https://remoteurl.u")},
 			},
 			expectedNumberOfRepos: 1,
 		},
@@ -473,7 +468,7 @@ func TestGetAzureDevopsRepositories(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			gitClientMock := azureMock.NewClient(t)
-			gitClientMock.EXPECT().GetRepositories(mock.Anything, azureGit.GetRepositoriesArgs{Project: s(teamProject)}).Return(&testCase.repositories, testCase.getRepositoriesError)
+			gitClientMock.EXPECT().GetRepositories(mock.Anything, azureGit.GetRepositoriesArgs{Project: new(teamProject)}).Return(&testCase.repositories, testCase.getRepositoriesError)
 
 			clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
 			clientFactoryMock.EXPECT().GetClient(mock.Anything).Return(gitClientMock, nil)

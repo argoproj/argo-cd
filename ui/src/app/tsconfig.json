@@ -11,6 +11,7 @@
         "allowSyntheticDefaultImports": true,
         "noUnusedLocals": true,
         "declaration": false,
+        "isolatedModules": true,
         "lib": [
             "es2017",
             "dom"

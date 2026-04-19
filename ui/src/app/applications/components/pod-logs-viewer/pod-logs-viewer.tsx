@@ -43,6 +43,7 @@ export interface PodLogsProps {
     containerGroups?: any[];
     onClickContainer?: (group: any, i: number, tab: string) => void;
     fullscreen?: boolean;
+    previous?: boolean;
 }
 
 export interface PodLogsQueryProps {
@@ -294,7 +295,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             <Spacer />
                             <span>
                                 <CopyLogsButton logs={logs} />
-                                <DownloadLogsButton {...props} />
+                                <DownloadLogsButton {...props} previous={previous} />
                                 <FullscreenButton
                                     {...props}
                                     viewPodNames={viewPodNames}

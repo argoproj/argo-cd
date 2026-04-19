@@ -14,6 +14,20 @@ metadata:
     argocd.argoproj.io/sync-options: Prune=false
 ```
 
+It is also possible to set this option as a default option on the application level:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+      - Prune=false
+```
+
+Note that setting a Prune sync option on the resource will always override a
+Prune sync policy defined in the Application.
+
 The sync-status panel shows that pruning was skipped, and why:
 
 ![sync option no prune](../assets/sync-option-no-prune-sync-status.png)
@@ -34,6 +48,25 @@ metadata:
 To confirm the pruning you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
 annotation to the application.
 
+If a resource with `Prune=confirm` has been pruned, the sync operation will remain in a Syncing state until pruning is
+confirmed. The UI will look similar to this, with the "Confirm Pruning" button available to complete the sync:
+
+![Screenshot of the Argo CD Application UI. The "Last Sync" section shows that the operation is still Syncing. The row of gray action buttons includes an extra "Confirm Pruning" button.](../assets/confirm-prune.png)
+
+It is also possible to set this option as a default option on the application level:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+      - Prune=confirm
+```
+
+Note that setting a Prune sync option on the resource will always override a
+Prune sync policy defined in the Application.
+
 ## Disable Kubectl Validation
 
 For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are Kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do that using this annotation:
@@ -51,8 +84,7 @@ If you want to exclude a whole class of objects globally, consider setting `reso
 When syncing a custom resource which is not yet known to the cluster, there are generally two options:
 
 1. The CRD manifest is part of the same sync. Then Argo CD will automatically skip the dry run, the CRD will be applied and the resource can be created.
-2. In some cases the CRD is not part of the sync, but it could be created in another way, e.g. by a controller in the cluster. An example is [gatekeeper](https://github.com/open-policy-agent/gatekeeper),
-which creates CRDs in response to user defined `ConstraintTemplates`. Argo CD cannot find the CRD in the sync and will fail with the error `the server could not find the requested resource`.
+2. In some cases the CRD is not part of the sync, but it could be created in another way, e.g. by a controller in the cluster. An example is [gatekeeper](https://github.com/open-policy-agent/gatekeeper), which creates CRDs in response to user defined `ConstraintTemplates`. Argo CD cannot find the CRD in the sync and will fail with the error `the server could not find the requested resource`.
 
 To skip the dry run for missing resource types, use the following annotation:
 
@@ -73,7 +105,7 @@ kind: Application
 spec:
   syncPolicy:
     syncOptions:
-    - SkipDryRunOnMissingResource=true
+      - SkipDryRunOnMissingResource=true
 ```
 
 ## No Resource Deletion
@@ -86,6 +118,20 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-options: Delete=false
 ```
+
+It is also possible to set this option as a default option on the application level:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+      - Delete=false
+```
+
+Note that setting a Delete sync option on the resource will always override a
+Delete sync policy defined in the Application.
 
 ## Resource Deletion With Confirmation
 
@@ -101,15 +147,32 @@ metadata:
 To confirm the deletion you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
 annotation to the application.
 
-## Selective Sync
+It is also possible to set this option as a default option on the application level:
 
-Currently, when syncing using auto sync Argo CD applies every object in the application.
-For applications containing thousands of objects this takes quite a long time and puts undue pressure on the api server.
-Turning on the selective sync option will sync only out-of-sync resources.
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  syncPolicy:
+    syncOptions:
+      - Delete=confirm
+```
+
+Note that setting a Delete sync option on the resource will always override a
+Delete sync policy defined in the Application.
+
+## Apply Resources OutOfSync Only
+
+The default behavior when syncing your application is to apply every object in the application.
+For applications containing thousands of objects, this takes quite a long time and puts undue pressure on the Kubernetes API server. It will also significantly increase the size of the `status.operationState.syncResult.resources` field, which may impact the Kubernetes database.
+
+Turning on the sync option will sync only out-of-sync resources.
+
+Unlike [Selective Sync](./selective_sync.md), when `ApplyOutOfSyncOnly` is enabled, Sync Hooks will still run and the sync will be recorded in the history.
 
 You can add this option in the following ways:
 
-1) Add `ApplyOutOfSyncOnly=true` in manifest
+1. Add `ApplyOutOfSyncOnly=true` in manifest
 
 Example:
 
@@ -119,10 +182,10 @@ kind: Application
 spec:
   syncPolicy:
     syncOptions:
-    - ApplyOutOfSyncOnly=true
+      - ApplyOutOfSyncOnly=true
 ```
 
-2) Set sync option via argocd cli
+2. Set sync option via argocd cli
 
 Example:
 
@@ -134,7 +197,7 @@ $ argocd app set guestbook --sync-option ApplyOutOfSyncOnly=true
 
 By default, extraneous resources get pruned using the foreground deletion policy. The propagation policy can be controlled
 using the `PrunePropagationPolicy` sync option. Supported policies are background, foreground, and orphan.
-More information about those policies can be found [here](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#controlling-how-the-garbage-collector-deletes-dependents).
+More information about those policies can be found in the Kubernetes [Garbage Collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) documentation.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -142,7 +205,7 @@ kind: Application
 spec:
   syncPolicy:
     syncOptions:
-    - PrunePropagationPolicy=foreground
+      - PrunePropagationPolicy=foreground
 ```
 
 ## Prune Last
@@ -156,10 +219,11 @@ kind: Application
 spec:
   syncPolicy:
     syncOptions:
-    - PruneLast=true
+      - PruneLast=true
 ```
 
 This can also be configured at individual resource level.
+
 ```yaml
 metadata:
   annotations:
@@ -173,14 +237,13 @@ By default, Argo CD executes the `kubectl apply` operation to apply the configur
 `kubectl.kubernetes.io/last-applied-configuration` annotation that is added by `kubectl apply`. In such cases you
 might use `Replace=true` sync option:
 
-
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 spec:
   syncPolicy:
     syncOptions:
-    - Replace=true
+      - Replace=true
 ```
 
 If the `Replace=true` sync option is set, Argo CD will use `kubectl replace` or `kubectl create` command to apply changes.
@@ -190,6 +253,7 @@ If the `Replace=true` sync option is set, Argo CD will use `kubectl replace` or 
 > This sync option has the potential to be destructive and might lead to resources having to be recreated, which could cause an outage for your application.
 
 This can also be configured at individual resource level.
+
 ```yaml
 metadata:
   annotations:
@@ -205,6 +269,7 @@ For certain resources you might want to delete and recreate, e.g. job resources 
 > This sync option has a destructive action, which could cause an outage for your application.
 
 In such cases you might use `Force=true` sync option in target resources annotation:
+
 ```yaml
 metadata:
   annotations:
@@ -228,7 +293,7 @@ However, there are some cases where you want to use `kubectl apply --server-side
 - Use a more declarative approach, which tracks a user's field management, rather than a user's last
   applied state.
 
-If the `ServerSideApply=true` sync option is set, Argo CD will use the `kubectl apply --server-side`
+If the `ServerSideApply=true` sync option is set, Argo CD will use the `kubectl apply --server-side --force-conflicts`
 command to apply changes.
 
 It can be enabled at the application level like in the example below:
@@ -239,7 +304,7 @@ kind: Application
 spec:
   syncPolicy:
     syncOptions:
-    - ServerSideApply=true
+      - ServerSideApply=true
 ```
 
 To enable ServerSideApply just for an individual resource, the sync-option annotation
@@ -260,7 +325,6 @@ metadata:
     argocd.argoproj.io/sync-options: ServerSideApply=false
 ```
 
-
 ServerSideApply can also be used to patch existing resources by providing a partial
 yaml. For example, if there is a requirement to update just the number of replicas
 in a given Deployment, the following yaml can be provided to Argo CD:
@@ -275,7 +339,7 @@ spec:
 ```
 
 Note that by the Deployment schema specification, this isn't a valid manifest. In this
-case an additional sync option *must* be provided to skip schema validation. The example
+case an additional sync option _must_ be provided to skip schema validation. The example
 below shows how to configure the application to enable the two necessary sync options:
 
 ```yaml
@@ -284,11 +348,11 @@ kind: Application
 spec:
   syncPolicy:
     syncOptions:
-    - ServerSideApply=true
-    - Validate=false
+      - ServerSideApply=true
+      - Validate=false
 ```
 
-In this case, Argo CD will use the `kubectl apply --server-side --validate=false` command
+In this case, Argo CD will use the `kubectl apply --server-side --force-conflicts --validate=false` command
 to apply changes.
 
 Note: [`Replace=true`](#replace-resource-instead-of-applying-changes) takes precedence over `ServerSideApply=true`.
@@ -305,7 +369,7 @@ kind: Application
 spec:
   syncPolicy:
     syncOptions:
-    - ClientSideApplyMigration=false
+      - ClientSideApplyMigration=false
 ```
 
 You can specify a custom field manager for the client-side apply migration using an annotation:
@@ -315,7 +379,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   annotations:
-    argocd.argoproj.io/client-side-apply-migration-manager: "my-custom-manager"
+    argocd.argoproj.io/client-side-apply-migration-manager: 'my-custom-manager'
 ```
 
 This is useful when you have other operators managing resources that are no longer in use and would like Argo CD to own all the fields for that operator.
@@ -323,13 +387,15 @@ This is useful when you have other operators managing resources that are no long
 ### How it works
 
 When client-side apply migration is enabled:
+
 1. Argo CD will use the specified field manager (or default if not specified) to perform migration
 2. During a server-side apply sync operation, it will:
-   - Perform a client-side-apply with the specified field manager
-   - Move the 'last-applied-configuration' annotation to be managed by the specified manager
-   - Perform the server-side apply, which will auto migrate all the fields under the manager that owns the 'last-applied-configuration' annotation.
+   - Check if the specified field manager exists in the resource's `managedFields` with `operation: Update` (indicating client-side apply)
+   - Patch the `managedFields`, transferring field ownership from the client-side apply manager to Argo CD's server-side apply manager (`argocd-controller`)
+   - Remove the client-side apply manager entry from `managedFields`
+   - Perform the server-side apply with the migrated field ownership
 
-This feature is based on Kubernetes' [client-side apply migration KEP](https://github.com/alexzielenski/enhancements/blob/03df8820b9feca6d2cab78e303c99b2c9c0c4c5c/keps/sig-cli/3517-kubectl-client-side-apply-migration/README.md), which provides the auto migration from client-side to server-side apply.
+This feature is based on Kubernetes' [client-side to server-side apply migration](https://kubernetes.io/docs/reference/using-api/server-side-apply/#migration-between-client-side-and-server-side-apply).
 
 ## Fail the sync if a shared resource is found
 
@@ -341,7 +407,7 @@ kind: Application
 spec:
   syncPolicy:
     syncOptions:
-    - FailOnSharedResource=true
+      - FailOnSharedResource=true
 ```
 
 ## Respect ignore differences configs
@@ -352,16 +418,15 @@ This sync option is used to enable Argo CD to consider the configurations made i
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 spec:
-
   ignoreDifferences:
-  - group: "apps"
-    kind: "Deployment"
-    jsonPointers:
-    - /spec/replicas
+    - group: 'apps'
+      kind: 'Deployment'
+      jsonPointers:
+        - /spec/replicas
 
   syncPolicy:
     syncOptions:
-    - RespectIgnoreDifferences=true
+      - RespectIgnoreDifferences=true
 ```
 
 The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieved by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
@@ -379,7 +444,7 @@ spec:
     namespace: some-namespace
   syncPolicy:
     syncOptions:
-    - CreateNamespace=true
+      - CreateNamespace=true
 ```
 
 The example above shows how an Argo CD Application can be configured so it will create the namespace specified in `spec.destination.namespace` if it doesn't exist already. Without this either declared in the Application manifest or passed in the CLI via `--sync-option CreateNamespace=true`, the Application will fail to sync if the namespace doesn't exist.
@@ -407,31 +472,27 @@ spec:
         applies: for
         annotations: on-the-namespace
     syncOptions:
-    - CreateNamespace=true
+      - CreateNamespace=true
 ```
 
 In order for Argo CD to manage the labels and annotations on the namespace, `CreateNamespace=true` needs to be set as a
 sync option, otherwise nothing will happen. If the namespace doesn't already exist, or if it already exists and doesn't
-already have labels and/or annotations set on it, you're good to go. Using `managedNamespaceMetadata` will also set the
-resource tracking label (or annotation) on the namespace, so you can easily track which namespaces are managed by Argo CD.
+already have labels and/or annotations set on it, you're good to go.
 
-In the case you do not have any custom annotations or labels but would nonetheless want to have resource tracking set on
-your namespace, that can be done by setting `managedNamespaceMetadata` with an empty `labels` and/or `annotations` map,
-like the example below:
+The generated namespace is normally not tracked with Argo CD. You can use `managedNamespaceMetadata` to
+set a tracking annotation on the generated namespace, which sets the namespace to be _owned_ by Argo CD.
+
+Once a namespace is owned by Argo CD, it will be managed by ArgoCD, including the possibility to delete it, which Argo CD normally does not do:
 
 ```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  namespace: test
-spec:
-  syncPolicy:
-    managedNamespaceMetadata:
-      labels: # The labels to set on the application namespace
-      annotations: # The annotations to set on the application namespace
-    syncOptions:
-    - CreateNamespace=true
+managedNamespaceMetadata:
+  annotations:
+    argocd.argoproj.io/tracking-id: 'your-application-name:/Namespace:/your-namespace-name'
 ```
+
+> [!NOTE]
+> This is the only scenario in which manually adding the Argo CD resource-tracking annotation or label to a namespace can be considered a reasonable workaround, and it is done strictly at the user’s own risk. In all other cases, manually managing the tracking metadata on a namespace is strongly discouraged, as it interferes with Argo CD’s internal resource-tracking and ownership logic.
+> By default, namespaces are not managed with resource tracking because a namespace is a cluster-scoped resource and may be shared across multiple applications. Incorrectly assigning ownership can therefore lead to unsafe behavior, including unintended deletion or reconciliation of a shared namespace.
 
 In the case where Argo CD is "adopting" an existing namespace which already has metadata set on it, you should first
 [upgrade the resource to server-side apply](https://kubernetes.io/docs/reference/using-api/server-side-apply/#upgrading-from-client-side-apply-to-server-side-apply)
@@ -440,7 +501,7 @@ client-side-applied resources with server-side-applies. If you do not upgrade th
 may remove existing labels/annotations, which may or may not be the desired behavior.
 
 Another thing to keep mind of is that if you have a k8s manifest for the same namespace in your Argo CD application, that
-will take precedence and *overwrite whatever values that have been set in `managedNamespaceMetadata`*. In other words, if
+will take precedence and **overwrite whatever values that have been set in `managedNamespaceMetadata`**. In other words, if
 you have an application that sets `managedNamespaceMetadata`
 
 ```yaml
@@ -470,7 +531,7 @@ metadata:
 The resulting namespace will have its annotations set to
 
 ```yaml
-  annotations:
-    foo: bar
-    something: completely-different
+annotations:
+  foo: bar
+  something: completely-different
 ```
