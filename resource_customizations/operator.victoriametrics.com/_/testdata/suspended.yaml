@@ -1,0 +1,12 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAlertmanager
+metadata:
+  name: example
+  namespace: monitoring
+  generation: 4
+  annotations:
+    operator.victoriametrics.com/pause-reconcile: "true"
+spec: {}
+status:
+  observedGeneration: 4
+  updateStatus: paused

@@ -1,0 +1,10 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAlert
+metadata:
+  name: example
+  namespace: monitoring
+  generation: 5
+spec: {}
+status:
+  observedGeneration: 4
+  updateStatus: operational
