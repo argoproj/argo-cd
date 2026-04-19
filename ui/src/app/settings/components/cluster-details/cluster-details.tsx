@@ -13,7 +13,7 @@ import {services} from '../../../shared/services';
 import {formatClusterQueryParam} from '../../../shared/utils';
 
 function isRefreshRequested(cluster: Cluster): boolean {
-    return cluster.info.connectionState.attemptedAt && cluster.refreshRequestedAt && moment(cluster.info.connectionState.attemptedAt).isBefore(moment(cluster.refreshRequestedAt));
+    return cluster.info?.connectionState.attemptedAt && cluster.refreshRequestedAt && moment(cluster.info.connectionState.attemptedAt).isBefore(moment(cluster.refreshRequestedAt));
 }
 
 export const NamespacesEditor = ReactFormField((props: {fieldApi: FieldApi; className: string}) => {
@@ -127,23 +127,23 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {o
                                 <div className='row white-box__details-row'>
                                     <div className='columns small-3'>STATUS:</div>
                                     <div className='columns small-9'>
-                                        <ConnectionStateIcon state={cluster.info.connectionState} /> {cluster.info.connectionState.status}
+                                        <ConnectionStateIcon state={cluster.info?.connectionState} /> {cluster.info?.connectionState?.status}
                                     </div>
                                 </div>
                                 <div className='row white-box__details-row'>
                                     <div className='columns small-3'>VERSION:</div>
-                                    <div className='columns small-9'> {cluster.info.serverVersion}</div>
+                                    <div className='columns small-9'> {cluster.info?.serverVersion}</div>
                                 </div>
                                 <div className='row white-box__details-row'>
                                     <div className='columns small-3'>DETAILS:</div>
-                                    <div className='columns small-9'> {cluster.info.connectionState.message} </div>
+                                    <div className='columns small-9'> {cluster.info?.connectionState?.message} </div>
                                 </div>
                                 <div className='row white-box__details-row'>
                                     <div className='columns small-3'>MODIFIED AT:</div>
                                     <div className='columns small-9'>
                                         <Ticker>
                                             {now => {
-                                                if (!cluster.info.connectionState.attemptedAt) {
+                                                if (!cluster.info?.connectionState?.attemptedAt) {
                                                     return <span>Never (next refresh in few seconds)</span>;
                                                 }
                                                 const secondsBeforeRefresh = Math.round(
@@ -151,7 +151,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {o
                                                 );
                                                 return (
                                                     <React.Fragment>
-                                                        <Timestamp date={cluster.info.connectionState.attemptedAt} /> (next refresh in {secondsBeforeRefresh} seconds)
+                                                        <Timestamp date={cluster.info?.connectionState?.attemptedAt} /> (next refresh in {secondsBeforeRefresh} seconds)
                                                     </React.Fragment>
                                                 );
                                             }}
@@ -169,22 +169,22 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {o
                                         <div className='row white-box__details-row'>
                                             <div className='columns small-3'>RE-SYNCHRONIZED:</div>
                                             <div className='columns small-9'>
-                                                <Timestamp date={cluster.info.cacheInfo.lastCacheSyncTime} />
+                                                <Timestamp date={cluster.info?.cacheInfo?.lastCacheSyncTime} />
                                             </div>
                                         </div>
                                     )}
                                 </Ticker>
                                 <div className='row white-box__details-row'>
                                     <div className='columns small-3'>APIs COUNT:</div>
-                                    <div className='columns small-9'> {cluster.info.cacheInfo.apisCount} </div>
+                                    <div className='columns small-9'> {cluster.info?.cacheInfo?.apisCount} </div>
                                 </div>
                                 <div className='row white-box__details-row'>
                                     <div className='columns small-3'>RESOURCES COUNT:</div>
-                                    <div className='columns small-9'> {cluster.info.cacheInfo.resourcesCount} </div>
+                                    <div className='columns small-9'> {cluster.info?.cacheInfo?.resourcesCount} </div>
                                 </div>
                                 <div className='row white-box__details-row'>
                                     <div className='columns small-3'>APPLICATIONS COUNT:</div>
-                                    <div className='columns small-9'> {cluster.info.applicationsCount} </div>
+                                    <div className='columns small-9'> {cluster.info?.applicationsCount} </div>
                                 </div>
                             </div>
                         </div>
