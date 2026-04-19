@@ -122,16 +122,25 @@ jobs:
       ghcr_username: ${{ github.actor }}
       ghcr_password: ${{ secrets.GITHUB_TOKEN }}
 
+  verify-slsa-generator-tag:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/verify-slsa-generator-tag.yaml
+    with:
+      slsa_generator_tag: v2.1.0
+  
   build-and-publish-provenance: # Push attestations to GHCR, latest image is polluting quay.io
     needs:
       - set-vars
       - build-and-publish
+      - verify-slsa-generator-tag
     permissions:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
     if: ${{ (github.repository == 'argoproj/argo-cd' || needs.set-vars.outputs.image_namespace != 'argoproj') && github.event_name == 'push' && needs.set-vars.outputs.allow_ghcr_publish == 'true'}}
-    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    # The tag needs to be updated here and in slsa_generator_tag above
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
       image: ${{ needs.set-vars.outputs.ghcr_provenance_image }}

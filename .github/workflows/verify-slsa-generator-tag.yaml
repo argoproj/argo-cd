@@ -1,0 +1,22 @@
+# Reusable: verify slsa-framework/slsa-github-generator tag resolves to a commit.
+# Callers set workflow env SLSA_GENERATOR_TAG and pass it via `with` (see image.yaml, release.yaml).
+name: Verify SLSA generator tag
+
+on:
+  workflow_call:
+    inputs:
+      slsa_generator_tag:
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  verify:
+    name: Verify slsa-github-generator tag resolves to a commit
+    permissions:
+      contents: read
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - run: ./hack/verify-slsa-generator-tag.sh "${{ inputs.slsa_generator_tag }}"

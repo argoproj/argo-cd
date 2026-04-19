@@ -99,14 +99,21 @@ jobs:
             ALLOW_FORK_RELEASE=true
           fi
           echo "allow_fork_release=$ALLOW_FORK_RELEASE" >> $GITHUB_OUTPUT
+  verify-slsa-generator-tag:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/verify-slsa-generator-tag.yaml
+    with:
+      slsa_generator_tag: v2.1.0
 
   argocd-image-provenance:
-    needs: [setup-variables, argocd-image]
+    needs: [setup-variables, argocd-image, verify-slsa-generator-tag]
     permissions:
       actions: read # for detecting the Github Actions environment.
       id-token: write # for creating OIDC tokens for signing.
       packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
-    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    # The tag needs to be updated here and in slsa_generator_tag above
     if: github.repository == 'argoproj/argo-cd' || needs.setup-variables.outputs.allow_fork_release == 'true'
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
@@ -165,12 +172,24 @@ jobs:
           swap-storage: false
           tool-cache: false
 
+      # We install goreleaser instead of using the goreleaser/goreleaser-action because it does not verify the goreleaser binary.
+      # So we install the binary ourselves, verify it with shasum and then run the binary.
+      # The goreleaser version is set in the tool-versions.sh file.  
+      - name: Install GoReleaser
+        run: ./hack/ci/install-goreleaser.sh
+
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
         id: run-goreleaser
-        with:
-          version: v2.14.3
-          args: release --clean --timeout 55m
+        run: |
+          set -euo pipefail
+          goreleaser release --clean --timeout 55m
+          if ! test -f dist/artifacts.json; then
+            echo 'dist/artifacts.json missing after goreleaser release' >&2
+            exit 1
+          fi
+          # Emit as compact single-line JSON to avoid multiline delimiter/newline edge-cases in GITHUB_OUTPUT.
+          artifacts_json=$(jq -c . dist/artifacts.json)
+          printf 'artifacts=%s\n' "$artifacts_json" >> "$GITHUB_OUTPUT"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KUBECTL_VERSION: ${{ env.KUBECTL_VERSION }}
@@ -193,7 +212,7 @@ jobs:
           echo "hashes=$hashes" >> $GITHUB_OUTPUT
 
   goreleaser-provenance:
-    needs: [goreleaser, setup-variables]
+    needs: [goreleaser, setup-variables, verify-slsa-generator-tag]
     permissions:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
@@ -284,7 +303,7 @@ jobs:
             /tmp/sbom.tar.gz
 
   sbom-provenance:
-    needs: [generate-sbom, setup-variables]
+    needs: [generate-sbom, setup-variables, verify-slsa-generator-tag]
     permissions:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
