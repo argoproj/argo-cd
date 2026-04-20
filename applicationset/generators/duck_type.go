@@ -164,7 +164,25 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 		}
 
 		for key, value := range clusterDecision.(map[string]any) {
-			params[key] = value.(string)
+			// ClusterDecisionResource status fields can contain non-string
+			// types (e.g. OCM PlacementDecision's `score` is an int64 after
+			// the recent schema change, see #27264). The previous blanket
+			// `value.(string)` assertion panicked the controller with
+			// `interface conversion: interface {} is int64, not string`
+			// whenever any generator consumed such a status. Coerce to
+			// string so the generator keeps emitting string-valued params
+			// regardless of the decision value's concrete type; preserve
+			// nil as empty string to match the prior happy-path behaviour
+			// when a field was missing.
+			if value == nil {
+				params[key] = ""
+				continue
+			}
+			if s, ok := value.(string); ok {
+				params[key] = s
+				continue
+			}
+			params[key] = fmt.Sprintf("%v", value)
 		}
 
 		for key, value := range appSetGenerator.ClusterDecisionResource.Values {
