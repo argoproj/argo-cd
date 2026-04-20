@@ -627,3 +627,9 @@ func (_c *Dependencies_RequestAppRefresh_Call) RunAndReturn(run func(appName str
 	_c.Call.Return(run)
 	return _c
 }
+
+// RollbackApp provides a mock function for the type Dependencies
+func (_mock *Dependencies) RollbackApp(ctx context.Context, app *v1alpha1.Application, hydratedRevision string) error {
+    args := _mock.Called(ctx, app, hydratedRevision)
+    return args.Error(0)
+}
