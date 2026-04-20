@@ -166,7 +166,7 @@ jobs:
           tool-cache: false
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
+        uses: goreleaser/goreleaser-action@e24998b8b67b290c2fa8b7c14fcfa7de2c5c9b8c # v7.1.0
         id: run-goreleaser
         with:
           version: v2.14.3
@@ -243,28 +243,37 @@ jobs:
           SPDX_GEN_VERSION: v0.0.13
           # defines the sigs.k8s.io/bom version to use.
           SIGS_BOM_VERSION: v0.2.1
-          # comma delimited list of project relative folders to inspect for package
-          # managers (gomod, pnpm, npm).
-          PROJECT_FOLDERS: '.,./ui'
           # full qualified name of the docker image to be inspected
           DOCKER_IMAGE: ${{ needs.setup-variables.outputs.quay_image_name }}
         run: |
+          set -euo pipefail
           pnpm install --dir ./ui --frozen-lockfile
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
           go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
 
-          # Generate SPDX for project dependencies analyzing package managers
-          for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
-          do
-            generator -p $folder -o /tmp
-          done
+          generator -p . -o /tmp
 
-          # Generate SPDX for binaries analyzing the docker image
-          if [[ ! -z $DOCKER_IMAGE ]]; then
-            bom generate -o /tmp/bom-docker-image.spdx -i $DOCKER_IMAGE
+          # When ui/ should use in-repo pnpm for `pnpm sbom` (11+):
+          #   1. In ui/package.json set "packageManager" to a pnpm 11+ release (e.g. pnpm@11.0.0), then from ./ui run
+          #      `pnpm install` and commit the resulting ui/pnpm-lock.yaml so release CI's pnpm/action-setup matches.
+          #   2. Delete hack/generate-ui-pnpm-sbom.sh and remove the ./hack/generate-ui-pnpm-sbom.sh line below.
+          #   3. Uncomment:
+          # pnpm --dir ./ui sbom --sbom-format spdx --prod > /tmp/bom-ui-pnpm.spdx.json
+          ./hack/generate-ui-pnpm-sbom.sh --write /tmp/bom-ui-pnpm.spdx.json
+
+          if [[ -n "${DOCKER_IMAGE:-}" ]]; then
+            bom generate -o /tmp/bom-docker-image.spdx -i "${DOCKER_IMAGE}"
           fi
 
-          cd /tmp && tar -zcf sbom.tar.gz *.spdx
+          cd /tmp
+          shopt -s nullglob
+          spdx_files=( *.spdx )
+          shopt -u nullglob
+          if [[ ${#spdx_files[@]} -eq 0 ]]; then
+            echo "No .spdx files produced under /tmp"
+            exit 1
+          fi
+          tar -zcf sbom.tar.gz "${spdx_files[@]}" bom-ui-pnpm.spdx.json
 
       - name: Generate SBOM hash
         shell: bash

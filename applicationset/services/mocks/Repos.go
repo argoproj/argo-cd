@@ -39,8 +39,8 @@ func (_m *Repos) EXPECT() *Repos_Expecter {
 }
 
 // GetDirectories provides a mock function for the type Repos
-func (_mock *Repos) GetDirectories(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, SourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error) {
-	ret := _mock.Called(ctx, repoURL, revision, project, noRevisionCache, SourceIntegrity)
+func (_mock *Repos) GetDirectories(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error) {
+	ret := _mock.Called(ctx, repoURL, revision, project, noRevisionCache, sourceIntegrity)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetDirectories")
@@ -49,17 +49,17 @@ func (_mock *Repos) GetDirectories(ctx context.Context, repoURL string, revision
 	var r0 []string
 	var r1 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool, *v1alpha1.SourceIntegrity) ([]string, error)); ok {
-		return returnFunc(ctx, repoURL, revision, project, noRevisionCache, SourceIntegrity)
+		return returnFunc(ctx, repoURL, revision, project, noRevisionCache, sourceIntegrity)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool, *v1alpha1.SourceIntegrity) []string); ok {
-		r0 = returnFunc(ctx, repoURL, revision, project, noRevisionCache, SourceIntegrity)
+		r0 = returnFunc(ctx, repoURL, revision, project, noRevisionCache, sourceIntegrity)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, bool, *v1alpha1.SourceIntegrity) error); ok {
-		r1 = returnFunc(ctx, repoURL, revision, project, noRevisionCache, SourceIntegrity)
+		r1 = returnFunc(ctx, repoURL, revision, project, noRevisionCache, sourceIntegrity)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -77,12 +77,12 @@ type Repos_GetDirectories_Call struct {
 //   - revision string
 //   - project string
 //   - noRevisionCache bool
-//   - SourceIntegrity *v1alpha1.SourceIntegrity
-func (_e *Repos_Expecter) GetDirectories(ctx interface{}, repoURL interface{}, revision interface{}, project interface{}, noRevisionCache interface{}, SourceIntegrity interface{}) *Repos_GetDirectories_Call {
-	return &Repos_GetDirectories_Call{Call: _e.mock.On("GetDirectories", ctx, repoURL, revision, project, noRevisionCache, SourceIntegrity)}
+//   - sourceIntegrity *v1alpha1.SourceIntegrity
+func (_e *Repos_Expecter) GetDirectories(ctx interface{}, repoURL interface{}, revision interface{}, project interface{}, noRevisionCache interface{}, sourceIntegrity interface{}) *Repos_GetDirectories_Call {
+	return &Repos_GetDirectories_Call{Call: _e.mock.On("GetDirectories", ctx, repoURL, revision, project, noRevisionCache, sourceIntegrity)}
 }
 
-func (_c *Repos_GetDirectories_Call) Run(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, SourceIntegrity *v1alpha1.SourceIntegrity)) *Repos_GetDirectories_Call {
+func (_c *Repos_GetDirectories_Call) Run(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity)) *Repos_GetDirectories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -125,7 +125,7 @@ func (_c *Repos_GetDirectories_Call) Return(strings []string, err error) *Repos_
 	return _c
 }
 
-func (_c *Repos_GetDirectories_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, SourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error)) *Repos_GetDirectories_Call {
+func (_c *Repos_GetDirectories_Call) RunAndReturn(run func(ctx context.Context, repoURL string, revision string, project string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error)) *Repos_GetDirectories_Call {
 	_c.Call.Return(run)
 	return _c
 }
