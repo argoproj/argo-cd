@@ -6,6 +6,7 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationSelector} from '../../../shared/components';
+import {isApp} from '../utils';
 
 interface Progress {
     percentage: number;
@@ -50,7 +51,8 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                             const refreshActions = [];
                             for (const app of selectedApps) {
                                 const refreshAction = async () => {
-                                    await services.applications.get(app.metadata.name, app.metadata.namespace, params.refreshType).catch(e => {
+                                    const objectListKind = isApp(app) ? 'application' : 'applicationset';
+                                    await services.applications.get(app.metadata.name, app.metadata.namespace, objectListKind, params.refreshType).catch(e => {
                                         ctx.notifications.show({
                                             content: <ErrorNotification title={`Unable to refresh ${app.metadata.name}`} e={e} />,
                                             type: NotificationType.Error
@@ -94,7 +96,7 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                                         ))}
                                     </div>
                                 </div>
-                                <ApplicationSelector apps={apps} formApi={formApi} />
+                                {show && <ApplicationSelector apps={apps} formApi={formApi} />}
                             </div>
                         )}
                     </Form>

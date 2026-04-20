@@ -16,10 +16,16 @@
         "go"
       ],
       "matchPackageNames": [
-        "github.com/golangci/golangci-lint",
+        "github.com/golangci/golangci-lint/v2",
         "github.com/vektra/mockery/v3"
       ],
       "enabled": true
+    },
+    {
+      "description": "Ignore gitops-engine: local replace (./gitops-engine), digest bumps are not applicable.",
+      "matchDatasources": ["go"],
+      "matchPackageNames": ["github.com/argoproj/argo-cd/gitops-engine"],
+      "enabled": false
     },
     {
       "description": "Run make mockgen after updating mockery",

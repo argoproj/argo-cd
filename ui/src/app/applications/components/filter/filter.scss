@@ -109,6 +109,16 @@ $slate: #191826;
             font-weight: 500;
         }
     }
+
+    &__tooltip {
+        max-width: 300px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
+        @media screen and (max-width: 590px) {
+            max-width: 250px;
+        }
+    }
 }
 
 .filters-group {

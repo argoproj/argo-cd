@@ -3,6 +3,7 @@ package settings
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -86,12 +87,7 @@ func (a *Account) TokenIndex(id string) int {
 
 // HasCapability return true if the account has the specified capability.
 func (a *Account) HasCapability(capability AccountCapability) bool {
-	for _, c := range a.Capabilities {
-		if c == capability {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(a.Capabilities, capability)
 }
 
 func (mgr *SettingsManager) saveAccount(name string, account Account) error {
@@ -263,7 +259,7 @@ func parseAccounts(secret *corev1.Secret, cm *corev1.ConfigMap) (map[string]Acco
 		}
 		switch suffix {
 		case "":
-			for _, capability := range strings.Split(val, ",") {
+			for capability := range strings.SplitSeq(val, ",") {
 				capability = strings.TrimSpace(capability)
 				if capability == "" {
 					continue

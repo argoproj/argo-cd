@@ -6,7 +6,6 @@ import (
 	"hash/fnv"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -19,8 +18,12 @@ import (
 const (
 	// Prefix to use for naming repository secrets
 	repoSecretPrefix = "repo"
+	// Prefix to use for naming repository write secrets
+	repoWriteSecretPrefix = "repo-write"
 	// Prefix to use for naming credential template secrets
 	credSecretPrefix = "creds"
+	// Prefix to use for naming write credential template secrets
+	credWriteSecretPrefix = "creds-write"
 	// The name of the key storing the username in the secret
 	username = "username"
 	// The name of the key storing the password in the secret
@@ -189,7 +192,7 @@ func (db *db) listRepositories(ctx context.Context, repoType *string, writeCreds
 
 func (db *db) ListOCIRepositories(ctx context.Context) ([]*v1alpha1.Repository, error) {
 	var result []*v1alpha1.Repository
-	repos, err := db.listRepositories(ctx, ptr.To("oci"), false)
+	repos, err := db.listRepositories(ctx, new("oci"), false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list OCI repositories: %w", err)
 	}

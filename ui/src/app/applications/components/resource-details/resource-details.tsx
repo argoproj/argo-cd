@@ -30,7 +30,6 @@ interface ResourceDetailsProps {
     application: Application;
     isAppSelected: boolean;
     tree: ApplicationTree;
-    tab?: string;
     appCxt: AppContext;
 }
 
@@ -281,8 +280,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
                         const settings = await services.authService.settings();
                         const execEnabled = settings.execEnabled;
-                        const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
-                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
+                        const logsAllowed = await services.accounts.canI('logs', 'get', AppUtils.appRBACName(application));
+                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', AppUtils.appRBACName(application)));
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
                         const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
                         return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links, childResources, resourceActionsMenuItems};
@@ -353,7 +352,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     data.execAllowed,
                                     data.logsAllowed
                                 )}
-                                selectedTabKey={props.tab}
+                                selectedTabKey={tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
                             />
                         </React.Fragment>

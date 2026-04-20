@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -207,6 +207,9 @@ func SetLogLevel(logLevel string) {
 // SetGLogLevel set the glog level for the k8s go-client
 func SetGLogLevel(glogLevel int) {
 	klog.InitFlags(nil)
+	// Opt into fixed stderrthreshold behavior (kubernetes/klog#212).
+	_ = flag.Set("legacy_stderr_threshold_behavior", "false")
+	_ = flag.Set("stderrthreshold", "INFO")
 	_ = flag.Set("logtostderr", "true")
 	_ = flag.Set("v", strconv.Itoa(glogLevel))
 }
@@ -247,7 +250,7 @@ const (
 func setComments(input []byte, comments string) []byte {
 	input = stripComments(input)
 	var commentLines []string
-	for _, line := range strings.Split(comments, "\n") {
+	for line := range strings.SplitSeq(comments, "\n") {
 		if line != "" {
 			commentLines = append(commentLines, "# "+line)
 		}

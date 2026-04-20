@@ -35,7 +35,7 @@ func TestReadAppSet(t *testing.T) {
 	var appSets []*argoprojiov1alpha1.ApplicationSet
 	err := readAppset([]byte(appSet), &appSets)
 	if err != nil {
-		t.Logf("Failed reading appset file")
+		t.Log("Failed reading appset file")
 	}
 	assert.Len(t, appSets, 1)
 }

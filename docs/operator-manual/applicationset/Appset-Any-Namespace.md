@@ -1,12 +1,6 @@
 # ApplicationSet in any namespace
 
 > [!WARNING]
-> **Beta Feature (Since v2.8.0)**
->
-> This feature is in the [Beta](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta) stage. 
-> It is generally considered stable, but there may be unhandled edge cases.
-
-> [!WARNING]
 > Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
 
 ## Introduction
@@ -121,6 +115,23 @@ It can be achieved by setting the environment variable `ARGOCD_APPLICATIONSET_CO
 
 In order to enable this feature, the Argo CD administrator must reconfigure the `argocd-applicationset-controller` workloads to add the `--applicationset-namespaces` parameter to the container's startup command.
 
+The `--applicationset-namespaces` parameter takes a comma-separated list of namespaces where `ApplicationSet` are to be allowed in. Each entry of the list supports:
+
+- shell-style wildcards such as `*`, so for example the entry `app-team-*` would match `app-team-one` and `app-team-two`. To enable all namespaces on the cluster where Argo CD is running on, you can just specify `*`, i.e. `--application-namespaces=*`.
+- regex, requires wrapping the string in ```/```, example to allow all namespaces except a particular one: ```/^((?!not-allowed).)*$/```.
+
+The startup parameters for the `argocd-applicationset-controller` can also be conveniently set up and kept in sync by specifying the `applicationsetcontroller.namespaces` settings in the `argocd-cmd-params-cm` ConfigMap _instead_ of changing the manifests for the `ApplicationSet`. For example:
+
+```yaml
+data:
+  applicationsetcontroller.namespaces: "app-team-one, app-team-two"
+```
+would allow the `app-team-one` and `app-team-two` namespaces for managing `ApplicationSet` resources. After a change to the `argocd-cmd-params-cm` namespace, the `ApplicationSet` workload need to be restarted:
+
+```bash
+kubectl rollout restart -n argocd deployment argocd-applicationset-controller
+```
+
 ### Safely template project
 
 As [App in any namespace](../app-any-namespace.md) is a prerequisite, it is possible to safely template project. 
@@ -194,7 +205,11 @@ For backwards compatibility, if the namespace of the ApplicationSet is the contr
 
 The RBAC syntax for Application objects has been changed from `<project>/<applicationset>` to `<project>/<namespace>/<applicationset>` to accommodate the need to restrict access based on the source namespace of the Application to be managed.
 
-For backwards compatibility, Applications in the argocd namespace can still be referred to as `<project>/<applicationset>` in the RBAC policy rules.
+For backwards compatibility, Applications in the `argocd` namespace will still be referred to as `<project>/<applicationset>` in the RBAC policy rules.
+
+!!! note
+
+    Due to backward compatibility, it is not possible to define RBAC policies specifically for applications in the Argo CD control plane namespace (typically `argocd`) using the pattern `foo/argocd/*`. Applications in the control plane namespace are always normalized to the 2-segment format `<project>/<application>` in RBAC enforcement. For security reasons, an AppProject should never grant access to the control plane namespace through the `.spec.sourceNamespaces` field, as this would allow users to create applications with elevated privileges.
 
 Wildcards do not make any distinction between project and applicationset namespaces yet. For example, the following RBAC rule would match any application belonging to project foo, regardless of the namespace it is created in:
 
@@ -213,7 +228,7 @@ p, somerole, applicationsets, get, foo/bar/*, allow
 
 ### Using the CLI
 
-You can use all existing Argo CD CLI commands for managing applications in other namespaces, exactly as you would use the CLI to manage applications in the control plane's namespace.
+You can use all existing Argo CD CLI commands for managing ApplicationSets in other namespaces, exactly as you would use the CLI to manage ApplicationSets in the control plane's namespace.
 
 For example, to retrieve the `ApplicationSet` named `foo` in the namespace `bar`, you can use the following CLI command:
 

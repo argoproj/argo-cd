@@ -52,6 +52,43 @@ The key to start using OCI images are the following components in the applicatio
 In the case of OCI Helm charts (an OCI artifact where the `mediaType` is set to `application/vnd.cncf.helm.chart.content.v1.tar+gzip`), 
 the path should always be set to `.`. 
 
+## OCI Repositories special cases
+if there is a need to have credentials for a OCI repository, a repository credential of type *oci needs to be created.
+```shell
+  # Add a private HTTPS OCI repository named 'stable'
+  argocd repo add oci://registry-1.docker.io/bitnamicharts/nginx --type oci --name stable --username test --password test 
+```
+
+In the case of Helm repositories there is another way to use OCI credentials with Helm
+```shell
+  # Add a private HTTPS OCI Helm repository named 'stable'
+  argocd repo add registry-1.docker.io/bitnamicharts/nginx --type helm --name stable --username test --password test --enable-oci
+```
+
+> [!NOTE]
+> The repository URL should not contain the OCI scheme prefix `oci://`.
+> Also the path should be removed from the repository URL and should be defined instead in the `path` attribute.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-custom-image
+  namespace: argocd
+spec:
+  project: default
+  source:
+    path: bitnamicharts/nginx
+    repoURL: registry-1.docker.io
+    targetRevision: 1.16.1
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: my-namespace
+```
+
+> [!NOTE]
+> Keep in mind that this only applies when using a Helm repository credential. 
+
 ## Usage Guidelines
 
 First off, you'll need to have a repository that is OCI-compliant. As an example, DockerHub, ECR, GHCR and GCR all fit 

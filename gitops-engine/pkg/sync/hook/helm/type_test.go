@@ -5,8 +5,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	testingutils "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	testingutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
 )
 
 func TestTypes(t *testing.T) {

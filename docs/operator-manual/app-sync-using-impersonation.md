@@ -30,7 +30,7 @@ Impersonation requests first authenticate as the requesting user, then switch to
 
 ### Feature scope 
 
-Impersonation is currently only supported for the lifecycle of objects managed by an Application directly, which includes sync operations (creation, update and pruning of resources) and deletion as part of Application finalizer logic. This *does not* includes operations triggered via ArgoCD's UI, which will still be executed with Argo CD's control-plane service account.
+Impersonation is supported for the lifecycle of objects managed by an Application directly, which includes sync operations (creation, update and pruning of resources) and deletion as part of Application finalizer logic. It is also supported for UI operations triggered by the user.
 
 ## Prerequisites
 
