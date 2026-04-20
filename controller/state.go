@@ -321,7 +321,6 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		if hasChanges {
 			revisionsMayHaveChanges = true
 		}
-		revision = resolvedRevision
 
 		// Use the resolved revision from evaluateRevisionChanges
 		revision = resolvedRevision
@@ -435,15 +434,14 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 		// TODO: Could be optimized to not call the repo server at all if we know this specific source does not use reference.
 		return revision, false, nil
 	}
+	repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
+	}
 
 	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
 	if syncedRevision != "" && repo.Depth == 0 && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
-
-		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
-		if err != nil {
-			return "", false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
-		}
 		updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 			Repo:               repo,
 			Revision:           revision,
@@ -473,10 +471,6 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 
 		return resolvedRevision, updateRevisionResult.Changes, nil
 	} else if alwaysResolveRevision {
-		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
-		if err != nil {
-			return "", false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
-		}
 		resp, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
 			Repo:              repo,
 			App:               app,

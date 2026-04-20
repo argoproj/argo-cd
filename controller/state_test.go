@@ -15,7 +15,6 @@ import (
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	. "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
-	"github.com/aws/smithy-go/ptr"
 	"github.com/sirupsen/logrus"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -2395,82 +2394,6 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 			expectedResolvedRevisions: []string{"abc123"},
 		},
 		{
-			name: "directory source type without sync policy returns true",
-			app: func() *v1alpha1.Application {
-				app := newFakeApp()
-				app.Spec.SyncPolicy = nil
-				app.Status.SourceType = v1alpha1.ApplicationSourceTypeDirectory
-				app.Status.Sync.Revision = "abc123"
-				return app
-			}(),
-			sources: func() []v1alpha1.ApplicationSource {
-				app := newFakeApp()
-				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
-			}(),
-			revisions:                 []string{"def456"},
-			data:                      fakeData{},
-			sendRuntimeState:          false,
-			expectedHasChanges:        true,
-			expectedResolvedRevisions: []string{"def456"},
-		},
-		{
-			name: "directory source type with automated sync disabled returns true",
-			app: func() *v1alpha1.Application {
-				app := newFakeApp()
-				app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
-					Automated: &v1alpha1.SyncPolicyAutomated{Enabled: ptr.Bool(false)},
-				}
-				app.Status.SourceType = v1alpha1.ApplicationSourceTypeDirectory
-				app.Status.Sync.Revision = "abc123"
-				return app
-			}(),
-			sources: func() []v1alpha1.ApplicationSource {
-				app := newFakeApp()
-				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
-			}(),
-			revisions: []string{"def456"},
-			data: fakeData{
-				resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
-					{
-						Revision:          "def456-resolved",
-						AmbiguousRevision: "def456",
-					},
-				},
-			},
-			sendRuntimeState:          false,
-			expectedHasChanges:        true,
-			expectedResolvedRevisions: []string{"def456"},
-		},
-		{
-			name: "directory source type with automated sync enabled uses UpdateRevisionForPaths",
-			app: func() *v1alpha1.Application {
-				app := newFakeApp()
-				app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
-					Automated: &v1alpha1.SyncPolicyAutomated{Enabled: ptr.Bool(true)},
-				}
-				app.Annotations = map[string]string{
-					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
-				}
-				app.Status.SourceType = v1alpha1.ApplicationSourceTypeDirectory
-				app.Status.Sync.Revision = "abc123"
-				return app
-			}(),
-			sources: func() []v1alpha1.ApplicationSource {
-				app := newFakeApp()
-				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
-			}(),
-			revisions: []string{"def456"},
-			data: fakeData{
-				updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
-					Revision: "def456",
-					Changes:  false,
-				},
-			},
-			sendRuntimeState:          false,
-			expectedHasChanges:        false,
-			expectedResolvedRevisions: []string{"def456"},
-		},
-		{
 			name: "dry source with same SHA returns false",
 			app: func() *v1alpha1.Application {
 				app := newFakeApp()
@@ -2620,127 +2543,6 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 	}
 }
 
-func Test_EvaluateAppRevisionsChanges_ProcessManifestGeneratePathsDisabled(t *testing.T) {
-	// Save original value and restore after test
-	originalValue := processManifestGeneratePathsEnabled
-	processManifestGeneratePathsEnabled = false
-	defer func() {
-		processManifestGeneratePathsEnabled = originalValue
-	}()
-
-	testCases := []struct {
-		name                      string
-		app                       *v1alpha1.Application
-		sources                   []v1alpha1.ApplicationSource
-		revisions                 []string
-		data                      fakeData
-		sendRuntimeState          bool
-		expectedHasChanges        bool
-		expectedResolvedRevisions []string
-	}{
-		{
-			name: "dry source with annotation but feature disabled uses ResolveRevision",
-			app: func() *v1alpha1.Application {
-				app := newFakeApp()
-				app.Annotations = map[string]string{
-					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
-				}
-				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
-					DrySource: v1alpha1.DrySource{
-						RepoURL:        app.Spec.Source.RepoURL,
-						TargetRevision: "HEAD",
-						Path:           "dry-path",
-					},
-					SyncSource: v1alpha1.SyncSource{
-						TargetBranch: "hydrated",
-						Path:         "sync-path",
-					},
-				}
-				app.Status.SourceHydrator.LastComparedDryRevision = "old-dry-sha"
-				return app
-			}(),
-			sources: func() []v1alpha1.ApplicationSource {
-				app := newFakeApp()
-				app.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
-					DrySource: v1alpha1.DrySource{
-						RepoURL:        app.Spec.Source.RepoURL,
-						TargetRevision: "HEAD",
-						Path:           "dry-path",
-					},
-				}
-				drySource := app.Spec.SourceHydrator.GetDrySource()
-				return []v1alpha1.ApplicationSource{drySource}
-			}(),
-			revisions: []string{"HEAD"},
-			data: fakeData{
-				resolveRevisionResponses: []*apiclient.ResolveRevisionResponse{
-					{
-						Revision:          "new-dry-sha-resolved",
-						AmbiguousRevision: "HEAD",
-					},
-				},
-			},
-			sendRuntimeState:          false,
-			expectedHasChanges:        true,
-			expectedResolvedRevisions: []string{"new-dry-sha-resolved"},
-		},
-		{
-			name: "normal source with annotation but feature disabled returns original revision",
-			app: func() *v1alpha1.Application {
-				app := newFakeApp()
-				app.Annotations = map[string]string{
-					v1alpha1.AnnotationKeyManifestGeneratePaths: ".",
-				}
-				app.Status.Sync.Revision = "abc123"
-				return app
-			}(),
-			sources: func() []v1alpha1.ApplicationSource {
-				app := newFakeApp()
-				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
-			}(),
-			revisions:                 []string{"def456"},
-			data:                      fakeData{},
-			sendRuntimeState:          false,
-			expectedHasChanges:        true,
-			expectedResolvedRevisions: []string{"def456"},
-		},
-		{
-			name: "same revision still returns false even with feature disabled",
-			app: func() *v1alpha1.Application {
-				app := newFakeApp()
-				app.Status.Sync.Revision = "abc123"
-				return app
-			}(),
-			sources: func() []v1alpha1.ApplicationSource {
-				app := newFakeApp()
-				return []v1alpha1.ApplicationSource{app.Spec.GetSource()}
-			}(),
-			revisions:                 []string{"abc123"},
-			data:                      fakeData{},
-			sendRuntimeState:          false,
-			expectedHasChanges:        false,
-			expectedResolvedRevisions: []string{"abc123"},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctrl := newFakeController(t.Context(), &tc.data, nil)
-
-			hasChanges, resolvedRevisions, err := ctrl.appStateManager.EvaluateAppRevisionsChanges(
-				context.Background(),
-				tc.app,
-				tc.sources,
-				tc.revisions,
-				&defaultProj,
-				tc.sendRuntimeState,
-				false,
-			)
-
-			require.NoError(t, err)
-			assert.Equal(t, tc.expectedHasChanges, hasChanges)
-			require.Len(t, resolvedRevisions, len(tc.sources))
-			assert.Equal(t, tc.expectedResolvedRevisions, resolvedRevisions)
 func Test_evaluateRevisionChanges(t *testing.T) {
 	tests := []struct {
 		name                                string
@@ -2887,6 +2689,7 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 			}
 
 			mockRepoClient := &mocks.RepoServerServiceClient{}
+			mockRepoClient.On("GetRepository", mock.Anything, mock.Anything).Return(repo, nil)
 			if tt.expectUpdateRevisionForPathsCalled {
 				mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(tt.updateRevisionForPathsResponse, nil)
 			}
@@ -2897,22 +2700,20 @@ func Test_evaluateRevisionChanges(t *testing.T) {
 
 			resolvedRevision, hasChanges, err := mgr.evaluateRevisionChanges(
 				context.Background(),
-				mockRepoClient,
 				app,
-				tt.source,
+				*tt.source,
 				0, // sourceIndex
-				repo,
+				"app.kubernetes.io/instance",
 				tt.revision,
 				tt.refSources,
 				nil,
 				false,
-				"app.kubernetes.io/instance",
-				"v1.28.0",
-				[]string{"v1"},
 				"label",
 				"test-installation",
-				tt.keyManifestGenerateAnnotationExists,
-				tt.keyManifestGenerateAnnotationVal,
+				"v1.28.0",
+				[]string{"v1"},
+				&defaultProj,
+				mockRepoClient,
 			)
 
 			require.NoError(t, err)
