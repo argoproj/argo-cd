@@ -44,7 +44,7 @@ argocd logout cd.argoproj.io
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errutil.CheckError(err)
 			if localCfg == nil {
-				log.Fatalf("Nothing to logout from")
+				log.Fatal("Nothing to logout from")
 			}
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
