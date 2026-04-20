@@ -183,3 +183,23 @@ func SetEventProcessingInterval(interval time.Duration) UpdateSettingsFunc {
 		cache.eventProcessingInterval = interval
 	}
 }
+
+// Mode selects the cluster cache implementation.
+type Mode int
+
+const (
+	// ModeLegacy uses the hand-rolled list/watch loop (current behavior).
+	ModeLegacy Mode = iota
+	// ModeInformer uses client-go's TransformingInformer. Not yet implemented —
+	// setting this will panic at construction until the informer impl lands.
+	// Tracked by https://github.com/argoproj/argo-cd/issues/19199.
+	ModeInformer
+)
+
+// SetMode selects which cluster cache implementation to use. Defaults to
+// ModeLegacy when unset.
+func SetMode(mode Mode) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.mode = mode
+	}
+}

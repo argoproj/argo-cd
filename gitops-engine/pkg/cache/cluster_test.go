@@ -126,10 +126,14 @@ func newClusterWithOptions(_ testing.TB, opts []UpdateSettingsFunc, objs ...runt
 		SetKubectl(&kubetest.MockKubectlCmd{APIResources: apiResources, DynamicClient: client}),
 	}, opts...)
 
+	// White-box tests in this file reach into unexported state (locks, maps,
+	// private methods). Unwrap the interface to the concrete legacy impl.
+	// Interface-level tests live in cluster_interface_test.go and construct
+	// through NewClusterCache without a type assertion.
 	cache := NewClusterCache(
 		&rest.Config{Host: "https://test"},
 		opts...,
-	)
+	).(*clusterCache)
 	return cache
 }
 
