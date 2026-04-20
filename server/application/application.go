@@ -706,7 +706,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			Repo:                            repo,
 			Revision:                        source.TargetRevision,
 			AppLabelKey:                     appInstanceLabelKey,
-			AppName:                         a.Name,
+			AppName:                         a.InstanceName(s.ns),
 			Namespace:                       a.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			Repos:                           helmRepos,
@@ -2452,11 +2452,13 @@ func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application,
 		}
 	}
 
+	// Do not use cache for revision resolution since this is a user triggered operation
 	resolveRevisionResponse, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
 		Repo:              repo,
 		App:               app,
 		AmbiguousRevision: ambiguousRevision,
 		SourceIndex:       int64(sourceIndex),
+		NoRevisionCache:   true,
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("error resolving repo revision: %w", err)

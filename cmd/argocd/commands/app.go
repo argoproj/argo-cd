@@ -745,7 +745,7 @@ func printAppSourceDetails(appSrc *argoappv1.ApplicationSource) {
 }
 
 func printAppConditions(w io.Writer, app *argoappv1.Application) {
-	_, _ = fmt.Fprintf(w, "CONDITION\tMESSAGE\tLAST TRANSITION\n")
+	_, _ = fmt.Fprint(w, "CONDITION\tMESSAGE\tLAST TRANSITION\n")
 	for _, item := range app.Status.Conditions {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\n", item.Type, item.Message, item.LastTransitionTime)
 	}
@@ -817,7 +817,7 @@ func printHelmParams(helm *argoappv1.ApplicationSourceHelm) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	if helm != nil {
 		fmt.Println()
-		_, _ = fmt.Fprintf(w, "NAME\tVALUE\n")
+		_, _ = fmt.Fprint(w, "NAME\tVALUE\n")
 		for _, p := range helm.Parameters {
 			_, _ = fmt.Fprintf(w, "%s\t%s\n", p.Name, truncateString(p.Value, paramLenLimit))
 		}
@@ -1194,12 +1194,9 @@ func targetObjects(resources []*argoappv1.ResourceDiff) ([]*unstructured.Unstruc
 func findAndPrintDiff(
 	ctx context.Context,
 	app *argoappv1.Application,
-	proj *argoappv1.AppProject,
 	resources *application.ManagedResourcesResponse,
 	argoSettings *settings.Settings,
-	clusterIf clusterpkg.ClusterServiceClient,
-	localPath string,
-	localRepoRoot string,
+	localObjsStrings []string,
 	revision string,
 	revisions []string,
 	sourcePositions []int64,
@@ -1212,10 +1209,14 @@ func findAndPrintDiff(
 ) bool {
 	// Build target manifest provider based on sync type
 	var baseTargetProvider manifestProvider
+	excludeSecret := false
 	switch {
-	case localPath != "":
+	case len(localObjsStrings) > 0:
 		// Local sync: provider fetches and generates local manifests
-		baseTargetProvider = newLocalClientSideProvider(clusterIf, argoSettings, app, proj, localPath, localRepoRoot)
+		baseTargetProvider = func(_ context.Context) ([]*unstructured.Unstructured, error) {
+			return manifestsToUnstructured(localObjsStrings)
+		}
+		excludeSecret = true
 	case len(revisions) > 0:
 		// Multi-source app with revisions
 		baseTargetProvider = newMultiSourceRevisionProvider(appIf, appName, appNs, revisions, sourcePositions, false)
@@ -1227,7 +1228,8 @@ func findAndPrintDiff(
 		baseTargetProvider = newTargetManifestProvider(resources)
 	}
 
-	getLiveManifests := newLiveManifestProvider(resources)
+	getTargetManifests := newNormalizeTargetManifestsProvider(baseTargetProvider, app, argoSettings, getInfoProviderFromState(resources))
+	getLiveManifests := newLiveManifestProvider(resources, excludeSecret)
 
 	// Choose diff strategy
 	var performDiff diffStrategy
@@ -1240,11 +1242,14 @@ func findAndPrintDiff(
 	}
 
 	// Call compareManifests (does all the heavy lifting)
-	changedObjects, err := compareManifests(ctx, app, baseTargetProvider, getLiveManifests, performDiff)
+	changedObjects, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 	errors.CheckError(err)
 
 	// Print results
 	foundDiffs := len(changedObjects) > 0
+	sort.Slice(changedObjects, func(i, j int) bool {
+		return changedObjects[i].key.String() < changedObjects[j].key.String()
+	})
 	for _, obj := range changedObjects {
 		printResourceDiff(obj.key.Group, obj.key.Kind, obj.key.Namespace, obj.key.Name, obj.live, obj.target)
 	}
@@ -1660,7 +1665,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // printAppResources prints the resources of an application in a tabwriter table
 func printAppResources(w io.Writer, app *argoappv1.Application) {
-	_, _ = fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\tHOOK\tMESSAGE\n")
+	_, _ = fmt.Fprint(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\tHOOK\tMESSAGE\n")
 	for _, res := range getResourceStates(app, nil) {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, res.Health, res.Hook, res.Message)
 	}
@@ -1668,7 +1673,7 @@ func printAppResources(w io.Writer, app *argoappv1.Application) {
 
 func printTreeView(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "KIND/NAME\tSTATUS\tHEALTH\tMESSAGE\n")
+	_, _ = fmt.Fprint(w, "KIND/NAME\tSTATUS\tHEALTH\tMESSAGE\n")
 	for uid := range parentNodes {
 		treeViewAppGet("", nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState, w)
 	}
@@ -1677,7 +1682,7 @@ func printTreeView(nodeMapping map[string]argoappv1.ResourceNode, parentChildMap
 
 func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "KIND/NAME\tSTATUS\tHEALTH\tAGE\tMESSAGE\tREASON\n")
+	fmt.Fprint(w, "KIND/NAME\tSTATUS\tHEALTH\tAGE\tMESSAGE\tREASON\n")
 	for uid := range parentNodes {
 		detailedTreeViewAppGet("", nodeMapping, parentChildMapping, nodeMapping[uid], mapNodeNameToResourceState, w)
 	}
@@ -1834,6 +1839,27 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				}
 			}
 
+			var argoSettings *settings.Settings
+			if local != "" || diffChanges {
+				conn, settingsIf := acdClient.NewSettingsClientOrDie()
+				defer utilio.Close(conn)
+				s, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
+				errors.CheckError(err)
+				argoSettings = s
+			}
+
+			var clusterIf clusterpkg.ClusterServiceClient
+			var projIf projectpkg.ProjectServiceClient
+			if local != "" {
+				conn, c := acdClient.NewClusterClientOrDie()
+				defer utilio.Close(conn)
+				clusterIf = c
+
+				conn, p := acdClient.NewProjectClientOrDie()
+				defer utilio.Close(conn)
+				projIf = p
+			}
+
 			for _, appQualifiedName := range appNames {
 				// Construct QualifiedName
 				if appNamespace != "" && !strings.Contains(appQualifiedName, "/") {
@@ -1879,8 +1905,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				selectedResources, err := parseSelectedResources(resources)
 				errors.CheckError(err)
 
-				var localObjsStrings []string
-
 				app, err := appIf.Get(ctx, &application.ApplicationQuery{
 					Name:         &appName,
 					AppNamespace: &appNs,
@@ -1907,27 +1931,19 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					log.Fatalf("No matching app resources found for resource filter: %v", strings.Join(resources, ", "))
 				}
 
+				var localObjsStrings []string
 				if local != "" {
 					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !dryRun {
 						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
 					}
 
-					errors.CheckError(err)
-					conn, settingsIf := acdClient.NewSettingsClientOrDie()
-					argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
-					errors.CheckError(err)
-					utilio.Close(conn)
-
-					conn, clusterIf := acdClient.NewClusterClientOrDie()
-					defer utilio.Close(conn)
 					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
-					utilio.Close(conn)
 
-					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-
-					localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
+					proj, err := projIf.GetDetailedProject(ctx, &projectpkg.ProjectQuery{Name: app.Spec.Project})
 					errors.CheckError(err)
+
+					localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings, &cluster.Info)
 				}
 
 				syncOptionsFactory := func() *application.SyncOptions {
@@ -1992,15 +2008,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 						AppNamespace:    &appNs,
 					})
 					errors.CheckError(err)
-					conn, settingsIf := acdClient.NewSettingsClientOrDie()
-					defer utilio.Close(conn)
-					argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
-					errors.CheckError(err)
-
-					conn, clusterIf := acdClient.NewClusterClientOrDie()
-					defer utilio.Close(conn)
-
-					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
 
 					foundDiffs := false
 					fmt.Printf("====== Previewing differences between live and desired state of application %s ======\n", appQualifiedName)
@@ -2008,9 +2015,9 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					// Check if application has ServerSideDiff annotation
 					serverSideDiff := resourceutil.HasAnnotationOption(app, argocommon.AnnotationCompareOptions, "ServerSideDiff=true")
 
-					foundDiffs = findAndPrintDiff(ctx, app, proj.Project, resources, argoSettings, clusterIf, local, localRepoRoot, revision, revisions, sourcePositions, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
+					foundDiffs = findAndPrintDiff(ctx, app, resources, argoSettings, localObjsStrings, revision, revisions, sourcePositions, ignoreNormalizerOpts, serverSideDiff, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
 					if !foundDiffs {
-						fmt.Printf("====== No Differences found ======\n")
+						fmt.Print("====== No Differences found ======\n")
 						// if no differences found, then no need to sync
 						return
 					}
@@ -2530,7 +2537,7 @@ func setParameterOverrides(app *argoappv1.Application, parameters []string, sour
 			source.Helm.AddParameter(*newParam)
 		}
 	default:
-		log.Fatalf("Parameters can only be set against Helm applications")
+		log.Fatal("Parameters can only be set against Helm applications")
 	}
 }
 
@@ -2585,13 +2592,13 @@ func printApplicationHistoryTable(revHistory []argoappv1.RevisionHistory) {
 	}
 	for i, key := range varHistoryKeys {
 		_, _ = fmt.Fprintf(w, "SOURCE\t%s\n", key)
-		_, _ = fmt.Fprintf(w, "ID\tDATE\tREVISION\n")
+		_, _ = fmt.Fprint(w, "ID\tDATE\tREVISION\n")
 		for _, history := range varHistory[key] {
 			_, _ = fmt.Fprintf(w, "%d\t%s\t%s\n", history.id, history.date, history.revision)
 		}
 		// Add a newline if it's not the last iteration
 		if i < len(varHistoryKeys)-1 {
-			_, _ = fmt.Fprintf(w, "\n")
+			_, _ = fmt.Fprint(w, "\n")
 		}
 	}
 	_ = w.Flush()
@@ -2838,7 +2845,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					errors.CheckError(err)
 
 					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.Info.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
+					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings, &cluster.Info)
 				case len(revisions) > 0 && len(sourcePositions) > 0:
 					q := application.ApplicationManifestQuery{
 						Name:            &appName,

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 
 	"golang.org/x/sync/errgroup"
 
@@ -22,7 +23,6 @@ import (
 	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
-	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
@@ -67,6 +67,22 @@ func (p *resourceInfoProvider) IsNamespaced(gk schema.GroupKind) (bool, error) {
 	return p.namespacedByGk[gk], nil
 }
 
+// getInfoProviderFromState builds a resourceInfoProvider from live state items
+// It infers whether resources are namespaced by checking if they have a namespace in live state
+func getInfoProviderFromState(state *application.ManagedResourcesResponse) kube.ResourceInfoProvider {
+	if state == nil {
+		return &resourceInfoProvider{}
+	}
+
+	namespacedByGk := make(map[schema.GroupKind]bool)
+	for _, item := range state.GetItems() {
+		if item != nil {
+			namespacedByGk[schema.GroupKind{Group: item.Group, Kind: item.Kind}] = item.Namespace != ""
+		}
+	}
+	return &resourceInfoProvider{namespacedByGk: namespacedByGk}
+}
+
 // manifestsToUnstructured converts manifest strings to unstructured objects
 func manifestsToUnstructured(manifests []string) ([]*unstructured.Unstructured, error) {
 	result := make([]*unstructured.Unstructured, 0, len(manifests))
@@ -95,12 +111,6 @@ func getObjectMap(objects []*unstructured.Unstructured) map[kube.ResourceKey]*un
 		}
 
 		key := kube.GetResourceKey(obj)
-
-		// Skip secrets - argo-cd doesn't have access to k8s secret data
-		if key.Kind == kube.SecretKind && key.Group == "" {
-			continue
-		}
-
 		objectMap[key] = obj
 	}
 	return objectMap
@@ -110,25 +120,7 @@ func getObjectMap(objects []*unstructured.Unstructured) map[kube.ResourceKey]*un
 func getComparisonObjects(
 	targetManifests []*unstructured.Unstructured,
 	liveManifests []*unstructured.Unstructured,
-	app *argoappv1.Application,
 ) []comparisonObject {
-	// Build map of namespace info from live objects
-	namespacedByGk := make(map[schema.GroupKind]bool)
-	for i := range liveManifests {
-		if liveManifests[i] != nil {
-			key := kube.GetResourceKey(liveManifests[i])
-			namespacedByGk[schema.GroupKind{Group: key.Group, Kind: key.Kind}] = key.Namespace != ""
-		}
-	}
-
-	// Deduplicate target objects
-	targetManifests, _, err := controller.DeduplicateTargetObjects(
-		app.Spec.Destination.Namespace,
-		targetManifests,
-		&resourceInfoProvider{namespacedByGk: namespacedByGk},
-	)
-	errors.CheckError(err)
-
 	// Build map of target objects by key
 	targetByKey := getObjectMap(targetManifests)
 	liveByKey := getObjectMap(liveManifests)
@@ -158,35 +150,55 @@ func getComparisonObjects(
 }
 
 // Deprecated: Prefer server-side generation since local side generation does not support plugins
-func getLocalObjects(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
-	trackingMethod string,
+func getLocalObjects(
+	ctx context.Context,
+	app *argoappv1.Application,
+	proj *argoappv1.AppProject,
+	local string,
+	localRepoRoot string,
+	argoSettings *settings.Settings,
+	clusterInfo *argoappv1.ClusterInfo,
 ) []*unstructured.Unstructured {
-	manifestStrings := getLocalObjectsString(ctx, app, proj, local, localRepoRoot, appLabelKey, kubeVersion, apiVersions, kustomizeOptions, trackingMethod)
-	objs := make([]*unstructured.Unstructured, len(manifestStrings))
+	manifestStrings := getLocalObjectsString(ctx, app, proj, local, localRepoRoot, argoSettings, clusterInfo)
+	objs := make([]*unstructured.Unstructured, 0, len(manifestStrings))
 	for i := range manifestStrings {
-		obj := unstructured.Unstructured{}
-		err := json.Unmarshal([]byte(manifestStrings[i]), &obj)
+		obj := &unstructured.Unstructured{}
+		err := json.Unmarshal([]byte(manifestStrings[i]), obj)
 		errors.CheckError(err)
-		objs[i] = &obj
+
+		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+			// Secrets are not supported in local diff, so we skip them.
+			// diff.HideSecretData is not used here because it requires server-side configurations to be reliable.
+			fmt.Fprintf(os.Stderr, "Warning: Secret %s/%s is not supported in local diff and will be ignored\n", obj.GetNamespace(), obj.GetName())
+			continue
+		}
+
+		objs = append(objs, obj)
 	}
 	return objs
 }
 
 // Deprecated: Prefer server-side generation since local side generation does not support plugins
-func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, proj *argoappv1.AppProject, local, localRepoRoot, appLabelKey, kubeVersion string, apiVersions []string, kustomizeOptions *argoappv1.KustomizeOptions,
-	trackingMethod string,
+func getLocalObjectsString(
+	ctx context.Context,
+	app *argoappv1.Application,
+	proj *argoappv1.AppProject,
+	local string,
+	localRepoRoot string,
+	argoSettings *settings.Settings,
+	clusterInfo *argoappv1.ClusterInfo,
 ) []string {
 	source := app.Spec.GetSource()
 	res, err := repository.GenerateManifests(ctx, local, localRepoRoot, source.TargetRevision, &repoapiclient.ManifestRequest{
 		Repo:                            &argoappv1.Repository{Repo: source.RepoURL},
-		AppLabelKey:                     appLabelKey,
-		AppName:                         app.Name,
+		AppLabelKey:                     argoSettings.AppLabelKey,
+		AppName:                         app.InstanceName(argoSettings.ControllerNamespace),
 		Namespace:                       app.Spec.Destination.Namespace,
 		ApplicationSource:               &source,
-		KustomizeOptions:                kustomizeOptions,
-		KubeVersion:                     kubeVersion,
-		ApiVersions:                     apiVersions,
-		TrackingMethod:                  trackingMethod,
+		KustomizeOptions:                argoSettings.KustomizeOptions,
+		KubeVersion:                     clusterInfo.ServerVersion,
+		ApiVersions:                     clusterInfo.APIVersions,
+		TrackingMethod:                  argoSettings.TrackingMethod,
 		ProjectName:                     proj.Name,
 		ProjectSourceRepos:              proj.Spec.SourceRepos,
 		AnnotationManifestGeneratePaths: app.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths),
@@ -292,8 +304,6 @@ func newServerSideDiffStrategy(
 		results := make([]*diff.DiffResult, 0)
 		for _, batchItems := range batchResults {
 			for _, resultItem := range batchItems {
-				// Convert server-side diff result to diff.DiffResult
-				// NormalizedLive = LiveState, PredictedLive = TargetState
 				results = append(results, &diff.DiffResult{
 					Modified:       resultItem.Modified,
 					NormalizedLive: []byte(resultItem.LiveState),
@@ -453,11 +463,8 @@ func newLocalClientSideProvider(
 			proj,
 			localPath,
 			localRepoRoot,
-			argoSettings.AppLabelKey,
-			cluster.Info.ServerVersion,
-			cluster.Info.APIVersions,
-			argoSettings.KustomizeOptions,
-			argoSettings.TrackingMethod,
+			argoSettings,
+			&cluster.Info,
 		), nil
 	}
 }
@@ -480,13 +487,67 @@ func newTargetManifestProvider(liveState *application.ManagedResourcesResponse) 
 }
 
 // newLiveManifestProvider creates a provider for live manifests from ManagedResources
-func newLiveManifestProvider(liveState *application.ManagedResourcesResponse) manifestProvider {
+func newLiveManifestProvider(liveState *application.ManagedResourcesResponse, excludeSecret bool) manifestProvider {
 	return func(_ context.Context) ([]*unstructured.Unstructured, error) {
-		liveObjects, err := cmdutil.LiveObjects(liveState.Items)
+		liveManifests := make([]*unstructured.Unstructured, 0, len(liveState.Items))
+		for i := range liveState.Items {
+			res := liveState.Items[i]
+			if excludeSecret && res.Kind == kube.SecretKind && res.Group == "" {
+				continue
+			}
+
+			live := &unstructured.Unstructured{}
+			err := json.Unmarshal([]byte(res.NormalizedLiveState), &live)
+			if err != nil {
+				return nil, err
+			}
+			liveManifests = append(liveManifests, live)
+		}
+		return liveManifests, nil
+	}
+}
+
+// normalizeTargetManifestsProvider wraps a manifestProvider to normalize target objects
+// This ensures namespace normalization and tracking annotation updates after deduplication
+func newNormalizeTargetManifestsProvider(
+	provider manifestProvider,
+	app *argoappv1.Application,
+	argoSettings *settings.Settings,
+	infoProvider kube.ResourceInfoProvider,
+) manifestProvider {
+	return func(ctx context.Context) ([]*unstructured.Unstructured, error) {
+		manifests, err := provider(ctx)
 		if err != nil {
 			return nil, err
 		}
-		return liveObjects, nil
+
+		// Normalize target objects (namespace normalization, deduplication, and tracking re-application)
+		resourceTracking := argo.NewResourceTracking()
+		normalized, conditions, err := controller.NormalizeTargetObjects(
+			app.Spec.Destination.Namespace,
+			manifests,
+			infoProvider,
+			func(u *unstructured.Unstructured) error {
+				return resourceTracking.SetAppInstance(
+					u,
+					argoSettings.AppLabelKey,
+					app.InstanceName(argoSettings.ControllerNamespace),
+					app.Spec.Destination.Namespace,
+					argoappv1.TrackingMethod(argoSettings.TrackingMethod),
+					argoSettings.GetInstallationID(),
+				)
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// Log any conditions (warnings about duplicates)
+		for _, condition := range conditions {
+			log.Warnf("%s: %s", condition.Type, condition.Message)
+		}
+
+		return normalized, nil
 	}
 }
 
@@ -494,7 +555,6 @@ func newLiveManifestProvider(liveState *application.ManagedResourcesResponse) ma
 // Returns a list of comparisonObject containing all resources (added, removed, and modified)
 func compareManifests(
 	ctx context.Context,
-	app *argoappv1.Application,
 	getTargetManifests manifestProvider,
 	getLiveManifests manifestProvider,
 	performDiff diffStrategy,
@@ -512,57 +572,49 @@ func compareManifests(
 	}
 
 	// Build object map pairing live and target
-	items := getComparisonObjects(targetManifests, liveManifests, app)
-
-	results := make([]comparisonObject, 0)
-	var potentiallyModified []comparisonObject
-	for _, item := range items {
-		if item.target != nil && item.live != nil {
-			// Potentially modified, need to compare diffs
-			potentiallyModified = append(potentiallyModified, item)
-		} else {
-			// Either added or removed, we already know it changed
-			results = append(results, item)
-		}
-	}
+	items := getComparisonObjects(targetManifests, liveManifests)
 
 	// Perform diff on potentially modified resources
-	if len(potentiallyModified) > 0 {
-		diffResults, err := performDiff(ctx, potentiallyModified)
+	diffResults, err := performDiff(ctx, items)
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]comparisonObject, 0)
+	for _, diffRes := range diffResults {
+		liveState := string(diffRes.NormalizedLive)
+		targetState := string(diffRes.PredictedLive)
+
+		hasLiveState := liveState != "null" && liveState != ""
+		hasTargetState := targetState != "null" && targetState != ""
+		if (!diffRes.Modified && hasLiveState && hasTargetState) || (!hasLiveState && !hasTargetState) {
+			// If the item is not modified and it is neither an added or removed resource, skip it.
+			// If we dont have any live or target state, skip it.
+			continue
+		}
+
+		live, err := argoappv1.UnmarshalToUnstructured(liveState)
 		if err != nil {
 			return nil, err
 		}
 
-		for i, diffRes := range diffResults {
-			if !diffRes.Modified {
-				// only include modified resources
-				continue
-			}
-
-			var live, target *unstructured.Unstructured
-
-			if len(diffRes.NormalizedLive) > 0 {
-				live = &unstructured.Unstructured{}
-				err = json.Unmarshal(diffRes.NormalizedLive, live)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			if len(diffRes.PredictedLive) > 0 {
-				target = &unstructured.Unstructured{}
-				err = json.Unmarshal(diffRes.PredictedLive, target)
-				if err != nil {
-					return nil, err
-				}
-			}
-
-			results = append(results, comparisonObject{
-				key:    potentiallyModified[i].key,
-				live:   live,
-				target: target,
-			})
+		target, err := argoappv1.UnmarshalToUnstructured(targetState)
+		if err != nil {
+			return nil, err
 		}
+
+		var key kube.ResourceKey
+		if live != nil {
+			key = kube.GetResourceKey(live)
+		} else {
+			key = kube.GetResourceKey(target)
+		}
+
+		results = append(results, comparisonObject{
+			key:    key,
+			live:   live,
+			target: target,
+		})
 	}
 
 	return results, nil
@@ -656,7 +708,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				serverSideDiff = hasServerSideDiffAnnotation
 			} else if serverSideDiff && !hasServerSideDiffAnnotation {
 				// Flag explicitly set to true, but app annotation is not set
-				fmt.Fprintf(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.\n")
+				fmt.Fprint(os.Stderr, "Warning: Application does not have ServerSideDiff=true annotation.\n")
 			}
 
 			// Server side diff with local requires server side generate to be set as there will be a mismatch with client-generated manifests.
@@ -666,8 +718,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			proj := getProject(ctx, c, clientOpts, app.Spec.Project)
 
+			// Build resource info provider from live state to determine if resources are namespaced
+			infoProvider := getInfoProviderFromState(liveState)
+
 			// Create target manifest provider based on flags
 			var getTargetManifests manifestProvider
+			excludeSecret := false
 
 			switch {
 			case app.Spec.HasMultipleSources() && len(revisions) > 0 && len(sourcePositions) > 0:
@@ -686,10 +742,13 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				if serverSideGenerate {
 					getTargetManifests = newLocalServerSideProvider(appIf, appName, appNs, local, localIncludes)
 				} else {
-					fmt.Fprintf(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.7.")
+					fmt.Fprint(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.7.")
 					conn, clusterIf := clientset.NewClusterClientOrDie()
 					defer io.Close(conn)
 					getTargetManifests = newLocalClientSideProvider(clusterIf, argoSettings, app, proj.Project, local, localRepoRoot)
+					// Local diff does not support to hide the configurable annotations in the secrets.
+					// To not have constant partial diffs, we exclude secrets from the diff.
+					excludeSecret = true
 				}
 
 			default:
@@ -699,11 +758,14 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				getTargetManifests = newTargetManifestProvider(liveState)
 			}
 
+			// Wrap target manifest provider with normalization since the manifest are have not been applied to kubernetes
+			getTargetManifests = newNormalizeTargetManifestsProvider(getTargetManifests, app, argoSettings, infoProvider)
+
 			// Create comparison manifest provider (live or target based on flag)
 			var getLiveManifests manifestProvider
 			if compareDesired {
 				// When comparing desired states, use target manifests from ManagedResources
-				getLiveManifests = newTargetManifestProvider(liveState)
+				getLiveManifests = newNormalizeTargetManifestsProvider(newTargetManifestProvider(liveState), app, argoSettings, infoProvider)
 			} else {
 				// Default: compare against live cluster state
 				getLiveManifests = newLiveManifestProvider(liveState)
@@ -720,9 +782,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			// Compute diff
-			results, err := compareManifests(ctx, app, getTargetManifests, getLiveManifests, diffHandler)
+			results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, diffHandler)
 			errors.CheckError(err)
 
+			sort.Slice(results, func(i, j int) bool {
+				return results[i].key.String() < results[j].key.String()
+			})
 			for _, result := range results {
 				printResourceDiff(result.key.Group, result.key.Kind, result.key.Namespace, result.key.Name, result.live, result.target)
 			}

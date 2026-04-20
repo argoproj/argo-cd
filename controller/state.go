@@ -358,39 +358,6 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	return targetObjs, manifestInfos, revisionsMayHaveChanges, nil
 }
 
-// ResolveGitRevision will resolve the given revision to a full commit SHA. Only works for git.
-func (m *appStateManager) ResolveGitRevision(repoURL string, revision string) (string, error) {
-	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
-	if err != nil {
-		return "", fmt.Errorf("failed to connect to repo server: %w", err)
-	}
-	defer utilio.Close(conn)
-
-	repo, err := m.db.GetRepository(context.Background(), repoURL, "")
-	if err != nil {
-		return "", fmt.Errorf("failed to get repo %q: %w", repoURL, err)
-	}
-
-	// Mock the app. The repo-server only needs to know whether the "chart" field is populated.
-	app := &v1alpha1.Application{
-		Spec: v1alpha1.ApplicationSpec{
-			Source: &v1alpha1.ApplicationSource{
-				RepoURL:        repoURL,
-				TargetRevision: revision,
-			},
-		},
-	}
-	resp, err := repoClient.ResolveRevision(context.Background(), &apiclient.ResolveRevisionRequest{
-		Repo:              repo,
-		App:               app,
-		AmbiguousRevision: revision,
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to determine whether the dry source has changed: %w", err)
-	}
-	return resp.Revision, nil
-}
-
 func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error) {
 	targetObjs := make([]*unstructured.Unstructured, 0)
 	for _, manifest := range manifests {
@@ -403,33 +370,45 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error
 	return targetObjs, nil
 }
 
-func DeduplicateTargetObjects(
-	namespace string,
-	objs []*unstructured.Unstructured,
-	infoProvider kubeutil.ResourceInfoProvider,
-) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
+func NormalizeTargetObjects(namespace string, objs []*unstructured.Unstructured, infoProvider kubeutil.ResourceInfoProvider, setAppInstance func(*unstructured.Unstructured) error) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
 	for i := range objs {
 		obj := objs[i]
 		if obj == nil {
 			continue
 		}
+
+		namespaceModified := false
 		isNamespaced := kubeutil.IsNamespacedOrUnknown(infoProvider, obj.GroupVersionKind().GroupKind())
-		if !isNamespaced {
+		if !isNamespaced && obj.GetNamespace() != "" {
+			// If a resource is cluster scoped, set the namespace to empty.
 			obj.SetNamespace("")
-		} else if obj.GetNamespace() == "" {
+			namespaceModified = true
+		} else if isNamespaced && obj.GetNamespace() == "" {
+			// If the object does not have a namespace specified, set it to the namespace of the application.
 			obj.SetNamespace(namespace)
+			namespaceModified = true
 		}
+
+		if namespaceModified {
+			err := setAppInstance(obj)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to set app instance label on resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
+			}
+		}
+
 		key := kubeutil.GetResourceKey(obj)
 		if key.Name == "" && obj.GetGenerateName() != "" {
 			key.Name = fmt.Sprintf("%s%d", obj.GetGenerateName(), i)
 		}
 		targetByKey[key] = append(targetByKey[key], obj)
 	}
+
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 	result := make([]*unstructured.Unstructured, 0)
 	for key, targets := range targetByKey {
 		if len(targets) > 1 {
+			// If an object is duplicated in the target, we add a condition to the application.
 			now := metav1.Now()
 			conditions = append(conditions, v1alpha1.ApplicationCondition{
 				Type:               v1alpha1.ApplicationConditionRepeatedResourceWarning,
@@ -437,33 +416,11 @@ func DeduplicateTargetObjects(
 				LastTransitionTime: &now,
 			})
 		}
+		// Only keep the last target object to avoid duplicate resources.
 		result = append(result, targets[len(targets)-1])
 	}
 
 	return result, conditions, nil
-}
-
-// normalizeClusterScopeTracking will set the app instance tracking metadata on malformed cluster-scoped resources where
-// metadata.namespace is not empty. The repo-server doesn't know which resources are cluster-scoped, so it may apply
-// an incorrect tracking annotation using the metadata.namespace. This function will correct that.
-func normalizeClusterScopeTracking(targetObjs []*unstructured.Unstructured, infoProvider kubeutil.ResourceInfoProvider, setAppInstance func(*unstructured.Unstructured) error) error {
-	for i := len(targetObjs) - 1; i >= 0; i-- {
-		targetObj := targetObjs[i]
-		if targetObj == nil {
-			continue
-		}
-		gvk := targetObj.GroupVersionKind()
-		if !kubeutil.IsNamespacedOrUnknown(infoProvider, gvk.GroupKind()) {
-			if targetObj.GetNamespace() != "" {
-				targetObj.SetNamespace("")
-				err := setAppInstance(targetObj)
-				if err != nil {
-					return fmt.Errorf("failed to set app instance label on cluster-scoped resource %s/%s: %w", gvk.String(), targetObj.GetName(), err)
-				}
-			}
-		}
-	}
-	return nil
 }
 
 // getComparisonSettings will return the system level settings related to the
@@ -674,17 +631,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		infoProvider = &resourceInfoProviderStub{}
 	}
 
-	err = normalizeClusterScopeTracking(targetObjs, infoProvider, func(u *unstructured.Unstructured) error {
+	targetObjs, dedupConditions, err := NormalizeTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider, func(u *unstructured.Unstructured) error {
 		return m.resourceTracking.SetAppInstance(u, appLabelKey, app.InstanceName(m.namespace), app.Spec.Destination.Namespace, v1alpha1.TrackingMethod(trackingMethod), installationID)
 	})
 	if err != nil {
-		msg := "Failed to normalize cluster-scoped resource tracking: " + err.Error()
-		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
-	}
-
-	targetObjs, dedupConditions, err := DeduplicateTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider)
-	if err != nil {
-		msg := "Failed to deduplicate target state: " + err.Error()
+		msg := "Failed to normalize target state: " + err.Error()
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 	}
 	conditions = append(conditions, dedupConditions...)

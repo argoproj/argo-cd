@@ -14,8 +14,10 @@ import (
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"k8s.io/utils/ptr"
 
@@ -103,10 +105,6 @@ func mockDiffStrategyNoneModified() diffStrategy {
 // TestComputeDiff_DefaultCase tests the default case with both live and target resources
 func TestCompareManifests_DefaultCase(t *testing.T) {
 	ctx := context.Background()
-	app := createTestApp("test-app", "argocd", v1alpha1.ApplicationSource{
-		RepoURL: "https://github.com/test/repo",
-		Path:    "manifests",
-	})
 
 	// Create test resources with both live and target states
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
@@ -136,7 +134,7 @@ func TestCompareManifests_DefaultCase(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, app, getTargetManifests, getLiveManifests, performDiff)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -149,10 +147,6 @@ func TestCompareManifests_DefaultCase(t *testing.T) {
 // TestComputeDiff_AddedResource tests when a resource exists in target but not live
 func TestCompareManifests_AddedResource(t *testing.T) {
 	ctx := context.Background()
-	app := createTestApp("test-app", "argocd", v1alpha1.ApplicationSource{
-		RepoURL: "https://github.com/test/repo",
-		Path:    "manifests",
-	})
 
 	// Create a target-only resource (added) - no live state
 	targetDeployment := createTestUnstructured(&appsv1.Deployment{
@@ -171,7 +165,7 @@ func TestCompareManifests_AddedResource(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, app, getTargetManifests, getLiveManifests, performDiff)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -184,10 +178,6 @@ func TestCompareManifests_AddedResource(t *testing.T) {
 // TestComputeDiff_RemovedResource tests when a resource exists in live but not target
 func TestCompareManifests_RemovedResource(t *testing.T) {
 	ctx := context.Background()
-	app := createTestApp("test-app", "argocd", v1alpha1.ApplicationSource{
-		RepoURL: "https://github.com/test/repo",
-		Path:    "manifests",
-	})
 
 	// Create a live-only resource (removed) - no target state
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
@@ -206,7 +196,7 @@ func TestCompareManifests_RemovedResource(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, app, getTargetManifests, getLiveManifests, performDiff)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -219,10 +209,6 @@ func TestCompareManifests_RemovedResource(t *testing.T) {
 // TestComputeDiff_MultipleResources tests handling multiple resources
 func TestCompareManifests_MultipleResources(t *testing.T) {
 	ctx := context.Background()
-	app := createTestApp("test-app", "argocd", v1alpha1.ApplicationSource{
-		RepoURL: "https://github.com/test/repo",
-		Path:    "manifests",
-	})
 
 	// Create multiple resources
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
@@ -275,7 +261,7 @@ func TestCompareManifests_MultipleResources(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment, targetService})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, app, getTargetManifests, getLiveManifests, performDiff)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 2)
@@ -302,16 +288,12 @@ func TestCompareManifests_MultipleResources(t *testing.T) {
 // TestComputeDiff_EmptyResources tests with no resources
 func TestCompareManifests_EmptyResources(t *testing.T) {
 	ctx := context.Background()
-	app := createTestApp("test-app", "argocd", v1alpha1.ApplicationSource{
-		RepoURL: "https://github.com/test/repo",
-		Path:    "manifests",
-	})
 
 	getLiveManifests := mockManifestProvider([]*unstructured.Unstructured{})
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, app, getTargetManifests, getLiveManifests, performDiff)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	assert.Empty(t, results)
@@ -320,10 +302,6 @@ func TestCompareManifests_EmptyResources(t *testing.T) {
 // TestComputeDiff_MixedAddedRemovedModified tests a scenario with added, removed, and modified resources
 func TestCompareManifests_MixedAddedRemovedModified(t *testing.T) {
 	ctx := context.Background()
-	app := createTestApp("test-app", "argocd", v1alpha1.ApplicationSource{
-		RepoURL: "https://github.com/test/repo",
-		Path:    "manifests",
-	})
 
 	// Modified resource (exists in both live and target)
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
@@ -379,7 +357,7 @@ func TestCompareManifests_MixedAddedRemovedModified(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment, addedConfigMap})
 	performDiff := mockDiffStrategyAllModified()
 
-	results, err := compareManifests(ctx, app, getTargetManifests, getLiveManifests, performDiff)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	require.Len(t, results, 3)
@@ -414,10 +392,6 @@ func TestCompareManifests_MixedAddedRemovedModified(t *testing.T) {
 // TestComputeDiff_NoModifications tests that resources without modifications are not returned
 func TestCompareManifests_NoModifications(t *testing.T) {
 	ctx := context.Background()
-	app := createTestApp("test-app", "argocd", v1alpha1.ApplicationSource{
-		RepoURL: "https://github.com/test/repo",
-		Path:    "manifests",
-	})
 
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
@@ -446,7 +420,7 @@ func TestCompareManifests_NoModifications(t *testing.T) {
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{targetDeployment})
 	performDiff := mockDiffStrategyNoneModified()
 
-	results, err := compareManifests(ctx, app, getTargetManifests, getLiveManifests, performDiff)
+	results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, performDiff)
 
 	require.NoError(t, err)
 	// No modifications, so no results
@@ -719,20 +693,40 @@ func TestNewLiveManifestProvider(t *testing.T) {
 		})
 		deploymentBytes, _ := json.Marshal(deployment)
 
+		secret := createTestUnstructured(&corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Secret",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-secret",
+				Namespace: "default",
+			},
+		})
+		secretBytes, _ := json.Marshal(secret)
+
 		liveState := &applicationpkg.ManagedResourcesResponse{
 			Items: []*v1alpha1.ResourceDiff{
 				{
-					LiveState: string(deploymentBytes),
+					Kind:                "Deployment",
+					Group:               "apps",
+					NormalizedLiveState: string(deploymentBytes),
+				},
+				{
+					Kind:                "Secret",
+					Group:               "",
+					NormalizedLiveState: string(secretBytes),
 				},
 			},
 		}
 
-		provider := newLiveManifestProvider(liveState)
+		provider := newLiveManifestProvider(liveState, false)
 		result, err := provider(ctx)
 
 		require.NoError(t, err)
-		require.Len(t, result, 1)
+		require.Len(t, result, 2)
 		assert.Equal(t, "Deployment", result[0].GetKind())
+		assert.Equal(t, "Secret", result[1].GetKind())
 	})
 
 	t.Run("Empty items", func(t *testing.T) {
@@ -740,11 +734,59 @@ func TestNewLiveManifestProvider(t *testing.T) {
 			Items: []*v1alpha1.ResourceDiff{},
 		}
 
-		provider := newLiveManifestProvider(liveState)
+		provider := newLiveManifestProvider(liveState, false)
 		result, err := provider(ctx)
 
 		require.NoError(t, err)
 		assert.Empty(t, result)
+	})
+
+	t.Run("Secret excluded", func(t *testing.T) {
+		deployment := createTestUnstructured(&appsv1.Deployment{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-deployment",
+				Namespace: "default",
+			},
+		})
+		deploymentBytes, _ := json.Marshal(deployment)
+
+		secret := createTestUnstructured(&corev1.Secret{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "Secret",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-secret",
+				Namespace: "default",
+			},
+		})
+		secretBytes, _ := json.Marshal(secret)
+
+		liveState := &applicationpkg.ManagedResourcesResponse{
+			Items: []*v1alpha1.ResourceDiff{
+				{
+					Kind:                "Deployment",
+					Group:               "apps",
+					NormalizedLiveState: string(deploymentBytes),
+				},
+				{
+					Kind:                "Secret",
+					Group:               "",
+					NormalizedLiveState: string(secretBytes),
+				},
+			},
+		}
+
+		provider := newLiveManifestProvider(liveState, true)
+		result, err := provider(ctx)
+
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, "Deployment", result[0].GetKind())
 	})
 }
 
@@ -1282,5 +1324,201 @@ func TestNewClientSideDiffStrategy(t *testing.T) {
 		// When target is nil (deletion), the diff engine doesn't mark it as modified
 		// The result contains the diff but Modified may be false
 		assert.NotNil(t, results[0])
+	})
+}
+
+func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("Normalizes manifests with tracking labels", func(t *testing.T) {
+		deployment := createTestUnstructured(&appsv1.Deployment{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-deployment",
+				// No namespace specified - should be set to destination namespace
+			},
+		})
+
+		baseProvider := mockManifestProvider([]*unstructured.Unstructured{deployment})
+
+		app := createTestApp("test-app", "argocd")
+		app.Spec.Destination.Namespace = "target-namespace"
+
+		settings := &settingspkg.Settings{
+			AppLabelKey:    "app.kubernetes.io/instance",
+			TrackingMethod: "label",
+			KustomizeOptions: &v1alpha1.KustomizeOptions{
+				BuildOptions: "",
+			},
+			ControllerNamespace: "argocd",
+		}
+
+		infoProvider := &resourceInfoProvider{
+			namespacedByGk: map[schema.GroupKind]bool{
+				{Group: "apps", Kind: "Deployment"}: true,
+			},
+		}
+
+		provider := newNormalizeTargetManifestsProvider(baseProvider, app, settings, infoProvider)
+		result, err := provider(ctx)
+
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, "Deployment", result[0].GetKind())
+		assert.Equal(t, "target-namespace", result[0].GetNamespace())
+
+		// Verify tracking label was added
+		labels := result[0].GetLabels()
+		assert.NotNil(t, labels)
+		assert.Equal(t, "test-app", labels["app.kubernetes.io/instance"])
+	})
+
+	t.Run("Propagates error from base provider", func(t *testing.T) {
+		expectedErr := errors.New("base provider error")
+		baseProvider := func(_ context.Context) ([]*unstructured.Unstructured, error) {
+			return nil, expectedErr
+		}
+
+		app := createTestApp("test-app", "argocd")
+		settings := &settingspkg.Settings{
+			AppLabelKey:    "app.kubernetes.io/instance",
+			TrackingMethod: "label",
+		}
+		infoProvider := &resourceInfoProvider{namespacedByGk: map[schema.GroupKind]bool{}}
+
+		provider := newNormalizeTargetManifestsProvider(baseProvider, app, settings, infoProvider)
+		result, err := provider(ctx)
+
+		require.Error(t, err)
+		assert.Equal(t, expectedErr, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("Normalizes cluster-scoped resource with namespace", func(t *testing.T) {
+		clusterRole := createTestUnstructured(&rbacv1.ClusterRole{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "rbac.authorization.k8s.io/v1",
+				Kind:       "ClusterRole",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-cluster-role",
+				Namespace: "kube-system", // Malformed - cluster-scoped resource shouldn't have namespace
+			},
+		})
+
+		baseProvider := mockManifestProvider([]*unstructured.Unstructured{clusterRole})
+
+		app := createTestApp("test-app", "argocd")
+		app.Spec.Destination.Namespace = "default"
+
+		settings := &settingspkg.Settings{
+			AppLabelKey:         "app.kubernetes.io/instance",
+			TrackingMethod:      "annotation",
+			ControllerNamespace: "argocd",
+		}
+
+		// ClusterRole is cluster-scoped, so infoProvider returns false for namespaced check
+		infoProvider := &resourceInfoProvider{
+			namespacedByGk: map[schema.GroupKind]bool{
+				{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}: false,
+			},
+		}
+
+		provider := newNormalizeTargetManifestsProvider(baseProvider, app, settings, infoProvider)
+		result, err := provider(ctx)
+
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, "ClusterRole", result[0].GetKind())
+
+		// Verify namespace was stripped for cluster-scoped resource
+		assert.Empty(t, result[0].GetNamespace(), "cluster-scoped resource should have empty namespace")
+
+		// Verify tracking annotation was re-applied with correct (empty) namespace
+		annotations := result[0].GetAnnotations()
+		assert.NotNil(t, annotations)
+		trackingID, ok := annotations["argocd.argoproj.io/tracking-id"]
+		assert.True(t, ok, "tracking annotation should be present")
+		// Tracking ID format: app-name:group/kind:namespace/name (namespace should be empty for cluster-scoped)
+		assert.Contains(t, trackingID, "ClusterRole:")
+		assert.Contains(t, trackingID, "/my-cluster-role")
+		assert.NotContains(t, trackingID, "kube-system", "tracking ID should not contain the stripped namespace")
+	})
+
+	t.Run("Deduplicates resources and keeps last", func(t *testing.T) {
+		// Create three ConfigMaps with the same name
+		configMap1 := createTestUnstructured(&corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "my-config",
+			},
+			Data: map[string]string{"version": "1"},
+		})
+
+		configMap2 := createTestUnstructured(&corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "my-config",
+			},
+			Data: map[string]string{"version": "2"},
+		})
+
+		configMap3 := createTestUnstructured(&corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "my-config",
+			},
+			Data: map[string]string{"version": "3"},
+		})
+
+		baseProvider := mockManifestProvider([]*unstructured.Unstructured{configMap1, configMap2, configMap3})
+
+		app := createTestApp("test-app", "argocd")
+		app.Spec.Destination.Namespace = "prod"
+
+		settings := &settingspkg.Settings{
+			AppLabelKey:         "app.kubernetes.io/instance",
+			TrackingMethod:      "label",
+			ControllerNamespace: "argocd",
+		}
+
+		infoProvider := &resourceInfoProvider{
+			namespacedByGk: map[schema.GroupKind]bool{
+				{Group: "", Kind: "ConfigMap"}: true,
+			},
+		}
+
+		provider := newNormalizeTargetManifestsProvider(baseProvider, app, settings, infoProvider)
+		result, err := provider(ctx)
+
+		require.NoError(t, err)
+		// Should only keep one resource after deduplication
+		require.Len(t, result, 1, "should deduplicate to one resource")
+		assert.Equal(t, "ConfigMap", result[0].GetKind())
+		assert.Equal(t, "my-config", result[0].GetName())
+
+		// Verify it's the last one (version 3)
+		data, found, err := unstructured.NestedStringMap(result[0].Object, "data")
+		require.NoError(t, err)
+		require.True(t, found)
+		assert.Equal(t, "3", data["version"], "should keep the last duplicate")
+
+		// Verify namespace and tracking were still applied
+		assert.Equal(t, "prod", result[0].GetNamespace())
+		labels := result[0].GetLabels()
+		assert.NotNil(t, labels)
+		assert.Equal(t, "test-app", labels["app.kubernetes.io/instance"])
 	})
 }
