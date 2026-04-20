@@ -75,6 +75,9 @@ type Dependencies interface {
 
 	// GetCommitAuthorEmail gets the configured commit author email from argocd-cm ConfigMap.
 	GetCommitAuthorEmail() (string, error)
+
+        // RollbackApp performs a rollback for a Source Hydrator enabled application by committing historical manifests to the sync branch.
+        RollbackApp(ctx context.Context, app *appv1.Application, hydratedRevision string) error
 }
 
 // Hydrator is the main struct that implements the hydration logic. It uses the Dependencies interface to access the
