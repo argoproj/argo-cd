@@ -6,7 +6,7 @@ import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationSelector} from '../../../shared/components';
-import {isApp} from '../utils';
+import {isApp, getAppDisplayName} from '../utils';
 
 interface Progress {
     percentage: number;
@@ -54,7 +54,7 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                                     const objectListKind = isApp(app) ? 'application' : 'applicationset';
                                     await services.applications.get(app.metadata.name, app.metadata.namespace, objectListKind, params.refreshType).catch(e => {
                                         ctx.notifications.show({
-                                            content: <ErrorNotification title={`Unable to refresh ${app.metadata.name}`} e={e} />,
+                                            content: <ErrorNotification title={`Unable to refresh ${getAppDisplayName(app)}`} e={e} />,
                                             type: NotificationType.Error
                                         });
                                     });
