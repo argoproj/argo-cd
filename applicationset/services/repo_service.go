@@ -23,7 +23,7 @@ type Repos interface {
 	GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error)
 
 	// GetDirectories returns a list of directories (not files) within the target repo
-	GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, SourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error)
+	GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error)
 }
 
 func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) Repos {

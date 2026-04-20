@@ -142,7 +142,7 @@ type Client interface {
 	// IsAnnotatedTag determines if the revision is, or resolves to an annotated tag.
 	IsAnnotatedTag(revision string) bool
 	// LsSignatures gets a list of revisions including their GPG signature info.
-	// If revision is an annotated tag or a semantic constraint matching an annotated tag, its signature is reported as wll
+	// If revision is an annotated tag or a semantic constraint matching an annotated tag, its signature is reported as well
 	// If deep==true, list the commits backwards in history until a signed "seal commit" or repo init commit. The listing includes those seal commits.
 	// If deep==false, examines the revision only. Checking the annotated tag signature if the revision is an annotated tag, commit signature otherwise.
 	LsSignatures(revision string, deep bool) ([]RevisionSignatureInfo, error)

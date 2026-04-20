@@ -6,13 +6,13 @@ This is useful to verify the sources have not been tampered with by an unauthori
 Each Application Project can have its criteria configured in `AppProject`'s `.spec.sourceIntegrity`.
 The criteria distinguish a type of verification they perform, and to which sources they apply.
 
-Each application can be a subject or multiple checks, and the sync will be enabled only when all criteria are met.
+Each application can be a subject of multiple checks, and the sync will be enabled only when all criteria are met.
 
 > [!NOTE]
 > Source Integrity Verification is only configured through `AppProject` manifests at this point. CLI and UI are not supported.
 
 > [!NOTE]
-> Signature verification is not supported for the Applications Sets populated by the git generator when they have the `project` field templated.
+> Signature verification is not supported for the Application Sets populated by the git generator when they have the `project` field templated.
 
 > [!WARNING]
 > If source integrity is enforced, you will not be able to sync from local sources (i.e. `argocd app sync --local`) anymore.

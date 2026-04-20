@@ -506,7 +506,7 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 			logrus.AddHook(&logger)
 			t.Cleanup(logger.CleanupHook)
 
-			// When using head mode
+			// When using strict mode
 			gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{
 				Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
 				Keys: []string{keyOfFirst, keyOfSecond},

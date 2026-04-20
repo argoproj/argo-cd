@@ -205,7 +205,7 @@ While this can be addressed by re-signing with git rebase, there is a better way
 ###### Commit seal-signing with `strict` mode
 
 A sealing commit is a GnuPG signed commit that works as a "seal of approval" attesting that all its ancestor commits were either signed by a trusted key, or reviewed and trusted by the author of the sealing commit.
-Argo CD verifying GnuPG signatures would then progres only as far back in the history as the most recent "seal" commits in each individual ancestral branch.
+Argo CD verifying GnuPG signatures would then progress only as far back in the history as the most recent "seal" commits in each individual ancestral branch.
 
 In practice, a committer first *reviews* all commits that are not signed or signed with untrusted keys from the previous "seal commit" and creates a new, possibly empty commit with a custom Git trailer in its message.
 Such commits can have the following organization-level semantics:
