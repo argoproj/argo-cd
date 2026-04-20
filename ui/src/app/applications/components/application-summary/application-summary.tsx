@@ -538,19 +538,34 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         if (confirmed) {
             try {
                 setChangeSync(true);
-                await services.applications.runResourceAction(
-                    app.metadata.name,
-                    app.metadata.namespace,
-                    {
-                        name: app.metadata.name,
-                        namespace: app.metadata.namespace,
-                        group: 'argoproj.io',
-                        kind: 'Application',
-                        version: 'v1alpha1'
-                    } as models.ResourceNode,
-                    'toggle-auto-sync',
-                    []
-                );
+                const canUpdate = await services.accounts.canI('applications', 'update', `${app.spec.project}/${app.metadata.name}`).catch(() => false);
+                if (canUpdate) {
+                    const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+                    if (!updatedApp.spec.syncPolicy) {
+                        updatedApp.spec.syncPolicy = {};
+                    }
+                    const existingAutomated = updatedApp.spec.syncPolicy.automated;
+                    updatedApp.spec.syncPolicy.automated = {
+                        prune: existingAutomated?.prune ?? false,
+                        selfHeal: existingAutomated?.selfHeal ?? false,
+                        enabled: !isEnabled
+                    };
+                    await updateApp(updatedApp, {validate: false});
+                } else {
+                    await services.applications.runResourceAction(
+                        app.metadata.name,
+                        app.metadata.namespace,
+                        {
+                            name: app.metadata.name,
+                            namespace: app.metadata.namespace,
+                            group: 'argoproj.io',
+                            kind: 'Application',
+                            version: 'v1alpha1'
+                        } as models.ResourceNode,
+                        'toggle-auto-sync',
+                        []
+                    );
+                }
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}"`} e={e} />,
@@ -562,6 +577,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         }
     }
 
+    // Handler for the PRUNE RESOURCES and SELF HEAL checkboxes only; auto-sync toggling lives in `toggleAutoSync` above.
     async function setAutoSync(ctx: ContextApis, confirmationTitle: string, confirmationText: string, prune: boolean, selfHeal: boolean, enable: boolean) {
         const confirmed = await ctx.popup.confirm(confirmationTitle, confirmationText);
         if (confirmed) {
