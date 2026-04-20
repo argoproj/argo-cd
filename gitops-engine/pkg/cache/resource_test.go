@@ -7,7 +7,9 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-var cacheTest = NewClusterCache(&rest.Config{})
+// White-box tests need access to unexported methods like newResource; cast
+// to the concrete legacy impl. See newClusterWithOptions in cluster_test.go.
+var cacheTest = NewClusterCache(&rest.Config{}).(*clusterCache)
 
 func TestIsParentOf(t *testing.T) {
 	t.Parallel()

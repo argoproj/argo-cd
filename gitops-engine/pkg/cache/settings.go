@@ -183,3 +183,24 @@ func SetEventProcessingInterval(interval time.Duration) UpdateSettingsFunc {
 		cache.eventProcessingInterval = interval
 	}
 }
+
+// Mode selects the cluster cache implementation.
+type Mode int
+
+const (
+	// ModeLegacy uses the hand-rolled list/watch loop (current behavior).
+	ModeLegacy Mode = iota
+	// ModeInformer uses client-go's SharedIndexInformer per (GroupKind,
+	// namespace) with a TransformFunc that converts incoming objects to
+	// cachedResource at intake. Experimental — see
+	// https://github.com/argoproj/argo-cd/issues/19199.
+	ModeInformer
+)
+
+// SetMode selects which cluster cache implementation to use. Defaults to
+// ModeLegacy when unset. It swaps the active syncEngine in place.
+func SetMode(mode Mode) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.engine = newSyncEngine(mode, cache.store)
+	}
+}

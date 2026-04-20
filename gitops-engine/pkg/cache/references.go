@@ -18,7 +18,7 @@ func mightHaveInferredOwner(r *Resource) bool {
 	return r.Ref.GroupVersionKind().Group == "" && r.Ref.Kind == kube.PersistentVolumeClaimKind
 }
 
-func (c *clusterCache) resolveResourceReferences(un *unstructured.Unstructured) ([]metav1.OwnerReference, func(kube.ResourceKey) bool) {
+func (c *store) resolveResourceReferences(un *unstructured.Unstructured) ([]metav1.OwnerReference, func(kube.ResourceKey) bool) {
 	var isInferredParentOf func(_ kube.ResourceKey) bool
 	ownerRefs := un.GetOwnerReferences()
 	gvk := un.GroupVersionKind()
