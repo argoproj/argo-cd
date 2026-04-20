@@ -1635,7 +1635,8 @@ func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application
 }
 
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
-	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	// Read via the client instead of the informer cache to avoid "revision history not found" errors due to stale informer cache
+	a, proj, err := s.getApplicationEnforceRBACClient(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -1917,17 +1918,23 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			// if k8s failed to start steaming logs (typically because Pod is not ready yet)
 			// then the error should be shown in the UI so that user know the reason
 			if err != nil {
-				logStream <- logEntry{line: err.Error()}
+				select {
+				case logStream <- logEntry{line: err.Error()}:
+				case <-ws.Context().Done():
+				}
 			} else {
-				parseLogsStream(podName, stream, logStream)
+				parseLogsStream(ws.Context(), podName, stream, logStream)
 			}
 			close(logStream)
 		}()
 	}
 
-	logStream := mergeLogStreams(streams, time.Millisecond*100)
+	logStream := mergeLogStreams(ws.Context(), streams, time.Millisecond*100)
 	sentCount := int64(0)
-	done := make(chan error)
+	// Buffered so the goroutine below can always send and exit, even if PodLogs has already
+	// returned due to client disconnect (ws.Context().Done). Without this, the goroutine
+	// would block on "done <- err" forever, leaking memory via bufio and mergeLogStreams buffers.
+	done := make(chan error, 1)
 	go func() {
 		for entry := range logStream {
 			if entry.err != nil {
@@ -2052,7 +2059,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	s.inferResourcesStatusHealth(a)
 
-	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true)
+	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true, nil)
 	if err != nil {
 		return a, status.Errorf(codes.PermissionDenied, "cannot sync: invalid sync window: %v", err)
 	}
@@ -2455,6 +2462,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application,
 		}
 	}
 
+	// Do not use cache for revision resolution since this is a user triggered operation
 	resolveRevisionResponse, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
 		Repo:              repo,
 		App:               app,
@@ -2550,6 +2558,11 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
+		app.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   applicationType.Group,
+			Version: v1alpha1.SchemeGroupVersion.Version,
+			Kind:    applicationType.ApplicationKind,
+		})
 		err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbacRequest, app.RBACName(s.ns))
 		if err != nil {
 			return nil, nil, nil, nil, err
@@ -2842,7 +2855,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	}
 
 	windows := proj.Spec.SyncWindows.Matches(a)
-	sync, err := windows.CanSync(true)
+	sync, err := windows.CanSync(true, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid sync windows: %w", err)
 	}

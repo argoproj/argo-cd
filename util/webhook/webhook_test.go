@@ -70,13 +70,35 @@ type reactorDef struct {
 	reaction kubetesting.ReactionFunc
 }
 
+func assertLogContains(t *testing.T, hook *test.Hook, msg string) {
+	t.Helper()
+	for _, entry := range hook.Entries {
+		if entry.Message == msg {
+			return
+		}
+	}
+	t.Errorf("log hook did not contain message: %q", msg)
+}
+
+func assertLogContainsSubstr(t *testing.T, hook *test.Hook, substr string) {
+	t.Helper()
+	for _, entry := range hook.Entries {
+		if strings.Contains(entry.Message, substr) {
+			return
+		}
+	}
+	t.Errorf("log hook did not contain message with substring: %q", substr)
+}
+
 func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	defaultMaxPayloadSize := int64(50) * 1024 * 1024
 	return NewMockHandlerWithPayloadLimit(reactor, applicationNamespaces, defaultMaxPayloadSize, objects...)
 }
 
 func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces []string, maxPayloadSize int64, objects ...runtime.Object) *ArgoCDWebhookHandler {
-	return newMockHandler(reactor, applicationNamespaces, maxPayloadSize, &mocks.ArgoDB{}, &settings.ArgoCDSettings{}, objects...)
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
+	return newMockHandler(reactor, applicationNamespaces, maxPayloadSize, mockDB, &settings.ArgoCDSettings{}, objects...)
 }
 
 func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
@@ -161,7 +183,7 @@ func TestGitHubCommitEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -179,7 +201,7 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://dev.azure.com/alexander0053/alex-test/_git/alex-test, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -295,7 +317,7 @@ func TestGitHubTagEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: v1.0, touchedHead: false"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -313,7 +335,7 @@ func TestGitHubPingEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -331,9 +353,9 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResultSSH := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResultSSH, hook.AllEntries()[len(hook.AllEntries())-2].Message)
+	assertLogContains(t, hook, expectedLogResultSSH)
 	expectedLogResultHTTPS := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResultHTTPS, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResultHTTPS)
 	hook.Reset()
 }
 
@@ -349,7 +371,7 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -367,7 +389,7 @@ func TestGogsPushEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: http://gogs-server/john/repo-test, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -385,7 +407,7 @@ func TestGitLabPushEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -403,7 +425,7 @@ func TestGitLabSystemEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -417,9 +439,8 @@ func TestInvalidMethod(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	expectedLogResult := "Webhook processing failed: invalid HTTP Method"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
-	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
+	assertLogContains(t, hook, "Webhook processing failed: invalid HTTP Method")
+	assert.Equal(t, "Webhook processing failed\n", w.Body.String())
 	hook.Reset()
 }
 
@@ -433,9 +454,8 @@ func TestInvalidEvent(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 50 MB) and ensure it is valid JSON"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
-	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
+	assertLogContainsSubstr(t, hook, "Webhook processing failed: payload too large or corrupted (limit 50 MB)")
+	assert.Equal(t, "Webhook processing failed: payload must be valid JSON under 50 MB\n", w.Body.String())
 	hook.Reset()
 }
 
@@ -751,8 +771,7 @@ func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 0 MB) and ensure it is valid JSON"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContainsSubstr(t, hook, "Webhook processing failed: payload too large or corrupted (limit 0 MB)")
 	hook.Reset()
 }
 
@@ -1119,6 +1138,7 @@ func TestHandleEvent(t *testing.T) {
 					APIVersions:     []string{},
 				},
 			}, nil).Maybe()
+			mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
 
 			err := serverCache.SetClusterInfo(testClusterURL, &v1alpha1.ClusterInfo{
 				ServerVersion:   "1.28.0",

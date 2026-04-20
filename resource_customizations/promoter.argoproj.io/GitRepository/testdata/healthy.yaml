@@ -1,0 +1,20 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: GitRepository
+metadata:
+  name: app-repo
+  namespace: gitops-promoter
+  generation: 1
+spec:
+  scmProviderRef:
+    kind: ScmProvider
+    name: github-provider
+  github:
+    owner: argoproj
+    name: argo-cd
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: ReconciliationSuccess
+      message: Reconciliation successful
+      observedGeneration: 1

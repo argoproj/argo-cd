@@ -13017,6 +13017,34 @@ func (m *RepoCreds) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i -= len(m.AzureActiveDirectoryEndpoint)
+	copy(dAtA[i:], m.AzureActiveDirectoryEndpoint)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AzureActiveDirectoryEndpoint)))
+	i--
+	dAtA[i] = 0x2
+	i--
+	dAtA[i] = 0x82
+	i -= len(m.AzureServicePrincipalTenantId)
+	copy(dAtA[i:], m.AzureServicePrincipalTenantId)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AzureServicePrincipalTenantId)))
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0xfa
+	i -= len(m.AzureServicePrincipalClientSecret)
+	copy(dAtA[i:], m.AzureServicePrincipalClientSecret)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AzureServicePrincipalClientSecret)))
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0xf2
+	i -= len(m.AzureServicePrincipalClientId)
+	copy(dAtA[i:], m.AzureServicePrincipalClientId)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AzureServicePrincipalClientId)))
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0xea
 	i--
 	if m.InsecureOCIForceHttp {
 		dAtA[i] = 1
@@ -13202,6 +13230,44 @@ func (m *Repository) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i -= len(m.AzureActiveDirectoryEndpoint)
+	copy(dAtA[i:], m.AzureActiveDirectoryEndpoint)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AzureActiveDirectoryEndpoint)))
+	i--
+	dAtA[i] = 0x2
+	i--
+	dAtA[i] = 0x82
+	i -= len(m.AzureServicePrincipalTenantId)
+	copy(dAtA[i:], m.AzureServicePrincipalTenantId)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AzureServicePrincipalTenantId)))
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0xfa
+	i -= len(m.AzureServicePrincipalClientSecret)
+	copy(dAtA[i:], m.AzureServicePrincipalClientSecret)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AzureServicePrincipalClientSecret)))
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0xf2
+	i -= len(m.AzureServicePrincipalClientId)
+	copy(dAtA[i:], m.AzureServicePrincipalClientId)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.AzureServicePrincipalClientId)))
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0xea
+	i--
+	if m.WebhookManifestCacheWarmDisabled {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x1
+	i--
+	dAtA[i] = 0xe0
 	i = encodeVarintGenerated(dAtA, i, uint64(m.Depth))
 	i--
 	dAtA[i] = 0x1
@@ -15131,6 +15197,14 @@ func (m *SCMProviderGeneratorGitea) MarshalToSizedBuffer(dAtA []byte) (int, erro
 	var l int
 	_ = l
 	i--
+	if m.ExcludeArchivedRepos {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x30
+	i--
 	if m.Insecure {
 		dAtA[i] = 1
 	} else {
@@ -15192,6 +15266,14 @@ func (m *SCMProviderGeneratorGithub) MarshalToSizedBuffer(dAtA []byte) (int, err
 	var l int
 	_ = l
 	i--
+	if m.ExcludeArchivedRepos {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x30
+	i--
 	if m.AllBranches {
 		dAtA[i] = 1
 	} else {
@@ -15249,6 +15331,14 @@ func (m *SCMProviderGeneratorGitlab) MarshalToSizedBuffer(dAtA []byte) (int, err
 	_ = i
 	var l int
 	_ = l
+	i--
+	if m.IncludeArchivedRepos {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x50
 	if m.CARef != nil {
 		{
 			size, err := m.CARef.MarshalToSizedBuffer(dAtA[:i])
@@ -16139,6 +16229,14 @@ func (m *SyncWindow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i--
+	if m.SyncOverrun {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x58
 	i -= len(m.Description)
 	copy(dAtA[i:], m.Description)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Description)))
@@ -19059,6 +19157,14 @@ func (m *RepoCreds) Size() (n int) {
 	l = len(m.BearerToken)
 	n += 2 + l + sovGenerated(uint64(l))
 	n += 3
+	l = len(m.AzureServicePrincipalClientId)
+	n += 2 + l + sovGenerated(uint64(l))
+	l = len(m.AzureServicePrincipalClientSecret)
+	n += 2 + l + sovGenerated(uint64(l))
+	l = len(m.AzureServicePrincipalTenantId)
+	n += 2 + l + sovGenerated(uint64(l))
+	l = len(m.AzureActiveDirectoryEndpoint)
+	n += 2 + l + sovGenerated(uint64(l))
 	return n
 }
 
@@ -19128,6 +19234,15 @@ func (m *Repository) Size() (n int) {
 	n += 2 + l + sovGenerated(uint64(l))
 	n += 3
 	n += 2 + sovGenerated(uint64(m.Depth))
+	n += 3
+	l = len(m.AzureServicePrincipalClientId)
+	n += 2 + l + sovGenerated(uint64(l))
+	l = len(m.AzureServicePrincipalClientSecret)
+	n += 2 + l + sovGenerated(uint64(l))
+	l = len(m.AzureServicePrincipalTenantId)
+	n += 2 + l + sovGenerated(uint64(l))
+	l = len(m.AzureActiveDirectoryEndpoint)
+	n += 2 + l + sovGenerated(uint64(l))
 	return n
 }
 
@@ -19796,6 +19911,7 @@ func (m *SCMProviderGeneratorGitea) Size() (n int) {
 	}
 	n += 2
 	n += 2
+	n += 2
 	return n
 }
 
@@ -19815,6 +19931,7 @@ func (m *SCMProviderGeneratorGithub) Size() (n int) {
 	}
 	l = len(m.AppSecretName)
 	n += 1 + l + sovGenerated(uint64(l))
+	n += 2
 	n += 2
 	return n
 }
@@ -19845,6 +19962,7 @@ func (m *SCMProviderGeneratorGitlab) Size() (n int) {
 		l = m.CARef.Size()
 		n += 1 + l + sovGenerated(uint64(l))
 	}
+	n += 2
 	return n
 }
 
@@ -20183,6 +20301,7 @@ func (m *SyncWindow) Size() (n int) {
 	n += 2
 	l = len(m.Description)
 	n += 1 + l + sovGenerated(uint64(l))
+	n += 2
 	return n
 }
 
@@ -22292,6 +22411,10 @@ func (this *RepoCreds) String() string {
 		`UseAzureWorkloadIdentity:` + fmt.Sprintf("%v", this.UseAzureWorkloadIdentity) + `,`,
 		`BearerToken:` + fmt.Sprintf("%v", this.BearerToken) + `,`,
 		`InsecureOCIForceHttp:` + fmt.Sprintf("%v", this.InsecureOCIForceHttp) + `,`,
+		`AzureServicePrincipalClientId:` + fmt.Sprintf("%v", this.AzureServicePrincipalClientId) + `,`,
+		`AzureServicePrincipalClientSecret:` + fmt.Sprintf("%v", this.AzureServicePrincipalClientSecret) + `,`,
+		`AzureServicePrincipalTenantId:` + fmt.Sprintf("%v", this.AzureServicePrincipalTenantId) + `,`,
+		`AzureActiveDirectoryEndpoint:` + fmt.Sprintf("%v", this.AzureActiveDirectoryEndpoint) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -22344,6 +22467,11 @@ func (this *Repository) String() string {
 		`BearerToken:` + fmt.Sprintf("%v", this.BearerToken) + `,`,
 		`InsecureOCIForceHttp:` + fmt.Sprintf("%v", this.InsecureOCIForceHttp) + `,`,
 		`Depth:` + fmt.Sprintf("%v", this.Depth) + `,`,
+		`WebhookManifestCacheWarmDisabled:` + fmt.Sprintf("%v", this.WebhookManifestCacheWarmDisabled) + `,`,
+		`AzureServicePrincipalClientId:` + fmt.Sprintf("%v", this.AzureServicePrincipalClientId) + `,`,
+		`AzureServicePrincipalClientSecret:` + fmt.Sprintf("%v", this.AzureServicePrincipalClientSecret) + `,`,
+		`AzureServicePrincipalTenantId:` + fmt.Sprintf("%v", this.AzureServicePrincipalTenantId) + `,`,
+		`AzureActiveDirectoryEndpoint:` + fmt.Sprintf("%v", this.AzureActiveDirectoryEndpoint) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -22819,6 +22947,7 @@ func (this *SCMProviderGeneratorGitea) String() string {
 		`TokenRef:` + strings.Replace(this.TokenRef.String(), "SecretRef", "SecretRef", 1) + `,`,
 		`AllBranches:` + fmt.Sprintf("%v", this.AllBranches) + `,`,
 		`Insecure:` + fmt.Sprintf("%v", this.Insecure) + `,`,
+		`ExcludeArchivedRepos:` + fmt.Sprintf("%v", this.ExcludeArchivedRepos) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -22833,6 +22962,7 @@ func (this *SCMProviderGeneratorGithub) String() string {
 		`TokenRef:` + strings.Replace(this.TokenRef.String(), "SecretRef", "SecretRef", 1) + `,`,
 		`AppSecretName:` + fmt.Sprintf("%v", this.AppSecretName) + `,`,
 		`AllBranches:` + fmt.Sprintf("%v", this.AllBranches) + `,`,
+		`ExcludeArchivedRepos:` + fmt.Sprintf("%v", this.ExcludeArchivedRepos) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -22851,6 +22981,7 @@ func (this *SCMProviderGeneratorGitlab) String() string {
 		`IncludeSharedProjects:` + valueToStringGenerated(this.IncludeSharedProjects) + `,`,
 		`Topic:` + fmt.Sprintf("%v", this.Topic) + `,`,
 		`CARef:` + strings.Replace(this.CARef.String(), "ConfigMapKeyRef", "ConfigMapKeyRef", 1) + `,`,
+		`IncludeArchivedRepos:` + fmt.Sprintf("%v", this.IncludeArchivedRepos) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -23076,6 +23207,7 @@ func (this *SyncWindow) String() string {
 		`TimeZone:` + fmt.Sprintf("%v", this.TimeZone) + `,`,
 		`UseAndOperator:` + fmt.Sprintf("%v", this.UseAndOperator) + `,`,
 		`Description:` + fmt.Sprintf("%v", this.Description) + `,`,
+		`SyncOverrun:` + fmt.Sprintf("%v", this.SyncOverrun) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -47217,6 +47349,134 @@ func (m *RepoCreds) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.InsecureOCIForceHttp = bool(v != 0)
+		case 29:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureServicePrincipalClientId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureServicePrincipalClientId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 30:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureServicePrincipalClientSecret", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureServicePrincipalClientSecret = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 31:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureServicePrincipalTenantId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureServicePrincipalTenantId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 32:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureActiveDirectoryEndpoint", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureActiveDirectoryEndpoint = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -48114,6 +48374,154 @@ func (m *Repository) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		case 28:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WebhookManifestCacheWarmDisabled", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.WebhookManifestCacheWarmDisabled = bool(v != 0)
+		case 29:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureServicePrincipalClientId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureServicePrincipalClientId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 30:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureServicePrincipalClientSecret", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureServicePrincipalClientSecret = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 31:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureServicePrincipalTenantId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureServicePrincipalTenantId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 32:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AzureActiveDirectoryEndpoint", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AzureActiveDirectoryEndpoint = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -54252,6 +54660,26 @@ func (m *SCMProviderGeneratorGitea) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.Insecure = bool(v != 0)
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ExcludeArchivedRepos", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.ExcludeArchivedRepos = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -54454,6 +54882,26 @@ func (m *SCMProviderGeneratorGithub) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.AllBranches = bool(v != 0)
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ExcludeArchivedRepos", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.ExcludeArchivedRepos = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -54753,6 +55201,26 @@ func (m *SCMProviderGeneratorGitlab) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		case 10:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field IncludeArchivedRepos", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.IncludeArchivedRepos = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
@@ -57446,6 +57914,26 @@ func (m *SyncWindow) Unmarshal(dAtA []byte) error {
 			}
 			m.Description = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 11:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SyncOverrun", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.SyncOverrun = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])
