@@ -820,6 +820,13 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
 			return LoginAs(adminUsername)
 		},
+		func() error {
+			// If /tmp/argocd-e2e-env exists restart app controller with no environment variables
+			if _, err := os.Stat(e2eEnvVariableFilePath); err == nil {
+				return RestartProcess(ApplicationControllerProcName, nil)
+			}
+			return nil
+		},
 	})
 
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
