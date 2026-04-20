@@ -789,7 +789,7 @@ func fetchChangedFilesFromADO(ctx context.Context, repo *v1alpha1.Repository, re
 	if err != nil {
 		return nil, fmt.Errorf("error creating Azure DevOps diffs API request: %w", err)
 	}
-	if repo.Username != "" || repo.Password != "" {
+	if repo.Username != "" && repo.Password != "" {
 		req.SetBasicAuth(repo.Username, repo.Password)
 	} else if repo.BearerToken != "" {
 		req.Header.Set("Authorization", "Bearer "+repo.BearerToken)
