@@ -488,6 +488,100 @@ func TestGracefulShutdown(t *testing.T) {
 	assert.True(t, shutdown)
 }
 
+func TestOIDCRefresh(t *testing.T) {
+	port, err := test.GetFreePort()
+	require.NoError(t, err)
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	cm := test.NewFakeConfigMap()
+	cm.Data["oidc.config"] = `
+name: Test OIDC
+issuer: $oidc.myoidc.issuer
+clientID: $oidc.myoidc.clientId
+clientSecret: $oidc.myoidc.clientSecret
+`
+	secret := test.NewFakeSecret()
+	issuerURL := "http://oidc.127.0.0.1.nip.io"
+	updatedIssuerURL := "http://newoidc.127.0.0.1.nip.io"
+	secret.Data["oidc.myoidc.issuer"] = []byte(issuerURL)
+	secret.Data["oidc.myoidc.clientId"] = []byte("myClientId")
+	secret.Data["oidc.myoidc.clientSecret"] = []byte("myClientSecret")
+
+	kubeclientset := fake.NewSimpleClientset(cm, secret)
+	redis, redisCloser := test.NewInMemoryRedis()
+	defer redisCloser()
+	s := NewServer(
+		t.Context(),
+		ArgoCDServerOpts{
+			ListenPort:    port,
+			Namespace:     test.FakeArgoCDNamespace,
+			KubeClientset: kubeclientset,
+			AppClientset:  apps.NewSimpleClientset(),
+			RepoClientset: mockRepoClient,
+			RedisClient:   redis,
+		},
+		ApplicationSetOpts{},
+	)
+	projInformerCancel := test.StartInformer(s.projInformer)
+	defer projInformerCancel()
+	appInformerCancel := test.StartInformer(s.appInformer)
+	defer appInformerCancel()
+	appsetInformerCancel := test.StartInformer(s.appsetInformer)
+	defer appsetInformerCancel()
+	clusterInformerCancel := test.StartInformer(s.clusterInformer)
+	defer clusterInformerCancel()
+
+	shutdown := false
+
+	lns, err := s.Listen()
+	require.NoError(t, err)
+	runCtx := t.Context()
+
+	var wg gosync.WaitGroup
+	wg.Add(1)
+	go func(shutdown *bool) {
+		defer wg.Done()
+		s.Run(runCtx, lns)
+		*shutdown = true
+	}(&shutdown)
+
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+	assert.True(t, s.available.Load())
+	assert.Equal(t, issuerURL, s.ssoClientApp.IssuerURL())
+
+	// Update oidc config
+	secret.Data["oidc.myoidc.issuer"] = []byte(updatedIssuerURL)
+	secret.ResourceVersion = "12345"
+	_, err = kubeclientset.CoreV1().Secrets(test.FakeArgoCDNamespace).Update(runCtx, secret, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	// Wait for graceful shutdown
+	wg.Wait()
+	for s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	assert.False(t, s.available.Load())
+
+	shutdown = false
+	wg.Add(1)
+	go func(shutdown *bool) {
+		defer wg.Done()
+		s.Run(runCtx, lns)
+		*shutdown = true
+	}(&shutdown)
+
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+	assert.True(t, s.available.Load())
+	assert.Equal(t, updatedIssuerURL, s.ssoClientApp.IssuerURL())
+
+	s.stopCh <- syscall.SIGINT
+	wg.Wait()
+}
+
 func TestAuthenticate(t *testing.T) {
 	type testData struct {
 		test             string

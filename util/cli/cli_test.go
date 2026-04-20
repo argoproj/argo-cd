@@ -80,7 +80,7 @@ func TestSetLogFormat(t *testing.T) {
 				if errors.As(err, &e) {
 					return
 				}
-				t.Fatalf("expected fatal exit for invalid log format")
+				t.Fatal("expected fatal exit for invalid log format")
 			} else {
 				SetLogFormat(tt.logFormat)
 				assert.Equal(t, tt.expected, os.Getenv(common.EnvLogFormat))

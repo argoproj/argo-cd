@@ -11,8 +11,10 @@ permissions: {}
 
 env:
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.26.0' # Note: go-version must also be set in job argocd-image.with.go-version
-
+  GOLANG_VERSION: '1.26.2' # Note: go-version must also be set in job argocd-image.with.go-version  
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+  
 jobs:
   argocd-image:
     needs: [setup-variables]
@@ -26,7 +28,7 @@ jobs:
       quay_image_name: ${{ needs.setup-variables.outputs.quay_image_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.26.0
+      go-version: 1.26.2
       platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
       push: true
     secrets:
@@ -47,6 +49,11 @@ jobs:
       provenance_image: ${{ steps.var.outputs.provenance_image }}
       allow_fork_release: ${{ steps.var.outputs.allow_fork_release }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: audit
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -133,7 +140,7 @@ jobs:
         run: git fetch --force --tags
 
       - name: Setup Golang
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
           cache: false
@@ -159,10 +166,10 @@ jobs:
           tool-cache: false
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7.0.0
+        uses: goreleaser/goreleaser-action@e24998b8b67b290c2fa8b7c14fcfa7de2c5c9b8c # v7.1.0
         id: run-goreleaser
         with:
-          version: latest
+          version: v2.14.3
           args: release --clean --timeout 55m
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -218,8 +225,13 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          package_json_file: ui/package.json
+
       - name: Setup Golang
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
           cache: false
@@ -231,28 +243,37 @@ jobs:
           SPDX_GEN_VERSION: v0.0.13
           # defines the sigs.k8s.io/bom version to use.
           SIGS_BOM_VERSION: v0.2.1
-          # comma delimited list of project relative folders to inspect for package
-          # managers (gomod, yarn, npm).
-          PROJECT_FOLDERS: '.,./ui'
           # full qualified name of the docker image to be inspected
           DOCKER_IMAGE: ${{ needs.setup-variables.outputs.quay_image_name }}
         run: |
-          yarn install --cwd ./ui
+          set -euo pipefail
+          pnpm install --dir ./ui --frozen-lockfile
           go install github.com/spdx/spdx-sbom-generator/cmd/generator@$SPDX_GEN_VERSION
           go install sigs.k8s.io/bom/cmd/bom@$SIGS_BOM_VERSION
 
-          # Generate SPDX for project dependencies analyzing package managers
-          for folder in $(echo $PROJECT_FOLDERS | sed "s/,/ /g")
-          do
-            generator -p $folder -o /tmp
-          done
+          generator -p . -o /tmp
 
-          # Generate SPDX for binaries analyzing the docker image
-          if [[ ! -z $DOCKER_IMAGE ]]; then
-            bom generate -o /tmp/bom-docker-image.spdx -i $DOCKER_IMAGE
+          # When ui/ should use in-repo pnpm for `pnpm sbom` (11+):
+          #   1. In ui/package.json set "packageManager" to a pnpm 11+ release (e.g. pnpm@11.0.0), then from ./ui run
+          #      `pnpm install` and commit the resulting ui/pnpm-lock.yaml so release CI's pnpm/action-setup matches.
+          #   2. Delete hack/generate-ui-pnpm-sbom.sh and remove the ./hack/generate-ui-pnpm-sbom.sh line below.
+          #   3. Uncomment:
+          # pnpm --dir ./ui sbom --sbom-format spdx --prod > /tmp/bom-ui-pnpm.spdx.json
+          ./hack/generate-ui-pnpm-sbom.sh --write /tmp/bom-ui-pnpm.spdx.json
+
+          if [[ -n "${DOCKER_IMAGE:-}" ]]; then
+            bom generate -o /tmp/bom-docker-image.spdx -i "${DOCKER_IMAGE}"
           fi
 
-          cd /tmp && tar -zcf sbom.tar.gz *.spdx
+          cd /tmp
+          shopt -s nullglob
+          spdx_files=( *.spdx )
+          shopt -u nullglob
+          if [[ ${#spdx_files[@]} -eq 0 ]]; then
+            echo "No .spdx files produced under /tmp"
+            exit 1
+          fi
+          tar -zcf sbom.tar.gz "${spdx_files[@]}" bom-ui-pnpm.spdx.json
 
       - name: Generate SBOM hash
         shell: bash
@@ -264,7 +285,7 @@ jobs:
           echo "hashes=$(sha256sum /tmp/sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
 
       - name: Upload SBOM
-        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:

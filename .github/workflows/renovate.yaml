@@ -7,14 +7,38 @@ on:
 permissions:
   contents: read
 
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+  
 jobs:
   renovate:
     runs-on: ubuntu-24.04
     if: github.repository == 'argoproj/argo-cd'
     steps:
+      - name: Harden the runner (Block unknown outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@6c3c2f2c1c457b00c10c4848d6f5491db3b629df # v2.18.0
+        with:
+          egress-policy: block
+          disable-sudo-and-containers: "false" # renovatebot runs in `docker run`
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            raw.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            ghcr.io:443
+            pkg-containers.githubusercontent.com:443
+            hub.docker.com:443
+            proxy.golang.org:443
+            nodejs.org:443
+            pypi.org:443
+            get.helm.sh
+            registry.npmjs.org
+
       - name: Get token
         id: get_token
-        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3
         with:
           app-id: ${{ vars.RENOVATE_APP_ID }}
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
@@ -22,11 +46,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
 
+      # Renovate do not pin their docker image versions to SHA, so
+      # when bumping renovate action version please check if renovate image
+      # has been updated (see it's numeric version in action.yaml)
+      # and update `renovate-version` parameter accordingly
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@abd08c7549b2a864af5df4a2e369c43f035a6a9d #46.1.5
+        uses: renovatebot/github-action@83ec54fee49ab67d9cd201084c1ff325b4b462e4 #46.1.10
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'
+          renovate-image: "ghcr.io/renovatebot/renovate@sha256"
+          renovate-version: "5dfeab680f40edd2713b8fcae574824e60d2c831b8d89cc965e51621894c7084" #43
         env:
           LOG_LEVEL: 'debug'
           RENOVATE_REPOSITORIES: '${{ github.repository }}'

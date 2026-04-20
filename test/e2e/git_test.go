@@ -129,8 +129,7 @@ func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 		// Create Application targeting annotated-tag, with automatedSync: true
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source.TargetRevision = "annotated-tag"
-			prune, selfHeal := true, false
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: &prune, SelfHeal: &selfHeal}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: new(true), SelfHeal: new(false)}}
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -165,8 +164,7 @@ func TestAutomatedSelfHealingAgainstAnnotatedTag(t *testing.T) {
 		// App should be auto-synced once created
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source.TargetRevision = "annotated-tag"
-			prune, selfHeal := true, false
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: &prune, SelfHeal: &selfHeal}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: new(true), SelfHeal: new(false)}}
 		}).
 		Then().
 		ExpectConsistently(SyncStatusIs(SyncStatusCodeSynced), WaitDuration, time.Second*10).
@@ -218,8 +216,7 @@ func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
 		// App should be auto-synced once created
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source.TargetRevision = "annotated-tag"
-			prune, selfHeal := true, false
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: &prune, SelfHeal: &selfHeal}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: new(true), SelfHeal: new(false)}}
 		}).
 		Then().
 		ExpectConsistently(SyncStatusIs(SyncStatusCodeSynced), WaitDuration, time.Second*10).
