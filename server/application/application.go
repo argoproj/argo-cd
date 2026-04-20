@@ -1626,7 +1626,8 @@ func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application
 }
 
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
-	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	// Read via the client instead of the informer cache to avoid "revision history not found" errors due to stale informer cache
+	a, proj, err := s.getApplicationEnforceRBACClient(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -2049,7 +2050,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	s.inferResourcesStatusHealth(a)
 
-	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true)
+	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true, nil)
 	if err != nil {
 		return a, status.Errorf(codes.PermissionDenied, "cannot sync: invalid sync window: %v", err)
 	}
@@ -2845,7 +2846,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	}
 
 	windows := proj.Spec.SyncWindows.Matches(a)
-	sync, err := windows.CanSync(true)
+	sync, err := windows.CanSync(true, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid sync windows: %w", err)
 	}
