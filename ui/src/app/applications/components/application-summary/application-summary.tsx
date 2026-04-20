@@ -23,7 +23,7 @@ import {services} from '../../../shared/services';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import * as AppUtils from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource, appRBACName} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
@@ -538,7 +538,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         if (confirmed) {
             try {
                 setChangeSync(true);
-                const canUpdate = await services.accounts.canI('applications', 'update', AppUtils.appRBACName(app)).catch(() => false);
+                const canUpdate = await services.accounts.canI('applications', 'update', appRBACName(app)).catch(() => false);
                 if (canUpdate) {
                     const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
                     if (!updatedApp.spec.syncPolicy) {
