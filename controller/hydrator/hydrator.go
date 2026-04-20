@@ -661,7 +661,9 @@ func (h *Hydrator) RollbackApp(ctx context.Context, app *appv1.Application, hydr
 	if err != nil {
 		return fmt.Errorf("failed to commit rollback: %w", err)
 	}
-
-	h.dependencies.RequestAppRefresh(app.Name, app.Namespace)
+	// We assign the result to 'err' and check it
+	if err := h.dependencies.RequestAppRefresh(app.Name, app.Namespace); err != nil {
+		return fmt.Errorf("failed to request app refresh: %w", err)
+	}
 	return nil
 }

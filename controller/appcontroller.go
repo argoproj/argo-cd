@@ -1452,11 +1452,11 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Debug("Finished processing requested app operation")
 	}()
 
-	//added the 'ctrl.hydrator != nil' check and changed Background() to 'ctx'
+	// added the 'ctrl.hydrator != nil' check and changed Background() to 'ctx'
 	if ctrl.hydrator != nil && app.Spec.SourceHydrator != nil && app.Operation != nil && app.Operation.Sync != nil {
 		revision := app.Operation.Sync.Revision
 		err := ctrl.hydrator.RollbackApp(context.Background(), app, revision)
-                if err != nil {
+		if err != nil {
 			ctrl.setOperationState(app, &appv1.OperationState{
 				Phase:   synccommon.OperationFailed,
 				Message: err.Error(),
@@ -1465,7 +1465,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 		ctrl.setOperationState(app, &appv1.OperationState{
 			Phase:   synccommon.OperationSucceeded,
-			Message: fmt.Sprintf("rolled back to %s", revision),
+			Message: "rolled back to " + revision,
 		})
 		return
 	}
