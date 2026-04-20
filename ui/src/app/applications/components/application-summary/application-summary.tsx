@@ -538,7 +538,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         if (confirmed) {
             try {
                 setChangeSync(true);
-                const canUpdate = await services.accounts.canI('applications', 'update', `${app.spec.project}/${app.metadata.name}`).catch(() => false);
+                const canUpdate = await services.accounts.canI('applications', 'update', AppUtils.appRBACName(app)).catch(() => false);
                 if (canUpdate) {
                     const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
                     if (!updatedApp.spec.syncPolicy) {
