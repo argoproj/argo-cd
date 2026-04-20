@@ -1451,6 +1451,24 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 		logCtx.Debug("Finished processing requested app operation")
 	}()
+
+	if app.Spec.SourceHydrator != nil && app.Operation != nil && app.Operation.Sync != nil {
+		revision := app.Operation.Sync.Revision
+		err := ctrl.hydrator.RollbackApp(context.Background(), app, revision)
+		if err != nil {
+			ctrl.setOperationState(app, &appv1.OperationState{
+				Phase:   synccommon.OperationFailed,
+				Message: err.Error(),
+			})
+			return
+		}
+		ctrl.setOperationState(app, &appv1.OperationState{
+			Phase:   synccommon.OperationSucceeded,
+			Message: fmt.Sprintf("rolled back to %s", revision),
+		})
+		return
+	}
+
 	terminatingCause := ""
 	if isOperationInProgress(app) {
 		state = app.Status.OperationState.DeepCopy()

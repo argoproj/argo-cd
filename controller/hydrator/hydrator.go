@@ -581,3 +581,84 @@ func IsRootPath(path string) bool {
 	clean := filepath.Clean(path)
 	return clean == "" || clean == "." || clean == string(filepath.Separator)
 }
+
+func (h *Hydrator) RollbackApp(ctx context.Context, app *appv1.Application, hydratedRevision string) error {
+	proj, err := h.dependencies.GetProcessableAppProj(app)
+	if err != nil {
+		return fmt.Errorf("failed to get project for %s: %w", app.QualifiedName(), err)
+	}
+
+	repoURL := app.Spec.SourceHydrator.DrySource.RepoURL
+	syncBranch := app.Spec.SourceHydrator.SyncSource.TargetBranch
+	syncPath := app.Spec.SourceHydrator.SyncSource.Path
+
+	rollbackSource := appv1.ApplicationSource{
+		RepoURL:        repoURL,
+		Path:           syncPath,
+		TargetRevision: hydratedRevision,
+	}
+
+	objs, _, err := h.dependencies.GetRepoObjs(ctx, app, rollbackSource, hydratedRevision, proj)
+	if err != nil {
+		return fmt.Errorf("failed to get manifests at revision %s: %w", hydratedRevision, err)
+	}
+
+	manifestDetails := make([]*commitclient.HydratedManifestDetails, len(objs))
+	for i, obj := range objs {
+		objJSON, err := json.Marshal(obj)
+		if err != nil {
+			return fmt.Errorf("failed to marshal object: %w", err)
+		}
+		manifestDetails[i] = &commitclient.HydratedManifestDetails{ManifestJSON: string(objJSON)}
+	}
+
+	repo, err := h.dependencies.GetWriteCredentials(ctx, repoURL, proj.Name)
+	if err != nil {
+		return fmt.Errorf("failed to get write credentials: %w", err)
+	}
+	if repo == nil {
+		repo = &appv1.Repository{Repo: repoURL}
+	}
+
+	authorName, err := h.dependencies.GetCommitAuthorName()
+	if err != nil {
+		return fmt.Errorf("failed to get commit author name: %w", err)
+	}
+	authorEmail, err := h.dependencies.GetCommitAuthorEmail()
+	if err != nil {
+		return fmt.Errorf("failed to get commit author email: %w", err)
+	}
+
+	revShort := hydratedRevision
+	if len(revShort) > 7 {
+		revShort = revShort[:7]
+	}
+
+	manifestsRequest := commitclient.CommitHydratedManifestsRequest{
+		Repo:          repo,
+		SyncBranch:    syncBranch,
+		TargetBranch:  syncBranch,
+		DrySha:        hydratedRevision,
+		CommitMessage: fmt.Sprintf("rollback %s to %s", app.Name, revShort),
+		Paths: []*commitclient.PathDetails{{
+			Path:      syncPath,
+			Manifests: manifestDetails,
+		}},
+		AuthorName:  authorName,
+		AuthorEmail: authorEmail,
+	}
+
+	closer, commitService, err := h.commitClientset.NewCommitServerClient()
+	if err != nil {
+		return fmt.Errorf("failed to create commit service: %w", err)
+	}
+	defer utilio.Close(closer)
+
+	_, err = commitService.CommitHydratedManifests(ctx, &manifestsRequest)
+	if err != nil {
+		return fmt.Errorf("failed to commit rollback: %w", err)
+	}
+
+	h.dependencies.RequestAppRefresh(app.Name, app.Namespace)
+	return nil
+}
