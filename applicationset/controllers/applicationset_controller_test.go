@@ -775,7 +775,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
-						Source: &v1alpha1.ApplicationSource{
+						Source:  &v1alpha1.ApplicationSource{
 							// Directory and jsonnet block are removed
 						},
 					},
@@ -8878,12 +8878,7 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 				Scheme: scheme,
 			}
 
-			err := r.addRefreshAnnotationToApplications(
-				t.Context(),
-				log.NewEntry(log.StandardLogger()),
-				appset,
-				tt.applications,
-			)
+			err := r.addRefreshAnnotationToApplications(t.Context(), log.NewEntry(log.StandardLogger()), tt.applications)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -9111,7 +9106,7 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 			if tt.expectError {
 				assert.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.expectedReconciled, reconciled)
 			}
 		})
@@ -9294,7 +9289,7 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 				tt.desiredApplications,
 			)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.expectedSyncMap, syncMap)
 		})
 	}

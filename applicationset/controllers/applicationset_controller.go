@@ -1069,7 +1069,7 @@ func getLatestWaitingTransitionTimeOfAppset(appset *argov1alpha1.ApplicationSet)
 }
 
 // addRefreshAnnotationToApplications adds the refresh annotation to all Applications owned by the ApplicationSet
-func (r *ApplicationSetReconciler) addRefreshAnnotationToApplications(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application) error {
+func (r *ApplicationSetReconciler) addRefreshAnnotationToApplications(ctx context.Context, logCtx *log.Entry, applications []argov1alpha1.Application) error {
 	for _, app := range applications {
 		// Check if annotation already exists
 		if app.Annotations != nil && app.Annotations[argov1alpha1.AnnotationKeyRefresh] != "" {
@@ -1090,7 +1090,7 @@ func (r *ApplicationSetReconciler) addRefreshAnnotationToApplications(ctx contex
 			return fmt.Errorf("error marshaling refresh annotation patch for app %s: %w", app.Name, err)
 		}
 
-		err = r.Client.Patch(ctx, &app, client.RawPatch(types.MergePatchType, patchJSON))
+		err = r.Patch(ctx, &app, client.RawPatch(types.MergePatchType, patchJSON))
 		if err != nil {
 			return fmt.Errorf("error adding refresh annotation to app %s: %w", app.Name, err)
 		}
@@ -1177,7 +1177,7 @@ func (r *ApplicationSetReconciler) ensureApplicationsReconciled(ctx context.Cont
 		hasAnnotation := app.Annotations != nil && app.Annotations[argov1alpha1.AnnotationKeyRefresh] != ""
 		var reconciledAt string
 		if app.Status.ReconciledAt != nil {
-			reconciledAt = app.Status.ReconciledAt.Time.Format(time.RFC3339)
+			reconciledAt = app.Status.ReconciledAt.Format(time.RFC3339)
 		} else {
 			reconciledAt = "nil"
 		}
@@ -1214,7 +1214,7 @@ func (r *ApplicationSetReconciler) ensureApplicationsReconciled(ctx context.Cont
 	// add refresh annotations to trigger reconciliation
 	logCtx.Info("Applications have pending changes, adding refresh annotations to all Applications to trigger reconciliation")
 	// TODO: check if util/argo/argo.go RefreshApp can be used instead
-	err := r.addRefreshAnnotationToApplications(ctx, logCtx, *appset, applications)
+	err := r.addRefreshAnnotationToApplications(ctx, logCtx, applications)
 	if err != nil {
 		return false, fmt.Errorf("failed to add refresh annotations: %w", err)
 	}
@@ -1503,9 +1503,6 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 					newAppStatus.Message = "Application resource has synced, updating status to Progressing"
 				}
 			}
-			//TODO: add else-if condition here instead to check for earliest transition time and add refresh annotations
-			// Checking for transition time after updating applicationStatus' is not working - apps syncing out of order after waiting for apps to refresh.
-
 		} else {
 			// The target revision is the same, so we need to evaluate the current revision progress
 			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending {
