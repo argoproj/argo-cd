@@ -89,11 +89,18 @@ spec:
     applications:
       - '*-prod'
     manualSync: true
+  - kind: allow
+    schedule: '0 9 * * *'
+    duration: 8h
+    applications:
+      - '*'
+    syncOverrun: true  # Syncs started during this window can continue after window ends
   - kind: deny
     schedule: '0 22 * * *'
     duration: 1h
     namespaces:
       - default
+    syncOverrun: true  # Syncs started before this window can continue during the window
   - kind: allow
     schedule: '0 23 * * *'
     duration: 1h
