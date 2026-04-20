@@ -23,7 +23,7 @@ import {services} from '../../../shared/services';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource} from '../utils';
+import * as AppUtils from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
