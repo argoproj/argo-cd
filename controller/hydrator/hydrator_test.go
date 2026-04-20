@@ -571,7 +571,7 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded_HydrationPassedTimeout(t *te
 			},
 		},
 	}
-	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Return()
+
 	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
 	d.EXPECT().PersistHydrationStatus(app, &app.Status.SourceHydrator).Return().Once()
 

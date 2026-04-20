@@ -461,7 +461,7 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 			InstallationID:     installationID,
 		})
 		if err != nil {
-			return "", false, fmt.Errorf("failed to compare revisions: %w", err)
+			return "", false, fmt.Errorf("failed to update revision for paths: %w", err)
 		}
 
 		resolvedRevision := revision
