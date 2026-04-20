@@ -3681,7 +3681,6 @@ metadata:
     app.kubernetes.io/part-of: argocd
   name: argocd-redis-ha-server
 spec:
-  minReadySeconds: 0
   podManagementPolicy: OrderedReady
   replicas: 3
   selector:
