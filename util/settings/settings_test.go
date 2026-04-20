@@ -2602,3 +2602,34 @@ func TestIsArgoCDConfigMap(t *testing.T) {
 		})
 	}
 }
+
+func TestGetSettings_SSOAutoLogin(t *testing.T) {
+	withSecretKey := func(secret *corev1.Secret) {
+		secret.Data["server.secretkey"] = []byte("test")
+	}
+
+	t.Run("EnabledWhenTrue", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"sso.auto-login": "true",
+		}, withSecretKey)
+		s, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.True(t, s.SSOAutoLogin)
+	})
+
+	t.Run("DisabledByDefault", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{}, withSecretKey)
+		s, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.False(t, s.SSOAutoLogin)
+	})
+
+	t.Run("DisabledWhenFalse", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"sso.auto-login": "false",
+		}, withSecretKey)
+		s, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.False(t, s.SSOAutoLogin)
+	})
+}
