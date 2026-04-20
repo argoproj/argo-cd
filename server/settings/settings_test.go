@@ -114,4 +114,20 @@ func TestSettingsServer(t *testing.T) {
 		assert.NotNil(t, resp.ResourceOverrides)
 		assert.NotEmpty(t, resp.ResourceOverrides["*/*"])
 	})
+
+	t.Run("TestSSOAutoLoginEnabled", func(t *testing.T) {
+		settingsServer := newServer(map[string]string{
+			"sso.auto-login": "true",
+		})
+		resp, err := settingsServer.Get(t.Context(), nil)
+		require.NoError(t, err)
+		assert.True(t, resp.SsoAutoLogin)
+	})
+
+	t.Run("TestSSOAutoLoginDisabledByDefault", func(t *testing.T) {
+		settingsServer := newServer(map[string]string{})
+		resp, err := settingsServer.Get(t.Context(), nil)
+		require.NoError(t, err)
+		assert.False(t, resp.SsoAutoLogin)
+	})
 }

@@ -31,6 +31,16 @@ export function Login(props: RouteComponentProps<{}>) {
         })();
     }, []);
 
+    useEffect(() => {
+        if (!authSettings || hasSsoLoginError) {
+            return;
+        }
+        const ssoReady = (authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0) || authSettings.oidcConfig;
+        if (authSettings.ssoAutoLogin && ssoReady) {
+            window.location.href = `auth/login?return_url=${encodeURIComponent(returnUrl)}`;
+        }
+    }, [authSettings]);
+
     const login = async (username: string, password: string, returnURL: string) => {
         try {
             setLoginError('');

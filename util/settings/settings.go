@@ -125,6 +125,8 @@ type ArgoCDSettings struct {
 	MaxPodLogsToRender int64 `json:"maxPodLogsToRender"`
 	// ExecEnabled indicates whether the UI exec feature is enabled
 	ExecEnabled bool `json:"execEnabled"`
+	// SSOAutoLogin indicates whether users should be automatically redirected to the SSO provider on the login page
+	SSOAutoLogin bool `json:"ssoAutoLogin,omitempty"`
 	// ExecShells restricts which shells are allowed for `exec` and in which order they are tried
 	ExecShells []string `json:"execShells"`
 	// TrackingMethod defines the resource tracking method to be used
@@ -513,6 +515,8 @@ const (
 	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
 	// execEnabledKey is the key to configure whether the UI exec feature is enabled
 	execEnabledKey = "exec.enabled"
+	// ssoAutoLoginKey is the key to configure whether users are automatically redirected to SSO on the login page
+	ssoAutoLoginKey = "sso.auto-login"
 	// execShellsKey is the key to configure which shells are allowed for `exec` and in what order they are tried
 	execShellsKey = "exec.shells"
 	// oidcTLSInsecureSkipVerifyKey is the key to configure whether TLS cert verification is skipped for OIDC connections
@@ -1603,6 +1607,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 		}
 	}
 	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
+	settings.SSOAutoLogin = argoCDCM.Data[ssoAutoLoginKey] == "true"
 	execShells := argoCDCM.Data[execShellsKey]
 	if execShells != "" {
 		settings.ExecShells = strings.Split(execShells, ",")
