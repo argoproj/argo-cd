@@ -704,7 +704,8 @@ func TestGetClusterServersByName_IsInClusterEnabledLazyLoad(t *testing.T) {
 		{
 			name:        "in-cluster name calls IsInClusterEnabled()",
 			clusterName: "in-cluster",
-			wantErr:     true,
+			wantErr:     false,
+			wantServers: []string{"https://kubernetes.default.svc"},
 		},
 	}
 
