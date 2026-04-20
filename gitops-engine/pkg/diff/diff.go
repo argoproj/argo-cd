@@ -188,11 +188,13 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 
 	Normalize(predictedLive, opts...)
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")
+	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "resourceVersion")
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
 
 	Normalize(live, opts...)
 	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
   	unstructured.RemoveNestedField(live.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+	unstructured.RemoveNestedField(live.Object, "metadata", "resourceVersion")
 
 	if isCoreSecret(config) {
 		// Mask Secret data symmetrically before comparison.
