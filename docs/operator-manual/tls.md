@@ -76,11 +76,19 @@ Argo CD decides which TLS certificate to use for the endpoint of
   `tls.crt` and `tls.key` keys, this will be used for the certificate of the
   endpoint of `argocd-server`.
 * Otherwise, if the `argocd-secret` secret contains a valid key pair in the
- `tls.crt` and `tls.key` keys, this will be used as the certificate for the
-  endpoint of `argocd-server`.
-* If no `tls.crt` and `tls.key` keys are found in neither of the two mentioned
+  `tls.crt` and `tls.key` keys, this will be used as the certificate for the
+  endpoint of `argocd-server`. This fallback is deprecated — see warning below.
+* If no `tls.crt` and `tls.key` keys are found in either of the two mentioned
   secrets, Argo CD will generate a self-signed certificate and persist it in
-  the `argocd-secret` secret.
+  the `argocd-server-tls` secret, stamping it with the annotation
+  `argocd.argoproj.io/self-signed: "true"`. This auto-generated certificate
+  will be automatically renewed when it expires.
+
+> [!WARNING]
+> Storing TLS certificates in `argocd-secret` is deprecated since Argo CD v2.1
+> and will be removed in a future major version. Please move `tls.crt` and
+> `tls.key` to the `argocd-server-tls` secret. Argo CD will log a warning on
+> startup if it detects TLS data in `argocd-secret`.
 
 The `argocd-server-tls` secret contains only information for TLS configuration
 to be used by `argocd-server` and is safe to be managed via third-party tools
