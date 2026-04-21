@@ -1004,6 +1004,11 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 	if err == nil {
 		// The cache contains an existing value
 
+		if q.SourceIntegrity != nil || (res.ManifestResponse != nil && res.ManifestResponse.SourceIntegrityResult != nil) {
+			log.Infof("manifest cache need to regenerate due to source integrity checks: %s/%s", q.Repo.Repo, q.Revision)
+			return false, nil, nil
+		}
+
 		// If caching of manifest generation errors is enabled, and res is a cached manifest generation error...
 		if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 && res.FirstFailureTimestamp > 0 {
 			// If we are already in the 'manifest generation caching' state, due to too many consecutive failures...
