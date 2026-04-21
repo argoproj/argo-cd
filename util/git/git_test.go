@@ -102,6 +102,20 @@ func TestIsSSHURLUserName(t *testing.T) {
 	assert.Equal(t, "john@doe.org", user)
 }
 
+func TestSSHHostWithPort(t *testing.T) {
+	data := map[string]string{
+		"git@github.com:argoproj/test.git":            "github.com:22",
+		"ssh://git@github.com/argoproj/test.git":      "github.com:22",
+		"ssh://git@github.com:2222/argoproj/test.git": "github.com:2222",
+		"ssh://john@john-server.org:29418/project":    "john-server.org:29418",
+		"https://github.com/argoproj/test":            "github.com:22",
+		"":                                            "",
+	}
+	for repoURL, want := range data {
+		assert.Equal(t, want, SSHHostWithPort(repoURL), "input: %q", repoURL)
+	}
+}
+
 func TestSameURL(t *testing.T) {
 	data := map[string]string{
 		"git@GITHUB.com:argoproj/test":                     "git@github.com:argoproj/test.git",

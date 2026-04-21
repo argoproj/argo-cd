@@ -37,9 +37,13 @@ var SupportedFIPSCompliantSSHKeyExchangeAlgorithms = []string{
 // some client options.
 type PublicKeysWithOptions struct {
 	KexAlgorithms []string
-	// HostKeyAlgorithms specifies the host key algorithms to advertise to the
-	// server. This must be set when using a custom HostKeyCallback with go-git
-	// 5.16.0+ to avoid SSH handshake failures.
+	// HostKeyAlgorithms restricts the host key algorithms advertised during
+	// the SSH handshake to those known for the target host. go-git v5.16+
+	// only auto-configures this when the user's AuthMethod does not set a
+	// HostKeyCallback; since we always set one, we must populate this
+	// ourselves or the handshake can fail with "knownhosts: key mismatch"
+	// when the server offers a key of a type that isn't in known_hosts.
+	// See go-git/go-git#1551.
 	HostKeyAlgorithms []string
 	gitssh.PublicKeys
 }
@@ -65,14 +69,9 @@ func (a *PublicKeysWithOptions) ClientConfig() (*ssh.ClientConfig, error) {
 	}
 	config := ssh.Config{KeyExchanges: kexAlgos}
 	opts := &ssh.ClientConfig{Config: config, User: a.User, Auth: []ssh.AuthMethod{ssh.PublicKeys(a.Signer)}}
-
-	// Set HostKeyAlgorithms to match the algorithms in known_hosts.
-	// This is required for go-git 5.16.0+ which doesn't auto-configure
-	// HostKeyAlgorithms when a custom HostKeyCallback is set.
 	if len(a.HostKeyAlgorithms) > 0 {
 		opts.HostKeyAlgorithms = a.HostKeyAlgorithms
 	}
-
 	return a.SetHostKeyCallback(opts)
 }
 

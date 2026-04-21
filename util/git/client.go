@@ -32,8 +32,8 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+	skeemaknownhosts "github.com/skeema/knownhosts"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/knownhosts"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
 
@@ -371,18 +371,19 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 			auth.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 		} else {
 			// Set up validation of SSH known hosts for using our ssh_known_hosts
-			// file.
-			knownHostsPath := certutil.GetSSHKnownHostsDataPath()
-			auth.HostKeyCallback, err = knownhosts.New(knownHostsPath)
-			if err != nil {
-				log.Errorf("Could not set-up SSH known hosts callback: %v", err)
-			}
-			// Extract host key algorithms from known_hosts to configure the SSH
-			// client. This is required for go-git 5.16.0+ which doesn't autoconfigure
-			// HostKeyAlgorithms when a custom HostKeyCallback is set.
-			auth.HostKeyAlgorithms, err = certutil.GetHostKeyAlgorithmsFromPath(knownHostsPath)
-			if err != nil {
-				log.Warnf("Could not extract host key algorithms from known hosts: %v", err)
+			// file. Use skeema/knownhosts (a superset of x/crypto/ssh/knownhosts)
+			// so we can also derive the HostKeyAlgorithms for the target host.
+			// Populating HostKeyAlgorithms is required to avoid "knownhosts: key
+			// mismatch" handshake failures with go-git v5.16+ (see
+			// go-git/go-git#1551).
+			db, dbErr := skeemaknownhosts.NewDB(certutil.GetSSHKnownHostsDataPath())
+			if dbErr != nil {
+				log.Errorf("Could not set-up SSH known hosts callback: %v", dbErr)
+			} else {
+				auth.HostKeyCallback = db.HostKeyCallback()
+				if hostWithPort := SSHHostWithPort(repoURL); hostWithPort != "" {
+					auth.HostKeyAlgorithms = db.HostKeyAlgorithms(hostWithPort)
+				}
 			}
 		}
 		return auth, nil
