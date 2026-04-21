@@ -1045,7 +1045,7 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 }
 
 // getLatestWaitingTransitionTimeOfAppset extracts the latest (most recent) LastTransitionTime from
-// ApplicationSet status for Applications in Waiting state that have had a pending changes (not new apps).
+// ApplicationSet status for Applications in Waiting state that have pending changes (not new apps).
 // Returns nil if no such Waiting applications are found.
 // Using the latest time anchors the reconcile window so all apps must reconcile after the last
 // detected change, not after the first (which can let apps through that reconciled before they
