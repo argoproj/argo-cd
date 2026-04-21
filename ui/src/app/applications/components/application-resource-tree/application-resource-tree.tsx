@@ -76,6 +76,7 @@ export interface ApplicationResourceTreeProps {
     nameWrap: boolean;
     setNodeExpansion: (node: string, isExpanded: boolean) => any;
     getNodeExpansion: (node: string) => boolean;
+    orphanedAppNames?: Set<string>;
 }
 
 interface Line {
@@ -821,6 +822,13 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                     {healthState != null && <HealthStatusIcon state={healthState} />}
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
+                    {appNode && !rootNode && props.orphanedAppNames?.has(node.name) && (
+                        <i
+                            className='fa fa-exclamation-triangle'
+                            title='Orphaned by ApplicationSet — no longer generated, kept by create-only policy'
+                            style={{color: '#f4c030', marginRight: '2px'}}
+                        />
+                    )}
                     {appNode && !rootNode && (
                         <Consumer>
                             {ctx => {

@@ -115,6 +115,15 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
         ...getExtensionsState()
     }));
 
+    const [orphanedAppNames, setOrphanedAppNames] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        services.applications
+            .list([], 'application', {fields: ['items.metadata.name'], selector: 'argocd.argoproj.io/orphaned-by-applicationset'})
+            .then(apps => setOrphanedAppNames(new Set(apps.items.map(a => a.metadata.name))))
+            .catch(() => {/* non-critical, ignore */});
+    }, []);
+
     const getAppNamespace = useCallback(() => {
         if (typeof props.match.params.appnamespace === 'undefined') {
             return '';
@@ -734,6 +743,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                     showCompactNodes: pref.groupNodes,
                                     userMsgs: pref.userHelpTipMsgs,
                                     tree,
+                                    orphanedAppNames,
                                     onClearFilter: clearFilter,
                                     onGroupdNodeClick: (nodeIds: string[]) => openGroupNodeDetails(nodeIds),
                                     zoom: pref.zoom,

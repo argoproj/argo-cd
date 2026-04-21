@@ -377,6 +377,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to get current applications for application set: %w", err)
 	}
+
+	if err := r.setOrphanedLabels(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications); err != nil {
+		logCtx.WithError(err).Error("failed to update orphaned application labels")
+	}
+
 	err = r.updateResourcesStatus(ctx, logCtx, &applicationSetInfo, currentApplications)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to update resources status for application set: %w", err)
@@ -858,6 +863,43 @@ func (r *ApplicationSetReconciler) getCurrentApplications(ctx context.Context, a
 	}
 
 	return current.Items, nil
+}
+
+// setOrphanedLabels adds the orphaned-by-applicationset label to Applications that exist in the
+// cluster but are no longer produced by the generator (and therefore kept only by a create-only
+// policy). It also removes the label from Applications that have come back into the desired set.
+func (r *ApplicationSetReconciler) setOrphanedLabels(ctx context.Context, logCtx *log.Entry, appSet argov1alpha1.ApplicationSet, current []argov1alpha1.Application, desired []argov1alpha1.Application) error {
+	desiredMap := make(map[string]bool, len(desired))
+	for _, app := range desired {
+		desiredMap[app.Name] = true
+	}
+
+	for i := range current {
+		app := &current[i]
+		isOrphaned := !desiredMap[app.Name]
+		_, hasLabel := app.Labels[common.LabelKeyOrphanedByApplicationSet]
+
+		if isOrphaned == hasLabel {
+			continue
+		}
+
+		updated := app.DeepCopy()
+		if isOrphaned {
+			if updated.Labels == nil {
+				updated.Labels = map[string]string{}
+			}
+			updated.Labels[common.LabelKeyOrphanedByApplicationSet] = appSet.Name
+			logCtx.Infof("Marking application %q as orphaned by ApplicationSet %q", app.Name, appSet.Name)
+		} else {
+			delete(updated.Labels, common.LabelKeyOrphanedByApplicationSet)
+			logCtx.Infof("Removing orphan label from application %q", app.Name)
+		}
+
+		if err := r.Patch(ctx, updated, client.MergeFrom(app)); err != nil {
+			return fmt.Errorf("failed to patch orphan label on application %q: %w", app.Name, err)
+		}
+	}
+	return nil
 }
 
 // deleteInCluster will delete Applications that are currently on the cluster, but not in appList.
