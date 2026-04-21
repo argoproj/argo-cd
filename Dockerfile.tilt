@@ -1,4 +1,4 @@
-FROM docker.io/library/golang:1.26.0@sha256:fb612b7831d53a89cbc0aaa7855b69ad7b0caf603715860cf538df854d047b84
+FROM docker.io/library/golang:1.26.2@sha256:5f3787b7f902c07c7ec4f3aa91a301a3eda8133aa32661a3b3a3a86ab3a68a36
 
 ENV DEBIAN_FRONTEND=noninteractive
 
