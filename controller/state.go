@@ -245,15 +245,6 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			return nil, nil, false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 		}
 
-		syncedRevision := app.Status.Sync.Revision
-		if app.Spec.HasMultipleSources() {
-			if i < len(app.Status.Sync.Revisions) {
-				syncedRevision = app.Status.Sync.Revisions[i]
-			} else {
-				syncedRevision = ""
-			}
-		}
-
 		revision := revisions[i]
 
 		appNamespace := app.Spec.Destination.Namespace
