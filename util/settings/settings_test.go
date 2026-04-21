@@ -2352,7 +2352,6 @@ func TestSettingsManager_GetAllowedNodeLabels(t *testing.T) {
 }
 
 func TestUserInfoGroupsClaim(t *testing.T) {
-
 	t.Run("should return default 'groups' when config is empty", func(t *testing.T) {
 		settings := &ArgoCDSettings{
 			OIDCConfigRAW: "",
