@@ -424,7 +424,7 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 	if err != nil {
 		return nil, err
 	}
-	idc := diff.NewIgnoreDiffConfig(cr.diffConfig.Ignores(), cr.diffConfig.Overrides())
+	idc := diff.NewIgnoreDiffConfig(cr.diffConfig.Ignores(), filterOverridesForTargetNormalization(cr.diffConfig.Overrides()))
 	patchedTargets := []*unstructured.Unstructured{}
 	for idx, live := range cr.reconciliationResult.Live {
 		normalizedTarget := normalized.Targets[idx]
@@ -475,6 +475,29 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 		patchedTargets = append(patchedTargets, normalizedTarget)
 	}
 	return patchedTargets, nil
+}
+
+// filterOverridesForTargetNormalization removes /status from override ignore
+// differences because status fields are irrelevant to target normalization.
+// Status is managed by controllers, not present in desired state from git,
+// and stripped by the API server on apply. Without this filter, the default
+// */* /status override causes HasIgnoreDifference to match every resource,
+// defeating the per-resource skip logic.
+func filterOverridesForTargetNormalization(overrides map[string]v1alpha1.ResourceOverride) map[string]v1alpha1.ResourceOverride {
+	filtered := make(map[string]v1alpha1.ResourceOverride, len(overrides))
+	for key, override := range overrides {
+		var pointers []string
+		for _, p := range override.IgnoreDifferences.JSONPointers {
+			if p != "/status" {
+				pointers = append(pointers, p)
+			}
+		}
+		if len(pointers) > 0 || len(override.IgnoreDifferences.JQPathExpressions) > 0 || len(override.IgnoreDifferences.ManagedFieldsManagers) > 0 {
+			override.IgnoreDifferences.JSONPointers = pointers
+			filtered[key] = override
+		}
+	}
+	return filtered
 }
 
 // getMergePatch calculates and returns the patch between the original and the

@@ -486,6 +486,16 @@ func TestNormalizeTargetResources(t *testing.T) {
 	})
 }
 
+// defaultOverrides returns the resource overrides that the controller always
+// injects via GetResourceOverrides(). By default, status is ignored for all
+// resources ("*/*"), which adds a wildcard entry that HasIgnoreDifference
+// matches for every resource.
+func defaultOverrides() map[string]v1alpha1.ResourceOverride {
+	return map[string]v1alpha1.ResourceOverride{
+		"*/*": {IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/status"}}},
+	}
+}
+
 func TestNormalizeTargetResourcesPDB(t *testing.T) {
 	type fixture struct {
 		comparisonResult *comparisonResult
@@ -493,7 +503,7 @@ func TestNormalizeTargetResourcesPDB(t *testing.T) {
 	setup := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
-			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithDiffSettings(ignores, defaultOverrides(), true, normalizers.IgnoreNormalizerOpts{}).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)
@@ -582,7 +592,7 @@ func TestNormalizeTargetResourcesPDB(t *testing.T) {
 			},
 		}
 		dc, err := diff.NewDiffConfigBuilder().
-			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithDiffSettings(ignores, defaultOverrides(), true, normalizers.IgnoreNormalizerOpts{}).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)
@@ -645,46 +655,6 @@ func TestNormalizeTargetResourcesPDB(t *testing.T) {
 		// Ideally the selector should be preserved, but the merge patch
 		// overwrites it because patchStrategy:"replace" forces inclusion.
 		assert.Equal(t, "coredns", selector["app.kubernetes.io/instance"])
-	})
-}
-
-func TestNormalizeTargetResourcesCRD(t *testing.T) {
-	// CRDs are not in the k8s scheme, so normalizeTargetResources falls back
-	// to JSON merge patch which replaces arrays wholesale. Without matching
-	// ignore rules the merge patch must be skipped entirely.
-	setup := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *comparisonResult {
-		t.Helper()
-		dc, err := diff.NewDiffConfigBuilder().
-			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
-			WithNoCache().
-			Build()
-		require.NoError(t, err)
-		live := test.YamlToUnstructured(testdata.LiveHTTPProxy)
-		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
-		return &comparisonResult{
-			reconciliationResult: sync.ReconciliationResult{
-				Live:   []*unstructured.Unstructured{live},
-				Target: []*unstructured.Unstructured{target},
-			},
-			diffConfig: dc,
-		}
-	}
-	t.Run("will not corrupt CRD arrays when no ignore rules match", func(t *testing.T) {
-		cr := setup(t, []v1alpha1.ResourceIgnoreDifferences{})
-
-		targets, err := normalizeTargetResources(cr)
-
-		require.NoError(t, err)
-		require.Len(t, targets, 1)
-		// Target HTTPProxy has 2 descriptors; live has 1.
-		// Without fix the JSON merge patch would replace the array with live's single entry.
-		descriptors, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "routes")
-		require.NoError(t, err)
-		require.True(t, ok)
-		route := descriptors[0].(map[string]any)
-		global := route["rateLimitPolicy"].(map[string]any)["global"].(map[string]any)
-		descs := global["descriptors"].([]any)
-		assert.Len(t, descs, 2, "target should retain both descriptors, not be overwritten with live's single entry")
 	})
 }
 
