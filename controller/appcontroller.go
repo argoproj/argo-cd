@@ -2620,7 +2620,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						ctrl.clusterSharding.UpdateApp(newApp)
 
 						if ctrl.applicationComparisonExpired(newApp) {
-							ctrl.requestAppRefresh(newApp.QualifiedName(), nil, nil)
+							ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
 						}
 						return
 					}

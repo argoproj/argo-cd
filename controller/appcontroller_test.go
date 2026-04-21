@@ -2001,6 +2001,7 @@ func clearTestRefreshSignals(ctrl *ApplicationController) {
 		if shutdown {
 			break
 		}
+		ctrl.appRefreshQueue.Forget(item)
 		ctrl.appRefreshQueue.Done(item)
 	}
 }
