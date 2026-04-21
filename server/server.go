@@ -1480,9 +1480,37 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 				}
 				w.Header().Set("Cache-Control", cacheControl)
 			}
-			http.FileServer(server.staticAssets).ServeHTTP(w, r)
+			// 404 requests that resolve to a directory so http.FileServer
+			// does not render the auto-generated index page (which exposed
+			// /assets/, /assets/fonts/, etc. as a directory listing; #27375).
+			http.FileServer(noListingFileSystem{server.staticAssets}).ServeHTTP(w, r)
 		}
 	}
+}
+
+// noListingFileSystem wraps an http.FileSystem so directories served by
+// http.FileServer return 404 rather than an auto-generated listing.
+// Regular files are served unchanged; files whose Stat reports IsDir()
+// return the same error http.FileServer would get for a missing file.
+type noListingFileSystem struct {
+	fs http.FileSystem
+}
+
+func (n noListingFileSystem) Open(name string) (http.File, error) {
+	f, err := n.fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	info, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	if info.IsDir() {
+		_ = f.Close()
+		return nil, os.ErrNotExist
+	}
+	return f, nil
 }
 
 var mainJsBundleRegex = regexp.MustCompile(`^main\.[0-9a-f]{20}\.js$`)
