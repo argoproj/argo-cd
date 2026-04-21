@@ -14,14 +14,20 @@ engine: copilot # AI engine to use
 tools:
   github:
     toolsets: [default] # GitHub API access
+    github-app:
+      app-id: ${{ secrets.PR_TRIAGE_GH_APP_ID }}
+      private-key: ${{ secrets.PR_TRIAGE_GH_APP_PRIVATE_KEY }}
 
 network: defaults
 
 safe-outputs:
+  github-app:
+    app-id: ${{ secrets.PR_TRIAGE_GH_APP_ID }}
+    private-key: ${{ secrets.PR_TRIAGE_GH_APP_PRIVATE_KEY }}
   update-project:
-    project: https://github.com/orgs/argoproj/projects/38
+    project: https://github.com/users/agaudreault/projects/1
     max: 50 # Update up to 50 PRs in the project
-    target-repo: 'argoproj/argo-cd'
+    target-repo: 'agaudreault/argo-cd'
     views:
       - name: 'By Priority Score'
         layout: table
