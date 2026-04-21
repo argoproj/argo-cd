@@ -54,91 +54,93 @@ gh aw run pr-triage
 
 ### Prerequisites
 
-1. **GitHub Project**: Create a new project for PR triage
-2. **Permissions**: Workflow needs `contents: read`, `pull-requests: read`, and ability to update the project
-3. **AI Engine**: GitHub Copilot access or API key for Claude/GPT
+1. **GitHub Project** with custom fields for PR triage
+2. **GitHub Copilot license** or alternative AI engine (Claude/OpenAI)
+3. **GitHub App** for organization-level authentication
 
 ### Step 1: Create GitHub Project
 
 1. Navigate to https://github.com/orgs/argoproj/projects
-2. Click "New project"
-3. Name it "PR Priority Triage"
-4. Add custom fields:
+2. Click "New project" and name it "PR Priority Triage"
+3. Add custom fields:
    - **Priority Score** (Number)
    - **Priority Tier** (Single Select: Critical, High, Medium)
-   - **Category** (Text) - will be populated dynamically
+   - **Category** (Text)
    - **Days Open** (Number)
    - **Key Factors** (Text)
-5. Create views:
-   - **By Priority**: Sort by Priority Score descending
-   - **By Tier**: Group by Priority Tier
-   - **By Category**: Group by Category field
-6. Note the project number from the URL (e.g., `/projects/123`)
+4. Note the project number from the URL (e.g., `/projects/38`)
+5. Update `.github/workflows/pr-triage.md` with your project number:
+   ```yaml
+   safe-outputs:
+     update-project:
+       project: https://github.com/orgs/argoproj/projects/38
+   ```
 
-### Step 2: Update Workflow Configuration
+### Step 2: Configure Required Secrets
 
-Edit `.github/workflows/pr-triage.md` and replace:
+The workflow requires two types of authentication secrets:
 
-```markdown
-project: https://github.com/orgs/argoproj/projects/38
-```
+#### AI Engine Secret
 
-With your actual project number:
-
-```markdown
-project: https://github.com/orgs/argoproj/projects/123
-```
-
-### Step 3: Configure Secrets
-
-Add a GitHub Actions secret for the AI engine:
-
-**For GitHub Copilot** (current):
+**For GitHub Copilot** (current configuration):
 
 ```bash
-# No additional secret needed if using GitHub-hosted runners
-# Copilot uses the workflow's GITHUB_TOKEN automatically
+# Create fine-grained PAT at: https://github.com/settings/personal-access-tokens/new
+# Required permission: Account permissions → Copilot Requests: Read
+# Resource owner: Personal account (NOT organization)
+
+gh secret set COPILOT_GITHUB_TOKEN --body "YOUR_TOKEN" --repo argoproj/argo-cd
 ```
 
-**For Claude**:
+**Important for production**: The Copilot token must be from a personal account. For argoproj deployment, consider:
+
+- **Option A**: Create a service/bot account with Copilot license
+- **Option B**: Switch to Claude (`ANTHROPIC_API_KEY`) or OpenAI (`OPENAI_API_KEY`) with org-managed API keys
+
+**Alternative AI Engines:**
 
 ```bash
-gh secret set ANTHROPIC_API_KEY --body "sk-ant-..."
+# For Claude (update workflow: engine: claude)
+gh secret set ANTHROPIC_API_KEY --body "sk-ant-..." --repo argoproj/argo-cd
+
+# For OpenAI (update workflow: engine: codex)
+gh secret set OPENAI_API_KEY --body "sk-..." --repo argoproj/argo-cd
 ```
 
-**For OpenAI**:
+#### GitHub App Secrets (Project Write Access)
+
+A GitHub App provides organization-level authentication for updating the project board.
+
+**GitHub App Configuration:**
+
+- **Name**: PR Triage Workflow
+- **Repository Permissions**:
+  - Contents: Read-only
+  - Pull requests: Read-only
+- **Organization Permissions**:
+  - Projects: Read and write
+
+**Required Secrets:**
 
 ```bash
-gh secret set OPENAI_API_KEY --body "sk-..."
+# App ID from GitHub App settings
+gh secret set PR_TRIAGE_GH_APP_ID --body "APP_ID" --repo argoproj/argo-cd
+
+# Private key (.pem file contents)
+gh secret set PR_TRIAGE_GH_APP_PRIVATE_KEY --body "$(cat key.pem)" --repo argoproj/argo-cd
 ```
 
-If using Claude or OpenAI, update the `engine:` field in the workflow:
-
-```markdown
-engine: claude # or codex for OpenAI
-```
-
-### Step 4: Compile Workflow
+### Step 3: Compile and Test
 
 ```bash
-gh aw compile
-```
+# Compile workflow
+gh aw compile .github/workflows/pr-triage.md
 
-This generates `.github/workflows/pr-triage.lock.yml` - the actual GitHub Actions workflow.
-
-### Step 5: Test Run (Manual)
-
-Test the workflow manually before the first scheduled run:
-
-```bash
+# Test run
 gh aw run pr-triage
+
+# Or via GitHub UI: Actions → PR Triage → Run workflow
 ```
-
-Or via GitHub UI:
-
-1. Go to Actions → PR Triage workflow
-2. Click "Run workflow"
-3. Monitor the execution
 
 ## Maintenance
 
