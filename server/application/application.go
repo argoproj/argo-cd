@@ -2271,6 +2271,12 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 				Revision: deploymentInfo.Revision,
 			},
 			InitiatedBy: v1alpha1.OperationInitiator{Username: session.Username(ctx)},
+			Info: []*v1alpha1.Info{
+				{
+					Name:  "IsRollback",
+					Value: "true",
+				},
+			},
 		}
 		appName := rollbackReq.GetName()
 		appNs := s.appNamespaceOrDefault(rollbackReq.GetAppNamespace())

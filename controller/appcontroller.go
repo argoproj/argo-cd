@@ -1454,20 +1454,39 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 
 	// added the 'ctrl.hydrator != nil' check and changed Background() to 'ctx'
 	if ctrl.hydrator != nil && app.Spec.SourceHydrator != nil && app.Operation != nil && app.Operation.Sync != nil {
-		revision := app.Operation.Sync.Revision
-		err := ctrl.hydrator.RollbackApp(context.Background(), app, revision)
-		if err != nil {
+		var isRollback bool
+		for _, info := range app.Operation.Info {
+			if info.Name == "IsRollback" && info.Value == "true" {
+				isRollback = true
+				break
+			}
+		}
+
+		if isRollback {
+			revision := app.Operation.Sync.Revision
+
+			if revision == "" {
+				ctrl.setOperationState(app, &appv1.OperationState{
+					Phase:   synccommon.OperationFailed,
+					Message: "rollback revision cannot be empty",
+				})
+				return
+			}
+
+			err := ctrl.hydrator.RollbackApp(context.Background(), app, revision)
+			if err != nil {
+				ctrl.setOperationState(app, &appv1.OperationState{
+					Phase:   synccommon.OperationFailed,
+					Message: err.Error(),
+				})
+				return
+			}
 			ctrl.setOperationState(app, &appv1.OperationState{
-				Phase:   synccommon.OperationFailed,
-				Message: err.Error(),
+				Phase:   synccommon.OperationSucceeded,
+				Message: "rolled back to " + revision,
 			})
 			return
 		}
-		ctrl.setOperationState(app, &appv1.OperationState{
-			Phase:   synccommon.OperationSucceeded,
-			Message: "rolled back to " + revision,
-		})
-		return
 	}
 
 	terminatingCause := ""

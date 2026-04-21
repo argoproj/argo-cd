@@ -1134,3 +1134,14 @@ func TestHydrator_hydrate_DeDupe_Success(t *testing.T) {
 	assert.Equal(t, "hydrated123", hydratedSha)
 	assert.Empty(t, errs)
 }
+
+func TestRollbackApp_EmptyRevision(t *testing.T) {
+	h := &Hydrator{}
+	app := &v1alpha1.Application{}
+
+	err := h.RollbackApp(context.Background(), app, "")
+
+	if err == nil {
+		t.Error("expected error for empty revision, got nil")
+	}
+}
