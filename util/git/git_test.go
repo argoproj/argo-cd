@@ -108,7 +108,7 @@ func TestSSHHostWithPort(t *testing.T) {
 		"ssh://git@github.com/argoproj/test.git":      "github.com:22",
 		"ssh://git@github.com:2222/argoproj/test.git": "github.com:2222",
 		"ssh://john@john-server.org:29418/project":    "john-server.org:29418",
-		"https://github.com/argoproj/test":            "github.com:22",
+		"https://github.com/argoproj/test":            "",
 		"":                                            "",
 	}
 	for repoURL, want := range data {

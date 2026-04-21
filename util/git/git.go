@@ -90,9 +90,12 @@ func IsSSHURL(url string) (bool, string) {
 
 // SSHHostWithPort returns host:port for the given SSH repo URL in the format
 // expected by known_hosts lookups (net.JoinHostPort). Returns an empty string
-// if the URL cannot be parsed or does not specify an SSH host. Port defaults
-// to 22 when not present.
+// for non-SSH URLs, URLs that cannot be parsed, or URLs without a host. Port
+// defaults to 22 when not present.
 func SSHHostWithPort(repoURL string) string {
+	if isSSH, _ := IsSSHURL(repoURL); !isSSH {
+		return ""
+	}
 	ep, err := transport.NewEndpoint(repoURL)
 	if err != nil || ep.Host == "" {
 		return ""
