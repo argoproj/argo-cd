@@ -1045,7 +1045,7 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 }
 
 // getLatestWaitingTransitionTimeOfAppset extracts the latest (most recent) LastTransitionTime from
-// ApplicationSet status for Applications in Waiting state that have had a revision change (not new apps).
+// ApplicationSet status for Applications in Waiting state that have had a pending changes (not new apps).
 // Returns nil if no such Waiting applications are found.
 // Using the latest time anchors the reconcile window so all apps must reconcile after the last
 // detected change, not after the first (which can let apps through that reconciled before they
@@ -1094,7 +1094,7 @@ func (r *ApplicationSetReconciler) addRefreshAnnotationToApplications(ctx contex
 		if err != nil {
 			return fmt.Errorf("error adding refresh annotation to app %s: %w", app.Name, err)
 		}
-		logCtx.WithField("app", app.Name).Info("Added refresh annotation to Application")
+		logCtx.WithField("app", app.Name).Debug("Added refresh annotation to Application")
 	}
 	return nil
 }
@@ -1106,8 +1106,8 @@ func checkAllApplicationsReconciled(applications []argov1alpha1.Application, log
 		return true
 	}
 	statusMap := make(map[string]argov1alpha1.ApplicationSetApplicationStatus)
-	for _, st := range appSetAppStatus {
-		statusMap[st.Application] = st
+	for _, appStatus := range appSetAppStatus {
+		statusMap[appStatus.Application] = appStatus
 	}
 
 	for _, app := range applications {
@@ -1171,24 +1171,6 @@ func (r *ApplicationSetReconciler) ensureApplicationsReconciled(ctx context.Cont
 	}
 
 	logCtx.WithField("latest_waiting_time", latestWaitingTime.Time).Info("Applications have pending revision changes, checking if reconciliation needed")
-
-	// TODO: remove - Logs current state of all applications
-	for _, app := range applications {
-		hasAnnotation := app.Annotations != nil && app.Annotations[argov1alpha1.AnnotationKeyRefresh] != ""
-		var reconciledAt string
-		if app.Status.ReconciledAt != nil {
-			reconciledAt = app.Status.ReconciledAt.Format(time.RFC3339)
-		} else {
-			reconciledAt = "nil"
-		}
-		logCtx.WithFields(log.Fields{
-			"app":          app.Name,
-			"hasRefresh":   hasAnnotation,
-			"reconciledAt": reconciledAt,
-			"health":       app.Status.Health.Status,
-			"sync":         app.Status.Sync.Status,
-		}).Debug("Application state before reconciliation check")
-	}
 
 	// Check if all applications have been reconciled since the latestWaitingTime
 	allReconciled := checkAllApplicationsReconciled(applications, logCtx, appset, latestWaitingTime, appSetAppStatus)

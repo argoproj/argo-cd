@@ -775,7 +775,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
-						Source: &v1alpha1.ApplicationSource{
+						Source:  &v1alpha1.ApplicationSource{
 							// Directory and jsonnet block are removed
 						},
 					},
@@ -8960,7 +8960,7 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 			},
 		},
 		{
-			name: "applications in waiting but all reconciled returns true",
+			name: "any applications in waiting, and has refresh annotation, allReconciled returns false",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-appset",
