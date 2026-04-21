@@ -274,12 +274,8 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			if len(labelsMap) > 0 || len(annotationsMap) > 0 {
 				existing, err := clusterIf.Get(ctx, getQueryBySelector(clusterName))
 				errors.CheckError(err)
-				if labelsMap != nil {
-					mergedLabels = labelsMap.Merge(existing.Labels)
-				}
-				if annotationsMap != nil {
-					mergedAnnotations = annotationsMap.Merge(existing.Annotations)
-				}
+				mergedLabels = labelsMap.Merge(existing.Labels)
+				mergedAnnotations = annotationsMap.Merge(existing.Annotations)
 			}
 			if updatedFields != nil {
 				clusterUpdateRequest := clusterpkg.ClusterUpdateRequest{
