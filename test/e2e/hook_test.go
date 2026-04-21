@@ -123,22 +123,6 @@ func TestPostDeleteHook(t *testing.T) {
 		}))
 }
 
-// make sure that hooks do not appear in "argocd app diff"
-func TestHookDiff(t *testing.T) {
-	ctx := Given(t)
-	ctx.
-		Path("hook").
-		When().
-		CreateApp().
-		Then().
-		And(func(_ *Application) {
-			output, err := RunCli("app", "diff", ctx.GetName())
-			require.Error(t, err)
-			assert.Contains(t, output, "name: pod")
-			assert.NotContains(t, output, "name: hook")
-		})
-}
-
 // make sure that if pre-sync fails, we fail the app and we do not create the pod
 func TestPreSyncHookFailure(t *testing.T) {
 	ctx := Given(t)

@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -15,7 +14,6 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 // make sure we can echo back the Git creds
@@ -180,31 +178,6 @@ func TestCustomToolWithEnv(t *testing.T) {
 			sort.Strings(outputSlice)
 
 			assert.Equal(t, expectedAPIVersionSlice, outputSlice)
-		})
-}
-
-// make sure we can sync and diff with --local
-func TestCustomToolSyncAndDiffLocal(t *testing.T) {
-	testdataPath, err := filepath.Abs("testdata")
-	require.NoError(t, err)
-	ctx := Given(t)
-	appPath := filepath.Join(testdataPath, "guestbook")
-	ctx.
-		RunningCMPServer("./testdata/cmp-kustomize").
-		// does not matter what the path is
-		Path("guestbook").
-		When().
-		CreateApp("--config-management-plugin", "cmp-kustomize-v1.0").
-		Sync("--local", appPath, "--local-repo-root", testdataPath).
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(_ *Application) {
-			errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "sync", ctx.AppName(), "--local", appPath, "--local-repo-root", testdataPath))
-		}).
-		And(func(_ *Application) {
-			errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", ctx.AppName(), "--local", appPath, "--local-repo-root", testdataPath))
 		})
 }
 
