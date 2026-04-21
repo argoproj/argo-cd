@@ -1076,6 +1076,7 @@ func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx conte
 
 	for _, app := range applications {
 		app.SetOwnerReferences([]metav1.OwnerReference{})
+		delete(app.Labels, common.LabelKeyOrphanedByApplicationSet)
 		err := r.Update(ctx, &app)
 		if err != nil {
 			return fmt.Errorf("error updating application: %w", err)
