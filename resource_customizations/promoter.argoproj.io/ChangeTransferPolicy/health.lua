@@ -28,7 +28,7 @@ if obj.metadata.deletionTimestamp then
         {
             ["changetransferpolicy.promoter.argoproj.io/finalizer"] = {
                 wait = "Waiting to clear related PullRequest finalizers and finish cleanup before this policy is removed.",
-                risk = "the policy can disappear while related PullRequests are still terminating or inconsistent with Git.",
+                risk = "The 'changetransferpolicy.promoter.argoproj.io/pullrequest-finalizer' finalizer may not be cleaned up from PullRequests owned by this ChangeTransferPolicy.",
             },
         }
     )
