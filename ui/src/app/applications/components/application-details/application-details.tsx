@@ -121,7 +121,9 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
         services.applications
             .list([], 'application', {fields: ['items.metadata.name'], selector: 'argocd.argoproj.io/orphaned-by-applicationset'})
             .then(apps => setOrphanedAppNames(new Set(apps.items.map(a => a.metadata.name))))
-            .catch(() => {/* non-critical, ignore */});
+            .catch(() => {
+                /* non-critical, ignore */
+            });
     }, []);
 
     const getAppNamespace = useCallback(() => {
