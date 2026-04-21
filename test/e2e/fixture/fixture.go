@@ -827,6 +827,14 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			}
 			return nil
 		},
+		func() error {
+			// Check processes running with goreman and ensure they are all running
+			need := []string{
+				ApplicationControllerProcName, ApplicationSetControllerProcName, RepoServerProcName, APIServerProcName,
+				RedisProcName, NotificationServerProcName, UIProcName,
+			}
+			return EnsureProcessesAreRunning(need)
+		},
 	})
 
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
