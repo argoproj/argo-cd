@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os"
@@ -31,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v3/test"
 )
 
@@ -2160,6 +2162,193 @@ func Test_isObjRequiresDeletionConfirmation(t *testing.T) {
 			app.Spec.SyncPolicy.SyncOptions = tt.appSyncOptions
 
 			require.Equal(t, tt.expected, isObjRequiresDeletionConfirmation(obj, app))
+		})
+	}
+}
+
+func Test_evaluateRevisionChanges(t *testing.T) {
+	tests := []struct {
+		name                                string
+		source                              *v1alpha1.ApplicationSource
+		sourceType                          v1alpha1.ApplicationSourceType
+		syncPolicy                          *v1alpha1.SyncPolicy
+		revision                            string
+		appSyncedRevision                   string
+		refSources                          map[string]*v1alpha1.RefTarget
+		repoDepth                           int64
+		keyManifestGenerateAnnotationExists bool
+		keyManifestGenerateAnnotationVal    string
+		updateRevisionForPathsResponse      *apiclient.UpdateRevisionForPathsResponse
+		expectedRevision                    string
+		expectedHasChanges                  bool
+		expectUpdateRevisionForPathsCalled  bool
+	}{
+		{
+			name: "Ref source returns early with no changes",
+			source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo",
+				Ref:     "main",
+			},
+			sourceType:         v1alpha1.ApplicationSourceTypeHelm,
+			revision:           "abc123",
+			appSyncedRevision:  "def456",
+			expectedRevision:   "abc123",
+			expectedHasChanges: false,
+		},
+		{
+			name: "Same revision with no ref sources returns early",
+			source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo",
+				Path:    "manifests",
+			},
+			sourceType:         v1alpha1.ApplicationSourceTypeKustomize,
+			revision:           "abc123",
+			appSyncedRevision:  "abc123",
+			refSources:         map[string]*v1alpha1.RefTarget{},
+			expectedRevision:   "abc123",
+			expectedHasChanges: false,
+		},
+		{
+			name: "Same revision with ref sources continues to evaluation",
+			source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo",
+				Path:    "manifests",
+			},
+			sourceType:        v1alpha1.ApplicationSourceTypeKustomize,
+			revision:          "abc123",
+			appSyncedRevision: "abc123",
+			refSources: map[string]*v1alpha1.RefTarget{
+				"ref1": {Repo: v1alpha1.Repository{Repo: "https://github.com/example/ref"}},
+			},
+			repoDepth:                           0,
+			keyManifestGenerateAnnotationExists: true,
+			keyManifestGenerateAnnotationVal:    ".",
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+				Revision: "abc123",
+				Changes:  false,
+			},
+			expectedRevision:                   "abc123",
+			expectedHasChanges:                 false,
+			expectUpdateRevisionForPathsCalled: true,
+		},
+		{
+			name: "Shallow clone skips UpdateRevisionForPaths",
+			source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo",
+				Path:    "manifests",
+			},
+			sourceType: v1alpha1.ApplicationSourceTypeKustomize,
+			syncPolicy: &v1alpha1.SyncPolicy{
+				Automated: &v1alpha1.SyncPolicyAutomated{},
+			},
+			revision:                            "abc123",
+			appSyncedRevision:                   "def456",
+			repoDepth:                           1,
+			keyManifestGenerateAnnotationExists: true,
+			keyManifestGenerateAnnotationVal:    ".",
+			expectedRevision:                    "abc123",
+			expectedHasChanges:                  true,
+			expectUpdateRevisionForPathsCalled:  false,
+		},
+		{
+			name: "Missing annotation skips UpdateRevisionForPaths",
+			source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo",
+				Path:    "manifests",
+			},
+			sourceType: v1alpha1.ApplicationSourceTypeKustomize,
+			syncPolicy: &v1alpha1.SyncPolicy{
+				Automated: &v1alpha1.SyncPolicyAutomated{},
+			},
+			revision:                            "abc123",
+			appSyncedRevision:                   "def456",
+			repoDepth:                           0,
+			keyManifestGenerateAnnotationExists: false,
+			keyManifestGenerateAnnotationVal:    "",
+			expectedRevision:                    "abc123",
+			expectedHasChanges:                  true,
+			expectUpdateRevisionForPathsCalled:  false,
+		},
+		{
+			name: "UpdateRevisionForPaths returns updated revision",
+			source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://github.com/example/repo",
+				Path:    "manifests",
+			},
+			sourceType: v1alpha1.ApplicationSourceTypeKustomize,
+			syncPolicy: &v1alpha1.SyncPolicy{
+				Automated: &v1alpha1.SyncPolicyAutomated{},
+			},
+			revision:                            "HEAD",
+			appSyncedRevision:                   "def456",
+			repoDepth:                           0,
+			keyManifestGenerateAnnotationExists: true,
+			keyManifestGenerateAnnotationVal:    ".",
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+				Revision: "abc123resolved",
+				Changes:  true,
+			},
+			expectedRevision:                   "abc123resolved",
+			expectedHasChanges:                 true,
+			expectUpdateRevisionForPathsCalled: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Spec.SyncPolicy = tt.syncPolicy
+			app.Status.Sync.Revision = tt.appSyncedRevision
+			app.Status.SourceType = tt.sourceType
+			if tt.keyManifestGenerateAnnotationExists {
+				app.Annotations = map[string]string{
+					v1alpha1.AnnotationKeyManifestGeneratePaths: tt.keyManifestGenerateAnnotationVal,
+				}
+			}
+
+			repo := &v1alpha1.Repository{
+				Repo:  tt.source.RepoURL,
+				Depth: tt.repoDepth,
+			}
+
+			mockRepoClient := &mocks.RepoServerServiceClient{}
+			if tt.expectUpdateRevisionForPathsCalled {
+				mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(tt.updateRevisionForPathsResponse, nil)
+			}
+
+			mgr := &appStateManager{
+				namespace: "test-namespace",
+			}
+
+			resolvedRevision, hasChanges, err := mgr.evaluateRevisionChanges(
+				context.Background(),
+				mockRepoClient,
+				app,
+				tt.source,
+				0, // sourceIndex
+				repo,
+				tt.revision,
+				tt.refSources,
+				nil,
+				false,
+				"app.kubernetes.io/instance",
+				"v1.28.0",
+				[]string{"v1"},
+				"label",
+				"test-installation",
+				tt.keyManifestGenerateAnnotationExists,
+				tt.keyManifestGenerateAnnotationVal,
+			)
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectedRevision, resolvedRevision)
+			assert.Equal(t, tt.expectedHasChanges, hasChanges)
+
+			if tt.expectUpdateRevisionForPathsCalled {
+				mockRepoClient.AssertExpectations(t)
+			} else {
+				mockRepoClient.AssertNotCalled(t, "UpdateRevisionForPaths")
+			}
 		})
 	}
 }
