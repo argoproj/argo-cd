@@ -163,8 +163,26 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 			"server": cluster.Server,
 		}
 
+		// ClusterDecisionResource status decisions are backed by
+		// Kubernetes unstructured objects, so scalar values can be any
+		// JSON type: strings, but also int64 (e.g. OCM PlacementDecision's
+		// new `score` field), bool, float64, or nil. Unconditionally
+		// type-asserting every value to string panicked with
+		// `interface conversion: interface {} is int64, not string` and
+		// killed the ApplicationSet controller reconcile loop (#27264).
+		// Stringify non-string scalars; skip composite map/slice values
+		// that cannot be flattened into a template parameter.
 		for key, value := range clusterDecision.(map[string]any) {
-			params[key] = value.(string)
+			switch v := value.(type) {
+			case string:
+				params[key] = v
+			case nil:
+				params[key] = ""
+			case int64, int32, int, float64, float32, bool:
+				params[key] = fmt.Sprintf("%v", v)
+			default:
+				log.Debugf("duck-type cluster decision key %q has unsupported value type %T; skipping", key, v)
+			}
 		}
 
 		for key, value := range appSetGenerator.ClusterDecisionResource.Values {
