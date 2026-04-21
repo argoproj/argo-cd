@@ -22,17 +22,6 @@ func NewMap() Map {
 	return make(Map)
 }
 
-// Plain returns a simple map[string]string with only non-deleted labels.
-func (lm Map) Plain() map[string]string {
-	result := make(map[string]string)
-	for k, v := range lm {
-		if !v.Delete {
-			result[k] = v.Value
-		}
-	}
-	return result
-}
-
 // Parse populates the Map from a slice of label strings.
 // Supports deletion syntax (e.g., "key-").
 func (lm Map) Parse(labels []string) error {

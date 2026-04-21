@@ -113,16 +113,6 @@ func TestMapMerge(t *testing.T) {
 	assert.Equal(t, "10", result["y"])
 }
 
-func TestMapPlain(t *testing.T) {
-	lm, _ := ParseMap([]string{"x=5", "y-", "z=10"})
-
-	result := lm.Plain()
-	assert.Len(t, result, 2)
-	assert.Equal(t, "5", result["x"])
-	assert.Equal(t, "10", result["z"])
-	assert.NotContains(t, result, "y")
-}
-
 func TestNewMap(t *testing.T) {
 	lm := NewMap()
 	assert.NotNil(t, lm)
