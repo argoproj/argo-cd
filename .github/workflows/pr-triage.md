@@ -21,7 +21,6 @@ tools:
 
 network: defaults
 
-# Token authentication: workflow will automatically use PR_TRIAGE_ARGO_TOKEN secret
 # See: https://github.github.com/gh-aw/reference/tokens/
 safe-outputs:
   update-project:
