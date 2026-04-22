@@ -1174,7 +1174,10 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		if policyFinalizer == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid propagation policy: %s", *q.PropagationPolicy)
 		}
-		if !a.IsFinalizerPresent(policyFinalizer) {
+		// Kubernetes forbids adding finalizers to an object that is already being deleted,
+		// so skip the patch if the app is mid-deletion. The underlying Delete call below is
+		// still issued to keep the RPC idempotent for callers retrying a cascade delete.
+		if !a.IsFinalizerPresent(policyFinalizer) && a.DeletionTimestamp == nil {
 			a.SetCascadedDeletion(policyFinalizer)
 			patchFinalizer = true
 		}
