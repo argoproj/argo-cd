@@ -2737,6 +2737,43 @@ func (a *AppWithLock) GetApp() *argoappv1.Application {
 	return a.app
 }
 
+// checkAppWaitConditions evaluates whether an application currently matches the
+// conditions requested by `argocd app wait`. It returns whether the conditions
+// are met (ready) and whether a sync/refresh operation is still in progress.
+// It does not mutate any state — callers are responsible for any side effects
+// such as triggering a status refresh before printing the final summary.
+func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (ready, operationInProgress bool) {
+	if app.Operation != nil {
+		// if it just got requested
+		operationInProgress = true
+	} else if app.Status.OperationState != nil {
+		if app.Status.OperationState.FinishedAt == nil {
+			// if it is not finished yet
+			operationInProgress = true
+		} else if !app.Status.OperationState.Operation.DryRun() && (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)) {
+			// if it is just finished and we need to wait for controller to reconcile app once after syncing
+			operationInProgress = true
+		}
+	}
+
+	hydrationFinished := app.Status.SourceHydrator.CurrentOperation != nil && app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated && app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) && app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+
+	if len(selectedResources) > 0 {
+		ready = true
+		for _, state := range getResourceStates(app, selectedResources) {
+			if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
+				ready = false
+				break
+			}
+		}
+	} else {
+		// Wait on the application as a whole
+		ready = checkResourceStatus(watch, string(app.Status.Health.Status), string(app.Status.Sync.Status), app.Operation, hydrationFinished)
+	}
+
+	return ready, operationInProgress
+}
+
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
 // Additionally return the operationState at time of fulfilment (which may be different than returned app).
@@ -2864,53 +2901,34 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// See: https://github.com/argoproj/argo-cd/issues/5592
 	finalOperationState := appWithLock.GetApp().Status.OperationState
 
+	// If the application already matches the desired wait conditions, return
+	// immediately. Without this, the subsequent watch would block until the
+	// command timeout because the event stream only delivers messages when
+	// the application CR changes — if nothing needs to change, no events
+	// arrive. Skip the early return for --delete, which needs an actual
+	// Deleted event from the watch. See https://github.com/argoproj/argo-cd/issues/12211.
+	if !watch.delete {
+		if ready, operationInProgress := checkAppWaitConditions(app, watch, selectedResources); ready && (!operationInProgress || !watch.operation) {
+			app = printFinalStatus(app)
+			return app, finalOperationState, nil
+		}
+	}
+
 	appEventCh := acdClient.WatchApplicationWithRetry(ctx, appName, appWithLock.GetApp().ResourceVersion)
 	for appEvent := range appEventCh {
 		appWithLock.SetApp(&appEvent.Application)
 		app = appWithLock.GetApp()
 
 		finalOperationState = app.Status.OperationState
-		operationInProgress := false
 
 		if watch.delete && appEvent.Type == k8swatch.Deleted {
 			fmt.Printf("Application '%s' deleted\n", app.QualifiedName())
 			return nil, nil, nil
 		}
 
-		// consider the operation is in progress
-		if app.Operation != nil {
-			// if it just got requested
-			operationInProgress = true
-			if !app.Operation.DryRun() {
-				refresh = true
-			}
-		} else if app.Status.OperationState != nil {
-			if app.Status.OperationState.FinishedAt == nil {
-				// if it is not finished yet
-				operationInProgress = true
-			} else if !app.Status.OperationState.Operation.DryRun() && (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)) {
-				// if it is just finished and we need to wait for controller to reconcile app once after syncing
-				operationInProgress = true
-			}
-		}
-
-		hydrationFinished := app.Status.SourceHydrator.CurrentOperation != nil && app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated && app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) && app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
-
-		var selectedResourcesAreReady bool
-
-		// If selected resources are included, wait only on those resources, otherwise wait on the application as a whole.
-		if len(selectedResources) > 0 {
-			selectedResourcesAreReady = true
-			for _, state := range getResourceStates(app, selectedResources) {
-				resourceIsReady := checkResourceStatus(watch, state.Health, state.Status, appEvent.Application.Operation, hydrationFinished)
-				if !resourceIsReady {
-					selectedResourcesAreReady = false
-					break
-				}
-			}
-		} else {
-			// Wait on the application as a whole
-			selectedResourcesAreReady = checkResourceStatus(watch, string(app.Status.Health.Status), string(app.Status.Sync.Status), appEvent.Application.Operation, hydrationFinished)
+		selectedResourcesAreReady, operationInProgress := checkAppWaitConditions(app, watch, selectedResources)
+		if app.Operation != nil && !app.Operation.DryRun() {
+			refresh = true
 		}
 
 		if selectedResourcesAreReady && (!operationInProgress || !watch.operation) {

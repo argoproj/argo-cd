@@ -2048,6 +2048,288 @@ apps   Deployment  default    test           Synced  Healthy
 	assert.Equalf(t, expectationSorted, outputSorted, "Incorrect output %q, should be %q (items order doesn't matter)", output, expectation)
 }
 
+// TestCheckAppWaitConditions covers the branches of the pure readiness helper
+// used by `waitOnApplicationStatus`. Related to #12211.
+func TestCheckAppWaitConditions(t *testing.T) {
+	syncHealth := watchOpts{sync: true, health: true, operation: true}
+	finishedAt := metav1.NewTime(time.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC))
+	afterFinished := metav1.NewTime(finishedAt.Add(time.Minute))
+	beforeFinished := metav1.NewTime(finishedAt.Add(-time.Minute))
+
+	appWith := func(sync v1alpha1.SyncStatusCode, h health.HealthStatusCode) *v1alpha1.Application {
+		return &v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: sync},
+				Health: v1alpha1.AppHealthStatus{Status: h},
+			},
+		}
+	}
+
+	tests := []struct {
+		name              string
+		app               *v1alpha1.Application
+		watch             watchOpts
+		selectedResources []*v1alpha1.SyncOperationResource
+		wantReady         bool
+		wantOpInProgress  bool
+	}{
+		{
+			name:      "synced and healthy with no operation returns ready",
+			app:       appWith(v1alpha1.SyncStatusCodeSynced, health.HealthStatusHealthy),
+			watch:     syncHealth,
+			wantReady: true,
+		},
+		{
+			name:             "pending operation marks operation in progress",
+			app:              &v1alpha1.Application{Operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}, Status: v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced}, Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy}}},
+			watch:            syncHealth,
+			wantReady:        false, // !watch.operation || operationStatus == nil → false when operation pending and watch.operation
+			wantOpInProgress: true,
+		},
+		{
+			name: "operation state without FinishedAt marks operation in progress",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync:           v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health:         v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				OperationState: &v1alpha1.OperationState{Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}},
+			}},
+			watch:            syncHealth,
+			wantReady:        true,
+			wantOpInProgress: true,
+		},
+		{
+			name: "finished operation not yet reconciled marks operation in progress",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync:           v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health:         v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				OperationState: &v1alpha1.OperationState{Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}, FinishedAt: &finishedAt},
+				ReconciledAt:   &beforeFinished,
+			}},
+			watch:            syncHealth,
+			wantReady:        true,
+			wantOpInProgress: true,
+		},
+		{
+			name: "finished operation reconciled afterwards is not in progress",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync:           v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health:         v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				OperationState: &v1alpha1.OperationState{Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}, FinishedAt: &finishedAt},
+				ReconciledAt:   &afterFinished,
+			}},
+			watch:     syncHealth,
+			wantReady: true,
+		},
+		{
+			name:      "out of sync app is not ready",
+			app:       appWith(v1alpha1.SyncStatusCodeOutOfSync, health.HealthStatusHealthy),
+			watch:     syncHealth,
+			wantReady: false,
+		},
+		{
+			name: "selected resources all ready returns ready",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Resources: []v1alpha1.ResourceStatus{
+					{Kind: "Deployment", Name: "a", Namespace: "default", Status: v1alpha1.SyncStatusCodeSynced, Health: &v1alpha1.HealthStatus{Status: health.HealthStatusHealthy}},
+				},
+			}},
+			watch:             syncHealth,
+			selectedResources: []*v1alpha1.SyncOperationResource{{Kind: "Deployment", Name: "a", Namespace: "default"}},
+			wantReady:         true,
+		},
+		{
+			name: "selected resources with one not ready returns not ready",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Resources: []v1alpha1.ResourceStatus{
+					{Kind: "Deployment", Name: "a", Namespace: "default", Status: v1alpha1.SyncStatusCodeSynced, Health: &v1alpha1.HealthStatus{Status: health.HealthStatusHealthy}},
+					{Kind: "Deployment", Name: "b", Namespace: "default", Status: v1alpha1.SyncStatusCodeOutOfSync, Health: &v1alpha1.HealthStatus{Status: health.HealthStatusProgressing}},
+				},
+			}},
+			watch: syncHealth,
+			selectedResources: []*v1alpha1.SyncOperationResource{
+				{Kind: "Deployment", Name: "a", Namespace: "default"},
+				{Kind: "Deployment", Name: "b", Namespace: "default"},
+			},
+			wantReady: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ready, opInProgress := checkAppWaitConditions(tc.app, tc.watch, tc.selectedResources)
+			assert.Equal(t, tc.wantReady, ready, "ready")
+			assert.Equal(t, tc.wantOpInProgress, opInProgress, "operationInProgress")
+		})
+	}
+}
+
+// TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState verifies
+// that `argocd app wait` returns right away when the application already matches
+// the requested conditions, instead of hanging on the watch stream until timeout.
+// Regression test for https://github.com/argoproj/argo-cd/issues/12211.
+func TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState(t *testing.T) {
+	// simulateTimeout controls how long the fake watch blocks before emitting an
+	// event. If the fix is removed, waitOnApplicationStatus would block for this
+	// long before observing the readiness condition; with the fix it returns
+	// from the initial Get result without touching the watch channel.
+	acdClient := &readyAcdClient{&fakeAcdClient{simulateTimeout: 10}}
+	ctx := t.Context()
+	var selectResource []*v1alpha1.SyncOperationResource
+	watch := watchOpts{
+		sync:      true,
+		health:    true,
+		operation: true,
+	}
+
+	start := time.Now()
+	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+	elapsed := time.Since(start)
+
+	require.NoError(t, err)
+	assert.Less(t, elapsed, 2*time.Second, "wait should return immediately when app is already in desired state, took %s", elapsed)
+}
+
+// TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn verifies that
+// `argocd app wait --delete` does not short-circuit on the initial Get and
+// instead consumes the watch for the Deleted event — the Get can only return
+// an existing application, so its state cannot satisfy the delete condition.
+func TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn(t *testing.T) {
+	acdClient := &deleteAcdClient{fakeAcdClient: &fakeAcdClient{}}
+	ctx := t.Context()
+	watch := watchOpts{delete: true}
+
+	app, opState, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "")
+	require.NoError(t, err)
+	assert.Nil(t, app)
+	assert.Nil(t, opState)
+}
+
+// TestWaitOnApplicationStatus_ReturnsFromWatchLoopWhenEventSatisfiesConditions
+// exercises the watch loop path: the initial Get returns an OutOfSync app so the
+// early return is skipped, and a subsequent event carries the desired state.
+// Covers the helper call and readiness return inside the watch loop.
+func TestWaitOnApplicationStatus_ReturnsFromWatchLoopWhenEventSatisfiesConditions(t *testing.T) {
+	acdClient := &readyEventAcdClient{fakeAcdClient: &fakeAcdClient{}}
+	ctx := t.Context()
+	watch := watchOpts{sync: true, health: true}
+
+	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "json")
+	require.NoError(t, err)
+	// The function returns via the readiness path inside the watch loop.
+	// The returned app may be re-fetched by printFinalStatus so we only
+	// assert the function returned successfully rather than matching on its
+	// status fields.
+	assert.NotNil(t, app)
+}
+
+// readyEventAcdClient returns an OutOfSync app from Get so the early-return is
+// skipped, then emits a single event carrying a Synced+Healthy app with a
+// pending non-dry-run Operation (to exercise the refresh side-effect branch in
+// the watch loop).
+type readyEventAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *readyEventAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent, 1)
+	appEventsCh <- &v1alpha1.ApplicationWatchEvent{
+		Type: watch.Modified,
+		Application: v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+			Operation:  &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+			Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+			},
+		},
+	}
+	close(appEventsCh)
+	return appEventsCh
+}
+
+func (c *readyEventAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &fakeAppServiceClient{}
+}
+
+func (c *readyEventAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+// deleteAcdClient emits a single Deleted event immediately so the watch loop
+// can return without relying on a timeout.
+type deleteAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *deleteAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent, 1)
+	appEventsCh <- &v1alpha1.ApplicationWatchEvent{
+		Type: watch.Deleted,
+		Application: v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+		},
+	}
+	close(appEventsCh)
+	return appEventsCh
+}
+
+func (c *deleteAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &readyFakeAppServiceClient{}
+}
+
+func (c *deleteAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+// readyAcdClient is like customAcdClient but returns an application that is
+// already Synced and Healthy with no operation pending.
+type readyAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *readyAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
+	go func() {
+		// Block long enough that the test would clearly fail if the early
+		// return regresses. Never emit an event — mirrors the real-world
+		// behavior reported in #12211 where no events arrive because the
+		// application CR is not changing.
+		time.Sleep(time.Duration(c.simulateTimeout) * time.Second)
+		close(appEventsCh)
+	}()
+	return appEventsCh
+}
+
+func (c *readyAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &readyFakeAppServiceClient{}
+}
+
+func (c *readyAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+type readyFakeAppServiceClient struct {
+	fakeAppServiceClient
+}
+
+func (c *readyFakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Project:     "default",
+			Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "test", TargetRevision: "master", Path: "/test"},
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+		},
+	}, nil
+}
+
 type customAcdClient struct {
 	*fakeAcdClient
 }
