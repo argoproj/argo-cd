@@ -593,16 +593,19 @@ func TestListCluster(t *testing.T) {
 		Name:       "foo",
 		Server:     "https://127.0.0.1",
 		Namespaces: []string{"default", "kube-system"},
+		Labels:     map[string]string{"env": "prod"},
 	}
 	barCluster := appv1.Cluster{
 		Name:       "bar",
 		Server:     "https://192.168.0.1",
 		Namespaces: []string{"default", "kube-system"},
+		Labels:     map[string]string{"env": "staging"},
 	}
 	bazCluster := appv1.Cluster{
 		Name:       "test/ing",
 		Server:     "https://testing.com",
 		Namespaces: []string{"default", "kube-system"},
+		Labels:     map[string]string{"env": "prod", "tier": "frontend"},
 	}
 
 	mockClusterList := appv1.ClusterList{
@@ -678,6 +681,43 @@ func TestListCluster(t *testing.T) {
 				ListMeta: metav1.ListMeta{},
 				Items:    []appv1.Cluster{barCluster},
 			},
+		},
+		{
+			name: "filter by label selector - single label",
+			q:    &cluster.ClusterQuery{Selector: "env=prod"},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{fooCluster, bazCluster},
+			},
+		},
+		{
+			name: "filter by label selector - multiple labels",
+			q:    &cluster.ClusterQuery{Selector: "env=prod,tier=frontend"},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{bazCluster},
+			},
+		},
+		{
+			name: "filter by label selector - negation",
+			q:    &cluster.ClusterQuery{Selector: "env!=staging"},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{fooCluster, bazCluster},
+			},
+		},
+		{
+			name: "filter by label selector - no match",
+			q:    &cluster.ClusterQuery{Selector: "env=dev"},
+			want: &appv1.ClusterList{
+				ListMeta: metav1.ListMeta{},
+				Items:    []appv1.Cluster{},
+			},
+		},
+		{
+			name:    "filter by label selector - invalid selector",
+			q:       &cluster.ClusterQuery{Selector: "!!invalid"},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {

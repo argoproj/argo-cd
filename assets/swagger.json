@@ -2491,6 +2491,12 @@
             "description": "value holds the cluster server URL or cluster name.",
             "name": "id.value",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the selector to restrict returned list to clusters only with matched labels.",
+            "name": "selector",
+            "in": "query"
           }
         ],
         "responses": {
@@ -2574,6 +2580,12 @@
             "type": "string",
             "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
             "name": "id.type",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the selector to restrict returned list to clusters only with matched labels.",
+            "name": "selector",
             "in": "query"
           }
         ],
@@ -2673,6 +2685,12 @@
             "type": "string",
             "description": "type is the type of the specified cluster identifier ( \"server\" - default, \"name\" ).",
             "name": "id.type",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the selector to restrict returned list to clusters only with matched labels.",
+            "name": "selector",
             "in": "query"
           }
         ],
