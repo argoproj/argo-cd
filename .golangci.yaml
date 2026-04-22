@@ -13,6 +13,8 @@ issues:
 
   max-same-issues: 0
 
+# Some linters are disabled on this branch to keep the go 1.25 -> 1.26 upgrade minimal.
+# More linters are enabled on master.
 linters:
   enable:
     - errorlint
@@ -22,24 +24,18 @@ linters:
     - govet
     - importas
     - misspell
-    - modernize
-    - noctx
     - perfsprint
     - revive
     - staticcheck
     - testifylint
     - thelper
     - tparallel
-    - unparam
     - usestdlibvars
     - usetesting
     - whitespace
 
   exclusions:
-    rules:
-      - linters:
-          - unparam
-        path: (.+)_test\.go
+    rules: []
 
     presets:
       - comments
@@ -59,6 +55,7 @@ linters:
         - assignOp # Leave disabled, assign operations can be more confusing than helpful.
         - commentedOutCode
         - deferInLoop
+        - deprecatedComment
         - exitAfterDefer
         - hugeParam
         - importShadow
@@ -122,13 +119,6 @@ linters:
         - pkg: github.com/argoproj/argo-cd/v3/util/io
           alias: utilio
 
-    modernize:
-      disable:
-        # Suggest replacing omitempty with omitzero for struct fields.
-        - omitzero
-        # Simplify code by using go1.26's new(expr). - generates lots of false positives.
-        - newexpr
-
     nolintlint:
       require-specific: true
 
@@ -143,6 +133,8 @@ linters:
       sprintf1: true
       # Optimizes into strings concatenation.
       strconcat: true
+      # Re-enable once master picks up perfsprint cleanups (concat in loop).
+      concat-loop: false
 
     revive:
       enable-all-rules: false
@@ -219,7 +211,9 @@ linters:
         - name: unexported-return
           disabled: true
 
+        # Re-enable once master updates printf-style CLI output.
         - name: unnecessary-format
+          disabled: true
 
         - name: unnecessary-stmt
 
@@ -243,6 +237,7 @@ linters:
     staticcheck:
       checks:
         - all
+        - -SA5008
         - -SA5011
         - -ST1003
         - -ST1016
