@@ -22,7 +22,7 @@ network: defaults
 
 safe-outputs:
   github-app:
-    app-id: ${{ secrets.PR_TRIAGE_GH_APP_ID }}
+    app-id: ${{ secrets.PR_TRIAGE_GH_APP_CLIENT_ID }}
     private-key: ${{ secrets.PR_TRIAGE_GH_APP_PRIVATE_KEY }}
   update-project:
     project: https://github.com/users/agaudreault/projects/1
