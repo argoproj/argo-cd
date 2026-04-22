@@ -1,8 +1,9 @@
 ---
 on:
-  schedule:
-    - cron: '0 8,20 * * *' # 8am and 8pm UTC (twice daily)
-  workflow_dispatch: # Manual trigger
+  ### Schedule would require an organization Copilot/AI license
+  # schedule:
+  #   - cron: '0 8,20 * * *' # 8am and 8pm UTC (twice daily)
+  workflow_dispatch: # Manual trigger only
 
 permissions:
   contents: read
@@ -22,6 +23,9 @@ network: defaults
 
 # See: https://github.github.com/gh-aw/reference/tokens/
 safe-outputs:
+  # github-app:
+  #   app-id: ${{ secrets.PR_TRIAGE_GH_APP_CLIENT_ID }}
+  #   private-key: ${{ secrets.PR_TRIAGE_GH_APP_PRIVATE_KEY }}
   update-project:
     project: https://github.com/orgs/argoproj/projects/38
     max: 50 # Update up to 50 PRs in the project

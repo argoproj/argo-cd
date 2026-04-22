@@ -4,7 +4,7 @@ This document describes the automated PR triage system for Argo CD using GitHub 
 
 ## Overview
 
-The PR triage workflow automatically analyzes all open pull requests twice daily (8am and 8pm UTC), scores them by priority, selects the top 50, intelligently categorizes them, and updates a GitHub Project board to help maintainers focus on the most important work.
+The PR triage workflow analyzes all open pull requests on-demand, scores them by priority, selects the top 50, intelligently categorizes them, and updates a GitHub Project board to help maintainers focus on the most important work.
 
 **Key Features:**
 
@@ -12,7 +12,7 @@ The PR triage workflow automatically analyzes all open pull requests twice daily
 - **Top 50 Focus**: Shows only the highest priority PRs to reduce noise
 - **Dynamic Categorization**: AI creates 5-10 adaptive categories based on what's in the top 50
 - **Non-Invasive**: Only updates the project board - no PR modifications
-- **Twice Daily**: Runs at 8am and 8pm UTC to keep priorities current
+- **Manual Trigger**: Run on-demand when needed
 
 ### Project Board Update
 
@@ -29,36 +29,97 @@ The workflow updates a GitHub Project board with:
 
 ### Scheduled Runs
 
-The workflow runs automatically twice daily:
+The workflow requires a `COPILOT_GITHUB_TOKEN` on the repository to execute. Currently, GitHub does not support
+Copilot token at the organization or GitHub App level.
 
-- **8:00 AM UTC** (start of European workday)
-- **8:00 PM UTC** (start of US West Coast workday)
+For argoproj deployment, consider:
+
+- **Option A**: Create a service/bot account with Copilot license
+- **Option B**: Switch to Claude (`ANTHROPIC_API_KEY`) or OpenAI (`OPENAI_API_KEY`) with org-managed API keys
+
+For this reason, the workflow must be executed manually from a fork with the provisioned personal tokens.
 
 ### Manual Runs
 
-Trigger anytime:
+The workflow is triggered manually when needed:
 
 ```bash
-gh aw run pr-triage
+gh aw run pr-triage --repo YOUR_USERNAME/argo-cd --ref master
 ```
+
+**Note**: Make sure to complete the **Personal Setup** instructions to configure the secrets on your fork.
 
 ### Viewing Results
 
-1. Navigate to the [PR Priority Triage Project](https://github.com/orgs/argoproj/projects/YOUR_PROJECT_NUMBER)
+1. Navigate to the [PR Priority Triage Project](https://github.com/orgs/argoproj/projects/38)
 2. Use the pre-configured views:
    - **By Priority**: See top PRs first
    - **By Tier**: Focus on Critical/High priority
    - **By Category**: Filter by your area of expertise
 
-## Setup Instructions
+## Personal Setup
 
 ### Prerequisites
 
 1. **GitHub Project** with custom fields for PR triage
 2. **GitHub Copilot license** or alternative AI engine (Claude/OpenAI)
-3. **GitHub App** for organization-level authentication
+3. **GitHub Personal Token** with organization-level permissions to edit projects
 
-### Step 1: Create GitHub Project
+### Configure Required Secrets
+
+The workflow requires two types of authentication secrets:
+
+#### AI Engine Secret
+
+**Important**: The name of the tokens must match what is defined in the Agentic Workflow [Token Reference](https://github.github.com/gh-aw/reference/tokens/) documentation.
+
+**For GitHub Copilot:**
+
+Argo Maintainers have access to a free [GitHub Copilot Enterprise](https://github.com/argoproj/argoproj/blob/main/community/membership.md#maintainers) provided by CNCF.
+
+```bash
+# Create fine-grained PAT at: https://github.com/settings/personal-access-tokens/new
+# Required permission: Account permissions → Copilot Requests: Read
+# Resource owner: Personal account (NOT organization)
+
+gh secret set COPILOT_GITHUB_TOKEN --body "YOUR_TOKEN" --repo YOUR_USERNAME/argo-cd
+```
+
+**Alternative AI Engines:**
+
+```bash
+# For Claude (update workflow: engine: claude)
+gh secret set ANTHROPIC_API_KEY --body "sk-ant-..." --repo YOUR_USERNAME/argo-cd
+
+# For OpenAI (update workflow: engine: codex)
+gh secret set OPENAI_API_KEY --body "sk-..." --repo YOUR_USERNAME/argo-cd
+```
+
+#### Personal Access Token (Testing from fork)
+
+The workflow can use a fine-grained Personal Access Token (PAT) with organization project access to update the [PR Priority Triage Project](https://github.com/orgs/argoproj/projects/38).
+
+**Required Secret:**
+
+```bash
+# Create fine-grained PAT at: https://github.com/settings/personal-access-tokens/new
+# Configuration:
+#   - Resource owner: argoproj (organization)
+#   - Organization permissions → Projects: Read and write
+
+gh secret set GH_AW_PROJECT_GITHUB_TOKEN --body "YOUR_PAT" --repo YOUR_USERNAME/argo-cd
+```
+
+**PAT Requirements:**
+
+- **Resource owner**: `argoproj` organization
+- **Organization permissions**:
+  - Projects: Read and write
+- **Note**: You must be a member of the argoproj organization with appropriate permissions
+
+## Initial Setup (org level)
+
+### Create GitHub Project (argo)
 
 1. Navigate to https://github.com/orgs/argoproj/projects
 2. Click "New project" and name it "PR Priority Triage"
@@ -69,69 +130,16 @@ gh aw run pr-triage
    - **Days Open** (Number)
    - **Key Factors** (Text)
 4. Note the project number from the URL (e.g., `/projects/38`)
-5. Update `.github/workflows/pr-triage.md` with your project number:
+5. Update `.github/workflows/pr-triage.md` with the project number:
    ```yaml
    safe-outputs:
      update-project:
        project: https://github.com/orgs/argoproj/projects/38
    ```
 
-### Step 2: Configure Required Secrets
-
-The workflow requires two types of authentication secrets:
-
-#### AI Engine Secret
-
-**For GitHub Copilot** (current configuration):
-
-```bash
-# Create fine-grained PAT at: https://github.com/settings/personal-access-tokens/new
-# Required permission: Account permissions → Copilot Requests: Read
-# Resource owner: Personal account (NOT organization)
-
-gh secret set COPILOT_GITHUB_TOKEN --body "YOUR_TOKEN" --repo argoproj/argo-cd
-```
-
-**Important for production**: The Copilot token must be from a personal account. For argoproj deployment, consider:
-
-- **Option A**: Create a service/bot account with Copilot license
-- **Option B**: Switch to Claude (`ANTHROPIC_API_KEY`) or OpenAI (`OPENAI_API_KEY`) with org-managed API keys
-
-**Alternative AI Engines:**
-
-```bash
-# For Claude (update workflow: engine: claude)
-gh secret set ANTHROPIC_API_KEY --body "sk-ant-..." --repo argoproj/argo-cd
-
-# For OpenAI (update workflow: engine: codex)
-gh secret set OPENAI_API_KEY --body "sk-..." --repo argoproj/argo-cd
-```
-
-#### Personal Access Token (Testing from fork)
-
-The workflow can use a fine-grained Personal Access Token (PAT) with organization project access.
-
-PAT do not allow to update user projects, only organizations. To be able to test from a fork, you can create a new project in an organization and configure a PAT to be used by the workflow.
-
-**Required Secret:**
-
-```bash
-# Create fine-grained PAT at: https://github.com/settings/personal-access-tokens/new
-# Configuration:
-#   - Resource owner: argoproj (organization)
-#   - Organization permissions → Projects: Read and write
-
-gh secret set GH_AW_PROJECT_GITHUB_TOKEN --body "YOUR_PAT" --repo argoproj/argo-cd
-```
-
-**PAT Requirements:**
-
-- **Resource owner**: `argoproj` organization
-- **Organization permissions**:
-  - Projects: Read and write
-- **Note**: You must be a member of the argoproj organization with appropriate permissions
-
 #### GitHub App Secrets (Project Write Access)
+
+**Note**: Since this workflow can only be called from fork due to the AI Engine Secret limitation, a Github App is not used to authenticate to argoproj. A Github App is supported and should be configured when the limitation is lifted.
 
 A GitHub App provides organization-level authentication for updating the project board.
 
@@ -140,6 +148,7 @@ A GitHub App provides organization-level authentication for updating the project
 - **Name**: PR Triage Workflow
 - **Repository Permissions**:
   - Contents: Read-only
+  - Issues: Read and write
   - Pull requests: Read-only
 - **Organization Permissions**:
   - Projects: Read and write
@@ -148,13 +157,13 @@ A GitHub App provides organization-level authentication for updating the project
 
 ```bash
 # App ID from GitHub App settings
-gh secret set PR_TRIAGE_GH_APP_ID --body "APP_ID" --repo argoproj/argo-cd
+gh secret set PR_TRIAGE_GH_CLIENT_ID --body "CLIENT_ID" --repo argoproj/argo-cd
 
 # Private key (.pem file contents)
 gh secret set PR_TRIAGE_GH_APP_PRIVATE_KEY --body "$(cat key.pem)" --repo argoproj/argo-cd
 ```
 
-Update the workflow to use the github app
+Update the workflow to use the GitHub App:
 
 ```yaml
 tools:
@@ -165,19 +174,19 @@ tools:
       private-key: ${{ secrets.PR_TRIAGE_GH_APP_PRIVATE_KEY }}
 ```
 
-### Step 3: Compile and Test
+## Maintenance
+
+### Compile and Test
 
 ```bash
 # Compile workflow
 gh aw compile .github/workflows/pr-triage.md
 
 # Test run
-gh aw run pr-triage
+gh aw run pr-triage --repo YOUR_USERNAME/argo-cd --ref YOUR_BRANCH
 
-# Or via GitHub UI: Actions → PR Triage → Run workflow
+# Or via GitHub UI: Your fork → Actions → PR Triage → Run workflow
 ```
-
-## Maintenance
 
 ### Updating Criteria
 
@@ -204,13 +213,13 @@ To adjust priority scoring or categorization logic:
 Check workflow health:
 
 ```bash
-gh aw health pr-triage
+gh aw health pr-triage --repo YOUR_USERNAME/argo-cd
 ```
 
 View recent logs:
 
 ```bash
-gh aw logs pr-triage
+gh aw logs pr-triage --repo YOUR_USERNAME/argo-cd --ref YOUR_BRANCH
 ```
 
 Audit a specific run:
@@ -220,6 +229,11 @@ gh aw audit <run-id-or-url>
 ```
 
 ### Troubleshooting
+
+**Missing `COPILOT_GITHUB_TOKEN`:**
+
+- Ensure you have exported your token to your fork
+- Ensure you are running the workflow on your fork
 
 **Workflow fails to compile:**
 
@@ -244,17 +258,14 @@ gh aw audit <run-id-or-url>
 **Using GitHub Copilot**:
 
 - ~$0.10-0.30 per run
-- ~$6-18 per month (twice daily)
 
 **Using Claude Sonnet**:
 
 - ~$0.20-0.50 per run
-- ~$12-30 per month (twice daily)
 
 **Using OpenAI GPT-4**:
 
 - ~$0.30-0.80 per run
-- ~$18-48 per month (twice daily)
 
 ## Architecture
 
