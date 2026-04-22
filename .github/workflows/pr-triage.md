@@ -27,7 +27,8 @@ safe-outputs:
   update-project:
     project: https://github.com/users/agaudreault/projects/1
     max: 50 # Update up to 50 PRs in the project
-    target-repo: 'agaudreault/argo-cd'
+    # target-repo: 'agaudreault/argo-cd'
+    target-repo: 'argoproj/argo-cd' ## Use the PRs from argoproj
     views:
       - name: 'By Priority Score'
         layout: table
