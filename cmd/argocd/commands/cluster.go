@@ -501,6 +501,7 @@ func printClusterServers(clusters []argoappv1.Cluster) {
 // NewClusterListCommand returns a new instance of an `argocd cluster rm` command
 func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var output string
+	var selector string
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured clusters",
@@ -509,7 +510,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer utilio.Close(conn)
-			clusters, err := clusterIf.List(ctx, &clusterpkg.ClusterQuery{})
+			clusters, err := clusterIf.List(ctx, &clusterpkg.ClusterQuery{Selector: selector})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
@@ -542,6 +543,7 @@ argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 `,
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|server")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Label selector to filter clusters (e.g., 'env=production,tier!=frontend')")
 	return command
 }
 
