@@ -58,18 +58,10 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 						return nil, errors.New("error parsing values map")
 					}
 					for k, v := range values {
-						value, ok := v.(string)
-						if !ok {
-							return nil, fmt.Errorf("error parsing value as string %w", err)
-						}
-						params["values."+k] = value
+						params["values."+k] = fmt.Sprintf("%v", v)
 					}
 				} else {
-					v, ok := value.(string)
-					if !ok {
-						return nil, fmt.Errorf("error parsing value as string %w", err)
-					}
-					params[key] = v
+					params[key] = fmt.Sprintf("%v", value)
 				}
 				res[i] = params
 			}
