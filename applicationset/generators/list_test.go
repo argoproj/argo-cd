@@ -22,6 +22,16 @@ func TestGenerateListParams(t *testing.T) {
 		}, {
 			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
 			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values.foo": "bar"}},
+		}, {
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"name": "test", "syncPrune": true, "number": 123, "values": {"innerBool": false}}`)}},
+			expected: []map[string]any{
+				{
+					"name":             "test",
+					"syncPrune":        "true",
+					"number":           "123",
+					"values.innerBool": "false",
+				},
+			},
 		},
 	}
 
