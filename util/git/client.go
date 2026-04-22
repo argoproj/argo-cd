@@ -414,6 +414,13 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 
 		auth := githttp.TokenAuth{Token: token}
 		return &auth, nil
+	case AzureServicePrincipalCreds:
+		token, err := creds.getAccessToken()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get access token from creds: %w", err)
+		}
+		auth := githttp.TokenAuth{Token: token}
+		return &auth, nil
 	}
 
 	return nil, nil
@@ -1045,7 +1052,7 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 		}
 
 		// Make an empty initial commit.
-		out, err = m.runCmd(ctx, "commit", "--allow-empty", "-m", "Initial commit")
+		out, err = m.runCmd(ctx, "commit", "--allow-empty", "-m", "Initial commit for "+branch)
 		if err != nil {
 			return out, fmt.Errorf("failed to commit initial commit: %w", err)
 		}
