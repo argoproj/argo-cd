@@ -2743,7 +2743,7 @@ func TestGetManifests_SourceHydrator(t *testing.T) {
 
 	_, err := appServer.GetManifests(t.Context(), &application.ApplicationManifestQuery{
 		Name:     &testApp.Name,
-		Revision: ptr.To("some-revision"),
+		Revision: new("some-revision"),
 	})
 	require.NoError(t, err)
 	mockRepoServiceClient.AssertExpectations(t)
