@@ -25,7 +25,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/versions"
 
-	"github.com/argoproj/pkg/sync"
+	"github.com/argoproj/pkg/v2/sync"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/util/cache"
