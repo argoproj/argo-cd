@@ -14,7 +14,6 @@ engine: copilot # AI engine to use
 tools:
   github:
     toolsets: [default] # GitHub API access
-    # GitHub App authentication commented out - workflow will use PR_TRIAGE_ARGO_TOKEN secret
     # github-app:
     #   app-id: ${{ secrets.PR_TRIAGE_GH_APP_CLIENT_ID }}
     #   private-key: ${{ secrets.PR_TRIAGE_GH_APP_PRIVATE_KEY }}
