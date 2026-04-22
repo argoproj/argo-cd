@@ -107,6 +107,30 @@ gh secret set ANTHROPIC_API_KEY --body "sk-ant-..." --repo argoproj/argo-cd
 gh secret set OPENAI_API_KEY --body "sk-..." --repo argoproj/argo-cd
 ```
 
+#### Personal Access Token (Testing from fork)
+
+The workflow can use a fine-grained Personal Access Token (PAT) with organization project access.
+
+PAT do not allow to update user projects, only organizations. To be able to test from a fork, you can create a new project in an organization and configure a PAT to be used by the workflow.
+
+**Required Secret:**
+
+```bash
+# Create fine-grained PAT at: https://github.com/settings/personal-access-tokens/new
+# Configuration:
+#   - Resource owner: argoproj (organization)
+#   - Organization permissions → Projects: Read and write
+
+gh secret set GH_AW_PROJECT_GITHUB_TOKEN --body "YOUR_PAT" --repo argoproj/argo-cd
+```
+
+**PAT Requirements:**
+
+- **Resource owner**: `argoproj` organization
+- **Organization permissions**:
+  - Projects: Read and write
+- **Note**: You must be a member of the argoproj organization with appropriate permissions
+
 #### GitHub App Secrets (Project Write Access)
 
 A GitHub App provides organization-level authentication for updating the project board.
@@ -128,6 +152,17 @@ gh secret set PR_TRIAGE_GH_APP_ID --body "APP_ID" --repo argoproj/argo-cd
 
 # Private key (.pem file contents)
 gh secret set PR_TRIAGE_GH_APP_PRIVATE_KEY --body "$(cat key.pem)" --repo argoproj/argo-cd
+```
+
+Update the workflow to use the github app
+
+```yaml
+tools:
+  github:
+    toolsets: [default]
+    github-app:
+      app-id: ${{ secrets.PR_TRIAGE_GH_APP_CLIENT_ID }}
+      private-key: ${{ secrets.PR_TRIAGE_GH_APP_PRIVATE_KEY }}
 ```
 
 ### Step 3: Compile and Test
