@@ -1885,7 +1885,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Summary = tree.GetSummary(app)
 	}
 
-	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false)
+	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false, nil)
 	if canSync {
 		syncErrCond, opDuration := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
 		setOpDuration = opDuration
@@ -2345,7 +2345,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	ctrl.writeBackToInformer(updatedApp)
 	ts.AddCheckpoint("write_back_to_informer_ms")
 
-	message := fmt.Sprintf("Initiated automated sync to %s", desiredRevisions)
+	message := fmt.Sprintf("Initiated automated sync to '%s'", strings.Join(desiredRevisions, ", "))
 	ctrl.logAppEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: corev1.EventTypeNormal}, message)
 	logCtx.Info(message)
 	return nil, setOpTime
