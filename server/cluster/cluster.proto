@@ -22,7 +22,7 @@ message ClusterQuery {
 	string server = 1;
 	string name = 2;
 	ClusterID id = 3;
-	// the selector to restrict returned list to clusters only with matched labels
+	// Label selector to restrict the returned list to clusters with matching labels
 	string selector = 4;
 }
 
