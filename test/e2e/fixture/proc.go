@@ -9,6 +9,8 @@ import (
 	"os/exec"
 	"slices"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Constants for the names of processes common in both local and container Procfiles
@@ -31,6 +33,7 @@ const (
 
 // StartProcess allows you to start a procress that is not running
 func StartProcess(proc string) error {
+	log.Infof("starting process: %s", proc)
 	cmd := exec.CommandContext(context.Background(), procfileBinary, "run", "start", proc)
 	return cmd.Run()
 }
@@ -40,9 +43,13 @@ func StartProcess(proc string) error {
 // At the moment this only supports the application controller
 func StartProcessWithEnv(proc string, env map[string]string) error {
 	var envVariables strings.Builder
+	fields := make(log.Fields, len(env))
 	for k, v := range env {
 		fmt.Fprintf(&envVariables, "export %s=%s\n", k, v)
+		fields[k] = v
 	}
+
+	log.WithFields(fields).Infof("starting process with env: %s", proc)
 
 	err := os.WriteFile(e2eEnvVariableFilePath, []byte(envVariables.String()), 0o644)
 	if err != nil {
@@ -54,6 +61,7 @@ func StartProcessWithEnv(proc string, env map[string]string) error {
 
 // StopProcess stops the specified process and resets it's environment variables
 func StopProcess(proc string) error {
+	log.Infof("stopping process: %s", proc)
 	// Delete env file if it exists in tmp dir
 	if _, err := os.Stat(e2eEnvVariableFilePath); err == nil {
 		err := os.Remove(e2eEnvVariableFilePath)
