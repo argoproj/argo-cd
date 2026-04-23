@@ -10,6 +10,11 @@ on:
         required: false
         default: '1h'
         type: string
+      skip_checkpoint:
+        description: 'Ignore checkpoints and start fresh'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -180,6 +185,31 @@ When querying for PR information:
 - `gh pr list --repo argoproj/argo-cd`
 - GraphQL queries must use `owner: "argoproj"` and `repo: "argo-cd"`
 
+## Checkpoint Resume Strategy
+
+**At workflow start**:
+
+1. Check if `skip_checkpoint` input is `true`:
+   - If yes, ignore all checkpoint files and start fresh (do not delete them)
+   - If no, proceed to checkpoint detection
+
+2. **Resume from Pass 1 checkpoint**:
+   - Check if `checkpoint-pass1.json` exists in cache
+   - If found, load it and skip Pass 1 (PR list fetch, exclusions, maintainer loading)
+   - Use cached `filteredPRs` list and `allPRs` data
+   - Log: "Resumed from Pass 1 checkpoint: X PRs to analyze"
+   - If not found, execute Pass 1 normally
+
+3. **Resume from Pass 2 checkpoints**:
+   - Check for `checkpoint-metadata.json` in cache
+   - If not found, start Pass 2 from scratch
+   - If found, check `pass2BatchesComplete` array in metadata
+   - Load all completed batch files: `checkpoint-pass2-batch-N.json`
+   - Merge all `prDetails` objects from completed batches
+   - Calculate remaining batches: `pass2TotalBatches - pass2BatchesComplete.length`
+   - Skip already-processed PR batches
+   - Log: "Resumed from Pass 2: Y/X batches complete, Z remaining"
+
 ## Workflow Steps
 
 ### Caching Strategy
@@ -272,6 +302,16 @@ When querying for PR information:
 
 **Expected result**: ~680 PRs remaining after exclusions (from ~800 total open PRs)
 
+**Save Pass 1 checkpoint**:
+
+- Write to `/tmp/gh-aw/cache-memory/checkpoint-pass1.json`
+- Include: `allPRs` (full array from list_pull_requests), `filteredPRs` (PR numbers after exclusions), `excludedDrafts`, `excludedDependencies`, `maintainers`
+- Write to `/tmp/gh-aw/cache-memory/checkpoint-metadata.json`:
+  - Set `createdAt` to current timestamp
+  - Set `totalPRsToAnalyze` to count of `filteredPRs`
+  - Initialize `pass2BatchesComplete: []` and `pass2TotalBatches: <calculated>`
+- Log: "Pass 1 checkpoint saved: X PRs to analyze"
+
 ### Pass 2: Fetch Detailed Data in Parallel Batches
 
 **For all ~680 remaining PRs, fetch detailed data using MCP `pull_request_read` tool**:
@@ -279,13 +319,32 @@ When querying for PR information:
 **Batching strategy** (process 50 PRs at a time):
 
 - Divide 680 PRs into batches of 50 PRs each (~14 batches)
-- For each batch, process all 50 PRs in parallel
-- For each PR in the batch, make 6 calls in parallel:
-  1. `pull_request_read` with `method: "get"` - PR details (mergeable_state, mergeable, rebaseable, head commit info)
-  2. `pull_request_read` with `method: "get_reviews"` - Review and approval status
-  3. `pull_request_read` with `method: "get_review_comments"` - Review comment threads with isResolved status
-  4. `pull_request_read` with `method: "get_check_runs"` - CI/CD status checks
-  5. `pull_request_read` with `method: "get_files"` - Changed files list and diff stats
+- **For each batch of ~50 PRs**:
+
+1. Check if batch already processed:
+   - Check `checkpoint-metadata.json` for this batch number in `pass2BatchesComplete`
+   - If found, load from `checkpoint-pass2-batch-N.json` instead of making API calls
+   - Log: "Batch N loaded from checkpoint"
+   - Skip to next batch
+
+2. If not in checkpoint, fetch data:
+   - For each batch, process all 50 PRs in parallel
+   - For each PR in the batch, make 5 calls in parallel:
+     1. `pull_request_read` with `method: "get"` - PR details (mergeable_state, mergeable, rebaseable, head commit info)
+     2. `pull_request_read` with `method: "get_reviews"` - Review and approval status
+     3. `pull_request_read` with `method: "get_review_comments"` - Review comment threads with isResolved status
+     4. `pull_request_read` with `method: "get_check_runs"` - CI/CD status checks
+     5. `pull_request_read` with `method: "get_files"` - Changed files list and diff stats
+   - Collect all detailed data
+
+3. **Save batch checkpoint**:
+   - Write to `/tmp/gh-aw/cache-memory/checkpoint-pass2-batch-N.json`
+   - Include: `batchNumber`, `prNumbers` (PRs in this batch), `prDetails` (object keyed by PR number)
+   - Update `/tmp/gh-aw/cache-memory/checkpoint-metadata.json`:
+     - Append `N` to `pass2BatchesComplete` array
+   - Log: "Batch N checkpoint saved (Y/Z batches complete)"
+
+4. Continue to next batch
 
 **CRITICAL**: Do not process all 680 PRs simultaneously - use batches to avoid rate limiting and API overload.
 
@@ -358,6 +417,15 @@ For each PR, calculate score using both basic and detailed data:
 
 4. **Update project board** with all 50 PRs, setting custom fields
 
+**Clean up checkpoints on success**:
+
+- Delete all checkpoint files from cache:
+  - `checkpoint-metadata.json`
+  - `checkpoint-pass1.json`
+  - All `checkpoint-pass2-batch-*.json` files
+- Keep `pr-scores.json` (final scores cache)
+- Log: "Checkpoints cleared after successful completion"
+
 ## Progress Reporting
 
 Report progress at these checkpoints:
@@ -377,6 +445,8 @@ Report progress at these checkpoints:
 - **Argo CD areas**: Core controller, ApplicationSet controller, UI, CLI, sync engine, hydrator, RBAC, documentation
 - **Contribution guidelines**: See CONTRIBUTING.md and AGENTS.md in the repository
 - **Maintainers list**: see MAINTAINERS.md
+- **Checkpoint retention**: Checkpoints are automatically cleared on successful completion
+- **Resume capability**: Workflow can resume from last checkpoint if it fails mid-execution (saves ~5-10 minutes on retry)
 
 ## Performance Estimates
 
@@ -397,6 +467,13 @@ Re-running within 1 hour to refresh board after PRs are closed/merged
 - **Pass 2 & 3**: SKIPPED (reuse cached scores)
 - **Total**: ~8-10 API calls
 - **Runtime**: <1 minute
+
+**Resume from Checkpoint** (workflow failed mid-execution):
+
+- **From Pass 1 checkpoint**: Skip ~8-10 API calls, save ~10-20 seconds
+- **From Pass 2 checkpoint**: Skip already-completed batches
+  - Example: 10/14 batches complete = skip ~3000 API calls, save ~7-8 minutes
+- **Runtime**: Depends on how far workflow progressed before failure
 
 ## Success Criteria
 
