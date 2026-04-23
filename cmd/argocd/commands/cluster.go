@@ -543,7 +543,7 @@ argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 `,
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|server")
-	command.Flags().StringVarP(&selector, "selector", "l", "", "Label selector to filter clusters (e.g., 'env=production,tier!=frontend')")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Label selector to filter clusters. Supports '=', '==', '!=', 'in', 'notin', 'exists', and '!exists' (e.g., 'env=production,tier!=frontend')")
 	return command
 }
 
