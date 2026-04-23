@@ -80,7 +80,7 @@ Help maintainers focus on the most important pull requests by:
 ### High Priority (Score 50-69)
 
 - PRs with **all CI checks passing**
-- PRs from **frequent contributors** an argoproj org members
+- PRs from maintainers, **contributors** and `argoproj` org members
 - **Bug fixes** with small code changes (<100 lines)
 
 ### Medium Priority (Score 30-49)
@@ -111,7 +111,6 @@ Help maintainers focus on the most important pull requests by:
 - Be **conservative with "Critical"** - only truly urgent PRs
 - **Consider context**: a large PR from a core maintainer may be higher priority than raw metrics suggest
 - For **security PRs**, scan body text for GHSA references or security keywords (CVE, vulnerability, security advisory, security label)
-- Check **org membership** with `GET /orgs/{org}/members`
 - For **staleness**, only penalize if there are review comments without author response (don't penalize PRs waiting for initial review)
 
 ### Categorization (After selecting top 50 PRs)
@@ -195,8 +194,8 @@ When querying for PR information:
 
 2. **Resume from Pass 1 checkpoint**:
    - Check if `checkpoint-pass1.json` exists in cache
-   - If found, load it and skip Pass 1 (PR list fetch, exclusions, maintainer loading)
-   - Use cached `filteredPRs` list and `allPRs` data
+   - If found, load it and skip Pass 1 (PR list fetch, maintainer loading)
+   - Use cached `prsAfterExclusions` data
    - Log: "Resumed from Pass 1 checkpoint: X PRs to analyze"
    - If not found, execute Pass 1 normally
 
@@ -219,19 +218,17 @@ When querying for PR information:
 **Quick Refresh Mode** (skip full analysis if cache is recent):
 
 1. **Check workflow input** `analysis_refresh_threshold` (default: "1h")
-2. **Load cache** from `/tmp/gh-aw/cache-memory/pr-scores.json`
+2. **Load cache scores** from `/tmp/gh-aw/cache-memory/pr-scores.json`
 3. **Parse time threshold** from input (e.g., "1h" → 1 hour, "30m" → 30 minutes, "2h" → 2 hours)
 4. **Check cache age**: Compare current time with `metadata.lastAnalyzedAt`
 5. **If cache is recent** (within threshold):
-   - **Fetch current open PRs** (basic data only, apply exclusions)
-   - **Reuse cached scores** for all PRs (no re-analysis, no detailed API calls)
-   - **Select top 50** from cached scores (handling closed PRs automatically - if ranked 1-10 are closed, ranks 11-60 move up)
-   - **Update project board** with the new top 50
-   - **Save cache unchanged** (same lastAnalyzedAt, no score updates)
+   - **Perform pass 1: Fetch current open PRs** (basic data only, apply exclusions)
    - **Skip Pass 2 and Pass 3** entirely
+   - **Remove closed PRs** from the loaded cached scores - remove the PR if it is not in the Pass 1 result
+   - **Perform pass 4** to select the new open top 50 PRs and update the board
    - Log: "Quick refresh mode: Reusing analysis from [timestamp], skipped detailed API calls"
 6. **If cache is stale** (older than threshold) or doesn't exist:
-   - Run full analysis (Passes 1-3 below)
+   - Run full analysis
 
 **Cache structure**:
 
@@ -244,16 +241,25 @@ When querying for PR information:
   },
   "prs": {
     "26518": {
+      "title": "fix: resolve CVE-2024-1234 in authentication flow",
       "score": 75,
       "tier": "High",
-      "category": "Security Fixes",
-      "keyFactors": "🔴 Security, ✅ Approved, ✅ CI Pass"
+      "keyFactors": "🔴 Security, ✅ Approved, ✅ CI Pass",
+      "changedFiles": ["server/auth/handler.go", "util/session/session.go"],
+      "summary": "Fixes authentication vulnerability by adding proper input validation",
+      "labels": ["security", "bug"]
     },
     "27059": {
+      "title": "feat: add dark mode support to application details page",
       "score": 65,
       "tier": "Medium",
-      "category": "UI Improvements",
-      "keyFactors": "🎨 UI, ⏳ Awaiting Review"
+      "keyFactors": "🎨 UI, ⏳ Awaiting Review",
+      "changedFiles": [
+        "ui/src/app/applications/components/application-details.tsx",
+        "ui/src/styles/theme.scss"
+      ],
+      "summary": "Implements dark mode theme support for application details view",
+      "labels": ["enhancement", "ui"]
     }
   }
 }
@@ -261,75 +267,51 @@ When querying for PR information:
 
 ### Pass 1: Fetch Basic Data & Apply Exclusions
 
-**Load maintainer list** (one-time at start):
+**Step 1: Load maintainer list**:
 
 - Read `MAINTAINERS.md` file from repository
 - Parse the markdown table to extract all GitHub usernames (column 2)
-- Build a set of maintainer usernames for quick lookups during scoring
 - Example maintainers: crenshaw-dev, alexmt, agaudreault, leoluz, etc.
 
-**Fetch all open PRs** using `list_pull_requests` (paginated):
+**Step 2: Fetch all open PRs from argoproj/argo-cd**
+Use the `list_pull_requests` MCP tool to collect all open PRs:
 
-**CRITICAL - Pagination Strategy**:
+- Parameters: owner="argoproj", repo="argo-cd", state="open", perPage=100
+- Fetch all pages sequentially (page 1, 2, 3, 4, 5, ...)
+- Keep paging incrementally until a page is empty
+- The MCP tool automatically handles JSON parsing - use the returned data directly
 
-- Use MCP GitHub tool `list_pull_requests` with pagination
-- Set `perPage: 100` (maximum allowed)
-- Start with `page: 1`, then fetch `page: 2`, `page: 3`, etc.
-- Continue until a page returns fewer than 100 PRs (indicates last page)
-- Expected: ~800 total PRs across 8 pages
+**Step 3: Filter out PRs to exclude**
+From all the fetched PRs, remove:
 
-**Required parameters**:
-
-- `owner: "argoproj"`
-- `repo: "argo-cd"`
-- `state: "open"`
-- `perPage: 100`
-- `page: 1` (then 2, 3, 4, ...)
-
-**Fetch in batches**: Get all pages first, combine into one list, filter out drafts, THEN start scoring.
-
-**Apply exclusion rules**:
-
-**Completely exclude these PRs** (do not score, do not include in top 50):
-
-1. **Draft PRs**: Any PR where `draft: true`
-   - Expected: ~100 draft PRs excluded
-
-2. **Dependency PRs**: Any PR with label `dependencies` (regardless of author)
-   - These are automated dependency updates that don't need manual triage
-   - Expected: ~20 dependency PRs excluded
-   - **No exceptions** - exclude all dependency-labeled PRs
-
-**Expected result**: ~680 PRs remaining after exclusions (from ~800 total open PRs)
+1. Any PR with draft status
+2. Any PR with label "dependencies"
 
 **Save Pass 1 checkpoint**:
 
 - Write to `/tmp/gh-aw/cache-memory/checkpoint-pass1.json`
-- Include: `allPRs` (full array from list_pull_requests), `filteredPRs` (PR numbers after exclusions), `excludedDrafts`, `excludedDependencies`, `maintainers`
+- Include: `prsAfterExclusions` (array from list_pull_requests without the excluded PRs), `maintainers`
 - Write to `/tmp/gh-aw/cache-memory/checkpoint-metadata.json`:
   - Set `createdAt` to current timestamp
-  - Set `totalPRsToAnalyze` to count of `filteredPRs`
   - Initialize `pass2BatchesComplete: []` and `pass2TotalBatches: <calculated>`
 - Log: "Pass 1 checkpoint saved: X PRs to analyze"
 
 ### Pass 2: Fetch Detailed Data in Parallel Batches
 
-**For all ~680 remaining PRs, fetch detailed data using MCP `pull_request_read` tool**:
+**For all remaining PRs, fetch detailed data using MCP `pull_request_read` tool**:
 
 **Batching strategy** (process 50 PRs at a time):
 
-- Divide 680 PRs into batches of 50 PRs each (~14 batches)
-- **For each batch of ~50 PRs**:
+- Divide the filtered PRs into batches of 50 PRs each
+- For each batch:
 
-1. Check if batch already processed:
+1. Check if batch is in checkpoint:
    - Check `checkpoint-metadata.json` for this batch number in `pass2BatchesComplete`
    - If found, load from `checkpoint-pass2-batch-N.json` instead of making API calls
    - Log: "Batch N loaded from checkpoint"
-   - Skip to next batch
 
-2. If not in checkpoint, fetch data:
-   - For each batch, process all 50 PRs in parallel
-   - For each PR in the batch, make 5 calls in parallel:
+2. If not in checkpoint, fetch data for all PRs in batch in parallel:
+   - For each PR, perform these calls sequentially:
      1. `pull_request_read` with `method: "get"` - PR details (mergeable_state, mergeable, rebaseable, head commit info)
      2. `pull_request_read` with `method: "get_reviews"` - Review and approval status
      3. `pull_request_read` with `method: "get_review_comments"` - Review comment threads with isResolved status
@@ -337,22 +319,20 @@ When querying for PR information:
      5. `pull_request_read` with `method: "get_files"` - Changed files list and diff stats
    - Collect all detailed data
 
-3. **Save batch checkpoint**:
+3. If not in checkpoint, **Save batch checkpoint**:
    - Write to `/tmp/gh-aw/cache-memory/checkpoint-pass2-batch-N.json`
    - Include: `batchNumber`, `prNumbers` (PRs in this batch), `prDetails` (object keyed by PR number)
    - Update `/tmp/gh-aw/cache-memory/checkpoint-metadata.json`:
      - Append `N` to `pass2BatchesComplete` array
    - Log: "Batch N checkpoint saved (Y/Z batches complete)"
 
-4. Continue to next batch
+### Pass 3: Score All PRs with Complete Data
 
-**CRITICAL**: Do not process all 680 PRs simultaneously - use batches to avoid rate limiting and API overload.
+Score all remaining PRs using the complete data collected in Pass 1 and Pass 2:
 
-### Pass 3: Score All PRs in Parallel with Complete Data
+For each PR, collect metadata for categorization: title, changed files, labels, and a brief summary of the description.
 
-**Calculate priority scores in parallel** (process scoring for multiple PRs at once):
-
-For each PR, calculate score using both basic and detailed data:
+For each PR, calculate priority score, tier and key factors based on:
 
 - Approved reviews (highest boost)
 - CI passing/failing status
@@ -378,9 +358,9 @@ For each PR, calculate score using both basic and detailed data:
     - AND PR body matches 2+ of the AI patterns above
   - Maintainers, org members, and contributors: no AI-generation penalty (trust established contributors)
 - **Stale PRs awaiting author response**: Detect PRs with unresolved review feedback
-  - Use `pull_request_read` with `method: "get_review_comments"` to get review comment threads
+  - Use the fetched result of `get_review_comments` and `get` of this PR
   - Check for unresolved review comment threads (`isResolved: false`)
-  - Get last code push timestamp from `get` method (returns head commit info)
+  - Get last code push timestamp `pushedAt`
   - **PR is stale if**:
     - Has unresolved review comment threads (isResolved: false)
     - AND last code push was BEFORE the most recent unresolved comment
@@ -394,28 +374,37 @@ For each PR, calculate score using both basic and detailed data:
     - All review threads are resolved (isResolved: true)
     - Code was pushed after most recent unresolved comment (author is actively responding)
 
-**Select top 50 PRs** by final score
-
 **Save updated cache**:
 
 - Write to `/tmp/gh-aw/cache-memory/pr-scores.json`
 - Update `metadata.lastAnalyzedAt` to current timestamp
 - Update `metadata.totalPRsAnalyzed` with count
-- Store only analyzed PRs in `prs` object (PR number as key) with these fields:
+- Store analyzed PRs in `prs` object (PR number as key) with these fields:
+  - `title`: PR title
   - `score`: Priority score (0-100+)
   - `tier`: Priority tier (Critical/High/Medium/Low)
-  - `category`: Assigned category name
   - `keyFactors`: Emoji summary string (e.g., "🔴 Security, ✅ Approved, ✅ CI Pass")
+  - `changedFiles`: Array of file paths that were modified in the PR
+  - `summary`: Brief summary of the PR description to help with categorization
+  - `labels`: Array of label names applied to the PR
 
-### Pass 4: Categorize and Update Project Board
+### Pass 4: Select top 50, Categorize and Update Project Board
 
-1. **Analyze top 50 PRs** to identify natural groupings
+1. **Select top 50 PRs** by final score
 
-2. **Create 5-10 category names** that reflect what's in the list
+2. **Analyze top 50 PRs** to identify natural groupings
+   - Use the information from the cache score file (`pr-scores.json`):
+     - PR `title` to understand what each PR does
+     - `changedFiles` to see which code areas are affected
+     - `summary` for context on the PR's purpose
+     - `labels` to identify common themes
+   - Identify patterns and themes across the top 50 PRs
 
-3. **Assign each PR to a category**
+3. **Create 5-10 category names** that reflect what's in the list
 
-4. **Update project board** with all 50 PRs, setting custom fields
+4. **Assign each top 50 PR to a category**
+
+5. **Update project board** with all 50 PRs, setting custom fields (including the assigned category)
 
 **Clean up checkpoints on success**:
 
@@ -432,11 +421,10 @@ Report progress at these checkpoints:
 
 1. After fetching all pages: "Fetched X PRs across Y pages"
 2. After filtering: "X PRs remaining after filtering dependency bots and drafts"
-3. After initial scoring: "Completed initial scoring of X PRs"
-4. After selecting top 100: "Selected top 100 candidates for detailed analysis"
-5. After detailed scoring: "Completed detailed scoring, top 50 selected"
-6. After categorization: "Created X categories for top 50 PRs"
-7. After project update: "Updated project board with 50 PRs"
+3. After fetching batches: "Completed batch X of Y"
+4. After detailed scoring: "Completed detailed scoring, top 50 selected"
+5. After categorization: "Created X categories for top 50 PRs"
+6. After project update: "Updated project board with 50 PRs"
 
 ## Additional Context
 
@@ -453,9 +441,9 @@ Report progress at these checkpoints:
 **Full Analysis Mode** (cache stale or doesn't exist):
 
 - **Setup**: Read MAINTAINERS.md from repo (no API calls)
-- **Pass 1**: ~8-10 API calls (pagination of list_pull_requests for 800 PRs)
-- **Pass 2**: ~680 PRs × 6 calls = ~4080 API calls
-- **Total**: ~4088-4090 API calls
+- **Pass 1**: ~8-10 API calls (pagination of list_pull_requests for ~800 PRs)
+- **Pass 2**: ~680 filtered PRs × 5 calls = ~3400 API calls
+- **Total**: ~3408-3410 API calls
 - **Runtime**: 10-12 minutes with parallel batching
 
 **Quick Refresh Mode** (cache age < analysis_refresh_threshold, default 1h):
@@ -463,7 +451,7 @@ Report progress at these checkpoints:
 Re-running within 1 hour to refresh board after PRs are closed/merged
 
 - **Setup**: Read MAINTAINERS.md from repo (no API calls)
-- **Pass 1**: ~8-10 API calls (pagination of list_pull_requests for 800 PRs)
+- **Pass 1**: ~8-10 API calls (pagination of list_pull_requests for ~800 PRs)
 - **Pass 2 & 3**: SKIPPED (reuse cached scores)
 - **Total**: ~8-10 API calls
 - **Runtime**: <1 minute
@@ -472,7 +460,7 @@ Re-running within 1 hour to refresh board after PRs are closed/merged
 
 - **From Pass 1 checkpoint**: Skip ~8-10 API calls, save ~10-20 seconds
 - **From Pass 2 checkpoint**: Skip already-completed batches
-  - Example: 10/14 batches complete = skip ~3000 API calls, save ~7-8 minutes
+  - Example: 10/14 batches complete = skip ~2500 API calls, save ~7-8 minutes
 - **Runtime**: Depends on how far workflow progressed before failure
 
 ## Success Criteria
