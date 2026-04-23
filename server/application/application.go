@@ -535,7 +535,14 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			}
 			sources = appSpec.GetSources()
 		} else {
-			source := a.Spec.GetSource()
+			// For sourceHydrator applications, use the dry source to generate manifests
+			var source v1alpha1.ApplicationSource
+			if a.Spec.SourceHydrator != nil {
+				source = a.Spec.SourceHydrator.GetDrySource()
+			} else {
+				source = a.Spec.GetSource()
+			}
+
 			if q.GetRevision() != "" {
 				source.TargetRevision = q.GetRevision()
 			}
@@ -1167,7 +1174,10 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		if policyFinalizer == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid propagation policy: %s", *q.PropagationPolicy)
 		}
-		if !a.IsFinalizerPresent(policyFinalizer) {
+		// Kubernetes forbids adding finalizers to an object that is already being deleted,
+		// so skip the patch if the app is mid-deletion. The underlying Delete call below is
+		// still issued to keep the RPC idempotent for callers retrying a cascade delete.
+		if !a.IsFinalizerPresent(policyFinalizer) && a.DeletionTimestamp == nil {
 			a.SetCascadedDeletion(policyFinalizer)
 			patchFinalizer = true
 		}
@@ -2050,7 +2060,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	s.inferResourcesStatusHealth(a)
 
-	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true)
+	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true, nil)
 	if err != nil {
 		return a, status.Errorf(codes.PermissionDenied, "cannot sync: invalid sync window: %v", err)
 	}
@@ -2846,7 +2856,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	}
 
 	windows := proj.Spec.SyncWindows.Matches(a)
-	sync, err := windows.CanSync(true)
+	sync, err := windows.CanSync(true, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid sync windows: %w", err)
 	}
