@@ -179,9 +179,9 @@ The proposal does not introduce any breaking changes. The API server should grac
 
 ## Alternatives
 
-* **Improve fronted performance**:
+* **Improve frontend performance**:
   * **Upgrade to React 19**: [will provide](https://github.com/argoproj/argo-cd/pull/27091) immediate performance benefits and unlock new profiling tooling to investigate bottlenecks
   * **Improve RBAC evaluation**: one of the slow parts of listing apps is evaluating RBAC for each app, and we can improve that by doing things like [caching compiled glob patterns](https://github.com/argoproj/argo-cd/pull/25759)
-* **Recude list payload**: some data sent to the UI is unnecessary and [can be eliminated](https://github.com/argoproj/argo-cd/pull/25451) relatively easily
+* **Reduce list payload**: some data sent to the UI is unnecessary and [can be eliminated](https://github.com/argoproj/argo-cd/pull/25451) relatively easily
 
 ****
