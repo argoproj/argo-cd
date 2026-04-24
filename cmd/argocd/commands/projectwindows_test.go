@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"testing/synctest"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,8 +61,8 @@ func TestPrintSyncWindows(t *testing.T) {
 			},
 			expectedHeader: []string{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC", "SYNCOVERRUN", "TIMEZONE", "USEANDOPERATOR"},
 			expectedRows: [][]string{
-				{"0", "", "allow", "0 0 * * *", "1h", "app1,app2", "default", "cluster1", "Disabled", "Disabled", "UTC", "Disabled"},
-				{"1", "", "deny", "0 12 * * *", "2h", "*", "production", "*", "Enabled", "Enabled", "America/New_York", "Enabled"},
+				{"0", "Active", "allow", "0 0 * * *", "1h", "app1,app2", "default", "cluster1", "Disabled", "Disabled", "UTC", "Disabled"},
+				{"1", "Inactive", "deny", "0 12 * * *", "2h", "*", "production", "*", "Enabled", "Enabled", "America/New_York", "Enabled"},
 			},
 		},
 		{
@@ -88,7 +90,7 @@ func TestPrintSyncWindows(t *testing.T) {
 			},
 			expectedHeader: []string{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC", "SYNCOVERRUN", "TIMEZONE", "USEANDOPERATOR"},
 			expectedRows: [][]string{
-				{"0", "", "allow", "0 1 * * *", "30m", "-", "-", "-", "Disabled", "Disabled", "UTC", "Disabled"},
+				{"0", "Inactive", "allow", "0 1 * * *", "30m", "-", "-", "-", "Disabled", "Disabled", "UTC", "Disabled"},
 			},
 		},
 		{
@@ -106,60 +108,59 @@ func TestPrintSyncWindows(t *testing.T) {
 		},
 	}
 
-	// STATUS (column index 1) is derived from SyncWindow.Active(), which
-	// reads time.Now(). We only verify it's a valid formatter output here.
-	const statusColumnIdx = 1
-	validStatuses := []string{"Active", "Inactive"}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Capture stdout
-			oldStdout := os.Stdout
-			r, w, _ := os.Pipe()
-			os.Stdout = w
+			synctest.Test(t, func(t *testing.T) {
+				// The bubble's fake clock starts at 2000-01-01 00:00:00 UTC.
+				// Advance by one minute so windows scheduled at "0 0 * * *" UTC
+				// are inside their active range.
+				// STATUS values are hardcoded against this reference time.
+				time.Sleep(time.Minute)
 
-			// Call the function
-			printSyncWindows(tt.project)
+				// Capture stdout
+				oldStdout := os.Stdout
+				r, w, _ := os.Pipe()
+				os.Stdout = w
 
-			// Restore stdout
-			w.Close()
-			os.Stdout = oldStdout
+				// Call the function
+				printSyncWindows(tt.project)
 
-			// Read captured output
-			var buf bytes.Buffer
-			_, err := io.Copy(&buf, r)
-			require.NoError(t, err)
-			output := buf.String()
+				// Restore stdout
+				w.Close()
+				os.Stdout = oldStdout
 
-			// Parse the table output
-			lines := strings.Split(strings.TrimSpace(output), "\n")
-			assert.GreaterOrEqual(t, len(lines), 1, "Should have at least a header line")
+				// Read captured output
+				var buf bytes.Buffer
+				_, err := io.Copy(&buf, r)
+				require.NoError(t, err)
+				output := buf.String()
 
-			// Parse header line (split by whitespace for headers since they don't contain spaces)
-			headerLine := lines[0]
-			headerFields := strings.Fields(headerLine)
-			assert.Len(t, headerFields, len(tt.expectedHeader), "Header should have correct number of columns")
-			assert.Equal(t, tt.expectedHeader, headerFields, "Header columns should match expected")
+				// Parse the table output
+				lines := strings.Split(strings.TrimSpace(output), "\n")
+				assert.GreaterOrEqual(t, len(lines), 1, "Should have at least a header line")
 
-			// Parse data rows
-			dataLines := lines[1:]
-			assert.Len(t, dataLines, len(tt.expectedRows), "Should have expected number of data rows")
+				// Parse header line (split by whitespace for headers since they don't contain spaces)
+				headerLine := lines[0]
+				headerFields := strings.Fields(headerLine)
+				assert.Len(t, headerFields, len(tt.expectedHeader), "Header should have correct number of columns")
+				assert.Equal(t, tt.expectedHeader, headerFields, "Header columns should match expected")
 
-			for i, dataLine := range dataLines {
-				// Split by 2 or more spaces (tabwriter output uses multiple spaces as separators)
-				re := regexp.MustCompile(`\s{2,}`)
-				fields := re.Split(strings.TrimSpace(dataLine), -1)
+				// Parse data rows
+				dataLines := lines[1:]
+				assert.Len(t, dataLines, len(tt.expectedRows), "Should have expected number of data rows")
 
-				assert.Len(t, fields, len(tt.expectedRows[i]), "Row %d should have correct number of columns", i)
+				for i, dataLine := range dataLines {
+					// Split by 2 or more spaces (tabwriter output uses multiple spaces as separators)
+					re := regexp.MustCompile(`\s{2,}`)
+					fields := re.Split(strings.TrimSpace(dataLine), -1)
 
-				for j, expectedValue := range tt.expectedRows[i] {
-					if j == statusColumnIdx {
-						assert.Contains(t, validStatuses, fields[j], "Row %d STATUS should be Active or Inactive", i)
-						continue
+					assert.Len(t, fields, len(tt.expectedRows[i]), "Row %d should have correct number of columns", i)
+
+					for j, expectedValue := range tt.expectedRows[i] {
+						assert.Equal(t, expectedValue, fields[j], "Row %d, column %d should match expected value", i, j)
 					}
-					assert.Equal(t, expectedValue, fields[j], "Row %d, column %d should match expected value", i, j)
 				}
-			}
+			})
 		})
 	}
 }
