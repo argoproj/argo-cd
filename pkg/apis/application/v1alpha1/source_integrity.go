@@ -53,6 +53,12 @@ type SourceIntegrityGitPolicyGPG struct {
 	Keys []string `json:"keys" protobuf:"bytes,3,name=keys"`
 }
 
+// CacheKey computes a unique string key to be used for caching.
+// The key's value will change if any of the fields in SourceIntegrity change.
+func (s *SourceIntegrity) CacheKey() string {
+	return s.String()
+}
+
 // SourceIntegrityCheckResult represents a conclusion of the SourceIntegrity evaluation.
 // Each check performed on a source(es), holds a check item representing all checks performed.
 type SourceIntegrityCheckResult struct {
