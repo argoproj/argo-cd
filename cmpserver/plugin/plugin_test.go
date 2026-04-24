@@ -675,6 +675,28 @@ func TestService_GenerateManifest(t *testing.T) {
 	})
 }
 
+func TestService_EnvironmentVariables(t *testing.T) {
+	configFilePath := "./testdata/kustomize/config"
+	service, err := newService(configFilePath)
+	require.NoError(t, err)
+
+	t.Run("ARGOCD_REPO_SERVER_CMP_WORKDIR is set", func(t *testing.T) {
+		service.WithGenerateCommand(Command{
+			Command: []string{"sh", "-c"},
+			Args:    []string{"echo -n $ARGOCD_REPO_SERVER_CMP_WORKDIR"},
+		})
+
+		s, err := NewMockGenerateManifestStream("./testdata/kustomize", "./testdata/kustomize", nil)
+		require.NoError(t, err)
+		err = service.generateManifestGeneric(s)
+		require.NoError(t, err)
+		require.NotNil(t, s.response)
+		require.NotEmpty(t, s.response.Manifests)
+		envWorkDir := s.response.Manifests[0]
+		assert.NotEmpty(t, envWorkDir, "Environment variable ARGOCD_REPO_SERVER_CMP_WORKDIR should not be empty")
+	})
+}
+
 type MockMatchRepositoryStream struct {
 	metadataSent    bool
 	fileSent        bool
