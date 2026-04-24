@@ -922,6 +922,13 @@ func (c *clusterCache) watchEvents(ctx context.Context, api kube.APIResourceInfo
 	})
 }
 
+// isNamespaceInaccessible checks whether a namespace cannot be accessed.
+// When a namespace is deleted, its RBAC RoleBindings are garbage-collected,
+// so the API server returns 403 Forbidden rather than 404 NotFound.
+func isNamespaceInaccessible(err error) bool {
+	return apierrors.IsNotFound(err) || apierrors.IsForbidden(err)
+}
+
 // processApi processes all the resources for a given API. First we construct an API client for the given API. Then we
 // call the callback. If we're managing the whole cluster, we call the callback with the client and an empty namespace.
 // If we're managing specific namespaces, we call the callback for each namespace.
@@ -936,6 +943,10 @@ func (c *clusterCache) processApi(client dynamic.Interface, api kube.APIResource
 		for _, ns := range c.namespaces {
 			err := callback(resClient.Namespace(ns), ns)
 			if err != nil {
+				if isNamespaceInaccessible(err) {
+					c.log.Error(err, "Skipping inaccessible namespace during sync", "namespace", ns)
+					continue
+				}
 				return err
 			}
 		}
