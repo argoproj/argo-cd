@@ -142,7 +142,8 @@ func verify(g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verif
 	}
 
 	if len(signatures) == 0 {
-		panic("no signatures found for " + verifiedRevision)
+		// Checked for defensiveness, there should be 1+ signatures always
+		return nil, "", errors.New("git LsSignatures found no signatures for " + verifiedRevision)
 	}
 
 	problems, legacyDescription := describeProblems(g, signatures)
