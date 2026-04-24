@@ -122,7 +122,7 @@ func NewClient(repoURL string, creds Creds, proxy, noProxy string, layerMediaTyp
 }
 
 func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyURL, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
-	ociRepo := strings.TrimPrefix(repoURL, "oci://")
+	ociRepo := strings.TrimPrefix(repoURL, Prefix)
 	repo, err := remote.NewRepository(ociRepo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize repository: %w", err)
