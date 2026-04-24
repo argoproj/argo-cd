@@ -248,7 +248,7 @@ message GitFilesRequest {
     string path = 4;
     bool NewGitFileGlobbingEnabled = 5;
     bool noRevisionCache = 6;
-  github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrity sourceIntegrity = 7;
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrity sourceIntegrity = 8;
 }
 
 message GitFilesResponse {
