@@ -59,8 +59,8 @@ func TestPrintSyncWindows(t *testing.T) {
 			},
 			expectedHeader: []string{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC", "SYNCOVERRUN", "TIMEZONE", "USEANDOPERATOR"},
 			expectedRows: [][]string{
-				{"0", "Inactive", "allow", "0 0 * * *", "1h", "app1,app2", "default", "cluster1", "Disabled", "Disabled", "UTC", "Disabled"},
-				{"1", "Inactive", "deny", "0 12 * * *", "2h", "*", "production", "*", "Enabled", "Enabled", "America/New_York", "Enabled"},
+				{"0", "", "allow", "0 0 * * *", "1h", "app1,app2", "default", "cluster1", "Disabled", "Disabled", "UTC", "Disabled"},
+				{"1", "", "deny", "0 12 * * *", "2h", "*", "production", "*", "Enabled", "Enabled", "America/New_York", "Enabled"},
 			},
 		},
 		{
@@ -88,7 +88,7 @@ func TestPrintSyncWindows(t *testing.T) {
 			},
 			expectedHeader: []string{"ID", "STATUS", "KIND", "SCHEDULE", "DURATION", "APPLICATIONS", "NAMESPACES", "CLUSTERS", "MANUALSYNC", "SYNCOVERRUN", "TIMEZONE", "USEANDOPERATOR"},
 			expectedRows: [][]string{
-				{"0", "Inactive", "allow", "0 1 * * *", "30m", "-", "-", "-", "Disabled", "Disabled", "UTC", "Disabled"},
+				{"0", "", "allow", "0 1 * * *", "30m", "-", "-", "-", "Disabled", "Disabled", "UTC", "Disabled"},
 			},
 		},
 		{
@@ -105,6 +105,11 @@ func TestPrintSyncWindows(t *testing.T) {
 			expectedRows:   [][]string{},
 		},
 	}
+
+	// STATUS (column index 1) is derived from SyncWindow.Active(), which
+	// reads time.Now(). We only verify it's a valid formatter output here.
+	const statusColumnIdx = 1
+	validStatuses := []string{"Active", "Inactive"}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -148,6 +153,10 @@ func TestPrintSyncWindows(t *testing.T) {
 				assert.Len(t, fields, len(tt.expectedRows[i]), "Row %d should have correct number of columns", i)
 
 				for j, expectedValue := range tt.expectedRows[i] {
+					if j == statusColumnIdx {
+						assert.Contains(t, validStatuses, fields[j], "Row %d STATUS should be Active or Inactive", i)
+						continue
+					}
 					assert.Equal(t, expectedValue, fields[j], "Row %d, column %d should match expected value", i, j)
 				}
 			}
