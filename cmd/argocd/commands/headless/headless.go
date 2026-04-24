@@ -286,6 +286,13 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		ListenHost:              *address,
 		RepoClientset:           &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset},
 		EnableProxyExtension:    false,
+		// Match the standalone argocd-server default so `argocd --core app
+		// sync --replace` works out of the box. Without this the in-process
+		// server inherits the Go zero value (false) and every --replace sync
+		// fails with "sync with replace was disabled on the API Server level
+		// via the server configuration" even though --core mode never reads
+		// the cluster's server configuration (#27529).
+		SyncWithReplaceAllowed: true,
 	}, server.ApplicationSetOpts{})
 	srv.Init(ctx)
 
