@@ -3449,22 +3449,18 @@ func TestZeroReconciliationTimeoutNoExcessiveRefreshes(t *testing.T) {
 	ctx := t.Context()
 	namespace := fixture.TestNamespace()
 
-	require.NoError(t, fixture.SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, "0s"))
-	require.NoError(t, fixture.SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "0s"))
-	defer func() {
-		_ = fixture.SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, "")
-		_ = fixture.SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "")
-	}()
-
-	configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	require.Equal(t, "0s", configMap.Data[reconciliationTimeoutConfigKey])
-	require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
-	waitForArgoCDConfigMapToStabilize(t, ctx, namespace)
-
 	Given(t).
 		Path(guestbookPath).
 		When().
+		SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, "0s").
+		SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "0s").
+		And(func() {
+			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutConfigKey])
+			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
+			waitForArgoCDConfigMapToStabilize(t, ctx, namespace)
+		}).
 		CreateApp().
 		Sync().
 		Then().
@@ -3529,22 +3525,18 @@ func TestGitCommitEventuallyOutOfSyncWithoutManualRefresh(t *testing.T) {
 	namespace := fixture.TestNamespace()
 	const reconciliationTimeout = "60s"
 
-	require.NoError(t, fixture.SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, reconciliationTimeout))
-	require.NoError(t, fixture.SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "0s"))
-	defer func() {
-		_ = fixture.SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, "")
-		_ = fixture.SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "")
-	}()
-
-	configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
-	require.Equal(t, reconciliationTimeout, configMap.Data[reconciliationTimeoutConfigKey])
-	require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
-	waitForArgoCDConfigMapToStabilize(t, ctx, namespace)
-
 	Given(t).
 		Path("config-map").
 		When().
+		SetParamInSettingConfigMap(reconciliationTimeoutConfigKey, reconciliationTimeout).
+		SetParamInSettingConfigMap(reconciliationTimeoutJitterConfigKey, "0s").
+		And(func() {
+			configMap, err := fixture.KubeClientset.CoreV1().ConfigMaps(namespace).Get(ctx, common.ArgoCDConfigMapName, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.Equal(t, reconciliationTimeout, configMap.Data[reconciliationTimeoutConfigKey])
+			require.Equal(t, "0s", configMap.Data[reconciliationTimeoutJitterConfigKey])
+			waitForArgoCDConfigMapToStabilize(t, ctx, namespace)
+		}).
 		CreateApp().
 		Sync().
 		Then().

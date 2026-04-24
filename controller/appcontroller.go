@@ -2089,10 +2089,8 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
-// applicationComparisonExpired reports whether the app's last comparison is past the soft timeout,
-// or past the hard timeout when hard reconciliation is configured. This matches the soft/hard
-// expiry used in needRefreshAppStatus and aligns with the application informer's resync period
-// (min of soft and hard when hard is shorter).
+// applicationComparisonExpired is true when Status.Expired reports expiry for ctrl.statusRefreshTimeout
+// or (if non-zero) ctrl.statusHardRefreshTimeout.
 func (ctrl *ApplicationController) applicationComparisonExpired(app *appv1.Application) bool {
 	if app.Status.Expired(ctrl.statusRefreshTimeout) {
 		return true

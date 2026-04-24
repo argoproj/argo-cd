@@ -2028,6 +2028,9 @@ func TestApplicationComparisonExpired(t *testing.T) {
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 
 	t.Run("soft expired", func(t *testing.T) {
+		// statusRefreshTimeout is not overridden here; ctrl uses the newFakeController default
+		// (time.Minute, from appResyncPeriod in NewApplicationController). ReconciledAt 2h ago is
+		// past that window, so applicationComparisonExpired returns true.
 		past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
 		app.Status.ReconciledAt = &past
 		assert.True(t, ctrl.applicationComparisonExpired(app))
