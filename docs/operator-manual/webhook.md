@@ -133,6 +133,31 @@ The webhook handler uses this OAuth token to make the API request to the origina
 If the Argo CD webhook handler cannot find a matching repository credential, the list of changed files would remain empty.
 If errors occur during the callback, the list of changed files will be empty.
 
+### Special handling for BitBucket Server (Data Center)
+
+BitBucket Server (Data Center) does not include the list of changed files in the webhook request body.
+This prevents the [Manifest Paths Annotation](high_availability.md#manifest-paths-annotation) feature from working correctly for monorepos hosted on BitBucket Server.
+
+Argo CD addresses this by making an API callback to the originating BitBucket Server to retrieve the changed files via the [Repository Changes REST API](https://developer.atlassian.com/server/bitbucket/rest/v901/api-group-repository/#api-api-latest-projects-projectkey-repos-repositoryslug-changes-get).
+
+**Requirements:**
+
+- The webhook **must be authenticated**: `webhook.bitbucketserver.secret` must be set in `argocd-secret`. This is required to prevent SSRF attacks — Argo CD will only perform the API callback when the incoming webhook request has been verified against the shared secret.
+- The repository **must have credentials** stored in Argo CD (basic auth or bearer token). If no matching repository credential is found, the changed files list will remain empty and all apps pointing to the repository will be refreshed.
+
+**How it works:**
+
+1. When an authenticated `repo:refs_changed` webhook event is received from BitBucket Server, Argo CD extracts the `fromHash` and `toHash` for the pushed commit.
+2. Argo CD looks up the repository credential for the HTTP clone URL of the repository.
+3. Using the stored credential, it calls the BitBucket Server REST API (`/rest/api/1.0/projects/{projectKey}/repos/{repoSlug}/changes?since={fromHash}&until={toHash}`) to retrieve the changed file paths.
+4. Argo CD also calls the default branch API (`/rest/api/1.0/projects/{projectKey}/repos/{repoSlug}/branches/default`) to accurately determine whether the push touched the repository's default (HEAD) branch.
+5. Only applications whose `manifest-generate-paths` annotation matches a changed file are refreshed.
+
+If any errors occur during the API callback, the changed files list will be empty and all apps pointing to the repository will be refreshed (safe fallback behavior).
+
+This feature supports both regular projects (e.g., `~MYPROJECT`) and personal projects (e.g., `~username`) on BitBucket Server. The project key and repository slug are taken directly from the webhook payload.
+
+
 ## 3. Webhook Configuration for OCI-Compliant Registries
 
 In addition to Git webhooks, Argo CD supports webhooks from OCI-compliant container registries. This enables instant application refresh when
