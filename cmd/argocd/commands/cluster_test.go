@@ -12,6 +12,16 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
+func TestNewClusterListCommand_SelectorFlag(t *testing.T) {
+	cmd := NewClusterListCommand(nil)
+	require.NotNil(t, cmd)
+
+	flag := cmd.Flags().Lookup("selector")
+	require.NotNil(t, flag)
+	assert.Equal(t, "l", flag.Shorthand)
+	assert.Empty(t, flag.DefValue)
+}
+
 func Test_getQueryBySelector(t *testing.T) {
 	query := getQueryBySelector("my-cluster")
 	assert.Equal(t, "my-cluster", query.Name)

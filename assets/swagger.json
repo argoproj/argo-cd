@@ -2494,7 +2494,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to restrict returned list to clusters only with matched labels.",
+            "description": "Label selector to restrict the returned list to clusters with matching labels.",
             "name": "selector",
             "in": "query"
           }
@@ -2584,7 +2584,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to restrict returned list to clusters only with matched labels.",
+            "description": "Label selector to restrict the returned list to clusters with matching labels.",
             "name": "selector",
             "in": "query"
           }
@@ -2689,7 +2689,7 @@
           },
           {
             "type": "string",
-            "description": "the selector to restrict returned list to clusters only with matched labels.",
+            "description": "Label selector to restrict the returned list to clusters with matching labels.",
             "name": "selector",
             "in": "query"
           }
