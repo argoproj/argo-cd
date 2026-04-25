@@ -42,6 +42,12 @@ var (
 	//go:embed openapiv2.bin
 	OpenAPIV2Doc []byte
 
+	// OpenAPIV3JSON is a json representation of the openapi
+	// document available in a given k8s instance.
+	//
+	//go:embed openapiv3.json
+	OpenAPIV3JSON []byte
+
 	//go:embed ssd-service-config.yaml
 	ServiceConfigYAMLSSD string
 
@@ -95,4 +101,7 @@ var (
 
 	//go:embed ssd-configmap-predicted-live.json
 	ConfigMapPredictedLiveJSONSSD string
+
+	//go:embed ssd-configmap-predicted-live-with-key3.json
+	ConfigMapPredictedLiveWithKey3JSONSSD string
 )
