@@ -95,7 +95,7 @@ type ClusterQuery struct {
 	Server string     `protobuf:"bytes,1,opt,name=server,proto3" json:"server,omitempty"`
 	Name   string     `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	Id     *ClusterID `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
-	// the selector to restrict returned list to clusters only with matched labels
+	// Label selector to restrict the returned list to clusters with matching labels
 	Selector             string   `protobuf:"bytes,4,opt,name=selector,proto3" json:"selector,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

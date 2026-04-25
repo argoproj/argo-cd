@@ -35,7 +35,7 @@ argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 ```
   -h, --help              help for list
   -o, --output string     Output format. One of: json|yaml|wide|server (default "wide")
-  -l, --selector string   Label selector to filter clusters (e.g., 'env=production,tier!=frontend')
+  -l, --selector string   Label selector to filter clusters. Supports '=', '==', '!=', 'in', 'notin', 'exists', and '!exists' (e.g., 'env=production,tier!=frontend')
 ```
 
 ### Options inherited from parent commands
