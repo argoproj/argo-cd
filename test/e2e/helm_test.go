@@ -156,6 +156,79 @@ func TestHelmIgnoreMissingValueFiles(t *testing.T) {
 		Expect(ErrorRegex("Error: open .*does-not-exist-values.yaml: no such file or directory", ""))
 }
 
+// TestHelmGlobValueFiles verifies that a glob pattern in valueFiles expands to all matching
+// files and that they are applied in lexical order (last file wins in helm merging).
+// envs/*.yaml expands to envs/a.yaml then envs/b.yaml - b.yaml is last, so foo = "b-value".
+func TestHelmGlobValueFiles(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	ctx := Given(t)
+	ctx.Path("helm-glob-values").
+		When().
+		CreateApp().
+		AppSet("--values", "envs/*.yaml").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			val := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(),
+				"get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string)
+			assert.Equal(t, "b-value", val)
+		})
+}
+
+// TestHelmRecursiveGlobValueFiles verifies that the ** double-star pattern recursively
+// matches files at any depth. envs/**/*.yaml expands (zero-segments first) to:
+// envs/a.yaml, envs/b.yaml, envs/nested/c.yaml - c.yaml is last, so foo = "c-value".
+func TestHelmRecursiveGlobValueFiles(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	ctx := Given(t)
+	ctx.Path("helm-glob-values").
+		When().
+		CreateApp().
+		AppSet("--values", "envs/**/*.yaml").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			val := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(),
+				"get", "cm", "my-map", "-o", "jsonpath={.data.foo}")).(string)
+			assert.Equal(t, "c-value", val)
+		})
+}
+
+// TestHelmGlobValueFilesNoMatch verifies that a glob pattern with no matching files
+// surfaces as a comparison error on the application.
+func TestHelmGlobValueFilesNoMatch(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	Given(t).
+		Path("helm-glob-values").
+		When().
+		CreateApp().
+		AppSet("--values", "nonexistent/*.yaml").
+		Then().
+		Expect(Condition(ApplicationConditionComparisonError, `values file glob "nonexistent/*.yaml" matched no files`))
+}
+
+// TestHelmGlobValueFilesIgnoreMissing verifies that a non-matching glob pattern is
+// silently skipped when ignoreMissingValueFiles is set, and the app syncs successfully.
+func TestHelmGlobValueFilesIgnoreMissing(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	Given(t).
+		Path("helm-glob-values").
+		When().
+		CreateApp().
+		AppSet("--values", "nonexistent/*.yaml", "--ignore-missing-value-files").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestHelmValuesMultipleUnset(t *testing.T) {
 	Given(t).
 		Path("helm").
@@ -356,7 +429,7 @@ func TestKubeVersion(t *testing.T) {
 			kubeVersion := errors.NewHandler(t).FailOnErr(fixture.Run(".", "kubectl", "-n", ctx.DeploymentNamespace(), "get", "cm", "my-map",
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
 			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
-			assert.LessOrEqual(t, fixture.GetVersions(t).ServerVersion.Format("v%s.%s"), kubeVersion)
+			assert.LessOrEqual(t, fixture.GetVersions(t).ServerVersion.String(), kubeVersion)
 		}).
 		When().
 		// Make sure override works.

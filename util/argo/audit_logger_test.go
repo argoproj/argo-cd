@@ -2,12 +2,15 @@ package argo
 
 import (
 	"bytes"
+	"context"
 	"sync"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -17,6 +20,8 @@ import (
 const (
 	_somecomponent = "somecomponent"
 	_test          = "test"
+	_argocdNs      = "argocd"
+	_targetNs      = "target-namespace"
 )
 
 var testEnableEventLog = []string{_somecomponent, _test}
@@ -63,18 +68,21 @@ func captureLogEntries(run func()) string {
 }
 
 func TestNewAuditLogger(t *testing.T) {
-	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, testEnableEventLog)
+	logger := NewAuditLogger(fake.NewClientset(), _argocdNs, _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
+	assert.Equal(t, _argocdNs, logger.namespace)
+	assert.Equal(t, _somecomponent, logger.component)
 }
 
 func TestLogAppProjEvent(t *testing.T) {
-	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, testEnableEventLog)
+	fakeClient := fake.NewClientset()
+	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
 
 	proj := argoappv1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "default",
-			Namespace:       "argocd",
+			Namespace:       _argocdNs,
 			ResourceVersion: "1",
 			UID:             "a-b-c-d-e",
 		},
@@ -88,34 +96,33 @@ func TestLogAppProjEvent(t *testing.T) {
 		Type:   "info",
 	}
 
-	output := captureLogEntries(func() {
-		logger.LogAppProjEvent(&proj, ei, "This is a test message", "")
+	captureLogEntries(func() {
+		logger.LogAppProjEvent(&proj, ei, "This is a test message", "admin")
 	})
 
-	assert.Contains(t, output, "level=info")
-	assert.Contains(t, output, "project=default")
-	assert.Contains(t, output, "reason=test")
-	assert.Contains(t, output, "type=info")
-	assert.Contains(t, output, "msg=\"This is a test message\"")
+	// Verify event was created in the AppProject's namespace (argocd)
+	events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, events.Items, 1)
 
-	ei.Reason = "Unknown"
-
-	// If K8s Event Disable Log
-	output = captureLogEntries(func() {
-		logger.LogAppProjEvent(&proj, ei, "This is a test message", "")
-	})
-
-	assert.Empty(t, output)
+	event := events.Items[0]
+	assert.Equal(t, "default", event.InvolvedObject.Name)
+	assert.Equal(t, _argocdNs, event.InvolvedObject.Namespace)
+	assert.Equal(t, _argocdNs, event.Namespace) // Event created in argocd namespace
+	assert.Equal(t, "This is a test message", event.Message)
+	assert.Equal(t, "test", event.Reason)
+	assert.Equal(t, "info", event.Type)
 }
 
 func TestLogAppEvent(t *testing.T) {
-	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, testEnableEventLog)
+	fakeClient := fake.NewClientset()
+	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
 
 	app := argoappv1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            "testapp",
-			Namespace:       "argocd",
+			Namespace:       _argocdNs,
 			ResourceVersion: "1",
 			UID:             "a-b-c-d-e",
 		},
@@ -131,23 +138,29 @@ func TestLogAppEvent(t *testing.T) {
 		Reason: _test,
 		Type:   "info",
 	}
-
-	output := captureLogEntries(func() {
-		logger.LogAppEvent(&app, ei, "This is a test message", "", nil)
+	captureLogEntries(func() {
+		logger.LogAppEvent(&app, ei, "This is a test message", "admin", nil)
 	})
 
-	assert.Contains(t, output, "level=info")
-	assert.Contains(t, output, "application=testapp")
-	assert.Contains(t, output, "dest-namespace=testns")
-	assert.Contains(t, output, "dest-server=\"https://127.0.0.1:6443\"")
-	assert.Contains(t, output, "reason=test")
-	assert.Contains(t, output, "type=info")
-	assert.Contains(t, output, "msg=\"This is a test message\"")
+	// Verify event was created in the Application's namespace (argocd)
+	events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, events.Items, 1)
 
-	ei.Reason = "Unknown"
+	event := events.Items[0]
+	assert.Equal(t, "testapp", event.InvolvedObject.Name)
+	assert.Equal(t, _argocdNs, event.InvolvedObject.Namespace)
+	assert.Equal(t, _argocdNs, event.Namespace) // Event created in argocd namespace
+	assert.Equal(t, "This is a test message", event.Message)
+	assert.Equal(t, "test", event.Reason)
+	assert.Equal(t, "info", event.Type)
+	assert.Equal(t, "admin", event.Annotations["user"])
+	assert.Equal(t, "https://127.0.0.1:6443", event.Annotations["dest-server"])
+	assert.Equal(t, "testns", event.Annotations["dest-namespace"])
 
 	// If K8s Event Disable Log
-	output = captureLogEntries(func() {
+	ei.Reason = "Unknown"
+	output := captureLogEntries(func() {
 		logger.LogAppEvent(&app, ei, "This is a test message", "", nil)
 	})
 
@@ -155,7 +168,7 @@ func TestLogAppEvent(t *testing.T) {
 }
 
 func TestLogResourceEvent(t *testing.T) {
-	logger := NewAuditLogger(fake.NewClientset(), _somecomponent, testEnableEventLog)
+	logger := NewAuditLogger(fake.NewClientset(), _argocdNs, _somecomponent, testEnableEventLog)
 	assert.NotNil(t, logger)
 
 	res := argoappv1.ResourceNode{
@@ -164,7 +177,7 @@ func TestLogResourceEvent(t *testing.T) {
 			Version:   "v1alpha1",
 			Kind:      "SignatureKey",
 			Name:      "testapp",
-			Namespace: "argocd",
+			Namespace: _argocdNs,
 			UID:       "a-b-c-d-e",
 		},
 	}
@@ -192,4 +205,181 @@ func TestLogResourceEvent(t *testing.T) {
 	})
 
 	assert.Empty(t, output)
+}
+
+func TestLogResourceEvent_MultiCluster_CreatesEventInArgocdNamespace(t *testing.T) {
+	fakeClient := fake.NewClientset()
+	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, []string{EventReasonResourceActionRan})
+
+	res := argoappv1.ResourceNode{
+		ResourceRef: argoappv1.ResourceRef{
+			Group:     "apps",
+			Version:   "v1",
+			Kind:      "Deployment",
+			Name:      "my-deployment",
+			Namespace: _targetNs, // Resource is in a different namespace/cluster
+			UID:       "deploy-uid-123",
+		},
+	}
+
+	ei := EventInfo{
+		Reason: EventReasonResourceActionRan,
+		Type:   corev1.EventTypeNormal,
+	}
+	captureLogEntries(func() {
+		logger.LogResourceEvent(&res, ei, "Resource action executed", "admin")
+	})
+
+	events, err := fakeClient.CoreV1().Events(_targetNs).List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	assert.Empty(t, events.Items, "No event should be created in target namespace")
+
+	events, err = fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, events.Items, 1, "Event should be created in ArgoCD namespace")
+
+	event := events.Items[0]
+	assert.Equal(t, "my-deployment", event.InvolvedObject.Name)
+	assert.Equal(t, _targetNs, event.InvolvedObject.Namespace, "InvolvedObject should preserve original namespace")
+	assert.Equal(t, _argocdNs, event.Namespace, "Event itself should be in ArgoCD namespace")
+	assert.Equal(t, "Resource action executed", event.Message)
+
+	assert.Equal(t, _targetNs, event.Annotations["resource-namespace"])
+}
+
+func TestLogAppSetEvent_CreatesEventInAppSetNamespace(t *testing.T) {
+	fakeClient := fake.NewClientset()
+	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, testEnableEventLog)
+
+	appset := argoappv1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "my-appset",
+			Namespace:       _argocdNs,
+			ResourceVersion: "1",
+			UID:             "appset-uid-123",
+		},
+	}
+
+	ei := EventInfo{
+		Reason: _test,
+		Type:   corev1.EventTypeNormal,
+	}
+	captureLogEntries(func() {
+		logger.LogAppSetEvent(&appset, ei, "ApplicationSet event test", "admin")
+	})
+
+	// Verify event was created in the ApplicationSet's namespace (argocd)
+	events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, events.Items, 1)
+
+	event := events.Items[0]
+	assert.Equal(t, "my-appset", event.InvolvedObject.Name)
+	assert.Equal(t, _argocdNs, event.InvolvedObject.Namespace)
+	assert.Equal(t, _argocdNs, event.Namespace) // Event created in argocd namespace
+	assert.Equal(t, "ApplicationSet event test", event.Message)
+}
+
+func TestLogResourceEvent_DifferentKinds_AllInArgocdNamespace(t *testing.T) {
+	testCases := []struct {
+		name          string
+		resourceKind  string
+		resourceGroup string
+		resourceNs    string
+	}{
+		{
+			name:          "Pod in remote namespace",
+			resourceKind:  "Pod",
+			resourceGroup: "",
+			resourceNs:    "production",
+		},
+		{
+			name:          "Service in remote namespace",
+			resourceKind:  "Service",
+			resourceGroup: "",
+			resourceNs:    "staging",
+		},
+		{
+			name:          "Deployment in remote namespace",
+			resourceKind:  "Deployment",
+			resourceGroup: "apps",
+			resourceNs:    "default",
+		},
+		{
+			name:          "ConfigMap in remote namespace",
+			resourceKind:  "ConfigMap",
+			resourceGroup: "",
+			resourceNs:    "kube-system",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeClient := fake.NewClientset()
+			logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, []string{EventReasonResourceActionRan})
+
+			res := argoappv1.ResourceNode{
+				ResourceRef: argoappv1.ResourceRef{
+					Group:     tc.resourceGroup,
+					Version:   "v1",
+					Kind:      tc.resourceKind,
+					Name:      "test-resource",
+					Namespace: tc.resourceNs,
+					UID:       "test-uid",
+				},
+			}
+
+			ei := EventInfo{
+				Reason: EventReasonResourceActionRan,
+				Type:   corev1.EventTypeNormal,
+			}
+			captureLogEntries(func() {
+				logger.LogResourceEvent(&res, ei, "Action ran", "admin")
+			})
+
+			events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
+			require.NoError(t, err)
+			require.Len(t, events.Items, 1)
+
+			event := events.Items[0]
+			assert.Equal(t, _argocdNs, event.Namespace, "Event should be in ArgoCD namespace for %s", tc.resourceKind)
+			assert.Equal(t, tc.resourceNs, event.InvolvedObject.Namespace, "InvolvedObject should preserve original namespace")
+			assert.Equal(t, tc.resourceNs, event.Annotations["resource-namespace"])
+		})
+	}
+}
+
+func TestLogResourceEvent_EmptyNamespace(t *testing.T) {
+	fakeClient := fake.NewClientset()
+	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, []string{EventReasonResourceActionRan})
+
+	// Cluster-scoped resource (no namespace)
+	res := argoappv1.ResourceNode{
+		ResourceRef: argoappv1.ResourceRef{
+			Group:     "rbac.authorization.k8s.io",
+			Version:   "v1",
+			Kind:      "ClusterRole",
+			Name:      "cluster-admin",
+			Namespace: "", // Cluster-scoped resource
+			UID:       "clusterrole-uid",
+		},
+	}
+
+	ei := EventInfo{
+		Reason: EventReasonResourceActionRan,
+		Type:   corev1.EventTypeNormal,
+	}
+	captureLogEntries(func() {
+		logger.LogResourceEvent(&res, ei, "Cluster role action", "admin")
+	})
+
+	// Event should be created in ArgoCD namespace (not empty namespace)
+	events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, events.Items, 1)
+
+	event := events.Items[0]
+	assert.Equal(t, _argocdNs, event.Namespace)
+	assert.Empty(t, event.InvolvedObject.Namespace) // ClusterRole has no namespace
+	assert.Empty(t, event.Annotations["resource-namespace"])
 }

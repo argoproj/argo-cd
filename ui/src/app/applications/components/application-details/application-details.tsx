@@ -1,5 +1,5 @@
 import {NotificationType, SlidingPanel, Tooltip, SplitButtonAction} from 'argo-ui';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import React, {useState, useEffect, useCallback, useRef, useContext, FC} from 'react';
 import * as ReactDOM from 'react-dom';
 import * as models from '../../../shared/models';
@@ -1294,6 +1294,41 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                     title: <ActionMenuItem actionLabel='Sync' />,
                     action: () => AppUtils.showDeploy('all', null, appContext),
                     disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0) && !app.spec.sourceHydrator
+                },
+                {
+                    iconClassName: 'fa fa-toggle-on',
+                    title: <ActionMenuItem actionLabel='Toggle Auto-Sync' />,
+                    action: async () => {
+                        const isEnabled = app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false;
+                        const confirmationTitle = isEnabled ? 'Disable Auto-Sync?' : 'Enable Auto-Sync?';
+                        const confirmed = await appContext.popup.confirm(
+                            confirmationTitle,
+                            isEnabled
+                                ? 'Are you sure you want to disable automated application synchronization'
+                                : 'If enabled, application will automatically sync when changes are detected'
+                        );
+                        if (!confirmed) return;
+                        try {
+                            await services.applications.runResourceAction(
+                                app.metadata.name,
+                                app.metadata.namespace,
+                                {
+                                    name: app.metadata.name,
+                                    namespace: app.metadata.namespace,
+                                    group: 'argoproj.io',
+                                    kind: 'Application',
+                                    version: 'v1alpha1'
+                                } as appModels.ResourceNode,
+                                'toggle-auto-sync',
+                                []
+                            );
+                        } catch (e) {
+                            appContext.notifications.show({
+                                content: <ErrorNotification title={`Unable to "${confirmationTitle.replace(/\?/g, '')}"`} e={e} />,
+                                type: NotificationType.Error
+                            });
+                        }
+                    }
                 },
                 ...(app.status?.operationState?.phase === 'Running' && app.status.resources.find(r => r.requiresDeletionConfirmation)
                     ? [

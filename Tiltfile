@@ -1,6 +1,10 @@
 load('ext://restart_process', 'docker_build_with_restart')
 load('ext://uibutton', 'cmd_button', 'location')
 
+# tilt version should be >= v0.37.0 for k8s_server_side_apply tilt-dev/tilt#6680
+update_settings(
+  k8s_server_side_apply="true",
+)
 # add ui button in web ui to run make codegen-local (top nav)
 cmd_button(
     'make codegen-local',
@@ -52,6 +56,7 @@ local_resource(
     'build',
     'CGO_ENABLED=0 GOOS=linux GOARCH=' + arch + ' go build -gcflags="all=-N -l" -mod=readonly -o .tilt-bin/argocd_linux cmd/main.go',
     deps = code_deps,
+    ignore = ['**/*_test.go'],
     allow_parallel=True,
 )
 
@@ -252,11 +257,11 @@ k8s_resource(
 # ui dependencies
 local_resource(
     'node-modules',
-    'yarn',
+    'pnpm install',
     dir='ui',
     deps = [
         'ui/package.json',
-        'ui/yarn.lock',
+        'ui/pnpm-lock.yaml',
     ],
     allow_parallel=True,
 )
@@ -266,11 +271,11 @@ docker_build(
     'argocd-ui',
     context='.',
     dockerfile='Dockerfile.ui.tilt',
-    entrypoint=['sh', '-c', 'cd /app/ui && yarn start'], 
+    entrypoint=['sh', '-c', 'cd /app/ui && pnpm start'],
     only=['ui'],
     live_update=[
         sync('ui', '/app/ui'),
-        run('sh -c "cd /app/ui && yarn install"', trigger=['/app/ui/package.json', '/app/ui/yarn.lock']),
+        run('sh -c "cd /app/ui && pnpm install --frozen-lockfile"', trigger=['/app/ui/package.json', '/app/ui/pnpm-lock.yaml']),
     ],
 )
 

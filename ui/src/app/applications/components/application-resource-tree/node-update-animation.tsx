@@ -1,18 +1,17 @@
 import * as React from 'react';
 
-export class NodeUpdateAnimation extends React.PureComponent<{resourceVersion: string}, {ready: boolean}> {
-    constructor(props: {resourceVersion: string}) {
-        super(props);
-        this.state = {ready: false};
-    }
+/**
+ * When the resource version changes, we want to trigger an animation to indicate that the resource has been updated. This component will be rendered as a child of the node and will update itself when the resource version changes leading to a re-render, which triggers the animation.
+ * @param props Resource version
+ * @returns
+ */
+export const NodeUpdateAnimation = (props: {resourceVersion: string}) => {
+    const [animate, setAnimation] = React.useState(false);
+    React.useEffect(() => {
+        return () => {
+            setAnimation(true);
+        };
+    }, [props.resourceVersion]);
 
-    public render() {
-        return this.state.ready && <div key={this.props.resourceVersion} className='application-resource-tree__node-animation' />;
-    }
-
-    public componentDidUpdate(prevProps: {resourceVersion: string}) {
-        if (prevProps.resourceVersion && this.props.resourceVersion !== prevProps.resourceVersion) {
-            this.setState({ready: true});
-        }
-    }
-}
+    return animate && <div key={props.resourceVersion} className='application-resource-tree__node-animation' />;
+};
