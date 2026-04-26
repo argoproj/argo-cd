@@ -721,7 +721,14 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	ts.AddCheckpoint("dedup_ms")
 
-	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, targetObjs)
+	// Filter out PreDelete and PostDelete hooks from targetObjs before fetching managed live
+	// objects. These hooks should not be synced as regular resources and are only executed
+	// during deletion. Filtering them out here prevents untracked resources with the same
+	// name as a hook from being picked up as managed live objects, which would otherwise
+	// cause the application to be perpetually OutOfSync. (See #21579)
+	targetObjsForSync, hasPreDeleteHooks, hasPostDeleteHooks := partitionTargetObjsForSync(targetObjs)
+
+	liveObjByKey, err := m.liveStateCache.GetManagedLiveObjs(destCluster, app, targetObjsForSync)
 	if err != nil {
 		liveObjByKey = make(map[kubeutil.ResourceKey]*unstructured.Unstructured)
 		msg := "Failed to load live state: " + err.Error()
@@ -774,7 +781,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			// gitops-engine, the difference here being that we create a managed namespace which is only used for comparison.
 			//
 			// targetNsExists == true implies that it already exists as a target, so no need to add the namespace to the
-			// targetObjs array.
+			// targetObjsForSync array.
 			if isManagedNamespace(liveObj, app) && !targetNsExists {
 				nsSpec := &corev1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()}}
 				managedNs, err := kubeutil.ToUnstructured(nsSpec)
@@ -790,12 +797,11 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 					failedToLoadObjs = true
 				} else {
-					targetObjs = append(targetObjs, managedNs)
+					targetObjsForSync = append(targetObjsForSync, managedNs)
 				}
 			}
 		}
 	}
-	targetObjsForSync, hasPreDeleteHooks, hasPostDeleteHooks := partitionTargetObjsForSync(targetObjs)
 
 	reconciliation := sync.Reconcile(targetObjsForSync, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
