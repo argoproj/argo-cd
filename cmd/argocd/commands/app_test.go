@@ -2152,6 +2152,20 @@ func TestCheckAppWaitConditions(t *testing.T) {
 			},
 			wantReady: false,
 		},
+		{
+			// Regression: CurrentOperation set without LastSuccessfulOperation
+			// must not panic on the hydration check.
+			name: "hydration in progress without prior successful hydration does not panic",
+			app: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+				Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+				Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+				SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation: &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrating},
+				},
+			}},
+			watch:     watchOpts{sync: true, health: true, hydrated: true},
+			wantReady: false, // hydration not finished yet
+		},
 	}
 
 	for _, tc := range tests {

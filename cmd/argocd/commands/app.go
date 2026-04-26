@@ -2756,7 +2756,14 @@ func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selecte
 		}
 	}
 
-	hydrationFinished := app.Status.SourceHydrator.CurrentOperation != nil && app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated && app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) && app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+	// LastSuccessfulOperation is only populated after a successful hydration,
+	// so it can be nil while CurrentOperation is set. Guard against the nil
+	// dereference before comparing the two.
+	hydrationFinished := app.Status.SourceHydrator.CurrentOperation != nil &&
+		app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
+		app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated &&
+		app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) &&
+		app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
 
 	if len(selectedResources) > 0 {
 		ready = true
