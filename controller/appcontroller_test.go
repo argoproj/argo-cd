@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -1215,6 +1216,12 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			}},
 			apps:            []runtime.Object{app, &defaultProj},
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			// Force the tracking method that writes the app instance label so
+			// we can assert truncation actually ran (the default tracking method
+			// is annotation-only, which would skip the label entirely).
+			configMapData: map[string]string{
+				"application.resourceTrackingMethod": "annotation+label",
+			},
 		}, nil)
 
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -1238,6 +1245,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		labelVal := createdHook.GetLabels()[common.LabelKeyAppInstance]
 		assert.LessOrEqual(t, len(labelVal), 63, "instance label must fit within Kubernetes' 63-character limit")
 		assert.NotEmpty(t, labelVal)
+		// The label value must be the truncated form of the app name (not the
+		// untouched 70-char name), proving the truncation actually ran.
+		assert.NotEqual(t, app.Name, labelVal)
+		assert.True(t, strings.HasPrefix(app.Name, labelVal),
+			"truncated label must be a prefix of the original app name, got %q", labelVal)
 	})
 
 	t.Run("PostDelete_HookIsCreated", func(t *testing.T) {
