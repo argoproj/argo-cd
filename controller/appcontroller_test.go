@@ -1199,6 +1199,47 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		require.Equal(t, "pre-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
 	})
 
+	t.Run("PreDelete_HookIsCreatedForLongAppName", func(t *testing.T) {
+		// Regression test for https://github.com/argoproj/argo-cd/issues/27527.
+		// When the app name (or instance name) exceeds Kubernetes' 63-character
+		// label limit, the pre-delete hook must still be created with a
+		// truncated app instance label so the API server doesn't reject it.
+		app := newFakeApp()
+		// 70-character name (7 over the 63-char label limit)
+		app.Name = "this-application-name-is-deliberately-seventy-characters-long-12345678"
+		app.SetPreDeleteFinalizer()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		ctrl := newFakeController(context.Background(), &fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePreDeleteHook},
+			}},
+			apps:            []runtime.Object{app, &defaultProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+		}, nil)
+
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		require.NoError(t, err)
+		// pre-delete hook is created and its instance label is truncated to
+		// the 63-character limit
+		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
+		createdHook := ctrl.kubectl.(*MockKubectl).CreatedResources[0]
+		require.Equal(t, "pre-delete-hook", createdHook.GetName())
+		labelVal := createdHook.GetLabels()[common.LabelKeyAppInstance]
+		assert.LessOrEqual(t, len(labelVal), 63, "instance label must fit within Kubernetes' 63-character limit")
+		assert.NotEmpty(t, labelVal)
+	})
+
 	t.Run("PostDelete_HookIsCreated", func(t *testing.T) {
 		app := newFakeApp()
 		app.SetPostDeleteFinalizer()
