@@ -1155,6 +1155,10 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 		if err := ctrl.finalizeProjectDeletion(origProj.DeepCopy()); err != nil {
 			log.WithError(err).Warn("Failed to finalize project deletion")
 		}
+	} else if origProj.DeletionTimestamp == nil && !origProj.HasFinalizer() {
+		if err := ctrl.addProjectFinalizer(origProj.DeepCopy()); err != nil {
+			log.WithError(err).Warn("Failed to add project finalizer")
+		}
 	}
 	return processNext
 }
@@ -1175,6 +1179,18 @@ func (ctrl *ApplicationController) finalizeProjectDeletion(proj *appv1.AppProjec
 	}
 	log.Infof("Cannot remove project '%s' finalizer as is referenced by %d applications", proj.Name, appsCount)
 	return nil
+}
+
+func (ctrl *ApplicationController) addProjectFinalizer(proj *appv1.AppProject) error {
+	proj.AddFinalizer()
+	var patch []byte
+	patch, _ = json.Marshal(map[string]any{
+		"metadata": map[string]any{
+			"finalizers": proj.Finalizers,
+		},
+	})
+	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().AppProjects(ctrl.namespace).Patch(context.Background(), proj.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	return err
 }
 
 func (ctrl *ApplicationController) removeProjectFinalizer(proj *appv1.AppProject) error {
