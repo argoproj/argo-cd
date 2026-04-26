@@ -122,8 +122,11 @@ func UnstructuredToAppInstanceValue(un *unstructured.Unstructured, appName, name
 }
 
 // TruncateLabel truncates the given value to a length that fits within the
-// Kubernetes label value limit (63 characters), trimming any trailing special
-// characters so the result is a valid label value.
+// Kubernetes label value limit (63 characters). When truncation is required,
+// any trailing special characters are stripped so the result remains a valid
+// label value. Inputs that are already within the limit are returned as-is
+// without trailing-character validation; callers that need a fully validated
+// label should validate separately.
 // See https://github.com/argoproj/argo-cd/issues/18237.
 func TruncateLabel(val string) (string, error) {
 	if len(val) <= LabelMaxLength {

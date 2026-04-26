@@ -146,9 +146,10 @@ func (ctrl *ApplicationController) executeHooks(hookType HookType, app *appv1.Ap
 	for key, obj := range expectedHook {
 		// Apply app instance tracking metadata so the hook can be tracked and cleaned up.
 		// Use the same code path as regular sync resources so the configured
-		// tracking method (label, annotation, annotation+label) is honored,
-		// and so that the label value is truncated to fit Kubernetes' 63-character
-		// label limit (see https://github.com/argoproj/argo-cd/issues/27527).
+		// tracking method (label, annotation, annotation+label) is honored.
+		// When the configured tracking method writes a label, this also ensures
+		// the label value is truncated to fit Kubernetes' 63-character label
+		// limit (see https://github.com/argoproj/argo-cd/issues/27527).
 		if err := resourceTracking.SetAppInstance(obj, appLabelKey, app.InstanceName(ctrl.namespace), app.Spec.Destination.Namespace, trackingMethod, installationID); err != nil {
 			return false, fmt.Errorf("failed to set app instance tracking on %s hook %s: %w", hookType, key, err)
 		}
