@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,6 +16,7 @@ import (
 
 	"github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -313,4 +317,49 @@ func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
 		}
 	}
 	return matches
+}
+
+const SUBPROC_ENV_VAR = "SANDBOX_TEST_SUBPROCESS"
+
+func RunInSubprocess(t *testing.T, testfunc func()) error {
+	t.Helper()
+	//cmd := exec.Command(os.Args[0], "-test.run=^"+t.Name()+"$")
+
+	if os.Getenv(SUBPROC_ENV_VAR) != "" {
+		t.Logf("running test %q in subprocess", t.Name())
+		//err :=
+		testfunc()
+		//t.Logf("execution finished")
+		//assert.NoError(t, err)
+	} else {
+		t.Logf("running test %q in parent process", t.Name())
+
+		// Parent process: re-exec this same test binary, running only this test.
+
+		t.Logf("called with args %v", os.Args)
+		cmdArgs := []string{}
+		for _, arg := range os.Args[1:] {
+			if strings.HasPrefix(arg, "-test.run=") ||
+				arg == "-test.paniconexit0" {
+				continue
+			}
+			cmdArgs = append(cmdArgs, arg)
+		}
+		cmdArgs = append(cmdArgs, "-test.run=^"+t.Name()+"$")
+		cmd := exec.Command(os.Args[0], cmdArgs...)
+		//t.Logf("execuring %q with args %v", os.Args[0], cmd.Args)
+		cmd.Env = append(os.Environ(), SUBPROC_ENV_VAR+"=1")
+		//t.Logf("execuring %q with env %v", os.Args[0], cmd.Env)
+
+		//err := cmd.Run()
+		output, err := cmd.CombinedOutput()
+		t.Logf("subprocess output:\n%s", output)
+		// Now assert on the subprocess result.
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			assert.Fail(t, fmt.Sprintf("expected subprocess exit code 0, but got %d", exitErr.ExitCode()))
+		}
+		//assert.Equal(t, "1", "2")
+		assert.NoError(t, err)
+	}
+	return nil
 }
