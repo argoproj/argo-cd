@@ -27,3 +27,11 @@ tests:
     status: Healthy
     message: "1: CatalogSourcesUnhealthy | False\n.status.state is 'AtLatestKnown'\n"
   inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Healthy
+    message: "1: CatalogSourcesUnhealthy | False\n.status.state is 'AtLatestKnown'\n"
+  inputPath: testdata/install_plan_manual_upgrade_pending.yaml
+- healthStatus:
+    status: Progressing
+    message: "1: CatalogSourcesUnhealthy | False\n2: BundleUnpacking | True\n3: InstallPlanPending | True\n.status.state is 'UpgradePending'\n"
+  inputPath: testdata/install_plan_manual_upgrade_pending_not_installed_yet.yaml
