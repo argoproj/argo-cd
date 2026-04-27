@@ -2654,6 +2654,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 				}
 				ctrl.clusterSharding.UpdateApp(newApp)
+
+				if oldOK && newOK && oldApp.Spec.GetProject() != newApp.Spec.GetProject() {
+					ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, oldApp.Spec.GetProject()))
+				}
 			},
 			DeleteFunc: func(obj any) {
 				if !ctrl.canProcessApp(obj) {
@@ -2667,8 +2671,14 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					ctrl.appRefreshQueue.Add(key)
 				}
 				delApp, delOK := obj.(*appv1.Application)
-				if err == nil && delOK {
+				if !delOK {
+					if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+						delApp, delOK = tombstone.Obj.(*appv1.Application)
+					}
+				}
+				if delOK {
 					ctrl.clusterSharding.DeleteApp(delApp)
+					ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, delApp.Spec.GetProject()))
 				}
 			},
 		},
