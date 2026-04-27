@@ -2696,6 +2696,11 @@ func TestSync_DeletedNamespace_DoesNotBlockSync(t *testing.T) {
 			// Then sync succeeds
 			require.NoError(t, err)
 			assert.NotEmpty(t, cluster.resources, "resources from valid namespace should be cached")
+
+			// And the inaccessible namespace is reported as a sync warning
+			info := cluster.GetClusterInfo()
+			assert.Len(t, info.SyncWarnings, 1)
+			assert.Contains(t, info.SyncWarnings[0], deletedNamespace)
 		})
 	}
 }
