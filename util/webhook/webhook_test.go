@@ -1901,8 +1901,7 @@ func TestFetchChangesFromBitbucketServer(t *testing.T) {
 		`=~^https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/test-repo/changes`,
 		getBBServerChangesResponderFn())
 
-	client, err := newBitbucketServerClient(t.Context(), &v1alpha1.Repository{}, "https://bitbucketserver")
-	require.NoError(t, err)
+	client := newBitbucketServerClient(t.Context(), &v1alpha1.Repository{}, "https://bitbucketserver")
 
 	tt := []struct {
 		name                string
@@ -1954,8 +1953,7 @@ func TestIsBBServerHeadTouched(t *testing.T) {
 		"https://bitbucketserver/rest/api/1.0/projects/MYPROJECT/repos/test-repo/branches/default",
 		getBBServerDefaultBranchResponderFn("master"))
 
-	client, err := newBitbucketServerClient(t.Context(), &v1alpha1.Repository{}, "https://bitbucketserver")
-	require.NoError(t, err)
+	client := newBitbucketServerClient(t.Context(), &v1alpha1.Repository{}, "https://bitbucketserver")
 
 	tt := []struct {
 		name              string

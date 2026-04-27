@@ -340,11 +340,7 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 				log.Warnf("error extracting Bitbucket Server base URL from %s: %v", httpCloneURL, err)
 				break
 			}
-			bbClient, err := newBitbucketServerClient(ctx, argoRepo, serverURL)
-			if err != nil {
-				log.Warnf("error creating Bitbucket Server client: %v", err)
-				break
-			}
+			bbClient := newBitbucketServerClient(ctx, argoRepo, serverURL)
 			log.Debugf("created Bitbucket Server client with base URL '%s'", serverURL)
 			projectKey := payload.Repository.Project.Key
 			repoSlug := payload.Repository.Slug
@@ -749,7 +745,7 @@ func extractBBServerBaseURL(cloneURL string) (string, error) {
 }
 
 // newBitbucketServerClient creates a new Bitbucket Server API client for the given repository credentials and server URL.
-func newBitbucketServerClient(ctx context.Context, repository *v1alpha1.Repository, serverURL string) (*bitbucketv1.APIClient, error) {
+func newBitbucketServerClient(ctx context.Context, repository *v1alpha1.Repository, serverURL string) *bitbucketv1.APIClient {
 	// Ensure the base path ends with /rest for the Bitbucket Server REST API
 	if !strings.HasSuffix(serverURL, "/rest") {
 		serverURL = strings.TrimSuffix(serverURL, "/") + "/rest"
@@ -765,7 +761,7 @@ func newBitbucketServerClient(ctx context.Context, repository *v1alpha1.Reposito
 			ctx = context.WithValue(ctx, bitbucketv1.ContextAccessToken, repository.BearerToken)
 		}
 	}
-	return bitbucketv1.NewAPIClient(ctx, bitbucketConfig), nil
+	return bitbucketv1.NewAPIClient(ctx, bitbucketConfig)
 }
 
 // fetchChangesFromBitbucketServer retrieves the list of files changed between fromHash and toHash
