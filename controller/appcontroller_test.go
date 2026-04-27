@@ -1286,6 +1286,51 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		require.Equal(t, "post-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
 	})
 
+	t.Run("PostDelete_HookIsCreatedForLongAppName", func(t *testing.T) {
+		// Post-delete counterpart of PreDelete_HookIsCreatedForLongAppName; see
+		// that test for the rationale.
+		app := newFakeApp()
+		app.Name = "this-application-name-is-deliberately-seventy-characters-long-12345678"
+		app.SetPostDeleteFinalizer()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		ctrl := newFakeController(t.Context(), &fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePostDeleteHook},
+			}},
+			apps:            []runtime.Object{app, &defaultProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			configMapData: map[string]string{
+				"application.resourceTrackingMethod": "annotation+label",
+			},
+		}, nil)
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		require.NoError(t, err)
+		assert.False(t, patched, "finalizer must not be removed while hook is still pending")
+		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
+		createdHook := ctrl.kubectl.(*MockKubectl).CreatedResources[0]
+		require.Equal(t, "post-delete-hook", createdHook.GetName())
+		labelVal := createdHook.GetLabels()[common.LabelKeyAppInstance]
+		assert.LessOrEqual(t, len(labelVal), 63, "instance label must fit within Kubernetes' 63-character limit")
+		assert.NotEmpty(t, labelVal)
+		assert.NotEqual(t, app.Name, labelVal)
+		assert.True(t, strings.HasPrefix(app.Name, labelVal),
+			"truncated label must be a prefix of the original app name, got %q", labelVal)
+	})
+
 	t.Run("PreDelete_HookIsExecuted", func(t *testing.T) {
 		app := newFakeApp()
 		app.SetPreDeleteFinalizer()
