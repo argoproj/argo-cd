@@ -510,7 +510,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer utilio.Close(conn)
-			clusters, err := clusterIf.List(ctx, &clusterpkg.ClusterQuery{Selector: selector})
+			clusters, err := clusterIf.List(ctx, &clusterpkg.ClusterListQuery{Selector: selector})
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
