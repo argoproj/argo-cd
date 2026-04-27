@@ -1,5 +1,7 @@
 module github.com/argoproj/argo-cd/v3
 
+// Do NOT bump this unless we use features that are only available on the new version.
+// If you want to update the BUILD version, just update go versions in the release workflows.
 go 1.26.1
 
 require (
@@ -21,7 +23,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/codecommit v1.33.13
 	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.31.11
 	github.com/aws/aws-sdk-go-v2/service/sts v1.42.0
-	github.com/aws/smithy-go v1.25.0
+	github.com/aws/smithy-go v1.25.1
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.18.0
