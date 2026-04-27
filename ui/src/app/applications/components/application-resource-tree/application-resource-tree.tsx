@@ -88,6 +88,9 @@ interface Line {
 const NODE_WIDTH = 282;
 const NODE_HEIGHT = 52;
 const POD_NODE_HEIGHT = 136;
+const POD_GROUP_ROW_HEIGHT = 20;
+// Keep in sync with `$pods-per-row` in `application-resource-tree.scss`.
+const POD_GROUP_PODS_PER_ROW = 8;
 const FILTERED_INDICATOR_NODE = '__filtered_indicator__';
 const EXTERNAL_TRAFFIC_NODE = '__external_traffic__';
 const INTERNAL_TRAFFIC_NODE = '__internal_traffic__';
@@ -112,7 +115,7 @@ function getGraphSize(nodes: dagre.Node[]): {width: number; height: number} {
     return {width, height};
 }
 
-function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph) {
+function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph<{[key: string]: any}>) {
     function getNodeGroupingInfo(nodeId: string) {
         const node = graph.node(nodeId);
         return {
@@ -280,7 +283,7 @@ function renderFilteredNode(node: {count: number} & dagre.Node, onClearFilter: (
     );
 }
 
-function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: number} & dagre.Node & ResourceTreeNode) {
+function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: number; groupedNodeIds: string[]} & dagre.Node & ResourceTreeNode) {
     const indicators = new Array<number>();
     let count = Math.min(node.count - 1, 3);
     while (count > 0) {
@@ -333,7 +336,7 @@ function renderTrafficNode(node: dagre.Node) {
     );
 }
 
-function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string}) {
+function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string; kind: string}) {
     return (
         <div
             className='application-resource-tree__node application-resource-tree__node--load-balancer'
@@ -400,7 +403,32 @@ function processPodGroup(targetPodGroup: ResourceTreeNode, child: ResourceTreeNo
     }
 }
 
-function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node, childMap: Map<string, ResourceTreeNode[]>) {
+function getPodGroupNumberOfRows(pods: models.Pod[], showPodGroupByStatus: boolean) {
+    if (!pods || pods.length === 0) {
+        return 0;
+    }
+    if (showPodGroupByStatus) {
+        const statuses = new Set<string>();
+        for (const pod of pods) {
+            if (!pod) {
+                continue;
+            }
+            const health = pod.health;
+            if (health === 'Healthy' || health === 'Degraded' || health === 'Progressing') {
+                statuses.add(health);
+            }
+        }
+        return statuses.size;
+    }
+    return Math.ceil(pods.length / POD_GROUP_PODS_PER_ROW);
+}
+
+function renderPodGroup(
+    props: ApplicationResourceTreeProps,
+    node: ResourceTreeNode & dagre.Node & {groupedNodeIds?: string[]},
+    childMap: Map<string, ResourceTreeNode[]>,
+    showPodGroupByStatus: boolean
+) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
     let healthState: models.HealthStatus = null;
@@ -419,8 +447,6 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
         return acc;
     }, []);
     const childCount = nonPodChildren?.length;
-    const margin = 8;
-    let topExtra = 0;
     const podGroup = node.podGroup;
     const podGroupHealthy = [];
     const podGroupDegraded = [];
@@ -439,14 +465,10 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
         }
     }
 
-    const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
-    const numberOfRows = showPodGroupByStatus
-        ? [podGroupHealthy, podGroupDegraded, podGroupInProgress].reduce((total, podGroupByStatus) => total + (podGroupByStatus.filter(pod => pod).length > 0 ? 1 : 0), 0)
-        : Math.ceil(podGroup?.pods.length / 8);
-
-    if (podGroup) {
-        topExtra = margin + (POD_NODE_HEIGHT / 2 + 30 * numberOfRows) / 2;
-    }
+    // Use Dagre's measured height directly to avoid duplicating sizing logic in the render path.
+    // Dagre assigns node.y as the node center; convert to DOM top-left for rendering.
+    const podGroupHeight = node.height;
+    const podGroupTop = node.y - podGroupHeight / 2;
 
     return (
         <div
@@ -458,9 +480,9 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
             title={describeNode(node)}
             style={{
                 left: node.x,
-                top: node.y - topExtra,
+                top: podGroupTop,
                 width: node.width,
-                height: showPodGroupByStatus ? POD_NODE_HEIGHT + 20 * numberOfRows : node.height
+                height: podGroupHeight
             }}>
             <NodeUpdateAnimation resourceVersion={node.resourceVersion} />
             <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} className={`application-resource-tree__node__top-part`}>
@@ -532,7 +554,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         <>
                             <br />
                             <div
-                                style={{top: node.height / 2 - 6}}
+                                style={{top: podGroupHeight / 2 - 6}}
                                 className='application-resource-tree__node--podgroup--expansion'
                                 onClick={event => {
                                     expandCollapse(node, props);
@@ -762,7 +784,7 @@ function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: st
     }
 }
 
-function renderResourceNode(props: ApplicationResourceTreeProps, id: string, node: ResourceTreeNode & dagre.Node, nodesHavingChildren: Map<string, number>) {
+function renderResourceNode(props: ApplicationResourceTreeProps, node: ResourceTreeNode & dagre.Node, nodesHavingChildren: Map<string, number>) {
     const fullName = nodeKey(node);
     let comparisonStatus: models.SyncStatusCode = null;
     let healthState: models.HealthStatus = null;
@@ -937,7 +959,7 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
     return result;
 }
 export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => {
-    const graph = new dagre.graphlib.Graph();
+    const graph = new dagre.graphlib.Graph<{[key: string]: any}>();
     graph.setGraph({nodesep: 25, rankdir: 'LR', marginy: 45, marginx: -100, ranksep: 80});
     graph.setDefaultEdgeLabel(() => ({}));
     const overridesCount = getAppOverridesCount(props.app);
@@ -1014,6 +1036,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     }, [props.filters]);
     const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props;
     const podCount = nodes.filter(node => node.kind === 'Pod').length;
+    const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
 
     React.useEffect(() => {
         if (podCount > podGroupCount) {
@@ -1025,7 +1048,12 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
     }, [podCount]);
 
-    function filterGraph(app: models.AbstractApplication, filteredIndicatorParent: string, graphNodesFilter: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
+    function filterGraph(
+        app: models.AbstractApplication,
+        filteredIndicatorParent: string,
+        graphNodesFilter: dagre.graphlib.Graph<{[key: string]: any}>,
+        predicate: (node: ResourceTreeNode) => boolean
+    ) {
         const appKey = appNodeKey(app);
         let filtered = 0;
         graphNodesFilter.nodes().forEach(nodeId => {
@@ -1228,8 +1256,14 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     }
 
     function setPodGroupNode(node: ResourceTreeNode, root: ResourceTreeNode) {
-        const numberOfRows = Math.ceil(node.podGroup.pods.length / 8);
-        graph.setNode(treeNodeKey(node), {...node, type: NODE_TYPES.podGroup, width: NODE_WIDTH, height: POD_NODE_HEIGHT + 30 * numberOfRows, root});
+        const numberOfRows = getPodGroupNumberOfRows(node.podGroup?.pods, showPodGroupByStatus);
+        graph.setNode(treeNodeKey(node), {
+            ...node,
+            type: NODE_TYPES.podGroup,
+            width: NODE_WIDTH,
+            height: POD_NODE_HEIGHT + POD_GROUP_ROW_HEIGHT * numberOfRows,
+            root
+        });
     }
 
     function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {
@@ -1400,9 +1434,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         case NODE_TYPES.groupedNodes:
                             return <React.Fragment key={key}>{renderGroupedNodes(props, node as any)}</React.Fragment>;
                         case NODE_TYPES.podGroup:
-                            return <React.Fragment key={key}>{renderPodGroup(props, key, node as ResourceTreeNode & dagre.Node, childrenMap)}</React.Fragment>;
+                            return <React.Fragment key={key}>{renderPodGroup(props, node as ResourceTreeNode & dagre.Node, childrenMap, showPodGroupByStatus)}</React.Fragment>;
                         default:
-                            return <React.Fragment key={key}>{renderResourceNode(props, key, node as ResourceTreeNode & dagre.Node, nodesHavingChildren)}</React.Fragment>;
+                            return <React.Fragment key={key}>{renderResourceNode(props, node as ResourceTreeNode & dagre.Node, nodesHavingChildren)}</React.Fragment>;
                     }
                 })}
                 {edges.map(edge => (
