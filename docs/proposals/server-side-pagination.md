@@ -173,8 +173,15 @@ The proposal does not introduce any breaking changes. The API server should grac
 
 ## Drawbacks
 
-None.
+* **Lack of profiling data**: We currently lack full end-to-end profiling data about the performance of the list UI to confirm how much pagination would improve performance
+* **Inability to use k8s pagination**: our UI offers features like sorting by app name, which Kubernetes does not support; so Argo will need to load the full list from Kubernetes regardless of Argo-side pagination
+* **Complex Implementation**: a [couple](https://github.com/argoproj/argo-cd/pull/22444) [attempts](https://github.com/argoproj/argo-cd/pull/25097) to implement the feature have failed due to high complexity and unexpected edge cases
 
 ## Alternatives
+
+* **Improve frontend performance**:
+  * **Upgrade to React 19**: [will provide](https://github.com/argoproj/argo-cd/pull/27091) immediate performance benefits and unlock new profiling tooling to investigate bottlenecks
+  * **Improve RBAC evaluation**: one of the slow parts of listing apps is evaluating RBAC for each app, and we can improve that by doing things like [caching compiled glob patterns](https://github.com/argoproj/argo-cd/pull/25759)
+* **Reduce list payload**: some data sent to the UI is unnecessary and [can be eliminated](https://github.com/argoproj/argo-cd/pull/25451) relatively easily
 
 ****
