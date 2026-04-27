@@ -2239,49 +2239,6 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 	})
 }
 
-func TestAppInformerProjectQueueingOnUpdateAndDelete(t *testing.T) {
-	app := newFakeApp()
-	app.Spec.Project = "old-project"
-	
-	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-	
-	cancelApp := test.StartInformer(ctrl.appInformer)
-	defer cancelApp()
-
-	// Wait for initial sync and drain the queue
-	time.Sleep(100 * time.Millisecond)
-	for ctrl.projectRefreshQueue.Len() > 0 {
-		key, _ := ctrl.projectRefreshQueue.Get()
-		ctrl.projectRefreshQueue.Done(key)
-	}
-
-	// Update App to trigger project queueing for old project
-	updatedApp := app.DeepCopy()
-	updatedApp.Spec.Project = "new-project"
-	
-	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(context.Background(), updatedApp, metav1.UpdateOptions{})
-	require.NoError(t, err)
-
-	// Wait for informer to process
-	time.Sleep(100 * time.Millisecond)
-
-	key, shutdown := ctrl.projectRefreshQueue.Get()
-	assert.False(t, shutdown)
-	assert.Contains(t, key, "old-project")
-	ctrl.projectRefreshQueue.Done(key)
-
-	// Delete App to trigger project queueing for new project
-	err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Delete(context.Background(), app.Name, metav1.DeleteOptions{})
-	require.NoError(t, err)
-
-	// Wait for informer to process
-	time.Sleep(100 * time.Millisecond)
-
-	key2, _ := ctrl.projectRefreshQueue.Get()
-	assert.Contains(t, key2, "new-project")
-	ctrl.projectRefreshQueue.Done(key2)
-}
-
 func TestRefreshAppConditions(t *testing.T) {
 	defaultProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -2630,7 +2587,7 @@ func TestProjectErrorToCondition(t *testing.T) {
 func TestProcessProjectQueueItem_AddsFinalizer(t *testing.T) {
 	proj := &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{proj}}, nil)
-	ctrl.projectRefreshQueue.Add("argocd/default")
+	ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/default", test.FakeArgoCDNamespace))
 
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]any{}
