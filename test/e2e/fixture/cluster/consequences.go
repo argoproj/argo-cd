@@ -40,7 +40,7 @@ func (c *Consequences) cluster() (*v1alpha1.Cluster, error) {
 func (c *Consequences) get() (*v1alpha1.Cluster, error) {
 	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient()
 
-	cluster, _ := clusterClient.List(context.Background(), &clusterpkg.ClusterQuery{})
+	cluster, _ := clusterClient.List(context.Background(), &clusterpkg.ClusterListQuery{})
 	for i := range cluster.Items {
 		if cluster.Items[i].Server == c.context.server {
 			return &cluster.Items[i], nil

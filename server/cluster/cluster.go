@@ -51,7 +51,7 @@ func CreateClusterRBACObject(project string, server string) string {
 }
 
 // List returns list of clusters
-func (s *Server) List(ctx context.Context, q *cluster.ClusterQuery) (*appv1.ClusterList, error) {
+func (s *Server) List(ctx context.Context, q *cluster.ClusterListQuery) (*appv1.ClusterList, error) {
 	clusterList, err := s.db.ListClusters(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list clusters: %w", err)

@@ -22,6 +22,13 @@ message ClusterQuery {
 	string server = 1;
 	string name = 2;
 	ClusterID id = 3;
+}
+
+// ClusterListQuery is a query for listing cluster resources, with additional list-only filters
+message ClusterListQuery {
+	string server = 1;
+	string name = 2;
+	ClusterID id = 3;
 	// Label selector to restrict the returned list to clusters with matching labels
 	string selector = 4;
 }
@@ -43,7 +50,7 @@ message ClusterUpdateRequest {
 service ClusterService {
 
 	// List returns list of clusters
-	rpc List(ClusterQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ClusterList) {
+	rpc List(ClusterListQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ClusterList) {
 		option (google.api.http).get = "/api/v1/clusters";
 	}
 
