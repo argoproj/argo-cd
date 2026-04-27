@@ -147,6 +147,7 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 	if info != nil {
 		clusterInfo.ServerVersion = info.K8SVersion
 		clusterInfo.APIVersions = argo.APIResourcesToStrings(info.APIResources, true)
+		clusterInfo.SyncWarnings = info.SyncWarnings
 		switch {
 		case info.LastCacheSyncTime == nil:
 			clusterInfo.ConnectionState.Status = appv1.ConnectionStatusUnknown

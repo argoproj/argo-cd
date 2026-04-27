@@ -2396,6 +2396,8 @@ type ClusterInfo struct {
 	ApplicationsCount int64 `json:"applicationsCount" protobuf:"bytes,4,opt,name=applicationsCount"`
 	// APIVersions contains list of API versions supported by the cluster
 	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,5,opt,name=apiVersions"`
+	// SyncWarnings contains warnings from the most recent cluster cache sync (e.g. inaccessible namespaces)
+	SyncWarnings []string `json:"syncWarnings,omitempty" protobuf:"bytes,6,rep,name=syncWarnings"`
 }
 
 func (c *ClusterInfo) GetKubeVersion() string {
