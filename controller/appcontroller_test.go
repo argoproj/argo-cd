@@ -2239,6 +2239,49 @@ func TestApplicationInformerUpdateFunc(t *testing.T) {
 	})
 }
 
+func TestAppInformerProjectQueueingOnUpdateAndDelete(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "old-project"
+	
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	
+	cancelApp := test.StartInformer(ctrl.appInformer)
+	defer cancelApp()
+
+	// Wait for initial sync and drain the queue
+	time.Sleep(100 * time.Millisecond)
+	for ctrl.projectRefreshQueue.Len() > 0 {
+		key, _ := ctrl.projectRefreshQueue.Get()
+		ctrl.projectRefreshQueue.Done(key)
+	}
+
+	// Update App to trigger project queueing for old project
+	updatedApp := app.DeepCopy()
+	updatedApp.Spec.Project = "new-project"
+	
+	_, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(context.Background(), updatedApp, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	// Wait for informer to process
+	time.Sleep(100 * time.Millisecond)
+
+	key, shutdown := ctrl.projectRefreshQueue.Get()
+	assert.False(t, shutdown)
+	assert.Contains(t, key, "old-project")
+	ctrl.projectRefreshQueue.Done(key)
+
+	// Delete App to trigger project queueing for new project
+	err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Delete(context.Background(), app.Name, metav1.DeleteOptions{})
+	require.NoError(t, err)
+
+	// Wait for informer to process
+	time.Sleep(100 * time.Millisecond)
+
+	key2, _ := ctrl.projectRefreshQueue.Get()
+	assert.Contains(t, key2, "new-project")
+	ctrl.projectRefreshQueue.Done(key2)
+}
+
 func TestRefreshAppConditions(t *testing.T) {
 	defaultProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -2582,6 +2625,26 @@ func TestProjectErrorToCondition(t *testing.T) {
 	assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
 	assert.Equal(t, "Application referencing project wrong project which does not exist", updatedApp.Status.Conditions[0].Message)
 	assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
+}
+
+func TestProcessProjectQueueItem_AddsFinalizer(t *testing.T) {
+	proj := &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{proj}}, nil)
+	ctrl.projectRefreshQueue.Add("argocd/default")
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]any{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.AppProject{}, nil
+	})
+
+	ctrl.processProjectQueueItem()
+
+	finalizers, _, _ := unstructured.NestedStringSlice(receivedPatch, "metadata", "finalizers")
+	assert.Contains(t, finalizers, "resources-finalizer.argocd.argoproj.io")
 }
 
 func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
