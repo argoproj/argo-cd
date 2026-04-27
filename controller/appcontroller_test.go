@@ -2587,7 +2587,7 @@ func TestProjectErrorToCondition(t *testing.T) {
 func TestProcessProjectQueueItem_AddsFinalizer(t *testing.T) {
 	proj := &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace}}
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{proj}}, nil)
-	ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/default", test.FakeArgoCDNamespace))
+	ctrl.projectRefreshQueue.Add(test.FakeArgoCDNamespace + "/default")
 
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]any{}
