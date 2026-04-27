@@ -1,9 +1,10 @@
-FROM node:20
+FROM node:24.14.1@sha256:80fc934952c8f1b2b4d39907af7211f8a9fff1a4c2cf673fb49099292c251cec
 
 WORKDIR /app/ui
 
 COPY ui /app/ui
 
-RUN yarn install
+RUN npm install -g corepack@0.34.6 && corepack enable && pnpm install --frozen-lockfile
 
-ENTRYPOINT ["yarn", "start"]
+ENTRYPOINT ["pnpm", "start"]
+

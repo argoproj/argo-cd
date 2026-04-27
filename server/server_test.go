@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	jose "github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -486,6 +488,100 @@ func TestGracefulShutdown(t *testing.T) {
 	assert.True(t, shutdown)
 }
 
+func TestOIDCRefresh(t *testing.T) {
+	port, err := test.GetFreePort()
+	require.NoError(t, err)
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	cm := test.NewFakeConfigMap()
+	cm.Data["oidc.config"] = `
+name: Test OIDC
+issuer: $oidc.myoidc.issuer
+clientID: $oidc.myoidc.clientId
+clientSecret: $oidc.myoidc.clientSecret
+`
+	secret := test.NewFakeSecret()
+	issuerURL := "http://oidc.127.0.0.1.nip.io"
+	updatedIssuerURL := "http://newoidc.127.0.0.1.nip.io"
+	secret.Data["oidc.myoidc.issuer"] = []byte(issuerURL)
+	secret.Data["oidc.myoidc.clientId"] = []byte("myClientId")
+	secret.Data["oidc.myoidc.clientSecret"] = []byte("myClientSecret")
+
+	kubeclientset := fake.NewSimpleClientset(cm, secret)
+	redis, redisCloser := test.NewInMemoryRedis()
+	defer redisCloser()
+	s := NewServer(
+		t.Context(),
+		ArgoCDServerOpts{
+			ListenPort:    port,
+			Namespace:     test.FakeArgoCDNamespace,
+			KubeClientset: kubeclientset,
+			AppClientset:  apps.NewSimpleClientset(),
+			RepoClientset: mockRepoClient,
+			RedisClient:   redis,
+		},
+		ApplicationSetOpts{},
+	)
+	projInformerCancel := test.StartInformer(s.projInformer)
+	defer projInformerCancel()
+	appInformerCancel := test.StartInformer(s.appInformer)
+	defer appInformerCancel()
+	appsetInformerCancel := test.StartInformer(s.appsetInformer)
+	defer appsetInformerCancel()
+	clusterInformerCancel := test.StartInformer(s.clusterInformer)
+	defer clusterInformerCancel()
+
+	shutdown := false
+
+	lns, err := s.Listen()
+	require.NoError(t, err)
+	runCtx := t.Context()
+
+	var wg gosync.WaitGroup
+	wg.Add(1)
+	go func(shutdown *bool) {
+		defer wg.Done()
+		s.Run(runCtx, lns)
+		*shutdown = true
+	}(&shutdown)
+
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+	assert.True(t, s.available.Load())
+	assert.Equal(t, issuerURL, s.ssoClientApp.IssuerURL())
+
+	// Update oidc config
+	secret.Data["oidc.myoidc.issuer"] = []byte(updatedIssuerURL)
+	secret.ResourceVersion = "12345"
+	_, err = kubeclientset.CoreV1().Secrets(test.FakeArgoCDNamespace).Update(runCtx, secret, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	// Wait for graceful shutdown
+	wg.Wait()
+	for s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	assert.False(t, s.available.Load())
+
+	shutdown = false
+	wg.Add(1)
+	go func(shutdown *bool) {
+		defer wg.Done()
+		s.Run(runCtx, lns)
+		*shutdown = true
+	}(&shutdown)
+
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+	assert.True(t, s.available.Load())
+	assert.Equal(t, updatedIssuerURL, s.ssoClientApp.IssuerURL())
+
+	s.stopCh <- syscall.SIGINT
+	wg.Wait()
+}
+
 func TestAuthenticate(t *testing.T) {
 	type testData struct {
 		test             string
@@ -604,6 +700,20 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 			if err != nil {
 				t.Fail()
 			}
+		case "/api/dex/keys":
+			pubKey, err := jwt.ParseRSAPublicKeyFromPEM(testutil.Cert)
+			require.NoError(t, err)
+			jwks := jose.JSONWebKeySet{
+				Keys: []jose.JSONWebKey{
+					{
+						Key: pubKey,
+					},
+				},
+			}
+			out, err := json.Marshal(jwks)
+			require.NoError(t, err)
+			_, err = w.Write(out)
+			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -820,15 +930,15 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			test:                  "anonymous disabled, unexpired token, admin claim",
 			anonymousEnabled:      false,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
-			expectedErrorContains: common.TokenVerificationError,
-			expectedClaims:        nil,
+			expectedErrorContains: "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "anonymous enabled, unexpired token, admin claim",
 			anonymousEnabled:      true,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
 			expectedErrorContains: "",
-			expectedClaims:        "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "anonymous disabled, expired token, admin claim",
@@ -851,7 +961,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			expectedErrorContains: common.TokenVerificationError,
 			expectedClaims:        nil,
 		},
-		// External OIDC (not bundled Dex)
+		// External OIDC
 		{
 			test:                  "external OIDC: anonymous disabled, no audience",
 			anonymousEnabled:      false,
@@ -873,8 +983,8 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			anonymousEnabled:      false,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
 			useDex:                true,
-			expectedErrorContains: common.TokenVerificationError,
-			expectedClaims:        nil,
+			expectedErrorContains: "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "external OIDC: anonymous enabled, unexpired token, admin claim",
@@ -882,7 +992,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
 			useDex:                true,
 			expectedErrorContains: "",
-			expectedClaims:        "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "external OIDC: anonymous disabled, expired token, admin claim",
@@ -926,8 +1036,19 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			} else {
 				testDataCopy.claims.Issuer = oidcURL
 			}
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, testDataCopy.claims)
-			tokenString, err := token.SignedString([]byte("key"))
+
+			// go-oidc explicitly requires the use of an asymmetric signature algorithm.
+			// We use the respective signature algorithm based on the mock provider implementation.
+			var signingMethod jwt.SigningMethod
+			if testDataCopy.useDex {
+				signingMethod = jwt.SigningMethodRS256
+			} else {
+				signingMethod = jwt.SigningMethodRS512
+			}
+			key, err := jwt.ParseRSAPrivateKeyFromPEM(testutil.PrivateKey)
+			require.NoError(t, err)
+			token := jwt.NewWithClaims(signingMethod, testDataCopy.claims)
+			tokenString, err := token.SignedString(key)
 			require.NoError(t, err)
 			ctx = metadata.NewIncomingContext(t.Context(), metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
 
@@ -935,6 +1056,12 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			claims := ctx.Value("claims")
 			if testDataCopy.expectedClaims == nil {
 				assert.Nil(t, claims)
+			} else if expectedMap, ok := testDataCopy.expectedClaims.(jwt.MapClaims); ok {
+				actualMap, ok := claims.(jwt.MapClaims)
+				assert.True(t, ok, "expected claims to be jwt.MapClaims, got %T", claims)
+				for k, v := range expectedMap {
+					assert.Equal(t, v, actualMap[k], "claim %q mismatch", k)
+				}
 			} else {
 				assert.Equal(t, testDataCopy.expectedClaims, claims)
 			}
@@ -1487,7 +1614,7 @@ func TestCacheControlHeaders(t *testing.T) {
 			handler := argocd.newStaticAssetsHandler()
 
 			rr := httptest.NewRecorder()
-			req := httptest.NewRequest("", "/"+testCase.filename, http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), "", "/"+testCase.filename, http.NoBody)
 
 			fp := filepath.Join(argocd.TmpAssetsDir, testCase.filename)
 
@@ -1643,7 +1770,7 @@ func Test_enforceContentTypes(t *testing.T) {
 		t.Parallel()
 
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
-		req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 		w := httptest.NewRecorder()
 		handler(w, req)
 		resp := w.Result()
@@ -1654,26 +1781,59 @@ func Test_enforceContentTypes(t *testing.T) {
 		t.Parallel()
 
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
-		req := httptest.NewRequest(http.MethodPost, "/", http.NoBody)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 		w := httptest.NewRecorder()
 		handler(w, req)
 		resp := w.Result()
 		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "didn't provide a content type, should have gotten an error")
 
-		req = httptest.NewRequest(http.MethodPost, "/", http.NoBody)
+		req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 		req.Header = map[string][]string{"Content-Type": {"application/json"}}
 		w = httptest.NewRecorder()
 		handler(w, req)
 		resp = w.Result()
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "should have passed, since an allowed content type was provided")
 
-		req = httptest.NewRequest(http.MethodPost, "/", http.NoBody)
+		req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 		req.Header = map[string][]string{"Content-Type": {"not-allowed"}}
 		w = httptest.NewRecorder()
 		handler(w, req)
 		resp = w.Result()
 		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "should not have passed, since a disallowed content type was provided")
 	})
+}
+
+func TestServeExtensions_IsolatesEachFile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Write two extension files
+	err := os.WriteFile(filepath.Join(tmpDir, "extension-a.js"), []byte(`console.log("ext-a");`), 0o644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tmpDir, "extension-b.js"), []byte(`console.log("ext-b");`), 0o644)
+	require.NoError(t, err)
+
+	argocd, closer := fakeServer(t)
+	defer closer()
+
+	w := httptest.NewRecorder()
+	argocd.serveExtensions(tmpDir, w)
+	body := w.Body.String()
+
+	// Each file must be wrapped in its own try/catch so a failure in one
+	// does not prevent subsequent extensions from loading.
+	assert.Contains(t, body, "try {")
+	assert.Contains(t, body, "} catch(e) {")
+	assert.Contains(t, body, `console.log("ext-a");`)
+	assert.Contains(t, body, `console.log("ext-b");`)
+
+	// Verify the try/catch for ext-a appears before ext-b's content
+	idxTry := strings.Index(body, "try {")
+	idxExtB := strings.Index(body, `console.log("ext-b");`)
+	assert.Less(t, idxTry, idxExtB, "try block should wrap ext-a before ext-b content appears")
+
+	// There should be two separate try/catch blocks (one per file)
+	assert.Equal(t, 2, strings.Count(body, "try {"), "each extension file should have its own try block")
+	assert.Equal(t, 2, strings.Count(body, "} catch(e) {"), "each extension file should have its own catch block")
 }
 
 func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
@@ -1696,7 +1856,7 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	require.NoError(t, err)
 
 	// Make a request to get the file from the /assets endpoint
-	req := httptest.NewRequest(http.MethodGet, "/link.txt", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/link.txt", http.NoBody)
 	w := httptest.NewRecorder()
 	argocd.newStaticAssetsHandler()(w, req)
 	resp := w.Result()
@@ -1706,7 +1866,7 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	normalFilePath := filepath.Join(argocd.StaticAssetsDir, "normal.txt")
 	err = os.WriteFile(normalFilePath, []byte("normal"), 0o644)
 	require.NoError(t, err)
-	req = httptest.NewRequest(http.MethodGet, "/normal.txt", http.NoBody)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/normal.txt", http.NoBody)
 	w = httptest.NewRecorder()
 	argocd.newStaticAssetsHandler()(w, req)
 	resp = w.Result()

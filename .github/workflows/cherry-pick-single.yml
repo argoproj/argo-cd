@@ -25,14 +25,24 @@ on:
       CHERRYPICK_APP_PRIVATE_KEY:
         required: true
 
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+
 jobs:
   cherry-pick:
     name: Cherry Pick to ${{ inputs.version_number }}
     runs-on: ubuntu-24.04
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
       - name: Generate a token
         id: generate-token
-        uses: actions/create-github-app-token@a8d616148505b5069dccd32f177bb87d7f39123b # v2.1.1
+        uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
         with:
           app-id: ${{ secrets.CHERRYPICK_APP_ID }}
           private-key: ${{ secrets.CHERRYPICK_APP_PRIVATE_KEY }}
@@ -66,21 +76,27 @@ jobs:
 
           # Create new branch for cherry-pick
           CHERRY_PICK_BRANCH="cherry-pick-${{ inputs.pr_number }}-to-${TARGET_BRANCH}"
+
           git checkout -b "$CHERRY_PICK_BRANCH" "origin/$TARGET_BRANCH"
 
           # Perform cherry-pick
-          if git cherry-pick -s -m 1 "$MERGE_COMMIT"; then
+          if git cherry-pick -m 1 "$MERGE_COMMIT"; then
             echo "✅ Cherry-pick successful"
 
             # Extract Signed-off-by from the cherry-pick commit
             SIGNOFF=$(git log -1 --pretty=format:"%B" | grep -E '^Signed-off-by:' || echo "")
 
-            # Push the new branch
-            git push origin "$CHERRY_PICK_BRANCH"
+            # Push the new branch. Force push to ensure that in case the original cherry-pick branch is stale, 
+            # that the current state of the $TARGET_BRANCH + cherry-pick gets in $CHERRY_PICK_BRANCH.
+            git push origin -f "$CHERRY_PICK_BRANCH"
 
             # Save data for PR creation
             echo "branch_name=$CHERRY_PICK_BRANCH" >> "$GITHUB_OUTPUT"
-            echo "signoff=$SIGNOFF" >> "$GITHUB_OUTPUT"
+            {
+              echo "signoff<<EOF"
+              echo "$SIGNOFF"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
             echo "target_branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
           else
             echo "❌ Cherry-pick failed due to conflicts"

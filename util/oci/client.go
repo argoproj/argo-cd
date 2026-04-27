@@ -25,7 +25,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/versions"
 
-	"github.com/argoproj/pkg/sync"
+	"github.com/argoproj/pkg/v2/sync"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/util/cache"
@@ -143,6 +143,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 			Proxy:             proxy.GetCallback(proxyURL, noProxy),
 			TLSClientConfig:   tlsConf,
 			DisableKeepAlives: true,
+			ForceAttemptHTTP2: true,
 		},
 		/*
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -518,7 +519,7 @@ func isContentLayer(mediaType string) bool {
 
 func isCompressedLayer(mediaType string) bool {
 	// TODO: Is zstd something which is used in the wild? For now let's stick to these suffixes
-	return strings.HasSuffix(mediaType, "tar+gzip") || strings.HasSuffix(mediaType, "tar")
+	return strings.HasSuffix(mediaType, "tar+gzip") || strings.HasSuffix(mediaType, "tar.gzip") || strings.HasSuffix(mediaType, "tar")
 }
 
 func createTarFile(from, to string) error {
@@ -625,7 +626,7 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.D
 		}
 		defer os.RemoveAll(srcDir)
 
-		if strings.HasSuffix(desc.MediaType, "tar+gzip") {
+		if strings.HasSuffix(desc.MediaType, "tar+gzip") || strings.HasSuffix(desc.MediaType, "tar.gzip") {
 			err = files.Untgz(srcDir, content, s.maxSize, false)
 		} else {
 			err = files.Untar(srcDir, content, s.maxSize, false)

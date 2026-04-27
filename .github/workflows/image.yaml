@@ -15,6 +15,10 @@ concurrency:
 
 permissions: {}
 
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+
 jobs:
   set-vars:
     permissions:
@@ -31,6 +35,12 @@ jobs:
       ghcr_provenance_image: ${{ steps.image.outputs.ghcr_provenance_image }}
       allow_ghcr_publish: ${{ steps.image.outputs.allow_ghcr_publish }}
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Set image tag and names
@@ -86,7 +96,7 @@ jobs:
     with:
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.25.6
+      go-version: 1.26.2
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: false
 
@@ -103,7 +113,7 @@ jobs:
       ghcr_image_name: ${{ needs.set-vars.outputs.ghcr_image_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.25.6
+      go-version: 1.26.2
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: true
     secrets:

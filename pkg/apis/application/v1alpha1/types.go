@@ -15,15 +15,16 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 	"unicode"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"github.com/cespare/xxhash/v2"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
@@ -430,6 +431,10 @@ func (s SourceHydrator) GetDrySource() ApplicationSource {
 		RepoURL:        s.DrySource.RepoURL,
 		Path:           s.DrySource.Path,
 		TargetRevision: s.DrySource.TargetRevision,
+		Helm:           s.DrySource.Helm,
+		Kustomize:      s.DrySource.Kustomize,
+		Directory:      s.DrySource.Directory,
+		Plugin:         s.DrySource.Plugin,
 	}
 }
 
@@ -684,9 +689,9 @@ func (images KustomizeImages) Find(image KustomizeImage) int {
 
 // ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize
 type ApplicationSourceKustomize struct {
-	// NamePrefix is a prefix appended to resources for Kustomize apps
+	// NamePrefix overrides the namePrefix in the kustomization.yaml for Kustomize apps
 	NamePrefix string `json:"namePrefix,omitempty" protobuf:"bytes,1,opt,name=namePrefix"`
-	// NameSuffix is a suffix appended to resources for Kustomize apps
+	// NameSuffix overrides the nameSuffix in the kustomization.yaml for Kustomize apps
 	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
 	// Images is a list of Kustomize image override specifications
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
@@ -1192,6 +1197,7 @@ type ApplicationStatus struct {
 	// OperationState contains information about any ongoing operations, such as a sync
 	OperationState *OperationState `json:"operationState,omitempty" protobuf:"bytes,7,opt,name=operationState"`
 	// ObservedAt indicates when the application state was updated without querying latest git state
+	//
 	// Deprecated: controller no longer updates ObservedAt field
 	ObservedAt *metav1.Time `json:"observedAt,omitempty" protobuf:"bytes,8,opt,name=observedAt"`
 	// SourceType specifies the type of this application
@@ -1437,10 +1443,8 @@ type SyncOptions []string
 // AddOption adds a sync option to the list of sync options and returns the modified list.
 // If option was already set, returns the unmodified list of sync options.
 func (o SyncOptions) AddOption(option string) SyncOptions {
-	for _, j := range o {
-		if j == option {
-			return o
-		}
+	if slices.Contains(o, option) {
+		return o
 	}
 	return append(o, option)
 }
@@ -1458,12 +1462,19 @@ func (o SyncOptions) RemoveOption(option string) SyncOptions {
 
 // HasOption returns true if the list of sync options contains given option
 func (o SyncOptions) HasOption(option string) bool {
+	return slices.Contains(o, option)
+}
+
+// GetOptionValue returns true if the list of sync options contains given option
+// This function only support options that are defined as key=value and not standalone.
+func (o SyncOptions) GetOptionValue(optionKey string) *string {
+	prefix := optionKey + "="
 	for _, i := range o {
-		if option == i {
-			return true
+		if val, found := strings.CutPrefix(i, prefix); found {
+			return new(val)
 		}
 	}
-	return false
+	return nil
 }
 
 type ManagedNamespaceMetadata struct {
@@ -1564,13 +1575,37 @@ type Backoff struct {
 // SyncPolicyAutomated controls the behavior of an automated sync
 type SyncPolicyAutomated struct {
 	// Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
-	Prune bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
+	Prune *bool `json:"prune,omitempty" protobuf:"bytes,1,opt,name=prune"`
 	// SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)
-	SelfHeal bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
+	SelfHeal *bool `json:"selfHeal,omitempty" protobuf:"bytes,2,opt,name=selfHeal"`
 	// AllowEmpty allows apps have zero live resources (default: false)
-	AllowEmpty bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
+	AllowEmpty *bool `json:"allowEmpty,omitempty" protobuf:"bytes,3,opt,name=allowEmpty"`
 	// Enable allows apps to explicitly control automated sync
 	Enabled *bool `json:"enabled,omitempty" protobuf:"bytes,4,opt,name=enabled"`
+}
+
+// GetPrune returns the value of Prune, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetPrune() bool {
+	if a == nil || a.Prune == nil {
+		return false
+	}
+	return *a.Prune
+}
+
+// GetSelfHeal returns the value of SelfHeal, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetSelfHeal() bool {
+	if a == nil || a.SelfHeal == nil {
+		return false
+	}
+	return *a.SelfHeal
+}
+
+// GetAllowEmpty returns the value of AllowEmpty, defaulting to false if nil.
+func (a *SyncPolicyAutomated) GetAllowEmpty() bool {
+	if a == nil || a.AllowEmpty == nil {
+		return false
+	}
+	return *a.AllowEmpty
 }
 
 // SyncStrategy controls the manner in which a sync is performed
@@ -2197,6 +2232,7 @@ type ResourceDiff struct {
 	// LiveState contains the JSON-serialized resource manifest of the resource currently running in the cluster.
 	LiveState string `json:"liveState,omitempty" protobuf:"bytes,6,opt,name=liveState"`
 	// Diff contains the JSON patch representing the difference between the live and target resource.
+	//
 	// Deprecated: Use NormalizedLiveState and PredictedLiveState instead to compute differences.
 	Diff string `json:"diff,omitempty" protobuf:"bytes,7,opt,name=diff"`
 	// Hook indicates whether this resource is a hook resource (e.g., pre-sync or post-sync hooks).
@@ -2277,7 +2313,7 @@ type Cluster struct {
 	// The embedded metav1.ObjectMeta field is purely here to please the informer when converting from a v1.Secret to a Cluster.
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
 	// +optional
-	metav1.ObjectMeta `json:"-,omitempty"`
+	metav1.ObjectMeta `json:"-"`
 }
 
 func (c *Cluster) Sanitized() *Cluster {
@@ -2298,8 +2334,14 @@ func (c *Cluster) Sanitized() *Cluster {
 			ProxyUrl:           c.Config.ProxyUrl,
 			DisableCompression: c.Config.DisableCompression,
 			TLSClientConfig: TLSClientConfig{
-				Insecure: c.Config.Insecure,
+				Insecure:   c.Config.Insecure,
+				ServerName: c.Config.ServerName,
 			},
+			// We can't know what the user has put into args or
+			// env vars on the exec provider that might be sensitive
+			// (e.g. --private-key=XXX, PASSWORD=XXX)
+			// Implicitly assumes the command executable name is non-sensitive
+			ExecProviderConfig: nil,
 		},
 	}
 }
@@ -2795,6 +2837,10 @@ type SyncWindow struct {
 	UseAndOperator bool `json:"andOperator,omitempty" protobuf:"bytes,9,opt,name=andOperator"`
 	// Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
 	Description string `json:"description,omitempty" protobuf:"bytes,10,opt,name=description"`
+	// SyncOverrun allows ongoing syncs to continue in two scenarios:
+	// For deny windows: allows syncs that started before the deny window became active to continue running
+	// For allow windows: allows syncs that started during the allow window to continue after the window ends
+	SyncOverrun bool `json:"syncOverrun,omitempty" protobuf:"bytes,11,opt,name=syncOverrun"`
 }
 
 // HasWindows returns true if SyncWindows has one or more SyncWindow
@@ -2892,7 +2938,7 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 }
 
 // AddWindow adds a sync window with the given parameters to the AppProject
-func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string) error {
+func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string, andOperator bool, description string, syncOverrun bool) error {
 	if knd == "" || sch == "" || dur == "" {
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
@@ -2905,6 +2951,7 @@ func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []
 		TimeZone:       timeZone,
 		UseAndOperator: andOperator,
 		Description:    description,
+		SyncOverrun:    syncOverrun,
 	}
 
 	if len(app) > 0 {
@@ -3020,7 +3067,12 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 }
 
 // CanSync returns true if a sync window currently allows a sync. isManual indicates whether the sync has been triggered manually.
-func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
+// The operationStartTime parameter supports sync overrun functionality, which allows ongoing syncs to continue in two scenarios:
+//  1. When a deny window becomes active: If the operation started when sync was allowed and the deny window has syncOverrun enabled,
+//     the sync can continue even though a deny window is now active.
+//  2. When an allow window ends: If the operation started during an allow window with syncOverrun enabled, the sync can continue
+//     even after the allow window has ended (and no other allow windows are active).
+func (w *SyncWindows) CanSync(isManual bool, operationStartTime *time.Time) (bool, error) {
 	if !w.HasWindows() {
 		return true, nil
 	}
@@ -3035,6 +3087,18 @@ func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 		if isManual && manualEnabled {
 			return true, nil
 		}
+
+		// Check if operation started before deny window and overrun is allowed
+		if operationStartTime != nil && !operationStartTime.IsZero() && active.denyAllowsOverrun() {
+			wasAllowed, err := w.canSyncAtTime(isManual, *operationStartTime)
+			if err != nil {
+				return false, err
+			}
+			if wasAllowed {
+				return true, nil // Allow sync to continue (overrun into deny window)
+			}
+		}
+
 		return false, nil
 	}
 
@@ -3050,6 +3114,18 @@ func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 		if isManual && inactiveAllows.manualEnabled() {
 			return true, nil
 		}
+
+		// Check if operation started during an allow window and overrun is allowed
+		if operationStartTime != nil && !operationStartTime.IsZero() && inactiveAllows.inactiveAllowsAllowOverrun() {
+			wasAllowed, err := w.canSyncAtTime(isManual, *operationStartTime)
+			if err != nil {
+				return false, err
+			}
+			if wasAllowed {
+				return true, nil // Allow sync to continue (overrun out of allow window)
+			}
+		}
+
 		return false, nil
 	}
 
@@ -3105,6 +3181,82 @@ func (w *SyncWindows) manualEnabled() bool {
 		}
 	}
 	return true
+}
+
+// denyAllowsOverrun will iterate over the deny SyncWindows and return true if all deny windows have
+// SyncOverrun set to true. Returns false if it finds at least one deny window with
+// SyncOverrun set to false. This is used to determine if a sync can continue when a deny
+// window becomes active after the operation started.
+func (w *SyncWindows) denyAllowsOverrun() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	hasDeny := false
+	for _, s := range *w {
+		if s.Kind == "deny" {
+			hasDeny = true
+			if !s.SyncOverrun {
+				return false
+			}
+		}
+	}
+	return hasDeny
+}
+
+// inactiveAllowsAllowOverrun checks if all inactive allow windows have SyncOverrun enabled.
+// This is used to determine if a sync can continue after an allow window has ended.
+// Similar to allowsOverrun() for deny windows, ALL allow windows must have SyncOverrun enabled.
+func (w *SyncWindows) inactiveAllowsAllowOverrun() bool {
+	if !w.HasWindows() {
+		return false
+	}
+	hasAllow := false
+	for _, s := range *w {
+		if s.Kind == "allow" {
+			hasAllow = true
+			if !s.SyncOverrun {
+				return false
+			}
+		}
+	}
+	return hasAllow
+}
+
+// canSyncAtTime checks if a sync would have been allowed at a specific time
+func (w *SyncWindows) canSyncAtTime(isManual bool, checkTime time.Time) (bool, error) {
+	if !w.HasWindows() {
+		return true, nil
+	}
+
+	active, err := w.active(checkTime)
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
+	hasActiveDeny, manualEnabled := active.hasDeny()
+
+	if hasActiveDeny {
+		if isManual && manualEnabled {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	if active.hasAllow() {
+		return true, nil
+	}
+
+	inactiveAllows, err := w.inactiveAllows(checkTime)
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
+	if inactiveAllows.HasWindows() {
+		if isManual && inactiveAllows.manualEnabled() {
+			return true, nil
+		}
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // Active returns true if the sync window is currently active
@@ -3315,12 +3467,7 @@ type ApplicationDestinationServiceAccount struct {
 
 // CascadedDeletion indicates if the deletion finalizer is set and controller should delete the application and it's cascaded resources
 func (app *Application) CascadedDeletion() bool {
-	for _, finalizer := range app.Finalizers {
-		if isPropagationPolicyFinalizer(finalizer) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(app.Finalizers, isPropagationPolicyFinalizer)
 }
 
 // IsRefreshRequested returns whether a refresh has been requested for an application, and if yes, the type of refresh that should be executed.

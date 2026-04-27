@@ -6,7 +6,7 @@ Tools like Helm and Kustomize allow users to express their Kubernetes manifests 
 (keeping it DRY - Don't Repeat Yourself). However, these tools can obscure the actual Kubernetes manifests that are
 applied to the cluster.
 
-The "rendered manifest pattern" is a feature of Argo CD that allows users to push the hydrated manifests to git before syncing them to the cluster. This
+The *rendered manifest pattern* is a feature of Argo CD that allows users to push the hydrated manifests to git before syncing them to the cluster. This
 allows users to see the actual Kubernetes manifests that are applied to the cluster.
 
 ## Enabling the Source Hydrator
@@ -14,7 +14,7 @@ allows users to see the actual Kubernetes manifests that are applied to the clus
 The source hydrator is disabled by default.
 
 To enable the source hydrator, you need to enable the "commit server" component and set the `hydrator.enabled` field in
-argocd-cmd-params-cm ConfigMap to `"true"`.
+`argocd-cmd-params-cm` ConfigMap to `"true"`.
 
 ```yaml
 apiVersion: v1
@@ -40,7 +40,7 @@ With hydrator:    https://raw.githubusercontent.com/argoproj/argo-cd/stable/mani
 ```
 
 > [!IMPORTANT]
-> The `*-with-hydrator-install.yaml` manifests will eventually be removed when the source hydrator is either enabled
+> The `*-install-with-hydrator.yaml` manifests will eventually be removed when the source hydrator is either enabled
 > by default or removed. The upgrade guide will note if the `install-with-hydrator.yaml` manifests are no longer
 > available.
 
@@ -87,7 +87,7 @@ stringData:
 
 The only difference between the secrets above, besides the resource name, is that the push secret contains the label
 `argocd.argoproj.io/secret-type: repository-write`, which causes the Secret to be used for pushing manifests to git
-instead of pulling from git. Argo CD requires different secrets for pushing and pulling to provide better isolation.
+instead of pulling from Git. Argo CD requires different secrets for pushing and pulling to provide better isolation.
 
 Once your secrets are installed, set the `spec.sourceHydrator` field of the Application. For example:
 
@@ -113,7 +113,7 @@ This can be a Helm chart, a Kustomize directory, or plain manifests. Argo CD rea
 manifests from it, and then writes those hydrated manifests into the location specified by `syncSource.path`.
 
 When using source hydration, the `syncSource.path` field is required and must always point to a non-root
-directory in the repository. Setting the path to the repository root (for eg. `"."` or `""`) is not
+directory in the repository. Setting the path to the repository root (for example `"."` or `""`) is not
 supported. This ensures that hydration is always scoped to a dedicated subdirectory, which avoids unintentionally overwriting or removing files that may exist in the repository root.
 
 During each hydration run, Argo CD cleans the application's configured path before writing out newly generated manifests. This guarantees that old or stale files from previous hydration do not linger in the output directory. However, the repository root is never cleaned, so files such as CI/CD configuration, README files, or other root-level assets remain untouched.
@@ -248,7 +248,7 @@ spec:
 
 The source hydrator can be used to push hydrated manifests to a "staging" branch instead of the `syncSource` branch.
 This provides a way to prevent the hydrated manifests from being applied to the cluster until some prerequisite
-conditions are met (in effect providing a way to handle environment promotion via Pull Requests).
+conditions are met (in effect, providing a way to handle environment promotion via Pull Requests).
 
 To use the source hydrator to push to a "staging" branch, set the `spec.sourceHydrator.hydrateTo` field of the
 Application. For example:
@@ -350,7 +350,7 @@ git commit -m "Bump image to v1.2.3" \
   --trailer "Argocd-reference-commit-date: $date"
 ```
 
-The commit metadata will appear in the hydrated commit's root hydrator.metadata file:
+The commit metadata will appear in the hydrated commit's root `hydrator.metadata` file:
 
 ```json
 {
@@ -391,7 +391,7 @@ All trailers are optional. If a trailer is not specified, the corresponding fiel
 
 The commit message is generated using a [Go text/template](https://pkg.go.dev/text/template), optionally configured by the user via the argocd-cm ConfigMap. The template is rendered using the values from `hydrator.metadata`. The template can be multi-line, allowing users to define a subject line, body and optional trailers. To define the commit message template, you need to set the `sourceHydrator.commitMessageTemplate` field in argocd-cm ConfigMap.
 
-The template may functions from the [Sprig function library](https://github.com/Masterminds/sprig).
+The template can invoke functions from the [Sprig function library](https://github.com/Masterminds/sprig).
 
 ```yaml
 apiVersion: v1
@@ -432,15 +432,15 @@ data:
 ```
 
 **Configuration Keys:**
-- `commit.author.name`: The git commit author name (defaults to `"Argo CD"` if not set)
-- `commit.author.email`: The git commit author email (defaults to `"argo-cd@example.com"` if not set)
+* `commit.author.name`: The git commit author name (defaults to `"Argo CD"` if not set)
+* `commit.author.email`: The git commit author email (defaults to `"argo-cd@example.com"` if not set)
 
 Both values are optional. If only one is configured, the configured value will be used and the other will use its default.
 
 ### Credential Templates
 
 Credential templates allow a single credential to be used for multiple repositories. The source hydrator supports credential templates. For example, if you setup credential templates for the URL prefix `https://github.com/argoproj`, these credentials will be used for all repositories with this URL as prefix (e.g. `https://github.com/argoproj/argocd-example-apps`) that do not have their own credentials configured.
-For more information please refer [credential-template](private-repositories.md#credential-templates). 
+For more information, please refer to [Credential templates](private-repositories.md#credential-templates).
 An example of repo-write-creds secret.
 
 ```yaml
@@ -463,9 +463,9 @@ stringData:
 The Source Hydrator does not create a new hydrated commit for a DRY commit if the commit doesn't affect the hydrated manifests. Instead, the hydration state (the DRY SHA last hydrated) is tracked using a [git note](https://git-scm.com/docs/git-notes) in a dedicated `source-hydrator` namespace.
 
 On each run, the hydrator:
-- Checks the git note for the last hydrated DRY SHA.
-- If manifests have not changed since that SHA, only updates the note.
-- If manifests have changed, commits the new manifests and updates the note as well.
+* Checks the git note for the last hydrated DRY SHA.
+* If manifests have not changed since that SHA, only updates the note.
+* If manifests have changed, commits the new manifests and updates the note as well.
 
 This improves efficiency and reduces commit noise in your repository.
 
@@ -507,8 +507,8 @@ secrets operator that populates the secret values on the destination cluster.
 ### Make Hydration Deterministic
 
 The source hydrator should be deterministic. For a given dry source commit, the hydrator should always produce the same
-hydrated manifests. This means that the hydrator should not rely on external state or configuration that is not stored
-in git.
+hydrated manifests. This means that the hydrator should not rely on an external state or configuration that is not stored
+in Git.
 
 Examples of non-deterministic hydration:
 

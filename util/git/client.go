@@ -127,7 +127,7 @@ type Client interface {
 	Init() error
 	Fetch(revision string, depth int64) error
 	Submodule() error
-	Checkout(revision string, submoduleEnabled bool) (string, error)
+	Checkout(revision string, submoduleEnabled bool, cleanState bool) (string, error)
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
 	LsFiles(path string, enableNewGitFileGlobbing bool) ([]string, error)
@@ -327,13 +327,12 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 
 		return &cert, nil
 	}
-	transport := &http.Transport{
-		Proxy: proxyFunc,
-		TLSClientConfig: &tls.Config{
-			GetClientCertificate: clientCertFunc,
-		},
-		DisableKeepAlives: true,
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = proxyFunc
+	transport.TLSClientConfig = &tls.Config{
+		GetClientCertificate: clientCertFunc,
 	}
+	transport.DisableKeepAlives = true
 	customHTTPClient.Transport = transport
 	if insecure {
 		transport.TLSClientConfig.InsecureSkipVerify = true
@@ -413,6 +412,13 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 			return nil, fmt.Errorf("failed to get access token from creds: %w", err)
 		}
 
+		auth := githttp.TokenAuth{Token: token}
+		return &auth, nil
+	case AzureServicePrincipalCreds:
+		token, err := creds.getAccessToken()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get access token from creds: %w", err)
+		}
 		auth := githttp.TokenAuth{Token: token}
 		return &auth, nil
 	}
@@ -581,7 +587,7 @@ func (m *nativeGitClient) Submodule() error {
 }
 
 // Checkout checks out the specified revision
-func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (string, error) {
+func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool, cleanState bool) (string, error) {
 	if revision == "" || revision == "HEAD" {
 		revision = "origin/HEAD"
 	}
@@ -609,13 +615,15 @@ func (m *nativeGitClient) Checkout(revision string, submoduleEnabled bool) (stri
 			}
 		}
 	}
-	// NOTE
-	// The double “f” in the arguments is not a typo: the first “f” tells
-	// `git clean` to delete untracked files and directories, and the second “f”
-	// tells it to clean untracked nested Git repositories (for example a
-	// submodule which has since been removed).
-	if out, err := m.runCmd(ctx, "clean", "-ffdx"); err != nil {
-		return out, fmt.Errorf("failed to clean: %w", err)
+	if cleanState || submoduleEnabled {
+		// NOTE
+		// The double “f” in the arguments is not a typo: the first “f” tells
+		// `git clean` to delete untracked files and directories, and the second “f”
+		// tells it to clean untracked nested Git repositories (for example a
+		// submodule which has since been removed).
+		if out, err := m.runCmd(ctx, "clean", "-ffdx"); err != nil {
+			return out, fmt.Errorf("failed to clean: %w", err)
+		}
 	}
 	return "", nil
 }
@@ -776,6 +784,9 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	// symbolic reference (like HEAD), in which case we will resolve it from the refToHash map
 	refToResolve := ""
 
+	isShortRef := IsShortRef(revision)
+	log.Debugf("Attempting to resolve revision '%s' (is short ref: %t)", revision, isShortRef)
+
 	for _, ref := range refs {
 		refName := ref.Name().String()
 		hash := ref.Hash().String()
@@ -783,7 +794,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 			refToHash[refName] = hash
 		}
 		// log.Debugf("%s\t%s", hash, refName)
-		if ref.Name().Short() == revision || refName == revision {
+		if (isShortRef && ref.Name().Short() == revision) || refName == revision {
 			if ref.Type() == plumbing.HashReference {
 				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
 				return hash, nil
@@ -1028,7 +1039,7 @@ func (m *nativeGitClient) SetAuthor(name, email string) (string, error) {
 
 // CheckoutOrOrphan checks out the branch. If the branch does not exist, it creates an orphan branch.
 func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool) (string, error) {
-	out, err := m.Checkout(branch, submoduleEnabled)
+	out, err := m.Checkout(branch, submoduleEnabled, true)
 	if err != nil {
 		// If the branch doesn't exist, create it as an orphan branch.
 		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
@@ -1041,7 +1052,7 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 		}
 
 		// Make an empty initial commit.
-		out, err = m.runCmd(ctx, "commit", "--allow-empty", "-m", "Initial commit")
+		out, err = m.runCmd(ctx, "commit", "--allow-empty", "-m", "Initial commit for "+branch)
 		if err != nil {
 			return out, fmt.Errorf("failed to commit initial commit: %w", err)
 		}
@@ -1058,14 +1069,14 @@ func (m *nativeGitClient) CheckoutOrOrphan(branch string, submoduleEnabled bool)
 // CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
 // the base branch.
 func (m *nativeGitClient) CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error) {
-	out, err := m.Checkout(branch, submoduleEnabled)
+	out, err := m.Checkout(branch, submoduleEnabled, true)
 	if err != nil {
 		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
 			return out, fmt.Errorf("failed to checkout branch: %w", err)
 		}
 		// If the branch does not exist, create any empty branch based on the sync branch
 		// First, checkout the sync branch.
-		out, err = m.Checkout(base, submoduleEnabled)
+		out, err = m.Checkout(base, submoduleEnabled, true)
 		if err != nil {
 			return out, fmt.Errorf("failed to checkout sync branch: %w", err)
 		}

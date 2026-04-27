@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"html"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/argoproj/argo-cd/v3/common"
 
 	bb "github.com/ktrysmt/go-bitbucket"
 	"k8s.io/apimachinery/pkg/labels"
@@ -25,9 +27,10 @@ import (
 	"github.com/go-playground/webhooks/v6/gitlab"
 	"github.com/go-playground/webhooks/v6/gogs"
 	gogsclient "github.com/gogits/go-gogs-client"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/reposerver/cache"
@@ -55,6 +58,24 @@ const payloadQueueSize = 50000
 
 const panicMsgServer = "panic while processing api-server webhook event"
 
+var (
+	webhookManifestCacheWarmDisabled = os.Getenv("ARGOCD_WEBHOOK_MANIFEST_CACHE_WARM_DISABLED") == "true"
+	webhookRequestsTotal             = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_webhook_requests_total",
+		Help: "Number of webhook requests received by repo.",
+	}, []string{"repo"})
+
+	webhookStoreCacheAttemptsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "argocd_webhook_store_cache_attempts_total",
+		Help: "Number of attempts to store previously cached manifests triggered by a webhook event.",
+	}, []string{"repo", "successful"})
+
+	webhookHandlersInFlight = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "argocd_webhook_handlers_in_flight",
+		Help: "Number of webhook HandleEvent calls currently in progress.",
+	})
+)
+
 var _ settingsSource = &settings.SettingsManager{}
 
 type ArgoCDWebhookHandler struct {
@@ -76,9 +97,13 @@ type ArgoCDWebhookHandler struct {
 	settingsSrc            settingsSource
 	queue                  chan any
 	maxWebhookPayloadSizeB int64
+	ghcrHandler            *GHCRParser
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister,
+	set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache,
+	serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64,
+) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret()))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
@@ -103,7 +128,6 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	if err != nil {
 		log.Warnf("Unable to init the Azure DevOps webhook")
 	}
-
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:                     namespace,
 		appNs:                  applicationNamespaces,
@@ -122,6 +146,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		queue:                  make(chan any, payloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
 		appsLister:             appsLister,
+		ghcrHandler:            NewGHCRParser(set.GetWebhookGitHubSecret()),
 	}
 
 	acdWebhook.startWorkerPool(webhookParallelism)
@@ -131,10 +156,8 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 
 func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
 	compLog := log.WithField("component", "api-server-webhook")
-	for i := 0; i < webhookParallelism; i++ {
-		a.Add(1)
-		go func() {
-			defer a.Done()
+	for range webhookParallelism {
+		a.Go(func() {
 			for {
 				payload, ok := <-a.queue
 				if !ok {
@@ -142,7 +165,7 @@ func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
 				}
 				guard.RecoverAndLog(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
 			}
-		}()
+		})
 	}
 }
 
@@ -240,14 +263,18 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 				break
 			}
 			log.Debugf("created bitbucket client with base URL '%s'", apiBaseURL)
-			owner := strings.ReplaceAll(payload.Repository.FullName, "/"+payload.Repository.Name, "")
+			owner, repoSlug, ok := strings.Cut(payload.Repository.FullName, "/")
+			if !ok || owner == "" || repoSlug == "" {
+				log.Warnf("error parsing bitbucket repository full name %q", payload.Repository.FullName)
+				break
+			}
 			spec := change.shaBefore + ".." + change.shaAfter
-			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(ctx, bbClient, owner, payload.Repository.Name, spec)
+			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(ctx, bbClient, owner, repoSlug, spec)
 			if err != nil {
 				log.Warnf("error fetching changed files using bitbucket diffstat api: %v", err)
 			}
 			changedFiles = append(changedFiles, diffStatChangedFiles...)
-			touchedHead, err = isHeadTouched(ctx, bbClient, owner, payload.Repository.Name, revision)
+			touchedHead, err = isHeadTouched(ctx, bbClient, owner, repoSlug, revision)
 			if err != nil {
 				log.Warnf("error fetching bitbucket repo details: %v", err)
 				// To be safe, we just return true and let the controller check for himself.
@@ -311,6 +338,19 @@ type changeInfo struct {
 
 // HandleEvent handles webhook events for repo push events
 func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
+	webhookHandlersInFlight.Inc()
+	defer webhookHandlersInFlight.Dec()
+
+	start := time.Now()
+	log.Info("Webhook handler started")
+	defer func() {
+		log.Infof("Webhook handler completed in %v", time.Since(start))
+	}()
+
+	if e, ok := payload.(*RegistryEvent); ok {
+		a.HandleRegistryEvent(e)
+		return
+	}
 	webURLs, revision, change, touchedHead, changedFiles := a.affectedRevisionInfo(payload)
 	// NOTE: the webURL does not include the .git extension
 	if len(webURLs) == 0 {
@@ -319,6 +359,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 	}
 	for _, webURL := range webURLs {
 		log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
+		webhookRequestsTotal.WithLabelValues(git.NormalizeGitURL(webURL)).Inc()
 	}
 
 	nsFilter := a.ns
@@ -366,6 +407,16 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 			continue
 		}
 
+		cacheWarmDisabled := webhookManifestCacheWarmDisabled
+		if !cacheWarmDisabled {
+			repo, err := a.lookupRepository(context.Background(), webURL)
+			if err != nil {
+				log.Debugf("Failed to look up repository for %s: %v", webURL, err)
+			} else if repo != nil && repo.WebhookManifestCacheWarmDisabled {
+				cacheWarmDisabled = true
+			}
+		}
+
 		// iterate over apps and check if any files specified in their sources have changed
 		for _, app := range filteredApps {
 			// get all sources, including sync source and dry source if source hydrator is configured
@@ -399,10 +450,13 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 							log.Errorf("Failed to refresh app '%s': %v", app.Name, err)
 						}
 						break // we don't need to check other sources
-					} else if change.shaBefore != "" && change.shaAfter != "" {
+					} else if change.shaBefore != "" && change.shaAfter != "" && !cacheWarmDisabled {
 						// update the cached manifests with the new revision cache key
 						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey, installationID, source); err != nil {
-							log.Errorf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
+							log.Debugf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
+							webhookStoreCacheAttemptsTotal.WithLabelValues(git.NormalizeGitURL(webURL), "false").Inc()
+						} else {
+							webhookStoreCacheAttemptsTotal.WithLabelValues(git.NormalizeGitURL(webURL), "true").Inc()
 						}
 					}
 				}
@@ -481,7 +535,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 
 	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
 
-	if err := a.repoCache.SetNewRevisionManifests(change.shaAfter, change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil, installationID); err != nil {
+	if err := a.repoCache.SetNewRevisionManifests(change.shaAfter, change.shaBefore, &source, refSources, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil, nil, installationID); err != nil {
 		return fmt.Errorf("error setting new revision manifests: %w", err)
 	}
 
@@ -638,6 +692,93 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
 
+	if event, handled, err := a.processRegistryWebhook(r); handled {
+		if err != nil {
+			if errors.Is(err, ErrHMACVerificationFailed) {
+				log.WithField(common.SecurityField, common.SecurityHigh).Infof("Registry webhook HMAC verification failed")
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+			log.Infof("Registry webhook processing failed: %s", err)
+			http.Error(w, "Registry webhook processing failed", http.StatusBadRequest)
+			return
+		}
+		if event == nil {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		select {
+		case a.queue <- event:
+		default:
+			log.Info("Queue is full, discarding registry webhook payload")
+			http.Error(w, "Queue is full, discarding registry webhook payload", http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Registry event received. Processing triggered."))
+		return
+	}
+
+	payload, err = a.processSCMWebhook(r)
+	if err == nil && payload == nil {
+		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		// If the error is due to a large payload, return a more user-friendly error message
+		if isParsingPayloadError(err) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Webhook processing failed: payload too large or corrupted (limit %v MB): %v", a.maxWebhookPayloadSizeB/1024/1024, err)
+			http.Error(w, fmt.Sprintf("Webhook processing failed: payload must be valid JSON under %v MB", a.maxWebhookPayloadSizeB/1024/1024), http.StatusBadRequest)
+			return
+		}
+
+		status := http.StatusBadRequest
+		if r.Method != http.MethodPost {
+			status = http.StatusMethodNotAllowed
+		}
+		log.Infof("Webhook processing failed: %v", err)
+		http.Error(w, "Webhook processing failed", status)
+		return
+	}
+
+	if payload != nil {
+		select {
+		case a.queue <- payload:
+		default:
+			log.Info("Queue is full, discarding webhook payload")
+			http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
+			return
+		}
+	}
+}
+
+// isParsingPayloadError returns a bool if the error is parsing payload error
+func isParsingPayloadError(err error) bool {
+	return errors.Is(err, github.ErrParsingPayload) ||
+		errors.Is(err, gitlab.ErrParsingPayload) ||
+		errors.Is(err, gogs.ErrParsingPayload) ||
+		errors.Is(err, bitbucket.ErrParsingPayload) ||
+		errors.Is(err, bitbucketserver.ErrParsingPayload) ||
+		errors.Is(err, azuredevops.ErrParsingPayload)
+}
+
+// processRegistryWebhook routes an incoming request to the appropriate registry
+// handler. It returns the parsed event, a boolean indicating whether any handler
+// claimed the request, and any error from parsing. When handled is false, the
+// caller should fall through to SCM webhook processing.
+func (a *ArgoCDWebhookHandler) processRegistryWebhook(r *http.Request) (*RegistryEvent, bool, error) {
+	if a.ghcrHandler.CanHandle(r) {
+		event, err := a.ghcrHandler.ProcessWebhook(r)
+		return event, true, err
+		// TODO: add dockerhub, ecr handler cases in future
+	}
+	return nil, false, nil
+}
+
+// processSCMWebhook processes an SCM webhook
+func (a *ArgoCDWebhookHandler) processSCMWebhook(r *http.Request) (any, error) {
+	var payload any
+	var err error
 	switch {
 	case r.Header.Get("X-Vss-Activityid") != "":
 		payload, err = a.azuredevops.Parse(r, azuredevops.GitPushEventType)
@@ -672,32 +813,8 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		}
 	default:
 		log.Debug("Ignoring unknown webhook event")
-		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
-		return
+		return nil, nil
 	}
 
-	if err != nil {
-		// If the error is due to a large payload, return a more user-friendly error message
-		if err.Error() == "error parsing payload" {
-			msg := fmt.Sprintf("Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under %v MB) and ensure it is valid JSON", a.maxWebhookPayloadSizeB/1024/1024)
-			log.WithField(common.SecurityField, common.SecurityHigh).Warn(msg)
-			http.Error(w, msg, http.StatusBadRequest)
-			return
-		}
-
-		log.Infof("Webhook processing failed: %s", err)
-		status := http.StatusBadRequest
-		if r.Method != http.MethodPost {
-			status = http.StatusMethodNotAllowed
-		}
-		http.Error(w, "Webhook processing failed: "+html.EscapeString(err.Error()), status)
-		return
-	}
-
-	select {
-	case a.queue <- payload:
-	default:
-		log.Info("Queue is full, discarding webhook payload")
-		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
-	}
+	return payload, err
 }

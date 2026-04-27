@@ -12,6 +12,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
+const ErrMessageAppPathDoesNotExist = "app path does not exist"
+
 func Path(root, path string) (string, error) {
 	if filepath.IsAbs(path) {
 		return "", fmt.Errorf("%s: app path is absolute", path)
@@ -22,7 +24,7 @@ func Path(root, path string) (string, error) {
 	}
 	info, err := os.Stat(appPath)
 	if os.IsNotExist(err) {
-		return "", fmt.Errorf("%s: app path does not exist", path)
+		return "", fmt.Errorf("%s: %s", path, ErrMessageAppPathDoesNotExist)
 	}
 	if err != nil {
 		return "", err
@@ -45,19 +47,27 @@ func (e *OutOfBoundsSymlinkError) Error() string {
 // CheckOutOfBoundsSymlinks determines if basePath contains any symlinks that
 // are absolute or point to a path outside of the basePath. If found, an
 // OutOfBoundsSymlinkError is returned.
-func CheckOutOfBoundsSymlinks(basePath string) error {
+func CheckOutOfBoundsSymlinks(basePath string, skipPaths ...string) error {
 	absBasePath, err := filepath.Abs(basePath)
 	if err != nil {
 		return fmt.Errorf("failed to get absolute path: %w", err)
 	}
+	skipPathsSet := map[string]bool{}
+	for _, p := range skipPaths {
+		skipPathsSet[filepath.Join(absBasePath, p)] = true
+	}
+
 	return filepath.Walk(absBasePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			// Ignore "no such file or directory" errors than can happen with
+			// Ignore "no such file or directory" errors that can happen with
 			// temporary files such as .git/*.lock
 			if errors.Is(err, os.ErrNotExist) {
 				return nil
 			}
 			return fmt.Errorf("failed to walk for symlinks in %s: %w", absBasePath, err)
+		}
+		if skipPathsSet[path] {
+			return filepath.SkipDir
 		}
 		if files.IsSymlink(info) {
 			// We don't use filepath.EvalSymlinks because it fails without returning a path
@@ -79,8 +89,8 @@ func CheckOutOfBoundsSymlinks(basePath string) error {
 			currentDir := filepath.Dir(path)
 
 			// walk each part of the symlink target to make sure it never leaves basePath
-			parts := strings.Split(linkTarget, string(os.PathSeparator))
-			for _, part := range parts {
+			parts := strings.SplitSeq(linkTarget, string(os.PathSeparator))
+			for part := range parts {
 				newDir := filepath.Join(currentDir, part)
 				rel, err := filepath.Rel(absBasePath, newDir)
 				if err != nil {
@@ -116,7 +126,12 @@ func GetSourceRefreshPaths(app *v1alpha1.Application, source v1alpha1.Applicatio
 
 	var paths []string
 	if hasAnnotation && annotationPaths != "" {
-		for _, item := range strings.Split(annotationPaths, ";") {
+		for item := range strings.SplitSeq(annotationPaths, ";") {
+			// Trim whitespace because annotation values may contain spaces around
+			// separators (e.g. ".; /path"). Without trimming, paths like " /path"
+			// are not treated as absolute and empty/space-only entries may result
+			// in duplicate or incorrect refresh paths.
+			item = strings.TrimSpace(item)
 			// skip empty paths
 			if item == "" {
 				continue

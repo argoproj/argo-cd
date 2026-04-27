@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -15,12 +16,23 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
-// Component names
+// Argo CD component names
 const (
-	ApplicationController    = "argocd-application-controller"
-	ApplicationSetController = "argocd-applicationset-controller"
+	CommandCLI                      = "argocd"
+	CommandApplicationController    = "argocd-application-controller"
+	CommandApplicationSetController = "argocd-applicationset-controller"
+	CommandServer                   = "argocd-server"
+	CommandCMPServer                = "argocd-cmp-server"
+	CommandCommitServer             = "argocd-commit-server"
+	CommandGitAskPass               = "argocd-git-ask-pass"
+	CommandNotifications            = "argocd-notifications"
+	CommandK8sAuth                  = "argocd-k8s-auth"
+	CommandDex                      = "argocd-dex"
+	CommandRepoServer               = "argocd-repo-server"
 )
 
 // Default service addresses and URLS of Argo CD internal services
@@ -108,7 +120,6 @@ const (
 
 // Argo CD application related constants
 const (
-
 	// ArgoCDAdminUsername is the username of the 'admin' user
 	ArgoCDAdminUsername = "admin"
 	// ArgoCDUserAgentName is the default user-agent name used by the gRPC API client library and grpc-gateway
@@ -126,6 +137,9 @@ const (
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5
 	// GithubAppCredsExpirationDuration is the default time used to cache the GitHub app credentials
 	GithubAppCredsExpirationDuration = time.Minute * 60
+	// AzureServicePrincipalCredsExpirationDuration is the default time used to cache the Azure service principal credentials
+	// SP tokens are valid for 60 minutes, so cache for 59 minutes to avoid issues with token expiration when taking the cleanup interval of 1 minute into account
+	AzureServicePrincipalCredsExpirationDuration = time.Minute * 59
 
 	// PasswordPatten is the default password patten
 	PasswordPatten = `^.{8,32}$`
@@ -286,6 +300,8 @@ const (
 	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
 	// EnvGithubAppCredsExpirationDuration controls the caching of Github app credentials. This value is in minutes (default: 60)
 	EnvGithubAppCredsExpirationDuration = "ARGOCD_GITHUB_APP_CREDS_EXPIRATION_DURATION"
+	// EnvAzureServicePrincipalCredsExpirationDuration controls the caching of Azure service principal credentials. This value is in minutes (default: 59). Any value greater than 59 will be set to 59 minutes
+	EnvAzureServicePrincipalCredsExpirationDuration = "ARGOCD_AZURE_SERVICE_PRINCIPAL_CREDS_EXPIRATION_DURATION"
 	// EnvHelmIndexCacheDuration controls how the helm repository index file is cached for (default: 0)
 	EnvHelmIndexCacheDuration = "ARGOCD_HELM_INDEX_CACHE_DURATION"
 	// EnvAppConfigPath allows to override the configuration path for repo server
@@ -360,6 +376,12 @@ const (
 const (
 	BearerTokenTimeout = 30 * time.Second
 )
+
+// TokenRevocationTimeout is the maximum time allowed for a server-side token revocation call during logout.
+const TokenRevocationTimeout = 10 * time.Second
+
+// TokenRevocationClientTimeout is the maximum time the CLI waits for the server to complete token revocation.
+const TokenRevocationClientTimeout = 15 * time.Second
 
 const (
 	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
@@ -465,6 +487,8 @@ const TokenVerificationError = "failed to verify the token"
 var ErrTokenVerification = errors.New(TokenVerificationError)
 
 var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
+
+var WatchAPIBufferSize = env.ParseNumFromEnv(EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 
 // Redis password consts
 const (

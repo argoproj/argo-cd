@@ -157,7 +157,7 @@ func (cg *ClusterGenerator) getClusterServerURI(namespace string, releaseSuffix 
 }
 
 func (cg *ClusterGenerator) retrieveClusterURI(namespace, releaseSuffix string) string {
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		log.Print("Attempting to get cluster uri")
 		uri, err := cg.getClusterServerURI(namespace, releaseSuffix)
 		if err != nil {
@@ -189,7 +189,7 @@ func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
 	log.Print("Get cluster credentials")
 	caData, cert, key, err := cg.getClusterCredentials(namespace, releaseSuffix)
 
-	for o := 0; o < 5; o++ {
+	for range 5 {
 		if err == nil {
 			break
 		}
@@ -251,7 +251,7 @@ func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
 }
 
 func (cg *ClusterGenerator) Clean(opts *util.GenerateOpts) error {
-	log.Printf("Clean clusters")
+	log.Print("Clean clusters")
 	namespaces, err := cg.clientSet.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return err

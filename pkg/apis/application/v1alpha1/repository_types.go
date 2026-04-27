@@ -1,11 +1,9 @@
 package v1alpha1
 
 import (
-	"context"
 	"fmt"
 	"net/url"
 	"strings"
-	"time"
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
 
@@ -59,6 +57,14 @@ type RepoCreds struct {
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
+	// AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
+	AzureServicePrincipalClientId string `json:"azureServicePrincipalClientId,omitempty" protobuf:"bytes,29,opt,name=azureServicePrincipalClientId"`
+	// AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
+	AzureServicePrincipalClientSecret string `json:"azureServicePrincipalClientSecret,omitempty" protobuf:"bytes,30,opt,name=azureServicePrincipalClientSecret"`
+	// AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo
+	AzureServicePrincipalTenantId string `json:"azureServicePrincipalTenantId,omitempty" protobuf:"bytes,31,opt,name=azureServicePrincipalTenantId"`
+	// AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
+	AzureActiveDirectoryEndpoint string `json:"azureActiveDirectoryEndpoint,omitempty" protobuf:"bytes,32,opt,name=azureActiveDirectoryEndpoint"`
 }
 
 // Repository is a repository holding application configurations
@@ -118,6 +124,18 @@ type Repository struct {
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
 	// Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
 	Depth int64 `json:"depth,omitempty" protobuf:"bytes,27,opt,name=depth"`
+	// WebhookManifestCacheWarmDisabled disables manifest cache warming during webhook processing for this repository.
+	// When set, webhook handlers will only trigger reconciliation for affected applications and skip Redis cache
+	// operations for unaffected ones. Recommended for large monorepos with plain YAML manifests.
+	WebhookManifestCacheWarmDisabled bool `json:"webhookManifestCacheWarmDisabled,omitempty" protobuf:"varint,28,opt,name=webhookManifestCacheWarmDisabled"`
+	// AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
+	AzureServicePrincipalClientId string `json:"azureServicePrincipalClientId,omitempty" protobuf:"bytes,29,opt,name=azureServicePrincipalClientId"`
+	// AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
+	AzureServicePrincipalClientSecret string `json:"azureServicePrincipalClientSecret,omitempty" protobuf:"bytes,30,opt,name=azureServicePrincipalClientSecret"`
+	// AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo
+	AzureServicePrincipalTenantId string `json:"azureServicePrincipalTenantId,omitempty" protobuf:"bytes,31,opt,name=azureServicePrincipalTenantId"`
+	// AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
+	AzureActiveDirectoryEndpoint string `json:"azureActiveDirectoryEndpoint,omitempty" protobuf:"bytes,32,opt,name=azureActiveDirectoryEndpoint"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
@@ -132,7 +150,7 @@ func (repo *Repository) IsLFSEnabled() bool {
 
 // HasCredentials returns true when the repository has been configured with any credentials
 func (repo *Repository) HasCredentials() bool {
-	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity
+	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity || repo.AzureServicePrincipalClientSecret != ""
 }
 
 // CopyCredentialsFromRepo copies all credential information from source repository to receiving repository
@@ -170,6 +188,18 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		}
 		if repo.GCPServiceAccountKey == "" {
 			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
+		}
+		if repo.AzureServicePrincipalClientId == "" {
+			repo.AzureServicePrincipalClientId = source.AzureServicePrincipalClientId
+		}
+		if repo.AzureServicePrincipalClientSecret == "" {
+			repo.AzureServicePrincipalClientSecret = source.AzureServicePrincipalClientSecret
+		}
+		if repo.AzureServicePrincipalTenantId == "" {
+			repo.AzureServicePrincipalTenantId = source.AzureServicePrincipalTenantId
+		}
+		if repo.AzureActiveDirectoryEndpoint == "" {
+			repo.AzureActiveDirectoryEndpoint = source.AzureActiveDirectoryEndpoint
 		}
 		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
@@ -213,6 +243,18 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.GCPServiceAccountKey == "" {
 			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
 		}
+		if repo.AzureServicePrincipalClientId == "" {
+			repo.AzureServicePrincipalClientId = source.AzureServicePrincipalClientId
+		}
+		if repo.AzureServicePrincipalClientSecret == "" {
+			repo.AzureServicePrincipalClientSecret = source.AzureServicePrincipalClientSecret
+		}
+		if repo.AzureServicePrincipalTenantId == "" {
+			repo.AzureServicePrincipalTenantId = source.AzureServicePrincipalTenantId
+		}
+		if repo.AzureActiveDirectoryEndpoint == "" {
+			repo.AzureActiveDirectoryEndpoint = source.AzureActiveDirectoryEndpoint
+		}
 		if repo.Proxy == "" {
 			repo.Proxy = source.Proxy
 		}
@@ -242,38 +284,21 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 		return git.NewSSHCreds(repo.SSHPrivateKey, getCAPath(repo.Repo), repo.IsInsecure(), repo.Proxy)
 	}
 	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 { // Promoter MVP: remove github-app-installation-id check since it is no longer a required field
-		installationId := repo.GithubAppInstallationId
-
-		// Auto-discover installation ID if not provided
-		if installationId == 0 {
-			org, err := git.ExtractOrgFromRepoURL(repo.Repo)
-			if err != nil {
-				log.Warnf("Failed to extract organization from repository URL %s for GitHub App auto-discovery: %v", repo.Repo, err)
-				return git.NopCreds{}
-			}
-			if org != "" {
-				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-				defer cancel()
-
-				discoveredId, err := git.DiscoverGitHubAppInstallationID(ctx, repo.GithubAppId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, org)
-				if err != nil {
-					log.Warnf("Failed to auto-discover GitHub App installation ID for org %s: %v. Proceeding with installation ID 0.", org, err)
-				} else {
-					log.Infof("Auto-discovered GitHub App installation ID %d for org %s", discoveredId, org)
-					installationId = discoveredId
-				}
-			} else {
-				log.Warnf("Could not extract organization from repository URL %s for GitHub App auto-discovery", repo.Repo)
-			}
-		}
-
-		return git.NewGitHubAppCreds(repo.GithubAppId, installationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store)
+		return git.NewGitHubAppCreds(repo.GithubAppId, repo.GithubAppInstallationId, repo.GithubAppPrivateKey, repo.GitHubAppEnterpriseBaseURL, repo.TLSClientCertData, repo.TLSClientCertKey, repo.IsInsecure(), repo.Proxy, repo.NoProxy, store, repo.Repo)
 	}
 	if repo.GCPServiceAccountKey != "" {
 		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
 	}
 	if repo.UseAzureWorkloadIdentity {
 		return git.NewAzureWorkloadIdentityCreds(store, workloadidentity.NewWorkloadIdentityTokenProvider())
+	}
+	if repo.AzureServicePrincipalClientId != "" && repo.AzureServicePrincipalClientSecret != "" && repo.AzureServicePrincipalTenantId != "" {
+		creds := git.NewAzureServicePrincipalCreds(repo.AzureServicePrincipalTenantId, repo.AzureServicePrincipalClientId, repo.AzureServicePrincipalClientSecret, store).
+			WithActiveDirectoryEndpoint(repo.AzureActiveDirectoryEndpoint).
+			WithClientCert(repo.TLSClientCertData, repo.TLSClientCertKey).
+			WithProxy(repo.Proxy).
+			WithNoProxy(repo.NoProxy)
+		return creds
 	}
 	return git.NopCreds{}
 }
@@ -374,21 +399,25 @@ func (repo *Repository) StringForLogging() string {
 // Sanitized returns a copy of the Repository with sensitive information removed.
 func (repo *Repository) Sanitized() *Repository {
 	return &Repository{
-		Repo:                       repo.Repo,
-		Type:                       repo.Type,
-		Name:                       repo.Name,
-		Insecure:                   repo.IsInsecure(),
-		EnableLFS:                  repo.EnableLFS,
-		EnableOCI:                  repo.EnableOCI,
-		Proxy:                      repo.Proxy,
-		NoProxy:                    repo.NoProxy,
-		Project:                    repo.Project,
-		ForceHttpBasicAuth:         repo.ForceHttpBasicAuth,
-		InheritedCreds:             repo.InheritedCreds,
-		GithubAppId:                repo.GithubAppId,
-		GithubAppInstallationId:    repo.GithubAppInstallationId,
-		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
-		UseAzureWorkloadIdentity:   repo.UseAzureWorkloadIdentity,
+		Repo:                          repo.Repo,
+		Type:                          repo.Type,
+		Name:                          repo.Name,
+		Insecure:                      repo.IsInsecure(),
+		EnableLFS:                     repo.EnableLFS,
+		EnableOCI:                     repo.EnableOCI,
+		Proxy:                         repo.Proxy,
+		NoProxy:                       repo.NoProxy,
+		Project:                       repo.Project,
+		ForceHttpBasicAuth:            repo.ForceHttpBasicAuth,
+		InheritedCreds:                repo.InheritedCreds,
+		GithubAppId:                   repo.GithubAppId,
+		GithubAppInstallationId:       repo.GithubAppInstallationId,
+		GitHubAppEnterpriseBaseURL:    repo.GitHubAppEnterpriseBaseURL,
+		UseAzureWorkloadIdentity:      repo.UseAzureWorkloadIdentity,
+		AzureActiveDirectoryEndpoint:  repo.AzureActiveDirectoryEndpoint,
+		AzureServicePrincipalClientId: repo.AzureServicePrincipalClientId,
+		AzureServicePrincipalTenantId: repo.AzureServicePrincipalTenantId,
+		Depth:                         repo.Depth,
 	}
 }
 

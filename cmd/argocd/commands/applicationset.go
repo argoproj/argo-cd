@@ -1,11 +1,14 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"reflect"
 	"text/tabwriter"
+
+	k8swatch "k8s.io/apimachinery/pkg/watch"
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
@@ -37,6 +40,10 @@ var appSetExample = templates.Examples(`
 
 	# Delete an ApplicationSet
 	argocd appset delete APPSETNAME (APPSETNAME...)
+
+	# Namespace precedence for --appset-namespace (-N):
+	# - get/delete: if the argument is namespace/name, that namespace wins; -N is ignored.
+	# - create/generate: metadata.namespace in the YAML wins when set; -N applies only when the manifest omits namespace.
 	`)
 
 // NewAppSetCommand returns a new instance of an `argocd appset` command
@@ -61,8 +68,9 @@ func NewAppSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 // NewApplicationSetGetCommand returns a new instance of an `argocd appset get` command
 func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		output     string
-		showParams bool
+		output          string
+		showParams      bool
+		appSetNamespace string
 	)
 	command := &cobra.Command{
 		Use:   "get APPSETNAME",
@@ -70,6 +78,13 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Example: templates.Examples(`
 	# Get ApplicationSets
 	argocd appset get APPSETNAME
+
+	# Get ApplicationSet in a specific namespace using qualified name (namespace/name)
+	argocd appset get APPSET_NAMESPACE/APPSETNAME
+
+	# Get ApplicationSet in a specific namespace using --appset-namespace flag
+	argocd appset get --appset-namespace=APPSET_NAMESPACE APPSETNAME
+
 		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -82,7 +97,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			conn, appIf := acdClient.NewApplicationSetClientOrDie()
 			defer utilio.Close(conn)
 
-			appSetName, appSetNs := argo.ParseFromQualifiedName(args[0], "")
+			appSetName, appSetNs := argo.ParseFromQualifiedName(args[0], appSetNamespace)
 
 			appSet, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appSetName, AppsetNamespace: appSetNs})
 			errors.CheckError(err)
@@ -110,19 +125,26 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show ApplicationSet parameters and overrides")
+	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Only get ApplicationSet from a namespace (ignored when qualified name is provided)")
 	return command
 }
 
 // NewApplicationSetCreateCommand returns a new instance of an `argocd appset create` command
 func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var output string
-	var upsert, dryRun bool
+	var (
+		output               string
+		upsert, dryRun, wait bool
+		appSetNamespace      string
+	)
 	command := &cobra.Command{
 		Use:   "create",
 		Short: "Create one or more ApplicationSets",
 		Example: templates.Examples(`
 	# Create ApplicationSets
 	argocd appset create <filename or URL> (<filename or URL>...)
+
+	# Create ApplicationSet in a specific namespace using
+	argocd appset create --appset-namespace=APPSET_NAMESPACE <filename or URL> (<filename or URL>...)
 
 	# Dry-run AppSet creation to see what applications would be managed
 	argocd appset create --dry-run <filename or URL> -o json | jq -r '.status.resources[].name' 
@@ -140,7 +162,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 			errors.CheckError(err)
 
 			if len(appsets) == 0 {
-				fmt.Printf("No ApplicationSets found while parsing the input file")
+				fmt.Print("No ApplicationSets found while parsing the input file")
 				os.Exit(1)
 			}
 
@@ -151,6 +173,11 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 				conn, appIf := argocdClient.NewApplicationSetClientOrDie()
 				defer utilio.Close(conn)
+
+				if appset.Namespace == "" && appSetNamespace != "" {
+					fmt.Printf("ApplicationSet YAML file does not have namespace; using --appset-namespace=%q.\n", appSetNamespace)
+					appset.Namespace = appSetNamespace
+				}
 
 				// Get app before creating to see if it is being updated or no change
 				existing, err := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{Name: appset.Name, AppsetNamespace: appset.Namespace})
@@ -200,24 +227,36 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 				default:
 					errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 				}
+
+				if wait && !dryRun {
+					err := waitForApplicationSetResourcesUpToDate(ctx, argocdClient, created.QualifiedName())
+					errors.CheckError(err)
+					c.PrintErrf("ApplicationSet '%s' resources are up to date\n", created.Name)
+				}
 			}
 		},
 	}
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Allows to evaluate the ApplicationSet template on the server to get a preview of the applications that would be created")
+	command.Flags().BoolVar(&wait, "wait", false, "Wait until the ApplicationSet's resources are up to date. Will block indefinitely if the ApplicationSet has errors")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
+	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Namespace where the ApplicationSet will be created in (ignored when provided YAML file has namespace set in metadata)")
 	return command
 }
 
 // NewApplicationSetGenerateCommand returns a new instance of an `argocd appset generate` command
 func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var output string
+	var appSetNamespace string
 	command := &cobra.Command{
 		Use:   "generate",
 		Short: "Generate apps of ApplicationSet rendered templates",
 		Example: templates.Examples(`
 	# Generate apps of ApplicationSet rendered templates
 	argocd appset generate <filename or URL> (<filename or URL>...)
+
+	# Generate apps of ApplicationSet rendered templates in a specific namespace
+	argocd appset generate --appset-namespace=APPSET_NAMESPACE <filename or URL> (<filename or URL>...)
 `),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -232,12 +271,17 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 			errors.CheckError(err)
 
 			if len(appsets) != 1 {
-				fmt.Printf("Input file must contain one ApplicationSet")
+				fmt.Print("Input file must contain one ApplicationSet")
 				os.Exit(1)
 			}
 			appset := appsets[0]
 			if appset.Name == "" {
 				errors.Fatal(errors.ErrorGeneric, fmt.Sprintf("Error generating apps for ApplicationSet %s. ApplicationSet does not have Name field set", appset))
+			}
+
+			if appset.Namespace == "" && appSetNamespace != "" {
+				fmt.Printf("ApplicationSet YAML file does not have namespace; using --appset-namespace=%q.\n", appSetNamespace)
+				appset.Namespace = appSetNamespace
 			}
 
 			conn, appIf := argocdClient.NewApplicationSetClientOrDie()
@@ -274,6 +318,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 		},
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
+	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Namespace used for generating Applications (ignored when provided YAML file has namespace set in metadata)")
 	return command
 }
 
@@ -325,13 +370,23 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 
 // NewApplicationSetDeleteCommand returns a new instance of an `argocd appset delete` command
 func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var noPrompt bool
+	var (
+		noPrompt        bool
+		wait            bool
+		appSetNamespace string
+	)
 	command := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete one or more ApplicationSets",
 		Example: templates.Examples(`
 	# Delete an applicationset
 	argocd appset delete APPSETNAME (APPSETNAME...)
+
+	# Delete ApplicationSet in a specific namespace using qualified name (namespace/name)
+	argocd appset delete APPSET_NAMESPACE/APPSETNAME
+
+	# Delete ApplicationSet in a specific namespace using --appset-namespace flag
+	argocd appset delete --appset-namespace=APPSET_NAMESPACE APPSETNAME
 		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -340,7 +395,8 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
+			acdClient := headless.NewClientOrDie(clientOpts, c)
+			conn, appIf := acdClient.NewApplicationSetClientOrDie()
 			defer utilio.Close(conn)
 			isTerminal := isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
 			numOfApps := len(args)
@@ -359,7 +415,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			promptUtil := utils.NewPrompt(isTerminal && !noPrompt)
 
 			for _, appSetQualifiedName := range args {
-				appSetName, appSetNs := argo.ParseFromQualifiedName(appSetQualifiedName, "")
+				appSetName, appSetNs := argo.ParseFromQualifiedName(appSetQualifiedName, appSetNamespace)
 
 				appsetDeleteReq := applicationset.ApplicationSetDeleteRequest{
 					Name:            appSetName,
@@ -373,6 +429,20 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 				if confirm || confirmAll {
 					_, err := appIf.Delete(ctx, &appsetDeleteReq)
 					errors.CheckError(err)
+
+					if wait {
+						_, getErr := appIf.Get(ctx, &applicationset.ApplicationSetGetQuery{
+							Name: appSetName, AppsetNamespace: appSetNs,
+						})
+						if getErr == nil {
+							appEventCh := acdClient.WatchApplicationSetWithRetry(ctx, appSetQualifiedName, "")
+							for appEvent := range appEventCh {
+								if appEvent != nil && appEvent.Type == k8swatch.Deleted {
+									break
+								}
+							}
+						}
+					}
 					fmt.Printf("applicationset '%s' deleted\n", appSetQualifiedName)
 				} else {
 					fmt.Println("The command to delete '" + appSetQualifiedName + "' was cancelled.")
@@ -381,6 +451,8 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 		},
 	}
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of Application resources")
+	command.Flags().BoolVar(&wait, "wait", false, "Wait until deletion of the applicationset(s) completes")
+	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Namespace where the ApplicationSet will be deleted from (ignored when qualified name is provided)")
 	return command
 }
 
@@ -462,7 +534,7 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 	)
 	if syncPolicy != nil && syncPolicy.IsAutomatedSyncEnabled() {
 		syncPolicyStr = "Automated"
-		if syncPolicy.Automated.Prune {
+		if syncPolicy.Automated.GetPrune() {
 			syncPolicyStr += " (Prune)"
 		}
 	} else {
@@ -472,10 +544,35 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 }
 
 func printAppSetConditions(w io.Writer, appSet *arogappsetv1.ApplicationSet) {
-	_, _ = fmt.Fprintf(w, "CONDITION\tSTATUS\tMESSAGE\tLAST TRANSITION\n")
+	_, _ = fmt.Fprint(w, "CONDITION\tSTATUS\tMESSAGE\tLAST TRANSITION\n")
 	for _, item := range appSet.Status.Conditions {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", item.Type, item.Status, item.Message, item.LastTransitionTime)
 	}
+}
+
+func isApplicationSetResourcesUpToDate(appSet *arogappsetv1.ApplicationSet) bool {
+	for _, c := range appSet.Status.Conditions {
+		if c.Type == arogappsetv1.ApplicationSetConditionResourcesUpToDate {
+			return c.Status == arogappsetv1.ApplicationSetConditionStatusTrue
+		}
+	}
+	return false
+}
+
+func waitForApplicationSetResourcesUpToDate(ctx context.Context, acdClient argocdclient.Client, appSetName string) error {
+	appEventCh := acdClient.WatchApplicationSetWithRetry(ctx, appSetName, "")
+	for appEvent := range appEventCh {
+		if appEvent == nil {
+			continue
+		}
+		if appEvent.Type == k8swatch.Deleted {
+			return fmt.Errorf("ApplicationSet %q was deleted before reaching ResourcesUpToDate", appSetName)
+		}
+		if isApplicationSetResourcesUpToDate(&appEvent.ApplicationSet) {
+			return nil
+		}
+	}
+	return fmt.Errorf("watch stream closed for ApplicationSet %q before reaching ResourcesUpToDate", appSetName)
 }
 
 func hasAppSetChanged(appReq, appRes *arogappsetv1.ApplicationSet, upsert bool) bool {

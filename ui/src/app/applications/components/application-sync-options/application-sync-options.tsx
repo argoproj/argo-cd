@@ -118,11 +118,13 @@ export interface SyncFlags {
 const syncOptions: Array<(props: ApplicationSyncOptionProps) => React.ReactNode> = [
     props => booleanOption('Validate', 'Skip Schema Validation', false, props, true),
     props => booleanOption('CreateNamespace', 'Auto-Create Namespace', false, props, false),
-    props => booleanOption('PruneLast', 'Prune Last', false, props, false),
     props => booleanOption('ApplyOutOfSyncOnly', 'Apply Out of Sync Only', false, props, false),
     props => booleanOption('RespectIgnoreDifferences', 'Respect Ignore Differences', false, props, false),
     props => booleanOption('ServerSideApply', 'Server-Side Apply', false, props, false),
-    props => selectOption('PrunePropagationPolicy', 'Prune Propagation Policy', 'foreground', ['foreground', 'background', 'orphan'], props)
+    props => booleanOption('PruneLast', 'Prune Last', false, props, false),
+    props => selectOption('PrunePropagationPolicy', 'Prune Propagation Policy', 'foreground', ['foreground', 'background', 'orphan'], props),
+    props => selectOption('Prune', 'Prune', 'true', ['true', 'false', 'confirm'], props),
+    props => selectOption('Delete', 'Delete', 'true', ['true', 'false', 'confirm'], props)
 ];
 
 const optionStyle = {marginTop: '0.5em'};

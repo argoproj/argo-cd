@@ -34,13 +34,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/gpg"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/profile"
 	"github.com/argoproj/argo-cd/v3/util/tls"
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
-)
-
-const (
-	// CLIName is the name of the CLI
-	cliName = "argocd-repo-server"
 )
 
 var (
@@ -84,7 +80,7 @@ func NewCommand() *cobra.Command {
 		enableBuiltinGitConfig             bool
 	)
 	command := cobra.Command{
-		Use:               cliName,
+		Use:               common.CommandRepoServer,
 		Short:             "Run ArgoCD Repository Server",
 		Long:              "ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
@@ -177,7 +173,8 @@ func NewCommand() *cobra.Command {
 			listener, err := lc.Listen(ctx, "tcp", fmt.Sprintf("%s:%d", listenHost, listenPort))
 			errors.CheckError(err)
 
-			healthz.ServeHealthCheck(http.DefaultServeMux, func(r *http.Request) error {
+			mux := http.NewServeMux()
+			healthz.ServeHealthCheck(mux, func(r *http.Request) error {
 				if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
 					// connect to itself to make sure repo server is able to serve connection
 					// used by liveness probe to auto restart repo server
@@ -199,8 +196,9 @@ func NewCommand() *cobra.Command {
 				}
 				return nil
 			})
-			http.Handle("/metrics", metricsServer.GetHandler())
-			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf("%s:%d", metricsHost, metricsPort), nil)) }()
+			mux.Handle("/metrics", metricsServer.GetHandler())
+			profile.RegisterProfiler(mux)
+			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf("%s:%d", metricsHost, metricsPort), mux)) }()
 			go func() { errors.CheckError(askPassServer.Run()) }()
 
 			if gpg.IsGPGEnabled() {
@@ -225,13 +223,11 @@ func NewCommand() *cobra.Command {
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 			wg := sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
+			wg.Go(func() {
 				s := <-sigCh
 				log.Printf("got signal %v, attempting graceful shutdown", s)
 				grpc.GracefulStop()
-				wg.Done()
-			}()
+			})
 
 			log.Println("starting grpc server")
 			err = grpc.Serve(listener)

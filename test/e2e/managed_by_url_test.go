@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
@@ -31,7 +30,7 @@ func TestManagedByURLWithAnnotation(t *testing.T) {
 		CreateApp().
 		And(func() {
 			// Add managed-by-url annotation to the application with retry logic
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				appObj, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.ArgoCDNamespace).Get(t.Context(), ctx.GetName(), metav1.GetOptions{})
 				require.NoError(t, err)
 
@@ -83,7 +82,7 @@ func TestManagedByURLWithAnnotation(t *testing.T) {
 			defer conn.Close()
 
 			links, err := appClient.ListLinks(t.Context(), &application.ListAppLinksRequest{
-				Name: ptr.To(app.Name),
+				Name: new(app.Name),
 			})
 			require.NoError(t, err)
 
@@ -156,7 +155,7 @@ func TestManagedByURLFallbackToCurrentInstance(t *testing.T) {
 			defer conn.Close()
 
 			links, err := appClient.ListLinks(t.Context(), &application.ListAppLinksRequest{
-				Name: ptr.To(app.Name),
+				Name: new(app.Name),
 			})
 			require.NoError(t, err)
 
@@ -184,7 +183,7 @@ func TestManagedByURLFallbackToCurrentInstance(t *testing.T) {
 				}
 			}
 			if !found {
-				t.Logf("Returned links:")
+				t.Log("Returned links:")
 				for _, link := range links.Items {
 					if link.Url != nil {
 						t.Logf("- %s", *link.Url)

@@ -27,8 +27,8 @@ import (
 	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/gitops-engine/pkg/diff/mocks"
-	"github.com/argoproj/gitops-engine/pkg/diff/testdata"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/testdata"
 )
 
 func printDiff(ctx context.Context, result *DiffResult) (string, error) {
@@ -1163,6 +1163,54 @@ func TestServerSideDiff(t *testing.T) {
 		// Verify that mutation webhook changes are still filtered out from diff
 		assert.Empty(t, predictedDeploy.Annotations[AnnotationLastAppliedConfig])
 		assert.Empty(t, liveDeploy.Annotations[AnnotationLastAppliedConfig])
+	})
+
+	t.Run("will not report diff for mismatched resourceVersion", func(t *testing.T) {
+		// given
+		t.Parallel()
+		predictedLiveJSON := `{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default",
+				"resourceVersion": "99999",
+				"managedFields": [{"manager":"argocd-controller","operation":"Apply","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{"f:replicas":{}}}}]
+			},
+			"spec": {"replicas": 1}
+		}`
+		liveState := StrToUnstructured(`{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default",
+				"resourceVersion": "12345",
+				"managedFields": [{"manager":"argocd-controller","operation":"Apply","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{"f:replicas":{}}}}]
+			},
+			"spec": {"replicas": 1}
+		}`)
+		desiredState := StrToUnstructured(`{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default"
+			},
+			"spec": {"replicas": 1}
+		}`)
+		opts := buildOpts(predictedLiveJSON)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.Modified, "mismatched resourceVersion should not cause a diff")
+		assert.NotContains(t, string(result.PredictedLive), "resourceVersion")
+		assert.NotContains(t, string(result.NormalizedLive), "resourceVersion")
 	})
 
 	t.Run("will detect ConfigMap data key removal", func(t *testing.T) {

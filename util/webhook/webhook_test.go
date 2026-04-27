@@ -70,13 +70,35 @@ type reactorDef struct {
 	reaction kubetesting.ReactionFunc
 }
 
+func assertLogContains(t *testing.T, hook *test.Hook, msg string) {
+	t.Helper()
+	for _, entry := range hook.Entries {
+		if entry.Message == msg {
+			return
+		}
+	}
+	t.Errorf("log hook did not contain message: %q", msg)
+}
+
+func assertLogContainsSubstr(t *testing.T, hook *test.Hook, substr string) {
+	t.Helper()
+	for _, entry := range hook.Entries {
+		if strings.Contains(entry.Message, substr) {
+			return
+		}
+	}
+	t.Errorf("log hook did not contain message with substring: %q", substr)
+}
+
 func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	defaultMaxPayloadSize := int64(50) * 1024 * 1024
 	return NewMockHandlerWithPayloadLimit(reactor, applicationNamespaces, defaultMaxPayloadSize, objects...)
 }
 
 func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces []string, maxPayloadSize int64, objects ...runtime.Object) *ArgoCDWebhookHandler {
-	return newMockHandler(reactor, applicationNamespaces, maxPayloadSize, &mocks.ArgoDB{}, &settings.ArgoCDSettings{}, objects...)
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
+	return newMockHandler(reactor, applicationNamespaces, maxPayloadSize, mockDB, &settings.ArgoCDSettings{}, objects...)
 }
 
 func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
@@ -150,7 +172,7 @@ func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayl
 func TestGitHubCommitEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
 	require.NoError(t, err)
@@ -161,14 +183,14 @@ func TestGitHubCommitEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
 func TestAzureDevOpsCommitEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Vss-Activityid", "abc")
 	eventJSON, err := os.ReadFile("testdata/azuredevops-git-push-event.json")
 	require.NoError(t, err)
@@ -179,7 +201,7 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://dev.azure.com/alexander0053/alex-test/_git/alex-test, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
@@ -250,7 +272,7 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 			},
 		},
 	)
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
 	require.NoError(t, err)
@@ -284,7 +306,7 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 func TestGitHubTagEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-tag-event.json")
 	require.NoError(t, err)
@@ -295,14 +317,14 @@ func TestGitHubTagEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: v1.0, touchedHead: false"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
 func TestGitHubPingEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "ping")
 	eventJSON, err := os.ReadFile("testdata/github-ping-event.json")
 	require.NoError(t, err)
@@ -313,14 +335,14 @@ func TestGitHubPingEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
 func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Event-Key", "repo:refs_changed")
 	eventJSON, err := os.ReadFile("testdata/bitbucket-server-event.json")
 	require.NoError(t, err)
@@ -331,9 +353,9 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResultSSH := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResultSSH, hook.AllEntries()[len(hook.AllEntries())-2].Message)
+	assertLogContains(t, hook, expectedLogResultSSH)
 	expectedLogResultHTTPS := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResultHTTPS, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResultHTTPS)
 	hook.Reset()
 }
 
@@ -341,7 +363,7 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
 	eventJSON := "{\"test\": true}"
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", bytes.NewBufferString(eventJSON))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewBufferString(eventJSON))
 	req.Header.Set("X-Event-Key", "diagnostics:ping")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -349,14 +371,14 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
 func TestGogsPushEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Gogs-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/gogs-event.json")
 	require.NoError(t, err)
@@ -367,14 +389,14 @@ func TestGogsPushEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: http://gogs-server/john/repo-test, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
 func TestGitLabPushEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Gitlab-Event", "Push Hook")
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
 	require.NoError(t, err)
@@ -385,14 +407,14 @@ func TestGitLabPushEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
 func TestGitLabSystemEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Gitlab-Event", "System Hook")
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
 	require.NoError(t, err)
@@ -403,46 +425,44 @@ func TestGitLabSystemEvent(t *testing.T) {
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
 
 func TestInvalidMethod(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodGet, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
-	expectedLogResult := "Webhook processing failed: invalid HTTP Method"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
-	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
+	assertLogContains(t, hook, "Webhook processing failed: invalid HTTP Method")
+	assert.Equal(t, "Webhook processing failed\n", w.Body.String())
 	hook.Reset()
 }
 
 func TestInvalidEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 50 MB) and ensure it is valid JSON"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
-	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
+	assertLogContainsSubstr(t, hook, "Webhook processing failed: payload too large or corrupted (limit 50 MB)")
+	assert.Equal(t, "Webhook processing failed: payload must be valid JSON under 50 MB\n", w.Body.String())
 	hook.Reset()
 }
 
 func TestUnknownEvent(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-Unknown-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
@@ -523,7 +543,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		// The payload's "push.changes[0].new.name" member seems to only have the branch name (based on the example payload).
 		// https://support.atlassian.com/bitbucket-cloud/docs/event-payloads/#EventPayloads-Push
 		var pl bitbucket.RepoPushPayload
-		err := json.Unmarshal([]byte(fmt.Sprintf(`{"push":{"changes":[{"new":{"name":%q}}]}}`, branchName)), &pl)
+		err := json.Unmarshal(fmt.Appendf(nil, `{"push":{"changes":[{"new":{"name":%q}}]}}`, branchName), &pl)
 		require.NoError(t, err)
 		return pl
 	}
@@ -741,7 +761,7 @@ func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
 	hook := test.NewGlobal()
 	maxPayloadSize := int64(100)
 	h := NewMockHandlerWithPayloadLimit(nil, []string{}, maxPayloadSize)
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
 	require.NoError(t, err)
@@ -751,8 +771,7 @@ func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 0 MB) and ensure it is valid JSON"
-	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	assertLogContainsSubstr(t, hook, "Webhook processing failed: payload too large or corrupted (limit 0 MB)")
 	hook.Reset()
 }
 
@@ -1119,6 +1138,7 @@ func TestHandleEvent(t *testing.T) {
 					APIVersions:     []string{},
 				},
 			}, nil).Maybe()
+			mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
 
 			err := serverCache.SetClusterInfo(testClusterURL, &v1alpha1.ClusterInfo{
 				ServerVersion:   "1.28.0",
@@ -1152,7 +1172,7 @@ func TestHandleEvent(t *testing.T) {
 
 			// Create payload with the changed file
 			payload := createTestPayload(ttc.changedFile)
-			req := httptest.NewRequest(http.MethodPost, "/api/webhook", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 			req.Header.Set("X-GitHub-Event", "push")
 			req.Body = io.NopCloser(bytes.NewReader(payload))
 
@@ -1232,7 +1252,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
   "repository":{
     "type": "repository", 
     "full_name": "{{.owner}}/{{.repo}}",
-    "name": "{{.repo}}", 
+    "name": "{{.name}}", 
     "scm": "git", 
     "links": {
       "self": {"href": "https://api.bitbucket.org/2.0/repositories/{{.owner}}/{{.repo}}"},
@@ -1245,7 +1265,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 		panic(err)
 	}
 
-	bitbucketPushPayload := func(branchName, owner, repo string) bitbucket.RepoPushPayload {
+	bitbucketPushPayload := func(branchName, owner, repo, name string) bitbucket.RepoPushPayload {
 		// The payload's "push.changes[0].new.name" member seems to only have the branch name (based on the example payload).
 		// https://support.atlassian.com/bitbucket-cloud/docs/event-payloads/#EventPayloads-Push
 		var pl bitbucket.RepoPushPayload
@@ -1254,6 +1274,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 			"branch":  branchName,
 			"owner":   owner,
 			"repo":    repo,
+			"name":    name,
 			"oldHash": "abcdef",
 			"newHash": "ghijkl",
 		})
@@ -1276,7 +1297,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 			"bitbucket branch name containing 'refs/heads/'",
 			false,
 			"release-0.0",
-			bitbucketPushPayload("release-0.0", "test-owner", "test-repo"),
+			bitbucketPushPayload("release-0.0", "test-owner", "test-repo", "test-repo"),
 			false,
 			[]string{"guestbook/guestbook-ui-deployment.yaml"},
 			changeInfo{
@@ -1288,7 +1309,55 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 			"bitbucket branch name containing 'main'",
 			false,
 			"main",
-			bitbucketPushPayload("main", "test-owner", "test-repo"),
+			bitbucketPushPayload("main", "test-owner", "test-repo", "test-repo"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is mixed case, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "Test Repo"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is all uppercase, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "TESTREPO"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is all lowercase, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "testrepo"),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
+		{
+			"bitbucket display name is all uppercase with spaces, differs from repo slug",
+			false,
+			"main",
+			bitbucketPushPayload("main", "test-owner", "test-repo", "TEST REPO"),
 			true,
 			[]string{"guestbook/guestbook-ui-deployment.yaml"},
 			changeInfo{

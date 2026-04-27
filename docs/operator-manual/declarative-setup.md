@@ -180,7 +180,7 @@ spec:
 
 Repository details are stored in secrets. To configure a repo, create a secret which contains repository details.
 Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store an encrypted secret definition as a Kubernetes manifest.
-Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
+Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, GitHub App or Azure Service Principal, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), `githubAppPrivateKey` (for GitHub App) or `azureServicePrincipalClientSecret` (for Azure Service Principal).
 Credentials can be scoped to a project using the optional `project` field. When omitted, the credential will be used as the default for all projects without a scoped credential.
 
 > [!WARNING]
@@ -295,6 +295,39 @@ stringData:
 Example for Azure Container Registry/ Azure Devops repositories using Azure workload identity:
 
 Refer to [Azure Container Registry/Azure Repos using Azure Workload Identity](../user-guide/private-repositories.md#azure-container-registryazure-repos-using-azure-workload-identity)
+
+Example for Azure Service Principal:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: service-principal-for-azure-public-cloud
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://dev.azure.com/my-devops-organization/my-devops-project/_git/my-devops-repo
+  azureServicePrincipalClientId: 12345678-1234-1234-1234-123456789012
+  azureServicePrincipalTenantId: 12345678-1234-1234-1234-123456789012
+  azureServicePrincipalClientSecret: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: service-principal-for-azure-other-cloud
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://dev.azure.com/my-devops-organization/my-devops-project/_git/my-devops-repo
+  azureActiveDirectoryEndpoint: https://login.microsoftonline.de
+  azureServicePrincipalClientId: 12345678-1234-1234-1234-123456789012
+  azureServicePrincipalTenantId: 12345678-1234-1234-1234-123456789012
+  azureServicePrincipalClientSecret: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+```
 
 ### Repository Credentials
 
@@ -595,6 +628,49 @@ stringData:
     }
 ```
 
+### Skipping Cluster Reconciliation
+
+You can prevent the application controller from reconciling all apps targeting a cluster by annotating its
+secret with `argocd.argoproj.io/skip-reconcile: "true"`. This uses the same annotation as
+[Skip Application Reconcile](../user-guide/skip_reconcile.md), but applied at the cluster level.
+
+The cluster remains visible in API responses (`argocd cluster list`), but the controller treats it as unmanaged.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+type: Opaque
+stringData:
+  name: mycluster.example.com
+  server: https://mycluster.example.com
+  config: |
+    {
+      "bearerToken": "<authentication token>",
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }
+    }
+```
+
+To skip an existing cluster:
+
+```bash
+kubectl -n argocd annotate secret mycluster-secret argocd.argoproj.io/skip-reconcile=true
+```
+
+To resume reconciliation:
+
+```bash
+kubectl -n argocd annotate secret mycluster-secret argocd.argoproj.io/skip-reconcile-
+```
+
 ### EKS
 
 EKS cluster secret example using argocd-k8s-auth and [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) and [Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html):
@@ -725,7 +801,7 @@ The 3 service accounts need to be modified to include an annotation with the Arg
 Here's an example service account configurations for `argocd-application-controller`, `argocd-applicationset-controller`, and `argocd-server`.
 
 > [!WARNING]
-Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
+> Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
 
 **for IRSA:**   
 ```yaml
@@ -1099,7 +1175,8 @@ Azure cluster secret example using argocd-k8s-auth and [kubelogin](https://githu
 |AZURE_AUTHORITY_HOST|Used in the WorkloadIdentityLogin flow|
 |AZURE_FEDERATED_TOKEN_FILE|Used in the WorkloadIdentityLogin flow|
 
-In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [here](https://github.com/azure/kubelogin#exec-plugin-format) for details.
+In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [Exec Plugin
+](https://github.com/Azure/kubelogin/blob/main/docs/book/src/concepts/exec-plugin.md) for details.
 
 |Variable Name|Description|
 |-------------|-----------|

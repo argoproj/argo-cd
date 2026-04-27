@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
@@ -111,13 +110,18 @@ foo:
 		{
 			name: "file parameters are added to params with go template",
 			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   defaultContent,
-				values:        map[string]string{},
+				filePath:    "path/dir/file_name.yaml",
+				fileContent: defaultContent,
+				values: map[string]string{
+					"somekey": "{{.path.basename}}",
+				},
 				useGoTemplate: true,
 			},
 			want: []map[string]any{
 				{
+					"values": map[string]string{
+						"somekey": "dir",
+					},
 					"foo": map[string]any{
 						"bar": "baz",
 					},
@@ -161,6 +165,41 @@ foo:
 								"dir",
 							},
 						},
+					},
+				},
+			},
+		},
+		{
+			name: "path parameter are prefixed with go template and values",
+			args: args{
+				filePath:    "path/dir/file_name.yaml",
+				fileContent: defaultContent,
+				values: map[string]string{
+					"somekey": "{{.myRepo.path.basename}}",
+				},
+				useGoTemplate:   true,
+				pathParamPrefix: "myRepo",
+			},
+			want: []map[string]any{
+				{
+					"foo": map[string]any{
+						"bar": "baz",
+					},
+					"myRepo": map[string]any{
+						"path": map[string]any{
+							"path":               "path/dir",
+							"basename":           "dir",
+							"filename":           "file_name.yaml",
+							"basenameNormalized": "dir",
+							"filenameNormalized": "file-name.yaml",
+							"segments": []string{
+								"path",
+								"dir",
+							},
+						},
+					},
+					"values": map[string]string{
+						"somekey": "dir",
 					},
 				},
 			},
@@ -2423,7 +2462,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				},
 			},
 			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedProject: ptr.To("project"),
+			expectedProject: new("project"),
 			expectedError:   nil,
 		},
 		{
@@ -2457,7 +2496,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				},
 			},
 			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedProject: ptr.To(""),
+			expectedProject: new(""),
 			expectedError:   nil,
 		},
 	}

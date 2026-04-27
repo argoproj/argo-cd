@@ -44,8 +44,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/soheilhy/cmux"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
+	otel_codes "go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -60,8 +63,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -166,6 +167,9 @@ var (
 	enableGRPCTimeHistogram         = true
 )
 
+// OpenTelemetry tracer for this package
+var tracer trace.Tracer
+
 func init() {
 	maxConcurrentLoginRequestsCount = env.ParseNumFromEnv(maxConcurrentLoginRequestsCountEnv, maxConcurrentLoginRequestsCount, 0, math.MaxInt32)
 	replicasCount = env.ParseNumFromEnv(replicasCountEnv, replicasCount, 0, math.MaxInt32)
@@ -173,6 +177,7 @@ func init() {
 		maxConcurrentLoginRequestsCount = maxConcurrentLoginRequestsCount / replicasCount
 	}
 	enableGRPCTimeHistogram = env.ParseBoolFromEnv(common.EnvEnableGRPCTimeHistogramEnv, false)
+	tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/server")
 }
 
 // ArgoCDServer is the API server for Argo CD
@@ -327,8 +332,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
 
 	userStateStorage := util_session.NewUserStateStorage(opts.RedisClient)
-	ssoClientApp, err := oidc.NewClientApp(settings, opts.DexServerAddr, opts.DexTLSConfig, opts.BaseHRef, cacheutil.NewRedisCache(opts.RedisClient, settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
-	errorsutil.CheckError(err)
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
@@ -353,7 +356,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		staticFS = utilio.NewComposableFS(staticFS, root.FS())
 	}
 
-	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.Namespace, opts.RepoClientset)
+	argocdService, err := service.NewArgoCDService(opts.KubeClientset, opts.DynamicClientset, opts.Namespace, opts.RepoClientset)
 	errorsutil.CheckError(err)
 
 	secretInformer := k8s.NewSecretInformer(opts.KubeClientset, opts.Namespace, "argocd-notifications-secret")
@@ -376,7 +379,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:   opts,
 		ApplicationSetOpts: appsetOpts,
-		ssoClientApp:       ssoClientApp,
 		log:                logger,
 		settings:           settings,
 		sessionMgr:         sessionMgr,
@@ -461,38 +463,28 @@ func (l *Listeners) Close() error {
 
 // logInClusterWarnings checks the in-cluster configuration and prints out any warnings.
 func (server *ArgoCDServer) logInClusterWarnings() error {
-	labelSelector := labels.NewSelector()
-	req, err := labels.NewRequirement(common.LabelKeySecretType, selection.Equals, []string{common.LabelValueSecretTypeCluster})
+	informer, err := server.settingsMgr.GetClusterInformer()
 	if err != nil {
-		return fmt.Errorf("failed to construct cluster-type label selector: %w", err)
+		return fmt.Errorf("failed to get cluster informer: %w", err)
 	}
-	labelSelector = labelSelector.Add(*req)
-	secretsLister, err := server.settingsMgr.GetSecretsLister()
+	clusters, err := informer.ListAvailableClusters()
 	if err != nil {
-		return fmt.Errorf("failed to get secrets lister: %w", err)
+		return fmt.Errorf("failed to list clusters: %w", err)
 	}
-	clusterSecrets, err := secretsLister.Secrets(server.ArgoCDServerOpts.Namespace).List(labelSelector)
-	if err != nil {
-		return fmt.Errorf("failed to list cluster secrets: %w", err)
-	}
-	var inClusterSecrets []string
-	for _, clusterSecret := range clusterSecrets {
-		cluster, err := db.SecretToCluster(clusterSecret)
-		if err != nil {
-			return fmt.Errorf("could not unmarshal cluster secret %q: %w", clusterSecret.Name, err)
-		}
+	var inClusterNames []string
+	for _, cluster := range clusters {
 		if cluster.Server == v1alpha1.KubernetesInternalAPIServerAddr {
-			inClusterSecrets = append(inClusterSecrets, clusterSecret.Name)
+			inClusterNames = append(inClusterNames, cluster.ObjectMeta.Name)
 		}
 	}
-	if len(inClusterSecrets) > 0 {
+	if len(inClusterNames) > 0 {
 		// Don't make this call unless we actually have in-cluster secrets, to save time.
-		dbSettings, err := server.settingsMgr.GetSettings()
+		inClusterEnabled, err := server.settingsMgr.IsInClusterEnabled()
 		if err != nil {
-			return fmt.Errorf("could not get DB settings: %w", err)
+			return fmt.Errorf("could not check if in-cluster is enabled: %w", err)
 		}
-		if !dbSettings.InClusterEnabled {
-			for _, clusterName := range inClusterSecrets {
+		if !inClusterEnabled {
+			for _, clusterName := range inClusterNames {
 				log.Warnf("cluster %q uses in-cluster server address but it's disabled in Argo CD settings", clusterName)
 			}
 		}
@@ -579,6 +571,10 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	if server.RedisClient != nil {
 		cacheutil.CollectMetrics(server.RedisClient, metricsServ, server.userStateStorage.GetLockObject())
 	}
+	// OIDC config needs to be refreshed at each server restart
+	ssoClientApp, err := oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
+	errorsutil.CheckError(err)
+	server.ssoClientApp = ssoClientApp
 
 	// Don't init storage until after CollectMetrics. CollectMetrics adds hooks to the Redis client, and Init
 	// reads those hooks. If this is called first, there may be a data race.
@@ -674,59 +670,47 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		var wg gosync.WaitGroup
 
 		// Shutdown http server
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			err := httpS.Shutdown(shutdownCtx)
 			if err != nil {
 				log.Errorf("Error shutting down http server: %s", err)
 			}
-		}()
+		})
 
 		if server.useTLS() {
 			// Shutdown https server
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				err := httpsS.Shutdown(shutdownCtx)
 				if err != nil {
 					log.Errorf("Error shutting down https server: %s", err)
 				}
-			}()
+			})
 		}
 
 		// Shutdown gRPC server
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			grpcS.GracefulStop()
-		}()
+		})
 
 		// Shutdown metrics server
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			err := metricsServ.Shutdown(shutdownCtx)
 			if err != nil {
 				log.Errorf("Error shutting down metrics server: %s", err)
 			}
-		}()
+		})
 
 		if server.useTLS() {
 			// Shutdown tls server
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+			wg.Go(func() {
 				tlsm.Close()
-			}()
+			})
 		}
 
 		// Shutdown tcp server
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			tcpm.Close()
-		}()
+		})
 
 		c := make(chan struct{})
 		// This goroutine will wait for all servers to conclude the shutdown
@@ -1066,6 +1050,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.AppClientset,
 		a.appsetInformer,
 		a.appsetLister,
+		nil,
 		a.Namespace,
 		projectLock,
 		a.ApplicationNamespaces,
@@ -1082,7 +1067,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.EnableK8sEvent)
 	appsInAnyNamespaceEnabled := len(a.ApplicationNamespaces) > 0
 	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled, a.HydratorEnabled, a.SyncWithReplaceAllowed)
-	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
+	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf, a.Namespace)
 
 	notificationService := notification.NewServer(a.apiFactory)
 	certificateService := certificate.NewServer(a.db, a.enf)
@@ -1176,8 +1161,8 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 		Handler: &handlerSwitcher{
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
-				"/api/badge":          badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces),
-				common.LogoutEndpoint: logout.NewHandler(server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef),
+				"/api/badge":          otelhttp.NewHandler(badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.ApplicationNamespaces), "server.ArgoCDServer/badge"),
+				common.LogoutEndpoint: otelhttp.NewHandler(logout.NewHandler(server.settingsMgr, server.sessionMgr, server.RootPath, server.BaseHRef), "server.ArgoCDServer/logout"),
 			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,
@@ -1305,7 +1290,7 @@ func registerExtensions(mux *http.ServeMux, a *ArgoCDServer, metricsReg HTTPMetr
 	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
 	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(a.DisableAuth, a.settings.IsSSOConfigured(), a.ssoClientApp)
 	// auth middleware ensures that requests to all extensions are authenticated first
-	mux.Handle(extension.URLPrefix+"/", authMiddleware(extHandler))
+	mux.Handle(extension.URLPrefix+"/", otelhttp.NewHandler(authMiddleware(extHandler), "server.ArgoCDServer/extensions"))
 
 	a.extensionManager.AddMetricsRegistry(metricsReg)
 
@@ -1326,7 +1311,7 @@ func (server *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.
 		}
 		if !files.IsSymlink(info) && !info.IsDir() && extensionsPattern.MatchString(info.Name()) {
 			processFile := func() error {
-				if _, err = fmt.Fprintf(w, "// source: %s/%s \n", filePath, info.Name()); err != nil {
+				if _, err = fmt.Fprintf(w, "// source: %s/%s \ntry {\n", filePath, info.Name()); err != nil {
 					return fmt.Errorf("failed to write to response: %w", err)
 				}
 
@@ -1340,11 +1325,15 @@ func (server *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.
 					return fmt.Errorf("failed to copy file '%s': %w", filePath, err)
 				}
 
+				if _, err = fmt.Fprintf(w, "\n} catch(e) { console.error('Extension %s failed to load:', e); }\n", info.Name()); err != nil {
+					return fmt.Errorf("failed to write to response: %w", err)
+				}
+
 				return nil
 			}
 
-			if processFile() != nil {
-				return fmt.Errorf("failed to serve extension file '%s': %w", filePath, processFile())
+			if err := processFile(); err != nil {
+				return fmt.Errorf("failed to serve extension file '%s': %w", filePath, err)
 			}
 		}
 		return nil
@@ -1363,9 +1352,10 @@ func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux) {
 		return
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
-	mux.HandleFunc(common.DexAPIEndpoint+"/", dexutil.NewDexHTTPReverseProxy(server.DexServerAddr, server.BaseHRef, server.DexTLSConfig))
-	mux.HandleFunc(common.LoginEndpoint, server.ssoClientApp.HandleLogin)
-	mux.HandleFunc(common.CallbackEndpoint, server.ssoClientApp.HandleCallback)
+	mux.Handle(common.DexAPIEndpoint+"/", otelhttp.NewHandler(http.HandlerFunc(dexutil.NewDexHTTPReverseProxy(server.DexServerAddr, server.BaseHRef, server.DexTLSConfig)), "server.dex/Proxy"))
+
+	mux.Handle(common.LoginEndpoint, otelhttp.NewHandler(http.HandlerFunc(server.ssoClientApp.HandleLogin), "server.ClientApp/HandleLogin"))
+	mux.Handle(common.CallbackEndpoint, otelhttp.NewHandler(http.HandlerFunc(server.ssoClientApp.HandleCallback), "server.ClientApp/HandleCallback"))
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
@@ -1451,7 +1441,7 @@ func (server *ArgoCDServer) uiAssetExists(filename string) bool {
 func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		acceptHTML := false
-		for _, acceptType := range strings.Split(r.Header.Get("Accept"), ",") {
+		for acceptType := range strings.SplitSeq(r.Header.Get("Accept"), ",") {
 			if acceptType == "text/html" || acceptType == "html" {
 				acceptHTML = true
 				break
@@ -1522,6 +1512,9 @@ func replaceBaseHRef(data string, replaceWith string) string {
 
 // Authenticate checks for the presence of a valid token when accessing server-side resources.
 func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "server.ArgoCDServer.Authenticate")
+	defer span.End()
 	if server.DisableAuth {
 		return ctx, nil
 	}
@@ -1561,30 +1554,37 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 
 // getClaims extracts, validates and refreshes a JWT token from an incoming request context.
 func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "server.ArgoCDServer.getClaims")
+	defer span.End()
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
+		span.SetStatus(otel_codes.Error, ErrNoSession.Error())
 		return nil, "", ErrNoSession
 	}
 	tokenString := getToken(md)
 	if tokenString == "" {
+		span.SetStatus(otel_codes.Error, ErrNoSession.Error())
 		return nil, "", ErrNoSession
 	}
 	// A valid argocd-issued token is automatically refreshed here prior to expiration.
 	// OIDC tokens will be verified but will not be refreshed here.
 	claims, newToken, err := server.sessionMgr.VerifyToken(ctx, tokenString)
 	if err != nil {
+		span.SetStatus(otel_codes.Error, err.Error())
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 
 	finalClaims := claims
-	if server.settings.IsSSOConfigured() {
+	oidcConfig := server.settings.OIDCConfig()
+	if oidcConfig != nil || server.settings.IsDexConfigured() {
 		updatedClaims, err := server.ssoClientApp.SetGroupsFromUserInfo(ctx, claims, util_session.SessionManagerClaimsIssuer)
 		if err != nil {
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 		}
 		finalClaims = updatedClaims
 		// OIDC tokens are automatically refreshed here prior to expiration
-		refreshedToken, err := server.ssoClientApp.CheckAndRefreshToken(ctx, updatedClaims, server.settings.OIDCRefreshTokenThreshold)
+		refreshedToken, err := server.ssoClientApp.CheckAndRefreshToken(ctx, updatedClaims, server.settings.RefreshTokenThresholdWithConfig(oidcConfig))
 		if err != nil {
 			log.Errorf("error checking and refreshing token: %v", err)
 		}
