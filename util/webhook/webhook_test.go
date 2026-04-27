@@ -1731,13 +1731,13 @@ func NewMockHandlerForBitbucketServerCallback(reactor *reactorDef, applicationNa
 // getBBServerChangesResponderFn returns a httpmock responder for the Bitbucket Server changes API
 func getBBServerChangesResponderFn() func(req *http.Request) (*http.Response, error) {
 	return func(_ *http.Request) (*http.Response, error) {
-		changesResp := map[string]interface{}{
-			"values": []interface{}{
-				map[string]interface{}{
+		changesResp := map[string]any{
+			"values": []any{
+				map[string]any{
 					"contentId":     "abc123",
 					"fromContentId": "def456",
-					"path": map[string]interface{}{
-						"components": []interface{}{"guestbook", "guestbook-ui-deployment.yaml"},
+					"path": map[string]any{
+						"components": []any{"guestbook", "guestbook-ui-deployment.yaml"},
 						"parent":     "guestbook",
 						"name":       "guestbook-ui-deployment.yaml",
 						"extension":  "yaml",
@@ -1763,7 +1763,7 @@ func getBBServerChangesResponderFn() func(req *http.Request) (*http.Response, er
 // getBBServerDefaultBranchResponderFn returns a httpmock responder for the Bitbucket Server default branch API
 func getBBServerDefaultBranchResponderFn(defaultBranch string) func(req *http.Request) (*http.Response, error) {
 	return func(_ *http.Request) (*http.Response, error) {
-		branchResp := map[string]interface{}{
+		branchResp := map[string]any{
 			"id":           "refs/heads/" + defaultBranch,
 			"displayId":    defaultBranch,
 			"type":         "BRANCH",
@@ -1804,13 +1804,13 @@ func Test_affectedRevisionInfo_bbserver_changed_files(t *testing.T) {
 				Project: bitbucketserver.Project{
 					Key: projectKey,
 				},
-				Links: map[string]interface{}{
-					"clone": []interface{}{
-						map[string]interface{}{
+				Links: map[string]any{
+					"clone": []any{
+						map[string]any{
 							"href": "https://bitbucketserver/scm/" + strings.ToLower(projectKey) + "/" + repoSlug + ".git",
 							"name": "http",
 						},
-						map[string]interface{}{
+						map[string]any{
 							"href": "ssh://git@bitbucketserver:7999/" + strings.ToLower(projectKey) + "/" + repoSlug + ".git",
 							"name": "ssh",
 						},

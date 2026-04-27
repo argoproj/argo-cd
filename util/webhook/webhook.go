@@ -772,7 +772,7 @@ func newBitbucketServerClient(ctx context.Context, repository *v1alpha1.Reposito
 // by calling the Bitbucket Server changes REST API.
 func fetchChangesFromBitbucketServer(client *bitbucketv1.APIClient, projectKey, repoSlug, fromHash, toHash string) ([]string, error) {
 	log.Debugf("invoking Bitbucket Server changes call: [ProjectKey:%s, RepoSlug:%s, since:%s, until:%s]", projectKey, repoSlug, fromHash, toHash)
-	opts := map[string]interface{}{
+	opts := map[string]any{
 		"since": fromHash,
 		"until": toHash,
 	}
@@ -780,17 +780,17 @@ func fetchChangesFromBitbucketServer(client *bitbucketv1.APIClient, projectKey, 
 	if err != nil {
 		return nil, fmt.Errorf("error fetching changes from Bitbucket Server: %w", err)
 	}
-	values, ok := resp.Values["values"].([]interface{})
+	values, ok := resp.Values["values"].([]any)
 	if !ok {
 		return []string{}, nil
 	}
 	changedFiles := make([]string, 0, len(values))
 	for _, v := range values {
-		entry, ok := v.(map[string]interface{})
+		entry, ok := v.(map[string]any)
 		if !ok {
 			continue
 		}
-		pathObj, ok := entry["path"].(map[string]interface{})
+		pathObj, ok := entry["path"].(map[string]any)
 		if !ok {
 			continue
 		}
