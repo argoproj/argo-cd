@@ -28,19 +28,21 @@ func NewCommand() *cobra.Command {
 		Run: func(c *cobra.Command, cmdargs []string) {
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
-			if len(os.Args) < 1 {
-				errors.CheckError(fmt.Errorf("expected at least 1 argument, got %d", len(os.Args)-1))
+			if len(cmdargs) < 1 {
+				errors.CheckError(fmt.Errorf("expected at least 1 argument, got %d", len(cmdargs)-1))
 			}
 
 			log.Infof("argocd-sandbox started")
-			_, err := sandbox.ReadSandboxConfig(configPath)
+			sandboxCfg, err := sandbox.ReadSandboxConfig(configPath)
 			errors.CheckError(err)
-
 			log.Infof("executing %v", cmdargs)
-
+			err = sandbox.ExecuteCommand(sandboxCfg, cmdargs)
+			// Normally the process is replaced, we won't get there
+			log.Error("Failed to execute command %q: %v", err)
+			os.Exit(2)
 		},
 	}
-	//command.Flags().SetInterspersed(false)
+	command.Flags().SetInterspersed(false)
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_SANDBOX_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_SANDBOX_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&configPath, "config", "", "Set configuration file location")
