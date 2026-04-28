@@ -10,12 +10,12 @@ import (
 
 type SandboxImpl interface {
 	Name() string
-	Init(sandboxConfig *ArgocdSandboxConfig) error
+	Init(sandboxConfig *ArgocdSandboxConfig, allowRules []string) error
 	Apply() error
 	GetConfig() string
 }
 
-func ExecuteCommand(cfg *ArgocdSandboxConfig, args []string) error {
+func ExecuteCommand(cfg *ArgocdSandboxConfig, allowRules []string, args []string) error {
 	modules, err := getModules(cfg)
 	if err != nil {
 		return err
@@ -23,7 +23,7 @@ func ExecuteCommand(cfg *ArgocdSandboxConfig, args []string) error {
 	for _, module := range modules {
 		name := module.Name()
 		log.Infof("Initializing sandbox module: %s", name)
-		err := module.Init(cfg)
+		err := module.Init(cfg, allowRules)
 		if err != nil {
 			return fmt.Errorf("Failed to initialize module %q: %v", name, err)
 		}

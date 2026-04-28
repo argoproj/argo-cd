@@ -40,15 +40,17 @@ func TestCreateAccessFSSet(t *testing.T) {
 
 func TestInit(t *testing.T) {
 	type testCase struct {
-		name   string
-		spec   ArgocdSandboxConfig
-		errmsg string
-		cfg    *landlock.Config
+		name       string
+		spec       ArgocdSandboxConfig
+		allowRules []string
+		errmsg     string
+		cfg        *landlock.Config
 	}
-	newTestCase := func(name string, spec ArgocdSandboxConfig, errmsg string, cfg *landlock.Config) testCase {
+	newTestCase := func(name string, spec ArgocdSandboxConfig, allowRules []string, errmsg string, cfg *landlock.Config) testCase {
 		result := testCase{}
 		result.name = name
 		result.spec = spec
+		result.allowRules = allowRules
 		result.errmsg = errmsg
 		result.cfg = cfg
 		return result
@@ -61,14 +63,17 @@ func TestInit(t *testing.T) {
 
 	//rxCfg, _ :=landlock.NewConfig(llsyscall.AccessFSExecute | llsyscall.AccessFSReadFile |	llsyscall.AccessFSReadDir )
 	testCases := []testCase{
-		newTestCase("noconfig", ArgocdSandboxConfig{}, "Landlock sandbox cannot initialize with no configuration given", nil),
-		newTestCase("empty", ArgocdSandboxConfig{Landlock: &LandlockConfig{}}, "", &landlock.Config{}),
-		newTestCase("rx", ArgocdSandboxConfig{Landlock: &LandlockConfig{DefaultFSDeny: "execute, read_file, read_dir"}}, "", rxCfg),
+		newTestCase("noconfig", ArgocdSandboxConfig{},
+			[]string{}, "Landlock sandbox cannot initialize with no configuration given", nil),
+		newTestCase("empty", ArgocdSandboxConfig{Landlock: &LandlockConfig{}}, []string{}, "", &landlock.Config{}),
+		newTestCase("rx", ArgocdSandboxConfig{
+			Landlock: &LandlockConfig{DefaultFSDeny: "execute, read_file, read_dir"},
+		}, []string{}, "", rxCfg),
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			ll := Landlock{}
-			err := ll.Init(&testCase.spec)
+			err := ll.Init(&testCase.spec, testCase.allowRules)
 			if testCase.errmsg == "" {
 				assert.NoError(t, err)
 
@@ -100,7 +105,7 @@ func TestLandlockApply(t *testing.T) {
 				DefaultFSDeny: "read_dir",
 			},
 		}
-		ll.Init(&implConfig)
+		ll.Init(&implConfig, []string{})
 		err := ll.Apply()
 		require.NoError(t, err)
 		_, err = os.Open(".")
@@ -128,7 +133,7 @@ func TestLandlockConfigAccessRules(t *testing.T) {
 		allowedPaths = append(allowedPaths, allowedPath)
 		implConfig.Landlock.AllowedPaths = allowedPaths
 		fmt.Printf("implConfig: %v", *implConfig.Landlock)
-		err = ll.Init(&implConfig)
+		err = ll.Init(&implConfig, []string{})
 		require.NoError(t, err)
 		err = ll.Apply()
 		require.NoError(t, err)
@@ -136,4 +141,83 @@ func TestLandlockConfigAccessRules(t *testing.T) {
 		require.NoError(t, err)
 
 	})
+}
+
+func TestParseValidDynamicRule(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		ops   string
+		path  string
+	}{
+		{
+			name:  "single operation",
+			input: "fs:read_file:/some/file/path",
+			ops:   "read_file",
+			path:  "/some/file/path",
+		},
+		{
+			name:  "multiple operations",
+			input: "fs:read_file,read_dir:/some/file/path",
+			ops:   "read_file,read_dir",
+			path:  "/some/file/path",
+		},
+		{
+			name:  "root path",
+			input: "fs:read_dir:/",
+			ops:   "read_dir",
+			path:  "/",
+		},
+		{
+			name:  "path with colon",
+			input: "fs:read_file:/some/path:with:colons",
+			ops:   "read_file",
+			path:  "/some/path:with:colons",
+		},
+		{
+			name:  "path with spaces",
+			input: "fs:write_file:/home/user/my documents/file.txt",
+			ops:   "write_file",
+			path:  "/home/user/my documents/file.txt",
+		},
+		{
+			name:  "path with unicode",
+			input: "fs:read_file:/home/☺.txt",
+			ops:   "read_file",
+			path:  "/home/☺.txt",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseAllowParam(tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, tt.ops, result.Access)
+			assert.Equal(t, len(result.Paths), 1)
+			assert.Equal(t, result.Paths[0], tt.path)
+		})
+	}
+}
+
+func TestParseInvalidDynamicRules(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"empty input", ""},
+		{"missing parts", "fs:read_file"},
+		{"wrong prefix", "zz:read_file:/path"},
+		{"empty access rights list", "fs::/path"},
+		{"empty path", "fs:read_file:"},
+		{"relative path", "fs:read_file:relative/path"},
+		{"null byte in path", "fs:read_file:/some/\x00path"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parseAllowParam(tt.input)
+			if err == nil {
+				t.Fatal("expected an error, got nil")
+			}
+		})
+	}
 }
