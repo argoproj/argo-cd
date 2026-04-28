@@ -484,6 +484,13 @@ func SetImpersonationEnabled(impersonationEnabledFlag string) error {
 	})
 }
 
+func SetImpersonationEnforcement(value string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.sync.impersonation.enforced"] = value
+		return nil
+	})
+}
+
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
