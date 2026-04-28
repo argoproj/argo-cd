@@ -1552,7 +1552,7 @@ func TestGitDirectoryGeneratorCommitSHAParamNonExistentRevision(t *testing.T) {
 		Then().Expect(ApplicationsDoNotExist(expectedApps)).
 		Expect(ApplicationSetHasConditions(expectedConditions)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestGitFilesGeneratorCommitSHAParamNonExistentRevision(t *testing.T) {
@@ -1620,7 +1620,7 @@ func TestGitFilesGeneratorCommitSHAParamNonExistentRevision(t *testing.T) {
 		Then().Expect(ApplicationsDoNotExist(expectedApps)).
 		Expect(ApplicationSetHasConditions(expectedConditions)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestGitDirectoryGeneratorCommitSHAParam(t *testing.T) {
@@ -1696,7 +1696,7 @@ func TestGitDirectoryGeneratorCommitSHAParam(t *testing.T) {
 			},
 		}).Then().Expect(ApplicationsExist(expectedApps)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestGitDirectoryGeneratorGoTemplateCommitSHAParam(t *testing.T) {
@@ -1773,7 +1773,7 @@ func TestGitDirectoryGeneratorGoTemplateCommitSHAParam(t *testing.T) {
 			},
 		}).Then().Expect(ApplicationsExist(expectedApps)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestGitFilesGeneratorCommitSHAParam(t *testing.T) {
@@ -1849,7 +1849,7 @@ func TestGitFilesGeneratorCommitSHAParam(t *testing.T) {
 			},
 		}).Then().Expect(ApplicationsExist(expectedApps)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
 
 func TestGitFilesGeneratorGoTemplateCommitSHAParam(t *testing.T) {
@@ -1926,5 +1926,5 @@ func TestGitFilesGeneratorGoTemplateCommitSHAParam(t *testing.T) {
 			},
 		}).Then().Expect(ApplicationsExist(expectedApps)).
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist(expectedApps))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist(expectedApps))
 }
