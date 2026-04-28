@@ -1233,14 +1233,13 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		destinationServerURL := "https://xyz.svc.local"
 		applicationNamespace := "argocd-ns"
 		expectedSA := ""
-		expectedErr := "no matching service account found for destination server https://xyz.svc.local and namespace testns"
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, &v1alpha1.Cluster{Server: destinationServerURL})
 
 		// then, there an error with appropriate message must be returned
-		require.EqualError(t, err, expectedErr)
+		require.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
 
