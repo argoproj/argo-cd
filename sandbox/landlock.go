@@ -6,6 +6,7 @@ import (
 
 	"github.com/landlock-lsm/go-landlock/landlock"
 	llsyscall "github.com/landlock-lsm/go-landlock/landlock/syscall"
+	log "github.com/sirupsen/logrus"
 )
 
 type LandlockAllowedPath struct {
@@ -92,16 +93,16 @@ func (m *Landlock) Init(sandboxConfig *ArgocdSandboxConfig) error {
 	}
 	accessFSSet, err := m.createAccessFSSet(implConfig.DefaultFSDeny)
 	m.Cfg, err = landlock.NewConfig(accessFSSet)
-
-	//var rules []landlock.Rule
-
+	if err != nil {
+		return fmt.Errorf("Landlock sandbox cannot initialize configuration: %v", err)
+	}
 	for idx, entry := range implConfig.AllowedPaths {
 		if len(entry.Paths) == 0 {
-			return fmt.Errorf("Landlock sandbox cannot initialize: no paths are given for access entry #%d  in configuration", idx)
+			return fmt.Errorf("Landlock sandbox cannot initialize: no paths are given for access entry #%d in configuration", idx)
 		}
 		permittedAccess, err := m.createAccessFSSet(entry.Access)
 		if err != nil {
-			return fmt.Errorf("Landlock sandbox cannot initialize: invalid access spec in  entry #%d  in configuration", idx)
+			return fmt.Errorf("Landlock sandbox cannot initialize: invalid access spec in access entry #%d in configuration: %v", idx, err)
 		}
 		rule := landlock.PathAccess(permittedAccess, entry.Paths...)
 
@@ -112,10 +113,15 @@ func (m *Landlock) Init(sandboxConfig *ArgocdSandboxConfig) error {
 }
 
 func (m *Landlock) Apply() error {
+	log.Infof("  config is: %x", m.Cfg)
 	err := m.Cfg.RestrictPaths(m.Rules...)
 	return err
 }
 
-func (m *Landlock) Name(ArgocdSandboxConfig) string {
+func (m *Landlock) Name() string {
 	return "landlock"
+}
+
+func (m *Landlock) GetConfig() string {
+	return fmt.Sprintf("%v", m.Cfg)
 }
