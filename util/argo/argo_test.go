@@ -1384,8 +1384,8 @@ func TestGetGlobalProjects(t *testing.T) {
 func Test_mergeVirtualProject(t *testing.T) {
 	proj := &argoappv1.AppProject{
 		Spec: argoappv1.AppProjectSpec{
-			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "", Kind: "Namespace"}},
-			ClusterResourceWhitelist: []metav1.GroupKind{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}},
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{{Group: "", Kind: "Namespace"}},
+			ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}},
 			DestinationServiceAccounts: []argoappv1.ApplicationDestinationServiceAccount{
 				{
 					Server:                "test",
@@ -1412,8 +1412,8 @@ func Test_mergeVirtualProject(t *testing.T) {
 
 	globalProj := &argoappv1.AppProject{
 		Spec: argoappv1.AppProjectSpec{
-			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
-			ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
+			ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
 			DestinationServiceAccounts: []argoappv1.ApplicationDestinationServiceAccount{
 				{
 					Server:                "*",
@@ -1440,8 +1440,8 @@ func Test_mergeVirtualProject(t *testing.T) {
 
 	expected := &argoappv1.AppProject{
 		Spec: argoappv1.AppProjectSpec{
-			ClusterResourceBlacklist: []metav1.GroupKind{{Group: "", Kind: "Namespace"}, {Group: "*", Kind: "*"}},
-			ClusterResourceWhitelist: []metav1.GroupKind{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}, {Group: "*", Kind: "*"}},
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{{Group: "", Kind: "Namespace"}, {Group: "*", Kind: "*"}},
+			ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}, {Group: "*", Kind: "*"}},
 			DestinationServiceAccounts: []argoappv1.ApplicationDestinationServiceAccount{
 				{
 					Server:                "test",
