@@ -1,0 +1,37 @@
+apiVersion: services.cloud.sap.com/v1
+kind: ServiceInstance
+metadata:
+  annotations:
+  creationTimestamp: '2025-08-14T00:38:55Z'
+  generation: 1
+  name: new-service
+  namespace: sap
+  resourceVersion: '1'
+  uid: 9c7cad9e-11e2-473f-8061-475a727b9069
+spec:
+  externalName: new-service-instance
+  serviceOfferingName: my-service
+  servicePlanName: my-plan
+  userInfo:
+    groups:
+    - group1
+    uid: faa21265-03b1-42c2-9f50-90893470e7c3
+    username: user-name
+status:
+  bindingID: 1603017e-f77b-4de4-b5f4-5fd275797f2d
+  conditions:
+  - lastTransitionTime: '2025-08-14T00:38:55Z'
+    message: ServiceInstance update failed
+    observedGeneration: 1
+    reason: UpdateFailed
+    status: 'False'
+    type: Succeeded
+  - lastTransitionTime: '2025-08-14T00:38:55Z'
+    message: ServiceInstance update failed
+    observedGeneration: 1
+    reason: UpdateFailed
+    status: 'True'
+    type: Failed
+  instanceID: 0ef2bec2-c0e2-443c-a865-0ebcecc00aca
+  ready: 'True'
+  hashedSpec: e4316201-dcaa-436b-8069-fa366a56c6b3

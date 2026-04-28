@@ -29,6 +29,16 @@ spec:
   clusterResourceWhitelist:
   - group: ''
     kind: Namespace
+    # Name is optional. If specified, only resources with a matching name will be allowed.
+    # Globs in Go's filepath.Match syntax are supported. Example: "team1-*".
+    name: ''
+
+  # Deny all Namespace resources from being created if their name starts with 'kube-'
+  clusterResourceBlacklist:
+    - group: ''
+      kind: Namespace
+      # Name is optional. If specified, only resources with a matching name will be denied.
+      name: 'kube-*'
 
   # Allow all namespaced-scoped resources to be created, except for ResourceQuota, LimitRange, NetworkPolicy
   namespaceResourceBlacklist:
@@ -79,11 +89,18 @@ spec:
     applications:
       - '*-prod'
     manualSync: true
+  - kind: allow
+    schedule: '0 9 * * *'
+    duration: 8h
+    applications:
+      - '*'
+    syncOverrun: true  # Syncs started during this window can continue after window ends
   - kind: deny
     schedule: '0 22 * * *'
     duration: 1h
     namespaces:
       - default
+    syncOverrun: true  # Syncs started before this window can continue during the window
   - kind: allow
     schedule: '0 23 * * *'
     duration: 1h

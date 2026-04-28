@@ -13,7 +13,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
 	"github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/util/log"
@@ -63,7 +63,7 @@ func RunWithRedactor(cmd *exec.Cmd, redactor func(text string) string) (string, 
 }
 
 func RunWithExecRunOpts(cmd *exec.Cmd, opts ExecRunOpts) (string, error) {
-	cmdOpts := CmdOpts{Timeout: timeout, FatalTimeout: fatalTimeout, Redactor: opts.Redactor, TimeoutBehavior: opts.TimeoutBehavior, SkipErrorLogging: opts.SkipErrorLogging}
+	cmdOpts := CmdOpts{Timeout: timeout, FatalTimeout: fatalTimeout, Redactor: opts.Redactor, TimeoutBehavior: opts.TimeoutBehavior, SkipErrorLogging: opts.SkipErrorLogging, CaptureStderr: opts.CaptureStderr}
 	span := tracing.NewLoggingTracer(log.NewLogrusLogger(log.NewWithCurrentConfig())).StartSpan(fmt.Sprintf("exec %v", cmd.Args[0]))
 	span.SetBaggageItem("dir", cmd.Dir)
 	if cmdOpts.Redactor != nil {

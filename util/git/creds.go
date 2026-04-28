@@ -9,13 +9,20 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	giturls "github.com/chainguard-dev/git-urls"
 	"github.com/google/go-github/v69/github"
 
 	"golang.org/x/oauth2"
@@ -23,8 +30,8 @@ import (
 
 	gocache "github.com/patrickmn/go-cache"
 
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	argoio "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	log "github.com/sirupsen/logrus"
 
@@ -43,6 +50,12 @@ var (
 
 	// In memory cache for storing Azure tokens
 	azureTokenCache *gocache.Cache
+
+	// installationIdCache caches installation IDs for organizations to avoid redundant API calls.
+	githubInstallationIdCache      *gocache.Cache
+	githubInstallationIdCacheMutex sync.RWMutex // For bulk API call coordination
+	// In memory cache for storing Azure Service Principal tokens
+	azureServicePrincipalTokenCache *gocache.Cache
 )
 
 const (
@@ -57,8 +70,21 @@ const (
 func init() {
 	githubAppCredsExp := common.GithubAppCredsExpirationDuration
 	if exp := os.Getenv(common.EnvGithubAppCredsExpirationDuration); exp != "" {
-		if qps, err := strconv.Atoi(exp); err != nil {
+		if qps, err := strconv.Atoi(exp); err == nil {
 			githubAppCredsExp = time.Duration(qps) * time.Minute
+		}
+	}
+	azureServicePrincipalCredsExp := common.AzureServicePrincipalCredsExpirationDuration
+	if exp := os.Getenv(common.EnvAzureServicePrincipalCredsExpirationDuration); exp != "" {
+		if qps, err := strconv.Atoi(exp); err == nil {
+			// Azure service principal tokens are valid for 60 minutes
+			// the cache has a cleanup interval of 1 minute
+			// cap the expiration duration to 59 minutes to avoid issues with token expiration
+			if qps > 59 {
+				log.Warnf("Value in %s is %d, which is greater than maximum 59 minutes allowed. Setting to 59 minutes", common.EnvAzureServicePrincipalCredsExpirationDuration, qps)
+				qps = 59
+			}
+			azureServicePrincipalCredsExp = time.Duration(qps) * time.Minute
 		}
 	}
 
@@ -66,6 +92,8 @@ func init() {
 	// oauth2.TokenSource handles fetching new Tokens once they are expired. The oauth2.TokenSource itself does not expire.
 	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
 	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
+	githubInstallationIdCache = gocache.New(60*time.Minute, 60*time.Minute)
+	azureServicePrincipalTokenCache = gocache.New(azureServicePrincipalCredsExp, 1*time.Minute)
 }
 
 type NoopCredsStore struct{}
@@ -380,11 +408,14 @@ type GitHubAppCreds struct {
 	proxy          string
 	noProxy        string
 	store          CredsStore
+	// repoURL is the full repository URL, used for extracting org for auto-discovery
+	repoURL string
 }
 
 // NewGitHubAppCreds provide github app credentials
-func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore) GenericHTTPSCreds {
-	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store}
+// repoURL is required for automatic installation ID discovery when appInstallId is 0
+func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore, repoURL string) GenericHTTPSCreds {
+	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store, repoURL: repoURL}
 }
 
 func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
@@ -487,7 +518,7 @@ func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error)
 // the token is then cached for re-use.
 func (g GitHubAppCreds) getAccessToken() (string, error) {
 	// Timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
 	defer cancel()
 
 	itr, err := g.getInstallationTransport()
@@ -523,11 +554,34 @@ func (g GitHubAppCreds) getAppTransport() (*ghinstallation.AppsTransport, error)
 
 // getInstallationTransport creates a new GitHub transport for the app installation
 func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, error) {
+	installationID := g.appInstallId
+
+	// Auto-discover installation ID if not provided
+	if installationID == 0 {
+		org, err := ExtractOrgFromRepoURL(g.repoURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract organization from repository URL %s for GitHub App installation discovery: %w", g.repoURL, err)
+		}
+		if org == "" {
+			return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", g.repoURL)
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
+		discoveredID, err := DiscoverGitHubAppInstallationID(ctx, g.appID, g.privateKey, g.baseURL, org)
+		if err != nil {
+			return nil, fmt.Errorf("failed to discover GitHub App installation ID for organization %s: ensure the GitHub App (ID: %d) is installed for this organization: %w", org, g.appID, err)
+		}
+		log.Infof("Auto-discovered GitHub App installation ID %d for org %s", discoveredID, org)
+		installationID = discoveredID
+	}
+
 	// Compute hash of creds for lookup in cache
 	h := sha256.New()
-	_, err := fmt.Fprintf(h, "%s %d %d %s", g.privateKey, g.appID, g.appInstallId, g.baseURL)
+	_, err := fmt.Fprintf(h, "%s %d %d %s", g.privateKey, g.appID, installationID, g.baseURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get get SHA256 hash for GitHub app credentials: %w", err)
+		return nil, fmt.Errorf("failed to get SHA256 hash for GitHub app credentials: %w", err)
 	}
 	key := hex.EncodeToString(h.Sum(nil))
 
@@ -549,7 +603,7 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 	c := GetRepoHTTPClient(baseURL, g.insecure, g, g.proxy, g.noProxy)
 	itr, err := ghinstallation.New(c.Transport,
 		g.appID,
-		g.appInstallId,
+		installationID,
 		[]byte(g.privateKey),
 	)
 	if err != nil {
@@ -576,6 +630,200 @@ func (g GitHubAppCreds) GetClientCertKey() string {
 	return g.clientCertKey
 }
 
+// GitHub App installation discovery cache and helper
+
+// DiscoverGitHubAppInstallationID discovers the GitHub App installation ID for a given organization.
+// It queries the GitHub API to list all installations for the app and returns the installation ID
+// for the matching organization. Results are cached to avoid redundant API calls.
+// An optional HTTP client can be provided for custom transport (e.g., for metrics tracking).
+func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKey, enterpriseBaseURL, org string, httpClient ...*http.Client) (int64, error) {
+	domain, err := domainFromBaseURL(enterpriseBaseURL)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get domain from base URL: %w", err)
+	}
+	org = strings.ToLower(org)
+	// Check cache first
+	cacheKey := fmt.Sprintf("%s:%s:%d", strings.ToLower(org), domain, appId)
+	if id, found := githubInstallationIdCache.Get(cacheKey); found {
+		return id.(int64), nil
+	}
+
+	// Use provided HTTP client or default
+	var transport http.RoundTripper
+	if len(httpClient) > 0 && httpClient[0] != nil && httpClient[0].Transport != nil {
+		transport = httpClient[0].Transport
+	} else {
+		transport = http.DefaultTransport
+	}
+
+	// Create GitHub App transport
+	rt, err := ghinstallation.NewAppsTransport(transport, appId, []byte(privateKey))
+	if err != nil {
+		return 0, fmt.Errorf("failed to create GitHub app transport: %w", err)
+	}
+
+	if enterpriseBaseURL != "" {
+		rt.BaseURL = enterpriseBaseURL
+	}
+
+	// Create GitHub client
+	var client *github.Client
+	clientTransport := &http.Client{Transport: rt}
+	if enterpriseBaseURL == "" {
+		client = github.NewClient(clientTransport)
+	} else {
+		client, err = github.NewClient(clientTransport).WithEnterpriseURLs(enterpriseBaseURL, enterpriseBaseURL)
+		if err != nil {
+			return 0, fmt.Errorf("failed to create GitHub enterprise client: %w", err)
+		}
+	}
+
+	// List all installations and cache them
+	var allInstallations []*github.Installation
+	opts := &github.ListOptions{PerPage: 100}
+
+	// Lock for the entire loop to avoid multiple concurrent API calls on startup
+	githubInstallationIdCacheMutex.Lock()
+	defer githubInstallationIdCacheMutex.Unlock()
+
+	// Check cache again inside the write lock in case another goroutine already fetched it
+	if id, found := githubInstallationIdCache.Get(cacheKey); found {
+		return id.(int64), nil
+	}
+
+	for {
+		installations, resp, err := client.Apps.ListInstallations(ctx, opts)
+		if err != nil {
+			return 0, fmt.Errorf("failed to list installations: %w", err)
+		}
+
+		allInstallations = append(allInstallations, installations...)
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	// Cache each installation under its account's key so multiple orgs do not overwrite each other.
+	for _, installation := range allInstallations {
+		if installation.Account != nil && installation.Account.Login != nil && installation.ID != nil {
+			instKey := fmt.Sprintf("%s:%s:%d", strings.ToLower(*installation.Account.Login), domain, appId)
+			githubInstallationIdCache.Set(instKey, *installation.ID, gocache.DefaultExpiration)
+		}
+	}
+
+	// Return the installation ID for the requested org
+	if id, found := githubInstallationIdCache.Get(cacheKey); found {
+		return id.(int64), nil
+	}
+	return 0, fmt.Errorf("installation not found for org: %s", org)
+}
+
+// domainFromBaseURL extracts the host (domain) from the given GitHub base URL.
+// Supports HTTP(S), SSH URLs, and git@host:org/repo forms.
+// Returns an error if a domain cannot be extracted.
+func domainFromBaseURL(baseURL string) (string, error) {
+	if baseURL == "" {
+		return "github.com", nil
+	}
+
+	// --- 1. SSH-style Git URL: git@github.com:org/repo.git ---
+	if strings.Contains(baseURL, "@") && strings.Contains(baseURL, ":") && !strings.Contains(baseURL, "://") {
+		parts := strings.SplitN(baseURL, "@", 2)
+		right := parts[len(parts)-1]             // github.com:org/repo
+		host := strings.SplitN(right, ":", 2)[0] // github.com
+		if host != "" {
+			return host, nil
+		}
+		return "", fmt.Errorf("failed to extract host from SSH-style URL: %q", baseURL)
+	}
+
+	// --- 2. Ensure scheme so url.Parse works ---
+	if !strings.HasPrefix(baseURL, "http://") &&
+		!strings.HasPrefix(baseURL, "https://") &&
+		!strings.HasPrefix(baseURL, "ssh://") {
+		baseURL = "https://" + baseURL
+	}
+
+	// --- 3. Standard URL parse ---
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse URL %q: %w", baseURL, err)
+	}
+	if parsed.Host == "" {
+		return "", fmt.Errorf("URL %q parsed but host is empty", baseURL)
+	}
+
+	host := parsed.Host
+	if h, _, err := net.SplitHostPort(host); err == nil {
+		host = h
+	}
+	return host, nil
+}
+
+// ExtractOrgFromRepoURL extracts the organization/owner name from a GitHub repository URL.
+// Supports formats:
+//   - HTTPS: https://github.com/org/repo.git
+//   - SSH: git@github.com:org/repo.git
+//   - SSH with port: git@github.com:22/org/repo.git or ssh://git@github.com:22/org/repo.git
+func ExtractOrgFromRepoURL(repoURL string) (string, error) {
+	if repoURL == "" {
+		return "", errors.New("repo URL is empty")
+	}
+
+	// Handle edge case: ssh://git@host:org/repo (malformed but used in practice)
+	// This format mixes ssh:// prefix with colon notation instead of using a slash.
+	// Convert it to git@host:org/repo which git-urls can parse correctly.
+	// We distinguish this from the valid ssh://git@host:22/org/repo (with port number).
+	if strings.HasPrefix(repoURL, "ssh://git@") {
+		remainder := strings.TrimPrefix(repoURL, "ssh://")
+		if _, after, ok := strings.Cut(remainder, ":"); ok {
+			afterColon := after
+			slashIdx := strings.Index(afterColon, "/")
+
+			// Check if what follows the colon is a port number
+			isPort := false
+			if slashIdx > 0 {
+				if _, err := strconv.Atoi(afterColon[:slashIdx]); err == nil {
+					isPort = true
+				}
+			}
+
+			// If not a port, it's the malformed format - strip ssh:// prefix
+			if !isPort && slashIdx != 0 {
+				repoURL = remainder
+			}
+		}
+	}
+
+	// Use git-urls library to parse all Git URL formats
+	parsed, err := giturls.Parse(repoURL)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse repository URL %q: %w", repoURL, err)
+	}
+
+	// Clean the path: remove leading/trailing slashes and .git suffix
+	path := strings.Trim(parsed.Path, "/")
+	path = strings.TrimSuffix(path, ".git")
+
+	if path == "" {
+		return "", fmt.Errorf("repository URL %q does not contain a path", repoURL)
+	}
+
+	// Extract the first path component (organization/owner)
+	// Path format is typically "org/repo" or "org/repo/subpath"
+	if idx := strings.Index(path, "/"); idx > 0 {
+		org := path[:idx]
+		// Normalize to lowercase for case-insensitive comparison
+		return strings.ToLower(org), nil
+	}
+
+	// If there's no slash, the entire path might be just the org (unusual but handle it)
+	// This would fail validation later, but let's return it
+	return "", fmt.Errorf("could not extract organization from repository URL %q: path %q does not contain org/repo format", repoURL, path)
+}
+
 var _ Creds = GoogleCloudCreds{}
 
 // GoogleCloudCreds to authenticate to Google Cloud Source repositories
@@ -585,7 +833,7 @@ type GoogleCloudCreds struct {
 }
 
 func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
-	creds, err := google.CredentialsFromJSON(context.Background(), []byte(jsonData), "https://www.googleapis.com/auth/cloud-platform")
+	creds, err := google.CredentialsFromJSONWithType(context.Background(), []byte(jsonData), google.ServiceAccount, "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		// Invalid JSON
 		log.Errorf("Failed reading credentials from JSON: %+v", err)
@@ -677,7 +925,7 @@ func (c GoogleCloudCreds) getAccessToken() (string, error) {
 
 	token, err := ts.Token()
 	if err != nil {
-		return "", fmt.Errorf("failed to get get SHA256 hash for Google Cloud credentials: %w", err)
+		return "", fmt.Errorf("failed to get SHA256 hash for Google Cloud credentials: %w", err)
 	}
 
 	return token.AccessToken, nil
@@ -722,7 +970,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 	// Compute hash of creds for lookup in cache
 	key, err := argoutils.GenerateCacheKey("%s", scope)
 	if err != nil {
-		return "", fmt.Errorf("failed to get get SHA256 hash for Azure credentials: %w", err)
+		return "", fmt.Errorf("failed to get SHA256 hash for Azure credentials: %w", err)
 	}
 
 	t, found := azureTokenCache.Get(key)
@@ -745,4 +993,134 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {
 	accessToken, err := creds.getAccessToken(azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
 	return accessToken, err
+}
+
+var _ Creds = AzureServicePrincipalCreds{}
+
+// AzureServicePrincipalCreds to authenticate to Azure DevOps using a Service Principal
+type AzureServicePrincipalCreds struct {
+	tenantID                string
+	clientID                string
+	clientSecret            string
+	activeDirectoryEndpoint string
+	clientCertData          string
+	clientCertKey           string
+	proxy                   string
+	noProxy                 string
+	store                   CredsStore
+}
+
+// NewAzureServicePrincipalCreds creates new Azure Service Principal credentials
+func NewAzureServicePrincipalCreds(tenantID string, clientID string, clientSecret string, store CredsStore) AzureServicePrincipalCreds {
+	return AzureServicePrincipalCreds{tenantID: tenantID, clientID: clientID, clientSecret: clientSecret, store: store}
+}
+
+// WithActiveDirectoryEndpoint sets a custom Active Directory endpoint. When not set, the default Azure public cloud is used.
+func (a AzureServicePrincipalCreds) WithActiveDirectoryEndpoint(activeDirectoryEndpoint string) AzureServicePrincipalCreds {
+	if activeDirectoryEndpoint != "" {
+		a.activeDirectoryEndpoint = activeDirectoryEndpoint
+	}
+	return a
+}
+
+// WithClientCert sets the client certificate data and key
+func (a AzureServicePrincipalCreds) WithClientCert(data string, key string) AzureServicePrincipalCreds {
+	if data != "" && key != "" {
+		a.clientCertData = data
+		a.clientCertKey = key
+	}
+	return a
+}
+
+// WithProxy sets the HTTP/HTTPS proxy used to access the repo
+func (a AzureServicePrincipalCreds) WithProxy(proxy string) AzureServicePrincipalCreds {
+	if proxy != "" {
+		a.proxy = proxy
+	}
+	return a
+}
+
+// WithNoProxy sets a comma separated list of IPs/hostnames that should not use the proxy
+func (a AzureServicePrincipalCreds) WithNoProxy(noProxy string) AzureServicePrincipalCreds {
+	if noProxy != "" {
+		a.noProxy = noProxy
+	}
+	return a
+}
+
+// GetUserInfo doesn't return any user info as they are not present for Azure Service Principals.
+func (a AzureServicePrincipalCreds) GetUserInfo(_ context.Context) (string, string, error) {
+	return workloadidentity.EmptyGuid, "", nil
+}
+
+func (a AzureServicePrincipalCreds) Environ() (io.Closer, []string, error) {
+	token, err := a.getAccessToken()
+	if err != nil {
+		return NopCloser{}, nil, err
+	}
+	nonce := a.store.Add("", token)
+	env := a.store.Environ(nonce)
+	env = append(env, fmt.Sprintf("%s=Authorization: Bearer %s", bearerAuthHeaderEnv, token))
+
+	return utilio.NewCloser(func() error {
+		a.store.Remove(nonce)
+		return nil
+	}), env, nil
+}
+
+func (a AzureServicePrincipalCreds) getAccessToken() (string, error) {
+	// Override the default active directory endpoint if present
+	activeDirectoryEndpoint := "https://login.microsoftonline.com"
+	disableInstanceDiscovery := false
+	if a.activeDirectoryEndpoint != "" {
+		activeDirectoryEndpoint = a.activeDirectoryEndpoint
+		disableInstanceDiscovery = true
+	}
+
+	// Generate cache key for creds
+	key, err := argoutils.GenerateCacheKey("%s %s %s %s", a.tenantID, a.clientID, a.clientSecret, activeDirectoryEndpoint)
+	if err != nil {
+		return "", fmt.Errorf("failed to get get SHA256 hash for Azure Service Principal credentials: %w", err)
+	}
+
+	t, found := azureServicePrincipalTokenCache.Get(key)
+	if found {
+		return t.(string), nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	opts := azcore.ClientOptions{}
+	opts.Cloud = cloud.Configuration{
+		ActiveDirectoryAuthorityHost: activeDirectoryEndpoint,
+	}
+	// Configure HTTP client with proxy if proxy is set
+	if a.proxy != "" {
+		opts.Transport = GetRepoHTTPClient(activeDirectoryEndpoint, false, a, a.proxy, a.noProxy)
+	}
+	cred, err := azidentity.NewClientSecretCredential(a.tenantID, a.clientID, a.clientSecret, &azidentity.ClientSecretCredentialOptions{ClientOptions: opts, DisableInstanceDiscovery: disableInstanceDiscovery})
+	if err != nil {
+		return "", fmt.Errorf("failed to create Azure client secret credential: %w", err)
+	}
+	token, err := cred.GetToken(ctx, policy.TokenRequestOptions{
+		Scopes: []string{azureDevopsEntraResourceId},
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to get Azure access token: %w", err)
+	}
+	azureServicePrincipalTokenCache.Set(key, token.Token, 0)
+	return token.Token, nil
+}
+
+func (a AzureServicePrincipalCreds) HasClientCert() bool {
+	return a.clientCertData != "" && a.clientCertKey != ""
+}
+
+func (a AzureServicePrincipalCreds) GetClientCertData() string {
+	return a.clientCertData
+}
+
+func (a AzureServicePrincipalCreds) GetClientCertKey() string {
+	return a.clientCertKey
 }

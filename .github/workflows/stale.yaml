@@ -1,0 +1,46 @@
+name: "Label stale issues and PRs"
+on:
+  schedule:
+    - cron: "0 0 * * *" #Runs midnight 12AM UTC
+
+#Added Recommended permissions
+permissions:
+  issues: write
+  pull-requests: write
+
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+  
+jobs:
+  stale:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Harden the runner (Block unknown outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: block
+          disable-sudo-and-containers: "true"
+          allowed-endpoints: >
+            api.github.com:443
+
+      - uses: actions/stale@b5d41d4e1d5dceea10e7104786b73624c18a190f # v10.2.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+          stale-issue-message: >
+            This issue has been marked as stale because it has had no activity for 90 days. Please comment if this is still relevant.
+
+          stale-pr-message: >
+            This pull request has been marked as stale because it has had no activity for 90 days. Please comment if this is still relevant.
+
+          days-before-stale: 90
+          days-before-close: -1   # Auto-close diabled
+
+          exempt-issue-labels: >
+            bug, security, breaking/high, breaking/medium, breaking/low
+
+          # General configuration
+          operations-per-run: 200
+          remove-stale-when-updated: true #Remove stale label when issue/pr is updated

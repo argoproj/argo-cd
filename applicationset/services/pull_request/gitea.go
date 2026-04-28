@@ -68,7 +68,7 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 			continue
 		}
 		list = append(list, &PullRequest{
-			Number:       int(pr.Index),
+			Number:       int64(pr.Index),
 			Title:        pr.Title,
 			Branch:       pr.Head.Ref,
 			TargetBranch: pr.Base.Ref,
@@ -83,7 +83,7 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 // containLabels returns true if gotLabels contains expectedLabels
 func giteaContainLabels(expectedLabels []string, gotLabels []*gitea.Label) bool {
 	gotLabelNamesMap := make(map[string]bool)
-	for i := 0; i < len(gotLabels); i++ {
+	for i := range gotLabels {
 		gotLabelNamesMap[gotLabels[i].Name] = true
 	}
 	for _, expected := range expectedLabels {
