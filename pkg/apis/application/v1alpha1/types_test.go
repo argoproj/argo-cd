@@ -4650,7 +4650,7 @@ func TestAppProject_ValidateDestinationServiceAccount(t *testing.T) {
 			server:                "https://192.168.99.100:8443",
 			namespace:             "test-ns",
 			defaultServiceAccount: "",
-			expectedErrMsg:        "defaultServiceAccount has an invalid format, ''",
+			expectedErrMsg:        "serviceAccount has an invalid format, ''",
 		},
 		{
 			// Given, a project,
@@ -4659,7 +4659,7 @@ func TestAppProject_ValidateDestinationServiceAccount(t *testing.T) {
 			server:                "https://192.168.99.100:8443",
 			namespace:             "test-ns",
 			defaultServiceAccount: "   ",
-			expectedErrMsg:        "defaultServiceAccount has an invalid format, '   '",
+			expectedErrMsg:        "serviceAccount has an invalid format, '   '",
 		},
 		{
 			// Given, a project,
@@ -4668,7 +4668,7 @@ func TestAppProject_ValidateDestinationServiceAccount(t *testing.T) {
 			server:                "https://192.168.99.100:8443",
 			namespace:             "test-ns",
 			defaultServiceAccount: "test\\sa",
-			expectedErrMsg:        "defaultServiceAccount has an invalid format, 'test\\sa'",
+			expectedErrMsg:        "serviceAccount has an invalid format, 'test\\sa'",
 		},
 		{
 			// Given, a project,
@@ -4677,7 +4677,7 @@ func TestAppProject_ValidateDestinationServiceAccount(t *testing.T) {
 			server:                "https://192.168.99.100:8443",
 			namespace:             "test-ns",
 			defaultServiceAccount: "test/sa",
-			expectedErrMsg:        "defaultServiceAccount has an invalid format, 'test/sa'",
+			expectedErrMsg:        "serviceAccount has an invalid format, 'test/sa'",
 		},
 		{
 			// Given, a project,
@@ -4686,7 +4686,7 @@ func TestAppProject_ValidateDestinationServiceAccount(t *testing.T) {
 			server:                "https://192.168.99.100:8443",
 			namespace:             "test-ns",
 			defaultServiceAccount: "[test-sa]",
-			expectedErrMsg:        "defaultServiceAccount has an invalid format, '[test-sa]'",
+			expectedErrMsg:        "serviceAccount has an invalid format, '[test-sa]'",
 		},
 		{
 			// Given, a project,
@@ -4695,7 +4695,7 @@ func TestAppProject_ValidateDestinationServiceAccount(t *testing.T) {
 			server:                "https://192.168.99.100:8443",
 			namespace:             "test-ns",
 			defaultServiceAccount: "{test-sa}",
-			expectedErrMsg:        "defaultServiceAccount has an invalid format, '{test-sa}'",
+			expectedErrMsg:        "serviceAccount has an invalid format, '{test-sa}'",
 		},
 		{
 			// Given, a project,

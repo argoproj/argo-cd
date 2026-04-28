@@ -299,7 +299,7 @@ func (proj *AppProject) ValidateProject() error {
 
 		if strings.Trim(destServiceAcct.DefaultServiceAccount, " ") == "" ||
 			strings.ContainsAny(destServiceAcct.DefaultServiceAccount, serviceAccountDisallowedCharSet) {
-			return status.Errorf(codes.InvalidArgument, "defaultServiceAccount has an invalid format, '%s'", destServiceAcct.DefaultServiceAccount)
+			return status.Errorf(codes.InvalidArgument, "serviceAccount has an invalid format, '%s'", destServiceAcct.DefaultServiceAccount)
 		}
 
 		_, err := globutil.Compile(destServiceAcct.Server)

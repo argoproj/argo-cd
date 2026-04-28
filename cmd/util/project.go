@@ -113,7 +113,7 @@ func (opts *ProjectOpts) GetDestinationServiceAccounts() []v1alpha1.ApplicationD
 	for _, destStr := range opts.destinationServiceAccounts {
 		parts := strings.Split(destStr, ",")
 		if len(parts) != 3 {
-			log.Fatalf("Expected destination service account of the form: server,namespace, defaultServiceAccount. Received: %s", destStr)
+			log.Fatalf("Expected destination service account of the form: server,namespace,serviceAccount. Received: %s", destStr)
 		}
 		destinationServiceAccounts = append(destinationServiceAccounts, v1alpha1.ApplicationDestinationServiceAccount{
 			Server:                parts[0],

@@ -741,7 +741,7 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"",
 	)
-	require.ErrorContains(t, err, "defaultServiceAccount has an invalid format, ''")
+	require.ErrorContains(t, err, "serviceAccount has an invalid format, ''")
 
 	// Given, an existing project,
 	// When, a default destination service account with service account having just white spaces is added,
@@ -751,7 +751,7 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"   ",
 	)
-	require.ErrorContains(t, err, "defaultServiceAccount has an invalid format, '   '")
+	require.ErrorContains(t, err, "serviceAccount has an invalid format, '   '")
 
 	// Given, an existing project,
 	// When, a default destination service account with service account having backwards slash char is added,
@@ -761,7 +761,7 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"test\\sa",
 	)
-	require.ErrorContains(t, err, "defaultServiceAccount has an invalid format, 'test\\\\sa'")
+	require.ErrorContains(t, err, "serviceAccount has an invalid format, 'test\\\\sa'")
 
 	// Given, an existing project,
 	// When, a default destination service account with service account having forward slash char is added,
@@ -771,7 +771,7 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"test/sa",
 	)
-	require.ErrorContains(t, err, "defaultServiceAccount has an invalid format, 'test/sa'")
+	require.ErrorContains(t, err, "serviceAccount has an invalid format, 'test/sa'")
 
 	// Given, an existing project,
 	// When, a default destination service account with service account having square braces char is added,
@@ -781,7 +781,7 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"[test-sa]",
 	)
-	require.ErrorContains(t, err, "defaultServiceAccount has an invalid format, '[test-sa]'")
+	require.ErrorContains(t, err, "serviceAccount has an invalid format, '[test-sa]'")
 
 	// Given, an existing project,
 	// When, a default destination service account with service account having curly braces char is added,
@@ -791,7 +791,7 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"{test-sa}",
 	)
-	require.ErrorContains(t, err, "defaultServiceAccount has an invalid format, '{test-sa}'")
+	require.ErrorContains(t, err, "serviceAccount has an invalid format, '{test-sa}'")
 
 	// Given, an existing project,
 	// When, a default destination service account with service account having curly braces char is added,
