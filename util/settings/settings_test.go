@@ -2645,7 +2645,6 @@ func TestIsArgoCDConfigMap(t *testing.T) {
 	}
 }
 
-
 func TestSettingsManager_GetWebhookRefreshJitter(t *testing.T) {
 	tests := []struct {
 		name          string

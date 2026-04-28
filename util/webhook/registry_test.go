@@ -75,8 +75,7 @@ func TestRegistryPackageEvent(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assertLogContains(t, hook, "Received registry webhook event")

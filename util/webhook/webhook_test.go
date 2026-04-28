@@ -1760,7 +1760,7 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 		req := &appRefreshRequest{
 			appName:      "test-app",
 			appNamespace: "argocd",
-			hydrate:      false,
+			hydrateType:  nil,
 		}
 
 		startTime := time.Now()
@@ -1800,7 +1800,7 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 		req := &appRefreshRequest{
 			appName:      "test-app",
 			appNamespace: "argocd",
-			hydrate:      false,
+			hydrateType:  nil,
 		}
 
 		// Add without explicit delay
@@ -1834,7 +1834,7 @@ func TestProcessAppRefresh(t *testing.T) {
 		req := &appRefreshRequest{
 			appName:      "test-app",
 			appNamespace: "argocd",
-			hydrate:      false,
+			hydrateType:  nil,
 		}
 
 		h.processAppRefresh(req)
@@ -1847,11 +1847,12 @@ func TestProcessAppRefresh(t *testing.T) {
 		hook := test.NewGlobal()
 		defer hook.Reset()
 
+		hydrateType := v1alpha1.HydrateTypeNormal
 		h := NewMockHandler(nil, []string{}, &app)
 		req := &appRefreshRequest{
 			appName:      "test-app",
 			appNamespace: "argocd",
-			hydrate:      true,
+			hydrateType:  &hydrateType,
 		}
 
 		h.processAppRefresh(req)
