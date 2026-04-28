@@ -14,7 +14,7 @@ Thus the ApplicationSet controller:
 > **Use the Argo CD namespace**
 >
 > All ApplicationSet resources and the ApplicationSet controller must be installed in the same namespace as Argo CD. 
-> ApplicationSet resources in a different namespace will be ignored.
+> ApplicationSet resources in a different namespace will be ignored, except you enable [the feature](Appset-Any-Namespace.md).
 
 It is Argo CD itself that is responsible for the actual deployment of the generated child `Application` resources, such as Deployments, Services, and ConfigMaps.
 
