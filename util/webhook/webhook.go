@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"html"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -449,9 +448,6 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 			filteredApps = append(filteredApps, *app)
 		}
 	}
-
-	// Track app count for conditional jitter
-	appCount := 0
 
 	for _, webURL := range webURLs {
 		repoRegexp, err := GetWebURLRegex(webURL)
