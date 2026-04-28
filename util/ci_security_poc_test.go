@@ -3,8 +3,6 @@ package util
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
-	"net/http"
 	"os"
 	"testing"
 )
