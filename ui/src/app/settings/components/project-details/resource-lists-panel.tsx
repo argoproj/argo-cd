@@ -196,7 +196,7 @@ function viewDestinationServiceAccountsInfoList(type: field, proj: Project) {
                     <div className='row white-box__details-row'>
                         <div className='columns small-4'>Server</div>
                         <div className='columns small-3'>Namespace</div>
-                        <div className='columns small-5'>DefaultServiceAccount</div>
+                        <div className='columns small-5'>ServiceAccount</div>
                     </div>
                     {list.map((destinationServiceAccounts, i) => (
                         <div className='row white-box__details-row' key={i}>
