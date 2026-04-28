@@ -2586,12 +2586,20 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 
 				if oldOK && newOK && oldApp.Spec.GetProject() != newApp.Spec.GetProject() {
 					ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, oldApp.Spec.GetProject()))
+					ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, newApp.Spec.GetProject()))
 				}
 			},
 			DeleteFunc: func(obj any) {
-				if !ctrl.canProcessApp(obj) {
+				delApp, delOK := obj.(*appv1.Application)
+				if !delOK {
+					if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+						delApp, delOK = tombstone.Obj.(*appv1.Application)
+					}
+				}
+				if !delOK || !ctrl.canProcessApp(delApp) {
 					return
 				}
+
 				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
 				// key function.
 				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
@@ -2599,16 +2607,9 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 					// for deletes, we immediately add to the refresh queue
 					ctrl.appRefreshQueue.Add(key)
 				}
-				delApp, delOK := obj.(*appv1.Application)
-				if !delOK {
-					if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-						delApp, delOK = tombstone.Obj.(*appv1.Application)
-					}
-				}
-				if delOK {
-					ctrl.clusterSharding.DeleteApp(delApp)
-					ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, delApp.Spec.GetProject()))
-				}
+
+				ctrl.clusterSharding.DeleteApp(delApp)
+				ctrl.projectRefreshQueue.Add(fmt.Sprintf("%s/%s", ctrl.namespace, delApp.Spec.GetProject()))
 			},
 		},
 	)
