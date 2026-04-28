@@ -1490,8 +1490,8 @@ type exposedFileSystem struct {
 	fs http.FileSystem
 }
 
-func (efs exposedFileSystem) Open(path string) (http.File, error) {
-	f, err := efs.fs.Open(path)
+func (efs exposedFileSystem) Open(name string) (http.File, error) {
+	f, err := efs.fs.Open(name)
 	if err != nil {
 		return nil, err
 	}
@@ -1503,7 +1503,7 @@ func (efs exposedFileSystem) Open(path string) (http.File, error) {
 	}
 	if s.IsDir() {
 		// Check if index.html exists inside the directory
-		index := filepath.Join(path, "index.html")
+		index := filepath.Join(name, "index.html")
 		indexFile, err := efs.fs.Open(index)
 		if err != nil {
 			// No index.html → close the dir and return 404
