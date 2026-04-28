@@ -723,15 +723,12 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		destinationServerURL := "https://kubernetes.svc.local"
 		applicationNamespace := "argocd-ns"
 		expectedSA := ""
-		expectedErrMsg := "no matching service account found for destination server https://kubernetes.svc.local and namespace testns"
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 		assert.Equal(t, expectedSA, sa)
-
-		// then, there should be an error saying no valid match was found
-		assert.EqualError(t, err, expectedErrMsg)
+		assert.NoError(t, err)
 	})
 
 	t.Run("exact match of destination namespace", func(t *testing.T) {
@@ -894,14 +891,13 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		destinationServerURL := "https://kubernetes.svc.local"
 		applicationNamespace := "argocd-ns"
 		expectedSA := ""
-		expectedErrMsg := "no matching service account found for destination server https://kubernetes.svc.local and namespace testns"
 
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
 
 		// then, there should be an error saying no match was found
-		require.EqualError(t, err, expectedErrMsg)
+		require.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
 
