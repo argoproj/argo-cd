@@ -374,15 +374,16 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 			// file. Use skeema/knownhosts (a superset of x/crypto/ssh/knownhosts)
 			// so we can also derive the HostKeyAlgorithms for the target host.
 			// Populating HostKeyAlgorithms is required to avoid "knownhosts: key
-			// mismatch" handshake failures with go-git v5.16+ (see
-			// go-git/go-git#1551).
+			// mismatch" handshake failures with go-git v5.16+ (see go-git/go-git#1551).
 			db, dbErr := skeemaknownhosts.NewDB(certutil.GetSSHKnownHostsDataPath())
 			if dbErr != nil {
 				log.Errorf("Could not set-up SSH known hosts callback: %v", dbErr)
 			} else {
 				auth.HostKeyCallback = db.HostKeyCallback()
 				if hostWithPort := SSHHostWithPort(repoURL); hostWithPort != "" {
-					auth.HostKeyAlgorithms = db.HostKeyAlgorithms(hostWithPort)
+					algos := db.HostKeyAlgorithms(hostWithPort)
+					auth.HostKeyAlgorithms = algos
+					auth.PublicKeys.HostKeyAlgorithms = algos
 				}
 			}
 		}
