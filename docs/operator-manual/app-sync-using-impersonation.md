@@ -3,9 +3,9 @@
 > [!WARNING]
 > **Alpha Feature (Since 2.13.0)**
 >
-> This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha) 
-> feature that allows you to control the service account used for the sync operation. The configured service account 
-> could have lesser privileges required for creating resources compared to the highly privileged access required for 
+> This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha)
+> feature that allows you to control the service account used for the sync operation. The configured service account
+> could have lesser privileges required for creating resources compared to the highly privileged access required for
 > the control plane operations.
 
 > [!WARNING]
@@ -28,7 +28,7 @@ Impersonation is a feature in Kubernetes and enabled in the `kubectl` CLI client
 
 Impersonation requests first authenticate as the requesting user, then switch to the impersonated user info.
 
-### Feature scope 
+### Feature scope
 
 Impersonation is supported for the lifecycle of objects managed by an Application directly, which includes sync operations (creation, update and pruning of resources) and deletion as part of Application finalizer logic. It is also supported for UI operations triggered by the user.
 
@@ -36,6 +36,7 @@ Impersonation is supported for the lifecycle of objects managed by an Applicatio
 
 In a multi-team/multi-tenant environment, a team/tenant is typically granted access to a target namespace to self-manage their kubernetes resources in a declarative way.
 A typical tenant onboarding process looks like below:
+
 1. The platform admin creates a tenant namespace and the service account to be used for creating the resources is also created in the same tenant namespace.
 2. The platform admin creates one or more Role(s) to manage kubernetes resources in the tenant namespace
 3. The platform admin creates one or more RoleBinding(s) to map the service account to the role(s) created in the previous steps.
@@ -52,14 +53,13 @@ In order for an application to use a different service account for the applicati
 
 2. The `AppProject` referenced by the `.spec.project` field of the `Application` must have the `DestinationServiceAccounts` mapping the destination server and namespace to a service account to be used for the sync operation. Please refer the steps provided in [Configuring destination service accounts](#configuring-destination-service-accounts)
 
-
 ### Enable application sync with impersonation feature
 
 In order to enable this feature, the Argo CD administrator must reconfigure the `application.sync.impersonation.enabled` settings in the `argocd-cm` ConfigMap as below:
 
 ```yaml
 data:
-  application.sync.impersonation.enabled: "true"
+  application.sync.impersonation.enabled: 'true'
 ```
 
 ### Disable application sync with impersonation feature
@@ -68,7 +68,7 @@ In order to disable this feature, the Argo CD administrator must reconfigure the
 
 ```yaml
 data:
-  application.sync.impersonation.enabled: "false"
+  application.sync.impersonation.enabled: 'false'
 ```
 
 > [!NOTE]
@@ -76,6 +76,29 @@ data:
 
 > [!NOTE]
 > This feature can be enabled/disabled only at the system level and once enabled/disabled it is applicable to all Applications managed by ArgoCD.
+
+### Configure enforcement behavior
+
+By default, when impersonation is enabled, Argo CD strictly enforces that every project must have a matching service account configured. If no match is found, the sync operation will fail.
+
+You can disable this enforcement by setting `application.sync.impersonation.enforced` to `false` in the `argocd-cm` ConfigMap:
+
+```yaml
+data:
+  application.sync.impersonation.enabled: 'true'
+  application.sync.impersonation.enforced: 'false'
+```
+
+When enforcement is disabled, if no matching service account is found, Argo CD will fall back to using the controller's service account.
+
+This is useful for gradually migrating to impersonation. Argo CD administrators can:
+
+1. Enable impersonation with enforcement disabled
+2. Configure service accounts in each project over time
+3. Enable enforcement once all projects are properly configured
+
+> [!WARNING]
+> Disabling enforcement reduces the security isolation between applications. Only disable enforcement if you understand the security implications and trust all applications managed by your Argo CD instance.
 
 ## Configuring destination service accounts
 

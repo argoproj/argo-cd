@@ -1424,9 +1424,9 @@ func TestSyncWithImpersonate(t *testing.T) {
 	}
 
 	t.Run("sync with impersonation and no matching service account", func(t *testing.T) {
-		// given app sync impersonation feature is enabled with an application referring a project no matching service account
+		// given app sync impersonation feature is enabled with enforcement (default) and no matching service account
 		f := setup(true, test.FakeArgoCDNamespace, "")
-		opMessage := "failed to find a matching service account to impersonate: no matching service account found for destination server https://localhost:6443 and namespace fake-dest-ns"
+		opMessage := "no matching service account found for destination server https://localhost:6443 and namespace fake-dest-ns"
 
 		opState := &v1alpha1.OperationState{
 			Operation: v1alpha1.Operation{
@@ -1445,9 +1445,9 @@ func TestSyncWithImpersonate(t *testing.T) {
 	})
 
 	t.Run("sync with impersonation and empty service account match", func(t *testing.T) {
-		// given app sync impersonation feature is enabled with an application referring a project matching service account that is an empty string
+		// given app sync impersonation feature is enabled with enforcement (default) and a project with empty service account configured
 		f := setup(true, test.FakeDestNamespace, "")
-		opMessage := "failed to find a matching service account to impersonate: default service account contains invalid chars ''"
+		opMessage := "default service account contains invalid chars"
 
 		opState := &v1alpha1.OperationState{
 			Operation: v1alpha1.Operation{
@@ -1503,6 +1503,120 @@ func TestSyncWithImpersonate(t *testing.T) {
 		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
 
 		// then application sync should pass using the control plane service account
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
+	})
+
+	t.Run("sync with impersonation enabled, enforcement disabled, no matching SA", func(t *testing.T) {
+		// given app sync impersonation feature is enabled with enforcement disabled and no matching service account
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://localhost:6443",
+						Namespace:             test.FakeArgoCDNamespace,
+						DefaultServiceAccount: "",
+					},
+				},
+			},
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    "https://localhost:6443",
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			configMapData: map[string]string{
+				"application.sync.impersonation.enabled":  strconv.FormatBool(true),
+				"application.sync.impersonation.enforced": strconv.FormatBool(false),
+			},
+			additionalObjs: []runtime.Object{},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		opMessage := "successfully synced (no more tasks)"
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: synccommon.OperationRunning,
+		}
+		// when
+		ctrl.appStateManager.SyncAppState(app, project, opState)
+
+		// then app sync should succeed with fallback to controller SA
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
+	})
+
+	t.Run("sync with impersonation enabled, enforcement disabled, matching SA", func(t *testing.T) {
+		// given app sync impersonation feature is enabled with enforcement disabled and matching service account
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://localhost:6443",
+						Namespace:             test.FakeDestNamespace,
+						DefaultServiceAccount: "test-sa",
+					},
+				},
+			},
+		}
+		syncServiceAccount := &corev1.ServiceAccount{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-sa",
+				Namespace: test.FakeDestNamespace,
+			},
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    "https://localhost:6443",
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			configMapData: map[string]string{
+				"application.sync.impersonation.enabled":  strconv.FormatBool(true),
+				"application.sync.impersonation.enforced": strconv.FormatBool(false),
+			},
+			additionalObjs: []runtime.Object{syncServiceAccount},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		opMessage := "successfully synced (no more tasks)"
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: synccommon.OperationRunning,
+		}
+		// when
+		ctrl.appStateManager.SyncAppState(app, project, opState)
+
+		// then app sync should succeed using impersonation
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
 		assert.Contains(t, opState.Message, opMessage)
 	})
