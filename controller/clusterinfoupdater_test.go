@@ -216,6 +216,42 @@ func TestGetUpdatedClusterInfo_AmbiguousName(t *testing.T) {
 	assert.Equal(t, int64(0), info.ApplicationsCount, "ambiguous name should not count app")
 }
 
+func TestGetUpdatedClusterInfo_SyncWarnings(t *testing.T) {
+	now := time.Now()
+	warnings := []string{
+		`Namespace "deleted-ns" is not accessible: forbidden`,
+	}
+	info := &clustercache.ClusterInfo{
+		K8SVersion:        "1.28",
+		LastCacheSyncTime: &now,
+		SyncWarnings:      warnings,
+	}
+
+	updater := &clusterInfoUpdater{namespace: "fake-ns"}
+	cluster := v1alpha1.Cluster{Server: "https://example.com"}
+
+	clusterInfo := updater.getUpdatedClusterInfo(t.Context(), nil, cluster, info, metav1.Now())
+
+	assert.Equal(t, v1alpha1.ConnectionStatusSuccessful, clusterInfo.ConnectionState.Status)
+	assert.Equal(t, warnings, clusterInfo.SyncWarnings)
+}
+
+func TestGetUpdatedClusterInfo_NoSyncWarnings(t *testing.T) {
+	now := time.Now()
+	info := &clustercache.ClusterInfo{
+		K8SVersion:        "1.28",
+		LastCacheSyncTime: &now,
+	}
+
+	updater := &clusterInfoUpdater{namespace: "fake-ns"}
+	cluster := v1alpha1.Cluster{Server: "https://example.com"}
+
+	clusterInfo := updater.getUpdatedClusterInfo(t.Context(), nil, cluster, info, metav1.Now())
+
+	assert.Equal(t, v1alpha1.ConnectionStatusSuccessful, clusterInfo.ConnectionState.Status)
+	assert.Empty(t, clusterInfo.SyncWarnings)
+}
+
 func TestUpdateClusterLabels(t *testing.T) {
 	shouldNotBeInvoked := func(_ context.Context, _ *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 		shouldNotHappen := errors.New("if an error happens here, something's wrong")
