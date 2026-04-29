@@ -1861,7 +1861,6 @@ func TestSecretNormalizingApplier(t *testing.T) {
 		assert.Equal(t, customSecret.Object["data"], resultObj.Object["data"])
 		assert.Equal(t, "very-secret-value", resultObj.GetAnnotations()["my-custom-sensitive-field"])
 	})
-
 }
 
 type simpleKubeApplier struct {
