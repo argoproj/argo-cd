@@ -1,9 +1,6 @@
 package controller
 
 import (
-	"context"
-	"encoding/base64"
-	"encoding/json"
 	"strconv"
 	"testing"
 
@@ -26,8 +23,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/settings"
-
-	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
 func TestPersistRevisionHistory(t *testing.T) {
@@ -1774,99 +1769,3 @@ func TestValidateSyncPermissions(t *testing.T) {
 	})
 }
 
-func TestSecretNormalizingApplier(t *testing.T) {
-	ctx := t.Context()
-
-	sensitiveAnnots := map[string]bool{
-		"my-custom-sensitive-field": true,
-	}
-
-	desired := &unstructured.Unstructured{
-		Object: map[string]any{
-			"apiVersion": "v1",
-			"kind":       "Secret",
-			"metadata": map[string]any{
-				"name":      "test-secret",
-				"namespace": "default",
-				"annotations": map[string]any{
-					"my-custom-sensitive-field": "very-secret-value",
-				},
-			},
-			"type": "Opaque",
-			"data": map[string]any{
-				"password": base64.StdEncoding.EncodeToString([]byte("actual-password")),
-			},
-		},
-	}
-
-	mockApplier := &simpleKubeApplier{
-		applyResult: func(obj *unstructured.Unstructured) string {
-			bytes, _ := json.Marshal(obj)
-			return string(bytes)
-		},
-	}
-
-	normalizer := &secretNormalizingApplier{
-		inner:                mockApplier,
-		sensitiveAnnotations: sensitiveAnnots,
-	}
-
-	t.Run("core v1 secret is normalized during dry run", func(t *testing.T) {
-		result, err := normalizer.ApplyResource(
-			ctx,
-			desired,
-			cmdutil.DryRunServer,
-			false, false, true, "argocd",
-		)
-		require.NoError(t, err)
-
-		resultObj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(result), resultObj)
-		require.NoError(t, err)
-
-		data, _, _ := unstructured.NestedMap(resultObj.Object, "data")
-		assert.Equal(t, "++++++++", data["password"], "Secret data should be masked with asterisks")
-
-		annotations := resultObj.GetAnnotations()
-		assert.Equal(t, "++++++++", annotations["my-custom-sensitive-field"], "Sensitive annotations should be masked")
-	})
-
-	t.Run("non-json result is returned unchanged", func(t *testing.T) {
-		nonJSON := "kubectl applied dry-run"
-		mockApplier.applyResult = func(_ *unstructured.Unstructured) string {
-			return nonJSON
-		}
-
-		result, err := normalizer.ApplyResource(ctx, desired, cmdutil.DryRunServer, false, false, true, "argocd")
-		require.NoError(t, err)
-		assert.Equal(t, nonJSON, result) //nolint:testifylint
-	})
-
-	t.Run("non-core group secret is not normalized", func(t *testing.T) {
-		customSecret := desired.DeepCopy()
-		customSecret.SetAPIVersion("custom.io/v1")
-
-		mockApplier.applyResult = func(obj *unstructured.Unstructured) string {
-			bytes, _ := json.Marshal(obj)
-			return string(bytes)
-		}
-
-		result, err := normalizer.ApplyResource(ctx, customSecret, cmdutil.DryRunServer, false, false, true, "argocd")
-		require.NoError(t, err)
-
-		resultObj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(result), resultObj)
-		require.NoError(t, err)
-
-		assert.Equal(t, customSecret.Object["data"], resultObj.Object["data"])
-		assert.Equal(t, "very-secret-value", resultObj.GetAnnotations()["my-custom-sensitive-field"])
-	})
-}
-
-type simpleKubeApplier struct {
-	applyResult func(*unstructured.Unstructured) string
-}
-
-func (s *simpleKubeApplier) ApplyResource(_ context.Context, obj *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
-	return s.applyResult(obj), nil
-}

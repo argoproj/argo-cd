@@ -841,11 +841,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
 		} else {
 			defer cleanup()
-			normalizedApplier := &secretNormalizingApplier{
-				inner:                applier,
-				sensitiveAnnotations: m.settingsMgr.GetSensitiveAnnotations(),
-			}
-			diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(normalizedApplier))
+			diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(applier))
 		}
 	}
 

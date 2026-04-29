@@ -189,13 +189,31 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 	Normalize(predictedLive, opts...)
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")
 
-	predictedLiveBytes, err := json.Marshal(predictedLive)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling predicted live for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
+	var predictedLiveBytes []byte
+	if !isCoreSecret(config) {
+		predictedLiveBytes, err = json.Marshal(predictedLive)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling predicted live for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
+		}
 	}
 
 	Normalize(live, opts...)
 	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
+
+	if isCoreSecret(config) {
+		// Mask Secret data symmetrically before comparison.
+		// Equal values get equal placeholders, different values get different placeholders.
+		maskedPredictedLive, maskedLive, err := HideSecretData(predictedLive, live, nil)
+		if err != nil {
+			return nil, fmt.Errorf("error hiding secret data for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
+		}
+		predictedLiveBytes, err = json.Marshal(maskedPredictedLive)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling predicted live for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
+		}
+		live = maskedLive
+	}
+
 	liveBytes, err := json.Marshal(live)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling live resource %s/%s: %w", config.GetKind(), config.GetName(), err)
@@ -353,6 +371,15 @@ func jsonStrToUnstructured(jsonString string) (*unstructured.Unstructured, error
 		return nil, fmt.Errorf("unmarshal error: %w", err)
 	}
 	return &unstructured.Unstructured{Object: res}, nil
+}
+
+// isCoreSecret reports whether obj is a core/v1 Secret (Group="" and Kind="Secret").
+func isCoreSecret(obj *unstructured.Unstructured) bool {
+	if obj == nil {
+		return false
+	}
+	gvk := obj.GroupVersionKind()
+	return gvk.Group == "" && gvk.Kind == "Secret"
 }
 
 // StructuredMergeDiff will calculate the diff using the structured-merge-diff
