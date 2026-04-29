@@ -696,14 +696,17 @@ func (mgr *SettingsManager) saveServerTLSSecret(cert, key []byte) error {
 		return err
 	}
 
-	// If the secret exists already, either because the user created it
-	// previously or it was managed by Argo CD, update the secret accordingly
-	// with new cert and key
-	existing = existing.DeepCopy()
-	if existing.Annotations == nil {
-		existing.Annotations = make(map[string]string)
+	// If the secret exists but is NOT marked as managed by Argo CD, it is
+	// operator-provided (e.g. cert-manager). Refuse to overwrite it so we
+	// don't silently destroy an admin's certificate.
+	if !isManagedByArgoCD(existing) {
+		return fmt.Errorf("secret %q already exists without the %s=true annotation; "+
+			"Argo CD will not overwrite an operator-managed TLS certificate. "+
+			"To let Argo CD manage this secret, add the annotation or delete the secret",
+			externalServerTLSSecretName, annotationTLSManagedByArgoCD)
 	}
-	existing.Annotations[annotationTLSManagedByArgoCD] = "true"
+
+	existing = existing.DeepCopy()
 	if existing.Data == nil {
 		existing.Data = make(map[string][]byte)
 	}
@@ -1721,7 +1724,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 
 	if _, hasCert := argoCDSecret.Data[settingServerCertificate]; hasCert {
 		log.Warn("Storing TLS certificates in argocd-secret is deprecated and will be removed in a future major version. " +
-			"Please move tls.crt and tls.key to the argocd-server-tls secret.")
+			"Please move tls.crt and tls.key to the argocd-server-tls secret and remove them from argocd-secret.")
 	}
 	// The TLS certificate may be externally managed. We try to load it from an
 	// external secret first. If the external secret doesn't exist, we either
@@ -1818,13 +1821,11 @@ func (mgr *SettingsManager) loadTLSCertificateFromSecret(secret *corev1.Secret) 
 
 // saveSignatureAndCertificate persists the JWT signature into argocd-secret and,
 // when the certificate is Argo CD-managed, saves tls.crt/tls.key into argocd-server-tls.
-// Any legacy tls.crt/tls.key in argocd-secret is always cleaned up.
+// Legacy tls.crt/tls.key in argocd-secret are left in place; a deprecation warning at
+// load time instructs users to remove them manually.
 func (mgr *SettingsManager) saveSignatureAndCertificate(settings *ArgoCDSettings) error {
 	if err := mgr.updateSecret(func(argoCDSecret *corev1.Secret) error {
 		argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
-		// Remove legacy TLS data from argocd-secret — certs now live in argocd-server-tls.
-		delete(argoCDSecret.Data, settingServerCertificate)
-		delete(argoCDSecret.Data, settingServerPrivateKey)
 		return nil
 	}); err != nil {
 		return err
@@ -2395,6 +2396,9 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		// assume settings are initialized by another instance of api server
 		log.Warnf("conflict when initializing settings. assuming updated by another replica")
 		return mgr.GetSettings()
+	}
+	if err != nil {
+		return nil, err
 	}
 	return cdSettings, nil
 }

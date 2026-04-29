@@ -1711,6 +1711,51 @@ func TestInitializeSettings_SavesCertToServerTLSSecret(t *testing.T) {
 	})
 }
 
+func TestInitializeSettings_RefusesToOverwriteOperatorManagedSecret(t *testing.T) {
+	t.Run("returns error when argocd-server-tls exists without annotation and has no valid cert", func(t *testing.T) {
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+			},
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDSecretName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string][]byte{},
+			},
+			// argocd-server-tls exists but has no annotation and no cert data —
+			// simulates a cert-manager-managed secret that hasn't been populated yet.
+			&corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      externalServerTLSSecretName,
+					Namespace: "default",
+				},
+				Data: map[string][]byte{},
+			},
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		_, err := settingsManager.InitializeSettings(false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), annotationTLSManagedByArgoCD)
+
+		// The secret must not have been modified.
+		tlsSecret, getErr := kubeClient.CoreV1().Secrets("default").Get(t.Context(), externalServerTLSSecretName, metav1.GetOptions{})
+		require.NoError(t, getErr)
+		assert.Empty(t, tlsSecret.Data[settingServerCertificate], "operator-managed secret must not be overwritten")
+		assert.Empty(t, tlsSecret.Annotations[annotationTLSManagedByArgoCD], "annotation must not be stamped on operator-managed secret")
+	})
+}
+
 func TestInitializeSettings_RenewsExpiredManagedCert(t *testing.T) {
 	t.Run("regenerates expired Argo CD-managed cert in argocd-server-tls", func(t *testing.T) {
 		// generate a cert that is already expired

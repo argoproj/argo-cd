@@ -39,8 +39,8 @@ their own dedicated Certificate Authority.
 ### Certificate Priority (argocd-server only)
 
 1. `argocd-server-tls` secret (recommended)
-2. `argocd-secret` secret (deprecated) 
-3. Auto-generated self-signed certificate
+2. `argocd-secret` secret (deprecated)
+3. Auto-generated self-signed certificate (only when `argocd-server-tls` does not exist, or exists and is annotated with `argocd.argoproj.io/self-signed: "true"`)
 
 ## Configuring TLS for argocd-server
 
@@ -78,11 +78,17 @@ Argo CD decides which TLS certificate to use for the endpoint of
 * Otherwise, if the `argocd-secret` secret contains a valid key pair in the
   `tls.crt` and `tls.key` keys, this will be used as the certificate for the
   endpoint of `argocd-server`. This fallback is deprecated — see warning below.
-* If no `tls.crt` and `tls.key` keys are found in either of the two mentioned
-  secrets, Argo CD will generate a self-signed certificate and persist it in
-  the `argocd-server-tls` secret, stamping it with the annotation
-  `argocd.argoproj.io/self-signed: "true"`. This auto-generated certificate
-  will be automatically renewed when it expires.
+* If the `argocd-server-tls` secret does not exist, or exists and is annotated
+  with `argocd.argoproj.io/self-signed: "true"` but contains no valid key pair,
+  Argo CD will generate a self-signed certificate, persist it in the
+  `argocd-server-tls` secret, and stamp it with that annotation. This
+  auto-generated certificate will be automatically renewed when it expires.
+* If the `argocd-server-tls` secret exists **without** the
+  `argocd.argoproj.io/self-signed: "true"` annotation and no valid key pair can
+  be loaded from it, Argo CD will refuse to overwrite the secret and will log an
+  error. This protects operator-managed secrets (e.g. those managed by
+  `cert-manager`) from being silently replaced during transient errors such as a
+  secret not yet being populated.
 
 > [!WARNING]
 > Storing TLS certificates in `argocd-secret` is deprecated since Argo CD v2.1
