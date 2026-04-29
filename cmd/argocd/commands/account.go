@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"encoding/json"
-	stderrors "errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -104,6 +103,9 @@ has appropriate RBAC permissions to change other accounts.
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			if err := validateUpdatePasswordFlags(stdin, currentPassword, newPassword); err != nil {
+				log.Fatal(err)
+			}
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, usrIf := acdClient.NewAccountClientOrDie()
 			defer utilio.Close(conn)
@@ -111,9 +113,6 @@ has appropriate RBAC permissions to change other accounts.
 			userInfo := getCurrentAccount(ctx, acdClient)
 
 			if userInfo.Iss == sessionutil.SessionManagerClaimsIssuer && currentPassword == "" {
-				if stdin {
-					errors.CheckError(stderrors.New("--current-password is required when --stdin is used"))
-				}
 				fmt.Printf("*** Enter password of currently logged in user (%s): ", userInfo.Username)
 				password, err := term.ReadPassword(int(os.Stdin.Fd()))
 				errors.CheckError(err)
@@ -170,6 +169,23 @@ has appropriate RBAC permissions to change other accounts.
 	command.Flags().StringVar(&account, "account", "", "An account name that should be updated. Defaults to current user account")
 	command.Flags().BoolVar(&stdin, "stdin", false, "Read the new password from stdin (single read, no confirmation). Requires --current-password.")
 	return command
+}
+
+// validateUpdatePasswordFlags rejects flag combinations that would otherwise
+// silently surprise the caller (e.g. --stdin combined with --new-password,
+// where --stdin is dead code) or leave the command waiting on a TTY in a
+// non-interactive context (--stdin without --current-password).
+func validateUpdatePasswordFlags(stdin bool, currentPassword, newPassword string) error {
+	if !stdin {
+		return nil
+	}
+	if newPassword != "" {
+		return fmt.Errorf("--stdin cannot be combined with --new-password")
+	}
+	if currentPassword == "" {
+		return fmt.Errorf("--current-password is required when --stdin is used")
+	}
+	return nil
 }
 
 func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
