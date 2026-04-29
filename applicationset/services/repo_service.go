@@ -11,23 +11,19 @@ import (
 )
 
 type argoCDService struct {
-	getRepository                     func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
-	submoduleEnabled                  bool
-	newFileGlobbingEnabled            bool
-	getGitFilesFromRepoServer         func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
-	getGitDirectoriesFromRepoServer   func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
-	getRevisionMetadataFromRepoServer func(ctx context.Context, req *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error)
+	getRepository                   func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
+	submoduleEnabled                bool
+	newFileGlobbingEnabled          bool
+	getGitFilesFromRepoServer       func(ctx context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error)
+	getGitDirectoriesFromRepoServer func(ctx context.Context, req *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error)
 }
 
 type Repos interface {
-	// GetFiles returns content of files (not directories) within the target repo
-	GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, error)
+	// GetFiles returns content of files (not directories) within the target repo and the resolved commit SHA
+	GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, string, error)
 
-	// GetDirectories returns a list of directories (not files) within the target repo
-	GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, error)
-
-	// GetCommitSHA returns the commit hash for the given revision in the target repo
-	GetCommitSHA(ctx context.Context, repoURL string, revision string, project string) (string, error)
+	// GetDirectories returns a list of directories (not files) within the target repo and the resolved commit SHA
+	GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, string, error)
 }
 
 func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) Repos {
@@ -51,21 +47,13 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 			defer utilio.Close(closer)
 			return client.GetGitDirectories(ctx, dirRequest)
 		},
-		getRevisionMetadataFromRepoServer: func(ctx context.Context, repoServerRevisionMetadataRequest *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-			closer, client, err := repoClientset.NewRepoServerClient()
-			if err != nil {
-				return nil, fmt.Errorf("error initializing new repo server client: %w", err)
-			}
-			defer utilio.Close(closer)
-			return client.GetRevisionMetadata(ctx, repoServerRevisionMetadataRequest)
-		},
 	}
 }
 
-func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, error) {
+func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, string, error) {
 	repo, err := a.getRepository(ctx, repoURL, project)
 	if err != nil {
-		return nil, fmt.Errorf("error in GetRepository: %w", err)
+		return nil, "", fmt.Errorf("error in GetRepository: %w", err)
 	}
 
 	fileRequest := &apiclient.GitFilesRequest{
@@ -79,15 +67,15 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project
 	}
 	fileResponse, err := a.getGitFilesFromRepoServer(ctx, fileRequest)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving Git files: %w", err)
+		return nil, "", fmt.Errorf("error retrieving Git files: %w", err)
 	}
-	return fileResponse.GetMap(), nil
+	return fileResponse.GetMap(), fileResponse.GetResolvedRevision(), nil
 }
 
-func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, error) {
+func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, string, error) {
 	repo, err := a.getRepository(ctx, repoURL, project)
 	if err != nil {
-		return nil, fmt.Errorf("error in GetRepository: %w", err)
+		return nil, "", fmt.Errorf("error in GetRepository: %w", err)
 	}
 
 	dirRequest := &apiclient.GitDirectoriesRequest{
@@ -100,22 +88,7 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, p
 
 	dirResponse, err := a.getGitDirectoriesFromRepoServer(ctx, dirRequest)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving Git Directories: %w", err)
+		return nil, "", fmt.Errorf("error retrieving Git Directories: %w", err)
 	}
-	return dirResponse.GetPaths(), nil
-}
-
-func (a *argoCDService) GetCommitSHA(ctx context.Context, repoURL string, revision string, project string) (string, error) {
-	repo, err := a.getRepository(ctx, repoURL, project)
-	if err != nil {
-		return "", fmt.Errorf("error getting repository %s : %w", repoURL, err)
-	}
-	repoMetadata, err := a.getRevisionMetadataFromRepoServer(ctx, &apiclient.RepoServerRevisionMetadataRequest{Repo: repo, Revision: revision})
-	if err != nil {
-		return "", fmt.Errorf("error getting revision metadata for repo %s at revision %s: %w", repoURL, revision, err)
-	}
-	if repoMetadata.SHA == "" {
-		return "", fmt.Errorf("revision metadata for repo %s at revision %s returned empty SHA", repoURL, revision)
-	}
-	return repoMetadata.SHA, nil
+	return dirResponse.GetPaths(), dirResponse.GetResolvedRevision(), nil
 }

@@ -59,7 +59,8 @@ func TestGetDirectories(t *testing.T) {
 			},
 			getGitDirectories: func(_ context.Context, _ *apiclient.GitDirectoriesRequest) (*apiclient.GitDirectoriesResponse, error) {
 				return &apiclient.GitDirectoriesResponse{
-					Paths: []string{"foo", "foo/bar", "bar/foo"},
+					Paths:            []string{"foo", "foo/bar", "bar/foo"},
+					ResolvedRevision: "abc123",
 				}, nil
 			},
 		}, args: args{
@@ -81,9 +82,12 @@ func TestGetDirectories(t *testing.T) {
 				submoduleEnabled:                tt.fields.submoduleEnabled,
 				getGitDirectoriesFromRepoServer: tt.fields.getGitDirectories,
 			}
-			got, err := a.GetDirectories(tt.args.ctx, tt.args.repoURL, tt.args.revision, "", tt.args.noRevisionCache, tt.args.verifyCommit)
+			got, resolvedRevision, err := a.GetDirectories(tt.args.ctx, tt.args.repoURL, tt.args.revision, "", tt.args.noRevisionCache, tt.args.verifyCommit)
 			tt.wantErr(t, err, fmt.Sprintf("GetDirectories(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.noRevisionCache))
 			assert.Equalf(t, tt.want, got, "GetDirectories(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.noRevisionCache)
+			if tt.name == "HappyCase" {
+				assert.Equal(t, "abc123", resolvedRevision)
+			}
 		})
 	}
 }
@@ -134,6 +138,7 @@ func TestGetFiles(t *testing.T) {
 						"foo.json": []byte("hello: world!"),
 						"bar.yaml": []byte("yay: appsets"),
 					},
+					ResolvedRevision: "def456",
 				}, nil
 			},
 		}, args: args{
@@ -158,9 +163,12 @@ func TestGetFiles(t *testing.T) {
 				submoduleEnabled:          tt.fields.submoduleEnabled,
 				getGitFilesFromRepoServer: tt.fields.getGitFiles,
 			}
-			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, "", tt.args.noRevisionCache, tt.args.verifyCommit)
+			got, resolvedRevision, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, "", tt.args.noRevisionCache, tt.args.verifyCommit)
 			tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache))
 			assert.Equalf(t, tt.want, got, "GetFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache)
+			if tt.name == "HappyCase" {
+				assert.Equal(t, "def456", resolvedRevision)
+			}
 		})
 	}
 }
@@ -171,95 +179,4 @@ func TestNewArgoCDService(t *testing.T) {
 	testDB := db.NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	service := NewArgoCDService(testDB, false, &repo_mocks.Clientset{}, false)
 	assert.NotNil(t, service)
-}
-
-func TestGetCommitSHA(t *testing.T) {
-	type fields struct {
-		getRepository                     func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
-		getRevisionMetadataFromRepoServer func(ctx context.Context, req *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error)
-	}
-	type args struct {
-		ctx      context.Context
-		repoURL  string
-		revision string
-		project  string
-	}
-
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    string
-		wantErr require.ErrorAssertionFunc
-	}{
-		{
-			name: "ErrorGettingRepository",
-			fields: fields{
-				getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
-					return nil, errors.New("unable to get repository")
-				},
-			},
-			args:    args{},
-			want:    "",
-			wantErr: require.Error,
-		},
-		{
-			name: "ErrorGettingRevisionMetadata",
-			fields: fields{
-				getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
-					return &v1alpha1.Repository{}, nil
-				},
-				getRevisionMetadataFromRepoServer: func(_ context.Context, _ *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-					return nil, errors.New("unable to get revision metadata")
-				},
-			},
-			args:    args{},
-			want:    "",
-			wantErr: require.Error,
-		},
-		{
-			name: "EmptySHAInRevisionMetadata",
-			fields: fields{
-				getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
-					return &v1alpha1.Repository{Repo: "foo"}, nil
-				},
-				getRevisionMetadataFromRepoServer: func(_ context.Context, _ *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-					return &v1alpha1.RevisionMetadata{SHA: ""}, nil
-				},
-			},
-			args:    args{repoURL: "foo", revision: "HEAD"},
-			want:    "",
-			wantErr: require.Error,
-		},
-		{
-			name: "HappyCase",
-			fields: fields{
-				getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
-					return &v1alpha1.Repository{Repo: "foo"}, nil
-				},
-				getRevisionMetadataFromRepoServer: func(_ context.Context, _ *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-					return &v1alpha1.RevisionMetadata{SHA: "abc123"}, nil
-				},
-			},
-			args: args{
-				repoURL:  "foo",
-				revision: "HEAD",
-			},
-			want:    "abc123",
-			wantErr: require.NoError,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			a := &argoCDService{
-				getRepository:                     tt.fields.getRepository,
-				getRevisionMetadataFromRepoServer: tt.fields.getRevisionMetadataFromRepoServer,
-			}
-
-			got, err := a.GetCommitSHA(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.project)
-			tt.wantErr(t, err, fmt.Sprintf("GetCommitSHA(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.project))
-			assert.Equalf(t, tt.want, got, "GetCommitSHA(%v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.project)
-		})
-	}
 }

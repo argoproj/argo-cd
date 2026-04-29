@@ -3125,7 +3125,8 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, gitPath); err == nil {
 		log.Debugf("cache hit for repo: %s revision: %s pattern: %s", repo.Repo, revision, gitPath)
 		return &apiclient.GitFilesResponse{
-			Map: cachedFiles,
+			Map:              cachedFiles,
+			ResolvedRevision: revision,
 		}, nil
 	}
 
@@ -3162,7 +3163,8 @@ func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequ
 	}
 
 	return &apiclient.GitFilesResponse{
-		Map: res,
+		Map:              res,
+		ResolvedRevision: revision,
 	}, nil
 }
 
@@ -3207,7 +3209,8 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	if cachedPaths, err := s.cache.GetGitDirectories(repo.Repo, revision); err == nil {
 		log.Debugf("cache hit for repo: %s revision: %s", repo.Repo, revision)
 		return &apiclient.GitDirectoriesResponse{
-			Paths: cachedPaths,
+			Paths:            cachedPaths,
+			ResolvedRevision: revision,
 		}, nil
 	}
 
@@ -3260,7 +3263,8 @@ func (s *Service) GetGitDirectories(_ context.Context, request *apiclient.GitDir
 	}
 
 	return &apiclient.GitDirectoriesResponse{
-		Paths: paths,
+		Paths:            paths,
+		ResolvedRevision: revision,
 	}, nil
 }
 

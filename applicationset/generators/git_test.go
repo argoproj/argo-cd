@@ -420,11 +420,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			argoCDServiceMock := mocks.NewRepos(t)
 
-			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
-
-			if testCaseCopy.repoError == nil {
-				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
-			}
+			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, "commit-sha", testCaseCopy.repoError)
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -738,11 +734,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 			argoCDServiceMock := mocks.NewRepos(t)
 
-			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
-
-			if testCaseCopy.repoError == nil {
-				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
-			}
+			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, "commit-sha", testCaseCopy.repoError)
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -791,8 +783,6 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 		repoFileContents map[string][]byte
 		// if repoPathsError is non-nil, the call to GetPaths(...) will return this error value
 		repoPathsError error
-		// if commitSHAError is non-nil, the call to GetCommitSHA(...) will return this error value
-		commitSHAError error
 		values         map[string]string
 		expected       []map[string]any
 		expectedError  error
@@ -1118,17 +1108,6 @@ cluster:
 			expected:       []map[string]any{},
 			expectedError:  nil,
 		},
-		{
-			name:  "GetCommitSHA returns an error",
-			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.json"}},
-			repoFileContents: map[string][]byte{
-				"cluster-config/production/config.json": []byte(`{"cluster": {"name": "production"}}`),
-			},
-			repoPathsError: nil,
-			commitSHAError: errors.New("could not resolve revision"),
-			expected:       nil,
-			expectedError:  errors.New("error generating params from git: error getting commit SHA from repo: could not resolve revision"),
-		},
 	}
 
 	for _, testCase := range cases {
@@ -1139,15 +1118,7 @@ cluster:
 
 			argoCDServiceMock := mocks.NewRepos(t)
 			argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
-
-			if testCaseCopy.repoPathsError == nil {
-				commitSHA := "commit-sha"
-				if testCaseCopy.commitSHAError != nil {
-					commitSHA = ""
-				}
-				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(commitSHA, testCaseCopy.commitSHAError)
-			}
+				Return(testCaseCopy.repoFileContents, "commit-sha", testCaseCopy.repoPathsError)
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
@@ -1489,16 +1460,12 @@ env: testing
 			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
 			for _, pattern := range testCaseCopy.excludePattern {
 				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
+					Return(testCaseCopy.excludeFiles, "commit-sha", testCaseCopy.repoPathsError)
 			}
 
 			for _, pattern := range testCaseCopy.includePattern {
 				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
-			}
-
-			if testCaseCopy.repoPathsError == nil {
-				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
+					Return(testCaseCopy.includeFiles, "commit-sha", testCaseCopy.repoPathsError)
 			}
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
@@ -1834,16 +1801,12 @@ env: testing
 			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
 			for _, pattern := range testCaseCopy.excludePattern {
 				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
+					Return(testCaseCopy.excludeFiles, "commit-sha", testCaseCopy.repoPathsError)
 			}
 
 			for _, pattern := range testCaseCopy.includePattern {
 				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
-			}
-
-			if testCaseCopy.repoPathsError == nil {
-				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
+					Return(testCaseCopy.includeFiles, "commit-sha", testCaseCopy.repoPathsError)
 			}
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
@@ -2070,16 +2033,12 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
 			for _, pattern := range testCaseCopy.excludePattern {
 				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
+					Return(testCaseCopy.excludeFiles, "commit-sha", testCaseCopy.repoPathsError)
 			}
 
 			for _, pattern := range testCaseCopy.includePattern {
 				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
-			}
-
-			if testCaseCopy.repoPathsError == nil {
-				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
+					Return(testCaseCopy.includeFiles, "commit-sha", testCaseCopy.repoPathsError)
 			}
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
@@ -2442,11 +2401,7 @@ cluster:
 
 			argoCDServiceMock := mocks.NewRepos(t)
 			argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
-
-			if testCaseCopy.repoPathsError == nil {
-				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
-			}
+				Return(testCaseCopy.repoFileContents, "commit-sha", testCaseCopy.repoPathsError)
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
@@ -2668,8 +2623,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 					project = mock.Anything
 				}
 
-				argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, project, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
-				argoCDServiceMock.EXPECT().GetCommitSHA(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("commit-sha", nil)
+				argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, project, mock.Anything, mock.Anything).Return(testCase.repoApps, "commit-sha", testCase.repoPathsError)
 			}
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "argocd")
 
