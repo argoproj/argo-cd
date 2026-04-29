@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 
 	bitbucket "github.com/ktrysmt/go-bitbucket"
@@ -18,41 +17,9 @@ type BitBucketCloudProvider struct {
 
 type ExtendedClient struct {
 	*bitbucket.Client
-	username string
-	password string
-	token    string
-	owner    string
-}
-
-func (c *ExtendedClient) GetContents(repo *Repository, path string) (bool, error) {
-	urlStr := c.GetApiBaseURL()
-
-	// Getting file contents from V2 defined at https://developer.atlassian.com/cloud/bitbucket/rest/api-group-source/#api-repositories-workspace-repo-slug-src-commit-path-get
-	urlStr += fmt.Sprintf("/repositories/%s/%s/src/%s/%s?format=meta", c.owner, repo.Repository, repo.SHA, path)
-	body := strings.NewReader("")
-
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, urlStr, body)
-	if err != nil {
-		return false, err
-	}
-	if c.token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.token)
-	} else {
-		req.SetBasicAuth(c.username, c.password)
-	}
-	resp, err := c.HttpClient.Do(req)
-	if err != nil {
-		return false, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusNotFound {
-		return false, nil
-	}
-	if resp.StatusCode == http.StatusOK {
-		return true, nil
-	}
-
-	return false, fmt.Errorf("%s", resp.Status)
+	// token is stored separately to determine Role filtering in ListRepos:
+	// bearer tokens can list all workspace repos without a role filter.
+	token string
 }
 
 var _ SCMProviderService = &BitBucketCloudProvider{}
@@ -63,10 +30,7 @@ func NewBitBucketCloudProvider(owner string, user string, password string, allBr
 		return nil, fmt.Errorf("error creating BitBucket Cloud client with basic auth: %w", err)
 	}
 	client := &ExtendedClient{
-		Client:   bitbucketClient,
-		username: user,
-		password: password,
-		owner:    owner,
+		Client: bitbucketClient,
 	}
 	return &BitBucketCloudProvider{client: client, owner: owner, allBranches: allBranches}, nil
 }
@@ -79,7 +43,6 @@ func NewBitBucketCloudProviderBearerToken(owner string, token string, allBranche
 	client := &ExtendedClient{
 		Client: bitbucketClient,
 		token:  token,
-		owner:  owner,
 	}
 	return &BitBucketCloudProvider{client: client, owner: owner, allBranches: allBranches}, nil
 }
@@ -142,14 +105,20 @@ func (g *BitBucketCloudProvider) ListRepos(_ context.Context, cloneProtocol stri
 }
 
 func (g *BitBucketCloudProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
-	contents, err := g.client.GetContents(repo, path)
+	_, err := g.client.Repositories.Repository.GetFileContent(&bitbucket.RepositoryFilesOptions{
+		Owner:    g.owner,
+		RepoSlug: repo.Repository,
+		Ref:      repo.SHA,
+		Path:     path,
+	})
 	if err != nil {
+		var statusErr *bitbucket.UnexpectedResponseStatusError
+		if errors.As(err, &statusErr) && strings.HasPrefix(statusErr.Status, "404") {
+			return false, nil
+		}
 		return false, err
 	}
-	if contents {
-		return true, nil
-	}
-	return false, nil
+	return true, nil
 }
 
 func (g *BitBucketCloudProvider) listBranches(repo *Repository) ([]bitbucket.RepositoryBranch, error) {
