@@ -18,39 +18,11 @@ import (
 )
 
 // ApplicationSetInformer provides access to a shared informer and lister for
-// ApplicationSets. Prefer using the type-safe variant (see [TypedApplicationSetInformer]).
+// ApplicationSets.
 type ApplicationSetInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() applicationv1alpha1.ApplicationSetLister
 }
-
-// TypedApplicationSetInformer provides access to a shared informer and lister for
-// ApplicationSets, including the type-safe TypedInformer variant.
-// It is a superset of ApplicationSetInformer.
-type TypedApplicationSetInformer interface {
-	Informer() cache.SharedIndexInformer
-	TypedInformer() ApplicationSetIndexInformer
-	Lister() applicationv1alpha1.ApplicationSetLister
-}
-
-// ApplicationSetIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
-// with type-safe variants of several methods.
-type ApplicationSetIndexInformer cache.TypedSharedIndexInformer[*apisapplicationv1alpha1.ApplicationSet]
-
-// ApplicationSetHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for ApplicationSet.
-type ApplicationSetHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisapplicationv1alpha1.ApplicationSet]
-
-// ApplicationSetDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for ApplicationSet.
-type ApplicationSetDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisapplicationv1alpha1.ApplicationSet]
-
-// ApplicationSetFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for ApplicationSet.
-type ApplicationSetFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisapplicationv1alpha1.ApplicationSet]
-
-// ApplicationSetIndexers is a specialization of [cache.TypedIndexers] for ApplicationSet.
-type ApplicationSetIndexers = cache.TypedIndexers[*apisapplicationv1alpha1.ApplicationSet]
-
-// DeletedApplicationSet is a specialization of [cache.DeletedObject] for ApplicationSet.
-type DeletedApplicationSet = cache.DeletedObject[*apisapplicationv1alpha1.ApplicationSet]
 
 type applicationSetInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -61,49 +33,25 @@ type applicationSetInformer struct {
 // NewApplicationSetInformer constructs a new informer for ApplicationSet type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-// If you really need an independent one, prefer using the type-safe variant (see [NewTypedApplicationSetInformer]).
 func NewApplicationSetInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
 	return NewApplicationSetInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
-}
-
-// NewTypedApplicationSetInformer constructs a new informer for ApplicationSet type.
-// Always prefer using an informer factory to get a shared informer instead of getting an independent
-// one. This reduces memory footprint and number of connections to the server.
-func NewTypedApplicationSetInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers ApplicationSetIndexers) ApplicationSetIndexInformer {
-	return NewTypedApplicationSetInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredApplicationSetInformer constructs a new informer for ApplicationSet type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredApplicationSetInformer]).
 func NewFilteredApplicationSetInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return NewTypedApplicationSetInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
-}
-
-// NewTypedFilteredApplicationSetInformer constructs a new informer for ApplicationSet type.
-// Always prefer using an informer factory to get a shared informer instead of getting an independent
-// one. This reduces memory footprint and number of connections to the server.
-func NewTypedFilteredApplicationSetInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers ApplicationSetIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) ApplicationSetIndexInformer {
-	return NewTypedApplicationSetInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
+	return NewApplicationSetInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
 }
 
 // NewApplicationSetInformerWithOptions constructs a new informer for ApplicationSet type with additional options.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-// If you really need an independent one, prefer using the type-safe variant (see [NewTypedApplicationSetInformerWithOptions]).
 func NewApplicationSetInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
-	return NewTypedApplicationSetInformerWithOptions(client, namespace, options)
-}
-
-// NewTypedApplicationSetInformerWithOptions constructs a new informer for ApplicationSet type with additional options.
-// Always prefer using an informer factory to get a shared informer instead of getting an independent
-// one. This reduces memory footprint and number of connections to the server.
-func NewTypedApplicationSetInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) ApplicationSetIndexInformer {
 	gvr := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applicationsets"}
 	identifier := options.InformerName.WithResource(gvr)
 	tweakListOptions := options.TweakListOptions
-	return cache.NewTypedSharedIndexInformer[*apisapplicationv1alpha1.ApplicationSet](cache.NewSharedIndexInformerWithOptions(
+	return cache.NewSharedIndexInformerWithOptions(
 		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
@@ -136,57 +84,17 @@ func NewTypedApplicationSetInformerWithOptions(client versioned.Interface, names
 			Indexers:     options.Indexers,
 			Identifier:   identifier,
 		},
-	))
+	)
 }
 
 func (f *applicationSetInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewTypedApplicationSetInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
+	return NewApplicationSetInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *applicationSetInformer) Informer() cache.SharedIndexInformer {
-	return f.TypedInformer()
-}
-
-func (f *applicationSetInformer) TypedInformer() ApplicationSetIndexInformer {
-	return cache.NewTypedSharedIndexInformer[*apisapplicationv1alpha1.ApplicationSet](f.factory.InformerFor(&apisapplicationv1alpha1.ApplicationSet{}, f.defaultInformer))
+	return f.factory.InformerFor(&apisapplicationv1alpha1.ApplicationSet{}, f.defaultInformer)
 }
 
 func (f *applicationSetInformer) Lister() applicationv1alpha1.ApplicationSetLister {
 	return applicationv1alpha1.NewApplicationSetLister(f.Informer().GetIndexer())
-}
-
-// ToTypedApplicationSetInformer converts an untyped informer into a TypedApplicationSetInformer.
-//
-// WARNING: this conversion is only safe if the informer handles objects of type
-// *ApplicationSet. If that is not the case, calling type-safe methods of the returned
-// TypedApplicationSetInformer leads to runtime panics. A safer alternative is to pass
-// around a TypedApplicationSetInformer instances that was obtained from a
-// SharedInformerFactory.
-func ToTypedApplicationSetInformer(informer ApplicationSetInformer) TypedApplicationSetInformer {
-	if informer, ok := informer.(TypedApplicationSetInformer); ok {
-		return informer
-	}
-	return &applicationSetTypedInformerAdapter{informer}
-}
-
-type applicationSetTypedInformerAdapter struct {
-	ApplicationSetInformer
-}
-
-func (a *applicationSetTypedInformerAdapter) TypedInformer() ApplicationSetIndexInformer {
-	return cache.NewTypedSharedIndexInformer[*apisapplicationv1alpha1.ApplicationSet](a.Informer())
-}
-
-// ToApplicationSetIndexInformer converts an untyped informer into a ApplicationSetIndexInformer.
-//
-// WARNING: this conversion is only safe if the informer handles objects of type
-// *ApplicationSet. If that is not the case, calling type-safe methods of the returned
-// ApplicationSetIndexInformer leads to runtime panics. A safer alternative is to pass
-// around a ApplicationSetIndexInformer instances that was obtained from a
-// SharedInformerFactory.
-func ToApplicationSetIndexInformer(informer cache.SharedIndexInformer) ApplicationSetIndexInformer {
-	if informer, ok := informer.(ApplicationSetIndexInformer); ok {
-		return informer
-	}
-	return cache.NewTypedSharedIndexInformer[*apisapplicationv1alpha1.ApplicationSet](informer)
 }
