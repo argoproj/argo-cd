@@ -48,6 +48,10 @@ type Dependencies interface {
 	// GetProcessableApps returns a list of applications that are processable by the controller.
 	GetProcessableApps() (*appv1.ApplicationList, error)
 
+	// EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
+	// The returned string is the resolved revision for the given source.
+	EvaluateAppRevisionsChanges(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject, noRevisionCache bool) (bool, string, error)
+
 	// GetRepoObjs returns the repository objects for the given application, source, and revision. It calls the repo-
 	// server and gets the manifests (objects).
 	GetRepoObjs(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
@@ -115,7 +119,13 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	logCtx.Debug("Processing app hydrate queue item")
 
-	needsHydration, reason := appNeedsHydration(app)
+	needsHydration, reason, resolvedDryRevision := h.appNeedsHydration(app)
+	if resolvedDryRevision != "" && resolvedDryRevision != app.Status.SourceHydrator.LastComparedDryRevision {
+		// Update the last compared dry revision to the resolved revision
+		// If the app is currently hydrating, we should not have a resolvedDryRevision
+		app.Status.SourceHydrator.LastComparedDryRevision = resolvedDryRevision
+		logCtx.WithField("lastComparedDryRevision", resolvedDryRevision).Debug("Updated last compared dry revision")
+	}
 	if needsHydration {
 		app.Status.SourceHydrator.CurrentOperation = &appv1.HydrateOperation{
 			StartedAt:      metav1.Now(),
@@ -125,6 +135,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		}
 	}
 
+	// Always persist to consume the hydrate annotation, even if hydration is not needed.
 	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 
 	needsRefresh := app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.StartedAt.Time) > h.statusRefreshTimeout
@@ -222,6 +233,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			if drySHA != "" {
 				// If we have a drySHA, we can set it on the app status
 				app.Status.SourceHydrator.CurrentOperation.DrySHA = drySHA
+				app.Status.SourceHydrator.LastComparedDryRevision = drySHA
 			}
 			if err, ok := appErrors[app.QualifiedName()]; ok {
 				logCtx = logCtx.WithFields(applog.GetAppLogFields(app))
@@ -248,6 +260,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
 		}
 		app.Status.SourceHydrator.CurrentOperation = operation
+		app.Status.SourceHydrator.LastComparedDryRevision = drySHA
 		app.Status.SourceHydrator.LastSuccessfulOperation = &appv1.SuccessfulHydrateOperation{
 			DrySHA:         drySHA,
 			HydratedSHA:    hydratedSHA,
@@ -527,24 +540,61 @@ func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, re
 	return resp, nil
 }
 
-// appNeedsHydration answers if application needs manifests hydrated.
-func appNeedsHydration(app *appv1.Application) (needsHydration bool, reason string) {
-	switch {
-	case app.Spec.SourceHydrator == nil:
-		return false, "source hydrator not configured"
-	case app.Status.SourceHydrator.CurrentOperation == nil:
-		return true, "no previous hydrate operation"
-	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating:
-		return false, "hydration operation already in progress"
-	case app.IsHydrateRequested():
-		return true, "hydrate requested"
-	case !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator):
-		return true, "spec.sourceHydrator differs"
-	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) > 2*time.Minute:
-		return true, "previous hydrate operation failed more than 2 minutes ago"
+// newRevisionHasChanges checks if the dry source has a new revision that differs from the last compared dry revision.
+// Returns true if the new revision may contain changes that would affect the hydrated manifests, the resolved
+// revision from evaluation (empty if evaluation was skipped), and any error encountered.
+func (h *Hydrator) newRevisionHasChanges(app *appv1.Application, noRevisionCache bool) (bool, string, error) {
+	if app.Status.SourceHydrator.LastComparedDryRevision == "" {
+		log.WithFields(applog.GetAppLogFields(app)).Debug("No LastComparedDryRevision, hydration needed")
+		return true, "", nil
 	}
 
-	return false, "hydration not needed"
+	project, err := h.dependencies.GetProcessableAppProj(app)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to get project for revision check: %w", err)
+	}
+
+	drySource := app.Spec.SourceHydrator.GetDrySource()
+	hasChanges, resolvedRev, err := h.dependencies.EvaluateAppRevisionsChanges(context.Background(), app, drySource, drySource.TargetRevision, project, noRevisionCache)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to evaluate app revisions changes: %w", err)
+	}
+
+	return hasChanges, resolvedRev, nil
+}
+
+// appNeedsHydration answers if application needs manifests hydrated. The third return value is the resolved dry
+// source revision from revision evaluation (empty if evaluation was skipped or failed).
+func (h *Hydrator) appNeedsHydration(app *appv1.Application) (needsHydration bool, reason string, resolvedDryRevision string) {
+	requested, hydrateType := app.IsHydrateRequested()
+	noRevisionCache := requested
+
+	switch {
+	case app.Spec.SourceHydrator == nil:
+		return false, "source hydrator not configured", ""
+	case app.Status.SourceHydrator.CurrentOperation == nil:
+		return true, "no previous hydrate operation", ""
+	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating:
+		return false, "hydration operation already in progress", ""
+	case requested && hydrateType == appv1.HydrateTypeHard:
+		return true, "hard hydrate requested", ""
+	case !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator):
+		return true, "spec.sourceHydrator differs", ""
+	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) > 2*time.Minute:
+		return true, "previous hydrate operation failed more than 2 minutes ago", ""
+	}
+
+	// Check for new revision changes
+	hasChanges, resolvedRev, err := h.newRevisionHasChanges(app, noRevisionCache)
+	if err != nil {
+		log.WithFields(applog.GetAppLogFields(app)).WithError(err).Warn("Failed to check for new revision changes")
+		return false, "cannot determine if hydration is needed", resolvedRev
+	}
+	if hasChanges {
+		return true, "new revision may have changes", resolvedRev
+	}
+
+	return false, "hydration not needed", resolvedRev
 }
 
 // getTemplatedCommitMessage gets the multi-line commit message based on the template defined in the configmap. It is a two step process:

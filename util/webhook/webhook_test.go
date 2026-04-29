@@ -1250,10 +1250,10 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
     ]
   },
   "repository":{
-    "type": "repository", 
+    "type": "repository",
     "full_name": "{{.owner}}/{{.repo}}",
-    "name": "{{.name}}", 
-    "scm": "git", 
+    "name": "{{.name}}",
+    "scm": "git",
     "links": {
       "self": {"href": "https://api.bitbucket.org/2.0/repositories/{{.owner}}/{{.repo}}"},
       "html": {"href": "https://bitbucket.org/{{.owner}}/{{.repo}}"}

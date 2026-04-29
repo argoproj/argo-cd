@@ -3355,13 +3355,13 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	if repo == nil {
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
+	repo = repo.Normalize()
 
 	if len(refreshPaths) == 0 {
 		// Always refresh if path is not specified
 		return &apiclient.UpdateRevisionForPathsResponse{Changes: true}, nil
 	}
 
-	// Check that request has git repositories on check
 	if repo.Type != "git" && len(request.RefSources) == 0 {
 		return &apiclient.UpdateRevisionForPathsResponse{}, nil
 	}
