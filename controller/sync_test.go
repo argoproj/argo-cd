@@ -1768,4 +1768,3 @@ func TestValidateSyncPermissions(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
-

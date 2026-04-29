@@ -11,9 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 
 	cdcommon "github.com/argoproj/argo-cd/v3/common"
-
 	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
@@ -79,7 +77,6 @@ func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Clust
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
-
 	return ops, cleanup, nil
 }
 
