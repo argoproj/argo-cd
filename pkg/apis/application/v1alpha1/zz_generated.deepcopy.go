@@ -4245,6 +4245,11 @@ func (in *SCMProviderGeneratorBitbucket) DeepCopyInto(out *SCMProviderGeneratorB
 		*out = new(SecretRef)
 		**out = **in
 	}
+	if in.BearerToken != nil {
+		in, out := &in.BearerToken, &out.BearerToken
+		*out = new(BearerTokenBitbucketCloud)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
