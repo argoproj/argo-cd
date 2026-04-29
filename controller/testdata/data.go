@@ -21,6 +21,12 @@ var (
 	//go:embed target-httpproxy.yaml
 	TargetHTTPProxy string
 
+	//go:embed live-rollout.yaml
+	LiveRolloutYaml string
+
+	//go:embed target-rollout.yaml
+	TargetRolloutYaml string
+
 	//go:embed live-deployment-env-vars.yaml
 	LiveDeploymentEnvVarsYaml string
 

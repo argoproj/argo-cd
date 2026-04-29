@@ -361,6 +361,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
 			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithTracking(common.LabelKeyAppInstance, string(v1alpha1.TrackingMethodAnnotation)).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)
@@ -458,6 +459,35 @@ func TestNormalizeTargetResources(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ok)
 		assert.Equal(t, int64(4), replicas)
+	})
+	t.Run("preserves tracking-id annotation on CRD when migrating from label-based tracking", func(t *testing.T) {
+		// given
+		// Regression: with RespectIgnoreDifferences=true and live still carrying only the
+		// legacy instance label (pre-3.0), the tracking-id annotation on the target must
+		// survive normalization. CRDs fall back to RFC 7396 JSON Merge Patch, which encodes
+		// deletions as explicit nulls, so without the fix, the resource-tracking migration
+		// leaks into the patch and strips the annotation.
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "argoproj.io",
+				Kind:         "Rollout",
+				JSONPointers: []string{"/spec/replicas"},
+			},
+		}
+		f := setup(t, ignores)
+		live := test.YamlToUnstructured(testdata.LiveRolloutYaml)
+		target := test.YamlToUnstructured(testdata.TargetRolloutYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		// when
+		targets, err := normalizeTargetResources(f.comparisonResult)
+
+		// then
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+		assert.Equal(t, target.GetAnnotations()[common.AnnotationKeyAppInstance], targets[0].GetAnnotations()[common.AnnotationKeyAppInstance])
+		assert.NotContains(t, targets[0].GetLabels(), common.LabelKeyAppInstance, "patched target must not gain the legacy instance label from live")
 	})
 	t.Run("will keep new array entries not found in live state if not ignored", func(t *testing.T) {
 		t.Skip("limitation in the current implementation")
