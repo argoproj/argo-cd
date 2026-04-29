@@ -5,7 +5,6 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/rest"
-	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/v3/util/log"
 
@@ -29,10 +28,9 @@ func NewKubectl() kube.Kubectl {
 	return &kube.KubectlCmd{Tracer: tracer, Log: logger}
 }
 
-func ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Resources, onKubectlRun kube.OnKubectlRunFunc) (diff.KubeApplier, func(), error) {
+func ManageServerSideDiffDryRuns(config *rest.Config, onKubectlRun kube.OnKubectlRunFunc) (diff.KubeApplier, func(), error) {
 	return kube.ManageServerSideDiffDryRuns(
 		config,
-		openAPISchema,
 		tracer,
 		logger,
 		onKubectlRun,

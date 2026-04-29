@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/kube-openapi/pkg/util/proto"
 	"k8s.io/kubectl/pkg/util/openapi"
@@ -292,16 +293,20 @@ func (k *KubectlCmd) ManageResources(config *rest.Config, openAPISchema openapi.
 		utils.DeleteFile(f.Name())
 	}
 	return &kubectlResourceOperations{
-		config:        config,
-		fact:          fact,
-		openAPISchema: openAPISchema,
-		tracer:        k.Tracer,
-		log:           k.Log,
-		onKubectlRun:  k.OnKubectlRun,
+		config: config,
+		getClientFunc: func() (kubernetes.Interface, error) {
+			return kubernetes.NewForConfig(config)
+		},
+		fact:   fact,
+		tracer: k.Tracer,
+		log:    k.Log,
+		commandFacade: &realKubectlCommandFacade{
+			onKubectlRun: k.OnKubectlRun,
+		},
 	}, cleanup, nil
 }
 
-func ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Resources, tracer tracing.Tracer, log logr.Logger, onKubectlRun OnKubectlRunFunc) (diff.KubeApplier, func(), error) {
+func ManageServerSideDiffDryRuns(config *rest.Config, tracer tracing.Tracer, log logr.Logger, onKubectlRun OnKubectlRunFunc) (diff.KubeApplier, func(), error) {
 	f, err := os.CreateTemp(utils.TempDir, "")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate temp file for kubeconfig: %w", err)
@@ -317,12 +322,13 @@ func ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Reso
 		utils.DeleteFile(f.Name())
 	}
 	return &kubectlServerSideDiffDryRunApplier{
-		config:        config,
-		fact:          fact,
-		openAPISchema: openAPISchema,
-		tracer:        tracer,
-		log:           log,
-		onKubectlRun:  onKubectlRun,
+		config: config,
+		fact:   fact,
+		tracer: tracer,
+		log:    log,
+		commandFacade: &realKubectlCommandFacade{
+			onKubectlRun: onKubectlRun,
+		},
 	}, cleanup, nil
 }
 
@@ -373,7 +379,7 @@ func (k *KubectlCmd) SetOnKubectlRun(onKubectlRun OnKubectlRunFunc) {
 func RunAllAsync(count int, action func(i int) error) error {
 	g, ctx := errgroup.WithContext(context.Background())
 loop:
-	for i := 0; i < count; i++ {
+	for i := range count {
 		index := i
 		g.Go(func() error {
 			return action(index)
