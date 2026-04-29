@@ -83,12 +83,7 @@ func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Clust
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
 
-	wrappedOps := &secretNormalizingApplier{
-		inner:                ops,
-		sensitiveAnnotations: m.settingsMgr.GetSensitiveAnnotations(),
-	}
-
-	return wrappedOps, cleanup, nil
+	return ops, cleanup, nil
 }
 
 // secretNormalizingApplier wraps a KubeApplier to normalize Secret data
@@ -103,8 +98,7 @@ func (s *secretNormalizingApplier) ApplyResource(ctx context.Context, obj *unstr
 		return result, err
 	}
 
-	isCoreSecret := obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == ""
-	if dryRunStrategy != cmdutil.DryRunServer || !isCoreSecret {
+	if obj.GetKind() != kube.SecretKind || obj.GroupVersionKind().Group != "" {
 		return result, nil
 	}
 

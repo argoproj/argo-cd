@@ -1862,16 +1862,6 @@ func TestSecretNormalizingApplier(t *testing.T) {
 		assert.Equal(t, "very-secret-value", resultObj.GetAnnotations()["my-custom-sensitive-field"])
 	})
 
-	t.Run("normalization is skipped for non-dry run server", func(t *testing.T) {
-		result, err := normalizer.ApplyResource(ctx, desired, cmdutil.DryRunNone, false, false, true, "argocd")
-		require.NoError(t, err)
-
-		resultObj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(result), resultObj)
-		require.NoError(t, err)
-
-		assert.Equal(t, desired.Object["data"], resultObj.Object["data"])
-	})
 }
 
 type simpleKubeApplier struct {
