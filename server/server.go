@@ -1067,7 +1067,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.EnableK8sEvent)
 	appsInAnyNamespaceEnabled := len(a.ApplicationNamespaces) > 0
 	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled, a.HydratorEnabled, a.SyncWithReplaceAllowed)
-	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
+	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf, a.Namespace)
 
 	notificationService := notification.NewServer(a.apiFactory)
 	certificateService := certificate.NewServer(a.db, a.enf)
@@ -1311,7 +1311,7 @@ func (server *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.
 		}
 		if !files.IsSymlink(info) && !info.IsDir() && extensionsPattern.MatchString(info.Name()) {
 			processFile := func() error {
-				if _, err = fmt.Fprintf(w, "// source: %s/%s \n", filePath, info.Name()); err != nil {
+				if _, err = fmt.Fprintf(w, "// source: %s/%s \ntry {\n", filePath, info.Name()); err != nil {
 					return fmt.Errorf("failed to write to response: %w", err)
 				}
 
@@ -1325,11 +1325,15 @@ func (server *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.
 					return fmt.Errorf("failed to copy file '%s': %w", filePath, err)
 				}
 
+				if _, err = fmt.Fprintf(w, "\n} catch(e) { console.error('Extension %s failed to load:', e); }\n", info.Name()); err != nil {
+					return fmt.Errorf("failed to write to response: %w", err)
+				}
+
 				return nil
 			}
 
-			if processFile() != nil {
-				return fmt.Errorf("failed to serve extension file '%s': %w", filePath, processFile())
+			if err := processFile(); err != nil {
+				return fmt.Errorf("failed to serve extension file '%s': %w", filePath, err)
 			}
 		}
 		return nil

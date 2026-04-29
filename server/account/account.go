@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -28,11 +30,12 @@ type Server struct {
 	sessionMgr  *session.SessionManager
 	settingsMgr *settings.SettingsManager
 	enf         *rbac.Enforcer
+	namespace   string
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.SettingsManager, enf *rbac.Enforcer) *Server {
-	return &Server{sessionMgr, settingsMgr, enf}
+func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.SettingsManager, enf *rbac.Enforcer, namespace string) *Server {
+	return &Server{sessionMgr, settingsMgr, enf, namespace}
 }
 
 // UpdatePassword updates the password of the currently authenticated account or the account specified in the request.
@@ -126,7 +129,22 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Resources, r.Resource)
 	}
 
-	ok := s.enf.Enforce(ctx.Value("claims"), r.Resource, r.Action, r.Subresource)
+	subresource := r.Subresource
+
+	// For project-scoped resources, normalize the subresource using security.RBACName
+	// This converts "project/defaultNS/name" to "project/name" for backward compatibility
+	if rbac.ProjectScoped[r.Resource] && s.namespace != "" && subresource != "" {
+		parts := strings.Split(subresource, "/")
+		if len(parts) == 3 {
+			// 3-part format: project/namespace/name
+			// Normalize: if namespace == defaultNS, becomes project/name; otherwise stays project/namespace/name
+			subresource = security.RBACName(s.namespace, parts[0], parts[1], parts[2])
+		}
+		// if 2 parts, always assume the default namespace
+		// else: keep as-is (wildcards, etc.)
+	}
+
+	ok := s.enf.Enforce(ctx.Value("claims"), r.Resource, r.Action, subresource)
 	if ok {
 		return &account.CanIResponse{Value: "yes"}, nil
 	}

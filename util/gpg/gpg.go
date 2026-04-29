@@ -141,12 +141,12 @@ var pgpTrustLevels = map[string]int{
 	TrustUltimate: 6,
 }
 
-// Maximum number of lines to parse for a gpg verify-commit output
+// MaxVerificationLinesToParse is a maximum number of lines to parse for a gpg verify-commit output
 const MaxVerificationLinesToParse = 40
 
 // Helper function to append GNUPGHOME for a command execution environment
 func getGPGEnviron() []string {
-	return append(os.Environ(), "GNUPGHOME="+common.GetGnuPGHomePath(), "LANG=C")
+	return append(os.Environ(), "GNUPGHOME="+common.GetGnuPGHomePath(), "LANG=C.UTF-8")
 }
 
 // Helper function to write some data to a temp file and return its path
@@ -481,12 +481,12 @@ func IsSecretKey(keyID string) (bool, error) {
 	return true, nil
 }
 
-// GetInstalledPGPKeys() runs gpg to retrieve public keys from our keyring. If kids is non-empty, limit result to those key IDs
+// GetInstalledPGPKeys runs gpg to retrieve public keys from our keyring. If kids is non-empty, limit result to those key IDs
 func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 	keys := make([]*appsv1.GnuPGPublicKey, 0)
 	ctx := context.Background()
 
-	args := append([]string{}, "--no-permission-warning", "--list-public-keys")
+	args := []string{"--no-permission-warning", "--list-public-keys"}
 	// kids can contain an arbitrary list of key IDs we want to list. If empty, we list all keys.
 	if len(kids) > 0 {
 		args = append(args, kids...)
