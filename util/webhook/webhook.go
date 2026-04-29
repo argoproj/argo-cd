@@ -710,7 +710,7 @@ func isHeadTouched(ctx context.Context, bbClient *bb.Client, owner, repoSlug, re
 const bbServerAPITimeout = 10 * time.Second
 
 // fetchBBServerChangedFiles calls the Bitbucket Server REST API to obtain the set of changed
-// files and whether the push touched the repository's default branch. 
+// files and whether the push touched the repository's default branch.
 func (a *ArgoCDWebhookHandler) fetchBBServerChangedFiles(httpCloneURL, projectKey, repoSlug, fromHash, toHash, revision string) ([]string, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), bbServerAPITimeout)
 	defer cancel()

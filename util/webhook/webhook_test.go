@@ -1806,7 +1806,7 @@ func getBBServer401ResponderFn() func(req *http.Request) (*http.Response, error)
 // getBBServerPagedChangesResponderFn returns a two-page responder for the changes API.
 func getBBServerPagedChangesResponderFn() func(req *http.Request) (*http.Response, error) {
 	callCount := 0
-	return func(req *http.Request) (*http.Response, error) {
+	return func(_ *http.Request) (*http.Response, error) {
 		callCount++
 		var body map[string]any
 		if callCount == 1 {
