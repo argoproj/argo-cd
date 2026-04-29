@@ -366,11 +366,7 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest string) (*i
 }
 
 func (c *nativeOCIClient) digestMetadata(ctx context.Context, digest string) (*imagev1.Manifest, error) {
-	path, err := c.getCachedPath(digest)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching oci metadata path for digest %s: %w", digest, err)
-	}
-	return getOCIManifestFromCache(ctx, path, digest)
+	return getOCIManifest(ctx, digest, c.repo)
 }
 
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
