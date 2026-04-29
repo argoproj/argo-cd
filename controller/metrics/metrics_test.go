@@ -718,7 +718,7 @@ argocd_cluster_events_ignored_total{group="",kind="Pod",server="https://localhos
 	metricsServ.Handler.ServeHTTP(rr, req)
 	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
-	log.Println(body)
+	t.Log(body)
 	assertMetricsPrinted(t, expectedMetrics, body)
 }
 
