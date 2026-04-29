@@ -20,6 +20,7 @@ type ExtendedClient struct {
 	*bitbucket.Client
 	username string
 	password string
+	token    string
 	owner    string
 }
 
@@ -34,7 +35,11 @@ func (c *ExtendedClient) GetContents(repo *Repository, path string) (bool, error
 	if err != nil {
 		return false, err
 	}
-	req.SetBasicAuth(c.username, c.password)
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	} else {
+		req.SetBasicAuth(c.username, c.password)
+	}
 	resp, err := c.HttpClient.Do(req)
 	if err != nil {
 		return false, err
@@ -58,10 +63,23 @@ func NewBitBucketCloudProvider(owner string, user string, password string, allBr
 		return nil, fmt.Errorf("error creating BitBucket Cloud client with basic auth: %w", err)
 	}
 	client := &ExtendedClient{
-		bitbucketClient,
-		user,
-		password,
-		owner,
+		Client:   bitbucketClient,
+		username: user,
+		password: password,
+		owner:    owner,
+	}
+	return &BitBucketCloudProvider{client: client, owner: owner, allBranches: allBranches}, nil
+}
+
+func NewBitBucketCloudProviderBearerToken(owner string, token string, allBranches bool) (*BitBucketCloudProvider, error) {
+	bitbucketClient, err := bitbucket.NewOAuthbearerToken(token)
+	if err != nil {
+		return nil, fmt.Errorf("error creating BitBucket Cloud client with bearer token: %w", err)
+	}
+	client := &ExtendedClient{
+		Client: bitbucketClient,
+		token:  token,
+		owner:  owner,
 	}
 	return &BitBucketCloudProvider{client: client, owner: owner, allBranches: allBranches}, nil
 }
@@ -97,7 +115,9 @@ func (g *BitBucketCloudProvider) ListRepos(_ context.Context, cloneProtocol stri
 	}
 	opt := &bitbucket.RepositoriesOptions{
 		Owner: g.owner,
-		Role:  "member",
+	}
+	if g.client.token == "" {
+		opt.Role = "member"
 	}
 	repos := []*Repository{}
 	accountReposResp, err := g.client.Repositories.ListForAccount(opt)
