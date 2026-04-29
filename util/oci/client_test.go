@@ -189,7 +189,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: errors.New("error resolving oci repo from digest, sha256:nonexistentdigest: not found"),
+			expectedError: errors.New("error resolving oci manifest for digest sha256:nonexistentdigest: sha256:nonexistentdigest: not found"),
 		},
 		{
 			name: "extraction with helm chart",
