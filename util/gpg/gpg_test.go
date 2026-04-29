@@ -265,6 +265,14 @@ func Test_ValidateGPGKeysFromString(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, keys, 2)
 	}
+
+	{
+		keyData := test.MustLoadFileToString("testdata/unicode.asc")
+		keys, err := ValidatePGPKeysFromString(keyData)
+		require.NoError(t, err)
+		require.Len(t, keys, 1)
+		assert.Equal(t, "Zoë Müller-Назаров 测试 🔑 (UTF-8 charset demo) <utf8-demo@example.invalid>", keys["EC0FA32DE8FEECFA"].Owner)
+	}
 }
 
 func Test_ValidateGPGKeys(t *testing.T) {
