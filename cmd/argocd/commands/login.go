@@ -274,7 +274,7 @@ func oauth2Login(
 			// flow where the id_token is contained in a URL fragment, making it inaccessible to be
 			// read from the request. This javascript will redirect the browser to send the
 			// fragments as query parameters so our callback handler can read and return token.
-			fmt.Fprintf(w, `<script>window.location.search = window.location.hash.substring(1)</script>`)
+			fmt.Fprint(w, `<script>window.location.search = window.location.hash.substring(1)</script>`)
 			return
 		}
 
@@ -351,7 +351,7 @@ func oauth2Login(
 	if errMsg != "" {
 		log.Fatal(errMsg)
 	}
-	fmt.Printf("Authentication successful\n")
+	fmt.Print("Authentication successful\n")
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(ctx)
@@ -375,7 +375,7 @@ func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username,
 
 func ssoAuthFlow(url string, ssoLaunchBrowser bool) {
 	if ssoLaunchBrowser {
-		fmt.Printf("Opening system default browser for authentication\n")
+		fmt.Print("Opening system default browser for authentication\n")
 		err := open.Start(url)
 		errors.CheckError(err)
 	} else {

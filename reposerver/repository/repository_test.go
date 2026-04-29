@@ -2996,7 +2996,12 @@ func Test_getHelmDependencyRepos(t *testing.T) {
 }
 
 func TestResolveRevision(t *testing.T) {
-	service := newService(t, ".")
+	expectedRevision := "03b17e0233e64787ffb5fcf65c740cc2a20822ba"
+	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().LsRemote("v2.2.2").Return(expectedRevision, nil)
+		gitClient.EXPECT().Root().Return(".")
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+	}, ".")
 	repo := &v1alpha1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
 	app := &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}
 	resolveRevisionResponse, err := service.ResolveRevision(t.Context(), &apiclient.ResolveRevisionRequest{
@@ -3006,8 +3011,8 @@ func TestResolveRevision(t *testing.T) {
 	})
 
 	expectedResolveRevisionResponse := &apiclient.ResolveRevisionResponse{
-		Revision:          "03b17e0233e64787ffb5fcf65c740cc2a20822ba",
-		AmbiguousRevision: "v2.2.2 (03b17e0233e64787ffb5fcf65c740cc2a20822ba)",
+		Revision:          expectedRevision,
+		AmbiguousRevision: fmt.Sprintf("v2.2.2 (%s)", expectedRevision),
 	}
 
 	assert.NotNil(t, resolveRevisionResponse.Revision)
@@ -3016,7 +3021,11 @@ func TestResolveRevision(t *testing.T) {
 }
 
 func TestResolveRevisionNegativeScenarios(t *testing.T) {
-	service := newService(t, ".")
+	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().LsRemote("v2.a.2").Return("", fmt.Errorf("unable to resolve '%s' to a commit SHA", "v2.a.2"))
+		gitClient.EXPECT().Root().Return(".")
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+	}, ".")
 	repo := &v1alpha1.Repository{Repo: "https://github.com/argoproj/argo-cd"}
 	app := &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}
 	resolveRevisionResponse, err := service.ResolveRevision(t.Context(), &apiclient.ResolveRevisionRequest{

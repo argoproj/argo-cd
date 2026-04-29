@@ -20,7 +20,6 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [AppSet Progressive Syncs][2]             | v2.6.0     | Beta   |
 | [Proxy Extensions][3]                     | v2.7.0     | Beta   |
 | [Skip Application Reconcile][4]           | v2.7.0     | Alpha  |
-| [AppSets in any Namespace][5]             | v2.8.0     | Beta   |
 | [Cluster Sharding: round-robin][6]        | v2.8.0     | Alpha  |
 | [Dynamic Cluster Distribution][7]         | v2.9.0     | Alpha  |
 | [Cluster Sharding: consistent-hashing][9] | v2.12.0    | Alpha  |
@@ -52,12 +51,6 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 
 | Feature                                   | Resource                                      | Property / Variable                                         | Status |
 | ----------------------------------------- | --------------------------------------------- | ----------------------------------------------------------- | ------ |
-| [AppSets in any Namespace][5]             | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS`    | Beta   |
-| [AppSets in any Namespace][5]             | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.allowed.scm.providers`            | Beta   |
-| [AppSets in any Namespace][5]             | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.enable.scm.providers`             | Beta   |
-| [AppSets in any Namespace][5]             | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS`     | Beta   |
-| [AppSets in any Namespace][5]             | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES`               | Beta   |
-| [AppSets in any Namespace][5]             | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.namespaces`                       | Beta   |
 | [AppSet Progressive Syncs][2]             | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.enable.progressive.syncs`         | Beta   |
 | [AppSet Progressive Syncs][2]             | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS` | Beta   |
 | [Proxy Extensions][3]                     | `ConfigMap/argocd-cmd-params-cm`              | `server.enable.proxy.extension`                             | Beta   |
@@ -74,7 +67,6 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 [2]: applicationset/Progressive-Syncs.md
 [3]: ../developer-guide/extensions/proxy-extensions.md
 [4]: ../user-guide/skip_reconcile.md
-[5]: applicationset/Appset-Any-Namespace.md
 [6]: ./high_availability.md#argocd-application-controller
 [7]: dynamic-cluster-distribution.md
 [8]: ../user-guide/diff-strategies.md#server-side-diff
