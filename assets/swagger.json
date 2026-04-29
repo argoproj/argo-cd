@@ -8290,6 +8290,10 @@
       "type": "object",
       "title": "ClusterInfo contains information about the cluster",
       "properties": {
+        "agentVersion": {
+          "type": "string",
+          "title": "AgentVersion contains the version of the Argo CD agent (application controller) managing this cluster"
+        },
         "apiVersions": {
           "type": "array",
           "title": "APIVersions contains list of API versions supported by the cluster",

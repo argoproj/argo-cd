@@ -953,6 +953,9 @@ message ClusterInfo {
 
   // APIVersions contains list of API versions supported by the cluster
   repeated string apiVersions = 5;
+
+  // AgentVersion contains the version of the Argo CD agent (application controller) managing this cluster
+  optional string agentVersion = 6;
 }
 
 // ClusterList is a collection of Clusters.
