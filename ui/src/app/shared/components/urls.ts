@@ -10,13 +10,11 @@ const GitUrlParse = require('git-url-parse');
 // URLs without the /scm/ prefix (e.g. ssh://git@HOST:7999/PROJECT/repo.git) it does not
 // set that source, so we additionally check the resource hostname.
 function isBitbucketServer(parsed: GitUrl): boolean {
-    return parsed.source === 'bitbucket-server' ||
-        (parsed.resource.startsWith('bitbucket') && parsed.source !== 'bitbucket.org');
+    return parsed.source === 'bitbucket-server' || (parsed.resource.startsWith('bitbucket') && parsed.source !== 'bitbucket.org');
 }
 
 function supportedSource(parsed: GitUrl): boolean {
-    return parsed.resource.startsWith('github') || parsed.source === 'bitbucket.org' ||
-        isBitbucketServer(parsed) || parsed.source === 'gitlab.com';
+    return parsed.resource.startsWith('github') || parsed.source === 'bitbucket.org' || isBitbucketServer(parsed) || parsed.source === 'gitlab.com';
 }
 
 // Bitbucket Server browse URLs differ from clone URLs:
