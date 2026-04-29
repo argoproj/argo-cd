@@ -15,7 +15,7 @@ type SandboxImpl interface {
 	GetConfig() string
 }
 
-func ExecuteCommand(cfg *ArgocdSandboxConfig, allowRules []string, args []string) error {
+func ExecuteCommand(cfg *ArgocdSandboxConfig, allowRules map[string][]string, args []string) error {
 	modules, err := getModules(cfg)
 	if err != nil {
 		return err
@@ -23,7 +23,7 @@ func ExecuteCommand(cfg *ArgocdSandboxConfig, allowRules []string, args []string
 	for _, module := range modules {
 		name := module.Name()
 		log.Infof("Initializing sandbox module: %s", name)
-		err := module.Init(cfg, allowRules)
+		err := module.Init(cfg, allowRules[name])
 		if err != nil {
 			return fmt.Errorf("Failed to initialize module %q: %v", name, err)
 		}

@@ -9,6 +9,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const LANDLOCK = "landlock"
+
 type LandlockAllowedPath struct {
 	Paths  []string `json:"paths"`
 	Access string   `json:"access"`
@@ -23,6 +25,8 @@ type Landlock struct {
 	Cfg   *landlock.Config
 	Rules []landlock.Rule
 }
+
+var LandlockAllowArgs []string
 
 // strings according to bit index in the bitmap
 var accessFSNames = map[string]landlock.AccessFSSet{
@@ -137,7 +141,7 @@ func (m *Landlock) Apply() error {
 }
 
 func (m *Landlock) Name() string {
-	return "landlock"
+	return LANDLOCK
 }
 
 func (m *Landlock) GetConfig() string {
@@ -149,7 +153,6 @@ func parseAllowParam(input string) (LandlockAllowedPath, error) {
 	if input == "" {
 		return LandlockAllowedPath{}, fmt.Errorf("the rule is empty")
 	}
-
 	parts := strings.SplitN(input, ":", 3)
 	if len(parts) != 3 {
 		return LandlockAllowedPath{}, fmt.Errorf("expected format \"fs:<access_rights>:<path>\", got %d part(s)", len(parts))
