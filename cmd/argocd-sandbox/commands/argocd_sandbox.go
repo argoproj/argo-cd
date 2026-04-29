@@ -20,6 +20,7 @@ func NewCommand() *cobra.Command {
 		configPath         string
 		allowRules         []string
 		useImplementations []string
+		landlockAllowArgs  []string
 	)
 
 	command := cobra.Command{
@@ -37,8 +38,10 @@ func NewCommand() *cobra.Command {
 			log.Infof("  allow rules (%d) %v", len(allowRules), allowRules)
 			sandboxCfg, err := sandbox.ReadSandboxConfig(configPath)
 			errors.CheckError(err)
+			allowArgs := make(map[string][]string)
+			allowArgs[sandbox.LANDLOCK] = landlockAllowArgs
 			log.Infof("executing %v", cmdargs)
-			err = sandbox.ExecuteCommand(sandboxCfg, allowRules, cmdargs)
+			err = sandbox.ExecuteCommand(sandboxCfg, allowArgs, cmdargs)
 			// Normally the process is replaced, we won't get there
 			log.Errorf("Failed to execute command: %v", err)
 			os.Exit(2)
@@ -49,7 +52,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_SANDBOX_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVar(&configPath, "config", "", "Set configuration file location")
 	// not split by
-	command.Flags().StringArrayVar(&allowRules, "allow", []string{}, "allow access to a resource")
+	command.Flags().StringArrayVar(&landlockAllowArgs, "landlock-allow", []string{}, "allow access to a resource using the Landlock module")
 	command.Flags().StringSliceVar(&useImplementations, "impl", []string{}, "Use sandbox implementations")
 	command.MarkFlagRequired("config")
 	return &command
