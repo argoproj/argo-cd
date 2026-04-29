@@ -324,37 +324,11 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		// Get changed files only for authenticated webhooks.
 		// When WebhookBitbucketServerSecret is set, webhook requests are validated before processing.
 		if a.settings.GetWebhookBitbucketServerSecret() != "" && httpCloneURL != "" {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			argoRepo, err := a.lookupRepository(ctx, httpCloneURL)
+			bbFiles, headTouched, err := a.fetchBBServerChangedFiles(httpCloneURL, payload.Repository.Project.Key, payload.Repository.Slug, change.shaBefore, change.shaAfter, revision)
 			if err != nil {
-				log.Warnf("error trying to find a matching repo for URL %s: %v", httpCloneURL, err)
-				break
-			}
-			if argoRepo == nil {
-				log.Debugf("no Bitbucket Server repository configured for URL %s, skipping changed files fetch", httpCloneURL)
-				break
-			}
-			serverURL, err := extractBBServerBaseURL(httpCloneURL)
-			if err != nil {
-				log.Warnf("error extracting Bitbucket Server base URL from %s: %v", httpCloneURL, err)
-				break
-			}
-			bbClient := newBitbucketServerClient(ctx, argoRepo, serverURL)
-			log.Debugf("created Bitbucket Server client with base URL '%s'", serverURL)
-			projectKey := payload.Repository.Project.Key
-			repoSlug := payload.Repository.Slug
-			bbServerChangedFiles, err := fetchChangesFromBitbucketServer(bbClient, projectKey, repoSlug, change.shaBefore, change.shaAfter)
-			if err != nil {
-				log.Warnf("error fetching changed files from Bitbucket Server: %v", err)
+				log.Warnf("error fetching Bitbucket Server changed files: %v", err)
 			} else {
-				changedFiles = append(changedFiles, bbServerChangedFiles...)
-			}
-			headTouched, err := isBBServerHeadTouched(bbClient, projectKey, repoSlug, revision)
-			if err != nil {
-				log.Warnf("error fetching Bitbucket Server default branch: %v", err)
-				// touchedHead remains true as a safe default
-			} else {
+				changedFiles = append(changedFiles, bbFiles...)
 				touchedHead = headTouched
 			}
 		}
@@ -731,6 +705,51 @@ func isHeadTouched(ctx context.Context, bbClient *bb.Client, owner, repoSlug, re
 	return bbRepo.Mainbranch.Name == revision, nil
 }
 
+// bbServerAPITimeout is the timeout for outbound Bitbucket Server REST API calls made during
+// webhook processing. It matches the analogous timeout used for Bitbucket Cloud API calls.
+// 10 seconds gives enough headroom for a single paginated sequence of /changes requests while
+// keeping the overall webhook handler responsive.
+const bbServerAPITimeout = 10 * time.Second
+
+// fetchBBServerChangedFiles calls the Bitbucket Server REST API to obtain the set of changed
+// files and whether the push touched the repository's default branch. The context (and its
+// cancel) are fully contained inside this function so they are never leaked via a deferred
+// cancel on the caller's stack.
+func (a *ArgoCDWebhookHandler) fetchBBServerChangedFiles(httpCloneURL, projectKey, repoSlug, fromHash, toHash, revision string) ([]string, bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), bbServerAPITimeout)
+	defer cancel()
+
+	argoRepo, err := a.lookupRepository(ctx, httpCloneURL)
+	if err != nil {
+		return nil, true, fmt.Errorf("error looking up repository for URL %s: %w", httpCloneURL, err)
+	}
+	if argoRepo == nil {
+		log.Debugf("no Bitbucket Server repository configured for URL %s, skipping changed files fetch", httpCloneURL)
+		return nil, true, nil
+	}
+	serverURL, err := extractBBServerBaseURL(httpCloneURL)
+	if err != nil {
+		return nil, true, fmt.Errorf("error extracting Bitbucket Server base URL from %s: %w", httpCloneURL, err)
+	}
+	bbClient := newBitbucketServerClient(ctx, argoRepo, serverURL)
+	log.Debugf("created Bitbucket Server client with base URL '%s'", serverURL)
+
+	changedFiles, err := fetchChangesFromBitbucketServer(bbClient, projectKey, repoSlug, fromHash, toHash)
+	if err != nil {
+		log.Warnf("error fetching changed files from Bitbucket Server: %v", err)
+		changedFiles = nil
+	}
+	// Default to true (safe fallback) if the API call fails.
+	touchedHead := true
+	headTouched, err := isBBServerHeadTouched(bbClient, projectKey, repoSlug, revision)
+	if err != nil {
+		log.Warnf("error fetching Bitbucket Server default branch: %v", err)
+	} else {
+		touchedHead = headTouched
+	}
+	return changedFiles, touchedHead, nil
+}
+
 // extractBBServerBaseURL extracts the scheme and host from a Bitbucket Server clone URL.
 // For example, "https://bitbucketserver/scm/project/repo.git" returns "https://bitbucketserver".
 func extractBBServerBaseURL(cloneURL string) (string, error) {
@@ -768,33 +787,46 @@ func newBitbucketServerClient(ctx context.Context, repository *v1alpha1.Reposito
 // by calling the Bitbucket Server changes REST API.
 func fetchChangesFromBitbucketServer(client *bitbucketv1.APIClient, projectKey, repoSlug, fromHash, toHash string) ([]string, error) {
 	log.Debugf("invoking Bitbucket Server changes call: [ProjectKey:%s, RepoSlug:%s, since:%s, until:%s]", projectKey, repoSlug, fromHash, toHash)
-	opts := map[string]any{
-		"since": fromHash,
-		"until": toHash,
-	}
-	resp, err := client.DefaultApi.GetChanges(projectKey, repoSlug, opts)
-	if err != nil {
-		return nil, fmt.Errorf("error fetching changes from Bitbucket Server: %w", err)
-	}
-	values, ok := resp.Values["values"].([]any)
-	if !ok {
-		return []string{}, nil
-	}
-	changedFiles := make([]string, 0, len(values))
-	for _, v := range values {
-		entry, ok := v.(map[string]any)
+	var changedFiles []string
+	start := 0
+	for {
+		opts := map[string]any{
+			"since": fromHash,
+			"until": toHash,
+			"start": start,
+		}
+		resp, err := client.DefaultApi.GetChanges(projectKey, repoSlug, opts)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching changes from Bitbucket Server: %w", err)
+		}
+		values, ok := resp.Values["values"].([]any)
 		if !ok {
-			continue
+			break
 		}
-		pathObj, ok := entry["path"].(map[string]any)
+		for _, v := range values {
+			entry, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
+			pathObj, ok := entry["path"].(map[string]any)
+			if !ok {
+				continue
+			}
+			filePath, ok := pathObj["toString"].(string)
+			if !ok || filePath == "" {
+				continue
+			}
+			changedFiles = append(changedFiles, filePath)
+		}
+		isLastPage, _ := resp.Values["isLastPage"].(bool)
+		if isLastPage {
+			break
+		}
+		nextStart, ok := resp.Values["nextPageStart"].(float64)
 		if !ok {
-			continue
+			break
 		}
-		filePath, ok := pathObj["toString"].(string)
-		if !ok || filePath == "" {
-			continue
-		}
-		changedFiles = append(changedFiles, filePath)
+		start = int(nextStart)
 	}
 	log.Debugf("Bitbucket Server changed files: %v", changedFiles)
 	return changedFiles, nil
