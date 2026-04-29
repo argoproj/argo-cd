@@ -39,7 +39,7 @@ export function Login(props: RouteComponentProps<{}>) {
         if (authSettings.ssoAutoLogin && ssoReady) {
             window.location.href = `auth/login?return_url=${encodeURIComponent(returnUrl)}`;
         }
-    }, [authSettings]);
+    }, [authSettings, hasSsoLoginError, returnUrl]);
 
     const login = async (username: string, password: string, returnURL: string) => {
         try {
