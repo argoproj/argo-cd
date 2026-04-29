@@ -2638,22 +2638,10 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 }
 
 func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
-	gitClient, err := s.newClient(q.Repo, git.WithCache(s.cache, true))
-	if err != nil {
-		return nil, fmt.Errorf("error initializing git client: %w", err)
-	}
-	// Resolve the revision to a commit SHA if it's not already a SHA.
-	commitSHA := ""
 	if !git.IsCommitSHA(q.Revision) && !git.IsTruncatedCommitSHA(q.Revision) {
-		commitSHA, err = gitClient.LsRemote(q.Revision)
-		if err != nil {
-			return nil, fmt.Errorf("error resolving revision to commit SHA: %w", err)
-		}
-	} else {
-		commitSHA = q.Revision
+		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
 	}
-
-	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, commitSHA)
+	metadata, err := s.cache.GetRevisionMetadata(q.Repo.Repo, q.Revision)
 	if err == nil {
 		// The logic here is that if a signature check on metadata is requested,
 		// but there is none in the cache, we handle as if we have a cache miss
@@ -2661,26 +2649,31 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 		// in the metadata, but none was requested, we remove it from the data
 		// that we return.
 		if !q.CheckSignature || metadata.SignatureInfo != "" {
-			log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, commitSHA)
+			log.Infof("revision metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)
 			if !q.CheckSignature {
 				metadata.SignatureInfo = ""
 			}
 			return metadata, nil
 		}
-		log.Infof("revision metadata cache hit, but need to regenerate due to missing signature info: %s/%s", q.Repo.Repo, commitSHA)
+		log.Infof("revision metadata cache hit, but need to regenerate due to missing signature info: %s/%s", q.Repo.Repo, q.Revision)
 	} else {
 		if !errors.Is(err, cache.ErrCacheMiss) {
-			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, commitSHA, err)
+			log.Warnf("revision metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
 		} else {
-			log.Infof("revision metadata cache miss: %s/%s", q.Repo.Repo, commitSHA)
+			log.Infof("revision metadata cache miss: %s/%s", q.Repo.Repo, q.Revision)
 		}
+	}
+
+	gitClient, _, err := s.newClientResolveRevision(q.Repo, q.Revision)
+	if err != nil {
+		return nil, err
 	}
 
 	s.metricsServer.IncPendingRepoRequest(q.Repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
-	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
+	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func(clean bool) (goio.Closer, error) {
+		return s.checkoutRevision(gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
@@ -2688,7 +2681,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 
 	defer utilio.Close(closer)
 
-	m, err := gitClient.RevisionMetadata(commitSHA)
+	m, err := gitClient.RevisionMetadata(q.Revision)
 	if err != nil {
 		return nil, err
 	}
@@ -2696,9 +2689,9 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	// Run gpg verify-commit on the revision
 	signatureInfo := ""
 	if gpg.IsGPGEnabled() && q.CheckSignature {
-		cs, err := gitClient.VerifyCommitSignature(commitSHA)
+		cs, err := gitClient.VerifyCommitSignature(q.Revision)
 		if err != nil {
-			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", commitSHA, q.Repo.Repo, err)
+			log.Errorf("error verifying signature of commit '%s' in repo '%s': %v", q.Revision, q.Repo.Repo, err)
 			return nil, err
 		}
 
@@ -2731,8 +2724,8 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 			},
 		}
 	}
-	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: &metav1.Time{Time: m.Date}, Tags: m.Tags, Message: m.Message, SignatureInfo: signatureInfo, References: relatedRevisions, SHA: commitSHA}
-	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, commitSHA, metadata)
+	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: &metav1.Time{Time: m.Date}, Tags: m.Tags, Message: m.Message, SignatureInfo: signatureInfo, References: relatedRevisions}
+	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
 	return metadata, nil
 }
 
