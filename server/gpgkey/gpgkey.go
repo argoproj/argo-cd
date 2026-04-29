@@ -27,7 +27,7 @@ func NewServer(db db.ArgoDB, enf *rbac.Enforcer) *Server {
 	}
 }
 
-// ListGnuPGPublicKeys returns a list of GnuPG public keys in the configuration
+// List a list of GnuPG public keys in the configuration
 func (s *Server) List(ctx context.Context, _ *gpgkeypkg.GnuPGPublicKeyQuery) (*appsv1.GnuPGPublicKeyList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceGPGKeys, rbac.ActionGet, ""); err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func (s *Server) List(ctx context.Context, _ *gpgkeypkg.GnuPGPublicKeyQuery) (*a
 	return keyList, nil
 }
 
-// GetGnuPGPublicKey retrieves a single GPG public key from the configuration
+// Get retrieves a single GPG public key from the configuration
 func (s *Server) Get(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*appsv1.GnuPGPublicKey, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceGPGKeys, rbac.ActionGet, ""); err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func (s *Server) Create(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyCreateRe
 	return response, nil
 }
 
-// DeleteGnuPGPublicKey removes a single GPG public key from the server's configuration
+// Delete removes a single GPG public key from the server's configuration
 func (s *Server) Delete(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*gpgkeypkg.GnuPGPublicKeyResponse, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceGPGKeys, rbac.ActionDelete, ""); err != nil {
 		return nil, err
