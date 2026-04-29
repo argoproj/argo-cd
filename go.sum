@@ -115,6 +115,8 @@ github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kd
 github.com/appscode/go v0.0.0-20191119085241-0887d8ec2ecc/go.mod h1:OawnOmAL4ZX3YaPdN+8HTNwBveT1jMsqP74moa9XUbE=
 github.com/argoproj/notifications-engine v0.5.1-0.20260213231747-1dbe3de712f8 h1:OGoe2RFv1wuhxHrFcdAC/VW+5HUkRI+1/zf3RGR5LnY=
 github.com/argoproj/notifications-engine v0.5.1-0.20260213231747-1dbe3de712f8/go.mod h1:zz+4OVgqmyD0T5whLAPO6k5BGLSop4j32BKHSAe80tM=
+github.com/argoproj/notifications-engine v0.5.1-0.20260407092541-148c9a97b94a h1:WyTs6MDUF/SMTzBm6QkqCU0iUUtkvdSB1BHy3fczrOs=
+github.com/argoproj/notifications-engine v0.5.1-0.20260407092541-148c9a97b94a/go.mod h1:W5AoOpZIgfnEZwkhJSwhcCoaqZVShSiKXVLHw5tRMYc=
 github.com/argoproj/pkg/v2 v2.0.1 h1:O/gCETzB/3+/hyFL/7d/VM/6pSOIRWIiBOTb2xqAHvc=
 github.com/argoproj/pkg/v2 v2.0.1/go.mod h1:sdifF6sUTx9ifs38ZaiNMRJuMpSCBB9GulHfbPgQeRE=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
