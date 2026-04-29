@@ -216,7 +216,10 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			return nil, fmt.Errorf("error initializing Azure Devops service: %w", err)
 		}
 	case providerConfig.Bitbucket != nil:
-		if providerConfig.Bitbucket.BearerToken != nil {
+		switch {
+		case providerConfig.Bitbucket.BearerToken != nil && providerConfig.Bitbucket.AppPasswordRef != nil:
+			return nil, errors.New("bitbucket scm provider bearerToken and appPasswordRef are mutually exclusive")
+		case providerConfig.Bitbucket.BearerToken != nil:
 			token, err := utils.GetSecretRef(ctx, g.client, providerConfig.Bitbucket.BearerToken.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Bitbucket cloud bearer token: %w", err)
@@ -225,7 +228,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			if err != nil {
 				return nil, fmt.Errorf("error initializing Bitbucket cloud service: %w", err)
 			}
-		} else {
+		case providerConfig.Bitbucket.AppPasswordRef != nil:
 			appPassword, err := utils.GetSecretRef(ctx, g.client, providerConfig.Bitbucket.AppPasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Bitbucket cloud appPassword: %w", err)
@@ -234,6 +237,8 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			if err != nil {
 				return nil, fmt.Errorf("error initializing Bitbucket cloud service: %w", err)
 			}
+		default:
+			return nil, errors.New("bitbucket scm provider requires either bearerToken or appPasswordRef")
 		}
 	case providerConfig.AWSCodeCommit != nil:
 		var awsErr error
