@@ -2493,20 +2493,30 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 }
 
 func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.OCIMetadata, error) {
+	metadata, err := s.cache.GetOCIMetadata(q.Repo.Repo, q.Revision)
+	if err == nil {
+		log.Infof("oci metadata cache hit: %s/%s", q.Repo.Repo, q.Revision)
+		return metadata, nil
+	}
+	if errors.Is(err, cache.ErrCacheMiss) {
+		log.Infof("oci metadata cache miss: %s/%s", q.Repo.Repo, q.Revision)
+	} else {
+		log.Warnf("oci metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
+	}
+
 	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize oci client: %w", err)
 	}
 
-	metadata, err := client.DigestMetadata(ctx, q.Revision)
+	manifest, err := client.DigestMetadata(ctx, q.Revision)
 	if err != nil {
 		s.metricsServer.IncOCIDigestMetadataCounter(q.Repo.Repo, q.Revision)
 		return nil, fmt.Errorf("failed to extract digest metadata for revision %q: %w", q.Revision, err)
 	}
 
-	a := metadata.Annotations
-
-	return &v1alpha1.OCIMetadata{
+	a := manifest.Annotations
+	metadata = &v1alpha1.OCIMetadata{
 		CreatedAt: a["org.opencontainers.image.created"],
 		Authors:   a["org.opencontainers.image.authors"],
 		// TODO: add this field at a later stage
@@ -2515,7 +2525,9 @@ func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRev
 		SourceURL:   a["org.opencontainers.image.source"],
 		Version:     a["org.opencontainers.image.version"],
 		Description: a["org.opencontainers.image.description"],
-	}, nil
+	}
+	_ = s.cache.SetOCIMetadata(q.Repo.Repo, q.Revision, metadata)
+	return metadata, nil
 }
 
 // GetRevisionChartDetails returns the helm chart details of a given version
